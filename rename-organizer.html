@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Renommer Mototeam95 en MT95 — Carnet de Piste</title>
+<style>
+  body { font: 15px -apple-system, sans-serif; max-width: 640px; margin: 3rem auto; padding: 0 1rem; color: #16212c; }
+  button { font-size: 1rem; padding: 0.6rem 1.2rem; cursor: pointer; }
+  #log { white-space: pre-wrap; background: #f2f2f2; padding: 1rem; margin-top: 1rem; font-family: monospace; font-size: 0.85rem; max-height: 400px; overflow: auto; }
+</style>
+</head>
+<body>
+<h1>Renommer "Mototeam95" en "MT95"</h1>
+<p>Corrige le champ organisateur sur toutes les sorties et tous les circuits déjà enregistrés. Sans danger à relancer — ne touche que les documents qui contiennent encore l'ancien nom.</p>
+<button id="go">Lancer le renommage</button>
+<div id="log"></div>
+
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore-compat.js"></script>
+<script src="firebase-config.js"></script>
+<script>
+  var logEl = document.getElementById('log');
+  function log(msg) { logEl.textContent += msg + '\n'; }
+
+  function fixOrganizer(name) {
+    return name.replace(/Mototeam ?95|MotoTeam ?95/g, 'MT95');
+  }
+
+  document.getElementById('go').addEventListener('click', function () {
+    document.getElementById('go').disabled = true;
+    var db = firebase.firestore();
+    var auth = firebase.auth();
+    log('Connexion...');
+    auth.signInAnonymously().then(function () {
+      log('Connecté. Recherche des documents à corriger...');
+      return Promise.all([db.collection('events').get(), db.collection('circuits').get()]);
+    }).then(function (results) {
+      var batch = db.batch();
+      var count = 0;
+      results.forEach(function (snap, i) {
+        var coll = i === 0 ? 'events' : 'circuits';
+        snap.forEach(function (doc) {
+          var data = doc.data();
+          if (data.organizer && /Mototeam ?95|MotoTeam ?95/.test(data.organizer)) {
+            batch.update(db.collection(coll).doc(doc.id), { organizer: fixOrganizer(data.organizer) });
+            count++;
+            log('  ' + coll + '/' + doc.id + ': "' + data.organizer + '" -> "' + fixOrganizer(data.organizer) + '"');
+          }
+        });
+      });
+      if (!count) {
+        log('Rien à corriger.');
+        return null;
+      }
+      log('Mise à jour de ' + count + ' document(s)...');
+      return batch.commit();
+    }).then(function (result) {
+      if (result !== null) log('Terminé.');
+    }).catch(function (err) {
+      log('ERREUR : ' + (err && err.message ? err.message : err));
+    });
+  });
+</script>
+</body>
+</html>

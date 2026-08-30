@@ -308,15 +308,6 @@
     return (ev && ev.riderGroups && ev.riderGroups[rider] && ev.riderGroups[rider][date] && ev.riderGroups[rider][date][slot]) || '';
   }
 
-  function renderHorairesRow(horaires) {
-    var parts = (horaires && typeof horaires === 'object')
-      ? HORAIRES_GROUPS.filter(function (g) { return horaires[g.key]; }).map(function (g) {
-          return '<span class="horaires-line"><span class="horaires-group-label">' + escapeHtml(g.label) + '</span> ' + escapeHtml(horaires[g.key]) + '</span>';
-        })
-      : [];
-    return infoRow('Horaires', parts.length ? parts.join('') : '—');
-  }
-
   function normalizeSelection() {
     var circuits = allCircuits();
     if (!circuits.length) {
@@ -1161,7 +1152,6 @@
     html += infoRow('Virages (D / G)', turnsHtml);
     html += infoRow('Organisateur habituel', info.organizer ? escapeHtml(info.organizer) : '—');
     if (info.briefing) html += infoRow('Briefing', escapeHtml(info.briefing));
-    html += renderHorairesRow(info.horaires);
     var lastEvent = (lastSession && lastSession.eventId) ? eventsList().filter(function (e) { return e.id === lastSession.eventId; })[0] : null;
     var lastOutingText = lastSession ? (escapeHtml(formatDate(lastSession.date)) + ' — ' + formatTime(sessionBest(lastSession))) : '—';
     html += infoRow('Dernière sortie', lastEvent
@@ -1188,7 +1178,7 @@
     html += '<div><label for="ci-km">Distance (km)</label><input type="text" inputmode="decimal" id="ci-km" value="' + (info.km != null ? escapeHtml(String(info.km)) : '') + '" placeholder="Ex. 4.2"></div>';
     html += '<div><label for="ci-right">Virages à droite</label><input type="text" inputmode="numeric" id="ci-right" value="' + (info.turnsRight != null ? escapeHtml(String(info.turnsRight)) : '') + '" placeholder="Ex. 9"></div>';
     html += '<div><label for="ci-left">Virages à gauche</label><input type="text" inputmode="numeric" id="ci-left" value="' + (info.turnsLeft != null ? escapeHtml(String(info.turnsLeft)) : '') + '" placeholder="Ex. 5"></div>';
-    html += '<div><label for="ci-organizer">Organisateur habituel</label><input type="text" id="ci-organizer" value="' + escapeHtml(info.organizer || '') + '" placeholder="Ex. MotoTeam95"></div>';
+    html += '<div><label for="ci-organizer">Organisateur habituel</label><input type="text" id="ci-organizer" value="' + escapeHtml(info.organizer || '') + '" placeholder="Ex. MT95"</div>';
     html += '<div><label for="ci-briefing">Briefing</label><input type="text" id="ci-briefing" value="' + escapeHtml(info.briefing || '') + '" placeholder="Ex. 8h15"></div>';
     html += '</div>';
     // These usual times pre-remplissent automatiquement une nouvelle sortie
@@ -2342,8 +2332,8 @@
   // end of Circuit, since it was always about the currently active circuit
   // anyway. See renderCircuitTab().
   var MAIN_TABS = [
-    ['planning', 'Planning'],
     ['event', 'Événements'],
+    ['planning', 'Planning'],
     ['circuit', 'Chronos'],
     ['stats', 'Stats']
   ];
@@ -2661,6 +2651,21 @@
   // up or down at the lunch break (matin vs après-midi) or overnight (a
   // fresh choice each day), so this renders one Matin/Après-midi pair of
   // selects per rider per day rather than a single group for the event.
+  // "Marc (A), Xavier (B)" -- each rider's day-1 group, as a quick-glance
+  // summary for Événements. The full breakdown (which can differ by day or
+  // by matin/après-midi) is only in Planning's renderRiderGroupsSection().
+  function riderStartGroupsSummary(ev) {
+    if (!ev.riders || !ev.riders.length) return '';
+    var dates = datesInRange(ev.dateStart, ev.dateEnd);
+    if (!dates.length) return '';
+    var parts = [];
+    ev.riders.forEach(function (rider) {
+      var group = riderGroupFor(ev, rider, dates[0], 'matin') || riderGroupFor(ev, rider, dates[0], 'apres-midi');
+      parts.push(escapeHtml(rider) + (group ? ' (' + escapeHtml(group) + ')' : ''));
+    });
+    return parts.join(', ');
+  }
+
   function renderRiderGroupsSection(ev) {
     if (!ev.riders || !ev.riders.length) return '';
     var dates = datesInRange(ev.dateStart, ev.dateEnd);
@@ -2737,14 +2742,31 @@
   // currently within its start/end range, and only am/pm slots that are
   // actually set. Returns null instead of an empty object so a sortie
   // with no groups assigned doesn't carry a pointless riderGroups: {}.
-  function draftRiderGroupsFor(riders, dateStart, dateEnd) {
+  // existingRiderGroups (the sortie's current riderGroups, when editing one)
+  // is carried forward untouched for any rider who already has real
+  // per-day/période assignments -- those are fine-tuned in Planning and a
+  // sortie edit (changing the date, the note, ...) shouldn't collapse them
+  // back to a single uniform group. The "groupe de départ" dropdown only
+  // seeds a rider who doesn't have any assignment yet.
+  function draftRiderGroupsFor(riders, dateStart, dateEnd, existingRiderGroups) {
     var dates = datesInRange(dateStart, dateEnd);
+    var merged = {};
+    riders.forEach(function (rider) {
+      var existing = (existingRiderGroups || {})[rider];
+      if (existing && Object.keys(existing).length) {
+        merged[rider] = existing;
+        return;
+      }
+      var startGroup = eventFormDraftGroups[rider] && eventFormDraftGroups[rider].start;
+      if (!startGroup) return;
+      merged[rider] = {};
+      dates.forEach(function (date) { merged[rider][date] = { am: startGroup, pm: startGroup }; });
+    });
     var out = {};
     riders.forEach(function (rider) {
-      var src = eventFormDraftGroups[rider];
-      if (!src) return;
+      if (!merged[rider]) return;
       dates.forEach(function (date) {
-        var slot = src[date];
+        var slot = merged[rider][date];
         if (!slot) return;
         var clean = {};
         if (slot.am) clean.am = slot.am;
@@ -2765,13 +2787,15 @@
     html += infoRow('Circuit', escapeHtml(ev.circuit));
     html += infoRow('Dates', escapeHtml(formatEventRange(ev, true)));
     html += infoRow('Organisateur', ev.organizer ? escapeHtml(ev.organizer) : '—');
-    html += renderHorairesRow(ev.horaires);
     if (ev.riders && ev.riders.length) html += infoRow('Pilotes', escapeHtml(ev.riders.join(', ')));
+    // Just the starting group here, for a quick glance -- the full day-by-
+    // jour/matin-après-midi breakdown (and the ability to change it) lives
+    // in the Planning tab, so Événements stays simple and informative.
+    if (!opts.hideGroups) {
+      var groupsSummary = riderStartGroupsSummary(ev);
+      if (groupsSummary) html += infoRow('Groupes', groupsSummary);
+    }
     if (ev.note) html += infoRow('Note', escapeHtml(ev.note));
-    // The global rider selector at the top already conditions the Calendrier
-    // view -- the per-rider group grid is redundant clutter there, so it
-    // only shows in the Événement tab's résumé.
-    if (!opts.hideGroups) html += renderRiderGroupsSection(ev);
     // The circuit's own interactive map, so the annotated track is one tap
     // away from the sortie it belongs to, not just reachable from Circuit.
     html += '<div class="event-circuit-map"><div class="event-checklist-title">Carte du circuit</div>' + renderCircuitVisual(circuitInfo(ev.circuit)) + '</div>';
@@ -2980,11 +3004,7 @@
     }
     var ev = target.ev, isOngoing = target.mode === 'ongoing';
     var info = circuitInfo(ev.circuit);
-    // This specific sortie's own horaires (typed on the Événement form)
-    // win over the circuit's usual template -- an organizer sometimes
-    // shifts the day's schedule, and that's what riders actually need
-    // "dans les box", not the generic default.
-    var horaires = ev.horaires || info.horaires;
+    var horaires = info.horaires;
 
     var html = '<div class="card today-schedule-card">';
     html += '<div class="eyebrow">' + (isOngoing ? 'En ce moment — ' : 'Prochaine sortie — ') + escapeHtml(ev.circuit) + '</div>';
@@ -2993,11 +3013,14 @@
     if (info.organizer) sub.push('Organisateur ' + escapeHtml(info.organizer));
     if (info.briefing) sub.push('Briefing ' + escapeHtml(info.briefing));
     if (sub.length) html += '<div class="help-text">' + sub.join(' · ') + '</div>';
+    if (horaires && horaires.pause) {
+      html += '<div class="planning-pause">Pause déj. ' + escapeHtml(horaires.pause) + '</div>';
+    }
 
     var availableGroups = horaires ? HORAIRES_GROUPS.filter(function (g) { return g.key !== 'pause' && horaires[g.key]; }) : [];
     if (!availableGroups.length) {
-      html += '<div class="help-text">Aucun horaire enregistré pour ' + escapeHtml(ev.circuit) + ' — ajoutez-les depuis cette sortie ou l\'onglet Circuit (Modifier les infos).</div>';
-      return html + '</div>';
+      html += '<div class="help-text">Aucun horaire enregistré pour ' + escapeHtml(ev.circuit) + ' — ajoutez-les depuis l\'onglet Circuit (Modifier les infos).</div>';
+      return html + renderRiderGroupsSection(ev) + '</div>';
     }
 
     var activeKeys = (planningGroupFilter && planningGroupFilter.length)
@@ -3005,6 +3028,7 @@
       : availableGroups.map(function (g) { return g.key; });
     if (!activeKeys.length) activeKeys = availableGroups.map(function (g) { return g.key; });
 
+    html += '<div id="planning-countdown" class="planning-countdown"></div>';
     html += '<div class="planning-group-filter">';
     availableGroups.forEach(function (g) {
       var checked = activeKeys.indexOf(g.key) !== -1;
@@ -3012,16 +3036,19 @@
     });
     html += '</div>';
     html += renderHoraireGroups(horaires, activeKeys);
+    html += renderRiderGroupsSection(ev);
     return html + '</div>';
   }
 
   function updateLiveClock() {
     var clockEl = document.getElementById('live-clock');
-    if (!clockEl) return;
-    var now = new Date();
-    clockEl.textContent = pad2(now.getHours()) + 'h' + pad2(now.getMinutes());
-    var nowMinutes = now.getHours() * 60 + now.getMinutes();
+    if (clockEl) {
+      var now = new Date();
+      clockEl.textContent = pad2(now.getHours()) + 'h' + pad2(now.getMinutes());
+    }
+    var nowMinutes = new Date().getHours() * 60 + new Date().getMinutes();
     var seenNext = false;
+    var nextStart = null;
     document.querySelectorAll('[data-slot-start]').forEach(function (el) {
       var start = parseInt(el.getAttribute('data-slot-start'), 10);
       var end = parseInt(el.getAttribute('data-slot-end'), 10);
@@ -3030,10 +3057,20 @@
         el.classList.add('slot-current');
       } else if (nowMinutes < start) {
         if (!seenNext) { el.classList.add('slot-next'); seenNext = true; }
+        if (nextStart == null || start < nextStart) nextStart = start;
       } else {
         el.classList.add('slot-past');
       }
     });
+    var countdownEl = document.getElementById('planning-countdown');
+    if (countdownEl) {
+      if (nextStart == null) {
+        countdownEl.textContent = '';
+      } else {
+        var diff = nextStart - nowMinutes;
+        countdownEl.textContent = 'Prochaine session dans ' + (diff >= 60 ? (Math.floor(diff / 60) + 'h' + pad2(diff % 60)) : (diff + ' min'));
+      }
+    }
   }
 
   // Same grid as renderRiderGroupsSection (Matin/Après-midi per rider per
@@ -3041,12 +3078,14 @@
   // in-memory draft instead of a saved event's ev.riderGroups -- riders and
   // dates typed into the form aren't a real sortie yet, so there's nothing
   // to key setRiderGroup() off of until Enregistrer is pressed.
-  function renderEventFormGroupsGrid(riders, dateStart, dateEnd) {
-    if (!riders.length) return '<div class="help-text">Ajoutez au moins un pilote pour lui assigner un groupe.</div>';
-    if (!dateStart) return '<div class="help-text">Renseignez la date de début pour assigner les groupes.</div>';
-    var dates = datesInRange(dateStart, dateEnd || dateStart);
-    if (!dates.length) return '';
-    var showDateLabel = dates.length > 1;
+  // Just one "groupe de départ" per rider here -- the day-by-day/matin-
+  // après-midi breakdown (which can differ if someone switches group at
+  // lunch, or from one day to the next) is edited in the Planning tab
+  // instead, on the saved sortie. This starting group only seeds that
+  // breakdown uniformly when the sortie is created/saved (see
+  // draftRiderGroupsFor); it doesn't try to represent it in full.
+  function renderEventFormGroupsGrid(riders) {
+    if (!riders.length) return '<div class="help-text">Ajoutez au moins un pilote pour lui assigner un groupe de départ.</div>';
     var groupOptions = function (current) {
       var opts = '<option value=""' + (!current ? ' selected' : '') + '>—</option>';
       GROUP_LETTERS.forEach(function (g) {
@@ -3054,79 +3093,36 @@
       });
       return opts;
     };
-    var html = '';
-    if (riders.length > 1) {
-      html += '<label class="rider-group-common"><span>Groupe commun à tous les pilotes</span><select data-form-common-group>' +
-        '<option value="" selected>— Choisir pour appliquer à tous —</option>' +
-        GROUP_LETTERS.map(function (g) { return '<option value="' + g + '">' + g + '</option>'; }).join('') +
-        '</select></label>';
-    }
-    dates.forEach(function (date) {
-      if (showDateLabel) html += '<div class="rider-groups-date-label">' + escapeHtml(formatDate(date)) + '</div>';
-      riders.forEach(function (rider) {
-        var slot = (eventFormDraftGroups[rider] && eventFormDraftGroups[rider][date]) || {};
-        html += '<div class="rider-group-row">';
-        html += '<span class="rider-group-name">' + escapeHtml(rider) + '</span>';
-        html += '<label class="rider-group-field">Matin <select data-form-rider-group data-rider="' + escapeHtml(rider) + '" data-date="' + date + '" data-period="am">' + groupOptions(slot.am || '') + '</select></label>';
-        html += '<label class="rider-group-field">Après-midi <select data-form-rider-group data-rider="' + escapeHtml(rider) + '" data-date="' + date + '" data-period="pm">' + groupOptions(slot.pm || '') + '</select></label>';
-        html += '</div>';
-      });
+    var html = '<div class="rider-start-groups">';
+    riders.forEach(function (rider) {
+      var current = (eventFormDraftGroups[rider] && eventFormDraftGroups[rider].start) || '';
+      html += '<label class="rider-group-field"><span class="rider-group-name">' + escapeHtml(rider) + '</span>' +
+        '<select data-form-start-group data-rider="' + escapeHtml(rider) + '">' + groupOptions(current) + '</select></label>';
     });
+    html += '</div>';
     return html;
   }
 
-  // Reads the riders/dates currently typed into the open form and
-  // regenerates just the groups grid from the draft -- called whenever
-  // those fields change, without touching (or losing in-progress input in)
-  // the rest of the form.
+  // Reads the riders currently typed into the open form and regenerates
+  // just the groups grid from the draft -- called whenever that field
+  // changes, without touching (or losing in-progress input in) the rest
+  // of the form.
   function refreshEventFormGroups() {
     var grid = document.getElementById('ev-groups-grid');
     if (!grid) return;
     var ridersEl = document.getElementById('ev-riders');
     var riders = ridersEl ? ridersEl.value.split(',').map(function (r) { return r.trim(); }).filter(Boolean) : [];
-    var dateStartEl = document.getElementById('ev-date-start');
-    var dateEndEl = document.getElementById('ev-date-end');
-    var dateStartIso = dateStartEl ? frDateToIso(dateStartEl.value) : '';
-    var dateEndIso = dateEndEl ? frDateToIso(dateEndEl.value) : '';
-    grid.innerHTML = renderEventFormGroupsGrid(riders, dateStartIso || '', dateEndIso || '');
+    grid.innerHTML = renderEventFormGroupsGrid(riders);
     attachEventFormGroupHandlers();
   }
 
   function attachEventFormGroupHandlers() {
-    document.querySelectorAll('#ev-groups-grid select[data-form-rider-group]').forEach(function (sel) {
+    document.querySelectorAll('#ev-groups-grid select[data-form-start-group]').forEach(function (sel) {
       sel.addEventListener('change', function () {
         var rider = sel.getAttribute('data-rider');
-        var date = sel.getAttribute('data-date');
-        var period = sel.getAttribute('data-period');
-        eventFormDraftGroups[rider] = eventFormDraftGroups[rider] || {};
-        eventFormDraftGroups[rider][date] = eventFormDraftGroups[rider][date] || {};
-        if (sel.value) eventFormDraftGroups[rider][date][period] = sel.value;
-        else delete eventFormDraftGroups[rider][date][period];
+        eventFormDraftGroups[rider] = sel.value ? { start: sel.value } : {};
       });
     });
-    var commonSel = document.querySelector('#ev-groups-grid select[data-form-common-group]');
-    if (commonSel) {
-      commonSel.addEventListener('change', function () {
-        if (!commonSel.value) return;
-        var group = commonSel.value;
-        var ridersEl = document.getElementById('ev-riders');
-        var riders = ridersEl ? ridersEl.value.split(',').map(function (r) { return r.trim(); }).filter(Boolean) : [];
-        var dateStartEl = document.getElementById('ev-date-start');
-        var dateEndEl = document.getElementById('ev-date-end');
-        var dateStart = dateStartEl ? frDateToIso(dateStartEl.value) : '';
-        var dateEnd = (dateEndEl && frDateToIso(dateEndEl.value)) || dateStart;
-        var dates = datesInRange(dateStart, dateEnd);
-        riders.forEach(function (rider) {
-          eventFormDraftGroups[rider] = eventFormDraftGroups[rider] || {};
-          dates.forEach(function (date) {
-            eventFormDraftGroups[rider][date] = eventFormDraftGroups[rider][date] || {};
-            eventFormDraftGroups[rider][date].am = group;
-            eventFormDraftGroups[rider][date].pm = group;
-          });
-        });
-        refreshEventFormGroups();
-      });
-    }
   }
 
   function renderEventForm() {
@@ -3136,19 +3132,29 @@
     }
     var isNew = editingEventId === 'new';
     var ev = isNew ? { circuit: prefillEventCircuit || '' } : (eventsList().filter(function (e) { return e.id === editingEventId; })[0] || {});
-    // A new sortie starts from its circuit's usual organizer/horaires (set
-    // via Circuit > Modifier les infos) -- the organizer fixes the same
-    // slots every time, so re-typing them per sortie would be pure friction.
+    // A new sortie starts from its circuit's usual organizer (set via
+    // Circuit > Modifier les infos) -- the organizer is normally the same
+    // every time, so re-typing it per sortie would be pure friction.
+    // Horaires themselves aren't edited here at all anymore -- Planning
+    // reads them straight from the circuit.
     if (isNew && ev.circuit) {
       var circuitDefaults = circuitInfo(ev.circuit);
       if (circuitDefaults.organizer) ev.organizer = circuitDefaults.organizer;
-      if (circuitDefaults.horaires) ev.horaires = circuitDefaults.horaires;
     }
-    // The draft starts from the event's already-saved groups when editing
-    // an existing sortie, or empty for a new one -- and only re-seeds when
-    // editingEventId itself changes, so it isn't wiped on every keystroke.
+    // The draft starts from each rider's day-1 group when editing an
+    // existing sortie (just a representative "groupe de départ", not the
+    // full day-by-day breakdown -- that's edited in Planning), or empty
+    // for a new one. Only re-seeds when editingEventId itself changes, so
+    // it isn't wiped on every keystroke.
     if (eventFormDraftGroupsFor !== editingEventId) {
-      eventFormDraftGroups = JSON.parse(JSON.stringify(ev.riderGroups || {}));
+      var seedGroups = {};
+      Object.keys(ev.riderGroups || {}).forEach(function (rider) {
+        var riderDates = Object.keys(ev.riderGroups[rider]).sort();
+        var firstDate = riderDates[0];
+        var start = firstDate && (ev.riderGroups[rider][firstDate].am || ev.riderGroups[rider][firstDate].pm);
+        if (start) seedGroups[rider] = { start: start };
+      });
+      eventFormDraftGroups = seedGroups;
       eventFormDraftGroupsFor = editingEventId;
     }
     var html = '<div class="card">';
@@ -3160,23 +3166,13 @@
       '<datalist id="circuit-options-ev">' + circuitDatalist() + '</datalist></div>';
     html += '<div><label for="ev-date-start">Date de début</label><input type="text" id="ev-date-start" inputmode="numeric" placeholder="JJ/MM/AAAA" value="' + isoToFrDate(ev.dateStart) + '" required></div>';
     html += '<div><label for="ev-date-end">Date de fin (optionnel)</label><input type="text" id="ev-date-end" inputmode="numeric" placeholder="JJ/MM/AAAA" value="' + isoToFrDate(ev.dateEnd) + '"></div>';
-    html += '<div><label for="ev-organizer">Organisateur</label><input type="text" id="ev-organizer" placeholder="Ex. Mototeam95" value="' + escapeHtml(ev.organizer || '') + '"></div>';
+    html += '<div><label for="ev-organizer">Organisateur</label><input type="text" id="ev-organizer" placeholder="Ex. MT95" value="' + escapeHtml(ev.organizer || '') + '"></div>';
     html += '</div>';
-    var horairesVal = (ev.horaires && typeof ev.horaires === 'object') ? ev.horaires : {};
-    html += '<div style="margin-top:0.9rem;"><label>Horaires</label><div class="horaires-grid">';
-    HORAIRES_GROUPS.forEach(function (g) {
-      html += '<div><label for="ev-horaires-' + g.key + '" class="horaires-sublabel">' + escapeHtml(g.label) + '</label>' +
-        '<input type="text" id="ev-horaires-' + g.key + '" placeholder="Ex. 8h-9h30" value="' + escapeHtml(horairesVal[g.key] || '') + '"></div>';
-    });
-    html += '</div></div>';
     html += '<label for="ev-riders" style="margin-top:0.9rem; display:block;">Pilotes (séparés par une virgule)</label>' +
       '<input type="text" id="ev-riders" list="rider-options-ev" placeholder="Ex. Marc, Xavier" value="' + escapeHtml((ev.riders || []).join(', ')) + '">' +
       '<datalist id="rider-options-ev">' + riderDatalist() + '</datalist>';
-    // Only shows once there's at least one rider and a start date -- lets
-    // the rider assign groups right away instead of having to save the
-    // sortie first and come back to it.
-    html += '<div class="event-checklist" style="margin-top:0.9rem;"><div class="event-checklist-title">Groupes par pilote</div><div id="ev-groups-grid">' +
-      renderEventFormGroupsGrid(ev.riders || [], ev.dateStart || '', ev.dateEnd || '') + '</div></div>';
+    html += '<div class="event-checklist" style="margin-top:0.9rem;"><div class="event-checklist-title">Groupe de départ</div><div id="ev-groups-grid">' +
+      renderEventFormGroupsGrid(ev.riders || []) + '</div></div>';
     html += '<div style="margin-top:0.9rem;"><label for="ev-note">Note (optionnel)</label><input type="text" id="ev-note" placeholder="Ex. Inscriptions avant le 1er septembre" value="' + escapeHtml(ev.note || '') + '"></div>';
     html += '<div class="event-checklist" style="margin-top:0.9rem;"><div class="event-checklist-title">Pense-bête</div>';
     CHECKLIST_ITEMS.forEach(function (item) {
@@ -3200,14 +3196,6 @@
     var dateEndRawInput = document.getElementById('ev-date-end').value;
     var dateStart = frDateToIso(dateStartRaw);
     var organizer = document.getElementById('ev-organizer').value.trim();
-    var horaires = {};
-    var anyHoraire = false;
-    HORAIRES_GROUPS.forEach(function (g) {
-      var el = document.getElementById('ev-horaires-' + g.key);
-      var v = el ? el.value.trim() : '';
-      if (v) { horaires[g.key] = v; anyHoraire = true; }
-    });
-    horaires = anyHoraire ? horaires : null;
     var ridersRaw = document.getElementById('ev-riders').value;
     var note = document.getElementById('ev-note').value.trim();
     var errEl = document.getElementById('event-form-error');
@@ -3246,13 +3234,17 @@
     // Trim the form's draft down to riders still in the field and dates
     // still within range -- a rider removed from the field, or a date
     // dropped by shortening the range, shouldn't leave orphaned group data
-    // behind in the saved sortie.
-    var riderGroups = draftRiderGroupsFor(riders, dateStart, dateEnd);
+    // behind in the saved sortie. Existing per-day/période assignments
+    // (fine-tuned in Planning) are carried forward, not reset.
+    var existingForGroups = editingEventId !== 'new'
+      ? (STATE.events.filter(function (e) { return e.id === editingEventId; })[0] || {}).riderGroups
+      : null;
+    var riderGroups = draftRiderGroupsFor(riders, dateStart, dateEnd, existingForGroups);
 
     var prevState = JSON.parse(JSON.stringify(STATE));
     eventsList();
     if (editingEventId === 'new') {
-      var newEvent = { id: genId(), circuit: circuit, dateStart: dateStart, dateEnd: dateEnd, riders: riders, organizer: organizer, horaires: horaires, note: note, checklist: checklist };
+      var newEvent = { id: genId(), circuit: circuit, dateStart: dateStart, dateEnd: dateEnd, riders: riders, organizer: organizer, note: note, checklist: checklist };
       if (riderGroups) newEvent.riderGroups = riderGroups;
       STATE.events.push(newEvent);
       selectedEventId = newEvent.id;
@@ -3264,7 +3256,6 @@
         existing.dateEnd = dateEnd;
         existing.riders = riders;
         existing.organizer = organizer;
-        existing.horaires = horaires;
         existing.note = note;
         existing.autoCreated = false; // a manual edit means it's no longer just a byproduct of a chrono
         existing.checklist = checklist;
@@ -3664,12 +3655,6 @@
         var defaults = circuitInfo(evCircuitEl.value.trim());
         var orgEl = document.getElementById('ev-organizer');
         if (orgEl && !orgEl.value.trim() && defaults.organizer) orgEl.value = defaults.organizer;
-        if (defaults.horaires) {
-          HORAIRES_GROUPS.forEach(function (g) {
-            var el = document.getElementById('ev-horaires-' + g.key);
-            if (el && !el.value.trim() && defaults.horaires[g.key]) el.value = defaults.horaires[g.key];
-          });
-        }
       });
     }
     var evDateStartEl = document.getElementById('ev-date-start');
