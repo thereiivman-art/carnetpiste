@@ -2,6 +2,19 @@
 (function () {
   "use strict";
 
+  // Declared first and only here: several top-level `var x = ...expr...`
+  // statements below (restoring "Tous les pilotes" from a saved browser
+  // preference, for instance) call functions that read STATE immediately
+  // as the script loads -- before any function is actually invoked later.
+  // If this block sat further down the file (it used to, right before
+  // startSync()/persist()/init()), those earlier statements would run
+  // first and hit STATE while it's still undefined.
+  var db = firebase.firestore();
+  var auth = firebase.auth();
+  var STATE = { sessions: [], events: [], circuits: {}, riders: [] };
+  var canPersist = false;
+  var unsubscribers = [];
+
   function genId() {
     return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
   }
@@ -3862,22 +3875,6 @@
       if (toast.parentNode) toast.parentNode.removeChild(toast);
     }, 4000);
   }
-
-  // ---- Firestore-backed persistence ----
-  //
-  // Every rider writes directly to the same Firestore project (see
-  // firebase-config.js) via their own anonymous session -- there is no
-  // single owner anymore. Each entity (a chrono, a sortie, a circuit's
-  // info/annotation, a rider) lives in its own document, so two people
-  // editing different things never collide, and no document ever grows
-  // past Firestore's per-document size limit even with an annotated
-  // circuit map (a base64 PNG) attached to a session.
-  var db = firebase.firestore();
-  var auth = firebase.auth();
-
-  var STATE = { sessions: [], events: [], circuits: {}, riders: [] };
-  var canPersist = false;
-  var unsubscribers = [];
 
   function safeDocId(name) {
     return encodeURIComponent(name).slice(0, 300) || '_';
