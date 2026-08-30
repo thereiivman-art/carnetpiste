@@ -15,7 +15,9 @@ service cloud.firestore {
     // there's been time to verify anything -- no email_verified check here.
     match /users/{userId} {
       allow read: if request.auth != null;
-      allow write: if request.auth != null && request.auth.uid == userId;
+      // A user manages their own profile; the admin can also demote or
+      // remove an accompagnant account (see renderAccountManagerPanel).
+      allow write: if request.auth != null && (request.auth.uid == userId || isAdmin());
     }
     // Everything else requires a verified email to write, so a bot that
     // signs up with a throwaway address can't touch shared data. Deletes

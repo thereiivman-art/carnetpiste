@@ -202,7 +202,7 @@
   }
 
   var editingCircuitInfo = false; // local UI state, not persisted
-  var annot = { open: false, circuit: null, sessionId: null, tool: 'brush', color: '#e63946', size: 4, fontSize: 22, drawing: false, lastX: 0, lastY: 0 };
+  var annot = { open: false, circuit: null, eventId: null, sessionId: null, tool: 'brush', color: '#e63946', size: 4, fontSize: 22, drawing: false, lastX: 0, lastY: 0 };
 
   // ---- Calendrier (sorties planifiées + sessions déjà roulées) ----
   //
@@ -773,6 +773,7 @@
     html += riders.length ? '<ul class="rider-manager-list">' + rows + '</ul>' : '';
     html += '<form id="add-rider-form" class="rider-manager-add-form">' +
       '<input type="text" id="new-rider-name" placeholder="Nom du nouveau pilote" required>' +
+      '<input type="text" id="new-rider-number" placeholder="N° moto (si homonyme)" style="max-width:9rem;">' +
       '<button type="submit" class="primary">Ajouter</button>' +
       '</form>';
     if (riderManagerError) {
@@ -824,6 +825,53 @@
     return html;
   }
 
+  // ---- Gestion des comptes accompagnant (admin) ----
+  //
+  // Riders (STATE.riders) already have their own admin panel; this one is
+  // for the users/{uid} accounts themselves -- specifically accompagnants,
+  // who don't otherwise show up anywhere an admin could keep an eye on
+  // them or walk one back to a pilote/remove their access.
+  var accountManagerOpen = false;
+  var accompagnantAccounts = null; // null = not loaded yet; array once fetched
+  var accountManagerError = '';
+  var pendingDeleteAccountUid = null;
+
+  function loadAccompagnantAccounts() {
+    accountManagerError = '';
+    db.collection('users').where('role', '==', 'accompagnant').get().then(function (snap) {
+      accompagnantAccounts = snap.docs.map(function (doc) { return Object.assign({ uid: doc.id }, doc.data()); });
+      renderRoot();
+    }).catch(function (err) {
+      accountManagerError = 'Erreur : ' + (err && err.message ? err.message : err);
+      renderRoot();
+    });
+  }
+
+  function renderAccountManagerPanel() {
+    if (!accountManagerOpen) return '';
+    var html = '<div class="card account-manager-panel">';
+    html += '<div class="section-title">Comptes accompagnant</div>';
+    if (accompagnantAccounts === null) {
+      html += '<div class="help-text">Chargement...</div>';
+    } else if (!accompagnantAccounts.length) {
+      html += '<div class="help-text">Aucun compte accompagnant pour l\'instant.</div>';
+    } else {
+      html += '<ul class="rider-manager-list">' + accompagnantAccounts.map(function (a) {
+        var isPendingDelete = pendingDeleteAccountUid === a.uid;
+        var followed = (a.followedRiders || []).join(', ') || '—';
+        return '<li class="rider-manager-row account-manager-row">' +
+          '<div><span class="rider-manager-name">' + escapeHtml(a.name || a.email) + '</span>' +
+          '<div class="help-text">' + escapeHtml(a.email || '') + ' · suit : ' + escapeHtml(followed) + '</div></div>' +
+          '<button type="button" class="ghost icon-btn" data-action="demote-account" data-uid="' + a.uid + '" aria-label="Repasser en pilote" title="Repasser en pilote">↺</button>' +
+          '<button type="button" class="ghost icon-btn' + (isPendingDelete ? ' confirm' : '') + '" data-action="delete-account-request" data-uid="' + a.uid + '" aria-label="Supprimer ce compte" title="Retirer l\'accès">' + (isPendingDelete ? '✓' : '×') + '</button>' +
+          '</li>';
+      }).join('') + '</ul>';
+    }
+    if (accountManagerError) html += '<div class="field-error visible">' + escapeHtml(accountManagerError) + '</div>';
+    html += '</div>';
+    return html;
+  }
+
   var profileSaveMessage = '';
   function saveProfile(role, notifyBeforeSession, followedRiders) {
     var uid = auth.currentUser && auth.currentUser.uid;
@@ -843,16 +891,36 @@
     });
   }
 
-  function addRider(name) {
+  // Riders are keyed by their display name throughout the app (sessions,
+  // riderGroups, checklist...), so two people who happen to share a first
+  // name can't otherwise coexist as distinct riders. Rather than a deeper
+  // id-based refactor, a rider whose base name collides with an existing
+  // one gets a bike number folded into the name itself -- "Julien (#12)" --
+  // which stays a single opaque string everywhere else already treats a
+  // rider name as one.
+  function riderBaseName(name) {
+    return (name || '').replace(/\s*\(#[^)]*\)\s*$/, '').trim();
+  }
+
+  function addRider(name, number) {
     riderManagerError = '';
+    name = riderBaseName(name);
+    number = (number || '').trim();
     var known = allKnownRiders();
-    if (known.some(function (r) { return r.toLowerCase() === name.toLowerCase(); })) {
+    var baseCollision = known.some(function (r) { return riderBaseName(r).toLowerCase() === name.toLowerCase(); });
+    if (baseCollision && !number) {
+      riderManagerError = 'Un pilote "' + name + '" existe déjà — ajoute son numéro de moto pour les différencier.';
+      renderRoot();
+      return;
+    }
+    var finalName = number ? (name + ' (#' + number + ')') : name;
+    if (known.some(function (r) { return r.toLowerCase() === finalName.toLowerCase(); })) {
       riderManagerError = 'Ce pilote existe déjà.';
       renderRoot();
       return;
     }
     var prevState = JSON.parse(JSON.stringify(STATE));
-    STATE.riders = known.concat([name]).sort(function (a, b) { return a.localeCompare(b); });
+    STATE.riders = known.concat([finalName]).sort(function (a, b) { return a.localeCompare(b); });
     renderRoot();
     persist(prevState);
     showToast('Pilote ajouté.', 'success');
@@ -1438,12 +1506,18 @@
     return html;
   }
 
-  function renderCircuitVisual(info) {
+  // eventId (optional): when the visual is shown from a sortie's own card
+  // (Événements) rather than the Circuit tab, annotating it opens that
+  // sortie's own blank layer (see openAnnotation) instead of the circuit's
+  // shared plan -- so the button carries the event id rather than the id
+  // attachHandlers() otherwise wires to the globally-selected circuit.
+  function renderCircuitVisual(info, circuitName, eventId) {
+    circuitName = circuitName || selectedCircuit;
     if (info.mapImage) {
       return (
         '<div class="circuit-visual-frame">' +
-          '<button type="button" class="circuit-visual-btn" id="open-annot-btn" aria-label="Annoter le tracé du circuit">' +
-            '<img src="' + info.mapImage + '" alt="Tracé de ' + escapeHtml(selectedCircuit) + '">' +
+          '<button type="button" class="circuit-visual-btn" id="open-annot-btn" data-circuit="' + escapeHtml(circuitName) + '"' + (eventId ? ' data-event-id="' + eventId + '"' : '') + ' aria-label="Annoter le tracé du circuit">' +
+            '<img src="' + info.mapImage + '" alt="Tracé de ' + escapeHtml(circuitName) + '">' +
           '</button>' +
           '<div class="circuit-visual-caption">Toucher pour annoter</div>' +
         '</div>'
@@ -1518,17 +1592,30 @@
   // STATE.circuits[circuit].drawing instead of a STATE.sessions[] entry.
   var ANNOT_CIRCUIT_LEVEL = '__circuit__';
 
-  function openAnnotation(circuit) {
+  // A third level, one per sortie: opening the map from an event's own
+  // card (Événements -> "En cours") always starts from a blank layer for
+  // that sortie specifically, rather than the circuit-level plan that
+  // otherwise accumulates every trait ever drawn on that track across
+  // every past outing. Its drawing is stored on the event doc itself
+  // (STATE.events[].drawing), keyed 'event:<eventId>' in annot.sessionId.
+  var ANNOT_EVENT_PREFIX = 'event:';
+  function eventLevelSessionId(eventId) { return ANNOT_EVENT_PREFIX + eventId; }
+  function isEventLevelId(sessionId) { return typeof sessionId === 'string' && sessionId.indexOf(ANNOT_EVENT_PREFIX) === 0; }
+  function eventIdFromLevelId(sessionId) { return sessionId.slice(ANNOT_EVENT_PREFIX.length); }
+
+  function openAnnotation(circuit, eventId) {
     var sessions = circuitSessionsDesc(circuit);
     annot.open = true;
     annot.circuit = circuit;
-    annot.sessionId = sessions.length ? sessions[0].id : ANNOT_CIRCUIT_LEVEL;
+    annot.eventId = eventId || null;
+    annot.sessionId = eventId ? eventLevelSessionId(eventId) : (sessions.length ? sessions[0].id : ANNOT_CIRCUIT_LEVEL);
     annot.tool = 'brush';
     renderAnnotationOverlay();
   }
 
   function closeAnnotation() {
     annot.open = false;
+    annot.eventId = null;
     var overlay = document.getElementById('annot-overlay');
     if (overlay) {
       overlay.classList.remove('open');
@@ -1621,7 +1708,15 @@
     // A circuit-level entry always leads the list, so the plan can be
     // annotated (braking markers, lines) before any chrono is logged there
     // -- alongside one entry per session, each with its own drawing.
-    var options = '<option value="' + ANNOT_CIRCUIT_LEVEL + '"' + (annot.sessionId === ANNOT_CIRCUIT_LEVEL ? ' selected' : '') + '>' +
+    var options = '';
+    if (annot.eventId) {
+      var evForAnnot = eventsList().filter(function (e) { return e.id === annot.eventId; })[0];
+      var evDrawing = evForAnnot && evForAnnot.drawing;
+      var evLevelId = eventLevelSessionId(annot.eventId);
+      options += '<option value="' + evLevelId + '"' + (annot.sessionId === evLevelId ? ' selected' : '') + '>' +
+        'Cette sortie (nouveau plan)' + (evDrawing ? ' ✎' : '') + '</option>';
+    }
+    options += '<option value="' + ANNOT_CIRCUIT_LEVEL + '"' + (annot.sessionId === ANNOT_CIRCUIT_LEVEL ? ' selected' : '') + '>' +
       'Plan général' + (info.drawing ? ' ✎' : '') + '</option>';
     options += sessions.map(function (s) {
       var label = formatDate(s.date) + ' — ' + formatTime(sessionBest(s)) + (showRiderInOption ? ' — ' + s.rider : '') + (s.drawing ? ' ✎' : '');
@@ -1721,7 +1816,9 @@
     annotBaseImageVisible = false;
     var existingDrawing = annot.sessionId === ANNOT_CIRCUIT_LEVEL
       ? circuitInfo(annot.circuit).drawing
-      : (STATE.sessions.filter(function (s) { return s.id === annot.sessionId; })[0] || {}).drawing;
+      : isEventLevelId(annot.sessionId)
+        ? (eventsList().filter(function (e) { return e.id === eventIdFromLevelId(annot.sessionId); })[0] || {}).drawing
+        : (STATE.sessions.filter(function (s) { return s.id === annot.sessionId; })[0] || {}).drawing;
     if (existingDrawing) {
       var img = new Image();
       img.onload = function () {
@@ -2303,6 +2400,9 @@
       var entry = STATE.circuits[annot.circuit] || {};
       entry.drawing = dataUrl;
       STATE.circuits[annot.circuit] = entry;
+    } else if (isEventLevelId(annot.sessionId)) {
+      var evForSave = STATE.events.filter(function (e) { return e.id === eventIdFromLevelId(annot.sessionId); })[0];
+      if (evForSave) evForSave.drawing = dataUrl;
     } else {
       var session = STATE.sessions.filter(function (s) { return s.id === annot.sessionId; })[0];
       if (session) session.drawing = dataUrl;
@@ -3070,7 +3170,7 @@
     if (ev.note) html += infoRow('Note', escapeHtml(ev.note));
     // The circuit's own interactive map, so the annotated track is one tap
     // away from the sortie it belongs to, not just reachable from Circuit.
-    html += '<div class="event-circuit-map"><div class="event-checklist-title">Carte du circuit</div>' + renderCircuitVisual(circuitInfo(ev.circuit)) + '</div>';
+    html += '<div class="event-circuit-map"><div class="event-checklist-title">Carte du circuit</div>' + renderCircuitVisual(circuitInfo(ev.circuit), ev.circuit, ev.id) + '</div>';
     // The équipement checklist (with its count) lives entirely in
     // Planning now -- Événements stays simple and informative.
     html += '<div class="event-detail-actions"><button type="button" class="ghost" id="edit-event-btn" data-id="' + ev.id + '">Modifier</button>' + deleteEventControl(ev.id) + '</div>';
@@ -3632,6 +3732,19 @@
     html += '<div><label for="ev-date-end">Date de fin (optionnel)</label><input type="text" id="ev-date-end" inputmode="numeric" placeholder="JJ/MM/AAAA" value="' + isoToFrDate(ev.dateEnd) + '"></div>';
     html += '<div><label for="ev-organizer">Organisateur</label><input type="text" id="ev-organizer" placeholder="Ex. MT95" value="' + escapeHtml(ev.organizer || '') + '"></div>';
     html += '</div>';
+    // Horaires live on the circuit (shared across every sortie there, see
+    // renderCircuitInfoEditForm), but any pilote creating a sortie can set
+    // them here too instead of having to detour through l'onglet Circuit --
+    // handy the first time a circuit is used, or when the organiser
+    // announces new créneaux.
+    var evHorairesVal = (ev.circuit && circuitInfo(ev.circuit).horaires) || {};
+    html += '<div style="margin-top:0.9rem;"><label>Horaires par groupe</label><div class="horaires-grid">';
+    HORAIRES_GROUPS.forEach(function (g) {
+      if (g.key === 'groupR' && ev.circuit !== 'Mugello' && !evHorairesVal.groupR) return;
+      html += '<div><label for="ev-horaires-' + g.key + '" class="horaires-sublabel">' + escapeHtml(g.label) + '</label>' +
+        '<input type="text" id="ev-horaires-' + g.key + '" placeholder="Ex. 9h, 10h40, 14h, 15h20, 16h40" value="' + escapeHtml(evHorairesVal[g.key] || '') + '"></div>';
+    });
+    html += '</div></div>';
     html += '<label for="ev-riders" style="margin-top:0.9rem; display:block;">Pilotes (séparés par une virgule)</label>' +
       '<input type="text" id="ev-riders" list="rider-options-ev" placeholder="Ex. Marc, Xavier" value="' + escapeHtml((ev.riders || []).join(', ')) + '">' +
       '<datalist id="rider-options-ev">' + riderDatalist() + '</datalist>';
@@ -3694,6 +3807,13 @@
       return;
     }
     var riders = ridersRaw.split(',').map(function (r) { return r.trim(); }).filter(Boolean);
+    var horairesFromForm = {};
+    var anyHoraireFromForm = false;
+    HORAIRES_GROUPS.forEach(function (g) {
+      var el = document.getElementById('ev-horaires-' + g.key);
+      var v = el ? el.value.trim() : '';
+      if (v) { horairesFromForm[g.key] = v; anyHoraireFromForm = true; }
+    });
     var hotelName = document.getElementById('ev-hotel-name').value.trim();
     var hotelAddress = document.getElementById('ev-hotel-address').value.trim();
     var flightOutDep = document.getElementById('ev-flight-out-dep').value.trim();
@@ -3744,6 +3864,12 @@
         existing.flightBackArr = flightBackArr || null;
         selectedEventId = existing.id;
       }
+    }
+    if (anyHoraireFromForm) {
+      STATE.circuits = STATE.circuits || {};
+      var circuitEntry = STATE.circuits[circuit] || {};
+      circuitEntry.horaires = Object.assign({}, circuitEntry.horaires || {}, horairesFromForm);
+      STATE.circuits[circuit] = circuitEntry;
     }
     selectedCircuit = circuit;
     calendarAnchor = dateStart;
@@ -3960,12 +4086,18 @@
             renderThemeToggle() +
           '</div>' +
         '</div>' +
-        '<div class="account-bar">' + escapeHtml(currentUserProfile.name) + ' · ' + (currentUserProfile.role === 'accompagnant' ? 'Accompagnant' : 'Pilote') +
-          ' <button type="button" class="auth-link" id="profile-toggle">Mon profil</button>' +
-          ' <button type="button" class="link-btn" id="logout-btn">Se déconnecter</button></div>' +
+        '<div class="account-bar">' +
+          '<span class="account-bar-identity">' + escapeHtml(currentUserProfile.name) + ' · ' + (currentUserProfile.role === 'accompagnant' ? 'Accompagnant' : 'Pilote') + '</span>' +
+          '<span class="account-bar-actions">' +
+            '<button type="button" class="ghost account-bar-btn" id="profile-toggle">Mon profil</button>' +
+            (isAdmin() ? '<button type="button" class="ghost account-bar-btn" id="account-manager-toggle">Comptes accompagnant</button>' : '') +
+            '<button type="button" class="ghost account-bar-btn" id="logout-btn">Se déconnecter</button>' +
+          '</span>' +
+        '</div>' +
         '<div class="banner" id="status-banner"></div>' +
       '</header>' +
       renderProfilePanel() +
+      renderAccountManagerPanel() +
       renderGlobalRiderPicker() +
       renderViewTabs() +
       body;
@@ -4008,6 +4140,7 @@
       html += '<h2 class="section-title">Créer un compte</h2>';
       html += '<form id="signup-form" novalidate>';
       html += '<label for="au-name">Nom</label><input type="text" id="au-name" placeholder="Ex. Xavier" required>';
+      html += '<div id="au-number-wrap" style="margin-top:0.7rem;"><label for="au-number">N° de moto <span class="help-text" style="display:inline;">(si un autre pilote porte déjà ce nom)</span></label><input type="text" id="au-number" placeholder="Ex. 12"></div>';
       html += '<label style="margin-top:0.7rem;">Je suis</label><div class="auth-role-choice">' +
         '<label><input type="radio" name="au-role" value="pilote" checked> Pilote</label>' +
         '<label><input type="radio" name="au-role" value="accompagnant"> Accompagnant</label></div>';
@@ -4055,9 +4188,12 @@
 
   function onSignupSubmit(evt) {
     evt.preventDefault();
-    var name = document.getElementById('au-name').value.trim();
     var roleEl = document.querySelector('input[name="au-role"]:checked');
     var role = roleEl ? roleEl.value : 'pilote';
+    var numberEl = document.getElementById('au-number');
+    var number = (role === 'pilote' && numberEl) ? numberEl.value.trim() : '';
+    var name = riderBaseName(document.getElementById('au-name').value.trim());
+    if (number) name = name + ' (#' + number + ')';
     var email = document.getElementById('au-email').value.trim();
     var password = document.getElementById('au-password').value;
     if (!name) {
@@ -4120,7 +4256,15 @@
     var loginForm = document.getElementById('login-form');
     if (loginForm) loginForm.addEventListener('submit', onLoginSubmit);
     var signupForm = document.getElementById('signup-form');
-    if (signupForm) signupForm.addEventListener('submit', onSignupSubmit);
+    if (signupForm) {
+      signupForm.addEventListener('submit', onSignupSubmit);
+      signupForm.querySelectorAll('input[name="au-role"]').forEach(function (radio) {
+        radio.addEventListener('change', function () {
+          var numberWrap = document.getElementById('au-number-wrap');
+          if (numberWrap && radio.checked) numberWrap.style.display = radio.value === 'pilote' ? 'block' : 'none';
+        });
+      });
+    }
     var toSignup = document.getElementById('switch-to-signup');
     if (toSignup) toSignup.addEventListener('click', function () { authMode = 'signup'; authError = ''; renderRoot(); });
     var toLogin = document.getElementById('switch-to-login');
@@ -4181,6 +4325,50 @@
         renderRoot();
       });
     }
+    var accountManagerToggle = document.getElementById('account-manager-toggle');
+    if (accountManagerToggle) {
+      accountManagerToggle.addEventListener('click', function () {
+        accountManagerOpen = !accountManagerOpen;
+        if (accountManagerOpen && accompagnantAccounts === null) loadAccompagnantAccounts();
+        renderRoot();
+      });
+    }
+    document.querySelectorAll('[data-action="demote-account"]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var uid = btn.getAttribute('data-uid');
+        var account = (accompagnantAccounts || []).filter(function (a) { return a.uid === uid; })[0];
+        if (!account) return;
+        db.collection('users').doc(uid).set({ role: 'pilote' }, { merge: true }).then(function () {
+          if (account.name) return db.collection('riders').doc(safeDocId(account.name)).set({ name: account.name }, { merge: true });
+        }).then(function () {
+          accompagnantAccounts = accompagnantAccounts.filter(function (a) { return a.uid !== uid; });
+          showToast(account.name + ' est maintenant Pilote.', 'success');
+          renderRoot();
+        }).catch(function (err) {
+          accountManagerError = 'Erreur : ' + (err && err.message ? err.message : err);
+          renderRoot();
+        });
+      });
+    });
+    document.querySelectorAll('[data-action="delete-account-request"]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var uid = btn.getAttribute('data-uid');
+        if (pendingDeleteAccountUid === uid) {
+          db.collection('users').doc(uid).delete().then(function () {
+            accompagnantAccounts = accompagnantAccounts.filter(function (a) { return a.uid !== uid; });
+            pendingDeleteAccountUid = null;
+            showToast('Accès retiré.', 'success');
+            renderRoot();
+          }).catch(function (err) {
+            accountManagerError = 'Erreur : ' + (err && err.message ? err.message : err);
+            renderRoot();
+          });
+        } else {
+          pendingDeleteAccountUid = uid;
+          renderRoot();
+        }
+      });
+    });
     var profileCancel = document.getElementById('profile-cancel');
     if (profileCancel) {
       profileCancel.addEventListener('click', function () {
@@ -4489,9 +4677,10 @@
       addRiderForm.addEventListener('submit', function (evt) {
         evt.preventDefault();
         var input = document.getElementById('new-rider-name');
+        var numberInput = document.getElementById('new-rider-number');
         var name = input.value.trim();
         if (!name) return;
-        addRider(name);
+        addRider(name, numberInput ? numberInput.value : '');
       });
     }
     document.querySelectorAll('[data-action="rename-rider-request"]').forEach(function (btn) {
@@ -4549,7 +4738,11 @@
     var saveInfoBtn = document.getElementById('save-circuit-info-btn');
     if (saveInfoBtn) saveInfoBtn.addEventListener('click', saveCircuitInfo);
     var openAnnotBtn = document.getElementById('open-annot-btn');
-    if (openAnnotBtn) openAnnotBtn.addEventListener('click', function () { openAnnotation(selectedCircuit); });
+    if (openAnnotBtn) {
+      openAnnotBtn.addEventListener('click', function () {
+        openAnnotation(openAnnotBtn.getAttribute('data-circuit') || selectedCircuit, openAnnotBtn.getAttribute('data-event-id') || null);
+      });
+    }
     document.querySelectorAll('[data-global-rider]').forEach(function (btn) {
       btn.addEventListener('click', function () {
         var val = btn.getAttribute('data-global-rider');
@@ -4852,6 +5045,12 @@
           canPersist = true;
           startSync();
           renderRoot();
+        } else {
+          // The admin removed this account (see renderAccountManagerPanel) --
+          // sign them out cleanly instead of leaving the app stuck on
+          // "Connexion..." forever.
+          authState = 'signed-out';
+          auth.signOut();
         }
       });
     });
