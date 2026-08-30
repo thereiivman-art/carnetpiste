@@ -216,7 +216,8 @@
         selectedSessionDate: selectedSessionDate,
         selectedCircuit: selectedCircuit,
         selectedRidersAll: isAllRiders,
-        selectedRider: (selectedRiders && selectedRiders.size === 1) ? Array.from(selectedRiders)[0] : null
+        selectedRider: (selectedRiders && selectedRiders.size === 1) ? Array.from(selectedRiders)[0] : null,
+        planningGroupFilter: planningGroupFilter
       }));
     } catch (e) {
       // Private browsing / storage blocked / quota — fine, just won't survive a reload.
@@ -248,6 +249,7 @@
   var eventFormDraftGroupsFor = null; // editingEventId the draft above belongs to
   var editingSessionId = null; // id of the chrono row being edited inline in the Circuit history table, or null
   var selectedSessionDate = _savedUiState.selectedSessionDate || null; // 'YYYY-MM-DD' — shows the "chronos of that day" card
+  var planningGroupFilter = _savedUiState.planningGroupFilter || null; // array of HORAIRES_GROUPS keys, or null for "all available"
   // Which circuit and which rider(s) all four tabs currently show —
   // validated/defaulted by normalizeSelection() below, and kept in sync
   // with the currently-selected sortie via selectEvent(). The global picker
@@ -2340,6 +2342,7 @@
   // end of Circuit, since it was always about the currently active circuit
   // anyway. See renderCircuitTab().
   var MAIN_TABS = [
+    ['planning', 'Planning'],
     ['event', 'Événements'],
     ['circuit', 'Chronos'],
     ['stats', 'Stats']
@@ -2890,15 +2893,6 @@
     if (!all.length) {
       html += '<div class="card"><div class="empty-state">Aucune sortie enregistrée — ajoutez-en une ci-dessous.</div></div>';
     } else {
-      // Front and center: the sortie actually happening today, or -- if
-      // none -- the next one coming up, so there's always something
-      // immediately useful "dans les box" instead of an empty gap between
-      // outings.
-      if (ongoing.length) {
-        ongoing.forEach(function (ev) { html += renderTodayScheduleCard(ev, 'ongoing'); });
-      } else if (upcoming.length) {
-        html += renderTodayScheduleCard(upcoming[0], 'upcoming');
-      }
       if (ongoing.length) html += renderEventGroupCard('En cours', ongoing);
       html += renderEventGroupCard('À venir', upcoming);
       html += renderPastEventsCard(past);
@@ -2908,7 +2902,7 @@
     return html;
   }
 
-  // ---- Horaires (widget "En ce moment" / "Prochaine sortie") ----
+  // ---- Onglet Planning (horaires de la sortie en cours / à venir) ----
   //
   // A trackday's schedule is fixed by the organizer and repeats every
   // group all day -- what actually changes minute to minute is which
@@ -2916,6 +2910,14 @@
   // the current/next/past classes on these DOM nodes directly rather than
   // going through renderRoot(), so it never blows away an open form
   // elsewhere on the page.
+  //
+  // Groups are shown as independent columns, each with its own list of
+  // slots -- NOT merged onto one shared timeline. A first attempt merged
+  // every group onto one "heure en ligne" table, but groups routinely
+  // break for lunch at different times (up to 1h apart between a fast
+  // group and a slow one), which made a shared timeline mostly empty
+  // cells and auto-detected pause rows that didn't line up with what any
+  // single group actually experienced.
   function parseHoraireToken(tok) {
     var m = tok.match(/^(\d{1,2})h(\d{2})?\s*(?:[-–à]\s*(\d{1,2})h(\d{2})?)?$/i);
     if (!m) return null;
@@ -2933,53 +2935,57 @@
     });
   }
 
-  function minutesToHm(mins) {
-    return Math.floor(mins / 60) + 'h' + pad2(mins % 60);
-  }
-
-  // Real trackday boards read "heure en ligne, groupe en colonne" (see the
-  // organizer's own sheet) -- built here by merging every group's slots
-  // onto one timeline keyed by actual start time, rather than by session
-  // *number*, which wouldn't line up when groups run different session
-  // counts (Magny-Cours' groupe C has one more than A, for instance). A
-  // gap of 45+ min between two rows is the lunch break, shown as its own
-  // divider row.
-  function renderHorairesTable(horaires) {
-    var groups = HORAIRES_GROUPS.filter(function (g) { return g.key !== 'pause' && horaires[g.key]; });
+  // allowedKeys: null/undefined shows every group that has horaires; an
+  // array restricts to just those keys (the Planning tab's checkboxes).
+  function renderHoraireGroups(horaires, allowedKeys) {
+    var groups = HORAIRES_GROUPS.filter(function (g) {
+      return g.key !== 'pause' && horaires[g.key] && (!allowedKeys || allowedKeys.indexOf(g.key) !== -1);
+    });
     if (!groups.length) return '';
-    var byStart = {};
+    var html = '<div class="today-schedule-groups">';
     groups.forEach(function (g) {
+      html += '<div class="today-schedule-group"><div class="today-schedule-group-label">' + escapeHtml(g.label) + '</div><div class="today-schedule-slots">';
       parseHoraireLine(horaires[g.key]).forEach(function (slot) {
-        if (slot.start == null) return;
-        byStart[slot.start] = byStart[slot.start] || { start: slot.start, end: slot.end, cells: {} };
-        byStart[slot.start].cells[g.key] = slot;
-        if (slot.end > byStart[slot.start].end) byStart[slot.start].end = slot.end;
+        if (slot.start == null) {
+          html += '<span class="schedule-slot schedule-slot-label">' + escapeHtml(slot.label) + '</span>';
+        } else {
+          html += '<span class="schedule-slot" data-slot-start="' + slot.start + '" data-slot-end="' + slot.end + '">' + escapeHtml(slot.label) + '</span>';
+        }
       });
+      html += '</div></div>';
     });
-    var rows = Object.keys(byStart).map(function (k) { return byStart[k]; }).sort(function (a, b) { return a.start - b.start; });
-    if (!rows.length) return '';
-    var html = '<div class="table-scroll"><table class="horaires-table"><thead><tr><th>Heure</th>';
-    groups.forEach(function (g) { html += '<th>' + escapeHtml(g.label.replace('Groupe ', '')) + '</th>'; });
-    html += '</tr></thead><tbody>';
-    var prevEnd = null;
-    rows.forEach(function (row) {
-      if (prevEnd != null && row.start - prevEnd >= 45) {
-        html += '<tr class="horaires-table-pause"><td colspan="' + (groups.length + 1) + '">Pause</td></tr>';
-      }
-      html += '<tr data-slot-start="' + row.start + '" data-slot-end="' + row.end + '"><td class="horaires-table-time">' + minutesToHm(row.start) + '</td>';
-      groups.forEach(function (g) {
-        html += '<td>' + (row.cells[g.key] ? '●' : '—') + '</td>';
-      });
-      html += '</tr>';
-      prevEnd = row.end;
-    });
-    html += '</tbody></table></div>';
+    html += '</div>';
     return html;
   }
 
-  function renderTodayScheduleCard(ev, mode) {
+  // The sortie the Planning tab leads with: today's if one is running,
+  // else the soonest upcoming one, so there's always something useful to
+  // look at instead of an empty gap between outings.
+  function targetPlanningEvent() {
+    var all = eventsList();
+    var todayKey = dateKey(new Date());
+    var ongoing = all.filter(function (ev) { return eventTemporalStatus(ev, todayKey) === 'ongoing'; })
+      .sort(function (a, b) { return a.dateStart < b.dateStart ? -1 : 1; });
+    if (ongoing.length) return { ev: ongoing[0], mode: 'ongoing' };
+    var upcoming = all.filter(function (ev) { return eventTemporalStatus(ev, todayKey) === 'upcoming'; })
+      .sort(function (a, b) { return a.dateStart < b.dateStart ? -1 : 1; });
+    if (upcoming.length) return { ev: upcoming[0], mode: 'upcoming' };
+    return null;
+  }
+
+  function renderPlanningTab() {
+    var target = targetPlanningEvent();
+    if (!target) {
+      return '<div class="card"><div class="empty-state">Aucune sortie en cours ou à venir — planifiez-en une dans l\'onglet Événements.</div></div>';
+    }
+    var ev = target.ev, isOngoing = target.mode === 'ongoing';
     var info = circuitInfo(ev.circuit);
-    var isOngoing = mode === 'ongoing';
+    // This specific sortie's own horaires (typed on the Événement form)
+    // win over the circuit's usual template -- an organizer sometimes
+    // shifts the day's schedule, and that's what riders actually need
+    // "dans les box", not the generic default.
+    var horaires = ev.horaires || info.horaires;
+
     var html = '<div class="card today-schedule-card">';
     html += '<div class="eyebrow">' + (isOngoing ? 'En ce moment — ' : 'Prochaine sortie — ') + escapeHtml(ev.circuit) + '</div>';
     var sub = [];
@@ -2987,18 +2993,25 @@
     if (info.organizer) sub.push('Organisateur ' + escapeHtml(info.organizer));
     if (info.briefing) sub.push('Briefing ' + escapeHtml(info.briefing));
     if (sub.length) html += '<div class="help-text">' + sub.join(' · ') + '</div>';
-    // This specific sortie's own horaires (typed on the Événement form)
-    // win over the circuit's usual template -- an organizer sometimes
-    // shifts the day's schedule, and that's what riders actually need
-    // "dans les box", not the generic default.
-    var horaires = ev.horaires || info.horaires;
-    var table = horaires ? renderHorairesTable(horaires) : '';
-    if (table) {
-      html += table;
-      html += '<div class="horaires-table-legend"><span class="legend-current">●</span> en cours <span class="legend-next">●</span> à suivre</div>';
-    } else {
+
+    var availableGroups = horaires ? HORAIRES_GROUPS.filter(function (g) { return g.key !== 'pause' && horaires[g.key]; }) : [];
+    if (!availableGroups.length) {
       html += '<div class="help-text">Aucun horaire enregistré pour ' + escapeHtml(ev.circuit) + ' — ajoutez-les depuis cette sortie ou l\'onglet Circuit (Modifier les infos).</div>';
+      return html + '</div>';
     }
+
+    var activeKeys = (planningGroupFilter && planningGroupFilter.length)
+      ? planningGroupFilter.filter(function (k) { return availableGroups.some(function (g) { return g.key === k; }); })
+      : availableGroups.map(function (g) { return g.key; });
+    if (!activeKeys.length) activeKeys = availableGroups.map(function (g) { return g.key; });
+
+    html += '<div class="planning-group-filter">';
+    availableGroups.forEach(function (g) {
+      var checked = activeKeys.indexOf(g.key) !== -1;
+      html += '<label class="planning-group-check"><input type="checkbox" data-planning-group="' + g.key + '"' + (checked ? ' checked' : '') + '> ' + escapeHtml(g.label) + '</label>';
+    });
+    html += '</div>';
+    html += renderHoraireGroups(horaires, activeKeys);
     return html + '</div>';
   }
 
@@ -3376,6 +3389,7 @@
   function subtitleForView(view) {
     if (view === 'circuit') return 'Le plan du circuit, ses infos et vos chronos.';
     if (view === 'stats') return 'L’historique et les records du pilote.';
+    if (view === 'planning') return 'Les horaires de la sortie en cours ou à venir.';
     return 'Vos sorties, leur calendrier, et comment en ajouter une.';
   }
 
@@ -3447,6 +3461,7 @@
     var body;
     if (activeView === 'circuit') body = renderCircuitTab();
     else if (activeView === 'stats') body = renderStatsTab();
+    else if (activeView === 'planning') body = renderPlanningTab();
     else body = renderEventTab(); // 'event' and safety fallback
     root.innerHTML =
       '<header class="page-head">' +
@@ -3678,6 +3693,16 @@
       });
     });
 
+    document.querySelectorAll('[data-planning-group]').forEach(function (cb) {
+      cb.addEventListener('change', function () {
+        var selected = [];
+        document.querySelectorAll('[data-planning-group]').forEach(function (b) {
+          if (b.checked) selected.push(b.getAttribute('data-planning-group'));
+        });
+        planningGroupFilter = selected;
+        renderRoot();
+      });
+    });
     var riderManagerToggle = document.getElementById('rider-manager-toggle');
     if (riderManagerToggle) {
       riderManagerToggle.addEventListener('click', function () {
