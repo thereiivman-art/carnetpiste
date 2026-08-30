@@ -246,6 +246,7 @@
   // slot — a trackday typically runs several groups back-to-back with a
   // pause between them.
   var HORAIRES_GROUPS = [
+    { key: 'groupR', label: 'Groupe R (Rookies)' },
     { key: 'groupA', label: 'Groupe A' },
     { key: 'groupB', label: 'Groupe B' },
     { key: 'groupC', label: 'Groupe C' },
