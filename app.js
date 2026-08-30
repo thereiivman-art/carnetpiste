@@ -3572,6 +3572,19 @@
     return html;
   }
 
+  // Every group with a slot live right now (there can be more than one at
+  // once, each on its own schedule) -- distinct from
+  // earliestScheduleGroupLabels(), which looks at a single start time.
+  function activeScheduleGroupLabels() {
+    var labels = [];
+    document.querySelectorAll('.today-schedule-group').forEach(function (container) {
+      if (!container.querySelector('.slot-current')) return;
+      var labelEl = container.querySelector('.today-schedule-group-label');
+      if (labelEl && labels.indexOf(labelEl.textContent) === -1) labels.push(labelEl.textContent);
+    });
+    return labels;
+  }
+
   function updateLiveClock() {
     var clockEl = document.getElementById('live-clock');
     if (clockEl) {
@@ -3623,15 +3636,24 @@
       }
     });
     if (countdownEl) {
+      var evForLines = eventsList().filter(function (e) { return e.id === planningEventId; })[0];
+      var currentGroupLabels = activeScheduleGroupLabels();
+      var currentRiderNames = evForLines ? ridersForGroupLabels(evForLines, currentGroupLabels) : [];
+      var currentLine = currentGroupLabels.length
+        ? '<div class="planning-current-session">Session en cours — ' + escapeHtml(currentGroupLabels.join(', ')) +
+          (currentRiderNames.length ? ' — ' + currentRiderNames.map(escapeHtml).join(', ') : '') + '</div>'
+        : '';
       if (nextStart == null) {
-        countdownEl.textContent = '';
+        countdownEl.innerHTML = currentLine;
       } else {
         var diff = nextStart - nowMinutes;
         var nextGroupLabels = earliestScheduleGroupLabels(nextStart);
-        var evNext = eventsList().filter(function (e) { return e.id === planningEventId; })[0];
-        var nextRiderNames = evNext ? ridersForGroupLabels(evNext, nextGroupLabels) : [];
-        var prefix = 'Prochaine session dans ' + (diff >= 60 ? (Math.floor(diff / 60) + 'h' + pad2(diff % 60)) : (diff + ' min'));
-        countdownEl.innerHTML = countdownHtml(prefix, nextGroupLabels, nextRiderNames);
+        var nextRiderNames = evForLines ? ridersForGroupLabels(evForLines, nextGroupLabels) : [];
+        var timeText = diff >= 60 ? (Math.floor(diff / 60) + 'h' + pad2(diff % 60)) : (diff + ' min');
+        var nextLine = 'Prochaine session dans <span class="planning-countdown-time">' + escapeHtml(timeText) + '</span>' +
+          (nextGroupLabels.length ? ' — ' + escapeHtml(nextGroupLabels.join(', ')) : '') +
+          (nextRiderNames.length ? ' <span class="planning-countdown-riders">' + nextRiderNames.map(escapeHtml).join(', ') + '</span>' : '');
+        countdownEl.innerHTML = currentLine + '<div>' + nextLine + '</div>';
         maybeNotifyGroupDeparture(nextStart, diff, nextGroupLabels);
       }
     }

@@ -759,6 +759,15 @@
   .planning-countdown-riders {
     color: var(--accent);
   }
+  .planning-current-session {
+    font-weight: 700;
+    color: var(--accent);
+    margin-bottom: 0.25rem;
+  }
+  .planning-countdown-time {
+    font-weight: 700;
+    color: var(--accent);
+  }
   .live-clock {
     font-family: var(--font-mono);
     font-size: 1.1rem;
