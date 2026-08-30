@@ -793,16 +793,29 @@
   function renderProfilePanel() {
     if (!profilePanelOpen) return '';
     var p = currentUserProfile;
+    var isAccompagnant = p.role === 'accompagnant';
+    var followed = p.followedRiders || [];
     var html = '<div class="card profile-panel">';
     html += '<div class="section-title">Mon profil</div>';
     html += '<form id="profile-form">';
     html += '<label>Nom<input type="text" value="' + escapeHtml(p.name) + '" disabled></label>';
     html += '<label>Je suis</label>';
     html += '<div class="auth-role-choice">' +
-      '<label><input type="radio" name="profile-role" value="pilote"' + (p.role !== 'accompagnant' ? ' checked' : '') + '> Pilote</label>' +
-      '<label><input type="radio" name="profile-role" value="accompagnant"' + (p.role === 'accompagnant' ? ' checked' : '') + '> Accompagnant</label>' +
+      '<label><input type="radio" name="profile-role" value="pilote"' + (!isAccompagnant ? ' checked' : '') + '> Pilote</label>' +
+      '<label><input type="radio" name="profile-role" value="accompagnant"' + (isAccompagnant ? ' checked' : '') + '> Accompagnant</label>' +
       '</div>';
-    html += '<label class="checklist-item" style="margin-top:0.9rem;"><input type="checkbox" id="profile-notify"' + (p.notifyBeforeSession ? ' checked' : '') + '> Me notifier quand mon groupe va partir rouler</label>';
+    html += '<div id="profile-followed-wrap" style="display:' + (isAccompagnant ? 'block' : 'none') + '; margin-top:0.9rem;">';
+    html += '<label>Pilotes que je suis</label>';
+    var riders = allKnownRiders();
+    if (!riders.length) {
+      html += '<div class="help-text">Aucun pilote enregistré pour l\'instant.</div>';
+    } else {
+      html += '<div class="profile-followed-riders">' + riders.map(function (r) {
+        return '<label class="checklist-item"><input type="checkbox" name="profile-follow-rider" value="' + escapeHtml(r) + '"' + (followed.indexOf(r) !== -1 ? ' checked' : '') + '> ' + escapeHtml(r) + '</label>';
+      }).join('') + '</div>';
+    }
+    html += '</div>';
+    html += '<label class="checklist-item" style="margin-top:0.9rem;"><input type="checkbox" id="profile-notify"' + (p.notifyBeforeSession ? ' checked' : '') + '> <span id="profile-notify-label">' + (isAccompagnant ? 'Me notifier quand un pilote suivi va partir rouler' : 'Me notifier quand mon groupe va partir rouler') + '</span></label>';
     html += '<div class="help-text" style="margin-top:0.4rem;">Nécessite d\'autoriser les notifications du navigateur, et que cet onglet reste ouvert.</div>';
     html += '<div style="margin-top:1rem; display:flex; gap:0.6rem;"><button type="submit" class="primary">Enregistrer</button>' +
       '<button type="button" class="ghost" id="profile-cancel">Fermer</button></div>';
@@ -812,15 +825,16 @@
   }
 
   var profileSaveMessage = '';
-  function saveProfile(role, notifyBeforeSession) {
+  function saveProfile(role, notifyBeforeSession, followedRiders) {
     var uid = auth.currentUser && auth.currentUser.uid;
     if (!uid) return;
     if (notifyBeforeSession && window.Notification && Notification.permission === 'default') {
       Notification.requestPermission();
     }
-    db.collection('users').doc(uid).set({ role: role, notifyBeforeSession: notifyBeforeSession }, { merge: true }).then(function () {
+    db.collection('users').doc(uid).set({ role: role, notifyBeforeSession: notifyBeforeSession, followedRiders: followedRiders }, { merge: true }).then(function () {
       currentUserProfile.role = role;
       currentUserProfile.notifyBeforeSession = notifyBeforeSession;
+      currentUserProfile.followedRiders = followedRiders;
       profileSaveMessage = 'Profil enregistré.';
       renderRoot();
     }).catch(function (err) {
@@ -3396,25 +3410,66 @@
     return html + '</div>';
   }
 
-  // Fires a browser notification once, when the current pilot's own group
-  // is about to go out (<=10 min) and they've opted in from "Mon profil".
-  // Only works while this tab stays open -- there's no backend on GitHub
-  // Pages to push a real notification once the app is closed.
+  // Fires a browser notification once, when a rider the current account
+  // cares about is about to go out (<=10 min) and notifications are
+  // opted-in from "Mon profil". A pilote is notified about their own
+  // group; an accompagnant is notified about whichever of their followed
+  // riders is about to leave. Only works while this tab stays open --
+  // there's no backend on GitHub Pages to push a real notification once
+  // the app is closed.
   function maybeNotifyGroupDeparture(nextStart, diff, nextGroupLabels) {
     if (!currentUserProfile || !currentUserProfile.notifyBeforeSession) return;
     if (!window.Notification || Notification.permission !== 'granted') return;
     if (diff > 10 || diff < 0) return;
     var ev = eventsList().filter(function (e) { return e.id === planningEventId; })[0];
     if (!ev) return;
-    var myGroups = HORAIRES_GROUPS.filter(function (g) { return nextGroupLabels.indexOf(g.label) !== -1; })
-      .filter(function (g) { return ridersInGroup(ev, g.key.replace('group', '')).indexOf(currentUserProfile.name) !== -1; });
-    if (!myGroups.length) return;
+    var namesToWatch = currentUserProfile.role === 'accompagnant'
+      ? (currentUserProfile.followedRiders || [])
+      : [currentUserProfile.name];
+    if (!namesToWatch.length) return;
+    var departingNames = ridersForGroupLabels(ev, nextGroupLabels).filter(function (name) {
+      return namesToWatch.indexOf(name) !== -1;
+    });
+    if (!departingNames.length) return;
     var slotKey = planningEventId + '-' + nextStart;
     if (notifiedSlotKey === slotKey) return;
     notifiedSlotKey = slotKey;
-    new Notification('Carnet de Piste', {
-      body: 'Ton groupe (' + myGroups.map(function (g) { return g.label; }).join(', ') + ') part rouler dans ' + diff + ' min !'
+    var subject = currentUserProfile.role === 'accompagnant'
+      ? departingNames.join(', ') + ' part' + (departingNames.length > 1 ? 'ent' : '') + ' rouler'
+      : 'Ton groupe part rouler';
+    new Notification('Carnet de Piste', { body: subject + ' dans ' + diff + ' min !' });
+  }
+
+  // The group label(s) attached to the earliest data-slot-start currently
+  // in the DOM, and among those matching, the group letter itself. Shared
+  // by both the "dans X jours" and "prochaine session dans" countdowns so
+  // only the group that actually leaves first is ever shown, not every
+  // group running that day.
+  function earliestScheduleGroupLabels(minStart) {
+    var labels = [];
+    document.querySelectorAll('[data-slot-start="' + minStart + '"]').forEach(function (el) {
+      var groupContainer = el.closest('.today-schedule-group');
+      var labelEl = groupContainer && groupContainer.querySelector('.today-schedule-group-label');
+      if (labelEl && labels.indexOf(labelEl.textContent) === -1) labels.push(labelEl.textContent);
     });
+    return labels;
+  }
+
+  function ridersForGroupLabels(ev, labels) {
+    var names = [];
+    HORAIRES_GROUPS.filter(function (g) { return labels.indexOf(g.label) !== -1; }).forEach(function (g) {
+      ridersInGroup(ev, g.key.replace('group', '')).forEach(function (name) {
+        if (names.indexOf(name) === -1) names.push(name);
+      });
+    });
+    return names.sort();
+  }
+
+  function countdownHtml(prefix, groupLabels, riderNames) {
+    var html = escapeHtml(prefix);
+    if (groupLabels.length) html += ' — ' + escapeHtml(groupLabels.join(', '));
+    if (riderNames.length) html += ' <span class="planning-countdown-riders">' + riderNames.map(escapeHtml).join(', ') + '</span>';
+    return html;
   }
 
   function updateLiveClock() {
@@ -3436,11 +3491,15 @@
         if (planningEventDateStart) {
           var days = Math.round((parseLocalDate(planningEventDateStart) - parseLocalDate(dateKey(new Date()))) / 86400000);
           var dayText = days === 1 ? 'Dans 1 jour' : 'Dans ' + days + ' jours';
-          var groupLabelsUp = [];
-          document.querySelectorAll('.today-schedule-group-label').forEach(function (el) {
-            if (groupLabelsUp.indexOf(el.textContent) === -1) groupLabelsUp.push(el.textContent);
+          var minStartUp = null;
+          document.querySelectorAll('[data-slot-start]').forEach(function (el) {
+            var start = parseInt(el.getAttribute('data-slot-start'), 10);
+            if (minStartUp == null || start < minStartUp) minStartUp = start;
           });
-          countdownEl.textContent = dayText + (groupLabelsUp.length ? ' — ' + groupLabelsUp.join(', ') : '');
+          var groupLabelsUp = minStartUp == null ? [] : earliestScheduleGroupLabels(minStartUp);
+          var evUp = eventsList().filter(function (e) { return e.id === planningEventId; })[0];
+          var riderNamesUp = evUp ? ridersForGroupLabels(evUp, groupLabelsUp) : [];
+          countdownEl.innerHTML = countdownHtml(dayText, groupLabelsUp, riderNamesUp);
         } else {
           countdownEl.textContent = '';
         }
@@ -3468,14 +3527,11 @@
         countdownEl.textContent = '';
       } else {
         var diff = nextStart - nowMinutes;
-        var nextGroupLabels = [];
-        document.querySelectorAll('[data-slot-start="' + nextStart + '"]').forEach(function (el) {
-          var groupContainer = el.closest('.today-schedule-group');
-          var labelEl = groupContainer && groupContainer.querySelector('.today-schedule-group-label');
-          if (labelEl && nextGroupLabels.indexOf(labelEl.textContent) === -1) nextGroupLabels.push(labelEl.textContent);
-        });
-        countdownEl.textContent = 'Prochaine session dans ' + (diff >= 60 ? (Math.floor(diff / 60) + 'h' + pad2(diff % 60)) : (diff + ' min')) +
-          (nextGroupLabels.length ? ' — ' + nextGroupLabels.join(', ') : '');
+        var nextGroupLabels = earliestScheduleGroupLabels(nextStart);
+        var evNext = eventsList().filter(function (e) { return e.id === planningEventId; })[0];
+        var nextRiderNames = evNext ? ridersForGroupLabels(evNext, nextGroupLabels) : [];
+        var prefix = 'Prochaine session dans ' + (diff >= 60 ? (Math.floor(diff / 60) + 'h' + pad2(diff % 60)) : (diff + ' min'));
+        countdownEl.innerHTML = countdownHtml(prefix, nextGroupLabels, nextRiderNames);
         maybeNotifyGroupDeparture(nextStart, diff, nextGroupLabels);
       }
     }
@@ -4138,7 +4194,22 @@
         evt.preventDefault();
         var role = profileForm.querySelector('input[name="profile-role"]:checked').value;
         var notify = document.getElementById('profile-notify').checked;
-        saveProfile(role, notify);
+        var followedRiders = Array.prototype.map.call(
+          profileForm.querySelectorAll('input[name="profile-follow-rider"]:checked'),
+          function (el) { return el.value; }
+        );
+        saveProfile(role, notify, followedRiders);
+      });
+      var notifyLabel = document.getElementById('profile-notify-label');
+      profileForm.querySelectorAll('input[name="profile-role"]').forEach(function (radio) {
+        radio.addEventListener('change', function () {
+          var isAcc = radio.value === 'accompagnant' && radio.checked;
+          if (radio.checked) {
+            var wrap = document.getElementById('profile-followed-wrap');
+            if (wrap) wrap.style.display = isAcc ? 'block' : 'none';
+            if (notifyLabel) notifyLabel.textContent = isAcc ? 'Me notifier quand un pilote suivi va partir rouler' : 'Me notifier quand mon groupe va partir rouler';
+          }
+        });
       });
     }
     document.querySelectorAll('[data-theme-choice]').forEach(function (btn) {

@@ -735,8 +735,10 @@
   .planning-countdown {
     font-size: 0.9rem;
     font-weight: 600;
-    color: var(--accent);
     margin-top: 0.9rem;
+  }
+  .planning-countdown-riders {
+    color: var(--accent);
   }
   .live-clock {
     font-family: var(--font-mono);
@@ -1004,6 +1006,15 @@
     color: var(--text-muted);
     font-weight: 500;
     margin-bottom: 0.3rem;
+  }
+  .profile-followed-riders {
+    display: flex;
+    flex-direction: column;
+    max-height: 220px;
+    overflow-y: auto;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0.3rem 0.7rem;
   }
   .checklist-item {
     display: flex;
