@@ -742,6 +742,20 @@
   .rider-start-groups { display: flex; flex-direction: column; gap: 0.3rem; }
 
   .today-schedule-card { border-color: var(--accent); }
+  .today-schedule-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.8rem;
+  }
+  .planning-big-clock {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    font-size: 2rem;
+    font-weight: 700;
+    line-height: 1;
+    color: var(--accent);
+  }
   .planning-section {
     margin-top: 0.9rem;
     border-top: 1px solid var(--border);

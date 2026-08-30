@@ -3535,7 +3535,10 @@
     var horaires = info.horaires;
 
     var html = '<div class="card today-schedule-card">';
+    html += '<div class="today-schedule-head">';
     html += '<div class="eyebrow">' + (isOngoing ? 'En ce moment — ' : 'Prochaine sortie — ') + escapeHtml(ev.circuit) + '</div>';
+    if (isOngoing) html += '<div class="planning-big-clock" id="planning-big-clock">--h--</div>';
+    html += '</div>';
     var sub = [];
     if (!isOngoing) sub.push(escapeHtml(formatEventRange(ev, true)) + ' (' + weekdayName(ev.dateStart) + ')');
     if (info.organizer) sub.push('Organisateur ' + escapeHtml(info.organizer));
@@ -3664,6 +3667,11 @@
     if (clockEl) {
       var now = new Date();
       clockEl.textContent = pad2(now.getHours()) + 'h' + pad2(now.getMinutes());
+    }
+    var bigClockEl = document.getElementById('planning-big-clock');
+    if (bigClockEl) {
+      var now2 = new Date();
+      bigClockEl.textContent = pad2(now2.getHours()) + 'h' + pad2(now2.getMinutes());
     }
     var countdownEl = document.getElementById('planning-countdown');
     // Session times are only "current"/"past" relative to today's clock if
