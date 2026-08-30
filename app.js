@@ -1135,6 +1135,9 @@
     html += '<div class="circuit-name" style="margin-bottom:0.5rem;">' + escapeHtml(selectedCircuit) + '</div>';
     html += infoRow('Distance', info.km != null ? (escapeHtml(String(info.km)) + ' km') : '—');
     html += infoRow('Virages (D / G)', turnsHtml);
+    html += infoRow('Organisateur habituel', info.organizer ? escapeHtml(info.organizer) : '—');
+    if (info.briefing) html += infoRow('Briefing', escapeHtml(info.briefing));
+    html += renderHorairesRow(info.horaires);
     var lastEvent = (lastSession && lastSession.eventId) ? eventsList().filter(function (e) { return e.id === lastSession.eventId; })[0] : null;
     var lastOutingText = lastSession ? (escapeHtml(formatDate(lastSession.date)) + ' — ' + formatTime(sessionBest(lastSession))) : '—';
     html += infoRow('Dernière sortie', lastEvent
@@ -1161,7 +1164,19 @@
     html += '<div><label for="ci-km">Distance (km)</label><input type="text" inputmode="decimal" id="ci-km" value="' + (info.km != null ? escapeHtml(String(info.km)) : '') + '" placeholder="Ex. 4.2"></div>';
     html += '<div><label for="ci-right">Virages à droite</label><input type="text" inputmode="numeric" id="ci-right" value="' + (info.turnsRight != null ? escapeHtml(String(info.turnsRight)) : '') + '" placeholder="Ex. 9"></div>';
     html += '<div><label for="ci-left">Virages à gauche</label><input type="text" inputmode="numeric" id="ci-left" value="' + (info.turnsLeft != null ? escapeHtml(String(info.turnsLeft)) : '') + '" placeholder="Ex. 5"></div>';
+    html += '<div><label for="ci-organizer">Organisateur habituel</label><input type="text" id="ci-organizer" value="' + escapeHtml(info.organizer || '') + '" placeholder="Ex. MotoTeam95"></div>';
+    html += '<div><label for="ci-briefing">Briefing</label><input type="text" id="ci-briefing" value="' + escapeHtml(info.briefing || '') + '" placeholder="Ex. 8h15"></div>';
     html += '</div>';
+    // These usual times pre-remplissent automatiquement une nouvelle sortie
+    // créée sur ce circuit (voir renderEventForm) -- utile puisque
+    // l'organisateur fixe en général les mêmes créneaux à chaque sortie.
+    var horairesVal = (info.horaires && typeof info.horaires === 'object') ? info.horaires : {};
+    html += '<div style="margin-top:0.6rem;"><label>Horaires habituels par groupe</label><div class="horaires-grid">';
+    HORAIRES_GROUPS.forEach(function (g) {
+      html += '<div><label for="ci-horaires-' + g.key + '" class="horaires-sublabel">' + escapeHtml(g.label) + '</label>' +
+        '<input type="text" id="ci-horaires-' + g.key + '" placeholder="Ex. 9h, 10h40, 14h, 15h20, 16h40" value="' + escapeHtml(horairesVal[g.key] || '') + '"></div>';
+    });
+    html += '</div></div>';
     html += '<div class="info-edit-actions"><button type="button" class="primary" id="save-circuit-info-btn">Enregistrer</button><button type="button" class="ghost" id="cancel-circuit-info-btn">Annuler</button></div>';
     return html;
   }
@@ -1191,12 +1206,24 @@
     var km = kmRaw ? parseFloat(kmRaw) : null;
     var right = rightRaw ? parseInt(rightRaw, 10) : null;
     var left = leftRaw ? parseInt(leftRaw, 10) : null;
+    var organizer = document.getElementById('ci-organizer').value.trim();
+    var briefing = document.getElementById('ci-briefing').value.trim();
+    var horaires = {};
+    var anyHoraire = false;
+    HORAIRES_GROUPS.forEach(function (g) {
+      var el = document.getElementById('ci-horaires-' + g.key);
+      var v = el ? el.value.trim() : '';
+      if (v) { horaires[g.key] = v; anyHoraire = true; }
+    });
     var prevState = JSON.parse(JSON.stringify(STATE));
     STATE.circuits = STATE.circuits || {};
     var entry = STATE.circuits[selectedCircuit] || {};
     entry.km = (km != null && !isNaN(km)) ? km : null;
     entry.turnsRight = (right != null && !isNaN(right)) ? right : null;
     entry.turnsLeft = (left != null && !isNaN(left)) ? left : null;
+    entry.organizer = organizer || null;
+    entry.briefing = briefing || null;
+    entry.horaires = anyHoraire ? horaires : null;
     STATE.circuits[selectedCircuit] = entry;
     editingCircuitInfo = false;
     renderRoot();
@@ -2841,6 +2868,10 @@
     if (!all.length) {
       html += '<div class="card"><div class="empty-state">Aucune sortie enregistrée — ajoutez-en une ci-dessous.</div></div>';
     } else {
+      // Front and center for the sortie actually happening today -- this is
+      // the "dans les box, je veux voir l'heure et mes horaires tout de
+      // suite" view, above even the "En cours" list below it.
+      ongoing.forEach(function (ev) { html += renderTodayScheduleCard(ev); });
       if (ongoing.length) html += renderEventGroupCard('En cours', ongoing);
       html += renderEventGroupCard('À venir', upcoming);
       html += renderPastEventsCard(past);
@@ -2848,6 +2879,87 @@
     html += renderEventForm();
     html += renderCalendarSection();
     return html;
+  }
+
+  // ---- Horaires du jour (widget "En ce moment") ----
+  //
+  // A trackday's schedule is fixed by the organizer and repeats every
+  // group all day -- what actually changes minute to minute is which
+  // slot is current. updateLiveClock() (below, run on an interval) patches
+  // the clock text and the current/next/past classes on these DOM nodes
+  // directly rather than going through renderRoot(), so it never blows
+  // away an open form elsewhere on the page.
+  function parseHoraireToken(tok) {
+    var m = tok.match(/^(\d{1,2})h(\d{2})?\s*(?:[-–à]\s*(\d{1,2})h(\d{2})?)?$/i);
+    if (!m) return null;
+    var start = parseInt(m[1], 10) * 60 + (m[2] ? parseInt(m[2], 10) : 0);
+    var end = m[3] != null
+      ? parseInt(m[3], 10) * 60 + (m[4] ? parseInt(m[4], 10) : 0)
+      : start + 20; // no end given -- Le Mans/Carole's sessions are 20 min
+    return { start: start, end: end };
+  }
+
+  function parseHoraireLine(line) {
+    return (line || '').split(/[\n,]+/).map(function (s) { return s.trim(); }).filter(Boolean).map(function (tok) {
+      var parsed = parseHoraireToken(tok);
+      return { label: tok, start: parsed ? parsed.start : null, end: parsed ? parsed.end : null };
+    });
+  }
+
+  function renderTodayScheduleCard(ev) {
+    var info = circuitInfo(ev.circuit);
+    var html = '<div class="card today-schedule-card">';
+    html += '<div class="today-schedule-head">';
+    html += '<div><div class="eyebrow">En ce moment — ' + escapeHtml(ev.circuit) + '</div>';
+    var sub = [];
+    if (info.organizer) sub.push('Organisateur ' + escapeHtml(info.organizer));
+    if (info.briefing) sub.push('Briefing ' + escapeHtml(info.briefing));
+    if (sub.length) html += '<div class="help-text">' + sub.join(' · ') + '</div>';
+    html += '</div>';
+    html += '<div class="live-clock" id="live-clock">--h--</div>';
+    html += '</div>';
+    var horaires = info.horaires;
+    var anyGroup = horaires && HORAIRES_GROUPS.some(function (g) { return g.key !== 'pause' && horaires[g.key]; });
+    if (anyGroup) {
+      html += '<div class="today-schedule-groups">';
+      HORAIRES_GROUPS.forEach(function (g) {
+        if (g.key === 'pause' || !horaires[g.key]) return;
+        html += '<div class="today-schedule-group"><div class="today-schedule-group-label">' + escapeHtml(g.label) + '</div><div class="today-schedule-slots">';
+        parseHoraireLine(horaires[g.key]).forEach(function (slot) {
+          if (slot.start == null) {
+            html += '<span class="schedule-slot schedule-slot-label">' + escapeHtml(slot.label) + '</span>';
+          } else {
+            html += '<span class="schedule-slot" data-slot-start="' + slot.start + '" data-slot-end="' + slot.end + '">' + escapeHtml(slot.label) + '</span>';
+          }
+        });
+        html += '</div></div>';
+      });
+      html += '</div>';
+    } else {
+      html += '<div class="help-text">Aucun horaire enregistré pour ' + escapeHtml(ev.circuit) + ' — ajoutez-les depuis l\'onglet Circuit (Modifier les infos).</div>';
+    }
+    return html + '</div>';
+  }
+
+  function updateLiveClock() {
+    var clockEl = document.getElementById('live-clock');
+    if (!clockEl) return;
+    var now = new Date();
+    clockEl.textContent = pad2(now.getHours()) + 'h' + pad2(now.getMinutes());
+    var nowMinutes = now.getHours() * 60 + now.getMinutes();
+    var seenNext = false;
+    document.querySelectorAll('[data-slot-start]').forEach(function (el) {
+      var start = parseInt(el.getAttribute('data-slot-start'), 10);
+      var end = parseInt(el.getAttribute('data-slot-end'), 10);
+      el.classList.remove('slot-current', 'slot-next', 'slot-past');
+      if (nowMinutes >= start && nowMinutes < end) {
+        el.classList.add('slot-current');
+      } else if (nowMinutes < start) {
+        if (!seenNext) { el.classList.add('slot-next'); seenNext = true; }
+      } else {
+        el.classList.add('slot-past');
+      }
+    });
   }
 
   // Same grid as renderRiderGroupsSection (Matin/Après-midi per rider per
@@ -2950,6 +3062,14 @@
     }
     var isNew = editingEventId === 'new';
     var ev = isNew ? { circuit: prefillEventCircuit || '' } : (eventsList().filter(function (e) { return e.id === editingEventId; })[0] || {});
+    // A new sortie starts from its circuit's usual organizer/horaires (set
+    // via Circuit > Modifier les infos) -- the organizer fixes the same
+    // slots every time, so re-typing them per sortie would be pure friction.
+    if (isNew && ev.circuit) {
+      var circuitDefaults = circuitInfo(ev.circuit);
+      if (circuitDefaults.organizer) ev.organizer = circuitDefaults.organizer;
+      if (circuitDefaults.horaires) ev.horaires = circuitDefaults.horaires;
+    }
     // The draft starts from the event's already-saved groups when editing
     // an existing sortie, or empty for a new one -- and only re-seeds when
     // editingEventId itself changes, so it isn't wiped on every keystroke.
@@ -3265,6 +3385,7 @@
     attachHandlers();
     updateBanner();
     saveUiState();
+    updateLiveClock();
   }
 
   var pendingDelete = null;
@@ -3438,6 +3559,20 @@
     // grid live, without touching the rest of the form.
     var evRidersEl = document.getElementById('ev-riders');
     if (evRidersEl) evRidersEl.addEventListener('input', refreshEventFormGroups);
+    var evCircuitEl = document.getElementById('ev-circuit');
+    if (evCircuitEl && editingEventId === 'new') {
+      evCircuitEl.addEventListener('change', function () {
+        var defaults = circuitInfo(evCircuitEl.value.trim());
+        var orgEl = document.getElementById('ev-organizer');
+        if (orgEl && !orgEl.value.trim() && defaults.organizer) orgEl.value = defaults.organizer;
+        if (defaults.horaires) {
+          HORAIRES_GROUPS.forEach(function (g) {
+            var el = document.getElementById('ev-horaires-' + g.key);
+            if (el && !el.value.trim() && defaults.horaires[g.key]) el.value = defaults.horaires[g.key];
+          });
+        }
+      });
+    }
     var evDateStartEl = document.getElementById('ev-date-start');
     if (evDateStartEl) { evDateStartEl.addEventListener('input', refreshEventFormGroups); autoFormatFrDateInput(evDateStartEl); }
     var evDateEndEl = document.getElementById('ev-date-end');
@@ -3786,6 +3921,7 @@
 
   function init() {
     renderRoot();
+    setInterval(updateLiveClock, 15000);
     document.addEventListener('pointerdown', onCalendarPointerDown);
     document.addEventListener('pointermove', onCalendarPointerMove);
     document.addEventListener('pointerup', onCalendarPointerUp);

@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Charger les horaires des circuits — Carnet de Piste</title>
+<style>
+  body { font: 15px -apple-system, sans-serif; max-width: 640px; margin: 3rem auto; padding: 0 1rem; color: #16212c; }
+  button { font-size: 1rem; padding: 0.6rem 1.2rem; cursor: pointer; }
+  #log { white-space: pre-wrap; background: #f2f2f2; padding: 1rem; margin-top: 1rem; font-family: monospace; font-size: 0.85rem; max-height: 400px; overflow: auto; }
+</style>
+</head>
+<body>
+<h1>Charger les horaires connus</h1>
+<p>Renseigne l'organisateur, le briefing et les horaires habituels par groupe pour Le Mans, Magny-Cours et Carole. Sans danger à relancer : ça fusionne ces champs dans chaque circuit sans toucher au reste (plan, distance, virages...).</p>
+<button id="go">Charger les horaires</button>
+<div id="log"></div>
+
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore-compat.js"></script>
+<script src="firebase-config.js"></script>
+<script>
+  var logEl = document.getElementById('log');
+  function log(msg) { logEl.textContent += msg + '\n'; }
+
+  var SCHEDULES = {
+    'Le Mans': {
+      organizer: 'Mototeam95',
+      horaires: {
+        groupA: '9h, 10h40, PAUSE DEJ, 14h, 15h20, 16h40',
+        groupB: '9h25, 11h, PAUSE, 14h20, 15h40, 17h00',
+        groupC: '9h50, 11h20, PAUSE, 14h40, 16h00, 17h20',
+        groupD: '10h15, 11h40, PAUSE, 15h00, 16h20, 17h40'
+      }
+    },
+    'Magny Cours': {
+      organizer: 'BMC',
+      briefing: '8h30-8h50',
+      horaires: {
+        groupA: '9h-9h20, 10h-10h20, 11h-11h20, PAUSE DEJ, 14h-14h20, 15h-15h20, 16h-16h20',
+        groupB: '9h20-9h40, 10h20-10h40, 11h20-11h40, 12h20-12h40, PAUSE DEJ, 14h20-14h40, 15h20-15h40, 16h20-16h40',
+        groupC: '9h40-10h00, 10h40-11h00, 11h40-12h00, 12h40-13h00, PAUSE DEJ, 14h40-15h00, 15h40-16h00, 16h40-17h00'
+      }
+    },
+    'Carole': {
+      organizer: 'MotoTeam95',
+      briefing: '8h15',
+      horaires: {
+        groupA: '9h-9h20, 10h20, 11h40, PAUSE, 14h, 15h20, 16h40',
+        groupB: '9h20-9h40, 10h40, 12h00, PAUSE, 14h20, 15h40, 17h00',
+        groupC: '9h40-10h00, 11h00, 12h20, PAUSE, 14h40, 16h00, 17h20',
+        groupD: '10h00-10h20, 11h20, 12h40, PAUSE, 15h00, 16h20, 17h40'
+      }
+    }
+  };
+
+  document.getElementById('go').addEventListener('click', function () {
+    document.getElementById('go').disabled = true;
+    var db = firebase.firestore();
+    var auth = firebase.auth();
+    log('Connexion...');
+    auth.signInAnonymously().then(function () {
+      log('Connecté. Fusion des horaires...');
+      var batch = db.batch();
+      Object.keys(SCHEDULES).forEach(function (name) {
+        var data = Object.assign({ name: name }, SCHEDULES[name]);
+        batch.set(db.collection('circuits').doc(encodeURIComponent(name)), data, { merge: true });
+      });
+      return batch.commit();
+    }).then(function () {
+      log('Terminé : horaires chargés pour ' + Object.keys(SCHEDULES).join(', ') + '.');
+      log('Tu peux fermer cette page et vérifier dans l\'onglet Circuit.');
+    }).catch(function (err) {
+      log('ERREUR : ' + (err && err.message ? err.message : err));
+    });
+  });
+</script>
+</body>
+</html>

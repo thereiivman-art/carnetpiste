@@ -667,6 +667,62 @@
   .horaires-line + .horaires-line { margin-top: 0.15rem; }
   .horaires-group-label { color: var(--text-muted); font-weight: 500; margin-right: 0.3rem; }
 
+  .today-schedule-card { border-color: var(--accent); }
+  .today-schedule-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+  .live-clock {
+    font-family: var(--font-mono);
+    font-size: 1.6rem;
+    font-weight: 600;
+    color: var(--accent);
+    flex-shrink: 0;
+  }
+  .today-schedule-groups {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 0.8rem;
+    margin-top: 1rem;
+  }
+  .today-schedule-group-label {
+    font-weight: 600;
+    margin-bottom: 0.35rem;
+  }
+  .today-schedule-slots {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+  .schedule-slot {
+    font-family: var(--font-mono);
+    font-size: 0.85rem;
+    padding: 0.2rem 0.5rem;
+    border-radius: 6px;
+    background: var(--surface-alt);
+    color: var(--text-muted);
+  }
+  .schedule-slot-label {
+    font-family: var(--font-body);
+    font-style: italic;
+    background: transparent;
+    padding-left: 0;
+  }
+  .schedule-slot.slot-past { opacity: 0.45; }
+  .schedule-slot.slot-next {
+    background: var(--best-bg);
+    color: var(--best);
+    font-weight: 600;
+  }
+  .schedule-slot.slot-current {
+    background: var(--accent);
+    color: var(--accent-ink);
+    font-weight: 700;
+  }
+
   .calendar-zoom-hint {
     font-size: 0.76rem;
     color: var(--text-muted);
