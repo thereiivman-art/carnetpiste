@@ -3404,7 +3404,27 @@
       '</div>';
   }
 
+  // A render bug used to mean a silent blank page -- an exception thrown
+  // while building `body` fires before root.innerHTML is ever assigned, so
+  // whatever was there before (nothing, on a fresh load) just stays.
+  // Catching it here turns that into a visible, copy-pasteable error
+  // instead, so a rider hitting a bug can report exactly what broke.
   function renderRoot() {
+    try {
+      renderRootUnsafe();
+    } catch (err) {
+      if (window.console) console.error('renderRoot failed', err);
+      var root = document.getElementById('root');
+      if (root) {
+        root.innerHTML = '<div class="card"><h2 class="section-title">Erreur d\'affichage</h2>' +
+          '<p>Quelque chose a mal tourné en construisant la page. Envoie ce message tel quel :</p>' +
+          '<pre style="white-space:pre-wrap; word-break:break-word; font-size:0.78rem; background:var(--surface-alt); padding:0.8rem; border-radius:8px;">' +
+          escapeHtml((err && err.stack) || String(err)) + '</pre></div>';
+      }
+    }
+  }
+
+  function renderRootUnsafe() {
     normalizeSelection();
     var root = document.getElementById('root');
     var body;
