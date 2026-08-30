@@ -21,6 +21,7 @@
   var currentUserProfile = null; // { name, role: 'pilote'|'accompagnant', email } once loaded
   var authMode = 'login'; // 'login' | 'signup' -- which form the auth screen shows
   var authError = '';
+  var autoVerifyEmailSent = false; // guards the auto-resend in onAuthStateChanged, see there
 
   // The one administrator (Xavier) can delete anything; everyone else can
   // still add/edit collaboratively (chronos, sorties, groupes, équipement)
@@ -3934,7 +3935,7 @@
     var email = (auth.currentUser && auth.currentUser.email) || 'ton adresse';
     var html = '<div class="card auth-card">';
     html += '<h2 class="section-title">Vérifie ton email</h2>';
-    html += '<p class="help-text">Un email de vérification a été envoyé à <strong>' + escapeHtml(email) + '</strong>. Clique sur le lien qu\'il contient, puis reviens ici.</p>';
+    html += '<p class="help-text">Un email de vérification a été envoyé à <strong>' + escapeHtml(email) + '</strong>. Clique sur le lien qu\'il contient, puis reviens ici. Pense à vérifier tes spams/courriers indésirables si tu ne le vois pas — l\'expéditeur est une adresse @firebaseapp.com.</p>';
     html += '<div class="field-error' + (authError ? ' visible' : '') + '" id="auth-error">' + escapeHtml(authError) + '</div>';
     html += '<div style="margin-top:0.9rem; display:flex; gap:0.6rem; flex-wrap:wrap;">' +
       '<button type="button" class="primary" id="verify-check-btn">J\'ai vérifié, continuer</button>' +
@@ -3981,6 +3982,7 @@
     if (code === 'auth/invalid-email') return 'Email invalide.';
     if (code === 'auth/weak-password') return 'Mot de passe trop court (6 caractères minimum).';
     if (code === 'auth/wrong-password' || code === 'auth/user-not-found' || code === 'auth/invalid-credential') return 'Email ou mot de passe incorrect.';
+    if (code === 'auth/too-many-requests') return 'Trop de tentatives — attends quelques minutes avant de renvoyer l\'email.';
     return 'Erreur : ' + ((err && err.message) || err);
   }
 
@@ -4025,6 +4027,7 @@
       // fetch can race this document write.
       currentUserProfile = { name: name, role: role, email: email };
       authState = 'verify-email';
+      autoVerifyEmailSent = true; // already sent just above -- don't let onAuthStateChanged send a second one
       renderRoot();
       showToast('Compte créé — vérifie ton email pour continuer.', 'success');
     }).catch(function (err) {
@@ -4750,6 +4753,7 @@
         authState = 'signed-out';
         currentUserProfile = null;
         canPersist = false;
+        autoVerifyEmailSent = false;
         renderRoot();
         return;
       }
@@ -4757,7 +4761,15 @@
         // Covers both a fresh signup (handled directly in
         // onSignupSubmit, but this also fires) and someone logging back
         // into an old, never-verified account -- either way, held here
-        // until they confirm.
+        // until they confirm. An account created before this screen
+        // existed never got a first verification email at all, so send
+        // one automatically the first time we land here this session
+        // (guarded so a re-fired onAuthStateChanged doesn't spam it, and
+        // skipped if onSignupSubmit already just sent one itself).
+        if (!autoVerifyEmailSent) {
+          autoVerifyEmailSent = true;
+          user.sendEmailVerification().catch(function () {});
+        }
         authState = 'verify-email';
         renderRoot();
         return;
