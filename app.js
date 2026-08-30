@@ -22,6 +22,7 @@
   var authMode = 'login'; // 'login' | 'signup' -- which form the auth screen shows
   var authError = '';
   var autoVerifyEmailSent = false; // guards the auto-resend in onAuthStateChanged, see there
+  var riderBikeMap = {}; // rider name -> their bike, from users/{uid}.bike (see startSync)
 
   // The one administrator (Xavier) can delete anything; everyone else can
   // still add/edit collaboratively (chronos, sorties, groupes, équipement)
@@ -87,6 +88,45 @@
       return v;
     }
     return null;
+  }
+
+  // Builds a M:SS.mmm string from whatever digits are in `text`, filling
+  // right-to-left like a stopwatch/currency input -- the last 3 digits
+  // typed are always milliseconds, the 2 before that seconds, everything
+  // else minutes. So typing "1", "54", "104" in sequence (no punctuation
+  // at all) lands on "1:54.104" on its own.
+  function maskChronoLine(text) {
+    var digits = text.replace(/\D/g, '').slice(-7);
+    if (!digits) return '';
+    var ms = digits.slice(-3);
+    var rest = digits.slice(0, -3);
+    var sec = rest.slice(-2);
+    var min = rest.slice(0, -2);
+    return (min || '0') + ':' + sec.padStart(2, '0') + '.' + ms;
+  }
+
+  // Wires that masking onto the Chronos textarea, live as the rider types
+  // -- only for actual keystrokes (inputType 'insertText'), never for a
+  // paste/drop of already-formatted times, and only on lines with no comma
+  // (a comma-separated multi-time line is left as typed).
+  var lastLapsInputType = null;
+  function attachLapsAutoFormat(textarea) {
+    textarea.addEventListener('beforeinput', function (e) { lastLapsInputType = e.inputType; });
+    textarea.addEventListener('input', function () {
+      if (lastLapsInputType !== 'insertText') return;
+      var pos = textarea.selectionStart;
+      var value = textarea.value;
+      var lineStart = value.lastIndexOf('\n', pos - 1) + 1;
+      var lineEnd = value.indexOf('\n', pos);
+      if (lineEnd === -1) lineEnd = value.length;
+      var line = value.slice(lineStart, lineEnd);
+      if (line.indexOf(',') !== -1) return;
+      var masked = maskChronoLine(line);
+      if (masked === line) return;
+      textarea.value = value.slice(0, lineStart) + masked + value.slice(lineEnd);
+      var newPos = lineStart + masked.length;
+      textarea.setSelectionRange(newPos, newPos);
+    });
   }
 
   function escapeHtml(str) {
@@ -805,6 +845,9 @@
       '<label><input type="radio" name="profile-role" value="pilote"' + (!isAccompagnant ? ' checked' : '') + '> Pilote</label>' +
       '<label><input type="radio" name="profile-role" value="accompagnant"' + (isAccompagnant ? ' checked' : '') + '> Accompagnant</label>' +
       '</div>';
+    html += '<div id="profile-bike-wrap" style="display:' + (isAccompagnant ? 'none' : 'block') + '; margin-top:0.9rem;">' +
+      '<label for="profile-bike">Ma moto</label><input type="text" id="profile-bike" placeholder="Ex. ST 765 RS" value="' + escapeHtml(p.bike || '') + '">' +
+      '<div class="help-text">Suggérée automatiquement quand tu entres un chrono.</div></div>';
     html += '<div id="profile-followed-wrap" style="display:' + (isAccompagnant ? 'block' : 'none') + '; margin-top:0.9rem;">';
     html += '<label>Pilotes que je suis</label>';
     var riders = allKnownRiders();
@@ -873,16 +916,17 @@
   }
 
   var profileSaveMessage = '';
-  function saveProfile(role, notifyBeforeSession, followedRiders) {
+  function saveProfile(role, notifyBeforeSession, followedRiders, bike) {
     var uid = auth.currentUser && auth.currentUser.uid;
     if (!uid) return;
     if (notifyBeforeSession && window.Notification && Notification.permission === 'default') {
       Notification.requestPermission();
     }
-    db.collection('users').doc(uid).set({ role: role, notifyBeforeSession: notifyBeforeSession, followedRiders: followedRiders }, { merge: true }).then(function () {
+    db.collection('users').doc(uid).set({ role: role, notifyBeforeSession: notifyBeforeSession, followedRiders: followedRiders, bike: bike || null }, { merge: true }).then(function () {
       currentUserProfile.role = role;
       currentUserProfile.notifyBeforeSession = notifyBeforeSession;
       currentUserProfile.followedRiders = followedRiders;
+      currentUserProfile.bike = bike || null;
       profileSaveMessage = 'Profil enregistré.';
       renderRoot();
     }).catch(function (err) {
@@ -1085,25 +1129,24 @@
     }
     var rider = (selectedRiders && selectedRiders.size === 1) ? Array.from(selectedRiders)[0] : null;
     var todayStr = dateKey(new Date());
-    var candidates = candidateEventsForCircuitDate(selectedCircuit, todayStr);
-    var preselectId = candidates.length
-      ? ((selectedEventId && candidates.some(function (e) { return e.id === selectedEventId; })) ? selectedEventId : candidates[0].id)
-      : null;
-    var linkedEvent = preselectId ? candidates.filter(function (e) { return e.id === preselectId; })[0] : null;
+    var groupHint = rider ? chronoGroupHint(selectedCircuit, todayStr, rider) : '';
     var html = '<div class="card">';
     html += '<h2 class="section-title">Entrer un nouveau chrono</h2>';
     html += '<form id="session-form" novalidate>';
     html += '<div class="field-row">';
     if (!rider) {
-      html += '<div><label for="f-rider">Pilote</label>' +
-        '<input type="text" id="f-rider" list="rider-options" placeholder="Ex. Xavier" required>' +
-        '<datalist id="rider-options">' + riderDatalist() + '</datalist></div>';
+      var knownRiders = allKnownRiders();
+      html += '<div><label for="f-rider">Pilote</label><select id="f-rider" required><option value="">—</option>' +
+        knownRiders.map(function (r) { return '<option value="' + escapeHtml(r) + '">' + escapeHtml(r) + '</option>'; }).join('') +
+        '</select></div>';
     }
     html += '<div><label for="f-date">Date</label>' +
       '<input type="text" id="f-date" inputmode="numeric" placeholder="JJ/MM/AAAA" value="' + isoToFrDate(todayStr) + '" required></div>';
-    html += '<div><label>Circuit</label><div class="static-field">' + escapeHtml(selectedCircuit) + '</div></div>';
+    html += '<div><label for="f-circuit">Circuit</label><select id="f-circuit" required>' +
+      allCircuits().map(function (c) { return '<option value="' + escapeHtml(c) + '"' + (c === selectedCircuit ? ' selected' : '') + '>' + escapeHtml(c) + '</option>'; }).join('') +
+      '</select></div>';
     html += '<div><label for="f-bike">Moto</label>' +
-      '<input type="text" id="f-bike" list="bike-options" placeholder="Ex. ST 765 RS">' +
+      '<input type="text" id="f-bike" list="bike-options" placeholder="Ex. ST 765 RS" value="' + escapeHtml((rider && riderBikeMap[rider]) || '') + '">' +
       '<datalist id="bike-options">' + bikeDatalist() + '</datalist></div>';
     html += '</div>';
     // Entry granularity is deliberately flexible: one row can be just the
@@ -1117,19 +1160,13 @@
       '<option value="apres-midi">Après-midi</option>' +
       '</select></div>';
     html += '<div><label for="f-group">Groupe</label><select id="f-group"><option value="">—</option>' +
-      GROUP_LETTERS.map(function (g) { return '<option value="' + g + '">' + g + '</option>'; }).join('') +
+      GROUP_LETTERS.map(function (g) { return '<option value="' + g + '"' + (g === groupHint ? ' selected' : '') + '>' + g + '</option>'; }).join('') +
       '</select></div>';
     html += '</div>';
-    if (rider && linkedEvent) {
-      var hintAm = riderGroupFor(linkedEvent, rider, todayStr, 'matin');
-      var hintPm = riderGroupFor(linkedEvent, rider, todayStr, 'apres-midi');
-      if (hintAm || hintPm) {
-        html += '<div class="help-text">Groupe assigné aujourd\'hui — matin : ' + (hintAm || '—') + ', après-midi : ' + (hintPm || '—') + '.</div>';
-      }
-    }
+    html += '<div class="help-text" id="f-group-hint"' + (groupHint ? '' : ' style="display:none;"') + '>Groupe suggéré depuis la sortie associée : ' + escapeHtml(groupHint) + '.</div>';
     html += '<label for="f-laps">Chronos</label>' +
       '<textarea id="f-laps" placeholder="1:23.456' + String.fromCharCode(10) + '1:22.980' + String.fromCharCode(10) + '1:23.120" required></textarea>' +
-      '<div class="help-text">Un chrono par ligne (ou séparés par une virgule) — format 1:23.456 ou 83.456. Entrez juste votre meilleur temps du jour ou de la session, ou tous vos tours.</div>';
+      '<div class="help-text">Un chrono par ligne (ou séparés par une virgule) — tape juste les chiffres, les : et . s\'ajoutent automatiquement. Ex. 1 54 104 pour 1:54.104.</div>';
     html += '<div style="margin-top:0.9rem;"><label for="f-note">Note (optionnel)</label>' +
       '<input type="text" id="f-note" placeholder="Ex. Pluie, pneus neufs, réglages…"></div>';
     html += '<div id="f-linked-event-wrap">' + renderLinkedEventField(selectedCircuit, todayStr) + '</div>';
@@ -1139,6 +1176,17 @@
       '</div>';
     html += '</form></div>';
     return html;
+  }
+
+  // The group a rider is suggested to race in today, straight from the
+  // sortie linked to this circuit/date (see candidateEventsForCircuitDate)
+  // -- matin taking priority since that's the group a rider entering a
+  // chrono earlier in the day is most likely riding in.
+  function chronoGroupHint(circuit, dateStr, rider) {
+    var candidates = candidateEventsForCircuitDate(circuit, dateStr);
+    if (!candidates.length) return '';
+    var linkedEvent = candidates.filter(function (e) { return e.id === selectedEventId; })[0] || candidates[0];
+    return riderGroupFor(linkedEvent, rider, dateStr, 'matin') || riderGroupFor(linkedEvent, rider, dateStr, 'apres-midi') || '';
   }
 
   function renderChronosTab() {
@@ -4404,11 +4452,13 @@
         evt.preventDefault();
         var role = profileForm.querySelector('input[name="profile-role"]:checked').value;
         var notify = document.getElementById('profile-notify').checked;
+        var bikeEl = document.getElementById('profile-bike');
+        var bike = bikeEl ? bikeEl.value.trim() : '';
         var followedRiders = Array.prototype.map.call(
           profileForm.querySelectorAll('input[name="profile-follow-rider"]:checked'),
           function (el) { return el.value; }
         );
-        saveProfile(role, notify, followedRiders);
+        saveProfile(role, notify, followedRiders, bike);
       });
       var notifyLabel = document.getElementById('profile-notify-label');
       profileForm.querySelectorAll('input[name="profile-role"]').forEach(function (radio) {
@@ -4417,6 +4467,8 @@
           if (radio.checked) {
             var wrap = document.getElementById('profile-followed-wrap');
             if (wrap) wrap.style.display = isAcc ? 'block' : 'none';
+            var bikeWrap = document.getElementById('profile-bike-wrap');
+            if (bikeWrap) bikeWrap.style.display = isAcc ? 'none' : 'block';
             if (notifyLabel) notifyLabel.textContent = isAcc ? 'Me notifier quand un pilote suivi va partir rouler' : 'Me notifier quand mon groupe va partir rouler';
           }
         });
@@ -4431,14 +4483,39 @@
     if (form) form.addEventListener('submit', onSubmit);
     var fDateEl = document.getElementById('f-date');
     autoFormatFrDateInput(fDateEl);
-    if (fDateEl) {
-      fDateEl.addEventListener('input', function () {
-        var wrap = document.getElementById('f-linked-event-wrap');
-        if (!wrap) return;
-        var iso = frDateToIso(fDateEl.value) || dateKey(new Date());
-        wrap.innerHTML = renderLinkedEventField(selectedCircuit, iso);
-      });
+    var fRiderEl = document.getElementById('f-rider');
+    var fCircuitEl = document.getElementById('f-circuit');
+    // Shared by the rider/circuit/date fields: whichever one changes, the
+    // linked-sortie suggestion, the bike suggestion (from "Mon profil")
+    // and the group suggestion (from that sortie's rider assignment) all
+    // need to be recomputed together, not just the one field that changed.
+    function refreshChronoFormAux() {
+      var activeRider = (selectedRiders && selectedRiders.size === 1) ? Array.from(selectedRiders)[0] : null;
+      var rider = fRiderEl ? fRiderEl.value : (activeRider || '');
+      var circuit = fCircuitEl ? fCircuitEl.value : selectedCircuit;
+      var iso = frDateToIso(fDateEl.value) || dateKey(new Date());
+      var wrap = document.getElementById('f-linked-event-wrap');
+      if (wrap) wrap.innerHTML = renderLinkedEventField(circuit, iso);
+      var bikeEl = document.getElementById('f-bike');
+      if (bikeEl && rider && riderBikeMap[rider]) bikeEl.value = riderBikeMap[rider];
+      var groupEl = document.getElementById('f-group');
+      var groupHintEl = document.getElementById('f-group-hint');
+      var hint = rider ? chronoGroupHint(circuit, iso, rider) : '';
+      if (groupEl && hint) groupEl.value = hint;
+      if (groupHintEl) {
+        if (hint) {
+          groupHintEl.style.display = '';
+          groupHintEl.textContent = 'Groupe suggéré depuis la sortie associée : ' + hint + '.';
+        } else {
+          groupHintEl.style.display = 'none';
+        }
+      }
     }
+    if (fDateEl) fDateEl.addEventListener('input', refreshChronoFormAux);
+    if (fRiderEl) fRiderEl.addEventListener('change', refreshChronoFormAux);
+    if (fCircuitEl) fCircuitEl.addEventListener('change', refreshChronoFormAux);
+    var fLapsEl = document.getElementById('f-laps');
+    if (fLapsEl) attachLapsAutoFormat(fLapsEl);
     var nextOutingLink = document.getElementById('next-outing-link');
     if (nextOutingLink) {
       nextOutingLink.addEventListener('click', function () {
@@ -4787,6 +4864,7 @@
   function onSubmit(ev) {
     ev.preventDefault();
     var riderEl = document.getElementById('f-rider');
+    var circuitEl = document.getElementById('f-circuit');
     var dateEl = document.getElementById('f-date');
     var bikeEl = document.getElementById('f-bike');
     var lapsEl = document.getElementById('f-laps');
@@ -4799,7 +4877,7 @@
     var activeRider = (selectedRiders && selectedRiders.size === 1) ? Array.from(selectedRiders)[0] : null;
     var rider = riderEl ? riderEl.value.trim() : (activeRider || '');
     var date = frDateToIso(dateEl.value);
-    var circuit = selectedCircuit;
+    var circuit = circuitEl ? circuitEl.value : selectedCircuit;
     var bike = bikeEl.value.trim();
     var note = noteEl.value.trim();
     var period = periodEl ? periodEl.value : '';
@@ -4850,6 +4928,7 @@
 
     STATE.sessions.push(session);
     selectedRiders = new Set([rider]);
+    selectedCircuit = circuit;
     renderRoot();
     persist(prevState);
 
@@ -4922,6 +5001,17 @@
     unsubscribers.push(db.collection('settings').doc('checklist').onSnapshot(function (doc) {
       STATE.checklistTemplate = doc.exists ? doc.data() : null;
       renderRoot();
+    }, handleSyncError));
+    // Powers the chrono form's bike auto-suggest (see refreshChronoFormAux):
+    // a rider's own motorcycle, set once in "Mon profil", instead of
+    // re-typing it every time a chrono is entered.
+    unsubscribers.push(db.collection('users').onSnapshot(function (snap) {
+      var map = {};
+      snap.forEach(function (doc) {
+        var data = doc.data();
+        if (data.name && data.bike) map[data.name] = data.bike;
+      });
+      riderBikeMap = map;
     }, handleSyncError));
   }
 
