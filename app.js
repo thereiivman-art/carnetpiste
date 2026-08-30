@@ -250,6 +250,8 @@
   var editingSessionId = null; // id of the chrono row being edited inline in the Circuit history table, or null
   var selectedSessionDate = _savedUiState.selectedSessionDate || null; // 'YYYY-MM-DD' — shows the "chronos of that day" card
   var planningGroupFilter = _savedUiState.planningGroupFilter || null; // array of HORAIRES_GROUPS keys, or null for "all available"
+  var planningIsOngoing = false; // set by renderPlanningTab(), read by updateLiveClock()
+  var planningEventDateStart = null; // ditto -- 'YYYY-MM-DD' of the target sortie
   // Which circuit and which rider(s) all four tabs currently show —
   // validated/defaulted by normalizeSelection() below, and kept in sync
   // with the currently-selected sortie via selectEvent(). The global picker
@@ -262,7 +264,17 @@
   var CHECKLIST_ITEMS = [
     { key: 'hotel', label: 'Hôtel réservé' },
     { key: 'avion', label: 'Avion / transport réservé' },
-    { key: 'equipement', label: 'Équipement vérifié' }
+    { key: 'casque', label: 'Casque' },
+    { key: 'combinaison', label: 'Combinaison (ou blouson + pantalon cuir)' },
+    { key: 'gants', label: 'Gants' },
+    { key: 'bottes', label: 'Bottes' },
+    { key: 'dorsale', label: 'Protection dorsale' },
+    { key: 'bouchons', label: "Bouchons d'oreilles" },
+    { key: 'outils', label: 'Trousse à outils + clé dynamométrique' },
+    { key: 'pneus', label: 'Pression des pneus vérifiée' },
+    { key: 'bequilles', label: 'Béquilles paddock (avant/arrière)' },
+    { key: 'antivol', label: 'Antivol / disque de frein' },
+    { key: 'adhesif', label: 'Adhésif (feux, compteur, plaque)' }
   ];
 
   // Horaires are per-groupe-de-niveau session times, not a single free-text
@@ -2795,6 +2807,10 @@
       var groupsSummary = riderStartGroupsSummary(ev);
       if (groupsSummary) html += infoRow('Groupes', groupsSummary);
     }
+    if (ev.hotelName || ev.hotelAddress) {
+      html += infoRow('Hôtel', [ev.hotelName, ev.hotelAddress].filter(Boolean).map(escapeHtml).join(' — '));
+    }
+    if (ev.flightTime) html += infoRow('Départ avion', escapeHtml(ev.flightTime));
     if (ev.note) html += infoRow('Note', escapeHtml(ev.note));
     // The circuit's own interactive map, so the annotated track is one tap
     // away from the sortie it belongs to, not just reachable from Circuit.
@@ -3003,6 +3019,12 @@
       return '<div class="card"><div class="empty-state">Aucune sortie en cours ou à venir — planifiez-en une dans l\'onglet Événements.</div></div>';
     }
     var ev = target.ev, isOngoing = target.mode === 'ongoing';
+    // Read by updateLiveClock() so it knows whether "now" actually falls
+    // within this sortie -- a session's time-of-day only means "in
+    // progress"/"past" today; for a sortie weeks away the countdown should
+    // read in days, not compare today's clock against Jerez's 10h.
+    planningIsOngoing = isOngoing;
+    planningEventDateStart = ev.dateStart;
     var info = circuitInfo(ev.circuit);
     var horaires = info.horaires;
 
@@ -3046,6 +3068,25 @@
       var now = new Date();
       clockEl.textContent = pad2(now.getHours()) + 'h' + pad2(now.getMinutes());
     }
+    var countdownEl = document.getElementById('planning-countdown');
+    // Session times are only "current"/"past" relative to today's clock if
+    // today actually falls within the sortie -- for a sortie that's still
+    // weeks away, every slot would otherwise look "past" the moment its
+    // time-of-day ticks by today, which is meaningless.
+    if (!planningIsOngoing) {
+      document.querySelectorAll('[data-slot-start]').forEach(function (el) {
+        el.classList.remove('slot-current', 'slot-next', 'slot-past');
+      });
+      if (countdownEl) {
+        if (planningEventDateStart) {
+          var days = Math.round((parseLocalDate(planningEventDateStart) - parseLocalDate(dateKey(new Date()))) / 86400000);
+          countdownEl.textContent = days === 1 ? 'Dans 1 jour' : 'Dans ' + days + ' jours';
+        } else {
+          countdownEl.textContent = '';
+        }
+      }
+      return;
+    }
     var nowMinutes = new Date().getHours() * 60 + new Date().getMinutes();
     var seenNext = false;
     var nextStart = null;
@@ -3062,7 +3103,6 @@
         el.classList.add('slot-past');
       }
     });
-    var countdownEl = document.getElementById('planning-countdown');
     if (countdownEl) {
       if (nextStart == null) {
         countdownEl.textContent = '';
@@ -3180,6 +3220,11 @@
       html += '<label class="checklist-item"><input type="checkbox" id="ev-check-' + item.key + '"' + (checked ? ' checked' : '') + '> ' + escapeHtml(item.label) + '</label>';
     });
     html += '</div>';
+    html += '<div class="field-row" style="margin-top:0.9rem;">';
+    html += '<div><label for="ev-hotel-name">Hôtel — nom</label><input type="text" id="ev-hotel-name" placeholder="Ex. Ibis Le Mans" value="' + escapeHtml(ev.hotelName || '') + '"></div>';
+    html += '<div><label for="ev-hotel-address">Hôtel — adresse</label><input type="text" id="ev-hotel-address" placeholder="Ex. 12 rue de la Sarthe, 72100 Le Mans" value="' + escapeHtml(ev.hotelAddress || '') + '"></div>';
+    html += '<div><label for="ev-flight-time">Heure de départ avion</label><input type="text" id="ev-flight-time" placeholder="Ex. 6h40" value="' + escapeHtml(ev.flightTime || '') + '"></div>';
+    html += '</div>';
     html += '<div class="field-error" id="event-form-error"></div>';
     html += '<div style="margin-top:0.9rem; display:flex; gap:0.6rem;">' +
       '<button type="submit" class="primary">Enregistrer</button>' +
@@ -3230,6 +3275,9 @@
       var el = document.getElementById('ev-check-' + item.key);
       checklist[item.key] = el ? el.checked : false;
     });
+    var hotelName = document.getElementById('ev-hotel-name').value.trim();
+    var hotelAddress = document.getElementById('ev-hotel-address').value.trim();
+    var flightTime = document.getElementById('ev-flight-time').value.trim();
 
     // Trim the form's draft down to riders still in the field and dates
     // still within range -- a rider removed from the field, or a date
@@ -3246,6 +3294,9 @@
     if (editingEventId === 'new') {
       var newEvent = { id: genId(), circuit: circuit, dateStart: dateStart, dateEnd: dateEnd, riders: riders, organizer: organizer, note: note, checklist: checklist };
       if (riderGroups) newEvent.riderGroups = riderGroups;
+      if (hotelName) newEvent.hotelName = hotelName;
+      if (hotelAddress) newEvent.hotelAddress = hotelAddress;
+      if (flightTime) newEvent.flightTime = flightTime;
       STATE.events.push(newEvent);
       selectedEventId = newEvent.id;
     } else {
@@ -3259,7 +3310,10 @@
         existing.note = note;
         existing.autoCreated = false; // a manual edit means it's no longer just a byproduct of a chrono
         existing.checklist = checklist;
-        existing.riderGroups = riderGroups || undefined;
+        existing.riderGroups = riderGroups || null; // never `undefined` -- Firestore rejects that as a field value
+        existing.hotelName = hotelName || null;
+        existing.hotelAddress = hotelAddress || null;
+        existing.flightTime = flightTime || null;
         selectedEventId = existing.id;
       }
     }
