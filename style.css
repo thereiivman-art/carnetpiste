@@ -95,6 +95,12 @@
     gap: 1rem;
     flex-wrap: wrap;
   }
+  .header-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    flex-shrink: 0;
+  }
   .theme-toggle {
     display: inline-flex;
     gap: 0.2rem;
@@ -668,60 +674,60 @@
   .horaires-group-label { color: var(--text-muted); font-weight: 500; margin-right: 0.3rem; }
 
   .today-schedule-card { border-color: var(--accent); }
-  .today-schedule-head {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    gap: 1rem;
-    flex-wrap: wrap;
-  }
   .live-clock {
     font-family: var(--font-mono);
-    font-size: 1.6rem;
+    font-size: 1.1rem;
     font-weight: 600;
     color: var(--accent);
     flex-shrink: 0;
+    font-variant-numeric: tabular-nums;
   }
-  .today-schedule-groups {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-    gap: 0.8rem;
-    margin-top: 1rem;
+
+  .horaires-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 0.9rem;
+    font-size: 0.88rem;
   }
-  .today-schedule-group-label {
+  .horaires-table th, .horaires-table td {
+    padding: 0.4rem 0.7rem;
+    text-align: center;
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+  .horaires-table th {
+    color: var(--text-muted);
     font-weight: 600;
-    margin-bottom: 0.35rem;
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
   }
-  .today-schedule-slots {
-    display: flex;
-    flex-direction: column;
-    gap: 0.25rem;
-  }
-  .schedule-slot {
+  .horaires-table-time {
     font-family: var(--font-mono);
-    font-size: 0.85rem;
-    padding: 0.2rem 0.5rem;
-    border-radius: 6px;
-    background: var(--surface-alt);
+    font-variant-numeric: tabular-nums;
+    text-align: left !important;
     color: var(--text-muted);
   }
-  .schedule-slot-label {
-    font-family: var(--font-body);
+  .horaires-table td { color: var(--text-muted); }
+  .horaires-table-pause td {
     font-style: italic;
-    background: transparent;
-    padding-left: 0;
+    color: var(--text-muted);
+    background: var(--surface-alt);
+    text-align: center;
   }
-  .schedule-slot.slot-past { opacity: 0.45; }
-  .schedule-slot.slot-next {
-    background: var(--best-bg);
-    color: var(--best);
-    font-weight: 600;
+  .horaires-table tr.slot-past { opacity: 0.4; }
+  .horaires-table tr.slot-next td { background: var(--best-bg); color: var(--best); }
+  .horaires-table tr.slot-next td.horaires-table-time { font-weight: 700; }
+  .horaires-table tr.slot-current td { background: var(--accent); color: var(--accent-ink); font-weight: 700; }
+  .horaires-table-legend {
+    display: flex;
+    gap: 1rem;
+    margin-top: 0.6rem;
+    font-size: 0.78rem;
+    color: var(--text-muted);
   }
-  .schedule-slot.slot-current {
-    background: var(--accent);
-    color: var(--accent-ink);
-    font-weight: 700;
-  }
+  .legend-current { color: var(--accent); }
+  .legend-next { color: var(--best); }
 
   .calendar-zoom-hint {
     font-size: 0.76rem;

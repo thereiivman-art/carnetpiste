@@ -74,6 +74,14 @@
     return parts[2] + '/' + parts[1] + '/' + parts[0];
   }
 
+  // Same as formatDate() but with a 2-digit year -- used where table width
+  // matters on mobile (the Records battus table has 5 columns already).
+  function formatDateShortYear(iso) {
+    var parts = iso.split('-');
+    if (parts.length !== 3) return iso;
+    return parts[2] + '/' + parts[1] + '/' + parts[0].slice(2);
+  }
+
   // The chrono date fields use a plain text JJ/MM/AAAA input instead of a
   // native <input type="date"> -- the native picker's on-screen format
   // follows the browser/OS locale, which can silently show mm/dd/yyyy
@@ -732,7 +740,7 @@
     } else {
       html += '<div class="table-scroll"><table class="session-table"><thead><tr><th>Date</th><th>Pilote</th><th>Circuit</th><th>Nouveau temps</th><th>Gain</th></tr></thead><tbody>';
       records.forEach(function (r) {
-        html += '<tr><td>' + escapeHtml(formatDate(r.date)) + '</td><td class="rider-cell">' + escapeHtml(r.rider) + '</td><td>' + escapeHtml(r.circuit) + '</td>' +
+        html += '<tr><td>' + escapeHtml(formatDateShortYear(r.date)) + '</td><td class="rider-cell">' + escapeHtml(r.rider) + '</td><td>' + escapeHtml(r.circuit) + '</td>' +
           '<td class="laps-cell">' + formatTime(r.time) + '<span class="record-pill">RECORD</span></td>' +
           '<td class="gain-cell">-' + formatGain(r.previous - r.time) + '</td></tr>';
       });
@@ -2869,10 +2877,15 @@
     if (!all.length) {
       html += '<div class="card"><div class="empty-state">Aucune sortie enregistrée — ajoutez-en une ci-dessous.</div></div>';
     } else {
-      // Front and center for the sortie actually happening today -- this is
-      // the "dans les box, je veux voir l'heure et mes horaires tout de
-      // suite" view, above even the "En cours" list below it.
-      ongoing.forEach(function (ev) { html += renderTodayScheduleCard(ev); });
+      // Front and center: the sortie actually happening today, or -- if
+      // none -- the next one coming up, so there's always something
+      // immediately useful "dans les box" instead of an empty gap between
+      // outings.
+      if (ongoing.length) {
+        ongoing.forEach(function (ev) { html += renderTodayScheduleCard(ev, 'ongoing'); });
+      } else if (upcoming.length) {
+        html += renderTodayScheduleCard(upcoming[0], 'upcoming');
+      }
       if (ongoing.length) html += renderEventGroupCard('En cours', ongoing);
       html += renderEventGroupCard('À venir', upcoming);
       html += renderPastEventsCard(past);
@@ -2882,14 +2895,14 @@
     return html;
   }
 
-  // ---- Horaires du jour (widget "En ce moment") ----
+  // ---- Horaires (widget "En ce moment" / "Prochaine sortie") ----
   //
   // A trackday's schedule is fixed by the organizer and repeats every
   // group all day -- what actually changes minute to minute is which
   // slot is current. updateLiveClock() (below, run on an interval) patches
-  // the clock text and the current/next/past classes on these DOM nodes
-  // directly rather than going through renderRoot(), so it never blows
-  // away an open form elsewhere on the page.
+  // the current/next/past classes on these DOM nodes directly rather than
+  // going through renderRoot(), so it never blows away an open form
+  // elsewhere on the page.
   function parseHoraireToken(tok) {
     var m = tok.match(/^(\d{1,2})h(\d{2})?\s*(?:[-–à]\s*(\d{1,2})h(\d{2})?)?$/i);
     if (!m) return null;
@@ -2907,35 +2920,65 @@
     });
   }
 
-  function renderTodayScheduleCard(ev) {
+  function minutesToHm(mins) {
+    return Math.floor(mins / 60) + 'h' + pad2(mins % 60);
+  }
+
+  // Real trackday boards read "heure en ligne, groupe en colonne" (see the
+  // organizer's own sheet) -- built here by merging every group's slots
+  // onto one timeline keyed by actual start time, rather than by session
+  // *number*, which wouldn't line up when groups run different session
+  // counts (Magny-Cours' groupe C has one more than A, for instance). A
+  // gap of 45+ min between two rows is the lunch break, shown as its own
+  // divider row.
+  function renderHorairesTable(horaires) {
+    var groups = HORAIRES_GROUPS.filter(function (g) { return g.key !== 'pause' && horaires[g.key]; });
+    if (!groups.length) return '';
+    var byStart = {};
+    groups.forEach(function (g) {
+      parseHoraireLine(horaires[g.key]).forEach(function (slot) {
+        if (slot.start == null) return;
+        byStart[slot.start] = byStart[slot.start] || { start: slot.start, end: slot.end, cells: {} };
+        byStart[slot.start].cells[g.key] = slot;
+        if (slot.end > byStart[slot.start].end) byStart[slot.start].end = slot.end;
+      });
+    });
+    var rows = Object.keys(byStart).map(function (k) { return byStart[k]; }).sort(function (a, b) { return a.start - b.start; });
+    if (!rows.length) return '';
+    var html = '<div class="table-scroll"><table class="horaires-table"><thead><tr><th>Heure</th>';
+    groups.forEach(function (g) { html += '<th>' + escapeHtml(g.label.replace('Groupe ', '')) + '</th>'; });
+    html += '</tr></thead><tbody>';
+    var prevEnd = null;
+    rows.forEach(function (row) {
+      if (prevEnd != null && row.start - prevEnd >= 45) {
+        html += '<tr class="horaires-table-pause"><td colspan="' + (groups.length + 1) + '">Pause</td></tr>';
+      }
+      html += '<tr data-slot-start="' + row.start + '" data-slot-end="' + row.end + '"><td class="horaires-table-time">' + minutesToHm(row.start) + '</td>';
+      groups.forEach(function (g) {
+        html += '<td>' + (row.cells[g.key] ? '●' : '—') + '</td>';
+      });
+      html += '</tr>';
+      prevEnd = row.end;
+    });
+    html += '</tbody></table></div>';
+    return html;
+  }
+
+  function renderTodayScheduleCard(ev, mode) {
     var info = circuitInfo(ev.circuit);
+    var isOngoing = mode === 'ongoing';
     var html = '<div class="card today-schedule-card">';
-    html += '<div class="today-schedule-head">';
-    html += '<div><div class="eyebrow">En ce moment — ' + escapeHtml(ev.circuit) + '</div>';
+    html += '<div class="eyebrow">' + (isOngoing ? 'En ce moment — ' : 'Prochaine sortie — ') + escapeHtml(ev.circuit) + '</div>';
     var sub = [];
+    if (!isOngoing) sub.push(escapeHtml(formatEventRange(ev, true)));
     if (info.organizer) sub.push('Organisateur ' + escapeHtml(info.organizer));
     if (info.briefing) sub.push('Briefing ' + escapeHtml(info.briefing));
     if (sub.length) html += '<div class="help-text">' + sub.join(' · ') + '</div>';
-    html += '</div>';
-    html += '<div class="live-clock" id="live-clock">--h--</div>';
-    html += '</div>';
     var horaires = info.horaires;
-    var anyGroup = horaires && HORAIRES_GROUPS.some(function (g) { return g.key !== 'pause' && horaires[g.key]; });
-    if (anyGroup) {
-      html += '<div class="today-schedule-groups">';
-      HORAIRES_GROUPS.forEach(function (g) {
-        if (g.key === 'pause' || !horaires[g.key]) return;
-        html += '<div class="today-schedule-group"><div class="today-schedule-group-label">' + escapeHtml(g.label) + '</div><div class="today-schedule-slots">';
-        parseHoraireLine(horaires[g.key]).forEach(function (slot) {
-          if (slot.start == null) {
-            html += '<span class="schedule-slot schedule-slot-label">' + escapeHtml(slot.label) + '</span>';
-          } else {
-            html += '<span class="schedule-slot" data-slot-start="' + slot.start + '" data-slot-end="' + slot.end + '">' + escapeHtml(slot.label) + '</span>';
-          }
-        });
-        html += '</div></div>';
-      });
-      html += '</div>';
+    var table = horaires ? renderHorairesTable(horaires) : '';
+    if (table) {
+      html += table;
+      html += '<div class="horaires-table-legend"><span class="legend-current">●</span> en cours <span class="legend-next">●</span> à suivre</div>';
     } else {
       html += '<div class="help-text">Aucun horaire enregistré pour ' + escapeHtml(ev.circuit) + ' — ajoutez-les depuis l\'onglet Circuit (Modifier les infos).</div>';
     }
@@ -3376,7 +3419,10 @@
             '<h1 class="title">Carnet de Piste</h1>' +
             '<p class="subtitle">' + subtitleForView(activeView) + '</p>' +
           '</div>' +
-          renderThemeToggle() +
+          '<div class="header-controls">' +
+            '<div class="live-clock" id="live-clock">--h--</div>' +
+            renderThemeToggle() +
+          '</div>' +
         '</div>' +
         '<div class="banner" id="status-banner"></div>' +
       '</header>' +
