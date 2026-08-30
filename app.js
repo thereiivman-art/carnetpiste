@@ -261,21 +261,137 @@
   var selectedCircuit = _savedUiState.selectedCircuit || null;
   var selectedRiders = _savedUiState.selectedRidersAll ? new Set(allKnownRiders()) : (_savedUiState.selectedRider ? new Set([_savedUiState.selectedRider]) : null); // Set — 1 rider, or the full roster when "Tous" is active
   var ZOOM_LEVELS = ['year', '6month', '3month', '2month', 'month', 'week'];
-  var CHECKLIST_ITEMS = [
-    { key: 'hotel', label: 'Hôtel réservé' },
-    { key: 'avion', label: 'Avion / transport réservé' },
-    { key: 'casque', label: 'Casque' },
-    { key: 'combinaison', label: 'Combinaison (ou blouson + pantalon cuir)' },
-    { key: 'gants', label: 'Gants' },
-    { key: 'bottes', label: 'Bottes' },
-    { key: 'dorsale', label: 'Protection dorsale' },
-    { key: 'bouchons', label: "Bouchons d'oreilles" },
-    { key: 'outils', label: 'Trousse à outils + clé dynamométrique' },
-    { key: 'pneus', label: 'Pression des pneus vérifiée' },
-    { key: 'bequilles', label: 'Béquilles paddock (avant/arrière)' },
-    { key: 'antivol', label: 'Antivol / disque de frein' },
-    { key: 'adhesif', label: 'Adhésif (feux, compteur, plaque)' }
-  ];
+  // The checklist is a shared, editable template (STATE.checklistTemplate,
+  // one Firestore doc) -- any rider can add/rename/remove a category or an
+  // item; ev.checklist just maps an item's id to checked/not for one
+  // sortie. DEFAULT_CHECKLIST_TEMPLATE is only the starting suggestion: it
+  // takes effect until someone edits it, at which point that edit
+  // "materializes" the template into Firestore (see cloneChecklistTemplate).
+  var DEFAULT_CHECKLIST_TEMPLATE = {
+    categories: [
+      { id: 'pistard', name: 'Équipement du pistard', items: [
+        { id: 'casque', label: 'Casque' },
+        { id: 'visieres', label: 'Visières' },
+        { id: 'combi', label: 'Combi' },
+        { id: 'sous-combi', label: 'Sous combi' },
+        { id: 'airbag', label: 'Airbag' },
+        { id: 'gants', label: 'Gants' },
+        { id: 'sous-gants', label: 'Sous gants' },
+        { id: 'bottes', label: 'Bottes' },
+        { id: 'sliders', label: 'Sliders' }
+      ]},
+      { id: 'moto', name: 'Équipement de la moto', items: [
+        { id: 'pneus-rechange', label: 'Pneus de rechange' },
+        { id: 'couv-chauffantes', label: 'Couvertures chauffantes' },
+        { id: 'bequilles-av-ar', label: 'Béquilles AV et AR' },
+        { id: 'chicane', label: 'Chicane' },
+        { id: 'gonfleur', label: 'Gonfleur' },
+        { id: 'mamo', label: 'Mamo' }
+      ]},
+      { id: 'transport', name: 'Équipement transport', items: [
+        { id: 'sangles', label: 'Sangles' },
+        { id: 'rampe', label: 'Rampe' },
+        { id: 'caisses', label: 'Caisses' }
+      ]},
+      { id: 'papiers', name: 'Papiers administratifs', items: [
+        { id: 'acces-circuit', label: 'Accès circuit' },
+        { id: 'declaration', label: 'Déclaration' },
+        { id: 'assurance', label: 'Assurance' },
+        { id: 'carte-grise', label: 'Carte grise moto' },
+        { id: 'permis', label: 'Permis de conduire' }
+      ]},
+      { id: 'consommable', name: 'Équipement consommable', items: [
+        { id: 'bidons', label: 'Bidons' },
+        { id: 'bec-verseur', label: 'Bec verseur' },
+        { id: 'essence', label: 'Essence' },
+        { id: 'bouteilles-eau', label: 'Bouteilles eau' },
+        { id: 'nettoyage', label: 'Nettoyage' },
+        { id: 'serviette', label: 'Serviette' },
+        { id: 'sacs-poubelles', label: 'Sacs poubelles' },
+        { id: 'eponge', label: 'Éponge' }
+      ]},
+      { id: 'bricole', name: 'Équipement bricole', items: [
+        { id: 'boite-outils', label: 'Boîte à outils' },
+        { id: 'dynamo', label: 'Dynamo' }
+      ]},
+      { id: 'confort', name: 'Équipement confort', items: [
+        { id: 'chaises', label: 'Chaises' },
+        { id: 'armoire', label: 'Armoire' },
+        { id: 'porte-manteau', label: 'Porte-manteau' },
+        { id: 'ventilo', label: 'Ventilo' }
+      ]},
+      { id: 'aide', name: 'Équipement aide', items: [
+        { id: '3dms', label: '3DMS' },
+        { id: 'camera', label: 'Caméra' },
+        { id: 'pc', label: 'PC' }
+      ]},
+      { id: 'autres', name: 'Autres', items: [
+        { id: 'autocollant', label: 'Autocollant' },
+        { id: 'plan-circuit', label: 'Plan circuit' },
+        { id: 'app-telephone', label: 'Application téléphone' }
+      ]}
+    ]
+  };
+
+  function checklistTemplate() {
+    return STATE.checklistTemplate || DEFAULT_CHECKLIST_TEMPLATE;
+  }
+
+  function checklistAllItems() {
+    var out = [];
+    checklistTemplate().categories.forEach(function (cat) {
+      cat.items.forEach(function (item) { out.push(item); });
+    });
+    return out;
+  }
+
+  function cloneChecklistTemplate() {
+    return JSON.parse(JSON.stringify(checklistTemplate()));
+  }
+
+  function addChecklistItem(categoryId, label) {
+    label = label.trim();
+    if (!label) return;
+    var prevState = JSON.parse(JSON.stringify(STATE));
+    var tpl = cloneChecklistTemplate();
+    var cat = tpl.categories.filter(function (c) { return c.id === categoryId; })[0];
+    if (!cat) return;
+    cat.items.push({ id: genId(), label: label });
+    STATE.checklistTemplate = tpl;
+    renderRoot();
+    persist(prevState);
+  }
+
+  function removeChecklistItem(categoryId, itemId) {
+    var prevState = JSON.parse(JSON.stringify(STATE));
+    var tpl = cloneChecklistTemplate();
+    var cat = tpl.categories.filter(function (c) { return c.id === categoryId; })[0];
+    if (!cat) return;
+    cat.items = cat.items.filter(function (i) { return i.id !== itemId; });
+    STATE.checklistTemplate = tpl;
+    renderRoot();
+    persist(prevState);
+  }
+
+  function addChecklistCategory(name) {
+    name = name.trim();
+    if (!name) return;
+    var prevState = JSON.parse(JSON.stringify(STATE));
+    var tpl = cloneChecklistTemplate();
+    tpl.categories.push({ id: genId(), name: name, items: [] });
+    STATE.checklistTemplate = tpl;
+    renderRoot();
+    persist(prevState);
+  }
+
+  function removeChecklistCategory(categoryId) {
+    var prevState = JSON.parse(JSON.stringify(STATE));
+    var tpl = cloneChecklistTemplate();
+    tpl.categories = tpl.categories.filter(function (c) { return c.id !== categoryId; });
+    STATE.checklistTemplate = tpl;
+    renderRoot();
+    persist(prevState);
+  }
 
   // Horaires are per-groupe-de-niveau session times, not a single free-text
   // slot — a trackday typically runs several groups back-to-back with a
@@ -2237,6 +2353,11 @@
     return new Date(p[0], p[1] - 1, p[2]);
   }
 
+  var WEEKDAY_NAMES_FR = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'];
+  function weekdayName(iso) {
+    return WEEKDAY_NAMES_FR[parseLocalDate(iso).getDay()];
+  }
+
   function dateKey(date) {
     return date.getFullYear() + '-' + pad2(date.getMonth() + 1) + '-' + pad2(date.getDate());
   }
@@ -2810,23 +2931,25 @@
     if (ev.hotelName || ev.hotelAddress) {
       html += infoRow('Hôtel', [ev.hotelName, ev.hotelAddress].filter(Boolean).map(escapeHtml).join(' — '));
     }
-    if (ev.flightTime) html += infoRow('Départ avion', escapeHtml(ev.flightTime));
+    if (ev.flightOutDep || ev.flightOutArr) {
+      html += infoRow('Avion aller', [ev.flightOutDep, ev.flightOutArr].filter(Boolean).join(' → '));
+    }
+    if (ev.flightBackDep || ev.flightBackArr) {
+      html += infoRow('Avion retour', [ev.flightBackDep, ev.flightBackArr].filter(Boolean).join(' → '));
+    }
     if (ev.note) html += infoRow('Note', escapeHtml(ev.note));
     // The circuit's own interactive map, so the annotated track is one tap
     // away from the sortie it belongs to, not just reachable from Circuit.
     html += '<div class="event-circuit-map"><div class="event-checklist-title">Carte du circuit</div>' + renderCircuitVisual(circuitInfo(ev.circuit)) + '</div>';
-    // Pense-bête is prep for a sortie that hasn't happened yet (or is under
-    // way) -- once it's past there's nothing left to prepare, so it drops
-    // out of the résumé instead of lingering as dead checkboxes.
+    // The full, editable, categorized pense-bête lives in Planning -- it's
+    // too long to keep Événements "simple et informatif", so this is just
+    // a count.
     var status = eventTemporalStatus(ev, dateKey(new Date()));
     if (status !== 'past') {
-      html += '<div class="event-checklist"><div class="event-checklist-title">Pense-bête</div>';
+      var allItems = checklistAllItems();
       var checklist = ev.checklist || {};
-      CHECKLIST_ITEMS.forEach(function (item) {
-        var checked = !!checklist[item.key];
-        html += '<label class="checklist-item"><input type="checkbox" data-checklist-key="' + item.key + '" data-event-id="' + ev.id + '"' + (checked ? ' checked' : '') + '> ' + escapeHtml(item.label) + '</label>';
-      });
-      html += '</div>';
+      var checkedCount = allItems.filter(function (item) { return checklist[item.id]; }).length;
+      if (allItems.length) html += infoRow('Équipement', checkedCount + '/' + allItems.length + ' (voir Planning)');
     }
     html += '<div class="event-detail-actions"><button type="button" class="ghost" id="edit-event-btn" data-id="' + ev.id + '">Modifier</button>' + deleteEventControl(ev.id) + '</div>';
     html += '</div>';
@@ -2842,8 +2965,9 @@
   // plain "En cours"/"À venir" lists and the per-year "Passés" bands below,
   // so the row markup and its open/edit behavior stay in exactly one place.
   function renderEventRow(ev, opts) {
-    var total = CHECKLIST_ITEMS.length;
-    var done = CHECKLIST_ITEMS.filter(function (item) { return ev.checklist && ev.checklist[item.key]; }).length;
+    var allItems = checklistAllItems();
+    var total = allItems.length;
+    var done = allItems.filter(function (item) { return ev.checklist && ev.checklist[item.id]; }).length;
     var isOpen = ev.id === selectedEventId;
     var html = '<div class="event-row event-row-toggle' + (isOpen ? ' selected' : '') + '" data-event-id="' + ev.id + '" aria-expanded="' + (isOpen ? 'true' : 'false') + '">';
     html += '<div class="event-row-main"><span class="event-row-circuit">' + escapeHtml(ev.circuit) + '</span>';
@@ -2998,6 +3122,41 @@
     return html;
   }
 
+  // The full, editable, categorized pense-bête -- any rider can check an
+  // item for this sortie, add/remove an item within a category, or add/
+  // remove a whole category, straight from Planning.
+  function renderPlanningChecklist(ev) {
+    var tpl = checklistTemplate();
+    var checklist = ev.checklist || {};
+    var html = '<div class="event-checklist planning-checklist" style="margin-top:0.9rem;"><div class="event-checklist-title">Équipement (pense-bête)</div>';
+    tpl.categories.forEach(function (cat) {
+      var isPendingDelete = pendingDeleteChecklistCategory === cat.id;
+      html += '<div class="checklist-category">';
+      html += '<div class="checklist-category-head"><span class="checklist-category-name">' + escapeHtml(cat.name) + '</span>' +
+        '<button type="button" class="ghost icon-btn' + (isPendingDelete ? ' confirm' : '') + '" data-action="remove-checklist-category" data-category="' + cat.id + '" aria-label="Supprimer la catégorie ' + escapeHtml(cat.name) + '" title="Supprimer la catégorie">' + (isPendingDelete ? '✓' : '×') + '</button></div>';
+      cat.items.forEach(function (item) {
+        var checked = !!checklist[item.id];
+        // The remove button is a sibling of the <label>, not nested inside
+        // it -- a button nested in a checkbox's <label> gets its click
+        // forwarded to the checkbox by the browser, toggling it as an
+        // unwanted side effect of removing the item.
+        html += '<div class="checklist-item-row">' +
+          '<label class="checklist-item"><input type="checkbox" data-checklist-key="' + item.id + '" data-event-id="' + ev.id + '"' + (checked ? ' checked' : '') + '> ' + escapeHtml(item.label) + '</label>' +
+          '<button type="button" class="ghost icon-btn checklist-item-remove" data-action="remove-checklist-item" data-category="' + cat.id + '" data-item="' + item.id + '" aria-label="Retirer ' + escapeHtml(item.label) + '" title="Retirer">×</button>' +
+          '</div>';
+      });
+      html += '<form class="checklist-add-item-form" data-add-item-category="' + cat.id + '">' +
+        '<input type="text" placeholder="+ ajouter un objet" data-new-item-input>' +
+        '<button type="submit" class="ghost">Ajouter</button></form>';
+      html += '</div>';
+    });
+    html += '<form id="add-checklist-category-form" class="checklist-add-category-form">' +
+      '<input type="text" id="new-checklist-category" placeholder="+ nouvelle catégorie">' +
+      '<button type="submit" class="ghost">Ajouter</button></form>';
+    html += '</div>';
+    return html;
+  }
+
   // The sortie the Planning tab leads with: today's if one is running,
   // else the soonest upcoming one, so there's always something useful to
   // look at instead of an empty gap between outings.
@@ -3031,7 +3190,7 @@
     var html = '<div class="card today-schedule-card">';
     html += '<div class="eyebrow">' + (isOngoing ? 'En ce moment — ' : 'Prochaine sortie — ') + escapeHtml(ev.circuit) + '</div>';
     var sub = [];
-    if (!isOngoing) sub.push(escapeHtml(formatEventRange(ev, true)));
+    if (!isOngoing) sub.push(escapeHtml(formatEventRange(ev, true)) + ' (' + weekdayName(ev.dateStart) + ')');
     if (info.organizer) sub.push('Organisateur ' + escapeHtml(info.organizer));
     if (info.briefing) sub.push('Briefing ' + escapeHtml(info.briefing));
     if (sub.length) html += '<div class="help-text">' + sub.join(' · ') + '</div>';
@@ -3042,7 +3201,7 @@
     var availableGroups = horaires ? HORAIRES_GROUPS.filter(function (g) { return g.key !== 'pause' && horaires[g.key]; }) : [];
     if (!availableGroups.length) {
       html += '<div class="help-text">Aucun horaire enregistré pour ' + escapeHtml(ev.circuit) + ' — ajoutez-les depuis l\'onglet Circuit (Modifier les infos).</div>';
-      return html + renderRiderGroupsSection(ev) + '</div>';
+      return html + renderRiderGroupsSection(ev) + renderPlanningChecklist(ev) + '</div>';
     }
 
     var activeKeys = (planningGroupFilter && planningGroupFilter.length)
@@ -3059,6 +3218,7 @@
     html += '</div>';
     html += renderHoraireGroups(horaires, activeKeys);
     html += renderRiderGroupsSection(ev);
+    html += renderPlanningChecklist(ev);
     return html + '</div>';
   }
 
@@ -3214,16 +3374,16 @@
     html += '<div class="event-checklist" style="margin-top:0.9rem;"><div class="event-checklist-title">Groupe de départ</div><div id="ev-groups-grid">' +
       renderEventFormGroupsGrid(ev.riders || []) + '</div></div>';
     html += '<div style="margin-top:0.9rem;"><label for="ev-note">Note (optionnel)</label><input type="text" id="ev-note" placeholder="Ex. Inscriptions avant le 1er septembre" value="' + escapeHtml(ev.note || '') + '"></div>';
-    html += '<div class="event-checklist" style="margin-top:0.9rem;"><div class="event-checklist-title">Pense-bête</div>';
-    CHECKLIST_ITEMS.forEach(function (item) {
-      var checked = ev.checklist && ev.checklist[item.key];
-      html += '<label class="checklist-item"><input type="checkbox" id="ev-check-' + item.key + '"' + (checked ? ' checked' : '') + '> ' + escapeHtml(item.label) + '</label>';
-    });
-    html += '</div>';
     html += '<div class="field-row" style="margin-top:0.9rem;">';
     html += '<div><label for="ev-hotel-name">Hôtel — nom</label><input type="text" id="ev-hotel-name" placeholder="Ex. Ibis Le Mans" value="' + escapeHtml(ev.hotelName || '') + '"></div>';
     html += '<div><label for="ev-hotel-address">Hôtel — adresse</label><input type="text" id="ev-hotel-address" placeholder="Ex. 12 rue de la Sarthe, 72100 Le Mans" value="' + escapeHtml(ev.hotelAddress || '') + '"></div>';
-    html += '<div><label for="ev-flight-time">Heure de départ avion</label><input type="text" id="ev-flight-time" placeholder="Ex. 6h40" value="' + escapeHtml(ev.flightTime || '') + '"></div>';
+    html += '</div>';
+    html += '<label style="margin-top:0.9rem; display:block;">Avion</label>';
+    html += '<div class="field-row">';
+    html += '<div><label for="ev-flight-out-dep" class="horaires-sublabel">Aller — départ</label><input type="text" id="ev-flight-out-dep" placeholder="Ex. 6h40" value="' + escapeHtml(ev.flightOutDep || '') + '"></div>';
+    html += '<div><label for="ev-flight-out-arr" class="horaires-sublabel">Aller — arrivée</label><input type="text" id="ev-flight-out-arr" placeholder="Ex. 8h15" value="' + escapeHtml(ev.flightOutArr || '') + '"></div>';
+    html += '<div><label for="ev-flight-back-dep" class="horaires-sublabel">Retour — départ</label><input type="text" id="ev-flight-back-dep" placeholder="Ex. 18h00" value="' + escapeHtml(ev.flightBackDep || '') + '"></div>';
+    html += '<div><label for="ev-flight-back-arr" class="horaires-sublabel">Retour — arrivée</label><input type="text" id="ev-flight-back-arr" placeholder="Ex. 19h35" value="' + escapeHtml(ev.flightBackArr || '') + '"></div>';
     html += '</div>';
     html += '<div class="field-error" id="event-form-error"></div>';
     html += '<div style="margin-top:0.9rem; display:flex; gap:0.6rem;">' +
@@ -3270,14 +3430,12 @@
       return;
     }
     var riders = ridersRaw.split(',').map(function (r) { return r.trim(); }).filter(Boolean);
-    var checklist = {};
-    CHECKLIST_ITEMS.forEach(function (item) {
-      var el = document.getElementById('ev-check-' + item.key);
-      checklist[item.key] = el ? el.checked : false;
-    });
     var hotelName = document.getElementById('ev-hotel-name').value.trim();
     var hotelAddress = document.getElementById('ev-hotel-address').value.trim();
-    var flightTime = document.getElementById('ev-flight-time').value.trim();
+    var flightOutDep = document.getElementById('ev-flight-out-dep').value.trim();
+    var flightOutArr = document.getElementById('ev-flight-out-arr').value.trim();
+    var flightBackDep = document.getElementById('ev-flight-back-dep').value.trim();
+    var flightBackArr = document.getElementById('ev-flight-back-arr').value.trim();
 
     // Trim the form's draft down to riders still in the field and dates
     // still within range -- a rider removed from the field, or a date
@@ -3292,11 +3450,14 @@
     var prevState = JSON.parse(JSON.stringify(STATE));
     eventsList();
     if (editingEventId === 'new') {
-      var newEvent = { id: genId(), circuit: circuit, dateStart: dateStart, dateEnd: dateEnd, riders: riders, organizer: organizer, note: note, checklist: checklist };
+      var newEvent = { id: genId(), circuit: circuit, dateStart: dateStart, dateEnd: dateEnd, riders: riders, organizer: organizer, note: note };
       if (riderGroups) newEvent.riderGroups = riderGroups;
       if (hotelName) newEvent.hotelName = hotelName;
       if (hotelAddress) newEvent.hotelAddress = hotelAddress;
-      if (flightTime) newEvent.flightTime = flightTime;
+      if (flightOutDep) newEvent.flightOutDep = flightOutDep;
+      if (flightOutArr) newEvent.flightOutArr = flightOutArr;
+      if (flightBackDep) newEvent.flightBackDep = flightBackDep;
+      if (flightBackArr) newEvent.flightBackArr = flightBackArr;
       STATE.events.push(newEvent);
       selectedEventId = newEvent.id;
     } else {
@@ -3309,11 +3470,14 @@
         existing.organizer = organizer;
         existing.note = note;
         existing.autoCreated = false; // a manual edit means it's no longer just a byproduct of a chrono
-        existing.checklist = checklist;
+        // checklist isn't touched here -- it's checked off in Planning, not the sortie form.
         existing.riderGroups = riderGroups || null; // never `undefined` -- Firestore rejects that as a field value
         existing.hotelName = hotelName || null;
         existing.hotelAddress = hotelAddress || null;
-        existing.flightTime = flightTime || null;
+        existing.flightOutDep = flightOutDep || null;
+        existing.flightOutArr = flightOutArr || null;
+        existing.flightBackDep = flightBackDep || null;
+        existing.flightBackArr = flightBackArr || null;
         selectedEventId = existing.id;
       }
     }
@@ -3534,6 +3698,7 @@
 
   var pendingDelete = null;
   var pendingDeleteEvent = null;
+  var pendingDeleteChecklistCategory = null;
   var riderManagerOpen = false; // pure UI state, not persisted
   var editingRiderName = null; // rider currently shown as an inline rename form, or null
   var pendingDeleteRider = null; // rider armed for delete (click-to-confirm, like session delete)
@@ -3740,6 +3905,41 @@
         });
         planningGroupFilter = selected;
         renderRoot();
+      });
+    });
+
+    document.querySelectorAll('.checklist-add-item-form').forEach(function (form) {
+      form.addEventListener('submit', function (evt) {
+        evt.preventDefault();
+        var input = form.querySelector('[data-new-item-input]');
+        if (!input || !input.value.trim()) return;
+        addChecklistItem(form.getAttribute('data-add-item-category'), input.value);
+      });
+    });
+    var addCategoryForm = document.getElementById('add-checklist-category-form');
+    if (addCategoryForm) {
+      addCategoryForm.addEventListener('submit', function (evt) {
+        evt.preventDefault();
+        var input = document.getElementById('new-checklist-category');
+        if (!input || !input.value.trim()) return;
+        addChecklistCategory(input.value);
+      });
+    }
+    document.querySelectorAll('[data-action="remove-checklist-item"]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        removeChecklistItem(btn.getAttribute('data-category'), btn.getAttribute('data-item'));
+      });
+    });
+    document.querySelectorAll('[data-action="remove-checklist-category"]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var categoryId = btn.getAttribute('data-category');
+        if (pendingDeleteChecklistCategory === categoryId) {
+          removeChecklistCategory(categoryId);
+          pendingDeleteChecklistCategory = null;
+        } else {
+          pendingDeleteChecklistCategory = categoryId;
+          renderRoot();
+        }
       });
     });
     var riderManagerToggle = document.getElementById('rider-manager-toggle');
@@ -3971,6 +4171,10 @@
         .sort(function (a, b) { return a.localeCompare(b); });
       renderRoot();
     }, handleSyncError));
+    unsubscribers.push(db.collection('settings').doc('checklist').onSnapshot(function (doc) {
+      STATE.checklistTemplate = doc.exists ? doc.data() : null;
+      renderRoot();
+    }, handleSyncError));
   }
 
   function handleSyncError() {
@@ -4030,6 +4234,16 @@
     return n;
   }
 
+  // A single document (not a collection) -- STATE.checklistTemplate starts
+  // null (DEFAULT_CHECKLIST_TEMPLATE is used until someone edits it), so
+  // this only writes once the first edit actually happens.
+  function diffChecklistTemplate(batch, prevTemplate, nextTemplate) {
+    if (JSON.stringify(prevTemplate || null) === JSON.stringify(nextTemplate || null)) return 0;
+    if (nextTemplate) batch.set(db.collection('settings').doc('checklist'), nextTemplate);
+    else batch.delete(db.collection('settings').doc('checklist'));
+    return 1;
+  }
+
   function persist(prevState) {
     if (!canPersist) { updateBanner(); return; }
     var batch = db.batch();
@@ -4038,6 +4252,7 @@
     ops += diffArrayCollection(batch, 'events', prevState.events, STATE.events);
     ops += diffCircuits(batch, prevState.circuits, STATE.circuits);
     ops += diffRiders(batch, prevState.riders, STATE.riders);
+    ops += diffChecklistTemplate(batch, prevState.checklistTemplate, STATE.checklistTemplate);
     if (!ops) return;
     batch.commit().catch(function (err) {
       STATE = prevState;
