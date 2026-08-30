@@ -15,6 +15,13 @@
   var canPersist = false;
   var unsubscribers = [];
 
+  // Real accounts (email/password), not anonymous sign-in -- gates the
+  // whole app behind a login/signup screen (see renderAuthScreen()).
+  var authState = 'loading'; // 'loading' | 'signed-out' | 'signed-in'
+  var currentUserProfile = null; // { name, role: 'pilote'|'accompagnant', email } once loaded
+  var authMode = 'login'; // 'login' | 'signup' -- which form the auth screen shows
+  var authError = '';
+
   function genId() {
     return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
   }
@@ -3730,8 +3737,15 @@
   }
 
   function renderRootUnsafe() {
-    normalizeSelection();
     var root = document.getElementById('root');
+    if (authState !== 'signed-in') {
+      root.innerHTML =
+        '<header class="page-head"><div class="eyebrow">Trackdays moto</div><h1 class="title">Carnet de Piste</h1></header>' +
+        (authState === 'loading' ? '<div class="card"><div class="empty-state">Connexion...</div></div>' : renderAuthScreen());
+      attachAuthHandlers();
+      return;
+    }
+    normalizeSelection();
     var body;
     if (activeView === 'circuit') body = renderCircuitTab();
     else if (activeView === 'stats') body = renderStatsTab();
@@ -3750,6 +3764,8 @@
             renderThemeToggle() +
           '</div>' +
         '</div>' +
+        '<div class="account-bar">' + escapeHtml(currentUserProfile.name) + ' · ' + (currentUserProfile.role === 'accompagnant' ? 'Accompagnant' : 'Pilote') +
+          ' <button type="button" class="link-btn" id="logout-btn">Se déconnecter</button></div>' +
         '<div class="banner" id="status-banner"></div>' +
       '</header>' +
       renderGlobalRiderPicker() +
@@ -3761,6 +3777,128 @@
     updateLiveClock();
   }
 
+  // ---- Comptes (Pilote / Accompagnant) ----
+  //
+  // Real Firebase accounts (email/password), one profile doc per uid in
+  // 'users'. Gates the whole app: nothing renders until authState is
+  // 'signed-in' and the profile doc has loaded (see init()'s
+  // onAuthStateChanged and onSignupSubmit below).
+  function renderAuthScreen() {
+    var html = '<div class="card auth-card">';
+    if (authMode === 'signup') {
+      html += '<h2 class="section-title">Créer un compte</h2>';
+      html += '<form id="signup-form" novalidate>';
+      html += '<label for="au-name">Nom</label><input type="text" id="au-name" placeholder="Ex. Xavier" required>';
+      html += '<label style="margin-top:0.7rem;">Je suis</label><div class="auth-role-choice">' +
+        '<label><input type="radio" name="au-role" value="pilote" checked> Pilote</label>' +
+        '<label><input type="radio" name="au-role" value="accompagnant"> Accompagnant</label></div>';
+      html += '<label for="au-email" style="margin-top:0.7rem;">Email</label><input type="email" id="au-email" required>';
+      html += '<label for="au-password" style="margin-top:0.7rem;">Mot de passe</label><input type="password" id="au-password" required minlength="6">';
+      html += '<div class="field-error' + (authError ? ' visible' : '') + '" id="auth-error">' + escapeHtml(authError) + '</div>';
+      html += '<button type="submit" class="primary" style="margin-top:0.9rem;">Créer mon compte</button>';
+      html += '</form>';
+      html += '<div class="help-text" style="margin-top:0.9rem;">Déjà un compte ? <button type="button" class="link-btn" id="switch-to-login">Se connecter</button></div>';
+    } else {
+      html += '<h2 class="section-title">Connexion</h2>';
+      html += '<form id="login-form" novalidate>';
+      html += '<label for="au-email">Email</label><input type="email" id="au-email" required>';
+      html += '<label for="au-password" style="margin-top:0.7rem;">Mot de passe</label><input type="password" id="au-password" required>';
+      html += '<div class="field-error' + (authError ? ' visible' : '') + '" id="auth-error">' + escapeHtml(authError) + '</div>';
+      html += '<button type="submit" class="primary" style="margin-top:0.9rem;">Se connecter</button>';
+      html += '</form>';
+      html += '<div class="help-text" style="margin-top:0.9rem;">Pas encore de compte ? <button type="button" class="link-btn" id="switch-to-signup">Créer un compte</button></div>';
+      html += '<div class="help-text" style="margin-top:0.4rem;"><button type="button" class="link-btn" id="forgot-password-btn">Mot de passe oublié ?</button></div>';
+    }
+    html += '</div>';
+    return html;
+  }
+
+  function translateAuthError(err) {
+    var code = err && err.code;
+    if (code === 'auth/email-already-in-use') return 'Cet email est déjà utilisé — connecte-toi plutôt.';
+    if (code === 'auth/invalid-email') return 'Email invalide.';
+    if (code === 'auth/weak-password') return 'Mot de passe trop court (6 caractères minimum).';
+    if (code === 'auth/wrong-password' || code === 'auth/user-not-found' || code === 'auth/invalid-credential') return 'Email ou mot de passe incorrect.';
+    return 'Erreur : ' + ((err && err.message) || err);
+  }
+
+  function onLoginSubmit(evt) {
+    evt.preventDefault();
+    var email = document.getElementById('au-email').value.trim();
+    var password = document.getElementById('au-password').value;
+    authError = '';
+    auth.signInWithEmailAndPassword(email, password).catch(function (err) {
+      authError = translateAuthError(err);
+      renderRoot();
+    });
+  }
+
+  function onSignupSubmit(evt) {
+    evt.preventDefault();
+    var name = document.getElementById('au-name').value.trim();
+    var roleEl = document.querySelector('input[name="au-role"]:checked');
+    var role = roleEl ? roleEl.value : 'pilote';
+    var email = document.getElementById('au-email').value.trim();
+    var password = document.getElementById('au-password').value;
+    if (!name) {
+      authError = 'Indique ton nom.';
+      renderRoot();
+      return;
+    }
+    authError = '';
+    auth.createUserWithEmailAndPassword(email, password).then(function (cred) {
+      return db.collection('users').doc(cred.user.uid).set({ name: name, role: role, email: email }).then(function () {
+        if (role === 'pilote') {
+          return db.collection('riders').doc(safeDocId(name)).set({ name: name }, { merge: true });
+        }
+      });
+    }).then(function () {
+      // Set directly rather than waiting on onAuthStateChanged's own
+      // profile fetch -- that fetch can (and, right after this write,
+      // typically will) run before this document write has landed, and
+      // init() deliberately no-ops on a missing profile instead of
+      // treating it as an error (see its comment).
+      currentUserProfile = { name: name, role: role, email: email };
+      authState = 'signed-in';
+      canPersist = true;
+      startSync();
+      renderRoot();
+      showToast('Compte créé, bienvenue ' + name + ' !', 'success');
+    }).catch(function (err) {
+      authError = translateAuthError(err);
+      renderRoot();
+    });
+  }
+
+  function attachAuthHandlers() {
+    var loginForm = document.getElementById('login-form');
+    if (loginForm) loginForm.addEventListener('submit', onLoginSubmit);
+    var signupForm = document.getElementById('signup-form');
+    if (signupForm) signupForm.addEventListener('submit', onSignupSubmit);
+    var toSignup = document.getElementById('switch-to-signup');
+    if (toSignup) toSignup.addEventListener('click', function () { authMode = 'signup'; authError = ''; renderRoot(); });
+    var toLogin = document.getElementById('switch-to-login');
+    if (toLogin) toLogin.addEventListener('click', function () { authMode = 'login'; authError = ''; renderRoot(); });
+    var forgotBtn = document.getElementById('forgot-password-btn');
+    if (forgotBtn) {
+      forgotBtn.addEventListener('click', function () {
+        var email = document.getElementById('au-email').value.trim();
+        if (!email) {
+          authError = 'Indique ton email d\'abord, puis clique à nouveau sur "Mot de passe oublié ?".';
+          renderRoot();
+          return;
+        }
+        auth.sendPasswordResetEmail(email).then(function () {
+          authError = '';
+          showToast('Email de réinitialisation envoyé à ' + email + '.', 'success');
+        }).catch(function (err) {
+          authError = translateAuthError(err);
+          renderRoot();
+        });
+      });
+    }
+  }
+
   var pendingDelete = null;
   var pendingDeleteEvent = null;
   var pendingDeleteChecklistCategory = null;
@@ -3770,6 +3908,8 @@
   var riderManagerError = ''; // validation/blocking message shown in the panel
 
   function attachHandlers() {
+    var logoutBtn = document.getElementById('logout-btn');
+    if (logoutBtn) logoutBtn.addEventListener('click', function () { auth.signOut(); });
     document.querySelectorAll('[data-theme-choice]').forEach(function (btn) {
       btn.addEventListener('click', function () {
         setThemePref(btn.getAttribute('data-theme-choice'));
@@ -4263,6 +4403,11 @@
     }, handleSyncError));
   }
 
+  function stopSync() {
+    unsubscribers.forEach(function (unsub) { unsub(); });
+    unsubscribers = [];
+  }
+
   function handleSyncError() {
     canPersist = false;
     updateBanner();
@@ -4361,13 +4506,29 @@
     document.addEventListener('pointercancel', onCalendarPointerUp);
     document.addEventListener('wheel', onCalendarWheel, { passive: false });
     document.addEventListener('keydown', onCalendarKeydown);
-    auth.signInAnonymously().then(function () {
-      canPersist = true;
-      updateBanner();
-      startSync();
-    }).catch(function () {
-      canPersist = false;
-      updateBanner();
+    // Real accounts (Pilote/Accompagnant), not anonymous sign-in: only
+    // onSignupSubmit's own success handler moves authState to 'signed-in'
+    // for a brand-new account (see its comment) -- here, a missing profile
+    // doc just means that write hasn't landed yet, so it's a no-op rather
+    // than an error.
+    auth.onAuthStateChanged(function (user) {
+      if (!user) {
+        stopSync();
+        authState = 'signed-out';
+        currentUserProfile = null;
+        canPersist = false;
+        renderRoot();
+        return;
+      }
+      db.collection('users').doc(user.uid).get().then(function (doc) {
+        if (doc.exists) {
+          currentUserProfile = doc.data();
+          authState = 'signed-in';
+          canPersist = true;
+          startSync();
+          renderRoot();
+        }
+      });
     });
   }
 

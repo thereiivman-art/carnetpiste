@@ -1,9 +1,26 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /{document=**} {
-      allow read: if true;
-      allow write: if request.auth != null;
+    // Each rider/accompagnant can only write their own profile, but
+    // everyone signed in can read the roster (e.g. to show who's who).
+    match /users/{userId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+    match /sessions/{id} {
+      allow read, write: if request.auth != null;
+    }
+    match /events/{id} {
+      allow read, write: if request.auth != null;
+    }
+    match /circuits/{id} {
+      allow read, write: if request.auth != null;
+    }
+    match /riders/{id} {
+      allow read, write: if request.auth != null;
+    }
+    match /settings/{id} {
+      allow read, write: if request.auth != null;
     }
   }
 }
