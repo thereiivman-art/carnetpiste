@@ -1,26 +1,52 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Each rider/accompagnant can only write their own profile, but
-    // everyone signed in can read the roster (e.g. to show who's who).
+    function isAdmin() {
+      return request.auth != null && request.auth.token.email == 'thereiivman@gmail.com';
+    }
+    function verified() {
+      return request.auth != null && request.auth.token.email_verified == true;
+    }
+    function myName() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.name;
+    }
+
+    // A user's own profile has to be writable right after signup, before
+    // there's been time to verify anything -- no email_verified check here.
     match /users/{userId} {
       allow read: if request.auth != null;
       allow write: if request.auth != null && request.auth.uid == userId;
     }
+    // Everything else requires a verified email to write, so a bot that
+    // signs up with a throwaway address can't touch shared data. Deletes
+    // are further restricted: only the admin can wipe out a rider or a
+    // whole sortie, and a chrono can only be deleted by its own rider or
+    // the admin.
     match /sessions/{id} {
-      allow read, write: if request.auth != null;
+      allow read: if request.auth != null;
+      allow create: if verified();
+      allow update: if verified();
+      allow delete: if verified() && (isAdmin() || resource.data.rider == myName());
     }
     match /events/{id} {
-      allow read, write: if request.auth != null;
+      allow read: if request.auth != null;
+      allow create: if verified();
+      allow update: if verified();
+      allow delete: if verified() && isAdmin();
     }
     match /circuits/{id} {
-      allow read, write: if request.auth != null;
+      allow read: if request.auth != null;
+      allow write: if verified();
     }
     match /riders/{id} {
-      allow read, write: if request.auth != null;
+      allow read: if request.auth != null;
+      allow create: if verified();
+      allow update: if verified();
+      allow delete: if verified() && isAdmin();
     }
     match /settings/{id} {
-      allow read, write: if request.auth != null;
+      allow read: if request.auth != null;
+      allow write: if verified();
     }
   }
 }

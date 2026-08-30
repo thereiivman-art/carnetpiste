@@ -93,17 +93,37 @@
     color: var(--text-muted);
     margin-top: 0.6rem;
   }
-  .auth-card { max-width: 380px; margin: 2rem auto 0; }
-  .auth-card label { margin-top: 0; }
+  .auth-screen { display: flex; justify-content: center; margin-top: 1.5rem; }
+  .auth-card { width: 100%; max-width: 380px; }
+  .auth-card label { margin-top: 0.9rem; }
+  .auth-card label:first-of-type { margin-top: 0.9rem; }
   .auth-card input { margin-bottom: 0; }
+  .auth-card .field-error { margin-top: 0.6rem; }
   .auth-role-choice {
     display: flex;
-    gap: 1rem;
-    margin-top: 0.3rem;
-    font-size: 0.88rem;
+    gap: 1.2rem;
+    margin-top: 0.4rem;
+    font-size: 0.9rem;
   }
-  .auth-role-choice label { display: flex; align-items: center; gap: 0.35rem; font-weight: 400; }
+  .auth-role-choice label {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-weight: 400;
+    margin-top: 0;
+  }
   .auth-role-choice input { width: auto; }
+  .auth-link {
+    background: none;
+    border: none;
+    padding: 0;
+    font: inherit;
+    font-weight: 500;
+    color: var(--accent);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    cursor: pointer;
+  }
   .page-head-row {
     display: flex;
     justify-content: space-between;
@@ -755,6 +775,11 @@
   .today-schedule-group-label {
     font-weight: 600;
     margin-bottom: 0.35rem;
+  }
+  .today-schedule-group-riders {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    margin-bottom: 0.5rem;
   }
   .today-schedule-slots {
     display: flex;

@@ -22,6 +22,20 @@
   var authMode = 'login'; // 'login' | 'signup' -- which form the auth screen shows
   var authError = '';
 
+  // The one administrator (Xavier) can delete anything; everyone else can
+  // still add/edit collaboratively (chronos, sorties, groupes, équipement)
+  // but not remove a rider, a sortie, someone else's chrono, or a whole
+  // checklist category -- see isAdmin()'s call sites. Matching Firestore
+  // rules (riders/events delete, and sessions delete for someone else's
+  // chrono) enforce this server-side too; checklist-category/item removal
+  // is only hidden client-side (Firestore can't easily tell "this update
+  // removed a nested item" from "added one").
+  var ADMIN_EMAIL = 'thereiivman@gmail.com';
+  function isAdmin() {
+    return !!(currentUserProfile && currentUserProfile.email &&
+      currentUserProfile.email.toLowerCase() === ADMIN_EMAIL.toLowerCase());
+  }
+
   function genId() {
     return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
   }
@@ -259,6 +273,8 @@
   var planningGroupFilter = _savedUiState.planningGroupFilter || null; // array of HORAIRES_GROUPS keys, or null for "all available"
   var planningIsOngoing = false; // set by renderPlanningTab(), read by updateLiveClock()
   var planningEventDateStart = null; // ditto -- 'YYYY-MM-DD' of the target sortie
+  var planningEventId = null; // ditto -- id of the target sortie, read by maybeNotifyGroupDeparture()
+  var notifiedSlotKey = null; // 'eventId-slotStart' already notified, avoids re-notifying every 15s tick
   // Which circuit and which rider(s) all four tabs currently show —
   // validated/defaulted by normalizeSelection() below, and kept in sync
   // with the currently-selected sortie via selectEvent(). The global picker
@@ -664,7 +680,7 @@
         html += '<td class="bike-cell">' + (s.bike ? escapeHtml(s.bike) : '—') + '</td>';
         html += '<td class="row-actions">' +
           '<button type="button" class="ghost icon-btn" data-action="edit-session-request" data-id="' + s.id + '" aria-label="Modifier ce chrono" title="Modifier">✎</button>' +
-          deleteControl(s.id) + '</td>';
+          deleteControl(s) + '</td>';
         html += '</tr>';
       });
       html += '</tbody></table></div>';
@@ -703,9 +719,11 @@
 
   function renderGlobalRiderPicker() {
     var riders = allKnownRiders();
-    var manageBtn = '<button type="button" class="ghost icon-btn" id="rider-manager-toggle" aria-label="Gérer les pilotes" title="Gérer les pilotes">⚙</button>';
+    var manageBtn = isAdmin()
+      ? '<button type="button" class="ghost icon-btn" id="rider-manager-toggle" aria-label="Gérer les pilotes" title="Gérer les pilotes">⚙</button>'
+      : '';
     if (!riders.length && !riderManagerOpen) {
-      // Still let a first-time owner create the roster before any chrono exists.
+      // Still let a first-time admin create the roster before any chrono exists.
       return '<div class="card filters-card global-rider-picker"><div class="filter-block">' +
         '<label style="display:flex; align-items:center; justify-content:space-between;"><span>Pilote</span>' + manageBtn + '</label>' +
         '<div class="help-text">Aucun pilote pour l\'instant.</div>' +
@@ -720,7 +738,7 @@
     var html = '<div class="card filters-card global-rider-picker"><div class="filter-block">' +
       '<label style="display:flex; align-items:center; justify-content:space-between;"><span>Pilote</span>' + manageBtn + '</label>' +
       '<div class="rider-filter">' + pills + '</div>' +
-      '</div>' + renderRiderManagerPanel() + '</div>';
+      '</div>' + (isAdmin() ? renderRiderManagerPanel() : '') + '</div>';
     return html;
   }
 
@@ -728,11 +746,9 @@
   //
   // Riders are otherwise just names attached to sessions/events -- this
   // panel lets the roster (STATE.riders) be edited directly, including a
-  // rider with no chrono yet. Like every other mutation in this app, the
-  // actual write authority is enforced by the artifact platform itself
-  // (publish() rejects with not_writer/not_granted for anyone who isn't
-  // the owner) -- there is no separate "am I the owner" check here, the
-  // same way session edit/delete don't have one either.
+  // rider with no chrono yet. Admin-only (see isAdmin()): the gear that
+  // opens it, and this panel's own content, are both hidden for everyone
+  // else -- enforced again server-side in firestore.rules (riders delete).
   function renderRiderManagerPanel() {
     if (!riderManagerOpen) return '';
     var riders = allKnownRiders();
@@ -763,6 +779,53 @@
     }
     html += '</div>';
     return html;
+  }
+
+  // ---- Mon profil — chaque pilote/accompagnant gère son propre compte ----
+  //
+  // Only the fields that live on the user's own users/{uid} doc: role and
+  // the notification preference. The rider name is the roster's join key
+  // (STATE.riders / ev.riderGroups / session.rider all key off it), so
+  // renaming it here would mean rewriting every document that references
+  // it -- out of scope for a self-service panel, handled instead via the
+  // admin-only rider manager above.
+  function renderProfilePanel() {
+    if (!profilePanelOpen) return '';
+    var p = currentUserProfile;
+    var html = '<div class="card profile-panel">';
+    html += '<div class="section-title">Mon profil</div>';
+    html += '<form id="profile-form">';
+    html += '<label>Nom<input type="text" value="' + escapeHtml(p.name) + '" disabled></label>';
+    html += '<label>Je suis</label>';
+    html += '<div class="auth-role-choice">' +
+      '<label><input type="radio" name="profile-role" value="pilote"' + (p.role !== 'accompagnant' ? ' checked' : '') + '> Pilote</label>' +
+      '<label><input type="radio" name="profile-role" value="accompagnant"' + (p.role === 'accompagnant' ? ' checked' : '') + '> Accompagnant</label>' +
+      '</div>';
+    html += '<label class="checklist-item" style="margin-top:0.9rem;"><input type="checkbox" id="profile-notify"' + (p.notifyBeforeSession ? ' checked' : '') + '> Me notifier quand mon groupe va partir rouler</label>';
+    html += '<div class="help-text" style="margin-top:0.4rem;">Nécessite d\'autoriser les notifications du navigateur, et que cet onglet reste ouvert.</div>';
+    html += '<div style="margin-top:1rem; display:flex; gap:0.6rem;"><button type="submit" class="primary">Enregistrer</button>' +
+      '<button type="button" class="ghost" id="profile-cancel">Fermer</button></div>';
+    if (profileSaveMessage) html += '<div class="help-text" style="margin-top:0.6rem;">' + escapeHtml(profileSaveMessage) + '</div>';
+    html += '</form></div>';
+    return html;
+  }
+
+  var profileSaveMessage = '';
+  function saveProfile(role, notifyBeforeSession) {
+    var uid = auth.currentUser && auth.currentUser.uid;
+    if (!uid) return;
+    if (notifyBeforeSession && window.Notification && Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
+    db.collection('users').doc(uid).set({ role: role, notifyBeforeSession: notifyBeforeSession }, { merge: true }).then(function () {
+      currentUserProfile.role = role;
+      currentUserProfile.notifyBeforeSession = notifyBeforeSession;
+      profileSaveMessage = 'Profil enregistré.';
+      renderRoot();
+    }).catch(function (err) {
+      profileSaveMessage = 'Erreur : ' + (err && err.message ? err.message : err);
+      renderRoot();
+    });
   }
 
   function addRider(name) {
@@ -1224,8 +1287,12 @@
     return out;
   }
 
-  function deleteControl(id) {
-    return '<button type="button" class="ghost icon-btn" data-action="delete-request" data-id="' + id + '" aria-label="Supprimer cette session" title="Supprimer">×</button>';
+  // A chrono can be deleted by the admin or by whoever it belongs to
+  // (matching firestore.rules' sessions delete rule) -- not by anyone
+  // else, so one rider can't wipe another's times.
+  function deleteControl(session) {
+    if (!isAdmin() && (!currentUserProfile || session.rider !== currentUserProfile.name)) return '';
+    return '<button type="button" class="ghost icon-btn" data-action="delete-request" data-id="' + session.id + '" aria-label="Supprimer cette session" title="Supprimer">×</button>';
   }
 
   // ---- Circuit info (km, virages, prochaine sortie) + visuel annotable ----
@@ -2767,7 +2834,11 @@
     return html;
   }
 
+  // Deleting a sortie is admin-only (matches firestore.rules) -- several
+  // riders can be relying on it (groupes, horaires, checklist), not just
+  // whoever created it.
   function deleteEventControl(id) {
+    if (!isAdmin()) return '';
     return '<button type="button" class="ghost icon-btn" data-action="delete-event-request" data-id="' + id + '" aria-label="Supprimer cette sortie" title="Supprimer">×</button>';
   }
 
@@ -2985,16 +3056,8 @@
     // The circuit's own interactive map, so the annotated track is one tap
     // away from the sortie it belongs to, not just reachable from Circuit.
     html += '<div class="event-circuit-map"><div class="event-checklist-title">Carte du circuit</div>' + renderCircuitVisual(circuitInfo(ev.circuit)) + '</div>';
-    // The full, editable, categorized pense-bête lives in Planning -- it's
-    // too long to keep Événements "simple et informatif", so this is just
-    // a count.
-    var status = eventTemporalStatus(ev, dateKey(new Date()));
-    if (status !== 'past') {
-      var allItems = checklistAllItems();
-      var checklist = ev.checklist || {};
-      var checkedCount = allItems.filter(function (item) { return checklist[item.id]; }).length;
-      if (allItems.length) html += infoRow('Équipement', checkedCount + '/' + allItems.length + ' (voir Planning)');
-    }
+    // The équipement checklist (with its count) lives entirely in
+    // Planning now -- Événements stays simple and informative.
     html += '<div class="event-detail-actions"><button type="button" class="ghost" id="edit-event-btn" data-id="' + ev.id + '">Modifier</button>' + deleteEventControl(ev.id) + '</div>';
     html += '</div>';
     return html;
@@ -3012,13 +3075,10 @@
     var isOpen = ev.id === selectedEventId;
     var html = '<div class="event-row event-row-toggle' + (isOpen ? ' selected' : '') + '" data-event-id="' + ev.id + '" aria-expanded="' + (isOpen ? 'true' : 'false') + '">';
     html += '<div class="event-row-main"><span class="event-row-circuit">' + escapeHtml(ev.circuit) + '</span>';
-    var checklistBadge = '';
-    if (eventTemporalStatus(ev, dateKey(new Date())) !== 'past') {
-      var allItems = checklistAllItems();
-      var done = allItems.filter(function (item) { return ev.checklist && ev.checklist[item.id]; }).length;
-      if (allItems.length) checklistBadge = '<span class="event-row-checklist">' + done + '/' + allItems.length + '</span>';
-    }
-    html += '<span class="event-row-dates">' + escapeHtml(formatEventRange(ev)) + checklistBadge + '</span></div>';
+    // The équipement count lives only in Planning now (with the actual
+    // checklist to act on) -- it added nothing here, least of all for a
+    // past sortie where it's just a stale "0/43".
+    html += '<span class="event-row-dates">' + escapeHtml(formatEventRange(ev)) + '</span></div>';
     html += '<div class="event-row-riders">' + ((ev.riders && ev.riders.length) ? escapeHtml(ev.riders.join(', ')) : 'Pilotes non précisés') + '</div>';
     html += '</div>';
     if (isOpen) {
@@ -3146,16 +3206,37 @@
     });
   }
 
+  // Every rider assigned to a group letter (A-D) at any point of the
+  // sortie -- riderGroups is per-day/per-période, but the horaires display
+  // is for the whole sortie, so a rider who's in Groupe B on any day/demi-
+  // journée shows up under Groupe B.
+  function ridersInGroup(ev, letter) {
+    var rg = (ev && ev.riderGroups) || {};
+    return Object.keys(rg).filter(function (rider) {
+      var byDate = rg[rider] || {};
+      return Object.keys(byDate).some(function (d) { return byDate[d].am === letter || byDate[d].pm === letter; });
+    }).sort();
+  }
+
   // allowedKeys: null/undefined shows every group that has horaires; an
   // array restricts to just those keys (the Planning tab's checkboxes).
-  function renderHoraireGroups(horaires, allowedKeys) {
+  // ev (optional) lets us list which riders are assigned to each group.
+  function renderHoraireGroups(horaires, allowedKeys, ev) {
     var groups = HORAIRES_GROUPS.filter(function (g) {
       return horaires[g.key] && (!allowedKeys || allowedKeys.indexOf(g.key) !== -1);
     });
     if (!groups.length) return '';
     var html = '<div class="today-schedule-groups">';
     groups.forEach(function (g) {
-      html += '<div class="today-schedule-group"><div class="today-schedule-group-label">' + escapeHtml(g.label) + '</div><div class="today-schedule-slots">';
+      html += '<div class="today-schedule-group"><div class="today-schedule-group-label">' + escapeHtml(g.label) + '</div>';
+      if (ev) {
+        var letter = g.key.replace('group', '');
+        var names = ridersInGroup(ev, letter);
+        if (names.length) {
+          html += '<div class="today-schedule-group-riders">' + names.map(escapeHtml).join(', ') + '</div>';
+        }
+      }
+      html += '<div class="today-schedule-slots">';
       parseHoraireLine(horaires[g.key]).forEach(function (slot) {
         if (slot.start == null) {
           html += '<span class="schedule-slot schedule-slot-label">' + escapeHtml(slot.label) + '</span>';
@@ -3169,18 +3250,37 @@
     return html;
   }
 
+  function checklistCountLabel(ev) {
+    var allItems = checklistAllItems();
+    if (!allItems.length) return 'Équipement (pense-bête)';
+    var checklist = ev.checklist || {};
+    var done = allItems.filter(function (item) { return checklist[item.id]; }).length;
+    return 'Équipement (pense-bête) — ' + done + '/' + allItems.length;
+  }
+
   // The full, editable, categorized pense-bête -- any rider can check an
   // item for this sortie, add/remove an item within a category, or add/
   // remove a whole category, straight from Planning.
   function renderPlanningChecklist(ev) {
     var tpl = checklistTemplate();
     var checklist = ev.checklist || {};
+    var admin = isAdmin();
     var html = '<div class="event-checklist planning-checklist">';
     tpl.categories.forEach(function (cat) {
       var isPendingDelete = pendingDeleteChecklistCategory === cat.id;
-      html += '<div class="checklist-category">';
-      html += '<div class="checklist-category-head"><span class="checklist-category-name">' + escapeHtml(cat.name) + '</span>' +
-        '<button type="button" class="ghost icon-btn' + (isPendingDelete ? ' confirm' : '') + '" data-action="remove-checklist-category" data-category="' + cat.id + '" aria-label="Supprimer la catégorie ' + escapeHtml(cat.name) + '" title="Supprimer la catégorie">' + (isPendingDelete ? '✓' : '×') + '</button></div>';
+      var doneInCat = cat.items.filter(function (item) { return checklist[item.id]; }).length;
+      var catKey = 'cat-' + cat.id;
+      var open = planningSectionsOpen[catKey] ? ' open' : '';
+      html += '<details class="checklist-category" data-planning-section="' + catKey + '"' + open + '>';
+      html += '<summary><span class="checklist-category-name">' + escapeHtml(cat.name) + ' — ' + doneInCat + '/' + cat.items.length + '</span>';
+      // Deleting a whole category is admin-only (see isAdmin()) -- it
+      // removes every item other riders may already rely on. Adding is
+      // still open to anyone, right below.
+      if (admin) {
+        html += '<button type="button" class="ghost icon-btn' + (isPendingDelete ? ' confirm' : '') + '" data-action="remove-checklist-category" data-category="' + cat.id + '" aria-label="Supprimer la catégorie ' + escapeHtml(cat.name) + '" title="Supprimer la catégorie">' + (isPendingDelete ? '✓' : '×') + '</button>';
+      }
+      html += '</summary>';
+      html += '<div class="planning-section-body">';
       cat.items.forEach(function (item) {
         var checked = !!checklist[item.id];
         // The remove button is a sibling of the <label>, not nested inside
@@ -3189,13 +3289,13 @@
         // unwanted side effect of removing the item.
         html += '<div class="checklist-item-row">' +
           '<label class="checklist-item"><input type="checkbox" data-checklist-key="' + item.id + '" data-event-id="' + ev.id + '"' + (checked ? ' checked' : '') + '> ' + escapeHtml(item.label) + '</label>' +
-          '<button type="button" class="ghost icon-btn checklist-item-remove" data-action="remove-checklist-item" data-category="' + cat.id + '" data-item="' + item.id + '" aria-label="Retirer ' + escapeHtml(item.label) + '" title="Retirer">×</button>' +
+          (admin ? '<button type="button" class="ghost icon-btn checklist-item-remove" data-action="remove-checklist-item" data-category="' + cat.id + '" data-item="' + item.id + '" aria-label="Retirer ' + escapeHtml(item.label) + '" title="Retirer">×</button>' : '') +
           '</div>';
       });
       html += '<form class="checklist-add-item-form" data-add-item-category="' + cat.id + '">' +
         '<input type="text" placeholder="+ ajouter un objet" data-new-item-input>' +
         '<button type="submit" class="ghost">Ajouter</button></form>';
-      html += '</div>';
+      html += '</div></details>';
     });
     html += '<form id="add-checklist-category-form" class="checklist-add-category-form">' +
       '<input type="text" id="new-checklist-category" placeholder="+ nouvelle catégorie">' +
@@ -3245,6 +3345,7 @@
     // read in days, not compare today's clock against Jerez's 10h.
     planningIsOngoing = isOngoing;
     planningEventDateStart = ev.dateStart;
+    planningEventId = ev.id;
     var info = circuitInfo(ev.circuit);
     var horaires = info.horaires;
 
@@ -3270,7 +3371,7 @@
     if (!availableGroups.length) {
       html += '<div class="help-text">Aucun horaire enregistré pour ' + escapeHtml(ev.circuit) + ' — ajoutez-les depuis l\'onglet Circuit (Modifier les infos).</div>';
       html += collapsibleSection('groupes', 'Groupes par pilote', renderRiderGroupsSection(ev));
-      html += collapsibleSection('equipement', 'Équipement (pense-bête)', renderPlanningChecklist(ev));
+      html += collapsibleSection('equipement', checklistCountLabel(ev), renderPlanningChecklist(ev));
       return html + '</div>';
     }
 
@@ -3287,11 +3388,32 @@
       horairesInner += '<label class="planning-group-check"><input type="checkbox" data-planning-group="' + g.key + '"' + (checked ? ' checked' : '') + '> ' + escapeHtml(g.label) + '</label>';
     });
     horairesInner += '</div>';
-    horairesInner += renderHoraireGroups(horaires, activeKeys);
+    horairesInner += renderHoraireGroups(horaires, activeKeys, ev);
     html += collapsibleSection('horaires', 'Horaires', horairesInner);
     html += collapsibleSection('groupes', 'Groupes par pilote', renderRiderGroupsSection(ev));
-    html += collapsibleSection('equipement', 'Équipement (pense-bête)', renderPlanningChecklist(ev));
+    html += collapsibleSection('equipement', checklistCountLabel(ev), renderPlanningChecklist(ev));
     return html + '</div>';
+  }
+
+  // Fires a browser notification once, when the current pilot's own group
+  // is about to go out (<=10 min) and they've opted in from "Mon profil".
+  // Only works while this tab stays open -- there's no backend on GitHub
+  // Pages to push a real notification once the app is closed.
+  function maybeNotifyGroupDeparture(nextStart, diff, nextGroupLabels) {
+    if (!currentUserProfile || !currentUserProfile.notifyBeforeSession) return;
+    if (!window.Notification || Notification.permission !== 'granted') return;
+    if (diff > 10 || diff < 0) return;
+    var ev = eventsList().filter(function (e) { return e.id === planningEventId; })[0];
+    if (!ev) return;
+    var myGroups = HORAIRES_GROUPS.filter(function (g) { return nextGroupLabels.indexOf(g.label) !== -1; })
+      .filter(function (g) { return ridersInGroup(ev, g.key.replace('group', '')).indexOf(currentUserProfile.name) !== -1; });
+    if (!myGroups.length) return;
+    var slotKey = planningEventId + '-' + nextStart;
+    if (notifiedSlotKey === slotKey) return;
+    notifiedSlotKey = slotKey;
+    new Notification('Carnet de Piste', {
+      body: 'Ton groupe (' + myGroups.map(function (g) { return g.label; }).join(', ') + ') part rouler dans ' + diff + ' min !'
+    });
   }
 
   function updateLiveClock() {
@@ -3312,7 +3434,12 @@
       if (countdownEl) {
         if (planningEventDateStart) {
           var days = Math.round((parseLocalDate(planningEventDateStart) - parseLocalDate(dateKey(new Date()))) / 86400000);
-          countdownEl.textContent = days === 1 ? 'Dans 1 jour' : 'Dans ' + days + ' jours';
+          var dayText = days === 1 ? 'Dans 1 jour' : 'Dans ' + days + ' jours';
+          var groupLabelsUp = [];
+          document.querySelectorAll('.today-schedule-group-label').forEach(function (el) {
+            if (groupLabelsUp.indexOf(el.textContent) === -1) groupLabelsUp.push(el.textContent);
+          });
+          countdownEl.textContent = dayText + (groupLabelsUp.length ? ' — ' + groupLabelsUp.join(', ') : '');
         } else {
           countdownEl.textContent = '';
         }
@@ -3340,7 +3467,15 @@
         countdownEl.textContent = '';
       } else {
         var diff = nextStart - nowMinutes;
-        countdownEl.textContent = 'Prochaine session dans ' + (diff >= 60 ? (Math.floor(diff / 60) + 'h' + pad2(diff % 60)) : (diff + ' min'));
+        var nextGroupLabels = [];
+        document.querySelectorAll('[data-slot-start="' + nextStart + '"]').forEach(function (el) {
+          var groupContainer = el.closest('.today-schedule-group');
+          var labelEl = groupContainer && groupContainer.querySelector('.today-schedule-group-label');
+          if (labelEl && nextGroupLabels.indexOf(labelEl.textContent) === -1) nextGroupLabels.push(labelEl.textContent);
+        });
+        countdownEl.textContent = 'Prochaine session dans ' + (diff >= 60 ? (Math.floor(diff / 60) + 'h' + pad2(diff % 60)) : (diff + ' min')) +
+          (nextGroupLabels.length ? ' — ' + nextGroupLabels.join(', ') : '');
+        maybeNotifyGroupDeparture(nextStart, diff, nextGroupLabels);
       }
     }
   }
@@ -3739,9 +3874,13 @@
   function renderRootUnsafe() {
     var root = document.getElementById('root');
     if (authState !== 'signed-in') {
+      var authBody;
+      if (authState === 'loading') authBody = '<div class="card auth-card"><div class="empty-state">Connexion...</div></div>';
+      else if (authState === 'verify-email') authBody = renderVerifyEmailScreen();
+      else authBody = renderAuthScreen();
       root.innerHTML =
         '<header class="page-head"><div class="eyebrow">Trackdays moto</div><h1 class="title">Carnet de Piste</h1></header>' +
-        (authState === 'loading' ? '<div class="card"><div class="empty-state">Connexion...</div></div>' : renderAuthScreen());
+        '<div class="auth-screen">' + authBody + '</div>';
       attachAuthHandlers();
       return;
     }
@@ -3765,9 +3904,11 @@
           '</div>' +
         '</div>' +
         '<div class="account-bar">' + escapeHtml(currentUserProfile.name) + ' · ' + (currentUserProfile.role === 'accompagnant' ? 'Accompagnant' : 'Pilote') +
+          ' <button type="button" class="auth-link" id="profile-toggle">Mon profil</button>' +
           ' <button type="button" class="link-btn" id="logout-btn">Se déconnecter</button></div>' +
         '<div class="banner" id="status-banner"></div>' +
       '</header>' +
+      renderProfilePanel() +
       renderGlobalRiderPicker() +
       renderViewTabs() +
       body;
@@ -3783,6 +3924,27 @@
   // 'users'. Gates the whole app: nothing renders until authState is
   // 'signed-in' and the profile doc has loaded (see init()'s
   // onAuthStateChanged and onSignupSubmit below).
+  // A freshly created account (or an old one from before this check
+  // existed) can't do anything until its email is confirmed -- otherwise
+  // any bot can "sign up" with a throwaway address and start writing.
+  // Firestore rules enforce this server-side too (email_verified on every
+  // write except a user's own profile, which has to be writable right
+  // after signup, before there's been time to verify anything).
+  function renderVerifyEmailScreen() {
+    var email = (auth.currentUser && auth.currentUser.email) || 'ton adresse';
+    var html = '<div class="card auth-card">';
+    html += '<h2 class="section-title">Vérifie ton email</h2>';
+    html += '<p class="help-text">Un email de vérification a été envoyé à <strong>' + escapeHtml(email) + '</strong>. Clique sur le lien qu\'il contient, puis reviens ici.</p>';
+    html += '<div class="field-error' + (authError ? ' visible' : '') + '" id="auth-error">' + escapeHtml(authError) + '</div>';
+    html += '<div style="margin-top:0.9rem; display:flex; gap:0.6rem; flex-wrap:wrap;">' +
+      '<button type="button" class="primary" id="verify-check-btn">J\'ai vérifié, continuer</button>' +
+      '<button type="button" class="ghost" id="verify-resend-btn">Renvoyer l\'email</button>' +
+      '</div>';
+    html += '<div class="help-text" style="margin-top:0.9rem;"><button type="button" class="auth-link" id="verify-logout-btn">Se déconnecter</button></div>';
+    html += '</div>';
+    return html;
+  }
+
   function renderAuthScreen() {
     var html = '<div class="card auth-card">';
     if (authMode === 'signup') {
@@ -3797,7 +3959,7 @@
       html += '<div class="field-error' + (authError ? ' visible' : '') + '" id="auth-error">' + escapeHtml(authError) + '</div>';
       html += '<button type="submit" class="primary" style="margin-top:0.9rem;">Créer mon compte</button>';
       html += '</form>';
-      html += '<div class="help-text" style="margin-top:0.9rem;">Déjà un compte ? <button type="button" class="link-btn" id="switch-to-login">Se connecter</button></div>';
+      html += '<div class="help-text" style="margin-top:0.9rem;">Déjà un compte ? <button type="button" class="auth-link" id="switch-to-login">Se connecter</button></div>';
     } else {
       html += '<h2 class="section-title">Connexion</h2>';
       html += '<form id="login-form" novalidate>';
@@ -3806,8 +3968,8 @@
       html += '<div class="field-error' + (authError ? ' visible' : '') + '" id="auth-error">' + escapeHtml(authError) + '</div>';
       html += '<button type="submit" class="primary" style="margin-top:0.9rem;">Se connecter</button>';
       html += '</form>';
-      html += '<div class="help-text" style="margin-top:0.9rem;">Pas encore de compte ? <button type="button" class="link-btn" id="switch-to-signup">Créer un compte</button></div>';
-      html += '<div class="help-text" style="margin-top:0.4rem;"><button type="button" class="link-btn" id="forgot-password-btn">Mot de passe oublié ?</button></div>';
+      html += '<div class="help-text" style="margin-top:0.9rem;">Pas encore de compte ? <button type="button" class="auth-link" id="switch-to-signup">Créer un compte</button></div>';
+      html += '<div class="help-text" style="margin-top:0.4rem;"><button type="button" class="auth-link" id="forgot-password-btn">Mot de passe oublié ?</button></div>';
     }
     html += '</div>';
     return html;
@@ -3851,21 +4013,46 @@
         if (role === 'pilote') {
           return db.collection('riders').doc(safeDocId(name)).set({ name: name }, { merge: true });
         }
+      }).then(function () {
+        return cred.user.sendEmailVerification();
       });
     }).then(function () {
-      // Set directly rather than waiting on onAuthStateChanged's own
-      // profile fetch -- that fetch can (and, right after this write,
-      // typically will) run before this document write has landed, and
-      // init() deliberately no-ops on a missing profile instead of
-      // treating it as an error (see its comment).
+      // Held at 'verify-email' -- the account and profile both exist, but
+      // nothing writable happens until the address is confirmed (bots
+      // shouldn't be able to just type in someone's email and start
+      // editing sorties). currentUserProfile is set directly here rather
+      // than waiting on onAuthStateChanged's own profile fetch, since that
+      // fetch can race this document write.
       currentUserProfile = { name: name, role: role, email: email };
-      authState = 'signed-in';
-      canPersist = true;
-      startSync();
+      authState = 'verify-email';
       renderRoot();
-      showToast('Compte créé, bienvenue ' + name + ' !', 'success');
+      showToast('Compte créé — vérifie ton email pour continuer.', 'success');
     }).catch(function (err) {
       authError = translateAuthError(err);
+      renderRoot();
+    });
+  }
+
+  function checkEmailVerified() {
+    var user = auth.currentUser;
+    if (!user) return;
+    user.reload().then(function () {
+      if (user.emailVerified) {
+        authError = '';
+        // Force-refresh the ID token so Firestore rules see
+        // email_verified=true on the very next write, instead of
+        // whatever was cached from before verification.
+        return user.getIdToken(true).then(function () {
+          return db.collection('users').doc(user.uid).get();
+        }).then(function (doc) {
+          if (doc.exists) currentUserProfile = doc.data();
+          authState = 'signed-in';
+          canPersist = true;
+          startSync();
+          renderRoot();
+        });
+      }
+      authError = 'Pas encore vérifié — clique sur le lien reçu par email, puis réessaie.';
       renderRoot();
     });
   }
@@ -3897,11 +4084,28 @@
         });
       });
     }
+    var verifyCheckBtn = document.getElementById('verify-check-btn');
+    if (verifyCheckBtn) verifyCheckBtn.addEventListener('click', checkEmailVerified);
+    var verifyResendBtn = document.getElementById('verify-resend-btn');
+    if (verifyResendBtn) {
+      verifyResendBtn.addEventListener('click', function () {
+        if (!auth.currentUser) return;
+        auth.currentUser.sendEmailVerification().then(function () {
+          showToast('Email renvoyé à ' + auth.currentUser.email + '.', 'success');
+        }).catch(function (err) {
+          authError = translateAuthError(err);
+          renderRoot();
+        });
+      });
+    }
+    var verifyLogoutBtn = document.getElementById('verify-logout-btn');
+    if (verifyLogoutBtn) verifyLogoutBtn.addEventListener('click', function () { auth.signOut(); });
   }
 
   var pendingDelete = null;
   var pendingDeleteEvent = null;
   var pendingDeleteChecklistCategory = null;
+  var profilePanelOpen = false; // pure UI state, not persisted
   var riderManagerOpen = false; // pure UI state, not persisted
   var editingRiderName = null; // rider currently shown as an inline rename form, or null
   var pendingDeleteRider = null; // rider armed for delete (click-to-confirm, like session delete)
@@ -3910,6 +4114,30 @@
   function attachHandlers() {
     var logoutBtn = document.getElementById('logout-btn');
     if (logoutBtn) logoutBtn.addEventListener('click', function () { auth.signOut(); });
+    var profileToggle = document.getElementById('profile-toggle');
+    if (profileToggle) {
+      profileToggle.addEventListener('click', function () {
+        profilePanelOpen = !profilePanelOpen;
+        profileSaveMessage = '';
+        renderRoot();
+      });
+    }
+    var profileCancel = document.getElementById('profile-cancel');
+    if (profileCancel) {
+      profileCancel.addEventListener('click', function () {
+        profilePanelOpen = false;
+        renderRoot();
+      });
+    }
+    var profileForm = document.getElementById('profile-form');
+    if (profileForm) {
+      profileForm.addEventListener('submit', function (evt) {
+        evt.preventDefault();
+        var role = profileForm.querySelector('input[name="profile-role"]:checked').value;
+        var notify = document.getElementById('profile-notify').checked;
+        saveProfile(role, notify);
+      });
+    }
     document.querySelectorAll('[data-theme-choice]').forEach(function (btn) {
       btn.addEventListener('click', function () {
         setThemePref(btn.getAttribute('data-theme-choice'));
@@ -4156,7 +4384,12 @@
       });
     });
     document.querySelectorAll('[data-action="remove-checklist-category"]').forEach(function (btn) {
-      btn.addEventListener('click', function () {
+      btn.addEventListener('click', function (evt) {
+        // This button sits inside a <summary> (the category's collapsible
+        // header) -- without stopping the click here, the browser's
+        // default "click toggles the parent <details>" behavior fires too.
+        evt.preventDefault();
+        evt.stopPropagation();
         var categoryId = btn.getAttribute('data-category');
         if (pendingDeleteChecklistCategory === categoryId) {
           removeChecklistCategory(categoryId);
@@ -4517,6 +4750,15 @@
         authState = 'signed-out';
         currentUserProfile = null;
         canPersist = false;
+        renderRoot();
+        return;
+      }
+      if (!user.emailVerified) {
+        // Covers both a fresh signup (handled directly in
+        // onSignupSubmit, but this also fires) and someone logging back
+        // into an old, never-verified account -- either way, held here
+        // until they confirm.
+        authState = 'verify-email';
         renderRoot();
         return;
       }
