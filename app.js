@@ -847,7 +847,10 @@
       '</div>';
     html += '<div id="profile-bike-wrap" style="display:' + (isAccompagnant ? 'none' : 'block') + '; margin-top:0.9rem;">' +
       '<label for="profile-bike">Ma moto</label><input type="text" id="profile-bike" placeholder="Ex. ST 765 RS" value="' + escapeHtml(p.bike || '') + '">' +
-      '<div class="help-text">Suggérée automatiquement quand tu entres un chrono.</div></div>';
+      '<div class="help-text">Suggérée automatiquement quand tu entres un chrono.</div>' +
+      '<label for="profile-bike-number" style="margin-top:0.7rem;">N° de moto</label>' +
+      '<input type="text" id="profile-bike-number" inputmode="numeric" pattern="[0-9]{1,3}" maxlength="3" placeholder="Ex. 12" value="' + escapeHtml(p.bikeNumber || '') + '">' +
+      '<div class="help-text">1 à 3 chiffres.</div></div>';
     html += '<div id="profile-followed-wrap" style="display:' + (isAccompagnant ? 'block' : 'none') + '; margin-top:0.9rem;">';
     html += '<label>Pilotes que je suis</label>';
     var riders = allKnownRiders();
@@ -916,17 +919,18 @@
   }
 
   var profileSaveMessage = '';
-  function saveProfile(role, notifyBeforeSession, followedRiders, bike) {
+  function saveProfile(role, notifyBeforeSession, followedRiders, bike, bikeNumber) {
     var uid = auth.currentUser && auth.currentUser.uid;
     if (!uid) return;
     if (notifyBeforeSession && window.Notification && Notification.permission === 'default') {
       Notification.requestPermission();
     }
-    db.collection('users').doc(uid).set({ role: role, notifyBeforeSession: notifyBeforeSession, followedRiders: followedRiders, bike: bike || null }, { merge: true }).then(function () {
+    db.collection('users').doc(uid).set({ role: role, notifyBeforeSession: notifyBeforeSession, followedRiders: followedRiders, bike: bike || null, bikeNumber: bikeNumber || null }, { merge: true }).then(function () {
       currentUserProfile.role = role;
       currentUserProfile.notifyBeforeSession = notifyBeforeSession;
       currentUserProfile.followedRiders = followedRiders;
       currentUserProfile.bike = bike || null;
+      currentUserProfile.bikeNumber = bikeNumber || null;
       profileSaveMessage = 'Profil enregistré.';
       renderRoot();
     }).catch(function (err) {
@@ -1134,12 +1138,13 @@
     html += '<h2 class="section-title">Entrer un nouveau chrono</h2>';
     html += '<form id="session-form" novalidate>';
     html += '<div class="field-row">';
-    if (!rider) {
-      var knownRiders = allKnownRiders();
-      html += '<div><label for="f-rider">Pilote</label><select id="f-rider" required><option value="">—</option>' +
-        knownRiders.map(function (r) { return '<option value="' + escapeHtml(r) + '">' + escapeHtml(r) + '</option>'; }).join('') +
-        '</select></div>';
-    }
+    // Always a real dropdown, even when a rider is already active in the
+    // global filter -- pre-selected to them, but switchable, so entering a
+    // chrono for a friend doesn't require changing the global filter first.
+    var knownRiders = allKnownRiders();
+    html += '<div><label for="f-rider">Pilote</label><select id="f-rider" required><option value="">—</option>' +
+      knownRiders.map(function (r) { return '<option value="' + escapeHtml(r) + '"' + (r === rider ? ' selected' : '') + '>' + escapeHtml(r) + '</option>'; }).join('') +
+      '</select></div>';
     html += '<div><label for="f-date">Date</label>' +
       '<input type="text" id="f-date" inputmode="numeric" placeholder="JJ/MM/AAAA" value="' + isoToFrDate(todayStr) + '" required></div>';
     html += '<div><label for="f-circuit">Circuit</label><select id="f-circuit" required>' +
@@ -1462,6 +1467,20 @@
 
   function infoRow(label, valueHtml) {
     return '<div class="info-row"><span class="info-label">' + escapeHtml(label) + '</span><span class="info-value">' + valueHtml + '</span></div>';
+  }
+
+  // Copier/Maps/Waze actions for any free-text address or place name --
+  // used for the hotel address and the trip's airport (Planning). Buttons
+  // rather than <a> tags so click handling (clipboard copy, opening a new
+  // tab) stays consistent and doesn't need a second ".ghost" CSS rule just
+  // for anchors.
+  function renderLocationActions(text) {
+    if (!text) return '';
+    return '<span class="location-actions">' +
+      '<button type="button" class="ghost icon-btn" data-action="copy-location" data-text="' + escapeHtml(text) + '" aria-label="Copier" title="Copier">📋</button>' +
+      '<button type="button" class="ghost icon-btn" data-action="open-maps" data-text="' + escapeHtml(text) + '" aria-label="Ouvrir dans Google Maps" title="Google Maps">🗺️</button>' +
+      '<button type="button" class="ghost icon-btn" data-action="open-waze" data-text="' + escapeHtml(text) + '" aria-label="Ouvrir dans Waze" title="Waze">🚗</button>' +
+      '</span>';
   }
 
   // The Circuit tab is rider-agnostic (it's context, not a comparison
@@ -3207,13 +3226,16 @@
       if (groupsSummary) html += infoRow('Groupes', groupsSummary);
     }
     if (ev.hotelName || ev.hotelAddress) {
-      html += infoRow('Hôtel', [ev.hotelName, ev.hotelAddress].filter(Boolean).map(escapeHtml).join(' — '));
+      html += infoRow('Hôtel', [ev.hotelName, ev.hotelAddress].filter(Boolean).map(escapeHtml).join(' — ') + renderLocationActions(ev.hotelAddress || ev.hotelName));
     }
     if (ev.flightOutDep || ev.flightOutArr) {
       html += infoRow('Avion aller', [ev.flightOutDep, ev.flightOutArr].filter(Boolean).join(' → '));
     }
     if (ev.flightBackDep || ev.flightBackArr) {
       html += infoRow('Avion retour', [ev.flightBackDep, ev.flightBackArr].filter(Boolean).join(' → '));
+    }
+    if (ev.airport) {
+      html += infoRow('Aéroport', escapeHtml(ev.airport) + renderLocationActions(ev.airport));
     }
     if (ev.note) html += infoRow('Note', escapeHtml(ev.note));
     // The circuit's own interactive map, so the annotated track is one tap
@@ -3518,16 +3540,20 @@
     if (!isOngoing) sub.push(escapeHtml(formatEventRange(ev, true)) + ' (' + weekdayName(ev.dateStart) + ')');
     if (info.organizer) sub.push('Organisateur ' + escapeHtml(info.organizer));
     if (info.briefing) sub.push('Briefing ' + escapeHtml(info.briefing));
-    if (sub.length) html += '<div class="help-text">' + sub.join(' · ') + '</div>';
+    if (sub.length) html += '<div class="help-text" style="font-size:0.78rem; font-weight:400;">' + sub.join(' · ') + '</div>';
 
     if (ev.hotelName || ev.hotelAddress) {
-      html += '<div class="help-text">Hôtel : ' + [ev.hotelName, ev.hotelAddress].filter(Boolean).map(escapeHtml).join(' — ') + '</div>';
+      html += '<div class="help-text location-line">Hôtel : ' + [ev.hotelName, ev.hotelAddress].filter(Boolean).map(escapeHtml).join(' — ') +
+        renderLocationActions(ev.hotelAddress || ev.hotelName) + '</div>';
     }
     if (ev.flightOutDep || ev.flightOutArr) {
       html += '<div class="help-text">Avion aller : ' + escapeHtml([ev.flightOutDep, ev.flightOutArr].filter(Boolean).join(' → ')) + '</div>';
     }
     if (ev.flightBackDep || ev.flightBackArr) {
       html += '<div class="help-text">Avion retour : ' + escapeHtml([ev.flightBackDep, ev.flightBackArr].filter(Boolean).join(' → ')) + '</div>';
+    }
+    if (ev.airport) {
+      html += '<div class="help-text location-line">Aéroport : ' + escapeHtml(ev.airport) + renderLocationActions(ev.airport) + '</div>';
     }
 
     var availableGroups = horaires ? HORAIRES_GROUPS.filter(function (g) { return horaires[g.key]; }) : [];
@@ -3831,6 +3857,7 @@
     html += '<div><label for="ev-flight-out-arr" class="horaires-sublabel">Aller — arrivée</label><input type="text" id="ev-flight-out-arr" placeholder="Ex. 8h15" value="' + escapeHtml(ev.flightOutArr || '') + '"></div>';
     html += '<div><label for="ev-flight-back-dep" class="horaires-sublabel">Retour — départ</label><input type="text" id="ev-flight-back-dep" placeholder="Ex. 18h00" value="' + escapeHtml(ev.flightBackDep || '') + '"></div>';
     html += '<div><label for="ev-flight-back-arr" class="horaires-sublabel">Retour — arrivée</label><input type="text" id="ev-flight-back-arr" placeholder="Ex. 19h35" value="' + escapeHtml(ev.flightBackArr || '') + '"></div>';
+    html += '<div><label for="ev-airport" class="horaires-sublabel">Aéroport</label><input type="text" id="ev-airport" placeholder="Ex. Aéroport de Bologne" value="' + escapeHtml(ev.airport || '') + '"></div>';
     html += '</div>';
     html += '<div class="field-error" id="event-form-error"></div>';
     html += '<div style="margin-top:0.9rem; display:flex; gap:0.6rem;">' +
@@ -3890,6 +3917,7 @@
     var flightOutArr = document.getElementById('ev-flight-out-arr').value.trim();
     var flightBackDep = document.getElementById('ev-flight-back-dep').value.trim();
     var flightBackArr = document.getElementById('ev-flight-back-arr').value.trim();
+    var airport = document.getElementById('ev-airport').value.trim();
 
     // Trim the form's draft down to riders still in the field and dates
     // still within range -- a rider removed from the field, or a date
@@ -3912,6 +3940,7 @@
       if (flightOutArr) newEvent.flightOutArr = flightOutArr;
       if (flightBackDep) newEvent.flightBackDep = flightBackDep;
       if (flightBackArr) newEvent.flightBackArr = flightBackArr;
+      if (airport) newEvent.airport = airport;
       STATE.events.push(newEvent);
       selectedEventId = newEvent.id;
     } else {
@@ -3932,6 +3961,7 @@
         existing.flightOutArr = flightOutArr || null;
         existing.flightBackDep = flightBackDep || null;
         existing.flightBackArr = flightBackArr || null;
+        existing.airport = airport || null;
         selectedEventId = existing.id;
       }
     }
@@ -4387,6 +4417,30 @@
   function attachHandlers() {
     var logoutBtn = document.getElementById('logout-btn');
     if (logoutBtn) logoutBtn.addEventListener('click', function () { auth.signOut(); });
+    document.querySelectorAll('[data-action="copy-location"]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var text = btn.getAttribute('data-text') || '';
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(text).then(function () {
+            showToast('Adresse copiée.', 'success');
+          }).catch(function () {
+            showToast('Impossible de copier — copie-la manuellement.');
+          });
+        }
+      });
+    });
+    document.querySelectorAll('[data-action="open-maps"]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var text = btn.getAttribute('data-text') || '';
+        window.open('https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(text), '_blank', 'noopener');
+      });
+    });
+    document.querySelectorAll('[data-action="open-waze"]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var text = btn.getAttribute('data-text') || '';
+        window.open('https://waze.com/ul?q=' + encodeURIComponent(text) + '&navigate=yes', '_blank', 'noopener');
+      });
+    });
     var profileToggle = document.getElementById('profile-toggle');
     if (profileToggle) {
       profileToggle.addEventListener('click', function () {
@@ -4454,11 +4508,18 @@
         var notify = document.getElementById('profile-notify').checked;
         var bikeEl = document.getElementById('profile-bike');
         var bike = bikeEl ? bikeEl.value.trim() : '';
+        var bikeNumberEl = document.getElementById('profile-bike-number');
+        var bikeNumber = bikeNumberEl ? bikeNumberEl.value.trim() : '';
+        if (bikeNumber && !/^\d{1,3}$/.test(bikeNumber)) {
+          profileSaveMessage = 'Le numéro de moto doit être composé de 1 à 3 chiffres.';
+          renderRoot();
+          return;
+        }
         var followedRiders = Array.prototype.map.call(
           profileForm.querySelectorAll('input[name="profile-follow-rider"]:checked'),
           function (el) { return el.value; }
         );
-        saveProfile(role, notify, followedRiders, bike);
+        saveProfile(role, notify, followedRiders, bike, bikeNumber);
       });
       var notifyLabel = document.getElementById('profile-notify-label');
       profileForm.querySelectorAll('input[name="profile-role"]').forEach(function (radio) {

@@ -454,6 +454,18 @@
     white-space: normal;
   }
   .row-actions { text-align: right; white-space: nowrap; }
+  .location-actions {
+    display: inline-flex;
+    gap: 0.3rem;
+    margin-left: 0.4rem;
+    vertical-align: middle;
+  }
+  .location-actions .icon-btn {
+    width: 1.5rem;
+    height: 1.5rem;
+    font-size: 0.85rem;
+  }
+  .location-line { display: flex; align-items: center; flex-wrap: wrap; gap: 0.2rem; }
   .icon-btn {
     width: 1.9rem;
     height: 1.9rem;
