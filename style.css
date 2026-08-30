@@ -114,6 +114,8 @@
   }
   .auth-role-choice input { width: auto; }
   .auth-link {
+    display: inline-block;
+    margin-top: 0.3rem;
     background: none;
     border: none;
     padding: 0;
@@ -272,7 +274,7 @@
     color: var(--text-muted);
     margin-bottom: 0.32rem;
   }
-  input[type="date"], input[type="text"], textarea, select {
+  input[type="date"], input[type="text"], input[type="email"], input[type="password"], textarea, select {
     width: 100%;
     background: var(--surface-alt);
     border: 1px solid var(--border);
@@ -283,7 +285,7 @@
     color: var(--text);
   }
   select { cursor: pointer; }
-  input[type="date"]:focus-visible, input[type="text"]:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-visible {
+  input[type="date"]:focus-visible, input[type="text"]:focus-visible, input[type="email"]:focus-visible, input[type="password"]:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-visible {
     outline: 2px solid var(--accent);
     outline-offset: 1px;
   }

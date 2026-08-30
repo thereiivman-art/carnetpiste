@@ -4016,7 +4016,7 @@
       html += '<div class="field-error' + (authError ? ' visible' : '') + '" id="auth-error">' + escapeHtml(authError) + '</div>';
       html += '<button type="submit" class="primary" style="margin-top:0.9rem;">Créer mon compte</button>';
       html += '</form>';
-      html += '<div class="help-text" style="margin-top:0.9rem;">Déjà un compte ? <button type="button" class="auth-link" id="switch-to-login">Se connecter</button></div>';
+      html += '<div class="help-text" style="margin-top:0.9rem;">Déjà un compte ?<br><button type="button" class="auth-link" id="switch-to-login">Se connecter</button></div>';
     } else {
       html += '<h2 class="section-title">Connexion</h2>';
       html += '<form id="login-form" novalidate>';
@@ -4025,7 +4025,7 @@
       html += '<div class="field-error' + (authError ? ' visible' : '') + '" id="auth-error">' + escapeHtml(authError) + '</div>';
       html += '<button type="submit" class="primary" style="margin-top:0.9rem;">Se connecter</button>';
       html += '</form>';
-      html += '<div class="help-text" style="margin-top:0.9rem;">Pas encore de compte ? <button type="button" class="auth-link" id="switch-to-signup">Créer un compte</button></div>';
+      html += '<div class="help-text" style="margin-top:0.9rem;">Pas encore de compte ?<br><button type="button" class="auth-link" id="switch-to-signup">Créer un compte</button></div>';
       html += '<div class="help-text" style="margin-top:0.4rem;"><button type="button" class="auth-link" id="forgot-password-btn">Mot de passe oublié ?</button></div>';
     }
     html += '</div>';
