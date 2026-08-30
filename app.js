@@ -3198,6 +3198,48 @@
     return 'Vos sorties, leur calendrier, et comment en ajouter une.';
   }
 
+  // ---- Thème clair / sombre ----
+  //
+  // Per-browser preference (like the UI state above), not shared via
+  // Firestore -- each rider picks their own. "system" (no localStorage
+  // entry) leaves data-theme unset so the CSS's own
+  // prefers-color-scheme media query keeps deciding, matching the
+  // pre-toggle behavior exactly.
+  var THEME_KEY = 'carnet-de-piste-theme';
+
+  function getThemePref() {
+    try {
+      var t = localStorage.getItem(THEME_KEY);
+      return (t === 'light' || t === 'dark') ? t : 'system';
+    } catch (e) { return 'system'; }
+  }
+
+  function applyTheme(pref) {
+    if (pref === 'light' || pref === 'dark') {
+      document.documentElement.dataset.theme = pref;
+    } else {
+      delete document.documentElement.dataset.theme;
+    }
+  }
+
+  function setThemePref(pref) {
+    try { localStorage.setItem(THEME_KEY, pref); } catch (e) {}
+    applyTheme(pref);
+    renderRoot();
+  }
+
+  function renderThemeToggle() {
+    var pref = getThemePref();
+    function btn(value, label, icon) {
+      return '<button type="button" class="theme-toggle-btn' + (pref === value ? ' active' : '') + '" data-theme-choice="' + value + '" aria-label="Thème ' + label + '" title="Thème ' + label + '">' + icon + '</button>';
+    }
+    return '<div class="theme-toggle" role="group" aria-label="Choix du thème">' +
+      btn('light', 'clair', '☀️') +
+      btn('dark', 'sombre', '🌙') +
+      btn('system', 'système', '🖥️') +
+      '</div>';
+  }
+
   function renderRoot() {
     normalizeSelection();
     var root = document.getElementById('root');
@@ -3207,9 +3249,14 @@
     else body = renderEventTab(); // 'event' and safety fallback
     root.innerHTML =
       '<header class="page-head">' +
-        '<div class="eyebrow">Trackdays moto</div>' +
-        '<h1 class="title">Carnet de Piste</h1>' +
-        '<p class="subtitle">' + subtitleForView(activeView) + '</p>' +
+        '<div class="page-head-row">' +
+          '<div class="page-head-text">' +
+            '<div class="eyebrow">Trackdays moto</div>' +
+            '<h1 class="title">Carnet de Piste</h1>' +
+            '<p class="subtitle">' + subtitleForView(activeView) + '</p>' +
+          '</div>' +
+          renderThemeToggle() +
+        '</div>' +
         '<div class="banner" id="status-banner"></div>' +
       '</header>' +
       renderGlobalRiderPicker() +
@@ -3228,6 +3275,11 @@
   var riderManagerError = ''; // validation/blocking message shown in the panel
 
   function attachHandlers() {
+    document.querySelectorAll('[data-theme-choice]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        setThemePref(btn.getAttribute('data-theme-choice'));
+      });
+    });
     var form = document.getElementById('session-form');
     if (form) form.addEventListener('submit', onSubmit);
     autoFormatFrDateInput(document.getElementById('f-date'));
