@@ -2987,13 +2987,17 @@
     if (info.organizer) sub.push('Organisateur ' + escapeHtml(info.organizer));
     if (info.briefing) sub.push('Briefing ' + escapeHtml(info.briefing));
     if (sub.length) html += '<div class="help-text">' + sub.join(' · ') + '</div>';
-    var horaires = info.horaires;
+    // This specific sortie's own horaires (typed on the Événement form)
+    // win over the circuit's usual template -- an organizer sometimes
+    // shifts the day's schedule, and that's what riders actually need
+    // "dans les box", not the generic default.
+    var horaires = ev.horaires || info.horaires;
     var table = horaires ? renderHorairesTable(horaires) : '';
     if (table) {
       html += table;
       html += '<div class="horaires-table-legend"><span class="legend-current">●</span> en cours <span class="legend-next">●</span> à suivre</div>';
     } else {
-      html += '<div class="help-text">Aucun horaire enregistré pour ' + escapeHtml(ev.circuit) + ' — ajoutez-les depuis l\'onglet Circuit (Modifier les infos).</div>';
+      html += '<div class="help-text">Aucun horaire enregistré pour ' + escapeHtml(ev.circuit) + ' — ajoutez-les depuis cette sortie ou l\'onglet Circuit (Modifier les infos).</div>';
     }
     return html + '</div>';
   }
