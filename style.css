@@ -346,6 +346,8 @@
     table.session-table th, table.session-table td { padding: 0.4rem 0.35rem; }
     .record-pill { display: block; margin-left: 0; margin-top: 0.15rem; width: fit-content; }
     .icon-btn { width: 1.7rem; height: 1.7rem; font-size: 1rem; }
+    button.primary { padding: 0.5rem 0.85rem; font-size: 0.85rem; }
+    button.ghost:not(.icon-btn) { padding: 0.4rem 0.7rem; font-size: 0.78rem; }
   }
   table.session-table th {
     text-align: left;
@@ -673,16 +675,27 @@
   .rider-start-groups { display: flex; flex-direction: column; gap: 0.3rem; }
 
   .today-schedule-card { border-color: var(--accent); }
-  .planning-pause {
-    display: inline-block;
-    margin-top: 0.6rem;
-    padding: 0.25rem 0.6rem;
-    border-radius: 6px;
-    background: var(--surface-alt);
-    color: var(--text-muted);
-    font-size: 0.82rem;
-    font-style: italic;
+  .planning-section {
+    margin-top: 0.9rem;
+    border-top: 1px solid var(--border);
+    padding-top: 0.7rem;
   }
+  .planning-section summary {
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 0.92rem;
+    list-style: none;
+  }
+  .planning-section summary::-webkit-details-marker { display: none; }
+  .planning-section summary::before {
+    content: '▸';
+    display: inline-block;
+    margin-right: 0.4rem;
+    color: var(--text-muted);
+    transition: transform 0.15s ease;
+  }
+  .planning-section[open] summary::before { transform: rotate(90deg); }
+  .planning-section-body { margin-top: 0.6rem; }
   .planning-countdown {
     font-size: 0.9rem;
     font-weight: 600;
@@ -758,6 +771,26 @@
     font-weight: 700;
   }
 
+  .calendar-view-switcher {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin-bottom: 0.7rem;
+  }
+  .calendar-view-btn {
+    padding: 0.3rem 0.7rem;
+    font-size: 0.78rem;
+    font-weight: 500;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text-muted);
+  }
+  .calendar-view-btn.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--accent-ink);
+  }
   .calendar-zoom-hint {
     font-size: 0.76rem;
     color: var(--text-muted);

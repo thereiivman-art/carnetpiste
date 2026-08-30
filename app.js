@@ -394,15 +394,16 @@
   }
 
   // Horaires are per-groupe-de-niveau session times, not a single free-text
-  // slot — a trackday typically runs several groups back-to-back with a
-  // pause between them.
+  // slot -- a trackday runs several groups back-to-back, each with its own
+  // pause (a fast and a slow group can break for lunch up to an hour
+  // apart), so pause is a token within a group's own line (e.g. "PAUSE
+  // DEJ"), never a separate field of its own.
   var HORAIRES_GROUPS = [
     { key: 'groupR', label: 'Groupe R (Rookies)' },
     { key: 'groupA', label: 'Groupe A' },
     { key: 'groupB', label: 'Groupe B' },
     { key: 'groupC', label: 'Groupe C' },
-    { key: 'groupD', label: 'Groupe D' },
-    { key: 'pause', label: 'Pause' }
+    { key: 'groupD', label: 'Groupe D' }
   ];
 
   // The level-group letters a rider can be assigned to, reused both for
@@ -904,14 +905,38 @@
     return html;
   }
 
+  // Every sortie on this circuit whose date range covers dateStr -- lets
+  // the chrono form suggest a link even when the rider didn't get here by
+  // way of that sortie's own "En cours"/Planning context (selectedEventId).
+  function candidateEventsForCircuitDate(circuit, dateStr) {
+    if (!dateStr) return [];
+    return eventsList().filter(function (e) {
+      return e.circuit === circuit && e.dateStart <= dateStr && (e.dateEnd || e.dateStart) >= dateStr;
+    }).sort(function (a, b) { return a.dateStart < b.dateStart ? -1 : 1; });
+  }
+
+  function renderLinkedEventField(circuit, dateStr) {
+    var candidates = candidateEventsForCircuitDate(circuit, dateStr);
+    if (!candidates.length) return '';
+    var preselect = (selectedEventId && candidates.some(function (e) { return e.id === selectedEventId; })) ? selectedEventId : candidates[0].id;
+    var options = candidates.map(function (e) {
+      return '<option value="' + e.id + '"' + (e.id === preselect ? ' selected' : '') + '>' + escapeHtml(formatEventRange(e, true)) + '</option>';
+    }).join('');
+    return '<div style="margin-top:0.9rem;"><label for="f-linked-event">Sortie associée</label>' +
+      '<select id="f-linked-event"><option value="">Aucune</option>' + options + '</select></div>';
+  }
+
   function renderForm() {
     if (!selectedCircuit) {
       return '<div class="card"><div class="empty-state">Choisissez un circuit dans l\'onglet Circuit avant d\'enregistrer un chrono.</div></div>';
     }
     var rider = (selectedRiders && selectedRiders.size === 1) ? Array.from(selectedRiders)[0] : null;
     var todayStr = dateKey(new Date());
-    var linkedEvent = selectedEventId ? eventsList().filter(function (e) { return e.id === selectedEventId; })[0] : null;
-    var autoLink = linkedEvent && linkedEvent.circuit === selectedCircuit;
+    var candidates = candidateEventsForCircuitDate(selectedCircuit, todayStr);
+    var preselectId = candidates.length
+      ? ((selectedEventId && candidates.some(function (e) { return e.id === selectedEventId; })) ? selectedEventId : candidates[0].id)
+      : null;
+    var linkedEvent = preselectId ? candidates.filter(function (e) { return e.id === preselectId; })[0] : null;
     var html = '<div class="card">';
     html += '<h2 class="section-title">Entrer un nouveau chrono</h2>';
     html += '<form id="session-form" novalidate>';
@@ -954,9 +979,7 @@
       '<div class="help-text">Un chrono par ligne (ou séparés par une virgule) — format 1:23.456 ou 83.456. Entrez juste votre meilleur temps du jour ou de la session, ou tous vos tours.</div>';
     html += '<div style="margin-top:0.9rem;"><label for="f-note">Note (optionnel)</label>' +
       '<input type="text" id="f-note" placeholder="Ex. Pluie, pneus neufs, réglages…"></div>';
-    if (autoLink) {
-      html += '<div class="help-text" style="margin-top:0.6rem;">Rattaché automatiquement à la sortie ' + escapeHtml(formatEventRange(linkedEvent, true)) + '.</div>';
-    }
+    html += '<div id="f-linked-event-wrap">' + renderLinkedEventField(selectedCircuit, todayStr) + '</div>';
     html += '<div class="field-error" id="form-error"></div>';
     html += '<div style="margin-top:0.9rem;">' +
       '<button type="submit" class="primary" id="submit-btn">Enregistrer le chrono</button>' +
@@ -1315,6 +1338,9 @@
     var horairesVal = (info.horaires && typeof info.horaires === 'object') ? info.horaires : {};
     html += '<div style="margin-top:0.6rem;"><label>Horaires habituels par groupe</label><div class="horaires-grid">';
     HORAIRES_GROUPS.forEach(function (g) {
+      // Rookies (groupe R) is Mugello-only for now -- hide the field
+      // elsewhere so it doesn't look like every circuit has one.
+      if (g.key === 'groupR' && selectedCircuit !== 'Mugello' && !horairesVal.groupR) return;
       html += '<div><label for="ci-horaires-' + g.key + '" class="horaires-sublabel">' + escapeHtml(g.label) + '</label>' +
         '<input type="text" id="ci-horaires-' + g.key + '" placeholder="Ex. 9h, 10h40, 14h, 15h20, 16h40" value="' + escapeHtml(horairesVal[g.key] || '') + '"></div>';
     });
@@ -2494,6 +2520,7 @@
     var eventInfo = eventDateInfoAll();
     var sessionsMap = sessionsByDate();
     var html = '<h2 class="section-title section-heading-standalone">Calendrier</h2>';
+    html += renderCalendarViewSwitcher();
     html += renderCalendarZoomHint();
     html += renderCalendarNav();
     if (calendarViewMode === 'month') html += renderMonthGrid(eventInfo, sessionsMap);
@@ -2507,10 +2534,20 @@
     return html;
   }
 
-  // No visible mode switcher — the base view is always 2 months (the
-  // current one and the next), and pinch/Ctrl+wheel gestures remain the
-  // only way to zoom in (week/month) or out (3/6 months, year), per the
-  // hint below.
+  var ZOOM_LEVEL_LABELS = { year: 'Année', '6month': '6 mois', '3month': '3 mois', '2month': '2 mois', month: 'Mois', week: 'Semaine' };
+
+  // Explicit buttons for picking the calendar's zoom level -- pinch/Ctrl+
+  // wheel gestures (see the hint below) still work too, but aren't
+  // discoverable on their own, especially for someone without a trackpad.
+  function renderCalendarViewSwitcher() {
+    var html = '<div class="calendar-view-switcher">';
+    ZOOM_LEVELS.forEach(function (mode) {
+      html += '<button type="button" class="calendar-view-btn' + (calendarViewMode === mode ? ' active' : '') + '" data-calendar-view="' + mode + '">' + ZOOM_LEVEL_LABELS[mode] + '</button>';
+    });
+    html += '</div>';
+    return html;
+  }
+
   function renderCalendarZoomHint() {
     return '<div class="calendar-zoom-hint">Astuce : glissez à gauche/droite (ou flèches ← →) pour changer de période, pincez à deux doigts ou Ctrl + molette pour zoomer.</div>';
   }
@@ -2811,7 +2848,7 @@
       });
       return opts;
     };
-    var html = '<div class="event-checklist" style="margin-top:0.9rem;"><div class="event-checklist-title">Groupes par pilote</div>';
+    var html = '<div class="event-checklist">';
     if (ev.riders.length > 1) {
       html += '<label class="rider-group-common"><span>Groupe commun à tous les pilotes</span><select data-common-group data-event-id="' + ev.id + '">' +
         '<option value="" selected>— Choisir pour appliquer à tous —</option>' +
@@ -2965,13 +3002,16 @@
   // plain "En cours"/"À venir" lists and the per-year "Passés" bands below,
   // so the row markup and its open/edit behavior stay in exactly one place.
   function renderEventRow(ev, opts) {
-    var allItems = checklistAllItems();
-    var total = allItems.length;
-    var done = allItems.filter(function (item) { return ev.checklist && ev.checklist[item.id]; }).length;
     var isOpen = ev.id === selectedEventId;
     var html = '<div class="event-row event-row-toggle' + (isOpen ? ' selected' : '') + '" data-event-id="' + ev.id + '" aria-expanded="' + (isOpen ? 'true' : 'false') + '">';
     html += '<div class="event-row-main"><span class="event-row-circuit">' + escapeHtml(ev.circuit) + '</span>';
-    html += '<span class="event-row-dates">' + escapeHtml(formatEventRange(ev)) + '<span class="event-row-checklist">' + done + '/' + total + '</span></span></div>';
+    var checklistBadge = '';
+    if (eventTemporalStatus(ev, dateKey(new Date())) !== 'past') {
+      var allItems = checklistAllItems();
+      var done = allItems.filter(function (item) { return ev.checklist && ev.checklist[item.id]; }).length;
+      if (allItems.length) checklistBadge = '<span class="event-row-checklist">' + done + '/' + allItems.length + '</span>';
+    }
+    html += '<span class="event-row-dates">' + escapeHtml(formatEventRange(ev)) + checklistBadge + '</span></div>';
     html += '<div class="event-row-riders">' + ((ev.riders && ev.riders.length) ? escapeHtml(ev.riders.join(', ')) : 'Pilotes non précisés') + '</div>';
     html += '</div>';
     if (isOpen) {
@@ -3103,7 +3143,7 @@
   // array restricts to just those keys (the Planning tab's checkboxes).
   function renderHoraireGroups(horaires, allowedKeys) {
     var groups = HORAIRES_GROUPS.filter(function (g) {
-      return g.key !== 'pause' && horaires[g.key] && (!allowedKeys || allowedKeys.indexOf(g.key) !== -1);
+      return horaires[g.key] && (!allowedKeys || allowedKeys.indexOf(g.key) !== -1);
     });
     if (!groups.length) return '';
     var html = '<div class="today-schedule-groups">';
@@ -3128,7 +3168,7 @@
   function renderPlanningChecklist(ev) {
     var tpl = checklistTemplate();
     var checklist = ev.checklist || {};
-    var html = '<div class="event-checklist planning-checklist" style="margin-top:0.9rem;"><div class="event-checklist-title">Équipement (pense-bête)</div>';
+    var html = '<div class="event-checklist planning-checklist">';
     tpl.categories.forEach(function (cat) {
       var isPendingDelete = pendingDeleteChecklistCategory === cat.id;
       html += '<div class="checklist-category">';
@@ -3172,6 +3212,20 @@
     return null;
   }
 
+  // Collapsed by default -- Planning got long once horaires, group
+  // assignment and the equipment checklist all landed here, so each big
+  // section is a native <details> a rider opens only when they need it.
+  // Open/closed state is tracked here (not just left to the browser)
+  // because renderRoot() rebuilds this markup from scratch on every
+  // change -- without this a <details> would snap shut the moment you
+  // ticked a checkbox inside it.
+  var planningSectionsOpen = {};
+  function collapsibleSection(key, title, innerHtml) {
+    if (!innerHtml) return '';
+    var open = planningSectionsOpen[key] ? ' open' : '';
+    return '<details class="planning-section" data-planning-section="' + key + '"' + open + '><summary>' + escapeHtml(title) + '</summary><div class="planning-section-body">' + innerHtml + '</div></details>';
+  }
+
   function renderPlanningTab() {
     var target = targetPlanningEvent();
     if (!target) {
@@ -3194,14 +3248,23 @@
     if (info.organizer) sub.push('Organisateur ' + escapeHtml(info.organizer));
     if (info.briefing) sub.push('Briefing ' + escapeHtml(info.briefing));
     if (sub.length) html += '<div class="help-text">' + sub.join(' · ') + '</div>';
-    if (horaires && horaires.pause) {
-      html += '<div class="planning-pause">Pause déj. ' + escapeHtml(horaires.pause) + '</div>';
+
+    if (ev.hotelName || ev.hotelAddress) {
+      html += '<div class="help-text">Hôtel : ' + [ev.hotelName, ev.hotelAddress].filter(Boolean).map(escapeHtml).join(' — ') + '</div>';
+    }
+    if (ev.flightOutDep || ev.flightOutArr) {
+      html += '<div class="help-text">Avion aller : ' + escapeHtml([ev.flightOutDep, ev.flightOutArr].filter(Boolean).join(' → ')) + '</div>';
+    }
+    if (ev.flightBackDep || ev.flightBackArr) {
+      html += '<div class="help-text">Avion retour : ' + escapeHtml([ev.flightBackDep, ev.flightBackArr].filter(Boolean).join(' → ')) + '</div>';
     }
 
-    var availableGroups = horaires ? HORAIRES_GROUPS.filter(function (g) { return g.key !== 'pause' && horaires[g.key]; }) : [];
+    var availableGroups = horaires ? HORAIRES_GROUPS.filter(function (g) { return horaires[g.key]; }) : [];
     if (!availableGroups.length) {
       html += '<div class="help-text">Aucun horaire enregistré pour ' + escapeHtml(ev.circuit) + ' — ajoutez-les depuis l\'onglet Circuit (Modifier les infos).</div>';
-      return html + renderRiderGroupsSection(ev) + renderPlanningChecklist(ev) + '</div>';
+      html += collapsibleSection('groupes', 'Groupes par pilote', renderRiderGroupsSection(ev));
+      html += collapsibleSection('equipement', 'Équipement (pense-bête)', renderPlanningChecklist(ev));
+      return html + '</div>';
     }
 
     var activeKeys = (planningGroupFilter && planningGroupFilter.length)
@@ -3210,15 +3273,17 @@
     if (!activeKeys.length) activeKeys = availableGroups.map(function (g) { return g.key; });
 
     html += '<div id="planning-countdown" class="planning-countdown"></div>';
-    html += '<div class="planning-group-filter">';
+
+    var horairesInner = '<div class="planning-group-filter">';
     availableGroups.forEach(function (g) {
       var checked = activeKeys.indexOf(g.key) !== -1;
-      html += '<label class="planning-group-check"><input type="checkbox" data-planning-group="' + g.key + '"' + (checked ? ' checked' : '') + '> ' + escapeHtml(g.label) + '</label>';
+      horairesInner += '<label class="planning-group-check"><input type="checkbox" data-planning-group="' + g.key + '"' + (checked ? ' checked' : '') + '> ' + escapeHtml(g.label) + '</label>';
     });
-    html += '</div>';
-    html += renderHoraireGroups(horaires, activeKeys);
-    html += renderRiderGroupsSection(ev);
-    html += renderPlanningChecklist(ev);
+    horairesInner += '</div>';
+    horairesInner += renderHoraireGroups(horaires, activeKeys);
+    html += collapsibleSection('horaires', 'Horaires', horairesInner);
+    html += collapsibleSection('groupes', 'Groupes par pilote', renderRiderGroupsSection(ev));
+    html += collapsibleSection('equipement', 'Équipement (pense-bête)', renderPlanningChecklist(ev));
     return html + '</div>';
   }
 
@@ -3712,7 +3777,16 @@
     });
     var form = document.getElementById('session-form');
     if (form) form.addEventListener('submit', onSubmit);
-    autoFormatFrDateInput(document.getElementById('f-date'));
+    var fDateEl = document.getElementById('f-date');
+    autoFormatFrDateInput(fDateEl);
+    if (fDateEl) {
+      fDateEl.addEventListener('input', function () {
+        var wrap = document.getElementById('f-linked-event-wrap');
+        if (!wrap) return;
+        var iso = frDateToIso(fDateEl.value) || dateKey(new Date());
+        wrap.innerHTML = renderLinkedEventField(selectedCircuit, iso);
+      });
+    }
     var nextOutingLink = document.getElementById('next-outing-link');
     if (nextOutingLink) {
       nextOutingLink.addEventListener('click', function () {
@@ -3768,6 +3842,12 @@
         editingEventId = null;
         prefillEventCircuit = null;
         editingSessionId = null;
+        renderRoot();
+      });
+    });
+    document.querySelectorAll('[data-calendar-view]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        calendarViewMode = btn.getAttribute('data-calendar-view');
         renderRoot();
       });
     });
@@ -3897,6 +3977,11 @@
       });
     });
 
+    document.querySelectorAll('[data-planning-section]').forEach(function (details) {
+      details.addEventListener('toggle', function () {
+        planningSectionsOpen[details.getAttribute('data-planning-section')] = details.open;
+      });
+    });
     document.querySelectorAll('[data-planning-group]').forEach(function (cb) {
       cb.addEventListener('change', function () {
         var selected = [];
@@ -4089,12 +4174,13 @@
     if (group) session.group = group;
     var prevState = JSON.parse(JSON.stringify(STATE));
 
-    // Silent auto-link: whenever a sortie is active and its circuit matches
-    // this chrono's circuit, the chrono is attached to it — no manual
-    // picker needed, since the context (selectedEventId/selectedCircuit)
-    // already tells us which sortie this chrono belongs to.
-    var linkedEvent = selectedEventId ? eventsList().filter(function (e) { return e.id === selectedEventId; })[0] : null;
-    if (linkedEvent && linkedEvent.circuit === circuit) {
+    // Linked via the "Sortie associée" suggestion (renderLinkedEventField),
+    // pre-selected to whichever sortie on this circuit covers the chosen
+    // date -- a rider can still pick "Aucune" to skip it.
+    var linkedEventEl = document.getElementById('f-linked-event');
+    var linkedEventId = linkedEventEl ? linkedEventEl.value : '';
+    var linkedEvent = linkedEventId ? eventsList().filter(function (e) { return e.id === linkedEventId; })[0] : null;
+    if (linkedEvent) {
       session.eventId = linkedEvent.id;
       linkedEvent.riders = linkedEvent.riders || [];
       if (linkedEvent.riders.indexOf(rider) === -1) linkedEvent.riders.push(rider);
