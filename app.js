@@ -11,7 +11,7 @@
   // first and hit STATE while it's still undefined.
   var db = firebase.firestore();
   var auth = firebase.auth();
-  var STATE = { sessions: [], events: [], circuits: {}, riders: [] };
+  var STATE = { sessions: [], events: [], circuits: {}, riders: [], usersByName: {}, friendRequests: [] };
   var canPersist = false;
   var unsubscribers = [];
 
@@ -41,6 +41,61 @@
 
   function referralLinkFor(name) {
     return window.location.origin + window.location.pathname + '?ref=' + encodeURIComponent(name);
+  }
+
+  // ---- Social / amis ----
+  //
+  // STATE.friendRequests (synced in startSync) holds every friendRequests
+  // doc that names this pilote either as from or to -- accepted rows are
+  // friendships, pending rows sorted by which side sent them. Deriving all
+  // three lists from that one array here keeps the UI code simple.
+  function friendsOf(name) {
+    return (STATE.friendRequests || [])
+      .filter(function (r) { return r.status === 'accepted' && (r.from === name || r.to === name); })
+      .map(function (r) { return { id: r.id, name: r.from === name ? r.to : r.from }; });
+  }
+  function incomingFriendRequests(name) {
+    return (STATE.friendRequests || []).filter(function (r) { return r.status === 'pending' && r.to === name; });
+  }
+  function outgoingFriendRequests(name) {
+    return (STATE.friendRequests || []).filter(function (r) { return r.status === 'pending' && r.from === name; });
+  }
+  // Everyone with an account (pilote/accompagnant/organisateur) is a valid
+  // friend candidate, not just riders -- allKnownRiders() would miss
+  // accompagnants and organisateurs entirely, since they're never added to
+  // the riders roster.
+  function allKnownUserNames() {
+    return Object.keys(STATE.usersByName || {}).sort(function (a, b) { return a.localeCompare(b); });
+  }
+
+  function sendFriendRequest(toName) {
+    var me = currentUserProfile;
+    if (!me || !toName || toName === me.name) return;
+    var already = (STATE.friendRequests || []).some(function (r) {
+      return (r.from === me.name && r.to === toName) || (r.from === toName && r.to === me.name);
+    });
+    if (already) return;
+    db.collection('friendRequests').add({ from: me.name, to: toName, status: 'pending' }).then(function () {
+      showToast('Demande envoyée à ' + toName + '.', 'success');
+    }).catch(function (err) {
+      showToast('Erreur : ' + (err && err.message ? err.message : err));
+    });
+  }
+
+  function acceptFriendRequest(id) {
+    db.collection('friendRequests').doc(id).update({ status: 'accepted' }).then(function () {
+      showToast('Vous êtes maintenant amis.', 'success');
+    }).catch(function (err) {
+      showToast('Erreur : ' + (err && err.message ? err.message : err));
+    });
+  }
+
+  // Same delete either way -- declining a request received, cancelling one
+  // sent, and un-friending an accepted one are all just removing the doc.
+  function removeFriendRequest(id) {
+    db.collection('friendRequests').doc(id).delete().catch(function (err) {
+      showToast('Erreur : ' + (err && err.message ? err.message : err));
+    });
   }
 
   // Parrainage (referral): whoever's name is in a ?ref= link that brought
@@ -1049,30 +1104,36 @@
       '</div>';
   }
 
-  function renderProfileProfilTab(p, isAccompagnant) {
+  function renderProfileProfilTab(p) {
+    // "Accompagnant" and "Organisateur" both mean "doesn't ride" for the
+    // rest of the form (no moto, no name-number, follows riders instead of
+    // logging chronos) -- only the role label itself, the notify wording,
+    // and which achievements set applies differ between the two.
+    var isNonRider = p.role === 'accompagnant' || p.role === 'organisateur';
     var followed = p.followedRiders || [];
     var html = '<form id="profile-form">';
     html += renderProfileAvatar(p);
     html += '<label for="profile-name">Nom</label><input type="text" id="profile-name" value="' + escapeHtml(p.name) + '" required>';
-    html += '<div id="profile-name-number-wrap" style="display:' + (isAccompagnant ? 'none' : 'block') + '; margin-top:0.5rem;">' +
+    html += '<div id="profile-name-number-wrap" style="display:' + (isNonRider ? 'none' : 'block') + '; margin-top:0.5rem;">' +
       '<label for="profile-name-number">N° (optionnel, même sans homonyme)</label>' +
       '<input type="text" id="profile-name-number" placeholder="Ex. 12" value="' + escapeHtml(riderNumberSuffix(p.name)) + '"></div>';
     html += '<label style="margin-top:0.9rem;">Je suis</label>';
     html += '<div class="auth-role-choice">' +
-      '<label><input type="radio" name="profile-role" value="pilote"' + (!isAccompagnant ? ' checked' : '') + '> Pilote</label>' +
-      '<label><input type="radio" name="profile-role" value="accompagnant"' + (isAccompagnant ? ' checked' : '') + '> Accompagnant</label>' +
+      '<label><input type="radio" name="profile-role" value="pilote"' + (p.role !== 'accompagnant' && p.role !== 'organisateur' ? ' checked' : '') + '> Pilote</label>' +
+      '<label><input type="radio" name="profile-role" value="accompagnant"' + (p.role === 'accompagnant' ? ' checked' : '') + '> Accompagnant</label>' +
+      '<label><input type="radio" name="profile-role" value="organisateur"' + (p.role === 'organisateur' ? ' checked' : '') + '> Organisateur</label>' +
       '</div>';
     html += renderAchievementsCard(
-      isAccompagnant ? accompagnantAchievements(p) : riderAchievements(p.name, riderStats(p.name)),
+      isNonRider ? accompagnantAchievements(p) : riderAchievements(p.name, riderStats(p.name)),
       'achievements-profile-' + p.name
     );
-    html += '<div id="profile-bike-wrap" style="display:' + (isAccompagnant ? 'none' : 'block') + '; margin-top:0.9rem;">' +
+    html += '<div id="profile-bike-wrap" style="display:' + (isNonRider ? 'none' : 'block') + '; margin-top:0.9rem;">' +
       '<label for="profile-bike">Ma moto</label><input type="text" id="profile-bike" placeholder="Ex. ST 765 RS" value="' + escapeHtml(p.bike || '') + '">' +
       '<div class="help-text">Suggérée automatiquement quand tu entres un chrono.</div>' +
       '<label for="profile-bike-number" style="margin-top:0.7rem;">N° de moto</label>' +
       '<input type="text" id="profile-bike-number" inputmode="numeric" pattern="[0-9]{1,3}" maxlength="3" placeholder="Ex. 12" value="' + escapeHtml(p.bikeNumber || '') + '">' +
       '<div class="help-text">1 à 3 chiffres.</div></div>';
-    html += '<div id="profile-followed-wrap" style="display:' + (isAccompagnant ? 'block' : 'none') + '; margin-top:0.9rem;">';
+    html += '<div id="profile-followed-wrap" style="display:' + (isNonRider ? 'block' : 'none') + '; margin-top:0.9rem;">';
     html += '<label>Pilotes que je suis</label>';
     var riders = allKnownRiders();
     if (!riders.length) {
@@ -1090,8 +1151,9 @@
     return html;
   }
 
-  function renderProfileReglagesTab(p, isAccompagnant) {
-    var html = '<label class="checklist-item"><input type="checkbox" id="profile-notify"' + (p.notifyBeforeSession ? ' checked' : '') + '> <span id="profile-notify-label">' + (isAccompagnant ? 'Me notifier quand un pilote suivi va partir rouler' : 'Me notifier quand mon groupe va partir rouler') + '</span></label>';
+  function renderProfileReglagesTab(p) {
+    var isNonRider = p.role === 'accompagnant' || p.role === 'organisateur';
+    var html = '<label class="checklist-item"><input type="checkbox" id="profile-notify"' + (p.notifyBeforeSession ? ' checked' : '') + '> <span id="profile-notify-label">' + (isNonRider ? 'Me notifier quand un pilote suivi va partir rouler' : 'Me notifier quand mon groupe va partir rouler') + '</span></label>';
     html += '<div class="help-text" style="margin-top:0.4rem;">Nécessite d\'autoriser les notifications du navigateur, et que cet onglet reste ouvert.</div>';
     html += '<div style="margin-top:1.1rem;"><label style="margin-bottom:0.4rem; display:block;">Thème</label>' + renderThemeToggle() + '</div>';
     // Separate form -- changing the sign-in email needs the current
@@ -1162,14 +1224,13 @@
   function renderProfilePanel() {
     if (!profilePanelOpen) return '';
     var p = currentUserProfile;
-    var isAccompagnant = p.role === 'accompagnant';
     var html = '<div class="card profile-panel">';
     html += '<div class="section-title">Mon profil</div>';
     html += renderProfileTabBar();
     html += '<div class="profile-tab-body">';
-    if (profileSubTab === 'reglages') html += renderProfileReglagesTab(p, isAccompagnant);
+    if (profileSubTab === 'reglages') html += renderProfileReglagesTab(p);
     else if (profileSubTab === 'aide') html += renderProfileAideTab(p);
-    else html += renderProfileProfilTab(p, isAccompagnant);
+    else html += renderProfileProfilTab(p);
     html += '</div>';
     html += '</div>';
     return html;
@@ -1188,7 +1249,7 @@
 
   function loadAccompagnantAccounts() {
     accountManagerError = '';
-    db.collection('users').where('role', '==', 'accompagnant').get().then(function (snap) {
+    db.collection('users').where('role', 'in', ['accompagnant', 'organisateur']).get().then(function (snap) {
       accompagnantAccounts = snap.docs.map(function (doc) { return Object.assign({ uid: doc.id }, doc.data()); });
       renderRoot();
     }).catch(function (err) {
@@ -1200,17 +1261,17 @@
   function renderAccountManagerPanel() {
     if (!accountManagerOpen) return '';
     var html = '<div class="card account-manager-panel">';
-    html += '<div class="section-title">Comptes accompagnant</div>';
+    html += '<div class="section-title">Comptes accompagnant / organisateur</div>';
     if (accompagnantAccounts === null) {
       html += '<div class="help-text">Chargement...</div>';
     } else if (!accompagnantAccounts.length) {
-      html += '<div class="help-text">Aucun compte accompagnant pour l\'instant.</div>';
+      html += '<div class="help-text">Aucun compte accompagnant ou organisateur pour l\'instant.</div>';
     } else {
       html += '<ul class="rider-manager-list">' + accompagnantAccounts.map(function (a) {
         var isPendingDelete = pendingDeleteAccountUid === a.uid;
         var followed = (a.followedRiders || []).join(', ') || '—';
         return '<li class="rider-manager-row account-manager-row">' +
-          '<div><span class="rider-manager-name">' + escapeHtml(a.name || a.email) + '</span>' +
+          '<div><span class="rider-manager-name">' + escapeHtml(a.name || a.email) + '</span> <span class="friend-role-badge">' + roleLabel(a.role) + '</span>' +
           '<div class="help-text">' + escapeHtml(a.email || '') + ' · suit : ' + escapeHtml(followed) + '</div></div>' +
           '<button type="button" class="ghost icon-btn" data-action="demote-account" data-uid="' + a.uid + '" aria-label="Repasser en pilote" title="Repasser en pilote">↺</button>' +
           '<button type="button" class="ghost icon-btn' + (isPendingDelete ? ' confirm' : '') + '" data-action="delete-account-request" data-uid="' + a.uid + '" aria-label="Supprimer ce compte" title="Retirer l\'accès">' + (isPendingDelete ? '✓' : '×') + '</button>' +
@@ -3310,7 +3371,8 @@
     ['event', 'Événements'],
     ['planning', 'Planning'],
     ['circuit', 'Chronos'],
-    ['stats', 'Stats']
+    ['stats', 'Stats'],
+    ['social', 'Social']
   ];
 
   function renderViewTabs() {
@@ -4847,6 +4909,7 @@
     if (view === 'circuit') return 'Le plan du circuit, ses infos et vos chronos.';
     if (view === 'stats') return 'L’historique et les records du pilote.';
     if (view === 'planning') return 'Les horaires de la sortie en cours ou à venir.';
+    if (view === 'social') return 'Tes amis, et leurs statistiques.';
     return 'Vos sorties, leur calendrier, et comment en ajouter une.';
   }
 
@@ -4897,6 +4960,80 @@
   // whatever was there before (nothing, on a fresh load) just stays.
   // Catching it here turns that into a visible, copy-pasteable error
   // instead, so a rider hitting a bug can report exactly what broke.
+  function roleLabel(role) {
+    if (role === 'accompagnant') return 'Accompagnant';
+    if (role === 'organisateur') return 'Organisateur';
+    return 'Pilote';
+  }
+
+  // A friend's name only jumps to Statistiques (renderRiderLink) when
+  // they're a pilote -- normalizeSelection() only ever accepts a rider
+  // from allKnownRiders() (pilotes only) as the single selection, so
+  // pointing it at an accompagnant/organisateur name would just bounce
+  // back to some other rider on the very next render.
+  function renderFriendRow(name, actionsHtml) {
+    var u = (STATE.usersByName || {})[name] || {};
+    var isPilote = !u.role || u.role === 'pilote';
+    var nameHtml = isPilote ? renderRiderLink(name) : '<span class="friend-name-plain">' + escapeHtml(name) + '</span>';
+    return '<div class="friend-row">' +
+      '<div class="friend-row-main">' + nameHtml + '<span class="friend-role-badge">' + roleLabel(u.role) + '</span></div>' +
+      '<div class="friend-row-actions">' + actionsHtml + '</div>' +
+      '</div>';
+  }
+
+  function renderSocialTab() {
+    var me = currentUserProfile;
+    if (!me) return '';
+    var friends = friendsOf(me.name);
+    var incoming = incomingFriendRequests(me.name);
+    var outgoing = outgoingFriendRequests(me.name);
+    var candidates = allKnownUserNames().filter(function (n) {
+      return n !== me.name &&
+        !friends.some(function (f) { return f.name === n; }) &&
+        !incoming.some(function (r) { return r.from === n; }) &&
+        !outgoing.some(function (r) { return r.to === n; });
+    });
+
+    var html = '<div class="card"><h2 class="section-title">Mes amis</h2>';
+    html += !friends.length
+      ? '<div class="empty-state">Pas encore d’amis — ajoutes-en un ci-dessous.</div>'
+      : friends.map(function (f) {
+          return renderFriendRow(f.name, '<button type="button" class="ghost icon-btn" data-action="remove-friend" data-id="' + f.id + '" aria-label="Retirer cet ami" title="Retirer">×</button>');
+        }).join('');
+    html += '</div>';
+
+    if (incoming.length) {
+      html += '<div class="card"><h2 class="section-title">Demandes reçues</h2>';
+      html += incoming.map(function (r) {
+        return renderFriendRow(r.from,
+          '<button type="button" class="primary" data-action="accept-friend" data-id="' + r.id + '">Accepter</button>' +
+          '<button type="button" class="ghost" data-action="remove-friend" data-id="' + r.id + '">Refuser</button>');
+      }).join('');
+      html += '</div>';
+    }
+
+    if (outgoing.length) {
+      html += '<div class="card"><h2 class="section-title">Demandes envoyées</h2>';
+      html += outgoing.map(function (r) {
+        return renderFriendRow(r.to, '<button type="button" class="ghost" data-action="remove-friend" data-id="' + r.id + '">Annuler</button>');
+      }).join('');
+      html += '</div>';
+    }
+
+    html += '<div class="card"><h2 class="section-title">Ajouter un ami</h2>';
+    if (!candidates.length) {
+      html += '<div class="empty-state">Personne d’autre à ajouter pour l’instant.</div>';
+    } else {
+      html += '<form id="add-friend-form"><label for="add-friend-select">Pilote, accompagnant ou organisateur</label>' +
+        '<select id="add-friend-select">' + candidates.map(function (n) {
+          return '<option value="' + escapeHtml(n) + '">' + escapeHtml(n) + ' — ' + roleLabel((STATE.usersByName[n] || {}).role) + '</option>';
+        }).join('') + '</select>' +
+        '<button type="submit" class="primary" style="margin-top:0.7rem;">Envoyer une demande</button></form>';
+    }
+    html += '</div>';
+    return html;
+  }
+
   function renderRoot() {
     try {
       renderRootUnsafe();
@@ -4930,6 +5067,7 @@
     if (activeView === 'circuit') body = renderCircuitTab();
     else if (activeView === 'stats') body = renderStatsTab();
     else if (activeView === 'planning') body = renderPlanningTab();
+    else if (activeView === 'social') body = renderSocialTab();
     else body = renderEventTab(); // 'event' and safety fallback
     root.innerHTML =
       '<header class="page-head">' +
@@ -4944,7 +5082,7 @@
           '</div>' +
         '</div>' +
         '<div class="account-bar">' +
-          '<span class="account-bar-identity">' + escapeHtml(currentUserProfile.name) + ' · ' + (currentUserProfile.role === 'accompagnant' ? 'Accompagnant' : 'Pilote') + '</span>' +
+          '<span class="account-bar-identity">' + escapeHtml(currentUserProfile.name) + ' · ' + roleLabel(currentUserProfile.role) + '</span>' +
           '<span class="account-bar-actions">' +
             '<button type="button" class="ghost account-bar-btn" id="profile-toggle">Mon profil</button>' +
             (isAdmin() ? '<button type="button" class="ghost account-bar-btn" id="account-manager-toggle">Comptes accompagnant</button>' : '') +
@@ -5000,7 +5138,8 @@
       html += '<div id="au-number-wrap" style="margin-top:0.7rem;"><label for="au-number">N° de moto <span class="help-text" style="display:inline;">(optionnel, même sans homonyme)</span></label><input type="text" id="au-number" placeholder="Ex. 12"></div>';
       html += '<label style="margin-top:0.7rem;">Je suis</label><div class="auth-role-choice">' +
         '<label><input type="radio" name="au-role" value="pilote" checked> Pilote</label>' +
-        '<label><input type="radio" name="au-role" value="accompagnant"> Accompagnant</label></div>';
+        '<label><input type="radio" name="au-role" value="accompagnant"> Accompagnant</label>' +
+        '<label><input type="radio" name="au-role" value="organisateur"> Organisateur</label></div>';
       html += '<label for="au-email" style="margin-top:0.7rem;">Email</label><input type="email" id="au-email" name="email" autocomplete="username" required>';
       html += '<label for="au-password" style="margin-top:0.7rem;">Mot de passe</label><input type="password" id="au-password" name="new-password" autocomplete="new-password" required minlength="6">';
       html += '<div class="field-error' + (authError ? ' visible' : '') + '" id="auth-error">' + escapeHtml(authError) + '</div>';
@@ -5341,15 +5480,15 @@
       var notifyLabel = document.getElementById('profile-notify-label');
       profileForm.querySelectorAll('input[name="profile-role"]').forEach(function (radio) {
         radio.addEventListener('change', function () {
-          var isAcc = radio.value === 'accompagnant' && radio.checked;
+          var isNonRider = (radio.value === 'accompagnant' || radio.value === 'organisateur') && radio.checked;
           if (radio.checked) {
             var wrap = document.getElementById('profile-followed-wrap');
-            if (wrap) wrap.style.display = isAcc ? 'block' : 'none';
+            if (wrap) wrap.style.display = isNonRider ? 'block' : 'none';
             var bikeWrap = document.getElementById('profile-bike-wrap');
-            if (bikeWrap) bikeWrap.style.display = isAcc ? 'none' : 'block';
+            if (bikeWrap) bikeWrap.style.display = isNonRider ? 'none' : 'block';
             var nameNumberWrap = document.getElementById('profile-name-number-wrap');
-            if (nameNumberWrap) nameNumberWrap.style.display = isAcc ? 'none' : 'block';
-            if (notifyLabel) notifyLabel.textContent = isAcc ? 'Me notifier quand un pilote suivi va partir rouler' : 'Me notifier quand mon groupe va partir rouler';
+            if (nameNumberWrap) nameNumberWrap.style.display = isNonRider ? 'none' : 'block';
+            if (notifyLabel) notifyLabel.textContent = isNonRider ? 'Me notifier quand un pilote suivi va partir rouler' : 'Me notifier quand mon groupe va partir rouler';
           }
         });
       });
@@ -5412,6 +5551,20 @@
         deleteMyAccount(document.getElementById('profile-delete-password').value);
       });
     }
+    var addFriendForm = document.getElementById('add-friend-form');
+    if (addFriendForm) {
+      addFriendForm.addEventListener('submit', function (evt) {
+        evt.preventDefault();
+        var select = document.getElementById('add-friend-select');
+        if (select && select.value) sendFriendRequest(select.value);
+      });
+    }
+    document.querySelectorAll('[data-action="accept-friend"]').forEach(function (btn) {
+      btn.addEventListener('click', function () { acceptFriendRequest(btn.getAttribute('data-id')); });
+    });
+    document.querySelectorAll('[data-action="remove-friend"]').forEach(function (btn) {
+      btn.addEventListener('click', function () { removeFriendRequest(btn.getAttribute('data-id')); });
+    });
     var copyReferralBtn = document.getElementById('copy-referral-link-btn');
     if (copyReferralBtn) {
       copyReferralBtn.addEventListener('click', function () {
@@ -6045,13 +6198,42 @@
     // a rider's own motorcycle, set once in "Mon profil", instead of
     // re-typing it every time a chrono is entered.
     unsubscribers.push(db.collection('users').onSnapshot(function (snap) {
-      var map = {};
+      var bikeMap = {}, usersByName = {};
       snap.forEach(function (doc) {
         var data = doc.data();
-        if (data.name && data.bike) map[data.name] = data.bike;
+        if (!data.name) return;
+        if (data.bike) bikeMap[data.name] = data.bike;
+        usersByName[data.name] = data;
       });
-      riderBikeMap = map;
+      riderBikeMap = bikeMap;
+      STATE.usersByName = usersByName;
+      renderRoot();
     }, handleSyncError));
+    // Social/amis: two live queries (Firestore can't OR across fields in
+    // one query) merged into one list -- every request either sent or
+    // received by this pilote, pending or accepted. Un-friending, declining
+    // and cancelling are all just deleting the doc (see friendRequests
+    // rules), so nothing else needs to be synced for that.
+    var friendReqFrom = {}, friendReqTo = {};
+    function mergeFriendRequests() {
+      var byId = {};
+      Object.keys(friendReqFrom).forEach(function (id) { byId[id] = friendReqFrom[id]; });
+      Object.keys(friendReqTo).forEach(function (id) { byId[id] = friendReqTo[id]; });
+      STATE.friendRequests = Object.keys(byId).map(function (id) { return byId[id]; });
+      renderRoot();
+    }
+    if (currentUserProfile && currentUserProfile.name) {
+      unsubscribers.push(db.collection('friendRequests').where('from', '==', currentUserProfile.name).onSnapshot(function (snap) {
+        friendReqFrom = {};
+        snap.forEach(function (d) { friendReqFrom[d.id] = Object.assign({ id: d.id }, d.data()); });
+        mergeFriendRequests();
+      }, handleSyncError));
+      unsubscribers.push(db.collection('friendRequests').where('to', '==', currentUserProfile.name).onSnapshot(function (snap) {
+        friendReqTo = {};
+        snap.forEach(function (d) { friendReqTo[d.id] = Object.assign({ id: d.id }, d.data()); });
+        mergeFriendRequests();
+      }, handleSyncError));
+    }
   }
 
   function stopSync() {
