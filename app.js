@@ -3542,8 +3542,10 @@
     var sub = [];
     if (!isOngoing) sub.push(escapeHtml(formatEventRange(ev, true)) + ' (' + weekdayName(ev.dateStart) + ')');
     if (info.organizer) sub.push('Organisateur ' + escapeHtml(info.organizer));
-    if (info.briefing) sub.push('Briefing ' + escapeHtml(info.briefing));
     if (sub.length) html += '<div class="help-text" style="font-size:0.78rem; font-weight:400;">' + sub.join(' · ') + '</div>';
+    // Briefing lives with Horaires (above the group filter) now, not up
+    // here -- it's schedule information, same family as the slot times.
+    var briefingLine = info.briefing ? '<div class="help-text" style="margin-bottom:0.6rem;">Briefing ' + escapeHtml(info.briefing) + '</div>' : '';
 
     if (ev.hotelName || ev.hotelAddress) {
       html += '<div class="help-text location-line">Hôtel : ' + [ev.hotelName, ev.hotelAddress].filter(Boolean).map(escapeHtml).join(' — ') +
@@ -3561,6 +3563,7 @@
 
     var availableGroups = horaires ? HORAIRES_GROUPS.filter(function (g) { return horaires[g.key]; }) : [];
     if (!availableGroups.length) {
+      html += briefingLine;
       html += '<div class="help-text">Aucun horaire enregistré pour ' + escapeHtml(ev.circuit) + ' — ajoutez-les depuis l\'onglet Circuit (Modifier les infos).</div>';
       html += collapsibleSection('groupes', 'Groupes par pilote', renderRiderGroupsSection(ev));
       html += collapsibleSection('equipement', checklistCountLabel(ev), renderPlanningChecklist(ev));
@@ -3574,7 +3577,8 @@
 
     html += '<div id="planning-countdown" class="planning-countdown"></div>';
 
-    var horairesInner = '<div class="planning-group-filter">';
+    var horairesInner = briefingLine;
+    horairesInner += '<div class="planning-group-filter">';
     availableGroups.forEach(function (g) {
       var checked = activeKeys.indexOf(g.key) !== -1;
       horairesInner += '<label class="planning-group-check"><input type="checkbox" data-planning-group="' + g.key + '"' + (checked ? ' checked' : '') + '> ' + escapeHtml(g.label) + '</label>';
@@ -4263,6 +4267,7 @@
       html += '<form id="login-form" novalidate>';
       html += '<label for="au-email">Email</label><input type="email" id="au-email" required>';
       html += '<label for="au-password" style="margin-top:0.7rem;">Mot de passe</label><input type="password" id="au-password" required>';
+      html += '<label class="checklist-item" style="margin-top:0.6rem;"><input type="checkbox" id="au-remember" checked> Se souvenir de moi</label>';
       html += '<div class="field-error' + (authError ? ' visible' : '') + '" id="auth-error">' + escapeHtml(authError) + '</div>';
       html += '<button type="submit" class="primary" style="margin-top:0.9rem;">Se connecter</button>';
       html += '</form>';
@@ -4287,8 +4292,16 @@
     evt.preventDefault();
     var email = document.getElementById('au-email').value.trim();
     var password = document.getElementById('au-password').value;
+    var rememberEl = document.getElementById('au-remember');
+    var remember = !rememberEl || rememberEl.checked;
     authError = '';
-    auth.signInWithEmailAndPassword(email, password).catch(function (err) {
+    // LOCAL survives closing the browser entirely; SESSION clears the
+    // moment the tab/browser closes -- unchecking "Se souvenir de moi" is
+    // for a shared/public device where the next person shouldn't land
+    // straight in someone else's account.
+    auth.setPersistence(remember ? firebase.auth.Auth.Persistence.LOCAL : firebase.auth.Auth.Persistence.SESSION).then(function () {
+      return auth.signInWithEmailAndPassword(email, password);
+    }).catch(function (err) {
       authError = translateAuthError(err);
       renderRoot();
     });
