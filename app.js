@@ -590,8 +590,10 @@
     var html = '<tr class="session-edit-row" data-session-id="' + s.id + '"><td colspan="' + colCount + '">';
     html += '<form id="session-edit-form" novalidate>';
     html += '<div class="field-row">';
-    html += '<div><label for="se-rider">Pilote</label><input type="text" id="se-rider" list="rider-options-se" value="' + escapeHtml(s.rider || '') + '" required>' +
-      '<datalist id="rider-options-se">' + riderDatalist() + '</datalist></div>';
+    html += isAdmin()
+      ? '<div><label for="se-rider">Pilote</label><input type="text" id="se-rider" list="rider-options-se" value="' + escapeHtml(s.rider || '') + '" required>' +
+        '<datalist id="rider-options-se">' + riderDatalist() + '</datalist></div>'
+      : '<div><label>Pilote</label><div class="static-field">' + escapeHtml(s.rider || '') + '</div></div>';
     html += '<div><label for="se-date">Date</label><input type="text" id="se-date" inputmode="numeric" placeholder="JJ/MM/AAAA" value="' + isoToFrDate(s.date) + '" required></div>';
     html += '<div><label for="se-bike">Moto</label><input type="text" id="se-bike" list="bike-options-se" value="' + escapeHtml(s.bike || '') + '">' +
       '<datalist id="bike-options-se">' + bikeDatalist() + '</datalist></div>';
@@ -628,7 +630,8 @@
     var session = STATE.sessions.filter(function (s) { return s.id === editingSessionId; })[0];
     if (!session) { editingSessionId = null; renderRoot(); return; }
 
-    var rider = document.getElementById('se-rider').value.trim();
+    var riderInputEl = document.getElementById('se-rider');
+    var rider = riderInputEl ? riderInputEl.value.trim() : session.rider;
     var dateRaw = document.getElementById('se-date').value;
     var date = frDateToIso(dateRaw);
     var bike = document.getElementById('se-bike').value.trim();
@@ -719,9 +722,7 @@
         if (showRider) html += '<td class="rider-cell">' + escapeHtml(s.rider || '—') + '</td>';
         html += '<td class="laps-cell">' + lapsHtml + (isRecord ? '<span class="record-pill">RECORD</span>' : '') + '</td>';
         html += '<td class="bike-cell">' + (s.bike ? escapeHtml(s.bike) : '—') + '</td>';
-        html += '<td class="row-actions">' +
-          '<button type="button" class="ghost icon-btn" data-action="edit-session-request" data-id="' + s.id + '" aria-label="Modifier ce chrono" title="Modifier">✎</button>' +
-          deleteControl(s) + '</td>';
+        html += '<td class="row-actions">' + editControl(s) + deleteControl(s) + '</td>';
         html += '</tr>';
       });
       html += '</tbody></table></div>';
@@ -1131,20 +1132,33 @@
     if (!selectedCircuit) {
       return '<div class="card"><div class="empty-state">Choisissez un circuit dans l\'onglet Circuit avant d\'enregistrer un chrono.</div></div>';
     }
+    // An accompagnant doesn't ride, so there's nothing for them to enter
+    // here -- matches firestore.rules, which rejects a session create from
+    // an accompagnant account outright.
+    if (currentUserProfile && currentUserProfile.role === 'accompagnant' && !isAdmin()) {
+      return '<div class="card"><div class="empty-state">Seuls les pilotes (et l\'administrateur) peuvent entrer des chronos.</div></div>';
+    }
+    var admin = isAdmin();
     var rider = (selectedRiders && selectedRiders.size === 1) ? Array.from(selectedRiders)[0] : null;
+    // A pilote can only ever enter their own chronos (see firestore.rules);
+    // only the admin can pick someone else from the dropdown.
+    if (!admin && currentUserProfile) rider = currentUserProfile.name;
     var todayStr = dateKey(new Date());
     var groupHint = rider ? chronoGroupHint(selectedCircuit, todayStr, rider) : '';
     var html = '<div class="card">';
     html += '<h2 class="section-title">Entrer un nouveau chrono</h2>';
     html += '<form id="session-form" novalidate>';
     html += '<div class="field-row">';
-    // Always a real dropdown, even when a rider is already active in the
-    // global filter -- pre-selected to them, but switchable, so entering a
-    // chrono for a friend doesn't require changing the global filter first.
-    var knownRiders = allKnownRiders();
-    html += '<div><label for="f-rider">Pilote</label><select id="f-rider" required><option value="">—</option>' +
-      knownRiders.map(function (r) { return '<option value="' + escapeHtml(r) + '"' + (r === rider ? ' selected' : '') + '>' + escapeHtml(r) + '</option>'; }).join('') +
-      '</select></div>';
+    if (admin) {
+      // Only the admin can enter a chrono for someone else -- everyone
+      // else is locked to their own name.
+      var knownRiders = allKnownRiders();
+      html += '<div><label for="f-rider">Pilote</label><select id="f-rider" required><option value="">—</option>' +
+        knownRiders.map(function (r) { return '<option value="' + escapeHtml(r) + '"' + (r === rider ? ' selected' : '') + '>' + escapeHtml(r) + '</option>'; }).join('') +
+        '</select></div>';
+    } else {
+      html += '<div><label>Pilote</label><div class="static-field">' + escapeHtml(rider || '') + '</div></div>';
+    }
     html += '<div><label for="f-date">Date</label>' +
       '<input type="text" id="f-date" inputmode="numeric" placeholder="JJ/MM/AAAA" value="' + isoToFrDate(todayStr) + '" required></div>';
     html += '<div><label for="f-circuit">Circuit</label><select id="f-circuit" required>' +
@@ -1423,12 +1437,21 @@
     return out;
   }
 
-  // A chrono can be deleted by the admin or by whoever it belongs to
-  // (matching firestore.rules' sessions delete rule) -- not by anyone
-  // else, so one rider can't wipe another's times.
+  // Only the admin or the chrono's own rider can touch it (matching
+  // firestore.rules) -- not any other pilote, and never an accompagnant
+  // (their account name never matches a session's rider).
+  function canEditSession(session) {
+    return isAdmin() || !!(currentUserProfile && session.rider === currentUserProfile.name);
+  }
+
   function deleteControl(session) {
-    if (!isAdmin() && (!currentUserProfile || session.rider !== currentUserProfile.name)) return '';
+    if (!canEditSession(session)) return '';
     return '<button type="button" class="ghost icon-btn" data-action="delete-request" data-id="' + session.id + '" aria-label="Supprimer cette session" title="Supprimer">×</button>';
+  }
+
+  function editControl(session) {
+    if (!canEditSession(session)) return '';
+    return '<button type="button" class="ghost icon-btn" data-action="edit-session-request" data-id="' + session.id + '" aria-label="Modifier ce chrono" title="Modifier">✎</button>';
   }
 
   // ---- Circuit info (km, virages, prochaine sortie) + visuel annotable ----
@@ -3545,7 +3568,7 @@
     if (sub.length) html += '<div class="help-text" style="font-size:0.78rem; font-weight:400;">' + sub.join(' · ') + '</div>';
     // Briefing lives with Horaires (above the group filter) now, not up
     // here -- it's schedule information, same family as the slot times.
-    var briefingLine = info.briefing ? '<div class="help-text" style="margin-bottom:0.6rem;">Briefing ' + escapeHtml(info.briefing) + '</div>' : '';
+    var briefingLine = info.briefing ? '<div class="help-text" style="margin-bottom:0.6rem; color:var(--accent); font-weight:600;">Briefing ' + escapeHtml(info.briefing) + '</div>' : '';
 
     if (ev.hotelName || ev.hotelAddress) {
       html += '<div class="help-text location-line">Hôtel : ' + [ev.hotelName, ev.hotelAddress].filter(Boolean).map(escapeHtml).join(' — ') +
@@ -4251,13 +4274,13 @@
     if (authMode === 'signup') {
       html += '<h2 class="section-title">Créer un compte</h2>';
       html += '<form id="signup-form" novalidate>';
-      html += '<label for="au-name">Nom</label><input type="text" id="au-name" placeholder="Ex. Xavier" required>';
+      html += '<label for="au-name">Nom</label><input type="text" id="au-name" name="name" autocomplete="name" placeholder="Ex. Xavier" required>';
       html += '<div id="au-number-wrap" style="margin-top:0.7rem;"><label for="au-number">N° de moto <span class="help-text" style="display:inline;">(si un autre pilote porte déjà ce nom)</span></label><input type="text" id="au-number" placeholder="Ex. 12"></div>';
       html += '<label style="margin-top:0.7rem;">Je suis</label><div class="auth-role-choice">' +
         '<label><input type="radio" name="au-role" value="pilote" checked> Pilote</label>' +
         '<label><input type="radio" name="au-role" value="accompagnant"> Accompagnant</label></div>';
-      html += '<label for="au-email" style="margin-top:0.7rem;">Email</label><input type="email" id="au-email" required>';
-      html += '<label for="au-password" style="margin-top:0.7rem;">Mot de passe</label><input type="password" id="au-password" required minlength="6">';
+      html += '<label for="au-email" style="margin-top:0.7rem;">Email</label><input type="email" id="au-email" name="email" autocomplete="username" required>';
+      html += '<label for="au-password" style="margin-top:0.7rem;">Mot de passe</label><input type="password" id="au-password" name="new-password" autocomplete="new-password" required minlength="6">';
       html += '<div class="field-error' + (authError ? ' visible' : '') + '" id="auth-error">' + escapeHtml(authError) + '</div>';
       html += '<button type="submit" class="primary" style="margin-top:0.9rem;">Créer mon compte</button>';
       html += '</form>';
@@ -4265,8 +4288,8 @@
     } else {
       html += '<h2 class="section-title">Connexion</h2>';
       html += '<form id="login-form" novalidate>';
-      html += '<label for="au-email">Email</label><input type="email" id="au-email" required>';
-      html += '<label for="au-password" style="margin-top:0.7rem;">Mot de passe</label><input type="password" id="au-password" required>';
+      html += '<label for="au-email">Email</label><input type="email" id="au-email" name="email" autocomplete="username" required>';
+      html += '<label for="au-password" style="margin-top:0.7rem;">Mot de passe</label><input type="password" id="au-password" name="password" autocomplete="current-password" required>';
       html += '<label class="checklist-item" style="margin-top:0.6rem;"><input type="checkbox" id="au-remember" checked> Se souvenir de moi</label>';
       html += '<div class="field-error' + (authError ? ' visible' : '') + '" id="auth-error">' + escapeHtml(authError) + '</div>';
       html += '<button type="submit" class="primary" style="margin-top:0.9rem;">Se connecter</button>';
@@ -4572,8 +4595,7 @@
     // and the group suggestion (from that sortie's rider assignment) all
     // need to be recomputed together, not just the one field that changed.
     function refreshChronoFormAux() {
-      var activeRider = (selectedRiders && selectedRiders.size === 1) ? Array.from(selectedRiders)[0] : null;
-      var rider = fRiderEl ? fRiderEl.value : (activeRider || '');
+      var rider = fRiderEl ? fRiderEl.value : ((currentUserProfile && currentUserProfile.name) || '');
       var circuit = fCircuitEl ? fCircuitEl.value : selectedCircuit;
       var iso = frDateToIso(fDateEl.value) || dateKey(new Date());
       var wrap = document.getElementById('f-linked-event-wrap');
@@ -4956,8 +4978,10 @@
     var errEl = document.getElementById('form-error');
     errEl.classList.remove('visible');
 
-    var activeRider = (selectedRiders && selectedRiders.size === 1) ? Array.from(selectedRiders)[0] : null;
-    var rider = riderEl ? riderEl.value.trim() : (activeRider || '');
+    // Only the admin gets an actual #f-rider select (see renderForm) --
+    // anyone else is locked to their own account name, never whatever
+    // happens to be active in the global rider filter.
+    var rider = riderEl ? riderEl.value.trim() : ((currentUserProfile && currentUserProfile.name) || '');
     var date = frDateToIso(dateEl.value);
     var circuit = circuitEl ? circuitEl.value : selectedCircuit;
     var bike = bikeEl.value.trim();

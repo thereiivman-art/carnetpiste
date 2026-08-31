@@ -10,6 +10,14 @@ service cloud.firestore {
     function myName() {
       return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.name;
     }
+    function myRole() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+    }
+    // A chrono belongs to the pilote whose name it carries -- an
+    // accompagnant account never owns one, whatever its name field says.
+    function ownsChrono(riderValue) {
+      return myRole() != 'accompagnant' && myName() == riderValue;
+    }
 
     // A user's own profile has to be writable right after signup, before
     // there's been time to verify anything -- no email_verified check here.
@@ -20,15 +28,15 @@ service cloud.firestore {
       allow write: if request.auth != null && (request.auth.uid == userId || isAdmin());
     }
     // Everything else requires a verified email to write, so a bot that
-    // signs up with a throwaway address can't touch shared data. Deletes
-    // are further restricted: only the admin can wipe out a rider or a
-    // whole sortie, and a chrono can only be deleted by its own rider or
-    // the admin.
+    // signs up with a throwaway address can't touch shared data. A chrono
+    // can only be created/edited/deleted by its own pilote or the admin --
+    // never by another pilote, never by an accompagnant, and a pilote
+    // can't reassign one to someone else's name either.
     match /sessions/{id} {
       allow read: if request.auth != null;
-      allow create: if verified();
-      allow update: if verified();
-      allow delete: if verified() && (isAdmin() || resource.data.rider == myName());
+      allow create: if verified() && (isAdmin() || ownsChrono(request.resource.data.rider));
+      allow update: if verified() && (isAdmin() || (ownsChrono(resource.data.rider) && ownsChrono(request.resource.data.rider)));
+      allow delete: if verified() && (isAdmin() || ownsChrono(resource.data.rider));
     }
     match /events/{id} {
       allow read: if request.auth != null;
