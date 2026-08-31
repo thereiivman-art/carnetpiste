@@ -914,11 +914,17 @@
     var html = '<div class="card">';
     html += '<div class="rider-stat-name">' + escapeHtml(riderName) + '</div>';
     html += '<div class="rider-stat-summaries">';
-    html += renderStatSummaryCategory('outings-' + riderName, 'Sorties', stats.outingsCount,
-      !stats.outingsList.length ? '' : '<ul class="stat-detail-list">' + stats.outingsList.map(function (o) {
+    var outingsDetail = '';
+    if (stats.lastSession) {
+      outingsDetail += infoRow('Dernière sortie', escapeHtml(stats.lastSession.circuit) + ' — ' + escapeHtml(formatDate(stats.lastSession.date)) + ' (' + formatTime(stats.lastSession.time) + ')');
+    }
+    if (stats.outingsList.length) {
+      outingsDetail += '<ul class="stat-detail-list">' + stats.outingsList.map(function (o) {
         var range = o.dateStart === o.dateEnd ? formatDate(o.dateStart) : formatDate(o.dateStart) + ' → ' + formatDate(o.dateEnd);
         return '<li>' + escapeHtml(o.circuit) + ' — ' + range + '</li>';
-      }).join('') + '</ul>');
+      }).join('') + '</ul>';
+    }
+    html += renderStatSummaryCategory('outings-' + riderName, 'Sorties', stats.outingsCount, outingsDetail);
     html += renderStatSummaryCategory('circuits-' + riderName, 'Circuits visités', stats.circuitsVisited,
       !stats.circuitsList.length ? '' : '<ul class="stat-detail-list">' + stats.circuitsList.map(function (c) {
         return '<li>' + escapeHtml(c) + '</li>';
@@ -927,14 +933,8 @@
       !stats.trackDaysList.length ? '' : '<ul class="stat-detail-list">' + stats.trackDaysList.slice().reverse().map(function (d) {
         return '<li>' + escapeHtml(formatDate(d)) + '</li>';
       }).join('') + '</ul>');
-    html += '</div>';
-    if (stats.lastSession) {
-      html += infoRow('Dernière sortie', escapeHtml(stats.lastSession.circuit) + ' — ' + escapeHtml(formatDate(stats.lastSession.date)) + ' (' + formatTime(stats.lastSession.time) + ')');
-    }
-    html += '<div class="best-times-title">Meilleurs temps par circuit</div>';
-    if (!stats.bests.length) {
-      html += '<div class="empty-inline">Aucun chrono enregistré.</div>';
-    } else {
+    var bestsDetail = '';
+    if (stats.bests.length) {
       stats.bests.forEach(function (b) {
         var progressionHtml = '';
         if (b.progression != null) {
@@ -942,12 +942,14 @@
             ? '<span class="daily-recap-better">−' + Math.abs(b.progression).toFixed(3) + '</span>'
             : (b.progression > 0 ? '<span class="daily-recap-worse">+' + b.progression.toFixed(3) + '</span>' : '=');
         }
-        html += '<div class="best-time-row"><span class="best-time-circuit">' + escapeHtml(b.circuit) + ' <span class="help-text" style="display:inline;">(' + b.outings + ' sortie' + (b.outings > 1 ? 's' : '') + ')</span></span>' +
+        bestsDetail += '<div class="best-time-row"><span class="best-time-circuit">' + escapeHtml(b.circuit) + ' <span class="help-text" style="display:inline;">(' + b.outings + ' sortie' + (b.outings > 1 ? 's' : '') + ')</span></span>' +
           '<span><span class="best-time-value">' + formatTime(b.time) + '</span>' +
           (progressionHtml ? ' ' + progressionHtml : '') +
           '<span class="best-time-date">' + formatDate(b.date) + '</span></span></div>';
       });
     }
+    html += renderStatSummaryCategory('bests-' + riderName, 'Meilleurs temps par circuit', stats.bests.length, bestsDetail);
+    html += '</div>';
     html += '</div>';
     return html;
   }
@@ -1053,8 +1055,8 @@
     html += renderProfileAvatar(p);
     html += '<label for="profile-name">Nom</label><input type="text" id="profile-name" value="' + escapeHtml(p.name) + '" required>';
     html += '<div id="profile-name-number-wrap" style="display:' + (isAccompagnant ? 'none' : 'block') + '; margin-top:0.5rem;">' +
-      '<label for="profile-name-number">N° (si un pilote porte déjà ce nom)</label>' +
-      '<input type="text" id="profile-name-number" placeholder="Ex. 12"></div>';
+      '<label for="profile-name-number">N° (optionnel, même sans homonyme)</label>' +
+      '<input type="text" id="profile-name-number" placeholder="Ex. 12" value="' + escapeHtml(riderNumberSuffix(p.name)) + '"></div>';
     html += '<label style="margin-top:0.9rem;">Je suis</label>';
     html += '<div class="auth-role-choice">' +
       '<label><input type="radio" name="profile-role" value="pilote"' + (!isAccompagnant ? ' checked' : '') + '> Pilote</label>' +
@@ -1106,7 +1108,7 @@
     html += '</form>';
     html += '</div>';
     html += '<div class="danger-zone">';
-    html += '<div class="section-title" style="font-size:0.95rem;">Zone dangereuse</div>';
+    html += '<div class="section-title" style="font-size:0.95rem;">Supprimer mon compte</div>';
     if (!profileDeleteConfirmOpen) {
       html += '<div class="help-text">Supprime définitivement ton compte (accès et profil). Tes chronos déjà enregistrés restent visibles pour le groupe.</div>';
       html += '<div style="margin-top:0.7rem;"><button type="button" class="ghost danger" id="delete-account-request-btn">Supprimer mon compte</button></div>';
@@ -1230,17 +1232,24 @@
     var oldName = currentUserProfile.name;
     var finalName = oldName;
     var renamePrevState = null;
-    var nameChanged = newRawName && riderBaseName(newRawName).toLowerCase() !== riderBaseName(oldName).toLowerCase();
-    if (nameChanged) {
-      var isKnownRider = allKnownRiders().indexOf(oldName) !== -1;
+    var nameChanged = false;
+    // Resolved (and compared to the current name) every time, not just
+    // when the base name text changes -- a pilote can add, change, or
+    // remove their disambiguation number on its own, even with a unique
+    // name, without retyping their name too.
+    if (newRawName) {
       var result = resolveDisambiguatedName(newRawName, nameNumber, allKnownRiders(), oldName);
       if (!result.ok) {
         profileSaveMessage = result.error;
         renderRoot();
         return;
       }
-      finalName = result.name;
-      if (isKnownRider) renamePrevState = renameRiderEverywhere(oldName, finalName);
+      if (result.name !== oldName) {
+        nameChanged = true;
+        finalName = result.name;
+        var isKnownRider = allKnownRiders().indexOf(oldName) !== -1;
+        if (isKnownRider) renamePrevState = renameRiderEverywhere(oldName, finalName);
+      }
     }
     var writes = { role: role, notifyBeforeSession: notifyBeforeSession, followedRiders: followedRiders, bike: bike || null, bikeNumber: bikeNumber || null };
     if (nameChanged) writes.name = finalName;
@@ -1377,6 +1386,14 @@
   // rider name as one.
   function riderBaseName(name) {
     return (name || '').replace(/\s*\(#[^)]*\)\s*$/, '').trim();
+  }
+
+  // The number folded into "Julien (#12)", or '' if the name carries none --
+  // used to prefill the profile's N° field with whatever's already set,
+  // since a pilote can add/change/remove it without touching their name.
+  function riderNumberSuffix(name) {
+    var m = /\(#([^)]*)\)\s*$/.exec(name || '');
+    return m ? m[1] : '';
   }
 
   // Shared by adding a rider, the admin rename, and a pilote renaming
@@ -1524,20 +1541,19 @@
     var year = String(new Date().getFullYear());
     var riderFilter = (selectedRiders && selectedRiders.size) ? selectedRiders : null;
     var records = personalRecordsBrokenInYear(year, riderFilter);
-    var html = '<div class="card records-year-card"><h2 class="section-title">Records battus en ' + year + '</h2>';
+    var detail;
     if (!records.length) {
-      html += '<div class="empty-state">Aucun record personnel battu en ' + year + ' pour l’instant.</div>';
+      detail = '<div class="empty-state">Aucun record personnel battu en ' + year + ' pour l’instant.</div>';
     } else {
-      html += '<div class="table-scroll"><table class="session-table"><thead><tr><th>Date</th><th>Pilote</th><th>Circuit</th><th>Nouveau temps</th><th>Gain</th></tr></thead><tbody>';
+      detail = '<div class="table-scroll"><table class="session-table"><thead><tr><th>Date</th><th>Pilote</th><th>Circuit</th><th>Nouveau temps</th><th>Gain</th></tr></thead><tbody>';
       records.forEach(function (r) {
-        html += '<tr><td>' + escapeHtml(formatDateShortYear(r.date)) + '</td><td class="rider-cell">' + renderRiderLink(r.rider) + '</td><td>' + escapeHtml(r.circuit) + '</td>' +
+        detail += '<tr><td>' + escapeHtml(formatDateShortYear(r.date)) + '</td><td class="rider-cell">' + renderRiderLink(r.rider) + '</td><td>' + escapeHtml(r.circuit) + '</td>' +
           '<td class="laps-cell">' + formatTime(r.time) + '<span class="record-pill">RECORD</span></td>' +
           '<td class="gain-cell">-' + formatGain(r.previous - r.time) + '</td></tr>';
       });
-      html += '</tbody></table></div>';
+      detail += '</tbody></table></div>';
     }
-    html += '</div>';
-    return html;
+    return '<div class="card records-year-card">' + renderStatSummaryCategory('records-' + year, 'Records battus en ' + year, records.length, detail) + '</div>';
   }
 
   function renderStatsTab() {
@@ -3319,8 +3335,7 @@
   function renderCalendarSection() {
     var eventInfo = eventDateInfoAll();
     var sessionsMap = sessionsByDate();
-    var html = '<h2 class="section-title section-heading-standalone">Calendrier</h2>';
-    html += renderCalendarViewSwitcher();
+    var html = renderCalendarViewSwitcher();
     html += renderCalendarZoomHint();
     html += renderCalendarNav();
     if (calendarViewMode === 'day') html += renderDayGrid(eventInfo);
@@ -3331,8 +3346,7 @@
     else if (calendarViewMode === '2month') html += renderMultiMonthGrid(2, eventInfo, sessionsMap);
     else html += renderYearGrid(eventInfo, sessionsMap);
     if (selectedSessionDate) html += renderSessionDayCard(selectedSessionDate);
-    html += renderPeriodEventsCard();
-    return html;
+    return collapsibleCard('events-calendar', 'Calendrier', html, false) + renderPeriodEventsCard();
   }
 
   var ZOOM_LEVEL_LABELS = { year: 'Année', '6month': '6 mois', '3month': '3 mois', '2month': '2 mois', month: 'Mois', week: 'Semaine', day: 'Jour' };
@@ -3629,7 +3643,7 @@
       }
       return true;
     }).sort(function (a, b) { return a.dateStart < b.dateStart ? -1 : a.dateStart > b.dateStart ? 1 : 0; });
-    return renderEventGroupCard('Sorties · ' + calendarNavLabel(), events, { hideGroups: true });
+    return renderEventGroupCard('Sorties · ' + calendarNavLabel(), events, { hideGroups: true, collapseKey: 'events-period', defaultOpen: false });
   }
 
   // Selecting a sortie is a "picking" action — it also syncs selectedCircuit
@@ -3890,14 +3904,11 @@
   }
 
   function renderEventGroupCard(title, events, opts) {
-    var html = '<div class="card events-list-card"><h2 class="section-title">' + escapeHtml(title) + '</h2>';
-    if (!events.length) {
-      html += '<div class="empty-state">Aucune sortie.</div>';
-    } else {
-      events.forEach(function (ev) { html += renderEventRow(ev, opts); });
-    }
-    html += '</div>';
-    return html;
+    opts = opts || {};
+    var body = !events.length ? '<div class="empty-state">Aucune sortie.</div>' :
+      events.map(function (ev) { return renderEventRow(ev, opts); }).join('');
+    if (opts.collapseKey) return collapsibleCard(opts.collapseKey, title, body, opts.defaultOpen);
+    return '<div class="card events-list-card"><h2 class="section-title">' + escapeHtml(title) + '</h2>' + body + '</div>';
   }
 
   // Which "Passés" year bands are expanded in the Événement tab -- every
@@ -3910,11 +3921,7 @@
   // first) instead of one long flat list -- opening a year reveals its
   // sorties in place, same accordion row as everywhere else.
   function renderPastEventsCard(past) {
-    var html = '<div class="card events-list-card"><h2 class="section-title">Passés</h2>';
-    if (!past.length) {
-      html += '<div class="empty-state">Aucune sortie.</div></div>';
-      return html;
-    }
+    if (!past.length) return collapsibleCard('events-past', 'Passés', '<div class="empty-state">Aucune sortie.</div>', false);
     var byYear = {};
     past.forEach(function (ev) {
       var year = (ev.dateStart || '').slice(0, 4) || '—';
@@ -3922,24 +3929,24 @@
       byYear[year].push(ev);
     });
     var years = Object.keys(byYear).sort(function (a, b) { return b.localeCompare(a); });
+    var body = '';
     years.forEach(function (year) {
       var yearEvents = byYear[year];
       var isExpanded = !!expandedPastYears[year];
-      html += '<div class="past-year-band">';
-      html += '<button type="button" class="past-year-toggle" data-past-year="' + escapeHtml(year) + '" aria-expanded="' + (isExpanded ? 'true' : 'false') + '">' +
+      body += '<div class="past-year-band">';
+      body += '<button type="button" class="past-year-toggle" data-past-year="' + escapeHtml(year) + '" aria-expanded="' + (isExpanded ? 'true' : 'false') + '">' +
         '<span class="past-year-chevron">' + (isExpanded ? '▾' : '▸') + '</span>' +
         '<span class="past-year-label">' + escapeHtml(year) + '</span>' +
         '<span class="past-year-count">' + yearEvents.length + ' sortie' + (yearEvents.length > 1 ? 's' : '') + '</span>' +
         '</button>';
       if (isExpanded) {
-        html += '<div class="past-year-body">';
-        yearEvents.forEach(function (ev) { html += renderEventRow(ev, { hideGroups: false }); });
-        html += '</div>';
+        body += '<div class="past-year-body">';
+        yearEvents.forEach(function (ev) { body += renderEventRow(ev, { hideGroups: false }); });
+        body += '</div>';
       }
-      html += '</div>';
+      body += '</div>';
     });
-    html += '</div>';
-    return html;
+    return collapsibleCard('events-past', 'Passés', body, false);
   }
 
   // Événements merges the former separate Calendrier tab in: (1) "En cours"
@@ -3966,8 +3973,8 @@
     if (!all.length) {
       html += '<div class="card"><div class="empty-state">Aucune sortie enregistrée — ajoutez-en une ci-dessous.</div></div>';
     } else {
-      if (ongoing.length) html += renderEventGroupCard('En cours', ongoing);
-      html += renderEventGroupCard('À venir', upcoming);
+      if (ongoing.length) html += renderEventGroupCard('En cours', ongoing, { collapseKey: 'events-ongoing', defaultOpen: true });
+      html += renderEventGroupCard('À venir', upcoming, { collapseKey: 'events-upcoming', defaultOpen: false });
       html += renderPastEventsCard(past);
     }
     html += renderEventForm();
@@ -4153,6 +4160,20 @@
     if (!innerHtml) return '';
     var open = planningSectionsOpen[key] ? ' open' : '';
     return '<details class="planning-section" data-planning-section="' + key + '"' + open + '><summary>' + escapeHtml(title) + '</summary><div class="planning-section-body">' + innerHtml + '</div></details>';
+  }
+
+  // Same open/closed tracking as collapsibleSection above, but styled as a
+  // full card (used for Événements' En cours/À venir/Passés/Calendrier/
+  // Sorties bands) with its own default -- unlike collapsibleSection,
+  // which always starts closed, a key that's never been toggled yet can
+  // default open (En cours) so the one thing actually happening today
+  // isn't hidden behind an extra click.
+  function collapsibleCard(key, title, bodyHtml, defaultOpen) {
+    var isOpen = planningSectionsOpen.hasOwnProperty(key) ? !!planningSectionsOpen[key] : !!defaultOpen;
+    return '<details class="card events-list-card" data-planning-section="' + key + '"' + (isOpen ? ' open' : '') + '>' +
+      '<summary class="section-title collapsible-card-summary">' + escapeHtml(title) + '</summary>' +
+      '<div class="collapsible-card-body">' + bodyHtml + '</div>' +
+      '</details>';
   }
 
   function renderPlanningTab() {
@@ -4976,7 +4997,7 @@
       html += '<h2 class="section-title">Créer un compte</h2>';
       html += '<form id="signup-form" novalidate>';
       html += '<label for="au-name">Nom</label><input type="text" id="au-name" name="name" autocomplete="name" placeholder="Ex. Xavier" required>';
-      html += '<div id="au-number-wrap" style="margin-top:0.7rem;"><label for="au-number">N° de moto <span class="help-text" style="display:inline;">(si un autre pilote porte déjà ce nom)</span></label><input type="text" id="au-number" placeholder="Ex. 12"></div>';
+      html += '<div id="au-number-wrap" style="margin-top:0.7rem;"><label for="au-number">N° de moto <span class="help-text" style="display:inline;">(optionnel, même sans homonyme)</span></label><input type="text" id="au-number" placeholder="Ex. 12"></div>';
       html += '<label style="margin-top:0.7rem;">Je suis</label><div class="auth-role-choice">' +
         '<label><input type="radio" name="au-role" value="pilote" checked> Pilote</label>' +
         '<label><input type="radio" name="au-role" value="accompagnant"> Accompagnant</label></div>';

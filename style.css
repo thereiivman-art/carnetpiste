@@ -1336,8 +1336,21 @@
   }
 
   .events-list-card { margin-bottom: 1.5rem; }
+  .collapsible-card-summary {
+    cursor: pointer;
+    list-style: none;
+  }
+  .collapsible-card-summary::-webkit-details-marker { display: none; }
+  .collapsible-card-summary::before {
+    content: '▸';
+    display: inline-block;
+    margin-right: 0.4rem;
+    color: var(--text-muted);
+    transition: transform 0.15s ease;
+  }
+  details[open] > .collapsible-card-summary::before { transform: rotate(90deg); }
+  .collapsible-card-body { margin-top: 0; }
   .add-event-card { margin-bottom: 1.5rem; }
-  .section-heading-standalone { margin-top: 0.4rem; }
   .event-row {
     padding: 0.6rem 0.4rem;
     border-bottom: 1px solid var(--border);
