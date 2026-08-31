@@ -826,12 +826,12 @@
 
   // ---- Mon profil — chaque pilote/accompagnant gère son propre compte ----
   //
-  // Only the fields that live on the user's own users/{uid} doc: role and
-  // the notification preference. The rider name is the roster's join key
-  // (STATE.riders / ev.riderGroups / session.rider all key off it), so
-  // renaming it here would mean rewriting every document that references
-  // it -- out of scope for a self-service panel, handled instead via the
-  // admin-only rider manager above.
+  // A pilote's name doubles as the roster's join key (STATE.riders /
+  // ev.riderGroups / session.rider all key off it), so renaming it here
+  // cascades through renameRiderEverywhere() just like the admin-only
+  // rider manager's rename -- and hits the same homonym guard as signup
+  // (see riderBaseName/checkRiderNameCollision) if the new name collides
+  // with someone else's.
   function renderProfilePanel() {
     if (!profilePanelOpen) return '';
     var p = currentUserProfile;
@@ -840,8 +840,11 @@
     var html = '<div class="card profile-panel">';
     html += '<div class="section-title">Mon profil</div>';
     html += '<form id="profile-form">';
-    html += '<label>Nom<input type="text" value="' + escapeHtml(p.name) + '" disabled></label>';
-    html += '<label>Je suis</label>';
+    html += '<label for="profile-name">Nom</label><input type="text" id="profile-name" value="' + escapeHtml(p.name) + '" required>';
+    html += '<div id="profile-name-number-wrap" style="display:' + (isAccompagnant ? 'none' : 'block') + '; margin-top:0.5rem;">' +
+      '<label for="profile-name-number">N° (si un pilote porte déjà ce nom)</label>' +
+      '<input type="text" id="profile-name-number" placeholder="Ex. 12"></div>';
+    html += '<label style="margin-top:0.9rem;">Je suis</label>';
     html += '<div class="auth-role-choice">' +
       '<label><input type="radio" name="profile-role" value="pilote"' + (!isAccompagnant ? ' checked' : '') + '> Pilote</label>' +
       '<label><input type="radio" name="profile-role" value="accompagnant"' + (isAccompagnant ? ' checked' : '') + '> Accompagnant</label>' +
@@ -868,7 +871,20 @@
     html += '<div style="margin-top:1rem; display:flex; gap:0.6rem;"><button type="submit" class="primary">Enregistrer</button>' +
       '<button type="button" class="ghost" id="profile-cancel">Fermer</button></div>';
     if (profileSaveMessage) html += '<div class="help-text" style="margin-top:0.6rem;">' + escapeHtml(profileSaveMessage) + '</div>';
-    html += '</form></div>';
+    html += '</form>';
+    // Separate form -- changing the sign-in email needs the current
+    // password (Firebase requires a recent reauthentication for it), which
+    // has nothing to do with the profile fields saved above.
+    html += '<div style="margin-top:1.2rem; border-top:1px solid var(--border); padding-top:0.9rem;">';
+    html += '<form id="profile-email-form">';
+    html += '<label>Email actuel<input type="text" value="' + escapeHtml(p.email || '') + '" disabled></label>';
+    html += '<label for="profile-new-email" style="margin-top:0.6rem;">Nouvel email</label><input type="email" id="profile-new-email" autocomplete="username">';
+    html += '<label for="profile-current-password" style="margin-top:0.6rem;">Mot de passe actuel</label><input type="password" id="profile-current-password" autocomplete="current-password">';
+    html += '<div style="margin-top:0.7rem;"><button type="submit" class="ghost">Changer mon email</button></div>';
+    if (profileEmailMessage) html += '<div class="help-text" style="margin-top:0.6rem;">' + escapeHtml(profileEmailMessage) + '</div>';
+    html += '</form>';
+    html += '</div>';
+    html += '</div>';
     return html;
   }
 
@@ -920,13 +936,37 @@
   }
 
   var profileSaveMessage = '';
-  function saveProfile(role, notifyBeforeSession, followedRiders, bike, bikeNumber) {
+  function saveProfile(role, notifyBeforeSession, followedRiders, bike, bikeNumber, newRawName, nameNumber) {
     var uid = auth.currentUser && auth.currentUser.uid;
-    if (!uid) return;
+    if (!uid || !currentUserProfile) return;
     if (notifyBeforeSession && window.Notification && Notification.permission === 'default') {
       Notification.requestPermission();
     }
-    db.collection('users').doc(uid).set({ role: role, notifyBeforeSession: notifyBeforeSession, followedRiders: followedRiders, bike: bike || null, bikeNumber: bikeNumber || null }, { merge: true }).then(function () {
+    var oldName = currentUserProfile.name;
+    var finalName = oldName;
+    var renamePrevState = null;
+    var nameChanged = newRawName && riderBaseName(newRawName).toLowerCase() !== riderBaseName(oldName).toLowerCase();
+    if (nameChanged) {
+      var isKnownRider = allKnownRiders().indexOf(oldName) !== -1;
+      var result = resolveDisambiguatedName(newRawName, nameNumber, allKnownRiders(), oldName);
+      if (!result.ok) {
+        profileSaveMessage = result.error;
+        renderRoot();
+        return;
+      }
+      finalName = result.name;
+      if (isKnownRider) renamePrevState = renameRiderEverywhere(oldName, finalName);
+    }
+    var writes = { role: role, notifyBeforeSession: notifyBeforeSession, followedRiders: followedRiders, bike: bike || null, bikeNumber: bikeNumber || null };
+    if (nameChanged) writes.name = finalName;
+    db.collection('users').doc(uid).set(writes, { merge: true }).then(function () {
+      // Covers switching to Pilote (or renaming while already one) without
+      // ever having gone through onSignupSubmit's own rider-doc creation.
+      if (role === 'pilote') {
+        return db.collection('riders').doc(safeDocId(finalName)).set({ name: finalName }, { merge: true });
+      }
+    }).then(function () {
+      currentUserProfile.name = finalName;
       currentUserProfile.role = role;
       currentUserProfile.notifyBeforeSession = notifyBeforeSession;
       currentUserProfile.followedRiders = followedRiders;
@@ -934,8 +974,44 @@
       currentUserProfile.bikeNumber = bikeNumber || null;
       profileSaveMessage = 'Profil enregistré.';
       renderRoot();
+      if (renamePrevState) persist(renamePrevState);
     }).catch(function (err) {
       profileSaveMessage = 'Erreur : ' + (err && err.message ? err.message : err);
+      renderRoot();
+    });
+  }
+
+  // Changing the sign-in email requires Firebase to see a recent
+  // reauthentication, hence asking for the current password again here --
+  // it's the same account, just a different credential check than signup.
+  var profileEmailMessage = '';
+  function changeProfileEmail(newEmail, currentPassword) {
+    var user = auth.currentUser;
+    if (!user || !currentUserProfile) return;
+    if (!newEmail || !currentPassword) {
+      profileEmailMessage = 'Indique le nouvel email et ton mot de passe actuel.';
+      renderRoot();
+      return;
+    }
+    var cred = firebase.auth.EmailAuthProvider.credential(user.email, currentPassword);
+    user.reauthenticateWithCredential(cred).then(function () {
+      return user.updateEmail(newEmail);
+    }).then(function () {
+      return db.collection('users').doc(user.uid).set({ email: newEmail }, { merge: true });
+    }).then(function () {
+      currentUserProfile.email = newEmail;
+      return user.sendEmailVerification();
+    }).then(function () {
+      // updateEmail() resets emailVerified server-side, so the app has to
+      // hold here again until the new address is confirmed -- same gate as
+      // a fresh signup.
+      autoVerifyEmailSent = true;
+      authState = 'verify-email';
+      profilePanelOpen = false;
+      renderRoot();
+      showToast('Email mis à jour — vérifie ta boîte mail pour confirmer la nouvelle adresse.', 'success');
+    }).catch(function (err) {
+      profileEmailMessage = translateAuthError(err);
       renderRoot();
     });
   }
@@ -951,55 +1027,80 @@
     return (name || '').replace(/\s*\(#[^)]*\)\s*$/, '').trim();
   }
 
+  // Shared by adding a rider, the admin rename, and a pilote renaming
+  // themselves from "Mon profil" (and the equivalent check at signup) --
+  // one name collision rule everywhere a rider identity gets typed in.
+  // excludeName lets a rename/self-rename compare against every OTHER
+  // rider without tripping over its own current name.
+  function resolveDisambiguatedName(rawName, number, known, excludeName) {
+    var base = riderBaseName(rawName);
+    number = (number || '').trim();
+    var baseCollision = known.some(function (r) { return r !== excludeName && riderBaseName(r).toLowerCase() === base.toLowerCase(); });
+    if (baseCollision && !number) {
+      return { ok: false, error: 'Un pilote "' + base + '" existe déjà — ajoute un numéro de moto pour vous différencier.' };
+    }
+    var finalName = number ? (base + ' (#' + number + ')') : base;
+    if (known.some(function (r) { return r !== excludeName && r.toLowerCase() === finalName.toLowerCase(); })) {
+      return { ok: false, error: 'Ce nom est déjà utilisé.' };
+    }
+    return { ok: true, name: finalName };
+  }
+
   function addRider(name, number) {
     riderManagerError = '';
-    name = riderBaseName(name);
-    number = (number || '').trim();
-    var known = allKnownRiders();
-    var baseCollision = known.some(function (r) { return riderBaseName(r).toLowerCase() === name.toLowerCase(); });
-    if (baseCollision && !number) {
-      riderManagerError = 'Un pilote "' + name + '" existe déjà — ajoute son numéro de moto pour les différencier.';
-      renderRoot();
-      return;
-    }
-    var finalName = number ? (name + ' (#' + number + ')') : name;
-    if (known.some(function (r) { return r.toLowerCase() === finalName.toLowerCase(); })) {
-      riderManagerError = 'Ce pilote existe déjà.';
+    var result = resolveDisambiguatedName(name, number, allKnownRiders(), null);
+    if (!result.ok) {
+      riderManagerError = result.error;
       renderRoot();
       return;
     }
     var prevState = JSON.parse(JSON.stringify(STATE));
-    STATE.riders = known.concat([finalName]).sort(function (a, b) { return a.localeCompare(b); });
+    STATE.riders = allKnownRiders().concat([result.name]).sort(function (a, b) { return a.localeCompare(b); });
     renderRoot();
     persist(prevState);
     showToast('Pilote ajouté.', 'success');
   }
 
+  // Cascades a rider name change through everything keyed off it --
+  // STATE.riders, sessions, event.riders, and event.riderGroups -- and
+  // returns the pre-mutation snapshot for the caller to persist(). Doesn't
+  // touch the users/{uid} account doc itself; callers that also need that
+  // (self-rename) do it separately since it's a different collection.
+  function renameRiderEverywhere(oldName, newName) {
+    var prevState = JSON.parse(JSON.stringify(STATE));
+    var known = allKnownRiders();
+    STATE.riders = known.map(function (r) { return r === oldName ? newName : r; }).sort(function (a, b) { return a.localeCompare(b); });
+    STATE.sessions.forEach(function (s) { if (s.rider === oldName) s.rider = newName; });
+    eventsList().forEach(function (ev) {
+      if (ev.riders && ev.riders.length) {
+        ev.riders = ev.riders.map(function (r) { return r === oldName ? newName : r; });
+        // A rename can turn two entries into duplicates (rider already
+        // there under the new name) -- collapse them.
+        var seen = {};
+        ev.riders = ev.riders.filter(function (r) { return seen[r] ? false : (seen[r] = true); });
+      }
+      if (ev.riderGroups && ev.riderGroups[oldName]) {
+        ev.riderGroups[newName] = ev.riderGroups[oldName];
+        delete ev.riderGroups[oldName];
+      }
+    });
+    if (selectedRiders && selectedRiders.has(oldName)) {
+      selectedRiders.delete(oldName);
+      selectedRiders.add(newName);
+    }
+    return prevState;
+  }
+
   function renameRider(oldName, newName) {
     riderManagerError = '';
-    var known = allKnownRiders();
-    var conflict = known.some(function (r) { return r !== oldName && r.toLowerCase() === newName.toLowerCase(); });
+    var conflict = allKnownRiders().some(function (r) { return r !== oldName && r.toLowerCase() === newName.toLowerCase(); });
     if (conflict) {
       riderManagerError = 'Ce pilote existe déjà.';
       editingRiderName = null;
       renderRoot();
       return;
     }
-    var prevState = JSON.parse(JSON.stringify(STATE));
-    STATE.riders = known.map(function (r) { return r === oldName ? newName : r; }).sort(function (a, b) { return a.localeCompare(b); });
-    STATE.sessions.forEach(function (s) { if (s.rider === oldName) s.rider = newName; });
-    eventsList().forEach(function (ev) {
-      if (!ev.riders || !ev.riders.length) return;
-      ev.riders = ev.riders.map(function (r) { return r === oldName ? newName : r; });
-      // A rename can turn two entries into duplicates (rider already there
-      // under the new name) -- collapse them.
-      var seen = {};
-      ev.riders = ev.riders.filter(function (r) { return seen[r] ? false : (seen[r] = true); });
-    });
-    if (selectedRiders && selectedRiders.has(oldName)) {
-      selectedRiders.delete(oldName);
-      selectedRiders.add(newName);
-    }
+    var prevState = renameRiderEverywhere(oldName, newName);
     editingRiderName = null;
     renderRoot();
     persist(prevState);
@@ -4336,23 +4437,43 @@
     var role = roleEl ? roleEl.value : 'pilote';
     var numberEl = document.getElementById('au-number');
     var number = (role === 'pilote' && numberEl) ? numberEl.value.trim() : '';
-    var name = riderBaseName(document.getElementById('au-name').value.trim());
-    if (number) name = name + ' (#' + number + ')';
+    var rawName = document.getElementById('au-name').value.trim();
     var email = document.getElementById('au-email').value.trim();
     var password = document.getElementById('au-password').value;
-    if (!name) {
+    if (!rawName) {
       authError = 'Indique ton nom.';
       renderRoot();
       return;
     }
     authError = '';
+    var name = riderBaseName(rawName) + (number ? ' (#' + number + ')' : '');
     auth.createUserWithEmailAndPassword(email, password).then(function (cred) {
-      return db.collection('users').doc(cred.user.uid).set({ name: name, role: role, email: email }).then(function () {
-        if (role === 'pilote') {
-          return db.collection('riders').doc(safeDocId(name)).set({ name: name }, { merge: true });
+      // STATE.riders isn't synced yet at this point (that only starts once
+      // signed in) -- a live query is the only way to check for a homonym
+      // before this account claims the name. Skipped for accompagnant:
+      // they're not a rider, so there's nothing to collide with.
+      var collisionCheck = role === 'pilote'
+        ? db.collection('riders').get().then(function (snap) {
+            return snap.docs.map(function (d) { return d.data().name; });
+          })
+        : Promise.resolve([]);
+      return collisionCheck.then(function (existingNames) {
+        var result = resolveDisambiguatedName(rawName, number, existingNames, null);
+        if (!result.ok) {
+          // The auth account already exists at this point -- back it out
+          // rather than leave an orphaned, nameless account behind.
+          return cred.user.delete().then(function () {
+            return Promise.reject({ code: 'custom/name-collision', message: result.error });
+          });
         }
-      }).then(function () {
-        return cred.user.sendEmailVerification();
+        name = result.name;
+        return db.collection('users').doc(cred.user.uid).set({ name: name, role: role, email: email }).then(function () {
+          if (role === 'pilote') {
+            return db.collection('riders').doc(safeDocId(name)).set({ name: name }, { merge: true });
+          }
+        }).then(function () {
+          return cred.user.sendEmailVerification();
+        });
       });
     }).then(function () {
       // Held at 'verify-email' -- the account and profile both exist, but
@@ -4367,7 +4488,7 @@
       renderRoot();
       showToast('Compte créé — vérifie ton email pour continuer.', 'success');
     }).catch(function (err) {
-      authError = translateAuthError(err);
+      authError = (err && err.code === 'custom/name-collision') ? err.message : translateAuthError(err);
       renderRoot();
     });
   }
@@ -4563,7 +4684,11 @@
           profileForm.querySelectorAll('input[name="profile-follow-rider"]:checked'),
           function (el) { return el.value; }
         );
-        saveProfile(role, notify, followedRiders, bike, bikeNumber);
+        var nameEl = document.getElementById('profile-name');
+        var newName = nameEl ? nameEl.value.trim() : '';
+        var nameNumberEl = document.getElementById('profile-name-number');
+        var nameNumber = nameNumberEl ? nameNumberEl.value.trim() : '';
+        saveProfile(role, notify, followedRiders, bike, bikeNumber, newName, nameNumber);
       });
       var notifyLabel = document.getElementById('profile-notify-label');
       profileForm.querySelectorAll('input[name="profile-role"]').forEach(function (radio) {
@@ -4574,9 +4699,20 @@
             if (wrap) wrap.style.display = isAcc ? 'block' : 'none';
             var bikeWrap = document.getElementById('profile-bike-wrap');
             if (bikeWrap) bikeWrap.style.display = isAcc ? 'none' : 'block';
+            var nameNumberWrap = document.getElementById('profile-name-number-wrap');
+            if (nameNumberWrap) nameNumberWrap.style.display = isAcc ? 'none' : 'block';
             if (notifyLabel) notifyLabel.textContent = isAcc ? 'Me notifier quand un pilote suivi va partir rouler' : 'Me notifier quand mon groupe va partir rouler';
           }
         });
+      });
+    }
+    var profileEmailForm = document.getElementById('profile-email-form');
+    if (profileEmailForm) {
+      profileEmailForm.addEventListener('submit', function (evt) {
+        evt.preventDefault();
+        var newEmail = document.getElementById('profile-new-email').value.trim();
+        var currentPassword = document.getElementById('profile-current-password').value;
+        changeProfileEmail(newEmail, currentPassword);
       });
     }
     document.querySelectorAll('[data-theme-choice]').forEach(function (btn) {
