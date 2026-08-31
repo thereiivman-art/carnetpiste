@@ -621,6 +621,38 @@
     flex-shrink: 0;
   }
   .achievement-row.earned .achievement-progress { color: var(--accent); }
+  .referral-panel {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+    margin-top: 0.8rem;
+    flex-wrap: wrap;
+  }
+  .referral-qr {
+    border-radius: 8px;
+    background: #fff;
+    padding: 0.4rem;
+    flex-shrink: 0;
+  }
+  .referral-actions { flex: 1; min-width: 180px; }
+  .referral-link-text {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    word-break: break-all;
+    margin-bottom: 0.6rem;
+  }
+  .referral-milestones {
+    margin-top: 0.8rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+  }
+  .referral-milestone {
+    font-size: 0.82rem;
+    color: var(--text-muted);
+  }
+  .referral-milestone.reached { color: var(--accent); font-weight: 600; }
   .best-time-row {
     display: flex;
     align-items: baseline;

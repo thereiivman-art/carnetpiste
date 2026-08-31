@@ -39,6 +39,10 @@
     });
   }
 
+  function referralLinkFor(name) {
+    return window.location.origin + window.location.pathname + '?ref=' + encodeURIComponent(name);
+  }
+
   // Parrainage (referral): whoever's name is in a ?ref= link that brought
   // someone to signup becomes their parrain, written onto the new
   // account once at signup (see onSignupSubmit). Captured once at load,
@@ -1049,12 +1053,27 @@
     // anything synced, hence the "..." while loadFilleulCount resolves it.
     loadFilleulCount(p.name);
     var filleulCount = filleulCounts[p.name];
+    var referralLink = referralLinkFor(p.name);
     html += '<div style="margin-top:1.2rem; border-top:1px solid var(--border); padding-top:0.9rem;">';
     html += '<div class="section-title" style="font-size:0.95rem;">Parrainage</div>';
-    html += '<div class="help-text">Partage ce lien : la personne qui crée un compte en passant par lui te compte comme parrain.</div>';
-    html += '<div style="margin-top:0.6rem; display:flex; gap:0.5rem; flex-wrap:wrap;">' +
-      '<button type="button" class="ghost" id="copy-referral-link-btn">Copier mon lien de parrainage</button>' +
-      '<span class="help-text" style="display:inline; align-self:center;">' + (filleulCount == null ? '…' : filleulCount) + ' filleul' + (filleulCount === 1 ? '' : 's') + '</span></div>';
+    html += '<div class="help-text">Chaque inscription via ton lien ou ton QR code te compte automatiquement comme parrain.</div>';
+    html += '<div class="referral-panel">';
+    html += '<img class="referral-qr" src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=' + encodeURIComponent(referralLink) + '" alt="QR code du lien de parrainage" width="140" height="140">';
+    html += '<div class="referral-actions">';
+    html += '<div class="referral-link-text">' + escapeHtml(referralLink) + '</div>';
+    html += '<div style="display:flex; gap:0.5rem;">' +
+      '<button type="button" class="primary" id="share-referral-link-btn">Partager mon lien</button>' +
+      '<button type="button" class="ghost icon-btn" id="copy-referral-link-btn" aria-label="Copier le lien" title="Copier">📋</button>' +
+      '</div>';
+    html += '<div class="help-text" style="margin-top:0.5rem;">' + (filleulCount == null ? '…' : filleulCount) + ' filleul' + (filleulCount === 1 ? '' : 's') + '</div>';
+    html += '</div></div>';
+    html += '<div class="referral-milestones">';
+    [[1, 'Parrain'], [5, 'Grand parrain']].forEach(function (m) {
+      var reached = filleulCount != null && filleulCount >= m[0];
+      html += '<div class="referral-milestone' + (reached ? ' reached' : '') + '">' +
+        (reached ? '✓' : m[0]) + ' — ' + m[0] + ' filleul' + (m[0] > 1 ? 's' : '') + ' — badge ' + escapeHtml(m[1]) + '</div>';
+    });
+    html += '</div>';
     html += '</div>';
     html += '</div>';
     if (isAccompagnant) html += renderAchievementsCard(accompagnantAchievements(p));
@@ -5145,12 +5164,26 @@
     if (copyReferralBtn) {
       copyReferralBtn.addEventListener('click', function () {
         if (!currentUserProfile) return;
-        var link = window.location.origin + window.location.pathname + '?ref=' + encodeURIComponent(currentUserProfile.name);
+        var link = referralLinkFor(currentUserProfile.name);
         if (navigator.clipboard && navigator.clipboard.writeText) {
           navigator.clipboard.writeText(link).then(function () {
             showToast('Lien de parrainage copié.', 'success');
           }).catch(function () {
             showToast('Impossible de copier — copie-le manuellement : ' + link);
+          });
+        }
+      });
+    }
+    var shareReferralBtn = document.getElementById('share-referral-link-btn');
+    if (shareReferralBtn) {
+      shareReferralBtn.addEventListener('click', function () {
+        if (!currentUserProfile) return;
+        var link = referralLinkFor(currentUserProfile.name);
+        if (navigator.share) {
+          navigator.share({ title: 'Carnet de Piste', text: 'Rejoins-nous sur Carnet de Piste !', url: link }).catch(function () {});
+        } else if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(link).then(function () {
+            showToast('Lien de parrainage copié.', 'success');
           });
         }
       });
