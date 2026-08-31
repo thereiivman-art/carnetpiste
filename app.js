@@ -595,6 +595,36 @@
     return best;
   }
 
+  // circuit -> whoever holds the fastest recorded time there, across every
+  // rider -- powers the "Recordman" achievement below.
+  function allCircuitRecordHolders() {
+    var records = {};
+    STATE.sessions.forEach(function (s) {
+      var b = sessionBest(s);
+      if (!records[s.circuit] || b < records[s.circuit].time) records[s.circuit] = { time: b, rider: s.rider };
+    });
+    return records;
+  }
+
+  // A small, purely-derived set of badges -- nothing new to persist, just
+  // fun milestones read straight off the rider's existing stats. Each one
+  // has a short explanation so an unearned badge still tells you what to
+  // aim for.
+  function riderAchievements(riderName, stats) {
+    var records = allCircuitRecordHolders();
+    var holdsARecord = Object.keys(records).some(function (c) { return records[c].rider === riderName; });
+    var bigGain = stats.bests.some(function (b) { return b.progression != null && b.progression <= -1; });
+    var regular = stats.bests.some(function (b) { return b.outings >= 3; });
+    return [
+      { icon: '🏁', label: 'Premier chrono', earned: stats.bests.length > 0, description: 'Enregistrer un premier chrono.' },
+      { icon: '🌍', label: 'Globe-trotter', earned: stats.circuitsVisited >= 5, description: 'Rouler sur 5 circuits différents.' },
+      { icon: '📅', label: 'Habitué', earned: stats.trackDays >= 10, description: 'Cumuler 10 jours sur piste.' },
+      { icon: '🔥', label: 'Régulier', earned: regular, description: 'Revenir 3 fois ou plus sur le même circuit.' },
+      { icon: '🚀', label: 'Grosse progression', earned: bigGain, description: 'Gagner au moins 1 seconde sur un circuit depuis sa première sortie là-bas.' },
+      { icon: '🥇', label: 'Recordman', earned: holdsARecord, description: 'Détenir le record du groupe sur au moins un circuit.' }
+    ];
+  }
+
   // Inline replacement for one row of the chronos history table -- every
   // field of a recorded session (pilote, date, session/groupe, chronos,
   // moto, note) becomes editable in place, instead of only offering
@@ -743,7 +773,7 @@
         var sessionTagHtml = sessionTagParts.length ? '<div class="note-text">' + escapeHtml(sessionTagParts.join(' — ')) + '</div>' : '';
         html += '<tr data-session-id="' + s.id + '">';
         html += '<td>' + formatDate(s.date) + sessionTagHtml + noteHtml + '</td>';
-        if (showRider) html += '<td class="rider-cell">' + escapeHtml(s.rider || '—') + '</td>';
+        if (showRider) html += '<td class="rider-cell">' + (s.rider ? renderRiderLink(s.rider) : '—') + '</td>';
         html += '<td class="laps-cell">' + lapsHtml + (isRecord ? '<span class="record-pill">RECORD</span>' : '') + '</td>';
         html += '<td class="bike-cell">' + (s.bike ? escapeHtml(s.bike) : '—') + '</td>';
         html += '<td class="row-actions">' + editControl(s) + deleteControl(s) + '</td>';
@@ -767,6 +797,10 @@
     if (stats.lastSession) {
       html += infoRow('Dernière sortie', escapeHtml(stats.lastSession.circuit) + ' — ' + escapeHtml(formatDate(stats.lastSession.date)) + ' (' + formatTime(stats.lastSession.time) + ')');
     }
+    html += '<div class="best-times-title">Achievements</div>';
+    html += '<div class="achievements-row">' + riderAchievements(riderName, stats).map(function (a) {
+      return '<span class="achievement-badge' + (a.earned ? ' earned' : '') + '" title="' + escapeHtml(a.label + ' — ' + a.description) + '">' + a.icon + '<span class="achievement-label">' + escapeHtml(a.label) + '</span></span>';
+    }).join('') + '</div>';
     html += '<div class="best-times-title">Meilleurs temps par circuit</div>';
     if (!stats.bests.length) {
       html += '<div class="empty-inline">Aucun chrono enregistré.</div>';
@@ -1209,7 +1243,7 @@
     } else {
       html += '<div class="table-scroll"><table class="session-table"><thead><tr><th>Date</th><th>Pilote</th><th>Circuit</th><th>Nouveau temps</th><th>Gain</th></tr></thead><tbody>';
       records.forEach(function (r) {
-        html += '<tr><td>' + escapeHtml(formatDateShortYear(r.date)) + '</td><td class="rider-cell">' + escapeHtml(r.rider) + '</td><td>' + escapeHtml(r.circuit) + '</td>' +
+        html += '<tr><td>' + escapeHtml(formatDateShortYear(r.date)) + '</td><td class="rider-cell">' + renderRiderLink(r.rider) + '</td><td>' + escapeHtml(r.circuit) + '</td>' +
           '<td class="laps-cell">' + formatTime(r.time) + '<span class="record-pill">RECORD</span></td>' +
           '<td class="gain-cell">-' + formatGain(r.previous - r.time) + '</td></tr>';
       });
@@ -1659,6 +1693,14 @@
 
   function infoRow(label, valueHtml) {
     return '<div class="info-row"><span class="info-label">' + escapeHtml(label) + '</span><span class="info-value">' + valueHtml + '</span></div>';
+  }
+
+  // A rider's name as a link to their own read-only profile (Statistiques,
+  // filtered to just them) -- used anywhere a rider's name shows up
+  // (chronos table, récap du jour, groupes par pilote) so anyone can check
+  // on a teammate without hunting for the rider picker.
+  function renderRiderLink(name) {
+    return '<button type="button" class="rider-name-link" data-view-rider="' + escapeHtml(name) + '">' + escapeHtml(name) + '</button>';
   }
 
   // Copier/Maps/Waze actions for any free-text address or place name --
@@ -3685,7 +3727,7 @@
         var letter = g.key.replace('group', '');
         var names = ridersInGroup(ev, letter);
         if (names.length) {
-          html += '<div class="today-schedule-group-riders">' + names.map(escapeHtml).join(', ') + '</div>';
+          html += '<div class="today-schedule-group-riders">' + names.map(renderRiderLink).join(', ') + '</div>';
         }
       }
       html += '<div class="today-schedule-slots">';
@@ -3941,7 +3983,7 @@
         else if (r.delta > 0) deltaHtml = '<span class="daily-recap-worse">+' + r.delta.toFixed(3) + '</span>';
         else deltaHtml = '=';
       }
-      html += '<tr><td>' + escapeHtml(r.rider) + '</td><td>' + formatTime(r.best) + '</td><td>' + r.laps + '</td><td>' + deltaHtml + '</td></tr>';
+      html += '<tr><td>' + renderRiderLink(r.rider) + '</td><td>' + formatTime(r.best) + '</td><td>' + r.laps + '</td><td>' + deltaHtml + '</td></tr>';
     });
     html += '</tbody></table></div></div>';
     return html;
@@ -5351,6 +5393,16 @@
       btn.addEventListener('click', function () {
         var val = btn.getAttribute('data-global-rider');
         selectedRiders = (val === '__all__') ? new Set(allKnownRiders()) : new Set([val]);
+        renderRoot();
+      });
+    });
+    // A rider's name anywhere in the app (chronos table, récap du jour,
+    // groupes par pilote...) jumps straight to their own read-only profile
+    // -- just Statistiques filtered to them, reusing what's already there.
+    document.querySelectorAll('[data-view-rider]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        selectedRiders = new Set([btn.getAttribute('data-view-rider')]);
+        activeView = 'stats';
         renderRoot();
       });
     });

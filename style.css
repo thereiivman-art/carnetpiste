@@ -512,6 +512,19 @@
     cursor: pointer;
   }
   .rider-pill:hover { border-color: var(--accent); color: var(--text); }
+  .rider-name-link {
+    background: none;
+    border: none;
+    padding: 0;
+    margin: 0;
+    font: inherit;
+    color: inherit;
+    text-decoration: underline;
+    text-decoration-color: var(--border);
+    text-underline-offset: 2px;
+    cursor: pointer;
+  }
+  .rider-name-link:hover { text-decoration-color: var(--accent); color: var(--accent); }
   .rider-pill.active {
     background: var(--accent);
     border-color: var(--accent);
@@ -561,6 +574,32 @@
     font-weight: 500;
     margin-bottom: 0.2rem;
   }
+  .achievements-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+  }
+  .achievement-badge {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.8rem;
+    padding: 0.3rem 0.6rem;
+    border-radius: 999px;
+    background: var(--surface-alt);
+    color: var(--text-muted);
+    opacity: 0.45;
+    filter: grayscale(1);
+  }
+  .achievement-badge.earned {
+    opacity: 1;
+    filter: none;
+    color: var(--text);
+    background: var(--surface);
+    border: 1px solid var(--accent);
+  }
+  .achievement-label { font-weight: 500; }
   .best-time-row {
     display: flex;
     align-items: baseline;
