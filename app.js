@@ -32,7 +32,7 @@
   // chrono) enforce this server-side too; checklist-category/item removal
   // is only hidden client-side (Firestore can't easily tell "this update
   // removed a nested item" from "added one").
-  var ADMIN_EMAIL = 'thereiivman@gmail.com';
+  var ADMIN_EMAIL = 'germainxav@gmail.com';
   function isAdmin() {
     return !!(currentUserProfile && currentUserProfile.email &&
       currentUserProfile.email.toLowerCase() === ADMIN_EMAIL.toLowerCase());
