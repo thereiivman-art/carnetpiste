@@ -613,14 +613,12 @@
       '<datalist id="bike-options-se">' + bikeDatalist() + '</datalist></div>';
     html += '</div>';
     html += '<div class="field-row">';
-    html += '<div><label for="se-period">Session</label><select id="se-period">' +
-      '<option value=""' + (!s.period ? ' selected' : '') + '>Journée entière</option>' +
-      '<option value="matin"' + (s.period === 'matin' ? ' selected' : '') + '>Matin</option>' +
-      '<option value="apres-midi"' + (s.period === 'apres-midi' ? ' selected' : '') + '>Après-midi</option>' +
-      '</select></div>';
     html += '<div><label for="se-group">Groupe</label><select id="se-group"><option value=""' + (!s.group ? ' selected' : '') + '>—</option>' +
       GROUP_LETTERS.map(function (g) { return '<option value="' + g + '"' + (s.group === g ? ' selected' : '') + '>' + g + '</option>'; }).join('') +
       '</select></div>';
+    var seSlots = todaysGroupSlots(s.circuit, s.group);
+    var seSlotIdx = s.slotStart != null ? seSlots.map(function (sl) { return sl.start; }).indexOf(s.slotStart) : -1;
+    html += '<div><label for="se-slot">Session</label><select id="se-slot">' + renderSlotOptions(seSlots, seSlotIdx) + '</select></div>';
     html += '</div>';
     html += '<label for="se-laps">Chronos</label>' +
       '<textarea id="se-laps" required>' + escapeHtml(s.laps.map(function (l) { return formatTime(l); }).join('\n')) + '</textarea>' +
@@ -650,8 +648,8 @@
     var date = frDateToIso(dateRaw);
     var bike = document.getElementById('se-bike').value.trim();
     var note = document.getElementById('se-note').value.trim();
-    var period = document.getElementById('se-period').value;
     var group = document.getElementById('se-group').value;
+    var slotEl = document.getElementById('se-slot');
     var rawLaps = document.getElementById('se-laps').value.split(/[\n,;]+/).map(function (s) { return s.trim(); }).filter(Boolean);
     var laps = [];
     var invalid = false;
@@ -682,8 +680,19 @@
     session.laps = laps;
     if (bike) session.bike = bike; else delete session.bike;
     if (note) session.note = note; else delete session.note;
-    if (period) session.period = period; else delete session.period;
     if (group) session.group = group; else delete session.group;
+    if (slotEl && slotEl.value) {
+      var chosenSlot = todaysGroupSlots(session.circuit, group).filter(function (sl) { return String(sl.start) === slotEl.value; })[0];
+      if (chosenSlot) {
+        session.slotStart = chosenSlot.start;
+        session.slotEnd = chosenSlot.end;
+        session.slotLabel = chosenSlot.label;
+      } else {
+        delete session.slotStart; delete session.slotEnd; delete session.slotLabel;
+      }
+    } else {
+      delete session.slotStart; delete session.slotEnd; delete session.slotLabel;
+    }
     editingSessionId = null;
     renderRoot();
     persist(prevState);
@@ -1295,21 +1304,17 @@
     html += '</div>';
     // Entry granularity is deliberately flexible: one row can be just the
     // day's best time, just one session's best, or every lap of one
-    // session -- "Session" + "Chronos" together cover all three, since the
-    // Chronos field already accepts one time or a whole list.
+    // session -- "Session" (the timed slot, see todaysGroupSlots) +
+    // "Chronos" together cover all three, since the Chronos field already
+    // accepts one time or a whole list.
     html += '<div class="field-row">';
-    html += '<div><label for="f-period">Session</label><select id="f-period">' +
-      '<option value="">Journée entière</option>' +
-      '<option value="matin">Matin</option>' +
-      '<option value="apres-midi">Après-midi</option>' +
-      '</select></div>';
     html += '<div><label for="f-group">Groupe</label><select id="f-group"><option value="">—</option>' +
       GROUP_LETTERS.map(function (g) { return '<option value="' + g + '"' + (g === groupHint ? ' selected' : '') + '>' + g + '</option>'; }).join('') +
       '</select></div>';
-    html += '<div><label for="f-slot">Créneau</label><select id="f-slot">' + renderSlotOptions(slots, suggestedSlotIdx) + '</select></div>';
+    html += '<div><label for="f-slot">Session</label><select id="f-slot">' + renderSlotOptions(slots, suggestedSlotIdx) + '</select></div>';
     html += '</div>';
     html += '<div class="help-text" id="f-group-hint"' + (groupHint ? '' : ' style="display:none;"') + '>Groupe suggéré depuis la sortie associée : ' + escapeHtml(groupHint) + '.</div>';
-    html += '<div class="help-text" id="f-slot-hint"' + (suggestedSlotIdx !== -1 ? '' : ' style="display:none;"') + '>Créneau suggéré selon l\'heure actuelle — modifie si besoin.</div>';
+    html += '<div class="help-text" id="f-slot-hint"' + (suggestedSlotIdx !== -1 ? '' : ' style="display:none;"') + '>Session suggérée selon l\'heure actuelle — modifie si besoin.</div>';
     html += '<label for="f-laps">Chronos</label>' +
       '<textarea id="f-laps" placeholder="1:23.456' + String.fromCharCode(10) + '1:22.980' + String.fromCharCode(10) + '1:23.120" required></textarea>' +
       '<div class="help-text">Un chrono par ligne (ou séparés par une virgule) — tape juste les chiffres, les : et . s\'ajoutent automatiquement. Ex. 1 54 104 pour 1:54.104.</div>';
@@ -5316,7 +5321,6 @@
     var bikeEl = document.getElementById('f-bike');
     var lapsEl = document.getElementById('f-laps');
     var noteEl = document.getElementById('f-note');
-    var periodEl = document.getElementById('f-period');
     var groupEl = document.getElementById('f-group');
     var slotEl = document.getElementById('f-slot');
     var errEl = document.getElementById('form-error');
@@ -5330,7 +5334,6 @@
     var circuit = circuitEl ? circuitEl.value : selectedCircuit;
     var bike = bikeEl.value.trim();
     var note = noteEl.value.trim();
-    var period = periodEl ? periodEl.value : '';
     var group = groupEl ? groupEl.value : '';
     var rawLaps = lapsEl.value.split(/[\n,;]+/).map(function (s) { return s.trim(); }).filter(Boolean);
     var laps = [];
@@ -5360,7 +5363,6 @@
     var session = { id: genId(), rider: rider, date: date, circuit: circuit, laps: laps };
     if (bike) session.bike = bike;
     if (note) session.note = note;
-    if (period) session.period = period;
     if (group) session.group = group;
     // The precise timed slot (e.g. "9h40-10h00"), when one was picked --
     // re-derived from the current horaires/group rather than trusting the

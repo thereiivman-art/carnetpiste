@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Simuler une sortie de test — Carnet de Piste</title>
+<style>
+  body { font: 15px -apple-system, sans-serif; max-width: 640px; margin: 3rem auto; padding: 0 1rem; color: #16212c; }
+  label { display: block; margin-top: 1rem; font-weight: 600; }
+  input, select { font-size: 1rem; padding: 0.5rem; width: 100%; box-sizing: border-box; margin-top: 0.3rem; }
+  button { font-size: 1rem; padding: 0.6rem 1.2rem; cursor: pointer; margin-top: 1.2rem; }
+  #log { white-space: pre-wrap; background: #f2f2f2; padding: 1rem; margin-top: 1rem; font-family: monospace; font-size: 0.85rem; max-height: 400px; overflow: auto; }
+  .help { font-size: 0.82rem; color: #666; font-weight: 400; margin-top: 0.2rem; }
+  #step2 { display: none; }
+</style>
+</head>
+<body>
+<h1>Simuler une sortie de test</h1>
+<p>Configure une sortie existante pour qu'elle affiche en permanence toutes les fonctionnalités de Planning (horaires, groupes qui tournent, récap de la journée) quel que soit le moment où tu regardes l'app — pratique pour tester sans attendre une vraie sortie. Sans danger à relancer.</p>
+
+<div id="step1">
+  <label for="login-email">Email</label>
+  <input type="email" id="login-email" autocomplete="username">
+  <label for="login-password">Mot de passe</label>
+  <input type="password" id="login-password" autocomplete="current-password">
+  <button id="login-btn">Se connecter</button>
+</div>
+
+<div id="step2">
+  <label for="event-select">Sortie à simuler</label>
+  <select id="event-select"></select>
+  <div class="help">Sa plage de dates sera élargie pour couvrir n'importe quel jour de test, et ses horaires seront remplacés par un planning fictif.</div>
+
+  <label for="group-select">Mon groupe (celui du compte connecté)</label>
+  <select id="group-select">
+    <option value="A">A</option>
+    <option value="B">B</option>
+    <option value="C">C</option>
+    <option value="D">D</option>
+  </select>
+  <div class="help">Ce groupe aura des créneaux se terminant très tôt le matin, pour que le récap de fin de journée soit quasiment toujours visible. Les autres groupes tournent toute la journée pour que "Session en cours" ait toujours quelque chose à montrer.</div>
+
+  <label><input type="checkbox" id="seed-chronos-check" checked style="width:auto; display:inline; margin-right:0.5rem;">Ajouter 2-3 chronos de test pour aujourd'hui</label>
+
+  <button id="simulate-btn">Simuler cette sortie</button>
+</div>
+
+<div id="log"></div>
+
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore-compat.js"></script>
+<script src="firebase-config.js"></script>
+<script>
+  var logEl = document.getElementById('log');
+  function log(msg) { logEl.textContent += msg + '\n'; }
+
+  var db, auth, currentUid, currentName;
+
+  function dateKey(d) {
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  }
+  function addDays(d, n) {
+    var out = new Date(d);
+    out.setDate(out.getDate() + n);
+    return out;
+  }
+
+  document.getElementById('login-btn').addEventListener('click', function () {
+    db = firebase.firestore();
+    auth = firebase.auth();
+    var email = document.getElementById('login-email').value.trim();
+    var password = document.getElementById('login-password').value;
+    log('Connexion...');
+    auth.signInWithEmailAndPassword(email, password).then(function (cred) {
+      currentUid = cred.user.uid;
+      log('Connecté.');
+      return db.collection('users').doc(currentUid).get();
+    }).then(function (doc) {
+      currentName = doc.exists ? doc.data().name : null;
+      if (!currentName) { log('ERREUR : aucun profil pilote trouvé pour ce compte.'); return; }
+      log('Pilote : ' + currentName);
+      return db.collection('events').get();
+    }).then(function (snap) {
+      if (!snap) return;
+      var select = document.getElementById('event-select');
+      select.innerHTML = '';
+      snap.forEach(function (doc) {
+        var e = doc.data();
+        var opt = document.createElement('option');
+        opt.value = doc.id;
+        opt.textContent = (e.circuit || '?') + ' — ' + (e.dateStart || '?') + ' → ' + (e.dateEnd || e.dateStart || '?');
+        select.appendChild(opt);
+      });
+      if (!snap.size) { log('Aucune sortie trouvée — crée-en une dans l\'app d\'abord.'); return; }
+      document.getElementById('step1').style.display = 'none';
+      document.getElementById('step2').style.display = 'block';
+    }).catch(function (err) {
+      log('ERREUR : ' + (err && err.message ? err.message : err));
+    });
+  });
+
+  document.getElementById('simulate-btn').addEventListener('click', function () {
+    document.getElementById('simulate-btn').disabled = true;
+    var eventId = document.getElementById('event-select').value;
+    var myGroup = document.getElementById('group-select').value;
+    var seedChronos = document.getElementById('seed-chronos-check').checked;
+    var today = new Date();
+    var todayKey = dateKey(today);
+    var circuit; // set once the event doc loads, read again in the chrono-seeding step below
+
+    db.collection('events').doc(eventId).get().then(function (doc) {
+      if (!doc.exists) return Promise.reject(new Error('Sortie introuvable.'));
+      var ev = doc.data();
+      circuit = ev.circuit;
+      log('Sortie sur ' + circuit + '.');
+
+      // A wide date range so the sortie reads as "En cours" (Planning's
+      // "En ce moment") no matter which day this tool gets run on.
+      var wideStart = dateKey(addDays(today, -365));
+      var wideEnd = dateKey(addDays(today, 365));
+
+      // "Mon groupe" ends at 1h20 -- past that (essentially all day, every
+      // day) its slots are all in the past, so the daily recap and the
+      // "PRESSION PNEUS / ESSENCE" reminder show up. Every other group
+      // rotates in 20-min slots round the clock, so there's always a
+      // "Session en cours" to look at too.
+      var myGroupLine = '0h00, 0h20, 0h40, 1h00';
+      var otherGroupSlots = [];
+      for (var m = 0; m < 24 * 60; m += 20) {
+        otherGroupSlots.push(Math.floor(m / 60) + 'h' + String(m % 60).padStart(2, '0'));
+      }
+      var otherGroupLine = otherGroupSlots.join(', ');
+
+      var horaires = {};
+      ['A', 'B', 'C', 'D'].forEach(function (letter) {
+        horaires['group' + letter] = letter === myGroup ? myGroupLine : otherGroupLine;
+      });
+
+      var riderGroups = ev.riderGroups || {};
+      riderGroups[currentName] = riderGroups[currentName] || {};
+      riderGroups[currentName][todayKey] = { am: myGroup, pm: myGroup };
+      var riders = ev.riders || [];
+      if (riders.indexOf(currentName) === -1) riders.push(currentName);
+
+      var batch = db.batch();
+      batch.update(db.collection('events').doc(eventId), {
+        dateStart: wideStart,
+        dateEnd: wideEnd,
+        riders: riders,
+        riderGroups: riderGroups
+      });
+      batch.set(db.collection('circuits').doc(encodeURIComponent(circuit)), { name: circuit, horaires: horaires }, { merge: true });
+
+      log('Plage de dates élargie : ' + wideStart + ' → ' + wideEnd);
+      log('Groupe ' + myGroup + ' (le tien) : ' + myGroupLine);
+      log('Autres groupes : créneaux toutes les 20 min, 0h00-23h40.');
+      log(currentName + ' assigné au groupe ' + myGroup + ' pour aujourd\'hui (' + todayKey + ').');
+
+      // Committed on its own, separate from the chrono-seeding below: the
+      // rules only let a chrono be written by its own pilote or the admin,
+      // so a second rider's fake chrono can fail on a non-admin account --
+      // that shouldn't also roll back the sortie/horaires changes above,
+      // which is what sharing one batch would do.
+      return batch.commit();
+    }).then(function () {
+      if (!seedChronos) return null;
+      var sampleTimes = [
+        [83.456, 82.980, 83.120],
+        [85.230, 84.900]
+      ];
+      var names = [currentName];
+      // A second rider, if one already exists in the roster, makes the
+      // récap table (and its progression column) more realistic to look
+      // at than just a single row -- only added if this account can
+      // actually write a chrono under their name (admin), skipped
+      // otherwise rather than failing the whole run.
+      return db.collection('riders').get().then(function (ridersSnap) {
+        ridersSnap.forEach(function (rDoc) {
+          var n = rDoc.data().name;
+          if (n && n !== currentName && names.length < 2) names.push(n);
+        });
+        var seedBatch = db.batch();
+        names.forEach(function (name, i) {
+          var id = 'sim-' + eventId + '-' + todayKey + '-' + i;
+          seedBatch.set(db.collection('sessions').doc(id), {
+            id: id, rider: name, date: todayKey, circuit: circuit,
+            laps: sampleTimes[i % sampleTimes.length],
+            group: myGroup, note: 'Chrono de simulation'
+          });
+        });
+        return seedBatch.commit().then(function () {
+          log('Chronos de test ajoutés pour : ' + names.join(', ') + '.');
+        }).catch(function (err) {
+          log('Chronos de test non ajoutés (' + (err && err.message ? err.message : err) + ') -- connecte-toi avec le compte admin pour ça, ou ajoute-en un toi-même depuis l\'app.');
+        });
+      });
+    }).then(function () {
+      log('Terminé ! Ouvre l\'app et va dans Planning.');
+    }).catch(function (err) {
+      log('ERREUR : ' + (err && err.message ? err.message : err));
+    }).finally(function () {
+      document.getElementById('simulate-btn').disabled = false;
+    });
+  });
+</script>
+</body>
+</html>
