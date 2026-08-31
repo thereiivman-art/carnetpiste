@@ -24,6 +24,41 @@
   var autoVerifyEmailSent = false; // guards the auto-resend in onAuthStateChanged, see there
   var riderBikeMap = {}; // rider name -> their bike, from users/{uid}.bike (see startSync)
 
+  // name -> filleul count, fetched on demand (not live-synced) since it's
+  // only ever needed while an Achievements section for that name is on
+  // screen. undefined = not fetched yet, null = fetch in flight.
+  var filleulCounts = {};
+  function loadFilleulCount(name) {
+    if (!name || filleulCounts[name] !== undefined) return;
+    filleulCounts[name] = null;
+    db.collection('users').where('referredBy', '==', name).get().then(function (snap) {
+      filleulCounts[name] = snap.size;
+      renderRoot();
+    }).catch(function () {
+      filleulCounts[name] = 0;
+    });
+  }
+
+  // Parrainage (referral): whoever's name is in a ?ref= link that brought
+  // someone to signup becomes their parrain, written onto the new
+  // account once at signup (see onSignupSubmit). Captured once at load,
+  // before the auth screen even renders, and the query string is then
+  // dropped from the address bar so it doesn't linger through reloads.
+  var pendingReferrer = null;
+  (function captureReferrer() {
+    try {
+      var params = new URLSearchParams(window.location.search);
+      var ref = params.get('ref');
+      if (ref) {
+        pendingReferrer = ref;
+        params.delete('ref');
+        var qs = params.toString();
+        var newUrl = window.location.pathname + (qs ? '?' + qs : '') + window.location.hash;
+        window.history.replaceState(null, '', newUrl);
+      }
+    } catch (e) { /* URLSearchParams/history unsupported -- just skip parrainage silently */ }
+  })();
+
   // The one administrator (Xavier) can delete anything; everyone else can
   // still add/edit collaboratively (chronos, sorties, groupes, équipement)
   // but not remove a rider, a sortie, someone else's chrono, or a whole
@@ -610,19 +645,81 @@
   // fun milestones read straight off the rider's existing stats. Each one
   // has a short explanation so an unearned badge still tells you what to
   // aim for.
+  // One achievement: earned once current >= target. progressText is what
+  // actually shows on screen -- always the concrete number driving it
+  // ("3/5 circuits", "2 filleuls"), never just a plain yes/no, so it's
+  // obvious both why an earned badge unlocked and how close an unearned
+  // one is.
+  function achievementEntry(icon, label, description, current, target, unit) {
+    var earned = current >= target;
+    var progressText = (earned ? current : current + '/' + target) + (unit ? ' ' + unit : '');
+    return { icon: icon, label: label, description: description, earned: earned, progressText: progressText };
+  }
+
   function riderAchievements(riderName, stats) {
     var records = allCircuitRecordHolders();
-    var holdsARecord = Object.keys(records).some(function (c) { return records[c].rider === riderName; });
-    var bigGain = stats.bests.some(function (b) { return b.progression != null && b.progression <= -1; });
-    var regular = stats.bests.some(function (b) { return b.outings >= 3; });
+    var recordCount = Object.keys(records).filter(function (c) { return records[c].rider === riderName; }).length;
+    var maxOutingsOnOneCircuit = stats.bests.reduce(function (max, b) { return Math.max(max, b.outings); }, 0);
+    var maxGainSeconds = stats.bests.reduce(function (max, b) {
+      return b.progression != null && b.progression < 0 ? Math.max(max, -b.progression) : max;
+    }, 0);
+    var chronoCount = STATE.sessions.filter(function (s) { return s.rider === riderName; }).length;
+    loadFilleulCount(riderName);
+    var filleuls = filleulCounts[riderName] || 0;
     return [
-      { icon: '🏁', label: 'Premier chrono', earned: stats.bests.length > 0, description: 'Enregistrer un premier chrono.' },
-      { icon: '🌍', label: 'Globe-trotter', earned: stats.circuitsVisited >= 5, description: 'Rouler sur 5 circuits différents.' },
-      { icon: '📅', label: 'Habitué', earned: stats.trackDays >= 10, description: 'Cumuler 10 jours sur piste.' },
-      { icon: '🔥', label: 'Régulier', earned: regular, description: 'Revenir 3 fois ou plus sur le même circuit.' },
-      { icon: '🚀', label: 'Grosse progression', earned: bigGain, description: 'Gagner au moins 1 seconde sur un circuit depuis sa première sortie là-bas.' },
-      { icon: '🥇', label: 'Recordman', earned: holdsARecord, description: 'Détenir le record du groupe sur au moins un circuit.' }
+      achievementEntry('🏁', 'Premier chrono', 'Enregistrer un premier chrono.', stats.bests.length, 1),
+      achievementEntry('🌍', 'Globe-trotter', 'Rouler sur 5 circuits différents.', stats.circuitsVisited, 5, 'circuits'),
+      achievementEntry('🗺️', 'Grand voyageur', 'Rouler sur 10 circuits différents.', stats.circuitsVisited, 10, 'circuits'),
+      achievementEntry('📅', 'Habitué', 'Cumuler 10 jours sur piste.', stats.trackDays, 10, 'jours'),
+      achievementEntry('🎖️', 'Vétéran', 'Cumuler 30 jours sur piste.', stats.trackDays, 30, 'jours'),
+      achievementEntry('🔥', 'Régulier', 'Revenir 3 fois ou plus sur le même circuit.', maxOutingsOnOneCircuit, 3, 'sorties'),
+      achievementEntry('📈', 'Assidu', 'Enregistrer 20 chronos.', chronoCount, 20, 'chronos'),
+      achievementEntry('🚀', 'Grosse progression', 'Gagner au moins 1 seconde sur un circuit depuis sa première sortie là-bas.', Math.floor(maxGainSeconds), 1, 's gagnées'),
+      achievementEntry('⚡', 'Éclair', 'Gagner au moins 3 secondes sur un circuit depuis sa première sortie là-bas.', Math.floor(maxGainSeconds), 3, 's gagnées'),
+      achievementEntry('🥇', 'Recordman', 'Détenir le record du groupe sur au moins un circuit.', recordCount, 1, 'record(s)'),
+      achievementEntry('👑', 'Multi-recordman', 'Détenir le record du groupe sur 3 circuits ou plus.', recordCount, 3, 'records'),
+      achievementEntry('🤝', 'Parrain', 'Faire signer un premier filleul avec ton lien de parrainage.', filleuls, 1, 'filleul(s)'),
+      achievementEntry('👨‍👩‍👧', 'Grand parrain', 'Faire signer 5 filleuls avec ton lien de parrainage.', filleuls, 5, 'filleuls')
     ];
+  }
+
+  // Accompagnants don't ride, so their achievements are about following
+  // and supporting the group instead of lap times.
+  function accompagnantAchievements(profile) {
+    var followed = (profile.followedRiders || []).length;
+    var mediaLinksAdded = STATE.events.filter(function (ev) { return ev.mediaLinkAddedBy === profile.name; }).length;
+    loadFilleulCount(profile.name);
+    var filleuls = filleulCounts[profile.name] || 0;
+    return [
+      achievementEntry('👀', 'Premier suivi', 'Suivre au moins un pilote depuis Mon profil.', followed, 1, 'pilote(s)'),
+      achievementEntry('🧭', 'Supporter fidèle', 'Suivre 3 pilotes ou plus.', followed, 3, 'pilotes'),
+      achievementEntry('🔔', 'Toujours alerte', 'Activer les notifications de départ en piste.', profile.notifyBeforeSession ? 1 : 0, 1),
+      achievementEntry('📸', 'Reporter', 'Partager un lien photos/vidéos pour une sortie.', mediaLinksAdded, 1, 'sortie(s)'),
+      achievementEntry('🎬', 'Grand reporter', 'Partager un lien photos/vidéos pour 3 sorties.', mediaLinksAdded, 3, 'sorties'),
+      achievementEntry('🤝', 'Parrain', 'Faire signer un premier filleul avec ton lien de parrainage.', filleuls, 1, 'filleul(s)'),
+      achievementEntry('👨‍👩‍👧', 'Grand parrain', 'Faire signer 5 filleuls avec ton lien de parrainage.', filleuls, 5, 'filleuls')
+    ];
+  }
+
+  // Shared by pilote and accompagnant profiles -- a proper section (icon,
+  // title, always-visible description and the concrete progress behind
+  // it), not just a row of chips with a tooltip.
+  function renderAchievementsCard(achievements) {
+    var earnedCount = achievements.filter(function (a) { return a.earned; }).length;
+    var html = '<div class="card achievements-card">';
+    html += '<div class="achievements-head"><h2 class="section-title">🏆 Achievements</h2>' +
+      '<span class="help-text">' + earnedCount + '/' + achievements.length + ' débloqués</span></div>';
+    html += '<div class="achievements-list">';
+    achievements.forEach(function (a) {
+      html += '<div class="achievement-row' + (a.earned ? ' earned' : '') + '">' +
+        '<span class="achievement-icon">' + a.icon + '</span>' +
+        '<span class="achievement-body"><span class="achievement-title">' + escapeHtml(a.label) + '</span>' +
+        '<span class="achievement-desc">' + escapeHtml(a.description) + '</span></span>' +
+        '<span class="achievement-progress">' + escapeHtml(a.progressText) + '</span>' +
+        '</div>';
+    });
+    html += '</div></div>';
+    return html;
   }
 
   // Inline replacement for one row of the chronos history table -- every
@@ -797,10 +894,6 @@
     if (stats.lastSession) {
       html += infoRow('Dernière sortie', escapeHtml(stats.lastSession.circuit) + ' — ' + escapeHtml(formatDate(stats.lastSession.date)) + ' (' + formatTime(stats.lastSession.time) + ')');
     }
-    html += '<div class="best-times-title">Achievements</div>';
-    html += '<div class="achievements-row">' + riderAchievements(riderName, stats).map(function (a) {
-      return '<span class="achievement-badge' + (a.earned ? ' earned' : '') + '" title="' + escapeHtml(a.label + ' — ' + a.description) + '">' + a.icon + '<span class="achievement-label">' + escapeHtml(a.label) + '</span></span>';
-    }).join('') + '</div>';
     html += '<div class="best-times-title">Meilleurs temps par circuit</div>';
     if (!stats.bests.length) {
       html += '<div class="empty-inline">Aucun chrono enregistré.</div>';
@@ -819,6 +912,7 @@
       });
     }
     html += '</div>';
+    html += renderAchievementsCard(riderAchievements(riderName, stats));
     return html;
   }
 
@@ -949,7 +1043,21 @@
     if (profileEmailMessage) html += '<div class="help-text" style="margin-top:0.6rem;">' + escapeHtml(profileEmailMessage) + '</div>';
     html += '</form>';
     html += '</div>';
+    // Parrainage: sharing this link and someone signing up through it
+    // makes p the parrain -- see pendingReferrer/onSignupSubmit. The count
+    // below is a live Firestore query (users/{}.referredBy == p.name), not
+    // anything synced, hence the "..." while loadFilleulCount resolves it.
+    loadFilleulCount(p.name);
+    var filleulCount = filleulCounts[p.name];
+    html += '<div style="margin-top:1.2rem; border-top:1px solid var(--border); padding-top:0.9rem;">';
+    html += '<div class="section-title" style="font-size:0.95rem;">Parrainage</div>';
+    html += '<div class="help-text">Partage ce lien : la personne qui crée un compte en passant par lui te compte comme parrain.</div>';
+    html += '<div style="margin-top:0.6rem; display:flex; gap:0.5rem; flex-wrap:wrap;">' +
+      '<button type="button" class="ghost" id="copy-referral-link-btn">Copier mon lien de parrainage</button>' +
+      '<span class="help-text" style="display:inline; align-self:center;">' + (filleulCount == null ? '…' : filleulCount) + ' filleul' + (filleulCount === 1 ? '' : 's') + '</span></div>';
     html += '</div>';
+    html += '</div>';
+    if (isAccompagnant) html += renderAchievementsCard(accompagnantAchievements(p));
     return html;
   }
 
@@ -3528,6 +3636,7 @@
       html += infoRow('Aéroport', escapeHtml(ev.airport) + renderLocationActions(ev.airport));
     }
     if (ev.note) html += infoRow('Note', escapeHtml(ev.note));
+    html += renderMediaLinkSection(ev);
     // The circuit's own interactive map, so the annotated track is one tap
     // away from the sortie it belongs to, not just reachable from Circuit.
     html += '<div class="event-circuit-map"><div class="event-checklist-title">Carte du circuit</div>' + renderCircuitVisual(circuitInfo(ev.circuit), ev.circuit, ev.id) + '</div>';
@@ -3536,6 +3645,45 @@
     html += '<div class="event-detail-actions"><button type="button" class="ghost" id="edit-event-btn" data-id="' + ev.id + '">Modifier</button>' + deleteEventControl(ev.id) + '</div>';
     html += '</div>';
     return html;
+  }
+
+  // Photos/vidéos de la sortie -- one link per event (Drive, WeTransfer,
+  // an album, whatever), added by whoever was on the ground with a phone
+  // (usually the accompagnant, but not restricted to them -- same
+  // collaborative model as everything else here). Feeds the accompagnant's
+  // "Reporter" achievement below (see accompagnantAchievements).
+  var editingMediaLinkFor = null; // event id currently showing the edit form, or null
+  function renderMediaLinkSection(ev) {
+    if (editingMediaLinkFor === ev.id) {
+      return '<div class="media-link-edit">' +
+        '<label for="media-link-input">Lien photos/vidéos (Drive, WeTransfer...)</label>' +
+        '<input type="url" id="media-link-input" placeholder="https://..." value="' + escapeHtml(ev.mediaLink || '') + '">' +
+        '<div style="margin-top:0.5rem; display:flex; gap:0.5rem;">' +
+        '<button type="button" class="primary" data-action="save-media-link" data-id="' + ev.id + '">Enregistrer</button>' +
+        '<button type="button" class="ghost" data-action="cancel-media-link">Annuler</button></div></div>';
+    }
+    if (ev.mediaLink) {
+      return infoRow('Photos/vidéos', '<a class="ghost" href="' + escapeHtml(ev.mediaLink) + '" target="_blank" rel="noopener">📷 Ouvrir</a>' +
+        (ev.mediaLinkAddedBy ? ' <span class="help-text" style="display:inline;">— ajouté par ' + escapeHtml(ev.mediaLinkAddedBy) + '</span>' : '') +
+        ' <button type="button" class="ghost icon-btn" data-action="edit-media-link" data-id="' + ev.id + '" aria-label="Modifier le lien" title="Modifier">✎</button>');
+    }
+    return '<div style="margin-top:0.6rem;"><button type="button" class="ghost" data-action="edit-media-link" data-id="' + ev.id + '">📷 Ajouter un lien photos/vidéos</button></div>';
+  }
+
+  function saveMediaLink(eventId, url) {
+    var prevState = JSON.parse(JSON.stringify(STATE));
+    var ev = STATE.events.filter(function (e) { return e.id === eventId; })[0];
+    if (!ev) return;
+    if (url) {
+      ev.mediaLink = url;
+      ev.mediaLinkAddedBy = (currentUserProfile && currentUserProfile.name) || null;
+    } else {
+      delete ev.mediaLink;
+      delete ev.mediaLinkAddedBy;
+    }
+    editingMediaLinkFor = null;
+    renderRoot();
+    persist(prevState);
   }
 
   // Each row is its own accordion: clicking it opens its résumé (info,
@@ -4741,7 +4889,11 @@
           });
         }
         name = result.name;
-        return db.collection('users').doc(cred.user.uid).set({ name: name, role: role, email: email }).then(function () {
+        var profileDoc = { name: name, role: role, email: email };
+        // A parrain can't refer themselves -- someone opening their own
+        // link and signing up under the same name shouldn't count.
+        if (pendingReferrer && pendingReferrer !== name) profileDoc.referredBy = pendingReferrer;
+        return db.collection('users').doc(cred.user.uid).set(profileDoc).then(function () {
           if (role === 'pilote') {
             return db.collection('riders').doc(safeDocId(name)).set({ name: name }, { merge: true });
           }
@@ -4989,6 +5141,20 @@
         changeProfileEmail(newEmail, currentPassword);
       });
     }
+    var copyReferralBtn = document.getElementById('copy-referral-link-btn');
+    if (copyReferralBtn) {
+      copyReferralBtn.addEventListener('click', function () {
+        if (!currentUserProfile) return;
+        var link = window.location.origin + window.location.pathname + '?ref=' + encodeURIComponent(currentUserProfile.name);
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(link).then(function () {
+            showToast('Lien de parrainage copié.', 'success');
+          }).catch(function () {
+            showToast('Impossible de copier — copie-le manuellement : ' + link);
+          });
+        }
+      });
+    }
     document.querySelectorAll('[data-theme-choice]').forEach(function (btn) {
       btn.addEventListener('click', function () {
         setThemePref(btn.getAttribute('data-theme-choice'));
@@ -5207,6 +5373,25 @@
         renderRoot();
       });
     }
+    document.querySelectorAll('[data-action="edit-media-link"]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        editingMediaLinkFor = btn.getAttribute('data-id');
+        renderRoot();
+      });
+    });
+    var cancelMediaLinkBtn = document.querySelector('[data-action="cancel-media-link"]');
+    if (cancelMediaLinkBtn) {
+      cancelMediaLinkBtn.addEventListener('click', function () {
+        editingMediaLinkFor = null;
+        renderRoot();
+      });
+    }
+    document.querySelectorAll('[data-action="save-media-link"]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var input = document.getElementById('media-link-input');
+        saveMediaLink(btn.getAttribute('data-id'), input.value.trim());
+      });
+    });
     var addEventBtn = document.getElementById('add-event-btn');
     if (addEventBtn) {
       addEventBtn.addEventListener('click', function () {
