@@ -545,7 +545,12 @@
     if (!circuits.length) {
       selectedCircuit = null;
     } else if (!selectedCircuit || circuits.indexOf(selectedCircuit) === -1) {
-      selectedCircuit = mostRecentCircuit(circuits) || circuits[0];
+      // Default to the circuit of the ongoing or next sortie (what a rider
+      // is about to ride or is currently riding), not just whichever
+      // circuit last has a chrono logged against it.
+      var target = targetPlanningEvent();
+      var targetCircuit = target && target.ev && circuits.indexOf(target.ev.circuit) !== -1 ? target.ev.circuit : null;
+      selectedCircuit = targetCircuit || mostRecentCircuit(circuits) || circuits[0];
     }
     // Circuit/Chronos/Statistiques show either a single "pilote actif" or
     // the complete roster ("Tous les pilotes") — picked via the global
@@ -601,10 +606,16 @@
     riderEvents.forEach(function (ev) {
       datesInRange(ev.dateStart, ev.dateEnd || ev.dateStart).forEach(function (d) { trackDaySet[d] = true; });
     });
+    var trackDaysList = Object.keys(trackDaySet).sort();
+    var outingsList = riderEvents.slice().sort(function (a, b) { return a.dateStart < b.dateStart ? 1 : -1; })
+      .map(function (ev) { return { circuit: ev.circuit, dateStart: ev.dateStart, dateEnd: ev.dateEnd || ev.dateStart }; });
     return {
       circuitsVisited: circuitNames.length,
-      trackDays: Object.keys(trackDaySet).length,
+      circuitsList: circuitNames,
+      trackDays: trackDaysList.length,
+      trackDaysList: trackDaysList,
       outingsCount: riderEvents.length,
+      outingsList: outingsList,
       lastSession: lastSession ? { circuit: lastSession.circuit, date: lastSession.date, time: sessionBest(lastSession) } : null,
       // "progression" is the gain (negative) or loss (positive) between the
       // rider's very first outing on that circuit and their current best --
@@ -722,7 +733,7 @@
         '</div>';
     });
     inner += '</div>';
-    var title = '🏆 Achievements — ' + earnedCount + '/' + achievements.length + ' débloqués';
+    var title = '🏆 Trophées — ' + earnedCount + '/' + achievements.length + ' débloqués';
     return '<div class="card achievements-card">' + collapsibleSection(key, title, inner) + '</div>';
   }
 
@@ -886,14 +897,36 @@
     return html;
   }
 
+  // The total is always visible (it's the summary text, never hidden by
+  // the fold) -- only the underlying list is collapsed, to keep the stats
+  // card compact. Uses the same open/closed state map as Planning's
+  // collapsibleSection, keyed uniquely per rider so it doesn't cross-bleed.
+  function renderStatSummaryCategory(key, label, total, detailHtml) {
+    var open = planningSectionsOpen[key] ? ' open' : '';
+    return '<details class="stat-summary-category" data-planning-section="' + key + '"' + open + '>' +
+      '<summary><span class="stat-summary-label">' + escapeHtml(label) + '</span><span class="stat-summary-value">' + total + '</span></summary>' +
+      (detailHtml || '<div class="empty-inline">Aucune donnée.</div>') +
+      '</details>';
+  }
+
   function renderRiderStatsCard(riderName) {
     var stats = riderStats(riderName);
     var html = '<div class="card">';
     html += '<div class="rider-stat-name">' + escapeHtml(riderName) + '</div>';
-    html += '<div class="rider-stat-tiles">';
-    html += '<div class="mini-tile"><div class="stat-label">Circuits visités</div><div class="stat-value">' + stats.circuitsVisited + '</div></div>';
-    html += '<div class="mini-tile"><div class="stat-label">Jours sur piste</div><div class="stat-value">' + stats.trackDays + '</div></div>';
-    html += '<div class="mini-tile"><div class="stat-label">Sorties</div><div class="stat-value">' + stats.outingsCount + '</div></div>';
+    html += '<div class="rider-stat-summaries">';
+    html += renderStatSummaryCategory('outings-' + riderName, 'Sorties', stats.outingsCount,
+      !stats.outingsList.length ? '' : '<ul class="stat-detail-list">' + stats.outingsList.map(function (o) {
+        var range = o.dateStart === o.dateEnd ? formatDate(o.dateStart) : formatDate(o.dateStart) + ' → ' + formatDate(o.dateEnd);
+        return '<li>' + escapeHtml(o.circuit) + ' — ' + range + '</li>';
+      }).join('') + '</ul>');
+    html += renderStatSummaryCategory('circuits-' + riderName, 'Circuits visités', stats.circuitsVisited,
+      !stats.circuitsList.length ? '' : '<ul class="stat-detail-list">' + stats.circuitsList.map(function (c) {
+        return '<li>' + escapeHtml(c) + '</li>';
+      }).join('') + '</ul>');
+    html += renderStatSummaryCategory('trackdays-' + riderName, 'Jours sur piste', stats.trackDays,
+      !stats.trackDaysList.length ? '' : '<ul class="stat-detail-list">' + stats.trackDaysList.slice().reverse().map(function (d) {
+        return '<li>' + escapeHtml(formatDate(d)) + '</li>';
+      }).join('') + '</ul>');
     html += '</div>';
     if (stats.lastSession) {
       html += infoRow('Dernière sortie', escapeHtml(stats.lastSession.circuit) + ' — ' + escapeHtml(formatDate(stats.lastSession.date)) + ' (' + formatTime(stats.lastSession.time) + ')');
@@ -916,7 +949,6 @@
       });
     }
     html += '</div>';
-    html += renderAchievementsCard(riderAchievements(riderName, stats), 'achievements-' + riderName);
     return html;
   }
 
@@ -1002,9 +1034,23 @@
     }).join('') + '</div>';
   }
 
+  function renderProfileAvatar(p) {
+    var initial = escapeHtml((p.name || '?').trim().charAt(0).toUpperCase() || '?');
+    return '<div class="profile-avatar-row">' +
+      '<div class="profile-avatar">' + (p.photoURL ? '<img src="' + escapeHtml(p.photoURL) + '" alt="Photo de profil">' : '<span class="profile-avatar-placeholder">' + initial + '</span>') + '</div>' +
+      '<div class="profile-avatar-actions">' +
+        '<button type="button" class="ghost" id="profile-photo-btn">' + (p.photoURL ? 'Changer la photo' : 'Ajouter une photo') + '</button>' +
+        (p.photoURL ? '<button type="button" class="ghost" id="profile-photo-remove-btn">Retirer</button>' : '') +
+        '<input type="file" id="profile-photo-input" accept="image/*" style="display:none;">' +
+        (profilePhotoMessage ? '<div class="help-text">' + escapeHtml(profilePhotoMessage) + '</div>' : '') +
+      '</div>' +
+      '</div>';
+  }
+
   function renderProfileProfilTab(p, isAccompagnant) {
     var followed = p.followedRiders || [];
     var html = '<form id="profile-form">';
+    html += renderProfileAvatar(p);
     html += '<label for="profile-name">Nom</label><input type="text" id="profile-name" value="' + escapeHtml(p.name) + '" required>';
     html += '<div id="profile-name-number-wrap" style="display:' + (isAccompagnant ? 'none' : 'block') + '; margin-top:0.5rem;">' +
       '<label for="profile-name-number">N° (si un pilote porte déjà ce nom)</label>' +
@@ -1014,6 +1060,10 @@
       '<label><input type="radio" name="profile-role" value="pilote"' + (!isAccompagnant ? ' checked' : '') + '> Pilote</label>' +
       '<label><input type="radio" name="profile-role" value="accompagnant"' + (isAccompagnant ? ' checked' : '') + '> Accompagnant</label>' +
       '</div>';
+    html += renderAchievementsCard(
+      isAccompagnant ? accompagnantAchievements(p) : riderAchievements(p.name, riderStats(p.name)),
+      'achievements-profile-' + p.name
+    );
     html += '<div id="profile-bike-wrap" style="display:' + (isAccompagnant ? 'none' : 'block') + '; margin-top:0.9rem;">' +
       '<label for="profile-bike">Ma moto</label><input type="text" id="profile-bike" placeholder="Ex. ST 765 RS" value="' + escapeHtml(p.bike || '') + '">' +
       '<div class="help-text">Suggérée automatiquement quand tu entres un chrono.</div>' +
@@ -1035,7 +1085,6 @@
       '<button type="button" class="ghost" id="profile-cancel">Fermer</button></div>';
     if (profileSaveMessage) html += '<div class="help-text" style="margin-top:0.6rem;">' + escapeHtml(profileSaveMessage) + '</div>';
     html += '</form>';
-    if (isAccompagnant) html += renderAchievementsCard(accompagnantAchievements(p), 'achievements-profile-' + p.name);
     return html;
   }
 
@@ -1055,6 +1104,21 @@
     html += '<div style="margin-top:0.7rem;"><button type="submit" class="ghost">Changer mon email</button></div>';
     if (profileEmailMessage) html += '<div class="help-text" style="margin-top:0.6rem;">' + escapeHtml(profileEmailMessage) + '</div>';
     html += '</form>';
+    html += '</div>';
+    html += '<div class="danger-zone">';
+    html += '<div class="section-title" style="font-size:0.95rem;">Zone dangereuse</div>';
+    if (!profileDeleteConfirmOpen) {
+      html += '<div class="help-text">Supprime définitivement ton compte (accès et profil). Tes chronos déjà enregistrés restent visibles pour le groupe.</div>';
+      html += '<div style="margin-top:0.7rem;"><button type="button" class="ghost danger" id="delete-account-request-btn">Supprimer mon compte</button></div>';
+    } else {
+      html += '<form id="profile-delete-account-form">';
+      html += '<div class="help-text">Cette action est irréversible. Confirme avec ton mot de passe actuel.</div>';
+      html += '<label for="profile-delete-password" style="margin-top:0.6rem;">Mot de passe actuel</label><input type="password" id="profile-delete-password" autocomplete="current-password">';
+      html += '<div style="margin-top:0.7rem; display:flex; gap:0.6rem;"><button type="submit" class="ghost danger">Confirmer la suppression</button>' +
+        '<button type="button" class="ghost" id="delete-account-cancel-btn">Annuler</button></div>';
+      if (profileDeleteMessage) html += '<div class="help-text" style="margin-top:0.6rem;">' + escapeHtml(profileDeleteMessage) + '</div>';
+      html += '</form>';
+    }
     html += '</div>';
     return html;
   }
@@ -1202,6 +1266,47 @@
     });
   }
 
+  // Stored as a small base64 data URL directly on the users/{uid} doc --
+  // resized client-side first (see resizeImageToDataUrl) so it stays well
+  // under Firestore's 1MB document limit, avoiding a whole separate
+  // Firebase Storage setup (bucket rules, upload code) for a single avatar.
+  var profilePhotoMessage = '';
+  function savePhoto(dataUrl) {
+    var uid = auth.currentUser && auth.currentUser.uid;
+    if (!uid || !currentUserProfile) return;
+    db.collection('users').doc(uid).set({ photoURL: dataUrl || null }, { merge: true }).then(function () {
+      currentUserProfile.photoURL = dataUrl || null;
+      profilePhotoMessage = '';
+      renderRoot();
+    }).catch(function (err) {
+      profilePhotoMessage = 'Erreur : ' + (err && err.message ? err.message : err);
+      renderRoot();
+    });
+  }
+
+  // Downscales to at most maxSize on the longer side and re-encodes as a
+  // compressed JPEG -- a photo straight off a phone can be several MB, but
+  // an avatar only ever needs to be shown a few dozen pixels across.
+  function resizeImageToDataUrl(file, maxSize, quality, callback) {
+    var reader = new FileReader();
+    reader.onload = function () {
+      var img = new Image();
+      img.onload = function () {
+        var scale = Math.min(1, maxSize / Math.max(img.width, img.height));
+        var canvas = document.createElement('canvas');
+        canvas.width = Math.round(img.width * scale);
+        canvas.height = Math.round(img.height * scale);
+        var ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        callback(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.onerror = function () { callback(null); };
+      img.src = reader.result;
+    };
+    reader.onerror = function () { callback(null); };
+    reader.readAsDataURL(file);
+  }
+
   // Changing the sign-in email requires Firebase to see a recent
   // reauthentication, hence asking for the current password again here --
   // it's the same account, just a different credential check than signup.
@@ -1233,6 +1338,32 @@
       showToast('Email mis à jour — vérifie ta boîte mail pour confirmer la nouvelle adresse.', 'success');
     }).catch(function (err) {
       profileEmailMessage = translateAuthError(err);
+      renderRoot();
+    });
+  }
+
+  // Deleting the account only removes the users/{uid} profile doc and the
+  // Firebase Auth account itself -- past chronos and rider-roster entries
+  // stay (they're shared history other riders' stats/records depend on,
+  // and belong to the rider name, not the account). Requires the same
+  // fresh reauthentication as an email change.
+  var profileDeleteMessage = '';
+  function deleteMyAccount(currentPassword) {
+    var user = auth.currentUser;
+    if (!user || !currentUserProfile) return;
+    if (!currentPassword) {
+      profileDeleteMessage = 'Indique ton mot de passe actuel pour confirmer.';
+      renderRoot();
+      return;
+    }
+    var cred = firebase.auth.EmailAuthProvider.credential(user.email, currentPassword);
+    var uid = user.uid;
+    user.reauthenticateWithCredential(cred).then(function () {
+      return db.collection('users').doc(uid).delete();
+    }).then(function () {
+      return user.delete();
+    }).catch(function (err) {
+      profileDeleteMessage = translateAuthError(err);
       renderRoot();
     });
   }
@@ -4789,7 +4920,6 @@
           '</div>' +
           '<div class="header-controls">' +
             '<div class="live-clock" id="live-clock">--h--</div>' +
-            renderThemeToggle() +
           '</div>' +
         '</div>' +
         '<div class="account-bar">' +
@@ -5049,6 +5179,7 @@
   var pendingDeleteChecklistCategory = null;
   var profilePanelOpen = false; // pure UI state, not persisted
   var profileSubTab = 'profil'; // 'profil' | 'reglages' | 'aide' -- pure UI state, not persisted
+  var profileDeleteConfirmOpen = false; // pure UI state, not persisted
   var riderManagerOpen = false; // pure UI state, not persisted
   var editingRiderName = null; // rider currently shown as an inline rename form, or null
   var pendingDeleteRider = null; // rider armed for delete (click-to-confirm, like session delete)
@@ -5153,6 +5284,7 @@
     if (profileCancel) {
       profileCancel.addEventListener('click', function () {
         profilePanelOpen = false;
+        profileDeleteConfirmOpen = false;
         renderRoot();
       });
     }
@@ -5208,6 +5340,55 @@
         var newEmail = document.getElementById('profile-new-email').value.trim();
         var currentPassword = document.getElementById('profile-current-password').value;
         changeProfileEmail(newEmail, currentPassword);
+      });
+    }
+    var profilePhotoBtn = document.getElementById('profile-photo-btn');
+    var profilePhotoInput = document.getElementById('profile-photo-input');
+    if (profilePhotoBtn && profilePhotoInput) {
+      profilePhotoBtn.addEventListener('click', function () { profilePhotoInput.click(); });
+      profilePhotoInput.addEventListener('change', function () {
+        var file = profilePhotoInput.files && profilePhotoInput.files[0];
+        if (!file) return;
+        if (!/^image\//.test(file.type)) {
+          profilePhotoMessage = 'Choisis un fichier image.';
+          renderRoot();
+          return;
+        }
+        resizeImageToDataUrl(file, 200, 0.7, function (dataUrl) {
+          if (!dataUrl) {
+            profilePhotoMessage = 'Impossible de lire cette image.';
+            renderRoot();
+            return;
+          }
+          savePhoto(dataUrl);
+        });
+      });
+    }
+    var profilePhotoRemoveBtn = document.getElementById('profile-photo-remove-btn');
+    if (profilePhotoRemoveBtn) {
+      profilePhotoRemoveBtn.addEventListener('click', function () { savePhoto(null); });
+    }
+    var deleteAccountRequestBtn = document.getElementById('delete-account-request-btn');
+    if (deleteAccountRequestBtn) {
+      deleteAccountRequestBtn.addEventListener('click', function () {
+        profileDeleteConfirmOpen = true;
+        profileDeleteMessage = '';
+        renderRoot();
+      });
+    }
+    var deleteAccountCancelBtn = document.getElementById('delete-account-cancel-btn');
+    if (deleteAccountCancelBtn) {
+      deleteAccountCancelBtn.addEventListener('click', function () {
+        profileDeleteConfirmOpen = false;
+        profileDeleteMessage = '';
+        renderRoot();
+      });
+    }
+    var deleteAccountForm = document.getElementById('profile-delete-account-form');
+    if (deleteAccountForm) {
+      deleteAccountForm.addEventListener('submit', function (evt) {
+        evt.preventDefault();
+        deleteMyAccount(document.getElementById('profile-delete-password').value);
       });
     }
     var copyReferralBtn = document.getElementById('copy-referral-link-btn');
