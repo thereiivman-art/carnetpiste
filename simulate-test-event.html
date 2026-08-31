@@ -37,7 +37,7 @@
     <option value="C">C</option>
     <option value="D">D</option>
   </select>
-  <div class="help">Ce groupe aura des créneaux se terminant très tôt le matin, pour que le récap de fin de journée soit quasiment toujours visible. Les autres groupes tournent toute la journée pour que "Session en cours" ait toujours quelque chose à montrer.</div>
+  <div class="help">Les 4 groupes tournent à tour de rôle toute la journée (A puis B puis C puis D, 20 min chacun, jamais deux en même temps) -- il y a donc toujours une "Session en cours" à regarder, et le récap de fin de journée apparaît dès que le tien a fini son tour.</div>
 
   <label><input type="checkbox" id="seed-chronos-check" checked style="width:auto; display:inline; margin-right:0.5rem;">Ajouter 2-3 chronos de test pour aujourd'hui</label>
 
@@ -119,21 +119,24 @@
       var wideStart = dateKey(addDays(today, -365));
       var wideEnd = dateKey(addDays(today, 365));
 
-      // "Mon groupe" ends at 1h20 -- past that (essentially all day, every
-      // day) its slots are all in the past, so the daily recap and the
-      // "PRESSION PNEUS / ESSENCE" reminder show up. Every other group
-      // rotates in 20-min slots round the clock, so there's always a
-      // "Session en cours" to look at too.
-      var myGroupLine = '0h00, 0h20, 0h40, 1h00';
-      var otherGroupSlots = [];
+      // Real rotation: only one group is ever on track at a time -- A alone
+      // for 20 min, then B, then C, then D, then back to A, round the clock.
+      // Each group's own horaires line only lists its own slots (one every
+      // 80 min), so nothing overlaps. Whichever slot "now" falls into is
+      // that group's "Session en cours"; a group's slots are otherwise
+      // spread finely enough (18 turns/day each) that the connected
+      // pilote's own group reads as "finished" most of the time between
+      // its turns, which is what shows the daily recap / PRESSION PNEUS
+      // reminder.
+      var letters = ['A', 'B', 'C', 'D'];
+      var slotsByLetter = { A: [], B: [], C: [], D: [] };
       for (var m = 0; m < 24 * 60; m += 20) {
-        otherGroupSlots.push(Math.floor(m / 60) + 'h' + String(m % 60).padStart(2, '0'));
+        var turnLetter = letters[(m / 20) % 4];
+        slotsByLetter[turnLetter].push(Math.floor(m / 60) + 'h' + String(m % 60).padStart(2, '0'));
       }
-      var otherGroupLine = otherGroupSlots.join(', ');
-
       var horaires = {};
-      ['A', 'B', 'C', 'D'].forEach(function (letter) {
-        horaires['group' + letter] = letter === myGroup ? myGroupLine : otherGroupLine;
+      letters.forEach(function (letter) {
+        horaires['group' + letter] = slotsByLetter[letter].join(', ');
       });
 
       var riderGroups = ev.riderGroups || {};
@@ -152,8 +155,8 @@
       batch.set(db.collection('circuits').doc(encodeURIComponent(circuit)), { name: circuit, horaires: horaires }, { merge: true });
 
       log('Plage de dates élargie : ' + wideStart + ' → ' + wideEnd);
-      log('Groupe ' + myGroup + ' (le tien) : ' + myGroupLine);
-      log('Autres groupes : créneaux toutes les 20 min, 0h00-23h40.');
+      log('Rotation A → B → C → D toutes les 20 min, round the clock -- un seul groupe en piste à la fois.');
+      log('Groupe ' + myGroup + ' (le tien) : ' + horaires['group' + myGroup]);
       log(currentName + ' assigné au groupe ' + myGroup + ' pour aujourd\'hui (' + todayKey + ').');
 
       // Committed on its own, separate from the chrono-seeding below: the
