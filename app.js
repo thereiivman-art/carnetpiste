@@ -707,23 +707,23 @@
 
   // Shared by pilote and accompagnant profiles -- a proper section (icon,
   // title, always-visible description and the concrete progress behind
-  // it), not just a row of chips with a tooltip.
-  function renderAchievementsCard(achievements) {
+  // it), not just a row of chips with a tooltip. Collapsed by default
+  // (masquable) so it doesn't crowd out the profile itself -- key must be
+  // unique per rider/profile so open/closed state doesn't bleed between them.
+  function renderAchievementsCard(achievements, key) {
     var earnedCount = achievements.filter(function (a) { return a.earned; }).length;
-    var html = '<div class="card achievements-card">';
-    html += '<div class="achievements-head"><h2 class="section-title">🏆 Achievements</h2>' +
-      '<span class="help-text">' + earnedCount + '/' + achievements.length + ' débloqués</span></div>';
-    html += '<div class="achievements-list">';
+    var inner = '<div class="achievements-list">';
     achievements.forEach(function (a) {
-      html += '<div class="achievement-row' + (a.earned ? ' earned' : '') + '">' +
+      inner += '<div class="achievement-row' + (a.earned ? ' earned' : '') + '">' +
         '<span class="achievement-icon">' + a.icon + '</span>' +
         '<span class="achievement-body"><span class="achievement-title">' + escapeHtml(a.label) + '</span>' +
         '<span class="achievement-desc">' + escapeHtml(a.description) + '</span></span>' +
         '<span class="achievement-progress">' + escapeHtml(a.progressText) + '</span>' +
         '</div>';
     });
-    html += '</div></div>';
-    return html;
+    inner += '</div>';
+    var title = '🏆 Achievements — ' + earnedCount + '/' + achievements.length + ' débloqués';
+    return '<div class="card achievements-card">' + collapsibleSection(key, title, inner) + '</div>';
   }
 
   // Inline replacement for one row of the chronos history table -- every
@@ -916,7 +916,7 @@
       });
     }
     html += '</div>';
-    html += renderAchievementsCard(riderAchievements(riderName, stats));
+    html += renderAchievementsCard(riderAchievements(riderName, stats), 'achievements-' + riderName);
     return html;
   }
 
@@ -995,14 +995,16 @@
   // rider manager's rename -- and hits the same homonym guard as signup
   // (see riderBaseName/checkRiderNameCollision) if the new name collides
   // with someone else's.
-  function renderProfilePanel() {
-    if (!profilePanelOpen) return '';
-    var p = currentUserProfile;
-    var isAccompagnant = p.role === 'accompagnant';
+  function renderProfileTabBar() {
+    var tabs = [['profil', 'Profil'], ['reglages', 'Réglages'], ['aide', 'Aide']];
+    return '<div class="profile-tabs" role="tablist">' + tabs.map(function (t) {
+      return '<button type="button" class="profile-tab-btn' + (profileSubTab === t[0] ? ' active' : '') + '" role="tab" aria-selected="' + (profileSubTab === t[0]) + '" data-profile-tab="' + t[0] + '">' + t[1] + '</button>';
+    }).join('') + '</div>';
+  }
+
+  function renderProfileProfilTab(p, isAccompagnant) {
     var followed = p.followedRiders || [];
-    var html = '<div class="card profile-panel">';
-    html += '<div class="section-title">Mon profil</div>';
-    html += '<form id="profile-form">';
+    var html = '<form id="profile-form">';
     html += '<label for="profile-name">Nom</label><input type="text" id="profile-name" value="' + escapeHtml(p.name) + '" required>';
     html += '<div id="profile-name-number-wrap" style="display:' + (isAccompagnant ? 'none' : 'block') + '; margin-top:0.5rem;">' +
       '<label for="profile-name-number">N° (si un pilote porte déjà ce nom)</label>' +
@@ -1029,16 +1031,23 @@
       }).join('') + '</div>';
     }
     html += '</div>';
-    html += '<label class="checklist-item" style="margin-top:0.9rem;"><input type="checkbox" id="profile-notify"' + (p.notifyBeforeSession ? ' checked' : '') + '> <span id="profile-notify-label">' + (isAccompagnant ? 'Me notifier quand un pilote suivi va partir rouler' : 'Me notifier quand mon groupe va partir rouler') + '</span></label>';
-    html += '<div class="help-text" style="margin-top:0.4rem;">Nécessite d\'autoriser les notifications du navigateur, et que cet onglet reste ouvert.</div>';
     html += '<div style="margin-top:1rem; display:flex; gap:0.6rem;"><button type="submit" class="primary">Enregistrer</button>' +
       '<button type="button" class="ghost" id="profile-cancel">Fermer</button></div>';
     if (profileSaveMessage) html += '<div class="help-text" style="margin-top:0.6rem;">' + escapeHtml(profileSaveMessage) + '</div>';
     html += '</form>';
+    if (isAccompagnant) html += renderAchievementsCard(accompagnantAchievements(p), 'achievements-profile-' + p.name);
+    return html;
+  }
+
+  function renderProfileReglagesTab(p, isAccompagnant) {
+    var html = '<label class="checklist-item"><input type="checkbox" id="profile-notify"' + (p.notifyBeforeSession ? ' checked' : '') + '> <span id="profile-notify-label">' + (isAccompagnant ? 'Me notifier quand un pilote suivi va partir rouler' : 'Me notifier quand mon groupe va partir rouler') + '</span></label>';
+    html += '<div class="help-text" style="margin-top:0.4rem;">Nécessite d\'autoriser les notifications du navigateur, et que cet onglet reste ouvert.</div>';
+    html += '<div style="margin-top:1.1rem;"><label style="margin-bottom:0.4rem; display:block;">Thème</label>' + renderThemeToggle() + '</div>';
     // Separate form -- changing the sign-in email needs the current
     // password (Firebase requires a recent reauthentication for it), which
-    // has nothing to do with the profile fields saved above.
+    // has nothing to do with the notify/theme settings above.
     html += '<div style="margin-top:1.2rem; border-top:1px solid var(--border); padding-top:0.9rem;">';
+    html += '<div class="section-title" style="font-size:0.95rem;">Compte</div>';
     html += '<form id="profile-email-form">';
     html += '<label>Email actuel<input type="text" value="' + escapeHtml(p.email || '') + '" disabled></label>';
     html += '<label for="profile-new-email" style="margin-top:0.6rem;">Nouvel email</label><input type="email" id="profile-new-email" autocomplete="username">';
@@ -1047,6 +1056,10 @@
     if (profileEmailMessage) html += '<div class="help-text" style="margin-top:0.6rem;">' + escapeHtml(profileEmailMessage) + '</div>';
     html += '</form>';
     html += '</div>';
+    return html;
+  }
+
+  function renderProfileAideTab(p) {
     // Parrainage: sharing this link and someone signing up through it
     // makes p the parrain -- see pendingReferrer/onSignupSubmit. The count
     // below is a live Firestore query (users/{}.referredBy == p.name), not
@@ -1054,8 +1067,7 @@
     loadFilleulCount(p.name);
     var filleulCount = filleulCounts[p.name];
     var referralLink = referralLinkFor(p.name);
-    html += '<div style="margin-top:1.2rem; border-top:1px solid var(--border); padding-top:0.9rem;">';
-    html += '<div class="section-title" style="font-size:0.95rem;">Parrainage</div>';
+    var html = '<div class="section-title" style="font-size:0.95rem;">Parrainage</div>';
     html += '<div class="help-text">Chaque inscription via ton lien ou ton QR code te compte automatiquement comme parrain.</div>';
     html += '<div class="referral-panel">';
     html += '<img class="referral-qr" src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=' + encodeURIComponent(referralLink) + '" alt="QR code du lien de parrainage" width="140" height="140">';
@@ -1074,9 +1086,26 @@
         (reached ? '✓' : m[0]) + ' — ' + m[0] + ' filleul' + (m[0] > 1 ? 's' : '') + ' — badge ' + escapeHtml(m[1]) + '</div>';
     });
     html += '</div>';
+    html += '<div style="margin-top:1.2rem; border-top:1px solid var(--border); padding-top:0.9rem;">';
+    html += '<div class="section-title" style="font-size:0.95rem;">À propos</div>';
+    html += '<div class="help-text">Carnet de Piste centralise le planning des sorties, les groupes/horaires, tes chronos et ta progression entre pilotes et accompagnants — le tout à jour en temps réel pour tout le monde.</div>';
+    html += '</div>';
+    return html;
+  }
+
+  function renderProfilePanel() {
+    if (!profilePanelOpen) return '';
+    var p = currentUserProfile;
+    var isAccompagnant = p.role === 'accompagnant';
+    var html = '<div class="card profile-panel">';
+    html += '<div class="section-title">Mon profil</div>';
+    html += renderProfileTabBar();
+    html += '<div class="profile-tab-body">';
+    if (profileSubTab === 'reglages') html += renderProfileReglagesTab(p, isAccompagnant);
+    else if (profileSubTab === 'aide') html += renderProfileAideTab(p);
+    else html += renderProfileProfilTab(p, isAccompagnant);
     html += '</div>';
     html += '</div>';
-    if (isAccompagnant) html += renderAchievementsCard(accompagnantAchievements(p));
     return html;
   }
 
@@ -5019,6 +5048,7 @@
   var pendingDeleteEvent = null;
   var pendingDeleteChecklistCategory = null;
   var profilePanelOpen = false; // pure UI state, not persisted
+  var profileSubTab = 'profil'; // 'profil' | 'reglages' | 'aide' -- pure UI state, not persisted
   var riderManagerOpen = false; // pure UI state, not persisted
   var editingRiderName = null; // rider currently shown as an inline rename form, or null
   var pendingDeleteRider = null; // rider armed for delete (click-to-confirm, like session delete)
@@ -5059,6 +5089,22 @@
         renderRoot();
       });
     }
+    // In the Réglages tab (no surrounding <form>, no Enregistrer button) --
+    // saves immediately on toggle, unlike the Profil tab's fields.
+    var reglagesNotify = document.getElementById('profile-notify');
+    if (reglagesNotify && !document.getElementById('profile-form')) {
+      reglagesNotify.addEventListener('change', function () {
+        var p = currentUserProfile;
+        saveProfile(p.role, reglagesNotify.checked, p.followedRiders || [], p.bike, p.bikeNumber, p.name, '');
+        showToast(reglagesNotify.checked ? 'Notifications activées.' : 'Notifications désactivées.', 'success');
+      });
+    }
+    document.querySelectorAll('[data-profile-tab]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        profileSubTab = btn.getAttribute('data-profile-tab');
+        renderRoot();
+      });
+    });
     var accountManagerToggle = document.getElementById('account-manager-toggle');
     if (accountManagerToggle) {
       accountManagerToggle.addEventListener('click', function () {
@@ -5115,7 +5161,11 @@
       profileForm.addEventListener('submit', function (evt) {
         evt.preventDefault();
         var role = profileForm.querySelector('input[name="profile-role"]:checked').value;
-        var notify = document.getElementById('profile-notify').checked;
+        // The notify checkbox lives in the Réglages tab (saved instantly on
+        // change, see profile-notify's own handler below), not in this form
+        // -- fall back to the already-saved value when it's not in the DOM.
+        var notifyEl = document.getElementById('profile-notify');
+        var notify = notifyEl ? notifyEl.checked : !!currentUserProfile.notifyBeforeSession;
         var bikeEl = document.getElementById('profile-bike');
         var bike = bikeEl ? bikeEl.value.trim() : '';
         var bikeNumberEl = document.getElementById('profile-bike-number');
