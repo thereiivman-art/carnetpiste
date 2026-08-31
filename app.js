@@ -771,6 +771,32 @@
     ];
   }
 
+  // Organisateurs don't ride either, but unlike an accompagnant their
+  // activity is about running sorties -- counted off the "Organisateur"
+  // free-text field every sortie already carries (see renderEventForm),
+  // matched against this account's own name. No schema change: an
+  // organisateur just signs their sorties with the same name they signed
+  // up under.
+  function organisateurAchievements(profile) {
+    var organized = STATE.events.filter(function (ev) { return ev.organizer === profile.name; });
+    var circuitsOrganized = {};
+    organized.forEach(function (ev) { if (ev.circuit) circuitsOrganized[ev.circuit] = true; });
+    var mediaLinksAdded = STATE.events.filter(function (ev) { return ev.mediaLinkAddedBy === profile.name; }).length;
+    loadFilleulCount(profile.name);
+    var filleuls = filleulCounts[profile.name] || 0;
+    return [
+      achievementEntry('🏁', 'Premier événement', 'Organiser une sortie (champ "Organisateur" de la sortie = ton nom).', organized.length, 1, 'sortie(s)'),
+      achievementEntry('📋', 'Organisateur confirmé', 'Organiser 5 sorties.', organized.length, 5, 'sorties'),
+      achievementEntry('🏆', 'Organisateur chevronné', 'Organiser 15 sorties.', organized.length, 15, 'sorties'),
+      achievementEntry('🗺️', 'Multi-circuits', 'Organiser des sorties sur 3 circuits différents.', Object.keys(circuitsOrganized).length, 3, 'circuits'),
+      achievementEntry('🔔', 'Toujours alerte', 'Activer les notifications de départ en piste.', profile.notifyBeforeSession ? 1 : 0, 1),
+      achievementEntry('📸', 'Reporter', 'Partager un lien photos/vidéos pour une sortie.', mediaLinksAdded, 1, 'sortie(s)'),
+      achievementEntry('🎬', 'Grand reporter', 'Partager un lien photos/vidéos pour 3 sorties.', mediaLinksAdded, 3, 'sorties'),
+      achievementEntry('🤝', 'Parrain', 'Faire signer un premier filleul avec ton lien de parrainage.', filleuls, 1, 'filleul(s)'),
+      achievementEntry('👨‍👩‍👧', 'Grand parrain', 'Faire signer 5 filleuls avec ton lien de parrainage.', filleuls, 5, 'filleuls')
+    ];
+  }
+
   // Shared by pilote and accompagnant profiles -- a proper section (icon,
   // title, always-visible description and the concrete progress behind
   // it), not just a row of chips with a tooltip. Collapsed by default
@@ -1104,6 +1130,31 @@
       '</div>';
   }
 
+  // A concrete list of what the role actually unlocks, plus shortcuts to
+  // go do it -- otherwise "Organisateur" would just be a label with
+  // nothing behind it. These actions aren't exclusive to organisateurs at
+  // the Firestore-rules level (any verified account can already create a
+  // sortie or edit a circuit) -- this is the organisateur's dedicated
+  // starting point for them, not a new permission.
+  function renderOrganizerHub() {
+    var html = '<div class="card organizer-hub">';
+    html += '<div class="section-title" style="font-size:0.95rem;">Espace organisateur</div>';
+    html += '<div class="help-text">En tant qu\'organisateur, tu peux :</div>';
+    html += '<ul class="organizer-hub-list">' +
+      '<li>Créer et gérer les sorties : dates, horaires, groupes, hôtel, vols</li>' +
+      '<li>Renseigner le champ "Organisateur" d\'une sortie avec ton nom pour qu\'elle compte dans tes trophées</li>' +
+      '<li>Gérer la fiche d\'un circuit (plan, infos, horaires par défaut)</li>' +
+      '<li>Partager un lien photos/vidéos après une sortie</li>' +
+      '<li>Suivre des pilotes et être notifié de leurs départs, comme un accompagnant</li>' +
+      '</ul>';
+    html += '<div style="margin-top:0.8rem; display:flex; gap:0.6rem; flex-wrap:wrap;">' +
+      '<button type="button" class="ghost" data-action="goto-events">Aller à Événements</button>' +
+      '<button type="button" class="ghost" data-action="goto-circuit">Aller à Chronos/Circuit</button>' +
+      '</div>';
+    html += '</div>';
+    return html;
+  }
+
   function renderProfileProfilTab(p) {
     // "Accompagnant" and "Organisateur" both mean "doesn't ride" for the
     // rest of the form (no moto, no name-number, follows riders instead of
@@ -1123,10 +1174,10 @@
       '<label><input type="radio" name="profile-role" value="accompagnant"' + (p.role === 'accompagnant' ? ' checked' : '') + '> Accompagnant</label>' +
       '<label><input type="radio" name="profile-role" value="organisateur"' + (p.role === 'organisateur' ? ' checked' : '') + '> Organisateur</label>' +
       '</div>';
-    html += renderAchievementsCard(
-      isNonRider ? accompagnantAchievements(p) : riderAchievements(p.name, riderStats(p.name)),
-      'achievements-profile-' + p.name
-    );
+    var achievements = p.role === 'organisateur' ? organisateurAchievements(p)
+      : (p.role === 'accompagnant' ? accompagnantAchievements(p) : riderAchievements(p.name, riderStats(p.name)));
+    html += renderAchievementsCard(achievements, 'achievements-profile-' + p.name);
+    if (p.role === 'organisateur') html += renderOrganizerHub();
     html += '<div id="profile-bike-wrap" style="display:' + (isNonRider ? 'none' : 'block') + '; margin-top:0.9rem;">' +
       '<label for="profile-bike">Ma moto</label><input type="text" id="profile-bike" placeholder="Ex. ST 765 RS" value="' + escapeHtml(p.bike || '') + '">' +
       '<div class="help-text">Suggérée automatiquement quand tu entres un chrono.</div>' +
@@ -1236,21 +1287,26 @@
     return html;
   }
 
-  // ---- Gestion des comptes accompagnant (admin) ----
+  // ---- Gestion des comptes (admin) ----
   //
-  // Riders (STATE.riders) already have their own admin panel; this one is
-  // for the users/{uid} accounts themselves -- specifically accompagnants,
-  // who don't otherwise show up anywhere an admin could keep an eye on
-  // them or walk one back to a pilote/remove their access.
+  // Riders (STATE.riders) already have their own admin panel (rename/
+  // delete a rider identity); this one is for the users/{uid} accounts
+  // themselves -- every role, pilote included -- since that's otherwise
+  // nowhere an admin can see an account, walk its role back, or remove its
+  // access. The admin's own account never appears here (see isAdmin());
+  // they manage themselves from Mon profil like everyone else.
   var accountManagerOpen = false;
-  var accompagnantAccounts = null; // null = not loaded yet; array once fetched
+  var manageableAccounts = null; // null = not loaded yet; array once fetched
   var accountManagerError = '';
   var pendingDeleteAccountUid = null;
 
-  function loadAccompagnantAccounts() {
+  function loadManageableAccounts() {
     accountManagerError = '';
-    db.collection('users').where('role', 'in', ['accompagnant', 'organisateur']).get().then(function (snap) {
-      accompagnantAccounts = snap.docs.map(function (doc) { return Object.assign({ uid: doc.id }, doc.data()); });
+    db.collection('users').get().then(function (snap) {
+      manageableAccounts = snap.docs
+        .map(function (doc) { return Object.assign({ uid: doc.id }, doc.data()); })
+        .filter(function (a) { return a.email !== ADMIN_EMAIL; })
+        .sort(function (a, b) { return (a.name || '').localeCompare(b.name || ''); });
       renderRoot();
     }).catch(function (err) {
       accountManagerError = 'Erreur : ' + (err && err.message ? err.message : err);
@@ -1261,19 +1317,22 @@
   function renderAccountManagerPanel() {
     if (!accountManagerOpen) return '';
     var html = '<div class="card account-manager-panel">';
-    html += '<div class="section-title">Comptes accompagnant / organisateur</div>';
-    if (accompagnantAccounts === null) {
+    html += '<div class="section-title">Gestion des comptes</div>';
+    if (manageableAccounts === null) {
       html += '<div class="help-text">Chargement...</div>';
-    } else if (!accompagnantAccounts.length) {
-      html += '<div class="help-text">Aucun compte accompagnant ou organisateur pour l\'instant.</div>';
+    } else if (!manageableAccounts.length) {
+      html += '<div class="help-text">Aucun compte pour l\'instant.</div>';
     } else {
-      html += '<ul class="rider-manager-list">' + accompagnantAccounts.map(function (a) {
+      html += '<ul class="rider-manager-list">' + manageableAccounts.map(function (a) {
         var isPendingDelete = pendingDeleteAccountUid === a.uid;
-        var followed = (a.followedRiders || []).join(', ') || '—';
+        var isPilote = !a.role || a.role === 'pilote';
+        var detail = isPilote ? escapeHtml(a.bike || '—') : escapeHtml((a.followedRiders || []).join(', ') || '—');
+        var certifiedHtml = a.certified ? ' <span class="certified-badge" title="Compte certifié">✓</span>' : '';
         return '<li class="rider-manager-row account-manager-row">' +
-          '<div><span class="rider-manager-name">' + escapeHtml(a.name || a.email) + '</span> <span class="friend-role-badge">' + roleLabel(a.role) + '</span>' +
-          '<div class="help-text">' + escapeHtml(a.email || '') + ' · suit : ' + escapeHtml(followed) + '</div></div>' +
-          '<button type="button" class="ghost icon-btn" data-action="demote-account" data-uid="' + a.uid + '" aria-label="Repasser en pilote" title="Repasser en pilote">↺</button>' +
+          '<div><span class="rider-manager-name">' + escapeHtml(a.name || a.email) + '</span>' + certifiedHtml + ' <span class="friend-role-badge">' + roleLabel(a.role) + '</span>' +
+          '<div class="help-text">' + escapeHtml(a.email || '') + ' · ' + (isPilote ? 'moto : ' : 'suit : ') + detail + '</div></div>' +
+          (isPilote ? '' : '<button type="button" class="ghost icon-btn" data-action="demote-account" data-uid="' + a.uid + '" aria-label="Repasser en pilote" title="Repasser en pilote">↺</button>') +
+          '<button type="button" class="ghost icon-btn' + (a.certified ? ' confirm' : '') + '" data-action="toggle-certify-account" data-uid="' + a.uid + '" aria-label="' + (a.certified ? 'Retirer la certification' : 'Certifier ce compte') + '" title="' + (a.certified ? 'Retirer la certification' : 'Certifier ce compte') + '">✓</button>' +
           '<button type="button" class="ghost icon-btn' + (isPendingDelete ? ' confirm' : '') + '" data-action="delete-account-request" data-uid="' + a.uid + '" aria-label="Supprimer ce compte" title="Retirer l\'accès">' + (isPendingDelete ? '✓' : '×') + '</button>' +
           '</li>';
       }).join('') + '</ul>';
@@ -4966,6 +5025,14 @@
     return 'Pilote';
   }
 
+  // The one admin account is always certified, without needing its own
+  // `certified` field set (or a way to set it -- the admin's own account
+  // never shows up in the account manager to toggle it there). Everyone
+  // else is certified only once the admin flips it on for them.
+  function isCertified(u) {
+    return !!(u && (u.certified || u.email === ADMIN_EMAIL));
+  }
+
   // A friend's name only jumps to Statistiques (renderRiderLink) when
   // they're a pilote -- normalizeSelection() only ever accepts a rider
   // from allKnownRiders() (pilotes only) as the single selection, so
@@ -4976,7 +5043,7 @@
     var isPilote = !u.role || u.role === 'pilote';
     var nameHtml = isPilote ? renderRiderLink(name) : '<span class="friend-name-plain">' + escapeHtml(name) + '</span>';
     return '<div class="friend-row">' +
-      '<div class="friend-row-main">' + nameHtml + '<span class="friend-role-badge">' + roleLabel(u.role) + '</span></div>' +
+      '<div class="friend-row-main">' + nameHtml + (isCertified(u) ? ' <span class="certified-badge" title="Profil certifié">✓</span>' : '') + '<span class="friend-role-badge">' + roleLabel(u.role) + '</span></div>' +
       '<div class="friend-row-actions">' + actionsHtml + '</div>' +
       '</div>';
   }
@@ -5082,10 +5149,10 @@
           '</div>' +
         '</div>' +
         '<div class="account-bar">' +
-          '<span class="account-bar-identity">' + escapeHtml(currentUserProfile.name) + ' · ' + roleLabel(currentUserProfile.role) + '</span>' +
+          '<span class="account-bar-identity">' + escapeHtml(currentUserProfile.name) + (isCertified(currentUserProfile) ? ' <span class="certified-badge" title="Profil certifié">✓</span>' : '') + ' · ' + roleLabel(currentUserProfile.role) + '</span>' +
           '<span class="account-bar-actions">' +
             '<button type="button" class="ghost account-bar-btn" id="profile-toggle">Mon profil</button>' +
-            (isAdmin() ? '<button type="button" class="ghost account-bar-btn" id="account-manager-toggle">Comptes accompagnant</button>' : '') +
+            (isAdmin() ? '<button type="button" class="ghost account-bar-btn" id="account-manager-toggle">Gestion des comptes</button>' : '') +
             '<button type="button" class="ghost account-bar-btn" id="logout-btn">Se déconnecter</button>' +
           '</span>' +
         '</div>' +
@@ -5396,23 +5463,39 @@
         renderRoot();
       });
     });
+    var gotoEventsBtn = document.querySelector('[data-action="goto-events"]');
+    if (gotoEventsBtn) {
+      gotoEventsBtn.addEventListener('click', function () {
+        activeView = 'event';
+        profilePanelOpen = false;
+        renderRoot();
+      });
+    }
+    var gotoCircuitBtn = document.querySelector('[data-action="goto-circuit"]');
+    if (gotoCircuitBtn) {
+      gotoCircuitBtn.addEventListener('click', function () {
+        activeView = 'circuit';
+        profilePanelOpen = false;
+        renderRoot();
+      });
+    }
     var accountManagerToggle = document.getElementById('account-manager-toggle');
     if (accountManagerToggle) {
       accountManagerToggle.addEventListener('click', function () {
         accountManagerOpen = !accountManagerOpen;
-        if (accountManagerOpen && accompagnantAccounts === null) loadAccompagnantAccounts();
+        if (accountManagerOpen && manageableAccounts === null) loadManageableAccounts();
         renderRoot();
       });
     }
     document.querySelectorAll('[data-action="demote-account"]').forEach(function (btn) {
       btn.addEventListener('click', function () {
         var uid = btn.getAttribute('data-uid');
-        var account = (accompagnantAccounts || []).filter(function (a) { return a.uid === uid; })[0];
+        var account = (manageableAccounts || []).filter(function (a) { return a.uid === uid; })[0];
         if (!account) return;
         db.collection('users').doc(uid).set({ role: 'pilote' }, { merge: true }).then(function () {
           if (account.name) return db.collection('riders').doc(safeDocId(account.name)).set({ name: account.name }, { merge: true });
         }).then(function () {
-          accompagnantAccounts = accompagnantAccounts.filter(function (a) { return a.uid !== uid; });
+          manageableAccounts = manageableAccounts.filter(function (a) { return a.uid !== uid; });
           showToast(account.name + ' est maintenant Pilote.', 'success');
           renderRoot();
         }).catch(function (err) {
@@ -5426,7 +5509,7 @@
         var uid = btn.getAttribute('data-uid');
         if (pendingDeleteAccountUid === uid) {
           db.collection('users').doc(uid).delete().then(function () {
-            accompagnantAccounts = accompagnantAccounts.filter(function (a) { return a.uid !== uid; });
+            manageableAccounts = manageableAccounts.filter(function (a) { return a.uid !== uid; });
             pendingDeleteAccountUid = null;
             showToast('Accès retiré.', 'success');
             renderRoot();
@@ -5438,6 +5521,22 @@
           pendingDeleteAccountUid = uid;
           renderRoot();
         }
+      });
+    });
+    document.querySelectorAll('[data-action="toggle-certify-account"]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var uid = btn.getAttribute('data-uid');
+        var account = (manageableAccounts || []).filter(function (a) { return a.uid === uid; })[0];
+        if (!account) return;
+        var next = !account.certified;
+        db.collection('users').doc(uid).set({ certified: next }, { merge: true }).then(function () {
+          account.certified = next;
+          showToast(next ? (account.name + ' est maintenant certifié.') : (account.name + ' n\'est plus certifié.'), 'success');
+          renderRoot();
+        }).catch(function (err) {
+          accountManagerError = 'Erreur : ' + (err && err.message ? err.message : err);
+          renderRoot();
+        });
       });
     });
     var profileCancel = document.getElementById('profile-cancel');
