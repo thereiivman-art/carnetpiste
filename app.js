@@ -1710,7 +1710,7 @@
           '<button type="button" class="circuit-visual-btn" id="open-annot-btn" data-circuit="' + escapeHtml(circuitName) + '"' + (eventId ? ' data-event-id="' + eventId + '"' : '') + ' aria-label="Annoter le tracé du circuit">' +
             '<img src="' + info.mapImage + '" alt="Tracé de ' + escapeHtml(circuitName) + '">' +
           '</button>' +
-          '<div class="circuit-visual-caption">Toucher pour annoter</div>' +
+          '<div class="circuit-visual-caption">' + ((currentUserProfile && currentUserProfile.role === 'accompagnant' && !isAdmin() && !eventId) ? 'Toucher pour voir/marquer le plan accompagnant' : 'Toucher pour annoter') + '</div>' +
         '</div>'
       );
     }
@@ -1794,12 +1794,26 @@
   function isEventLevelId(sessionId) { return typeof sessionId === 'string' && sessionId.indexOf(ANNOT_EVENT_PREFIX) === 0; }
   function eventIdFromLevelId(sessionId) { return sessionId.slice(ANNOT_EVENT_PREFIX.length); }
 
+  // A fourth level: one accompagnant-facing plan per circuit, independent
+  // of any sortie/session -- toilettes, douches, buvette/restaurant, point
+  // de vue, paddock/box, marked once and valid for every future outing at
+  // that circuit rather than redrawn per event. Stored on the circuit doc
+  // (STATE.circuits[circuit].accompagnantDrawing), same place as the
+  // circuit-level plan but a separate field/layer.
+  var ANNOT_ACCOMPAGNANT_LEVEL = '__accompagnant__';
+
   function openAnnotation(circuit, eventId) {
     var sessions = circuitSessionsDesc(circuit);
     annot.open = true;
     annot.circuit = circuit;
     annot.eventId = eventId || null;
-    annot.sessionId = eventId ? eventLevelSessionId(eventId) : (sessions.length ? sessions[0].id : ANNOT_CIRCUIT_LEVEL);
+    if (eventId) {
+      annot.sessionId = eventLevelSessionId(eventId);
+    } else if (currentUserProfile && currentUserProfile.role === 'accompagnant' && !isAdmin()) {
+      annot.sessionId = ANNOT_ACCOMPAGNANT_LEVEL;
+    } else {
+      annot.sessionId = sessions.length ? sessions[0].id : ANNOT_CIRCUIT_LEVEL;
+    }
     annot.tool = 'brush';
     renderAnnotationOverlay();
   }
@@ -1909,6 +1923,8 @@
     }
     options += '<option value="' + ANNOT_CIRCUIT_LEVEL + '"' + (annot.sessionId === ANNOT_CIRCUIT_LEVEL ? ' selected' : '') + '>' +
       'Plan général' + (info.drawing ? ' ✎' : '') + '</option>';
+    options += '<option value="' + ANNOT_ACCOMPAGNANT_LEVEL + '"' + (annot.sessionId === ANNOT_ACCOMPAGNANT_LEVEL ? ' selected' : '') + '>' +
+      'Plan accompagnant' + (info.accompagnantDrawing ? ' ✎' : '') + '</option>';
     options += sessions.map(function (s) {
       var label = formatDate(s.date) + ' — ' + formatTime(sessionBest(s)) + (showRiderInOption ? ' — ' + s.rider : '') + (s.drawing ? ' ✎' : '');
       return '<option value="' + s.id + '"' + (s.id === annot.sessionId ? ' selected' : '') + '>' + escapeHtml(label) + '</option>';
@@ -2007,9 +2023,11 @@
     annotBaseImageVisible = false;
     var existingDrawing = annot.sessionId === ANNOT_CIRCUIT_LEVEL
       ? circuitInfo(annot.circuit).drawing
-      : isEventLevelId(annot.sessionId)
-        ? (eventsList().filter(function (e) { return e.id === eventIdFromLevelId(annot.sessionId); })[0] || {}).drawing
-        : (STATE.sessions.filter(function (s) { return s.id === annot.sessionId; })[0] || {}).drawing;
+      : annot.sessionId === ANNOT_ACCOMPAGNANT_LEVEL
+        ? circuitInfo(annot.circuit).accompagnantDrawing
+        : isEventLevelId(annot.sessionId)
+          ? (eventsList().filter(function (e) { return e.id === eventIdFromLevelId(annot.sessionId); })[0] || {}).drawing
+          : (STATE.sessions.filter(function (s) { return s.id === annot.sessionId; })[0] || {}).drawing;
     if (existingDrawing) {
       var img = new Image();
       img.onload = function () {
@@ -2591,6 +2609,11 @@
       var entry = STATE.circuits[annot.circuit] || {};
       entry.drawing = dataUrl;
       STATE.circuits[annot.circuit] = entry;
+    } else if (annot.sessionId === ANNOT_ACCOMPAGNANT_LEVEL) {
+      STATE.circuits = STATE.circuits || {};
+      var accEntry = STATE.circuits[annot.circuit] || {};
+      accEntry.accompagnantDrawing = dataUrl;
+      STATE.circuits[annot.circuit] = accEntry;
     } else if (isEventLevelId(annot.sessionId)) {
       var evForSave = STATE.events.filter(function (e) { return e.id === eventIdFromLevelId(annot.sessionId); })[0];
       if (evForSave) evForSave.drawing = dataUrl;
@@ -3712,7 +3735,73 @@
     html += collapsibleSection('horaires', 'Horaires', horairesInner);
     html += collapsibleSection('groupes', 'Groupes par pilote', renderRiderGroupsSection(ev));
     html += collapsibleSection('equipement', checklistCountLabel(ev), renderPlanningChecklist(ev));
+    if (isOngoing) html += renderDailyRecap(ev, horaires, dateKey(new Date()));
     return html + '</div>';
+  }
+
+  // The connected pilote's own group for a given date -- pm takes
+  // priority over am since it's the later, more current assignment as the
+  // day progresses (a pilote who switched groups at lunch is "in" their pm
+  // group by the time the day winds down).
+  function myGroupLetterToday(ev, dateStr) {
+    if (!currentUserProfile || currentUserProfile.role === 'accompagnant') return '';
+    return riderGroupFor(ev, currentUserProfile.name, dateStr, 'apres-midi') || riderGroupFor(ev, currentUserProfile.name, dateStr, 'matin') || '';
+  }
+
+  // Whether the connected pilote's own group has no more slots left today
+  // -- the trigger for showing the daily recap. A pilote not assigned to
+  // any group today, or an accompagnant, never sees it (nothing of
+  // "theirs" to recap).
+  function myGroupFinishedToday(ev, horaires, dateStr) {
+    var letter = myGroupLetterToday(ev, dateStr);
+    if (!letter || !horaires) return false;
+    var line = horaires['group' + letter];
+    if (!line) return false;
+    var ends = parseHoraireLine(line).map(function (s) { return s.end; }).filter(function (e) { return e != null; });
+    if (!ends.length) return false;
+    var nowMinutes = new Date().getHours() * 60 + new Date().getMinutes();
+    return nowMinutes >= Math.max.apply(null, ends);
+  }
+
+  // A same-day leaderboard: every rider who logged a chrono today on this
+  // circuit, fastest first, with how much they gained or lost against
+  // their best time on this circuit from any earlier day.
+  function renderDailyRecap(ev, horaires, dateStr) {
+    if (!myGroupFinishedToday(ev, horaires, dateStr)) return '';
+    var todaySessions = STATE.sessions.filter(function (s) { return s.circuit === ev.circuit && s.date === dateStr; });
+    if (!todaySessions.length) return '';
+    var byRider = {};
+    todaySessions.forEach(function (s) {
+      var best = sessionBest(s);
+      if (!byRider[s.rider]) byRider[s.rider] = { best: best, laps: 0 };
+      if (best < byRider[s.rider].best) byRider[s.rider].best = best;
+      byRider[s.rider].laps += s.laps.length;
+    });
+    var rows = Object.keys(byRider).map(function (rider) {
+      var prevBest = null;
+      STATE.sessions.forEach(function (s) {
+        if (s.rider !== rider || s.circuit !== ev.circuit || s.date === dateStr) return;
+        var b = sessionBest(s);
+        if (prevBest === null || b < prevBest) prevBest = b;
+      });
+      var todayBest = byRider[rider].best;
+      return { rider: rider, best: todayBest, laps: byRider[rider].laps, delta: prevBest === null ? null : (todayBest - prevBest) };
+    }).sort(function (a, b) { return a.best - b.best; });
+
+    var html = '<div class="card daily-recap-card">';
+    html += '<h2 class="section-title">Récap de la journée</h2>';
+    html += '<div class="table-scroll"><table class="session-table"><thead><tr><th>Pilote</th><th>Meilleur chrono</th><th>Tours</th><th>Progression</th></tr></thead><tbody>';
+    rows.forEach(function (r) {
+      var deltaHtml = '—';
+      if (r.delta != null) {
+        if (r.delta < 0) deltaHtml = '<span class="daily-recap-better">−' + Math.abs(r.delta).toFixed(3) + '</span>';
+        else if (r.delta > 0) deltaHtml = '<span class="daily-recap-worse">+' + r.delta.toFixed(3) + '</span>';
+        else deltaHtml = '=';
+      }
+      html += '<tr><td>' + escapeHtml(r.rider) + '</td><td>' + formatTime(r.best) + '</td><td>' + r.laps + '</td><td>' + deltaHtml + '</td></tr>';
+    });
+    html += '</tbody></table></div></div>';
+    return html;
   }
 
   // Fires a browser notification once, when a rider the current account

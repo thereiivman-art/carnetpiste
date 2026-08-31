@@ -446,6 +446,8 @@
     color: var(--text-muted);
     margin-left: 0.3rem;
   }
+  .daily-recap-better { color: #2e9e5b; font-weight: 600; }
+  .daily-recap-worse { color: var(--danger); font-weight: 600; }
   .note-text {
     font-size: 0.72rem;
     color: var(--text-muted);
