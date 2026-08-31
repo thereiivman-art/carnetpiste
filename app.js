@@ -324,7 +324,7 @@
   // too (events/sessions on the grid, and the period's sorties list).
   var selectedCircuit = _savedUiState.selectedCircuit || null;
   var selectedRiders = _savedUiState.selectedRidersAll ? new Set(allKnownRiders()) : (_savedUiState.selectedRider ? new Set([_savedUiState.selectedRider]) : null); // Set — 1 rider, or the full roster when "Tous" is active
-  var ZOOM_LEVELS = ['year', '6month', '3month', '2month', 'month', 'week'];
+  var ZOOM_LEVELS = ['year', '6month', '3month', '2month', 'month', 'week', 'day'];
   // The checklist is a shared, editable template (STATE.checklistTemplate,
   // one Firestore doc) -- any rider can add/rename/remove a category or an
   // item; ev.checklist just maps an item's id to checked/not for one
@@ -2994,7 +2994,8 @@
     html += renderCalendarViewSwitcher();
     html += renderCalendarZoomHint();
     html += renderCalendarNav();
-    if (calendarViewMode === 'month') html += renderMonthGrid(eventInfo, sessionsMap);
+    if (calendarViewMode === 'day') html += renderDayGrid(eventInfo);
+    else if (calendarViewMode === 'month') html += renderMonthGrid(eventInfo, sessionsMap);
     else if (calendarViewMode === 'week') html += renderWeekGrid(eventInfo, sessionsMap);
     else if (calendarViewMode === '6month') html += renderMultiMonthGrid(6, eventInfo, sessionsMap);
     else if (calendarViewMode === '3month') html += renderMultiMonthGrid(3, eventInfo, sessionsMap);
@@ -3005,7 +3006,7 @@
     return html;
   }
 
-  var ZOOM_LEVEL_LABELS = { year: 'Année', '6month': '6 mois', '3month': '3 mois', '2month': '2 mois', month: 'Mois', week: 'Semaine' };
+  var ZOOM_LEVEL_LABELS = { year: 'Année', '6month': '6 mois', '3month': '3 mois', '2month': '2 mois', month: 'Mois', week: 'Semaine', day: 'Jour' };
 
   // Explicit buttons for picking the calendar's zoom level -- pinch/Ctrl+
   // wheel gestures (see the hint below) still work too, but aren't
@@ -3039,6 +3040,9 @@
   // year…) instead of always being pinned to the whole year.
   function visiblePeriodRange() {
     var d = parseLocalDate(calendarAnchor);
+    if (calendarViewMode === 'day') {
+      return { start: calendarAnchor, end: calendarAnchor };
+    }
     if (calendarViewMode === 'year') {
       return { start: dateKey(new Date(d.getFullYear(), 0, 1)), end: dateKey(new Date(d.getFullYear(), 11, 31)) };
     }
@@ -3056,6 +3060,7 @@
 
   function calendarNavLabel() {
     var d = parseLocalDate(calendarAnchor);
+    if (calendarViewMode === 'day') return weekdayName(calendarAnchor) + ' ' + shortDayMonth(d) + ' ' + d.getFullYear();
     if (calendarViewMode === 'year') return '' + d.getFullYear();
     if (calendarViewMode === 'week') {
       var monday = mondayOf(d);
@@ -3075,6 +3080,7 @@
   function calendarNavStep(delta) {
     var d = parseLocalDate(calendarAnchor);
     if (calendarViewMode === 'year') d.setFullYear(d.getFullYear() + delta);
+    else if (calendarViewMode === 'day') d.setDate(d.getDate() + delta);
     else if (calendarViewMode === 'week') d.setDate(d.getDate() + delta * 7);
     else d.setMonth(d.getMonth() + delta * monthsCountForMode(calendarViewMode));
     calendarAnchor = dateKey(d);
@@ -3192,6 +3198,33 @@
       }
     }
     html += '</div></div></div>';
+    return html;
+  }
+
+  // The finest zoom level: one day's own schedule, reusing the exact same
+  // Horaires timeline (groups + briefing, live current/next/past
+  // highlighting) as Planning's "En ce moment", but for whichever date the
+  // calendar is anchored to -- not just today. eventInfo (from
+  // eventDateInfoAll) already maps every date to the sortie covering it,
+  // respecting the global rider filter.
+  function renderDayGrid(eventInfo) {
+    var cell = eventInfo[calendarAnchor];
+    var html = '<div class="card calendar-grid-card">';
+    if (!cell) {
+      html += '<div class="empty-state">Aucune sortie ce jour-là.</div></div>';
+      return html;
+    }
+    var ev = eventsList().filter(function (e) { return e.id === cell.eventId; })[0];
+    if (!ev) { html += '<div class="empty-state">Aucune sortie ce jour-là.</div></div>'; return html; }
+    var info = circuitInfo(ev.circuit);
+    html += '<div class="eyebrow">' + escapeHtml(ev.circuit) + '</div>';
+    if (info.organizer) html += '<div class="help-text">Organisateur ' + escapeHtml(info.organizer) + '</div>';
+    if (!info.horaires) {
+      html += '<div class="help-text">Aucun horaire enregistré pour ' + escapeHtml(ev.circuit) + '.</div>';
+    } else {
+      html += renderHoraireGroups(info.horaires, null, ev, info.briefing, calendarAnchor === dateKey(new Date()));
+    }
+    html += '</div>';
     return html;
   }
 
@@ -3627,7 +3660,13 @@
   // No end time is ever given for a briefing -- 30 min is just the usual
   // length, not a real schedule fact, so it's never treated as anything
   // more precise than that.
-  function renderHoraireGroups(horaires, allowedKeys, ev, briefing) {
+  // live (default true): whether to attach data-slot-start/end at all --
+  // updateLiveClock() compares them against right-now's clock with no idea
+  // which calendar date they're for, so the Calendrier day view (any date,
+  // not just today) passes false to render a plain, unhighlighted list
+  // instead of misleadingly marking a past/future day's slots as current.
+  function renderHoraireGroups(horaires, allowedKeys, ev, briefing, live) {
+    if (live == null) live = true;
     var groups = HORAIRES_GROUPS.filter(function (g) {
       return horaires[g.key] && (!allowedKeys || allowedKeys.indexOf(g.key) !== -1);
     });
@@ -3635,8 +3674,9 @@
     if (!groups.length && !briefingSlot) return '';
     var html = '<div class="today-schedule-groups">';
     if (briefingSlot) {
+      var briefingAttrs = live ? ' data-slot-start="' + briefingSlot.start + '" data-slot-end="' + (briefingSlot.start + 30) + '"' : '';
       html += '<div class="today-schedule-group today-schedule-briefing"><div class="today-schedule-group-label">Briefing</div>' +
-        '<div class="today-schedule-slots"><span class="schedule-slot" data-slot-start="' + briefingSlot.start + '" data-slot-end="' + (briefingSlot.start + 30) + '">' +
+        '<div class="today-schedule-slots"><span class="schedule-slot"' + briefingAttrs + '>' +
         escapeHtml(briefing.trim()) + ' (30 min)</span></div></div>';
     }
     groups.forEach(function (g) {
@@ -3653,7 +3693,8 @@
         if (slot.start == null) {
           html += '<span class="schedule-slot schedule-slot-label">' + escapeHtml(slot.label) + '</span>';
         } else {
-          html += '<span class="schedule-slot" data-slot-start="' + slot.start + '" data-slot-end="' + slot.end + '">' + escapeHtml(slot.label) + '</span>';
+          var attrs = live ? ' data-slot-start="' + slot.start + '" data-slot-end="' + slot.end + '"' : '';
+          html += '<span class="schedule-slot"' + attrs + '>' + escapeHtml(slot.label) + '</span>';
         }
       });
       html += '</div></div>';
