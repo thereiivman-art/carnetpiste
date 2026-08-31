@@ -540,12 +540,15 @@
   function riderStats(riderName) {
     var sessions = STATE.sessions.filter(function (s) { return s.rider === riderName; });
     var circuitBests = {};
+    var circuitDateBests = {}; // circuit -> { date: that day's best } -- for the progression figure below
     var lastSession = null;
     sessions.forEach(function (s) {
       var b = sessionBest(s);
       if (!circuitBests[s.circuit] || b < circuitBests[s.circuit].time) {
         circuitBests[s.circuit] = { time: b, date: s.date };
       }
+      circuitDateBests[s.circuit] = circuitDateBests[s.circuit] || {};
+      if (!circuitDateBests[s.circuit][s.date] || b < circuitDateBests[s.circuit][s.date]) circuitDateBests[s.circuit][s.date] = b;
       if (!lastSession || s.date > lastSession.date) lastSession = s;
     });
     var circuitNames = Object.keys(circuitBests).sort(function (a, b) { return a.localeCompare(b); });
@@ -564,8 +567,19 @@
       trackDays: Object.keys(trackDaySet).length,
       outingsCount: riderEvents.length,
       lastSession: lastSession ? { circuit: lastSession.circuit, date: lastSession.date, time: sessionBest(lastSession) } : null,
+      // "progression" is the gain (negative) or loss (positive) between the
+      // rider's very first outing on that circuit and their current best --
+      // null with a single outing, since there's nothing to compare yet.
       bests: circuitNames.map(function (c) {
-        return { circuit: c, time: circuitBests[c].time, date: circuitBests[c].date };
+        var dates = Object.keys(circuitDateBests[c]).sort();
+        var firstTime = circuitDateBests[c][dates[0]];
+        return {
+          circuit: c,
+          time: circuitBests[c].time,
+          date: circuitBests[c].date,
+          outings: dates.length,
+          progression: dates.length > 1 ? (circuitBests[c].time - firstTime) : null
+        };
       })
     };
   }
@@ -714,7 +728,8 @@
         var noteHtml = s.note ? '<div class="note-text">' + escapeHtml(s.note) + '</div>' : '';
         var periodLabel = s.period === 'matin' ? 'Matin' : s.period === 'apres-midi' ? 'Après-midi' : '';
         var sessionTagParts = [];
-        if (periodLabel) sessionTagParts.push(periodLabel);
+        if (s.slotLabel) sessionTagParts.push(s.slotLabel);
+        else if (periodLabel) sessionTagParts.push(periodLabel);
         if (s.group) sessionTagParts.push('Groupe ' + s.group);
         var sessionTagHtml = sessionTagParts.length ? '<div class="note-text">' + escapeHtml(sessionTagParts.join(' — ')) + '</div>' : '';
         html += '<tr data-session-id="' + s.id + '">';
@@ -748,8 +763,15 @@
       html += '<div class="empty-inline">Aucun chrono enregistré.</div>';
     } else {
       stats.bests.forEach(function (b) {
-        html += '<div class="best-time-row"><span class="best-time-circuit">' + escapeHtml(b.circuit) + '</span>' +
+        var progressionHtml = '';
+        if (b.progression != null) {
+          progressionHtml = b.progression < 0
+            ? '<span class="daily-recap-better">−' + Math.abs(b.progression).toFixed(3) + '</span>'
+            : (b.progression > 0 ? '<span class="daily-recap-worse">+' + b.progression.toFixed(3) + '</span>' : '=');
+        }
+        html += '<div class="best-time-row"><span class="best-time-circuit">' + escapeHtml(b.circuit) + ' <span class="help-text" style="display:inline;">(' + b.outings + ' sortie' + (b.outings > 1 ? 's' : '') + ')</span></span>' +
           '<span><span class="best-time-value">' + formatTime(b.time) + '</span>' +
+          (progressionHtml ? ' ' + progressionHtml : '') +
           '<span class="best-time-date">' + formatDate(b.date) + '</span></span></div>';
       });
     }
@@ -1246,6 +1268,8 @@
     if (!admin && currentUserProfile) rider = currentUserProfile.name;
     var todayStr = dateKey(new Date());
     var groupHint = rider ? chronoGroupHint(selectedCircuit, todayStr, rider) : '';
+    var slots = todaysGroupSlots(selectedCircuit, groupHint);
+    var suggestedSlotIdx = suggestSlotIndex(slots);
     var html = '<div class="card">';
     html += '<h2 class="section-title">Entrer un nouveau chrono</h2>';
     html += '<form id="session-form" novalidate>';
@@ -1282,8 +1306,10 @@
     html += '<div><label for="f-group">Groupe</label><select id="f-group"><option value="">—</option>' +
       GROUP_LETTERS.map(function (g) { return '<option value="' + g + '"' + (g === groupHint ? ' selected' : '') + '>' + g + '</option>'; }).join('') +
       '</select></div>';
+    html += '<div><label for="f-slot">Créneau</label><select id="f-slot">' + renderSlotOptions(slots, suggestedSlotIdx) + '</select></div>';
     html += '</div>';
     html += '<div class="help-text" id="f-group-hint"' + (groupHint ? '' : ' style="display:none;"') + '>Groupe suggéré depuis la sortie associée : ' + escapeHtml(groupHint) + '.</div>';
+    html += '<div class="help-text" id="f-slot-hint"' + (suggestedSlotIdx !== -1 ? '' : ' style="display:none;"') + '>Créneau suggéré selon l\'heure actuelle — modifie si besoin.</div>';
     html += '<label for="f-laps">Chronos</label>' +
       '<textarea id="f-laps" placeholder="1:23.456' + String.fromCharCode(10) + '1:22.980' + String.fromCharCode(10) + '1:23.120" required></textarea>' +
       '<div class="help-text">Un chrono par ligne (ou séparés par une virgule) — tape juste les chiffres, les : et . s\'ajoutent automatiquement. Ex. 1 54 104 pour 1:54.104.</div>';
@@ -1307,6 +1333,43 @@
     if (!candidates.length) return '';
     var linkedEvent = candidates.filter(function (e) { return e.id === selectedEventId; })[0] || candidates[0];
     return riderGroupFor(linkedEvent, rider, dateStr, 'matin') || riderGroupFor(linkedEvent, rider, dateStr, 'apres-midi') || '';
+  }
+
+  // Every timed slot for one group letter on a circuit, from its horaires
+  // -- what a rider actually rode, as opposed to the coarse "Matin/Après-
+  // midi" period field. Only real timed entries (skips "PAUSE" labels).
+  function todaysGroupSlots(circuit, letter) {
+    if (!letter) return [];
+    var horaires = circuitInfo(circuit).horaires;
+    var line = horaires && horaires['group' + letter];
+    if (!line) return [];
+    return parseHoraireLine(line).filter(function (s) { return s.start != null; });
+  }
+
+  // Which of today's slots to preselect: the one in progress right now, or
+  // failing that, whichever one ended most recently -- as long as that's
+  // recent enough (<=60 min ago) that the rider is plausibly still fresh
+  // off the track for it, not guessing at a slot from hours earlier.
+  function suggestSlotIndex(slots) {
+    if (!slots.length) return -1;
+    var nowMinutes = new Date().getHours() * 60 + new Date().getMinutes();
+    for (var i = 0; i < slots.length; i++) {
+      if (nowMinutes >= slots[i].start && nowMinutes < slots[i].end) return i;
+    }
+    var bestIdx = -1, bestEnd = -1;
+    slots.forEach(function (s, i) {
+      if (s.end <= nowMinutes && s.end > bestEnd) { bestEnd = s.end; bestIdx = i; }
+    });
+    if (bestIdx !== -1 && nowMinutes - bestEnd <= 60) return bestIdx;
+    return -1;
+  }
+
+  function renderSlotOptions(slots, suggestedIdx) {
+    var html = '<option value="">Aucun créneau spécifique</option>';
+    slots.forEach(function (s, i) {
+      html += '<option value="' + s.start + '"' + (i === suggestedIdx ? ' selected' : '') + '>' + escapeHtml(s.label) + '</option>';
+    });
+    return html;
   }
 
   function renderChronosTab() {
@@ -3735,7 +3798,13 @@
     html += collapsibleSection('horaires', 'Horaires', horairesInner);
     html += collapsibleSection('groupes', 'Groupes par pilote', renderRiderGroupsSection(ev));
     html += collapsibleSection('equipement', checklistCountLabel(ev), renderPlanningChecklist(ev));
-    if (isOngoing) html += renderDailyRecap(ev, horaires, dateKey(new Date()));
+    if (isOngoing) {
+      var todayKey = dateKey(new Date());
+      if (myGroupFinishedToday(ev, horaires, todayKey)) {
+        html += '<div class="return-reminder">De retour au paddock — pense à vérifier la <strong>PRESSION PNEUS</strong> et l\'<strong>ESSENCE</strong>.</div>';
+      }
+      html += renderDailyRecap(ev, horaires, todayKey);
+    }
     return html + '</div>';
   }
 
@@ -3766,10 +3835,10 @@
   // A same-day leaderboard: every rider who logged a chrono today on this
   // circuit, fastest first, with how much they gained or lost against
   // their best time on this circuit from any earlier day.
-  function renderDailyRecap(ev, horaires, dateStr) {
-    if (!myGroupFinishedToday(ev, horaires, dateStr)) return '';
-    var todaySessions = STATE.sessions.filter(function (s) { return s.circuit === ev.circuit && s.date === dateStr; });
-    if (!todaySessions.length) return '';
+  // Shared by the rendered table and the "Partager" button (which needs
+  // the same numbers again once clicked, outside the render closure).
+  function dailyRecapRows(circuit, dateStr) {
+    var todaySessions = STATE.sessions.filter(function (s) { return s.circuit === circuit && s.date === dateStr; });
     var byRider = {};
     todaySessions.forEach(function (s) {
       var best = sessionBest(s);
@@ -3777,19 +3846,35 @@
       if (best < byRider[s.rider].best) byRider[s.rider].best = best;
       byRider[s.rider].laps += s.laps.length;
     });
-    var rows = Object.keys(byRider).map(function (rider) {
+    return Object.keys(byRider).map(function (rider) {
       var prevBest = null;
       STATE.sessions.forEach(function (s) {
-        if (s.rider !== rider || s.circuit !== ev.circuit || s.date === dateStr) return;
+        if (s.rider !== rider || s.circuit !== circuit || s.date === dateStr) return;
         var b = sessionBest(s);
         if (prevBest === null || b < prevBest) prevBest = b;
       });
       var todayBest = byRider[rider].best;
       return { rider: rider, best: todayBest, laps: byRider[rider].laps, delta: prevBest === null ? null : (todayBest - prevBest) };
     }).sort(function (a, b) { return a.best - b.best; });
+  }
 
-    var html = '<div class="card daily-recap-card">';
-    html += '<h2 class="section-title">Récap de la journée</h2>';
+  function dailyRecapShareText(circuit, dateStr, rows) {
+    var lines = ['🏁 Récap ' + circuit + ' — ' + formatDate(dateStr)];
+    rows.forEach(function (r) {
+      var deltaText = r.delta == null ? '' : r.delta < 0 ? ' (−' + Math.abs(r.delta).toFixed(3) + ')' : r.delta > 0 ? ' (+' + r.delta.toFixed(3) + ')' : ' (=)';
+      lines.push(r.rider + ' — ' + formatTime(r.best) + deltaText + ' · ' + r.laps + ' tour' + (r.laps > 1 ? 's' : ''));
+    });
+    return lines.join('\n');
+  }
+
+  function renderDailyRecap(ev, horaires, dateStr) {
+    if (!myGroupFinishedToday(ev, horaires, dateStr)) return '';
+    var rows = dailyRecapRows(ev.circuit, dateStr);
+    if (!rows.length) return '';
+
+    var html = '<div class="card daily-recap-card" data-recap-circuit="' + escapeHtml(ev.circuit) + '" data-recap-date="' + dateStr + '">';
+    html += '<div class="daily-recap-head"><h2 class="section-title">Récap de la journée</h2>' +
+      '<button type="button" class="ghost" id="daily-recap-share-btn">Partager</button></div>';
     html += '<div class="table-scroll"><table class="session-table"><thead><tr><th>Pilote</th><th>Meilleur chrono</th><th>Tours</th><th>Progression</th></tr></thead><tbody>';
     rows.forEach(function (r) {
       var deltaHtml = '—';
@@ -4830,7 +4915,7 @@
       var groupEl = document.getElementById('f-group');
       var groupHintEl = document.getElementById('f-group-hint');
       var hint = rider ? chronoGroupHint(circuit, iso, rider) : '';
-      if (groupEl && hint) groupEl.value = hint;
+      if (groupEl && hint && !groupEl.dataset.userTouched) groupEl.value = hint;
       if (groupHintEl) {
         if (hint) {
           groupHintEl.style.display = '';
@@ -4839,12 +4924,45 @@
           groupHintEl.style.display = 'none';
         }
       }
+      var slotEl = document.getElementById('f-slot');
+      var slotHintEl = document.getElementById('f-slot-hint');
+      var slots = todaysGroupSlots(circuit, groupEl ? groupEl.value : '');
+      var suggestedIdx = suggestSlotIndex(slots);
+      if (slotEl) {
+        slotEl.innerHTML = renderSlotOptions(slots, suggestedIdx);
+      }
+      if (slotHintEl) slotHintEl.style.display = suggestedIdx !== -1 ? '' : 'none';
     }
     if (fDateEl) fDateEl.addEventListener('input', refreshChronoFormAux);
     if (fRiderEl) fRiderEl.addEventListener('change', refreshChronoFormAux);
     if (fCircuitEl) fCircuitEl.addEventListener('change', refreshChronoFormAux);
+    var fGroupEl = document.getElementById('f-group');
+    if (fGroupEl) {
+      fGroupEl.addEventListener('change', function () {
+        fGroupEl.dataset.userTouched = '1';
+        refreshChronoFormAux();
+      });
+    }
     var fLapsEl = document.getElementById('f-laps');
     if (fLapsEl) attachLapsAutoFormat(fLapsEl);
+    var recapShareBtn = document.getElementById('daily-recap-share-btn');
+    if (recapShareBtn) {
+      recapShareBtn.addEventListener('click', function () {
+        var card = recapShareBtn.closest('.daily-recap-card');
+        var circuit = card.getAttribute('data-recap-circuit');
+        var dateStr = card.getAttribute('data-recap-date');
+        var text = dailyRecapShareText(circuit, dateStr, dailyRecapRows(circuit, dateStr));
+        if (navigator.share) {
+          navigator.share({ text: text }).catch(function () {}); // user-cancelled share is not an error
+        } else if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(text).then(function () {
+            showToast('Récap copié — colle-le où tu veux.', 'success');
+          }).catch(function () {
+            showToast('Impossible de copier le récap.');
+          });
+        }
+      });
+    }
     var nextOutingLink = document.getElementById('next-outing-link');
     if (nextOutingLink) {
       nextOutingLink.addEventListener('click', function () {
@@ -5200,6 +5318,7 @@
     var noteEl = document.getElementById('f-note');
     var periodEl = document.getElementById('f-period');
     var groupEl = document.getElementById('f-group');
+    var slotEl = document.getElementById('f-slot');
     var errEl = document.getElementById('form-error');
     errEl.classList.remove('visible');
 
@@ -5243,6 +5362,18 @@
     if (note) session.note = note;
     if (period) session.period = period;
     if (group) session.group = group;
+    // The precise timed slot (e.g. "9h40-10h00"), when one was picked --
+    // re-derived from the current horaires/group rather than trusting the
+    // <option> text alone, so a stale selection can't outlive a horaires
+    // edit made mid-form.
+    if (slotEl && slotEl.value) {
+      var chosenSlot = todaysGroupSlots(circuit, group).filter(function (s) { return String(s.start) === slotEl.value; })[0];
+      if (chosenSlot) {
+        session.slotStart = chosenSlot.start;
+        session.slotEnd = chosenSlot.end;
+        session.slotLabel = chosenSlot.label;
+      }
+    }
     var prevState = JSON.parse(JSON.stringify(STATE));
 
     // Linked via the "Sortie associée" suggestion (renderLinkedEventField),
