@@ -848,6 +848,7 @@
     font-weight: 600;
     margin-bottom: 0.35rem;
   }
+  .today-schedule-briefing .today-schedule-group-label { color: var(--accent); }
   .today-schedule-group-riders {
     font-size: 0.8rem;
     color: var(--text-muted);

@@ -3621,12 +3621,24 @@
   // allowedKeys: null/undefined shows every group that has horaires; an
   // array restricts to just those keys (the Planning tab's checkboxes).
   // ev (optional) lets us list which riders are assigned to each group.
-  function renderHoraireGroups(horaires, allowedKeys, ev) {
+  // briefing (optional) shows it as its own column, same as a group, so it
+  // shares the live current/next/past highlighting (updateLiveClock keys
+  // off data-slot-start/end on every such element, not just group ones).
+  // No end time is ever given for a briefing -- 30 min is just the usual
+  // length, not a real schedule fact, so it's never treated as anything
+  // more precise than that.
+  function renderHoraireGroups(horaires, allowedKeys, ev, briefing) {
     var groups = HORAIRES_GROUPS.filter(function (g) {
       return horaires[g.key] && (!allowedKeys || allowedKeys.indexOf(g.key) !== -1);
     });
-    if (!groups.length) return '';
+    var briefingSlot = briefing ? parseHoraireToken(briefing.trim()) : null;
+    if (!groups.length && !briefingSlot) return '';
     var html = '<div class="today-schedule-groups">';
+    if (briefingSlot) {
+      html += '<div class="today-schedule-group today-schedule-briefing"><div class="today-schedule-group-label">Briefing</div>' +
+        '<div class="today-schedule-slots"><span class="schedule-slot" data-slot-start="' + briefingSlot.start + '" data-slot-end="' + (briefingSlot.start + 30) + '">' +
+        escapeHtml(briefing.trim()) + ' (30 min)</span></div></div>';
+    }
     groups.forEach(function (g) {
       html += '<div class="today-schedule-group"><div class="today-schedule-group-label">' + escapeHtml(g.label) + '</div>';
       if (ev) {
@@ -3799,7 +3811,7 @@
       horairesInner += '<label class="planning-group-check"><input type="checkbox" data-planning-group="' + g.key + '"' + (checked ? ' checked' : '') + '> ' + escapeHtml(g.label) + '</label>';
     });
     horairesInner += '</div>';
-    horairesInner += renderHoraireGroups(horaires, activeKeys, ev);
+    horairesInner += renderHoraireGroups(horaires, activeKeys, ev, info.briefing);
     html += collapsibleSection('horaires', 'Horaires', horairesInner);
     html += collapsibleSection('groupes', 'Groupes par pilote', renderRiderGroupsSection(ev));
     html += collapsibleSection('equipement', checklistCountLabel(ev), renderPlanningChecklist(ev));
