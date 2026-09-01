@@ -5871,8 +5871,15 @@
     } else if (member.name === myName) {
       actions += '<button type="button" class="ghost" data-action="team-leave" data-team="' + teamId + '">Quitter</button>';
     }
+    // member.role is the *team* hierarchy (leader/member); u.role is the
+    // account type (pilote/accompagnant/organisateur) -- an Accompagnant
+    // or Organisateur can be a Team member same as a Pilote (a Team can be
+    // a whole riding group, not just the riders), but is tagged separately
+    // so it's clear at a glance who's actually on track.
+    var accountRoleLabel = u.role === 'accompagnant' ? 'Accompagnant' : (u.role === 'organisateur' ? 'Organisateur' : '');
     return '<div class="friend-row">' +
       '<div class="friend-row-main">' + avatarHtml(u, member.name) + '<span class="friend-name-plain">' + escapeHtml(member.name) + '</span>' + badgesHtml(u) +
+      (accountRoleLabel ? '<span class="account-role-tag">' + accountRoleLabel + '</span>' : '') +
       '<span class="friend-role-badge">' + (member.role === 'leader' ? 'Team Leader' : 'Membre') + '</span></div>' +
       '<div class="friend-row-actions">' + actions + '</div></div>';
   }
@@ -5989,7 +5996,9 @@
         ? '<div class="help-text">Tous tes amis sont déjà dans ce team, ou aucun ami à inviter -- vois Social.</div>'
         : '<form class="team-invite-form" data-action="team-invite-form" data-team="' + team.id + '">' +
           '<select data-team-invite-select>' + candidates.map(function (n) {
-            return '<option value="' + escapeHtml(n) + '">' + escapeHtml(n) + '</option>';
+            var cu = (STATE.usersByName || {})[n] || {};
+            var roleSuffix = cu.role === 'accompagnant' ? ' (Accompagnant)' : (cu.role === 'organisateur' ? ' (Organisateur)' : '');
+            return '<option value="' + escapeHtml(n) + '">' + escapeHtml(n) + escapeHtml(roleSuffix) + '</option>';
           }).join('') + '</select>' +
           '<button type="submit" class="ghost">Inviter</button></form>';
       html += collapsibleSection('team-invite-' + team.id, 'Inviter un ami', inviteBody);
