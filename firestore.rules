@@ -154,11 +154,20 @@ service cloud.firestore {
     // deletes their own side of it. followeeType distinguishes a person's
     // name from a team id (defaults to 'user' for docs written before
     // Teams were followable) -- the self-follow check only makes sense
-    // for a person.
+    // for a person. A team-type follow also carries a membership tier
+    // ('follower', the default, or 'adherent' -- a paying club member of
+    // a Team PRO) -- a follower can never self-grant 'adherent' on
+    // create (no payment backend here, so that's trust-based and only the
+    // Team's own leader can promote/demote it via update).
     match /follows/{id} {
       allow read: if request.auth != null;
       allow create: if verified() && request.resource.data.follower == myName()
-        && (request.resource.data.get('followeeType', 'user') != 'user' || request.resource.data.followee != myName());
+        && (request.resource.data.get('followeeType', 'user') != 'user' || request.resource.data.followee != myName())
+        && request.resource.data.get('tier', 'follower') == 'follower';
+      allow update: if verified() && resource.data.followeeType == 'team'
+        && isTeamLeader(resource.data.followee)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['tier'])
+        && (request.resource.data.tier == 'adherent' || request.resource.data.tier == 'follower');
       allow delete: if verified() && resource.data.follower == myName();
     }
     // Teams (an organisateur's squad of pilotes, or any group of friends

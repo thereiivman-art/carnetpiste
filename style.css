@@ -542,6 +542,10 @@
     border-radius: 999px;
     padding: 0.15rem 0.5rem;
   }
+  .friend-role-badge.adherent-badge {
+    color: #7a5b00;
+    background: #f5d78e;
+  }
   .friend-row-actions { display: flex; gap: 0.5rem; flex-shrink: 0; }
   .organizer-hub-list {
     margin: 0.5rem 0 0;

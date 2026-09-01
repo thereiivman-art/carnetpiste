@@ -13,7 +13,8 @@
   var auth = firebase.auth();
   var STATE = {
     sessions: [], events: [], circuits: {}, riders: [], usersByName: {}, friendRequests: [], feedEvents: [], myFollows: [], myFollowedTeams: [],
-    teams: [], myTeamMemberships: [], teamInvites: [], teamMembersByTeam: {}, teamFeed: [], wallPosts: []
+    myFollowedTeamTiers: {}, teams: [], myTeamMemberships: [], teamInvites: [], teamMembersByTeam: {}, teamFeed: [], teamFollowersByTeam: {},
+    followedTeamFeed: [], wallPosts: []
   };
   var canPersist = false;
   var unsubscribers = [];
@@ -142,6 +143,15 @@
       showToast('Erreur : ' + (err && err.message ? err.message : err));
     });
   }
+  // Promote/demote one follower's membership tier on a Team PRO ("club") --
+  // leader-only (see firestore.rules' follows update rule), the follower
+  // themselves can't self-grant 'adherent' (a paid membership, tracked
+  // outside the app since there's no payment backend here).
+  function setTeamFollowerTier(followId, tier) {
+    db.collection('follows').doc(followId).update({ tier: tier }).catch(function (err) {
+      showToast('Erreur : ' + (err && err.message ? err.message : err));
+    });
+  }
 
   // Same delete either way -- declining a request received, cancelling one
   // sent, and un-friending an accepted one are all just removing the doc.
@@ -252,7 +262,7 @@
   // text/linkUrl/photoURL post, or a poll (postTeamPoll below) -- both are
   // just teamFeed docs, gated by the same firestore.rules create rule
   // (leader always, or any member when the team's postPolicy is 'members').
-  function postTeamFeedMessage(teamId, text, linkUrl, photoURL) {
+  function postTeamFeedMessage(teamId, text, linkUrl, photoURL, audience) {
     var me = currentUserProfile;
     text = (text || '').trim();
     linkUrl = (linkUrl || '').trim();
@@ -262,12 +272,13 @@
     if (text) post.text = text;
     if (linkUrl) post.linkUrl = linkUrl;
     if (photoURL) post.photoURL = photoURL;
+    if (audience === 'adherents') post.audience = 'adherents';
     db.collection('teamFeed').doc(post.id).set(post).catch(function (err) {
       showToast('Erreur : ' + (err && err.message ? err.message : err));
     });
   }
 
-  function postTeamPoll(teamId, question, options) {
+  function postTeamPoll(teamId, question, options, audience) {
     var me = currentUserProfile;
     question = (question || '').trim();
     options = (options || []).map(function (o) { return o.trim(); }).filter(Boolean);
@@ -276,6 +287,7 @@
       return;
     }
     var post = { id: genId(), teamId: teamId, author: me.name, type: 'poll', question: question, options: options, votes: {}, createdAt: Date.now() };
+    if (audience === 'adherents') post.audience = 'adherents';
     db.collection('teamFeed').doc(post.id).set(post).catch(function (err) {
       showToast('Erreur : ' + (err && err.message ? err.message : err));
     });
@@ -5761,12 +5773,37 @@
     return html;
   }
 
+  // The Mur is one unified, per-account feed -- not just this account's
+  // own posts, but everything relevant to it: its own wallPosts plus
+  // friends'/followed personalities' (visibleWallPosts, unchanged), the
+  // team feed of every amateur or PRO team it's actually a member of
+  // (STATE.teamFeed), and the public club news of every Team PRO it only
+  // follows without being a member (STATE.followedTeamFeed) -- gated by
+  // membership tier: an 'adherents'-only club post only shows up here if
+  // myFollowedTeamTiers says this account is actually an adherent of that
+  // club, not just a follower (adherent > follower, per the brief).
   function renderWallFeed(me) {
-    var posts = visibleWallPosts(me);
-    var body = !posts.length
+    var items = visibleWallPosts(me).map(function (p) { return { kind: 'wall', data: p, createdAt: p.createdAt }; });
+    var myTeamIds = (STATE.myTeamMemberships || []).map(function (m) { return m.teamId; });
+    (STATE.teamFeed || []).forEach(function (f) {
+      items.push({ kind: 'team', data: f, teamId: f.teamId, createdAt: f.createdAt });
+    });
+    (STATE.followedTeamFeed || []).forEach(function (f) {
+      if (myTeamIds.indexOf(f.teamId) !== -1) return; // already covered via STATE.teamFeed above
+      var t = teamById(f.teamId);
+      if (!t || !t.teamPro) return;
+      if (f.audience === 'adherents' && (STATE.myFollowedTeamTiers || {})[f.teamId] !== 'adherent') return;
+      items.push({ kind: 'team', data: f, teamId: f.teamId, createdAt: f.createdAt });
+    });
+    items.sort(function (a, b) { return (b.createdAt || 0) - (a.createdAt || 0); });
+    var body = !items.length
       ? '<div class="empty-state">Rien pour l\'instant.</div>'
-      : posts.map(renderWallPost).join('');
-    return collapsibleCard('social-mur', 'Mur (' + posts.length + ')', body, false);
+      : items.map(function (it) {
+        if (it.kind === 'wall') return renderWallPost(it.data);
+        var t = teamById(it.teamId);
+        return renderTeamFeedEntry(it.data, me, t ? t.name : null);
+      }).join('');
+    return collapsibleCard('social-mur', 'Mur (' + items.length + ')', body, false);
   }
 
   function postToWall(text, linkUrl, photoURL, audience) {
@@ -5889,7 +5926,7 @@
   // a time (votes.<myName()>) so firestore.rules can allow that one
   // narrow update (any team member, their own vote only) without opening
   // up the rest of the post to editing.
-  function renderTeamPollEntry(f, me) {
+  function renderTeamPollEntry(f, me, teamName) {
     var votes = f.votes || {};
     var counts = f.options.map(function (_, i) {
       return Object.keys(votes).filter(function (n) { return votes[n] === i; }).length;
@@ -5898,6 +5935,8 @@
     var myVote = votes[me.name];
     var html = '<div class="wall-post">';
     html += '<div class="wall-post-head"><span class="friend-name-plain">' + escapeHtml(f.author) + '</span>' +
+      (teamName ? '<span class="friend-role-badge">' + escapeHtml(teamName) + '</span>' : '') +
+      (f.audience === 'adherents' ? '<span class="friend-role-badge adherent-badge">Adhérents</span>' : '') +
       '<span class="feed-entry-time">' + escapeHtml(relativeTime(f.createdAt)) + '</span></div>';
     html += '<div class="wall-post-text">📊 ' + escapeHtml(f.question) + '</div>';
     html += '<div class="poll-options">' + f.options.map(function (opt, i) {
@@ -5912,10 +5951,15 @@
     return html;
   }
 
-  function renderTeamFeedEntry(f, me) {
-    if (f.type === 'poll') return renderTeamPollEntry(f, me);
+  // teamName is only passed when this entry shows up out of its own Team
+  // card (i.e. on the Mur, see renderWallFeed) -- inside the Team card
+  // itself the team is already the whole context, so it's omitted there.
+  function renderTeamFeedEntry(f, me, teamName) {
+    if (f.type === 'poll') return renderTeamPollEntry(f, me, teamName);
     var html = '<div class="wall-post">';
     html += '<div class="wall-post-head"><span class="friend-name-plain">' + escapeHtml(f.author) + '</span>' +
+      (teamName ? '<span class="friend-role-badge">' + escapeHtml(teamName) + '</span>' : '') +
+      (f.audience === 'adherents' ? '<span class="friend-role-badge adherent-badge">Adhérents</span>' : '') +
       '<span class="feed-entry-time">' + escapeHtml(relativeTime(f.createdAt)) + '</span></div>';
     if (f.text) html += '<div class="wall-post-text">' + escapeHtml(f.text) + '</div>';
     if (f.linkUrl) html += '<a class="wall-post-link" href="' + escapeHtml(f.linkUrl) + '" target="_blank" rel="noopener">🔗 ' + escapeHtml(f.linkUrl) + '</a>';
@@ -5923,6 +5967,34 @@
     html += renderReactionBar(f.reactions, 'react-team-post', f.id);
     html += '</div>';
     return html;
+  }
+
+  // Leader-only, Team PRO ("club") only: the roster of everyone who
+  // follows this team, split into paying 'adherent' and plain 'follower'
+  // -- adherent > follower per the brief, so adherents are listed first
+  // and the count shown is "adherents/total" rather than just a raw
+  // count. Promoting/demoting is the only thing this button does; there's
+  // no in-app payment, an adherent is whoever the leader has actually
+  // collected annual dues from outside the app.
+  function renderTeamAdherentsSection(team) {
+    var followers = (STATE.teamFollowersByTeam || {})[team.id] || [];
+    var sorted = followers.slice().sort(function (a, b) {
+      if ((a.tier === 'adherent') !== (b.tier === 'adherent')) return a.tier === 'adherent' ? -1 : 1;
+      return a.follower.localeCompare(b.follower);
+    });
+    var adherentCount = sorted.filter(function (f) { return f.tier === 'adherent'; }).length;
+    var body = !sorted.length
+      ? '<div class="help-text">Personne ne suit encore ce Team.</div>'
+      : sorted.map(function (f) {
+        var u = (STATE.usersByName || {})[f.follower] || {};
+        var isAdherent = f.tier === 'adherent';
+        return '<div class="friend-row"><div class="friend-row-main">' + avatarHtml(u, f.follower) +
+          '<span class="friend-name-plain">' + escapeHtml(f.follower) + '</span>' + badgesHtml(u) +
+          '<span class="friend-role-badge' + (isAdherent ? ' adherent-badge' : '') + '">' + (isAdherent ? 'Adhérent' : 'Follower') + '</span></div>' +
+          '<div class="friend-row-actions"><button type="button" class="ghost" data-action="toggle-follower-tier" data-follow-id="' + f.id + '" data-tier="' + (isAdherent ? 'follower' : 'adherent') + '">' +
+          (isAdherent ? 'Rétrograder' : 'Adhérent ✓') + '</button></div></div>';
+      }).join('');
+    return collapsibleSection('team-adherents-' + team.id, 'Adhérents (' + adherentCount + '/' + sorted.length + ')', body);
   }
 
   function renderTeamSettings(team, isLeader) {
@@ -5964,6 +6036,17 @@
       ? '<div class="empty-state">Rien pour l\'instant.</div>'
       : feed.map(function (f) { return renderTeamFeedEntry(f, me); }).join('');
     if (canPost) {
+      // The Adhérents-only audience option only makes sense for a Team PRO
+      // ("club", see renderTeamAdherentsSection) and only the leader hands
+      // out exclusive club news -- an ordinary member posting to an
+      // amateur team never sees this selector, and their posts stay
+      // visible to every follower (no audience field written at all).
+      var audienceSelect = (isLeader && team.teamPro)
+        ? '<select data-team-feed-audience style="margin-top:0.4rem;">' +
+          '<option value="all">Visible par tous (membres + followers)</option>' +
+          '<option value="adherents">Adhérents seulement</option>' +
+          '</select>'
+        : '';
       feedBody += '<form class="team-feed-form" data-action="team-feed-form" data-team="' + team.id + '">' +
         '<input type="text" placeholder="Écrire au team..." data-team-feed-input>' +
         '<input type="url" placeholder="Lien (optionnel)" data-team-feed-link>' +
@@ -5971,6 +6054,7 @@
           ? '<img class="wall-post-photo-preview" src="' + escapeHtml(teamPostDraftPhotoURL) + '" alt="">' +
             '<button type="button" class="ghost" data-action="team-feed-photo-remove">Retirer la photo</button>'
           : '') +
+        audienceSelect +
         '<div style="display:flex; gap:0.5rem;">' +
         '<button type="button" class="ghost icon-btn" data-action="team-feed-photo-btn" data-team="' + team.id + '" aria-label="Ajouter une photo" title="Ajouter une photo">📷</button>' +
         '<button type="submit" class="primary">Publier</button>' +
@@ -5980,6 +6064,7 @@
         '<input type="text" placeholder="Option 1" data-poll-option>' +
         '<input type="text" placeholder="Option 2" data-poll-option>' +
         '<input type="text" placeholder="Option 3 (optionnel)" data-poll-option>' +
+        audienceSelect +
         '<button type="submit" class="ghost">Publier le sondage</button></form>';
     }
     html += collapsibleSection('team-feed-' + team.id, 'Fil d\'actualité (' + feed.length + ')', feedBody);
@@ -6013,6 +6098,10 @@
           }).join('') + '</select>' +
           '<button type="submit" class="ghost">Inviter</button></form>';
       html += collapsibleSection('team-invite-' + team.id, team.teamPro ? 'Inviter' : 'Inviter un ami', inviteBody);
+    }
+
+    if (isLeader && team.teamPro) {
+      html += renderTeamAdherentsSection(team);
     }
 
     html += collapsibleSection('team-settings-' + team.id, '⚙ Réglages', renderTeamSettings(team, isLeader));
@@ -6855,8 +6944,9 @@
         var teamId = form.getAttribute('data-team');
         var textInput = form.querySelector('[data-team-feed-input]');
         var linkInput = form.querySelector('[data-team-feed-link]');
+        var audienceSelect = form.querySelector('[data-team-feed-audience]');
         var photoURL = (teamPostDraftPhotoTeamId === teamId) ? teamPostDraftPhotoURL : null;
-        postTeamFeedMessage(teamId, textInput ? textInput.value : '', linkInput ? linkInput.value : '', photoURL);
+        postTeamFeedMessage(teamId, textInput ? textInput.value : '', linkInput ? linkInput.value : '', photoURL, audienceSelect ? audienceSelect.value : null);
         if (textInput) textInput.value = '';
         if (linkInput) linkInput.value = '';
         teamPostDraftPhotoTeamId = null;
@@ -6898,7 +6988,8 @@
         evt.preventDefault();
         var question = form.querySelector('[data-poll-question]').value;
         var options = Array.prototype.map.call(form.querySelectorAll('[data-poll-option]'), function (el) { return el.value; });
-        postTeamPoll(form.getAttribute('data-team'), question, options);
+        var audienceSelect = form.querySelector('[data-team-feed-audience]');
+        postTeamPoll(form.getAttribute('data-team'), question, options, audienceSelect ? audienceSelect.value : null);
         form.reset();
       });
     });
@@ -6909,6 +7000,9 @@
     });
     document.querySelectorAll('[data-action="team-post-policy"]').forEach(function (select) {
       select.addEventListener('change', function () { setTeamPostPolicy(select.getAttribute('data-team'), select.value); });
+    });
+    document.querySelectorAll('[data-action="toggle-follower-tier"]').forEach(function (btn) {
+      btn.addEventListener('click', function () { setTeamFollowerTier(btn.getAttribute('data-follow-id'), btn.getAttribute('data-tier')); });
     });
     document.querySelectorAll('[data-action="team-visibility"]').forEach(function (select) {
       select.addEventListener('change', function () { setTeamVisibility(select.getAttribute('data-team'), select.value); });
@@ -7651,11 +7745,21 @@
     // Who this pilote follows (Personnalités and Teams) -- one-way, no
     // acceptance. Split by followeeType into two derived arrays so
     // existing user-follow code (myFollows) doesn't need to change.
+    // Team follows also carry a tier ('follower', the default, or
+    // 'adherent' -- a paid club member, promoted by that Team's leader,
+    // see setTeamFollowerTier) captured into myFollowedTeamTiers so
+    // rendering the Mur can tell which "adherents only" club posts this
+    // account is entitled to see.
     if (currentUserProfile && currentUserProfile.name) {
       unsubscribers.push(db.collection('follows').where('follower', '==', currentUserProfile.name).onSnapshot(function (snap) {
-        var docs = snap.docs.map(function (d) { return d.data(); });
+        var docs = snap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); });
         STATE.myFollows = docs.filter(function (f) { return (f.followeeType || 'user') === 'user'; }).map(function (f) { return f.followee; });
-        STATE.myFollowedTeams = docs.filter(function (f) { return f.followeeType === 'team'; }).map(function (f) { return f.followee; });
+        var teamFollows = docs.filter(function (f) { return f.followeeType === 'team'; });
+        STATE.myFollowedTeams = teamFollows.map(function (f) { return f.followee; });
+        var tiers = {};
+        teamFollows.forEach(function (f) { tiers[f.followee] = f.tier === 'adherent' ? 'adherent' : 'follower'; });
+        STATE.myFollowedTeamTiers = tiers;
+        refreshFollowedTeamFeedSync();
         renderRoot();
       }, handleSyncError));
     }
@@ -7708,6 +7812,7 @@
     if (!teamIds.length) {
       STATE.teamMembersByTeam = {};
       STATE.teamFeed = [];
+      STATE.teamFollowersByTeam = {};
       return;
     }
     teamDetailUnsubs.push(db.collection('teamMembers').where('teamId', 'in', teamIds).onSnapshot(function (snap) {
@@ -7749,6 +7854,47 @@
       STATE.teamFeed = posts;
       renderRoot();
     }, handleSyncError));
+    // Followers (and adherents -- see setTeamFollowerTier) of every team
+    // this account is in, so a Team Leader can manage its Adhérents list
+    // (renderTeamAdherentsSection) -- cheap to scope by the same teamIds
+    // as the two listeners above, no separate "leader-only" query needed
+    // since firestore.rules already keeps the actual promote/demote action
+    // leader-gated.
+    teamDetailUnsubs.push(db.collection('follows').where('followeeType', '==', 'team').where('followee', 'in', teamIds).onSnapshot(function (snap) {
+      var byTeam = {};
+      snap.forEach(function (d) {
+        var f = Object.assign({ id: d.id }, d.data());
+        byTeam[f.followee] = byTeam[f.followee] || [];
+        byTeam[f.followee].push(f);
+      });
+      STATE.teamFollowersByTeam = byTeam;
+      renderRoot();
+    }, handleSyncError));
+  }
+
+  // Re-subscribed whenever STATE.myFollowedTeams changes (see the follows
+  // listener above) -- the feed of every Team PRO ("club", see
+  // renderTeamAdherentsSection) this account follows but isn't a member
+  // of, so the Mur (renderWallFeed) can fold in their public news
+  // alongside "adherents only" posts this account is actually entitled to
+  // (checked against myFollowedTeamTiers at render time, not here --
+  // teamFeed reads are open to any signed-in account, same display-layer-
+  // only audience pattern as wallPosts).
+  var followedTeamFeedUnsubs = [];
+  function refreshFollowedTeamFeedSync() {
+    followedTeamFeedUnsubs.forEach(function (unsub) { unsub(); });
+    followedTeamFeedUnsubs = [];
+    var teamIds = (STATE.myFollowedTeams || []).slice(0, 10);
+    if (!teamIds.length) {
+      STATE.followedTeamFeed = [];
+      return;
+    }
+    followedTeamFeedUnsubs.push(db.collection('teamFeed').where('teamId', 'in', teamIds).limit(200).onSnapshot(function (snap) {
+      STATE.followedTeamFeed = snap.docs.map(function (d) { return d.data(); })
+        .sort(function (a, b) { return (b.createdAt || 0) - (a.createdAt || 0); })
+        .slice(0, 50);
+      renderRoot();
+    }, handleSyncError));
   }
 
   function stopSync() {
@@ -7756,6 +7902,8 @@
     unsubscribers = [];
     teamDetailUnsubs.forEach(function (unsub) { unsub(); });
     teamDetailUnsubs = [];
+    followedTeamFeedUnsubs.forEach(function (unsub) { unsub(); });
+    followedTeamFeedUnsubs = [];
     seenTeamInviteIds = null;
   }
 
