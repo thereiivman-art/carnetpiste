@@ -19,6 +19,25 @@ service cloud.firestore {
     function ownsChrono(riderValue) {
       return myRole() != 'accompagnant' && myRole() != 'organisateur' && myName() == riderValue;
     }
+    // Team membership docs are keyed teamId_name (deterministic id, no
+    // query needed to check one) -- see teamMembers below.
+    function isTeamLeader(teamId) {
+      return exists(/databases/$(database)/documents/teamMembers/$(teamId + '_' + myName()))
+        && get(/databases/$(database)/documents/teamMembers/$(teamId + '_' + myName())).data.role == 'leader';
+    }
+    function hasAcceptedTeamInvite(teamId) {
+      return exists(/databases/$(database)/documents/teamInvites/$(teamId + '_' + myName()))
+        && get(/databases/$(database)/documents/teamInvites/$(teamId + '_' + myName())).data.status == 'accepted';
+    }
+    // A Team leader (an organisateur running a team of pilotes, typically)
+    // can also enter a chrono for a teammate -- the session then carries
+    // that team's id so this can be checked without a query (rules can
+    // only do point lookups), and both riderValue and the id must belong
+    // to the same team on the leader's side.
+    function ownsChronoViaTeam(riderValue, teamId) {
+      return teamId != null && isTeamLeader(teamId)
+        && exists(/databases/$(database)/documents/teamMembers/$(teamId + '_' + riderValue));
+    }
 
     // A user's own profile has to be writable right after signup, before
     // there's been time to verify anything -- no email_verified check here.
@@ -51,9 +70,14 @@ service cloud.firestore {
     // can't reassign one to someone else's name either.
     match /sessions/{id} {
       allow read: if request.auth != null;
-      allow create: if verified() && (isAdmin() || ownsChrono(request.resource.data.rider));
-      allow update: if verified() && (isAdmin() || (ownsChrono(resource.data.rider) && ownsChrono(request.resource.data.rider)));
-      allow delete: if verified() && (isAdmin() || ownsChrono(resource.data.rider));
+      allow create: if verified() && (isAdmin() || ownsChrono(request.resource.data.rider)
+        || ownsChronoViaTeam(request.resource.data.rider, request.resource.data.get('teamId', null)));
+      allow update: if verified() && (isAdmin()
+        || (ownsChrono(resource.data.rider) && ownsChrono(request.resource.data.rider))
+        || (ownsChronoViaTeam(resource.data.rider, resource.data.get('teamId', null))
+            && ownsChronoViaTeam(request.resource.data.rider, request.resource.data.get('teamId', null))));
+      allow delete: if verified() && (isAdmin() || ownsChrono(resource.data.rider)
+        || ownsChronoViaTeam(resource.data.rider, resource.data.get('teamId', null)));
     }
     match /events/{id} {
       allow read: if request.auth != null;
@@ -110,6 +134,60 @@ service cloud.firestore {
       allow read: if request.auth != null;
       allow create: if verified() && request.resource.data.follower == myName() && request.resource.data.followee != myName();
       allow delete: if verified() && resource.data.follower == myName();
+    }
+    // Teams (an organisateur's squad of pilotes, or any group of friends
+    // riding together) -- the team doc itself is just identity; who's in
+    // it and who leads lives in teamMembers below.
+    match /teams/{teamId} {
+      allow read: if request.auth != null;
+      allow create: if verified() && request.resource.data.createdBy == myName();
+      allow update: if verified() && (isAdmin() || isTeamLeader(teamId));
+      allow delete: if verified() && (isAdmin() || isTeamLeader(teamId));
+    }
+    // One doc per (team, person), id = teamId_name, so isTeamLeader() and
+    // membership checks are plain point lookups (rules can't query). A
+    // member can be created three ways: the team's own creator bootstraps
+    // themselves in as its first leader; anyone accepting their own
+    // accepted teamInvite joins as 'member'; or an existing leader adds/
+    // promotes anyone directly (invite or not).
+    match /teamMembers/{id} {
+      allow read: if request.auth != null;
+      allow create: if verified() && (
+        isAdmin()
+        || (request.resource.data.name == myName() && request.resource.data.role == 'leader'
+            && get(/databases/$(database)/documents/teams/$(request.resource.data.teamId)).data.createdBy == myName())
+        || (request.resource.data.name == myName() && request.resource.data.role == 'member'
+            && hasAcceptedTeamInvite(request.resource.data.teamId))
+        || isTeamLeader(request.resource.data.teamId)
+      );
+      allow update: if verified() && (isAdmin() || isTeamLeader(resource.data.teamId));
+      allow delete: if verified() && (isAdmin() || isTeamLeader(resource.data.teamId) || resource.data.name == myName());
+    }
+    // Id = teamId_to, so a leader can only ever have one pending/accepted
+    // invite outstanding per person per team (a second create would just
+    // overwrite, not stack) -- same accept-only-by-recipient shape as
+    // friendRequests.
+    match /teamInvites/{id} {
+      allow read: if request.auth != null;
+      allow create: if verified()
+        && request.resource.data.from == myName()
+        && isTeamLeader(request.resource.data.teamId)
+        && request.resource.data.status == 'pending';
+      allow update: if verified()
+        && resource.data.to == myName()
+        && resource.data.status == 'pending'
+        && request.resource.data.status == 'accepted'
+        && request.resource.data.teamId == resource.data.teamId
+        && request.resource.data.from == resource.data.from
+        && request.resource.data.to == resource.data.to;
+      allow delete: if verified() && (resource.data.from == myName() || resource.data.to == myName() || isTeamLeader(resource.data.teamId));
+    }
+    // Team feed -- announcements, leader-only per the brief ("écrire dans
+    // le feed du team" is listed as one of the admin/leader powers).
+    match /teamFeed/{id} {
+      allow read: if request.auth != null;
+      allow create: if verified() && request.resource.data.author == myName() && isTeamLeader(request.resource.data.teamId);
+      allow delete: if verified() && (isAdmin() || resource.data.author == myName() || isTeamLeader(resource.data.teamId));
     }
   }
 }

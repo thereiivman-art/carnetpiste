@@ -11,7 +11,10 @@
   // first and hit STATE while it's still undefined.
   var db = firebase.firestore();
   var auth = firebase.auth();
-  var STATE = { sessions: [], events: [], circuits: {}, riders: [], usersByName: {}, friendRequests: [], feedEvents: [], myFollows: [] };
+  var STATE = {
+    sessions: [], events: [], circuits: {}, riders: [], usersByName: {}, friendRequests: [], feedEvents: [], myFollows: [],
+    teams: [], myTeamMemberships: [], teamInvites: [], teamMembersByTeam: {}, teamFeed: []
+  };
   var canPersist = false;
   var unsubscribers = [];
 
@@ -125,6 +128,113 @@
   // sent, and un-friending an accepted one are all just removing the doc.
   function removeFriendRequest(id) {
     db.collection('friendRequests').doc(id).delete().catch(function (err) {
+      showToast('Erreur : ' + (err && err.message ? err.message : err));
+    });
+  }
+
+  // ---- Teams ----
+  //
+  // A team of pilotes (an organisateur's squad, or friends who ride
+  // together) -- one or more Team Leaders manage membership and post to
+  // the team's feed; a plain member just reads. Doc ids are deterministic
+  // (teamId_name) throughout, both for teamMembers and teamInvites, so
+  // firestore.rules can check membership/invite state with a plain point
+  // lookup instead of a query it can't express.
+  function teamMemberDocId(teamId, name) { return teamId + '_' + (name || '').replace(/\//g, '_'); }
+  function teamInviteDocId(teamId, name) { return teamMemberDocId(teamId, name); }
+
+  function myRoleInTeam(teamId) {
+    var found = (STATE.myTeamMemberships || []).filter(function (m) { return m.teamId === teamId; })[0];
+    return found ? found.role : null;
+  }
+  function isLeaderOfTeam(teamId) { return myRoleInTeam(teamId) === 'leader'; }
+  function membersOfTeam(teamId) { return (STATE.teamMembersByTeam || {})[teamId] || []; }
+  function teamById(teamId) { return (STATE.teams || []).filter(function (t) { return t.id === teamId; })[0] || null; }
+
+  // Every pilote (a real rider, per allKnownRiders()) in a team this
+  // account leads -- name -> the id of the team that grants access to
+  // them, so the chrono entry form (renderForm) can offer them alongside
+  // the leader's own name, and onSubmit can tag which team justifies the
+  // write (see ownsChronoViaTeam in firestore.rules).
+  function myTeamPiloteChoices() {
+    var me = currentUserProfile;
+    var choices = {};
+    if (!me) return choices;
+    (STATE.myTeamMemberships || []).forEach(function (m) {
+      if (m.role !== 'leader') return;
+      membersOfTeam(m.teamId).forEach(function (tm) {
+        if (tm.name !== me.name && allKnownRiders().indexOf(tm.name) !== -1) choices[tm.name] = m.teamId;
+      });
+    });
+    return choices;
+  }
+
+  function createTeam(name) {
+    var me = currentUserProfile;
+    name = (name || '').trim();
+    if (!me || !name) return;
+    var teamId = genId();
+    db.collection('teams').doc(teamId).set({ id: teamId, name: name, createdBy: me.name, createdAt: Date.now() }).then(function () {
+      return db.collection('teamMembers').doc(teamMemberDocId(teamId, me.name)).set({ teamId: teamId, name: me.name, role: 'leader', joinedAt: Date.now() });
+    }).then(function () {
+      showToast('Team "' + name + '" créée.', 'success');
+    }).catch(function (err) {
+      showToast('Erreur : ' + (err && err.message ? err.message : err));
+    });
+  }
+
+  function inviteToTeam(teamId, toName) {
+    var me = currentUserProfile;
+    var team = teamById(teamId);
+    if (!me || !team || !toName) return;
+    db.collection('teamInvites').doc(teamInviteDocId(teamId, toName)).set({
+      teamId: teamId, teamName: team.name, from: me.name, to: toName, status: 'pending'
+    }).then(function () {
+      showToast('Invitation envoyée à ' + toName + '.', 'success');
+    }).catch(function (err) {
+      showToast('Erreur : ' + (err && err.message ? err.message : err));
+    });
+  }
+
+  function acceptTeamInvite(invite) {
+    var me = currentUserProfile;
+    if (!me) return;
+    db.collection('teamInvites').doc(invite.id).update({ status: 'accepted' }).then(function () {
+      return db.collection('teamMembers').doc(teamMemberDocId(invite.teamId, me.name)).set({
+        teamId: invite.teamId, name: me.name, role: 'member', joinedAt: Date.now()
+      });
+    }).then(function () {
+      showToast('Bienvenue dans "' + invite.teamName + '".', 'success');
+    }).catch(function (err) {
+      showToast('Erreur : ' + (err && err.message ? err.message : err));
+    });
+  }
+
+  function removeTeamInvite(id) {
+    db.collection('teamInvites').doc(id).delete().catch(function (err) {
+      showToast('Erreur : ' + (err && err.message ? err.message : err));
+    });
+  }
+
+  // Same doc either way, whether a leader removes someone else or a
+  // member removes themselves (leaving the team) -- see firestore.rules.
+  function removeTeamMember(teamId, name) {
+    db.collection('teamMembers').doc(teamMemberDocId(teamId, name)).delete().catch(function (err) {
+      showToast('Erreur : ' + (err && err.message ? err.message : err));
+    });
+  }
+
+  function setTeamMemberRole(teamId, name, role) {
+    db.collection('teamMembers').doc(teamMemberDocId(teamId, name)).set({ role: role }, { merge: true }).catch(function (err) {
+      showToast('Erreur : ' + (err && err.message ? err.message : err));
+    });
+  }
+
+  function postTeamFeedMessage(teamId, text) {
+    var me = currentUserProfile;
+    text = (text || '').trim();
+    if (!me || !text) return;
+    db.collection('teamFeed').add({ teamId: teamId, author: me.name, text: text, createdAt: Date.now() }).catch(function (err) {
       showToast('Erreur : ' + (err && err.message ? err.message : err));
     });
   }
@@ -639,32 +749,12 @@
       selectedCircuit = targetCircuit || mostRecentCircuit(circuits) || circuits[0];
     }
     // Circuit/Chronos/Statistiques show only the connected account's own
-    // data now -- Social (a friend's fiche, gated by their own sharing
-    // settings) is where you look at someone else's. The admin is the one
-    // exception: they keep a real picker (see renderAdminRiderPicker), for
-    // support and record-keeping.
-    if (!isAdmin()) {
-      selectedRiders = currentUserProfile ? new Set([currentUserProfile.name]) : new Set();
-      return;
-    }
-    // allKnownRiders() so a rider with only a planned sortie and no chrono
-    // yet is still selectable.
-    var riders = allKnownRiders();
-    if (!riders.length) {
-      selectedRiders = new Set();
-      return;
-    }
-    if (!selectedRiders) {
-      selectedRiders = new Set([mostRecentRider(riders) || riders[0]]);
-      return;
-    }
-    var isAll = selectedRiders.size === riders.length && riders.every(function (r) { return selectedRiders.has(r); });
-    var isSingleValid = selectedRiders.size === 1 && riders.indexOf(Array.from(selectedRiders)[0]) !== -1;
-    if (isAll) {
-      selectedRiders = new Set(riders); // re-sync in case the roster grew/shrank
-    } else if (!isSingleValid) {
-      selectedRiders = new Set([mostRecentRider(riders) || riders[0]]);
-    }
+    // data now, no exceptions -- Social (a friend's fiche, gated by their
+    // own sharing settings) is where you look at someone else's. The
+    // admin still picks a different pilote directly in the chrono entry
+    // form's own dropdown (see renderForm) when entering one on their
+    // behalf -- that's independent of this selection.
+    selectedRiders = currentUserProfile ? new Set([currentUserProfile.name]) : new Set();
   }
 
   function getDisplaySessions() {
@@ -1075,38 +1165,6 @@
     return html;
   }
 
-  // ---- Sélecteur de pilote — admin uniquement ----
-  //
-  // Chronos/Stats montrent uniquement les données du compte connecté pour
-  // tout le monde -- voir les stats d'un tiers passe désormais par Social
-  // (fiche d'ami, avec le consentement de partage de la personne). Seul
-  // l'admin garde un vrai sélecteur, pour le support/les records -- un
-  // mur de pastilles (une par pilote) ne tenait déjà plus la route au-delà
-  // d'une vingtaine de comptes, donc recherche + <datalist> native plutôt
-  // qu'une pastille par pilote, pour rester utilisable même avec des
-  // centaines de comptes.
-  function renderAdminRiderPicker() {
-    var riders = allKnownRiders();
-    var manageBtn = '<button type="button" class="ghost icon-btn" id="rider-manager-toggle" aria-label="Gérer les pilotes" title="Gérer les pilotes">⚙</button>';
-    if (!riders.length && !riderManagerOpen) {
-      // Still let a first-time admin create the roster before any chrono exists.
-      return '<div class="card filters-card global-rider-picker"><div class="filter-block">' +
-        '<label style="display:flex; align-items:center; justify-content:space-between;"><span>Pilote (admin)</span>' + manageBtn + '</label>' +
-        '<div class="help-text">Aucun pilote pour l\'instant.</div>' +
-        '</div></div>';
-    }
-    var isAll = !!(selectedRiders && selectedRiders.size === riders.length && riders.every(function (r) { return selectedRiders.has(r); }));
-    var current = (!isAll && selectedRiders && selectedRiders.size === 1) ? Array.from(selectedRiders)[0] : '';
-    var html = '<div class="card filters-card global-rider-picker"><div class="filter-block">' +
-      '<label style="display:flex; align-items:center; justify-content:space-between;"><span>Pilote (admin)</span>' + manageBtn + '</label>' +
-      '<div class="admin-rider-search">' +
-        '<input type="text" id="admin-rider-search" list="admin-rider-list" placeholder="Rechercher un pilote..." value="' + escapeHtml(current) + '">' +
-        '<datalist id="admin-rider-list">' + riders.map(function (r) { return '<option value="' + escapeHtml(r) + '">'; }).join('') + '</datalist>' +
-        '<button type="button" class="ghost' + (isAll ? ' active' : '') + '" id="admin-rider-all-btn">Tous les pilotes</button>' +
-      '</div>' +
-      '</div>' + renderRiderManagerPanel() + '</div>';
-    return html;
-  }
 
   // ---- Gestion des pilotes (ajout / renommage / suppression) ----
   //
@@ -1394,16 +1452,35 @@
     });
   }
 
+  // Free-text filter over manageableAccounts (name or email, case/accent
+  // insensitive-ish) -- the search this panel needed once it's the only
+  // place left to find a pilote among however many accounts exist,
+  // now that the old top-of-page Pilote picker is gone entirely.
+  var accountManagerSearch = '';
+  function filteredManageableAccounts() {
+    var q = accountManagerSearch.trim().toLowerCase();
+    if (!q) return manageableAccounts || [];
+    return (manageableAccounts || []).filter(function (a) {
+      return (a.name || '').toLowerCase().indexOf(q) !== -1 || (a.email || '').toLowerCase().indexOf(q) !== -1;
+    });
+  }
+
   function renderAccountManagerPanel() {
     if (!accountManagerOpen) return '';
     var html = '<div class="card account-manager-panel">';
-    html += '<div class="section-title">Gestion des comptes</div>';
+    html += '<div class="section-title" style="display:flex; align-items:center; justify-content:space-between;">Gestion des comptes' +
+      '<button type="button" class="ghost icon-btn" id="rider-manager-toggle" aria-label="Gérer les pilotes (roster)" title="Gérer les pilotes (roster)">⚙</button></div>';
     if (manageableAccounts === null) {
       html += '<div class="help-text">Chargement...</div>';
-    } else if (!manageableAccounts.length) {
-      html += '<div class="help-text">Aucun compte pour l\'instant.</div>';
     } else {
-      html += '<ul class="rider-manager-list">' + manageableAccounts.map(function (a) {
+      html += '<input type="text" id="account-manager-search" placeholder="Rechercher un pilote, accompagnant, organisateur..." value="' + escapeHtml(accountManagerSearch) + '" style="margin-bottom:0.8rem;">';
+      var accounts = filteredManageableAccounts();
+      if (!manageableAccounts.length) {
+        html += '<div class="help-text">Aucun compte pour l\'instant.</div>';
+      } else if (!accounts.length) {
+        html += '<div class="help-text">Aucun résultat pour « ' + escapeHtml(accountManagerSearch) + ' ».</div>';
+      } else {
+      html += '<ul class="rider-manager-list">' + accounts.map(function (a) {
         var isPendingDelete = pendingDeleteAccountUid === a.uid;
         var isPilote = !a.role || a.role === 'pilote';
         var detail = isPilote ? escapeHtml(a.bike || '—') : escapeHtml((a.followedRiders || []).join(', ') || '—');
@@ -1419,8 +1496,10 @@
           '<button type="button" class="ghost icon-btn' + (isPendingDelete ? ' confirm' : '') + '" data-action="delete-account-request" data-uid="' + a.uid + '" aria-label="Supprimer ce compte" title="Retirer l\'accès">' + (isPendingDelete ? '✓' : '×') + '</button>' +
           '</li>';
       }).join('') + '</ul>';
+      }
     }
     if (accountManagerError) html += '<div class="field-error visible">' + escapeHtml(accountManagerError) + '</div>';
+    html += renderRiderManagerPanel();
     html += '</div>';
     return html;
   }
@@ -1821,17 +1900,26 @@
     if (!selectedCircuit) {
       return '<div class="card"><div class="empty-state">Choisissez un circuit dans l\'onglet Circuit avant d\'enregistrer un chrono.</div></div>';
     }
-    // Neither an accompagnant nor an organisateur rides, so there's
-    // nothing for them to enter here -- matches firestore.rules, which
-    // rejects a session create from either account type outright.
-    if (currentUserProfile && (currentUserProfile.role === 'accompagnant' || currentUserProfile.role === 'organisateur') && !isAdmin()) {
-      return '<div class="card"><div class="empty-state">Seuls les pilotes (et l\'administrateur) peuvent entrer des chronos.</div></div>';
-    }
     var admin = isAdmin();
+    var teamPiloteChoices = myTeamPiloteChoices(); // name -> teamId, for pilotes on a team this account leads
+    var teamPiloteNames = Object.keys(teamPiloteChoices);
+    // An accompagnant never rides and leads no chrono-relevant team
+    // access; an organisateur doesn't ride either, but can still enter
+    // one for a team pilote if they lead a team that includes them (see
+    // ownsChronoViaTeam in firestore.rules) -- otherwise same dead end.
+    var isNonRiderRole = currentUserProfile && (currentUserProfile.role === 'accompagnant' || currentUserProfile.role === 'organisateur');
+    if (isNonRiderRole && !admin && !teamPiloteNames.length) {
+      return '<div class="card"><div class="empty-state">Seuls les pilotes (et l\'administrateur) peuvent entrer des chronos' +
+        (currentUserProfile.role === 'organisateur' ? ' -- ou un Team Leader, pour un pilote de son team.' : '.') + '</div></div>';
+    }
     var rider = (selectedRiders && selectedRiders.size === 1) ? Array.from(selectedRiders)[0] : null;
-    // A pilote can only ever enter their own chronos (see firestore.rules);
-    // only the admin can pick someone else from the dropdown.
-    if (!admin && currentUserProfile) rider = currentUserProfile.name;
+    // A pilote can only ever enter their own chronos, or a teammate's if
+    // they lead a team that includes them; an organisateur/admin-less
+    // account with no chronos of its own defaults straight to the first
+    // team pilote instead (see firestore.rules for the actual boundary).
+    if (!admin && currentUserProfile) {
+      rider = (currentUserProfile.role === 'organisateur') ? (teamPiloteNames[0] || null) : currentUserProfile.name;
+    }
     var todayStr = dateKey(new Date());
     var groupHint = rider ? chronoGroupHint(selectedCircuit, todayStr, rider) : '';
     var slots = todaysGroupSlots(selectedCircuit, groupHint);
@@ -1841,11 +1929,17 @@
     html += '<form id="session-form" novalidate>';
     html += '<div class="field-row">';
     if (admin) {
-      // Only the admin can enter a chrono for someone else -- everyone
-      // else is locked to their own name.
+      // Only the admin can enter a chrono for anyone at all -- everyone
+      // else is locked to their own name, or (see above) their team's.
       var knownRiders = allKnownRiders();
       html += '<div><label for="f-rider">Pilote</label><select id="f-rider" required><option value="">—</option>' +
         knownRiders.map(function (r) { return '<option value="' + escapeHtml(r) + '"' + (r === rider ? ' selected' : '') + '>' + escapeHtml(r) + '</option>'; }).join('') +
+        '</select></div>';
+    } else if (teamPiloteNames.length) {
+      var ownOption = currentUserProfile.role === 'organisateur' ? [] : [currentUserProfile.name];
+      var pickOptions = ownOption.concat(teamPiloteNames);
+      html += '<div><label for="f-rider">Pilote</label><select id="f-rider" required>' +
+        pickOptions.map(function (r) { return '<option value="' + escapeHtml(r) + '"' + (r === rider ? ' selected' : '') + '>' + escapeHtml(r) + '</option>'; }).join('') +
         '</select></div>';
     } else {
       html += '<div><label>Pilote</label><div class="static-field">' + escapeHtml(rider || '') + '</div></div>';
@@ -2219,14 +2313,12 @@
   }
 
   // A rider's name, used anywhere one shows up (chronos table, récap du
-  // jour, groupes par pilote). Only the admin can actually jump to
-  // Statistiques for someone else this way (their own Chronos/Stats stay
-  // locked to their own name -- see normalizeSelection) -- for anyone
-  // else it's plain text; checking on a teammate now goes through Social
-  // (fiche d'ami), not a click here.
+  // jour, groupes par pilote). Plain text now for everyone, admin
+  // included -- Chronos/Stats are locked to the connected account's own
+  // name (see normalizeSelection), so a click here would have nowhere to
+  // go; checking on a teammate goes through Social (fiche d'ami) instead.
   function renderRiderLink(name) {
-    if (!isAdmin()) return escapeHtml(name);
-    return '<button type="button" class="rider-name-link" data-view-rider="' + escapeHtml(name) + '">' + escapeHtml(name) + '</button>';
+    return escapeHtml(name);
   }
 
   // Copier/Maps/Waze actions for any free-text address or place name --
@@ -3534,7 +3626,8 @@
     ['planning', 'Planning'],
     ['circuit', 'Chronos'],
     ['stats', 'Stats'],
-    ['social', 'Social']
+    ['social', 'Social'],
+    ['team', 'Team']
   ];
 
   function renderViewTabs() {
@@ -5122,6 +5215,7 @@
     if (view === 'stats') return 'L’historique et les records du pilote.';
     if (view === 'planning') return 'Les horaires de la sortie en cours ou à venir.';
     if (view === 'social') return 'Tes amis, et leurs statistiques.';
+    if (view === 'team') return 'Ton équipe, ses membres et son fil d\'actualité.';
     return 'Vos sorties, leur calendrier, et comment en ajouter une.';
   }
 
@@ -5401,6 +5495,123 @@
     return html;
   }
 
+  // ---- Team ----
+  //
+  // A team's roster and feed (see refreshTeamDetailSync) only ever cover
+  // the team(s) this account is actually in -- there's no "browse other
+  // teams" here, same boundary as Social's friend-only visibility.
+  function renderTeamMemberRow(teamId, member, isLeader, myName) {
+    var u = (STATE.usersByName || {})[member.name] || {};
+    var actions = '';
+    if (isLeader && member.name !== myName) {
+      actions += member.role === 'leader'
+        ? '<button type="button" class="ghost icon-btn" data-action="team-demote" data-team="' + teamId + '" data-name="' + escapeHtml(member.name) + '" aria-label="Retirer Team Leader" title="Retirer Team Leader">↓</button>'
+        : '<button type="button" class="ghost icon-btn" data-action="team-promote" data-team="' + teamId + '" data-name="' + escapeHtml(member.name) + '" aria-label="Nommer Team Leader" title="Nommer Team Leader">↑</button>';
+      actions += '<button type="button" class="ghost icon-btn" data-action="team-remove-member" data-team="' + teamId + '" data-name="' + escapeHtml(member.name) + '" aria-label="Retirer du team" title="Retirer du team">×</button>';
+    } else if (member.name === myName) {
+      actions += '<button type="button" class="ghost" data-action="team-leave" data-team="' + teamId + '">Quitter</button>';
+    }
+    return '<div class="friend-row">' +
+      '<div class="friend-row-main"><span class="friend-name-plain">' + escapeHtml(member.name) + '</span>' + badgesHtml(u) +
+      '<span class="friend-role-badge">' + (member.role === 'leader' ? 'Team Leader' : 'Membre') + '</span></div>' +
+      '<div class="friend-row-actions">' + actions + '</div></div>';
+  }
+
+  function renderTeamCard(team, me) {
+    var isLeader = isLeaderOfTeam(team.id);
+    var members = membersOfTeam(team.id).slice().sort(function (a, b) {
+      if ((a.role === 'leader') !== (b.role === 'leader')) return a.role === 'leader' ? -1 : 1;
+      return a.name.localeCompare(b.name);
+    });
+    var feed = (STATE.teamFeed || []).filter(function (f) { return f.teamId === team.id; });
+    var html = '<div class="card team-card">';
+    html += '<div class="section-title" style="display:flex; align-items:center; justify-content:space-between;">' + escapeHtml(team.name) +
+      '<span class="friend-role-badge">' + (isLeader ? 'Team Leader' : 'Membre') + '</span></div>';
+
+    html += '<div class="team-section-title">Fil d\'actualité</div>';
+    html += !feed.length
+      ? '<div class="empty-state">Rien pour l\'instant.</div>'
+      : feed.map(function (f) {
+          return '<div class="feed-entry"><span class="feed-entry-text"><strong>' + escapeHtml(f.author) + '</strong> — ' + escapeHtml(f.text) + '</span>' +
+            '<span class="feed-entry-time">' + escapeHtml(relativeTime(f.createdAt)) + '</span></div>';
+        }).join('');
+    if (isLeader) {
+      html += '<form class="team-feed-form" data-action="team-feed-form" data-team="' + team.id + '">' +
+        '<input type="text" placeholder="Écrire au team..." data-team-feed-input required>' +
+        '<button type="submit" class="ghost">Publier</button></form>';
+    }
+
+    html += '<div class="team-section-title">Membres (' + members.length + ')</div>';
+    html += members.map(function (m) { return renderTeamMemberRow(team.id, m, isLeader, me.name); }).join('');
+
+    if (isLeader) {
+      var memberNames = members.map(function (m) { return m.name; });
+      var invitedNames = (STATE.teamInvites || []).filter(function (r) { return r.status === 'pending' && r.teamId === team.id; }).map(function (r) { return r.to; });
+      var candidates = friendsOf(me.name).map(function (f) { return f.name; })
+        .filter(function (n) { return memberNames.indexOf(n) === -1 && invitedNames.indexOf(n) === -1; });
+      html += '<div class="team-section-title">Inviter un ami</div>';
+      if (!candidates.length) {
+        html += '<div class="help-text">Tous tes amis sont déjà dans ce team, ou aucun ami à inviter -- vois Social.</div>';
+      } else {
+        html += '<form class="team-invite-form" data-action="team-invite-form" data-team="' + team.id + '">' +
+          '<select data-team-invite-select>' + candidates.map(function (n) {
+            return '<option value="' + escapeHtml(n) + '">' + escapeHtml(n) + '</option>';
+          }).join('') + '</select>' +
+          '<button type="submit" class="ghost">Inviter</button></form>';
+      }
+    }
+    html += '</div>';
+    return html;
+  }
+
+  function renderCreateTeamCard() {
+    return '<div class="card"><h2 class="section-title">Créer un Team</h2>' +
+      '<form id="create-team-form">' +
+      '<label for="new-team-name">Nom du team</label>' +
+      '<input type="text" id="new-team-name" placeholder="Ex. Mototeam95" required>' +
+      '<div class="help-text">Tu en deviens automatiquement le premier Team Leader.</div>' +
+      '<button type="submit" class="primary" style="margin-top:0.7rem;">Créer</button>' +
+      '</form></div>';
+  }
+
+  function renderTeamTab() {
+    var me = currentUserProfile;
+    if (!me) return '';
+    var incoming = (STATE.teamInvites || []).filter(function (r) { return r.status === 'pending' && r.to === me.name; });
+    var outgoing = (STATE.teamInvites || []).filter(function (r) { return r.status === 'pending' && r.from === me.name; });
+    var myTeams = (STATE.myTeamMemberships || []).map(function (m) { return teamById(m.teamId); }).filter(Boolean)
+      .sort(function (a, b) { return a.name.localeCompare(b.name); });
+
+    var html = '';
+    if (incoming.length) {
+      html += '<div class="card"><h2 class="section-title">Invitations reçues</h2>';
+      html += incoming.map(function (r) {
+        return '<div class="friend-row"><div class="friend-row-main"><span class="friend-name-plain">' + escapeHtml(r.teamName) + '</span> <span class="help-text">invité par ' + escapeHtml(r.from) + '</span></div>' +
+          '<div class="friend-row-actions">' +
+          '<button type="button" class="primary" data-action="team-invite-accept" data-id="' + r.id + '">Accepter</button>' +
+          '<button type="button" class="ghost" data-action="team-invite-remove" data-id="' + r.id + '">Refuser</button>' +
+          '</div></div>';
+      }).join('');
+      html += '</div>';
+    }
+    if (outgoing.length) {
+      html += '<div class="card"><h2 class="section-title">Invitations envoyées</h2>';
+      html += outgoing.map(function (r) {
+        return '<div class="friend-row"><div class="friend-row-main"><span class="friend-name-plain">' + escapeHtml(r.to) + '</span> <span class="help-text">pour ' + escapeHtml(r.teamName) + '</span></div>' +
+          '<div class="friend-row-actions"><button type="button" class="ghost" data-action="team-invite-remove" data-id="' + r.id + '">Annuler</button></div></div>';
+      }).join('');
+      html += '</div>';
+    }
+
+    if (!myTeams.length) {
+      html += '<div class="card"><div class="empty-state">Pas encore de team -- crée-en un, ou attends une invitation.</div></div>';
+    } else {
+      myTeams.forEach(function (team) { html += renderTeamCard(team, me); });
+    }
+    html += renderCreateTeamCard();
+    return html;
+  }
+
   function renderRoot() {
     try {
       renderRootUnsafe();
@@ -5430,11 +5641,22 @@
       return;
     }
     normalizeSelection();
+    // root.innerHTML is fully replaced below, which would otherwise drop
+    // focus (and the cursor position) out of a text input on every single
+    // keystroke for any live-filter-as-you-type field -- restored after
+    // attachHandlers() runs, same element by id.
+    var focusedId = null, focusedSelection = null;
+    var activeEl = document.activeElement;
+    if (activeEl && activeEl.id && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA')) {
+      focusedId = activeEl.id;
+      if (typeof activeEl.selectionStart === 'number') focusedSelection = [activeEl.selectionStart, activeEl.selectionEnd];
+    }
     var body;
     if (activeView === 'circuit') body = renderCircuitTab();
     else if (activeView === 'stats') body = renderStatsTab();
     else if (activeView === 'planning') body = renderPlanningTab();
     else if (activeView === 'social') body = renderSocialTab();
+    else if (activeView === 'team') body = renderTeamTab();
     else body = renderEventTab(); // 'event' and safety fallback
     root.innerHTML =
       '<header class="page-head">' +
@@ -5460,13 +5682,18 @@
       '</header>' +
       renderProfilePanel() +
       renderAccountManagerPanel() +
-      // Admin-only, and only on Chronos/Stats: everyone else's Chronos/
-      // Stats are locked to their own account (see normalizeSelection) --
-      // viewing someone else's now goes through Social instead.
-      ((isAdmin() && (activeView === 'circuit' || activeView === 'stats')) ? renderAdminRiderPicker() : '') +
       renderViewTabs() +
       body;
     attachHandlers();
+    if (focusedId) {
+      var toRefocus = document.getElementById(focusedId);
+      if (toRefocus) {
+        toRefocus.focus();
+        if (focusedSelection && typeof toRefocus.setSelectionRange === 'function') {
+          try { toRefocus.setSelectionRange(focusedSelection[0], focusedSelection[1]); } catch (e) {}
+        }
+      }
+    }
     updateBanner();
     saveUiState();
     updateLiveClock();
@@ -6045,6 +6272,52 @@
     document.querySelectorAll('[data-action="unfollow"]').forEach(function (btn) {
       btn.addEventListener('click', function () { unfollowName(btn.getAttribute('data-name')); });
     });
+    var createTeamForm = document.getElementById('create-team-form');
+    if (createTeamForm) {
+      createTeamForm.addEventListener('submit', function (evt) {
+        evt.preventDefault();
+        var input = document.getElementById('new-team-name');
+        createTeam(input.value);
+        input.value = '';
+      });
+    }
+    document.querySelectorAll('[data-action="team-invite-form"]').forEach(function (form) {
+      form.addEventListener('submit', function (evt) {
+        evt.preventDefault();
+        var select = form.querySelector('[data-team-invite-select]');
+        if (select && select.value) inviteToTeam(form.getAttribute('data-team'), select.value);
+      });
+    });
+    document.querySelectorAll('[data-action="team-feed-form"]').forEach(function (form) {
+      form.addEventListener('submit', function (evt) {
+        evt.preventDefault();
+        var input = form.querySelector('[data-team-feed-input]');
+        if (input && input.value.trim()) postTeamFeedMessage(form.getAttribute('data-team'), input.value);
+      });
+    });
+    document.querySelectorAll('[data-action="team-invite-accept"]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var invite = (STATE.teamInvites || []).filter(function (r) { return r.id === btn.getAttribute('data-id'); })[0];
+        if (invite) acceptTeamInvite(invite);
+      });
+    });
+    document.querySelectorAll('[data-action="team-invite-remove"]').forEach(function (btn) {
+      btn.addEventListener('click', function () { removeTeamInvite(btn.getAttribute('data-id')); });
+    });
+    document.querySelectorAll('[data-action="team-promote"]').forEach(function (btn) {
+      btn.addEventListener('click', function () { setTeamMemberRole(btn.getAttribute('data-team'), btn.getAttribute('data-name'), 'leader'); });
+    });
+    document.querySelectorAll('[data-action="team-demote"]').forEach(function (btn) {
+      btn.addEventListener('click', function () { setTeamMemberRole(btn.getAttribute('data-team'), btn.getAttribute('data-name'), 'member'); });
+    });
+    document.querySelectorAll('[data-action="team-remove-member"]').forEach(function (btn) {
+      btn.addEventListener('click', function () { removeTeamMember(btn.getAttribute('data-team'), btn.getAttribute('data-name')); });
+    });
+    document.querySelectorAll('[data-action="team-leave"]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        if (currentUserProfile) removeTeamMember(btn.getAttribute('data-team'), currentUserProfile.name);
+      });
+    });
     var copyReferralBtn = document.getElementById('copy-referral-link-btn');
     if (copyReferralBtn) {
       copyReferralBtn.addEventListener('click', function () {
@@ -6492,35 +6765,13 @@
         openAnnotation(openAnnotBtn.getAttribute('data-circuit') || selectedCircuit, openAnnotBtn.getAttribute('data-event-id') || null);
       });
     }
-    var adminRiderSearch = document.getElementById('admin-rider-search');
-    if (adminRiderSearch) {
-      // 'change' (not 'input') -- fires once the typed/picked value settles
-      // (blur, or picking a <datalist> option), not on every keystroke.
-      adminRiderSearch.addEventListener('change', function () {
-        var val = adminRiderSearch.value.trim();
-        if (val && allKnownRiders().indexOf(val) !== -1) {
-          selectedRiders = new Set([val]);
-          renderRoot();
-        }
-      });
-    }
-    var adminRiderAllBtn = document.getElementById('admin-rider-all-btn');
-    if (adminRiderAllBtn) {
-      adminRiderAllBtn.addEventListener('click', function () {
-        selectedRiders = new Set(allKnownRiders());
+    var accountManagerSearchEl = document.getElementById('account-manager-search');
+    if (accountManagerSearchEl) {
+      accountManagerSearchEl.addEventListener('input', function () {
+        accountManagerSearch = accountManagerSearchEl.value;
         renderRoot();
       });
     }
-    // A rider's name anywhere in the app (chronos table, récap du jour,
-    // groupes par pilote...) jumps straight to their own read-only profile
-    // -- just Statistiques filtered to them, reusing what's already there.
-    document.querySelectorAll('[data-view-rider]').forEach(function (btn) {
-      btn.addEventListener('click', function () {
-        selectedRiders = new Set([btn.getAttribute('data-view-rider')]);
-        activeView = 'stats';
-        renderRoot();
-      });
-    });
     document.querySelectorAll('.progression-point').forEach(function (el) {
       el.addEventListener('click', function () {
         var idx = parseInt(el.getAttribute('data-idx'), 10);
@@ -6584,6 +6835,14 @@
     if (bike) session.bike = bike;
     if (note) session.note = note;
     if (group) session.group = group;
+    // Entering a chrono for a teammate (an organisateur for one of their
+    // team's pilotes, typically) rather than one's own -- tags which team
+    // granted the access, since firestore.rules can't otherwise verify a
+    // non-owner write (see ownsChronoViaTeam).
+    if (!isAdmin() && currentUserProfile && rider !== currentUserProfile.name) {
+      var grantingTeamId = myTeamPiloteChoices()[rider];
+      if (grantingTeamId) session.teamId = grantingTeamId;
+    }
     // The precise timed slot (e.g. "9h40-10h00"), when one was picked --
     // re-derived from the current horaires/group rather than trusting the
     // <option> text alone, so a stale selection can't outlive a horaires
@@ -6740,11 +6999,82 @@
         renderRoot();
       }, handleSyncError));
     }
+    // Teams: cheap to sync in full (id/name/createdBy only, no member
+    // list on the doc itself -- see teamMembers). Membership/rosters and
+    // the feed are then scoped to just the team(s) this account is
+    // actually in (refreshTeamDetailSync, re-subscribed whenever that set
+    // changes) rather than syncing every team's roster for everyone.
+    unsubscribers.push(db.collection('teams').onSnapshot(function (snap) {
+      STATE.teams = snap.docs.map(function (d) { return d.data(); });
+      renderRoot();
+    }, handleSyncError));
+    if (currentUserProfile && currentUserProfile.name) {
+      unsubscribers.push(db.collection('teamMembers').where('name', '==', currentUserProfile.name).onSnapshot(function (snap) {
+        STATE.myTeamMemberships = snap.docs.map(function (d) { return d.data(); });
+        refreshTeamDetailSync();
+        renderRoot();
+      }, handleSyncError));
+      var teamInviteFrom = {}, teamInviteTo = {};
+      function mergeTeamInvites() {
+        var byId = {};
+        Object.keys(teamInviteFrom).forEach(function (id) { byId[id] = teamInviteFrom[id]; });
+        Object.keys(teamInviteTo).forEach(function (id) { byId[id] = teamInviteTo[id]; });
+        STATE.teamInvites = Object.keys(byId).map(function (id) { return byId[id]; });
+        renderRoot();
+      }
+      unsubscribers.push(db.collection('teamInvites').where('from', '==', currentUserProfile.name).onSnapshot(function (snap) {
+        teamInviteFrom = {};
+        snap.forEach(function (d) { teamInviteFrom[d.id] = Object.assign({ id: d.id }, d.data()); });
+        mergeTeamInvites();
+      }, handleSyncError));
+      unsubscribers.push(db.collection('teamInvites').where('to', '==', currentUserProfile.name).onSnapshot(function (snap) {
+        teamInviteTo = {};
+        snap.forEach(function (d) { teamInviteTo[d.id] = Object.assign({ id: d.id }, d.data()); });
+        mergeTeamInvites();
+      }, handleSyncError));
+    }
+  }
+
+  // Re-subscribed (not just once) whenever STATE.myTeamMemberships changes
+  // -- e.g. joining a new team -- so its roster and feed start syncing
+  // without needing a full page reload. Firestore's 'in' operator caps at
+  // 10 values, plenty for a hobby app's worth of teams per person.
+  var teamDetailUnsubs = [];
+  function refreshTeamDetailSync() {
+    teamDetailUnsubs.forEach(function (unsub) { unsub(); });
+    teamDetailUnsubs = [];
+    var teamIds = (STATE.myTeamMemberships || []).map(function (m) { return m.teamId; });
+    if (!teamIds.length) {
+      STATE.teamMembersByTeam = {};
+      STATE.teamFeed = [];
+      return;
+    }
+    teamDetailUnsubs.push(db.collection('teamMembers').where('teamId', 'in', teamIds).onSnapshot(function (snap) {
+      var byTeam = {};
+      snap.forEach(function (d) {
+        var m = d.data();
+        byTeam[m.teamId] = byTeam[m.teamId] || [];
+        byTeam[m.teamId].push(m);
+      });
+      STATE.teamMembersByTeam = byTeam;
+      renderRoot();
+    }, handleSyncError));
+    // Sorted client-side rather than orderBy('createdAt') server-side --
+    // combined with where('teamId','in',...) that would need a composite
+    // index configured in the Firebase console before it'd work at all.
+    teamDetailUnsubs.push(db.collection('teamFeed').where('teamId', 'in', teamIds).limit(200).onSnapshot(function (snap) {
+      STATE.teamFeed = snap.docs.map(function (d) { return d.data(); })
+        .sort(function (a, b) { return (b.createdAt || 0) - (a.createdAt || 0); })
+        .slice(0, 50);
+      renderRoot();
+    }, handleSyncError));
   }
 
   function stopSync() {
     unsubscribers.forEach(function (unsub) { unsub(); });
     unsubscribers = [];
+    teamDetailUnsubs.forEach(function (unsub) { unsub(); });
+    teamDetailUnsubs = [];
   }
 
   function handleSyncError() {

@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Lier un compte à un pilote existant — Carnet de Piste</title>
+<style>
+  body { font: 15px -apple-system, sans-serif; max-width: 640px; margin: 3rem auto; padding: 0 1rem; color: #16212c; }
+  label { display: block; margin-top: 1rem; font-weight: 600; }
+  input { font-size: 1rem; padding: 0.5rem; width: 100%; box-sizing: border-box; margin-top: 0.3rem; }
+  button { font-size: 1rem; padding: 0.6rem 1.2rem; cursor: pointer; margin-top: 1.2rem; }
+  .quick-fill { margin-top: 1rem; display: flex; gap: 0.6rem; flex-wrap: wrap; }
+  .quick-fill button { margin-top: 0; font-size: 0.85rem; padding: 0.4rem 0.8rem; }
+  #log { white-space: pre-wrap; background: #f2f2f2; padding: 1rem; margin-top: 1.2rem; font-family: monospace; font-size: 0.85rem; max-height: 400px; overflow: auto; }
+  .help { font-size: 0.82rem; color: #666; font-weight: 400; margin-top: 0.2rem; }
+</style>
+</head>
+<body>
+<h1>Lier un compte à un pilote existant</h1>
+<p>Crée un compte de connexion (email + mot de passe) pour un pilote qui a déjà des chronos dans le carnet mais pas encore de compte — le nom doit correspondre <strong>exactement</strong> à celui déjà utilisé dans les chronos/la liste des pilotes, sinon ça créera un pilote distinct (homonyme) au lieu de se lier au bon historique.</p>
+
+<div class="quick-fill">
+  <button type="button" data-email="xaviergmn@outlook.com" data-name="Marc">Pré-remplir : xaviergmn@outlook.com → Marc</button>
+  <button type="button" data-email="gmnxaviercom@gmail.com" data-name="Patrick">Pré-remplir : gmnxaviercom@gmail.com → Patrick</button>
+</div>
+
+<form id="link-form">
+  <label for="pilote-name">Nom du pilote existant</label>
+  <input type="text" id="pilote-name" required>
+  <div class="help">Doit correspondre exactement à un nom déjà présent dans la liste des pilotes (avec son éventuel "(#NN)" si homonyme).</div>
+
+  <label for="email">Email du nouveau compte</label>
+  <input type="email" id="email" autocomplete="off" required>
+
+  <label for="password">Mot de passe</label>
+  <input type="password" id="password" autocomplete="off" required minlength="6">
+
+  <button type="submit">Créer le compte et le lier</button>
+</form>
+
+<div id="log"></div>
+
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore-compat.js"></script>
+<script src="firebase-config.js"></script>
+<script>
+  var logEl = document.getElementById('log');
+  function log(msg) { logEl.textContent += msg + '\n'; }
+
+  function safeDocId(name) {
+    return (name || '').replace(/[\/\\]/g, '_') || 'unnamed';
+  }
+
+  document.querySelectorAll('.quick-fill button').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      document.getElementById('email').value = btn.getAttribute('data-email');
+      document.getElementById('pilote-name').value = btn.getAttribute('data-name');
+      document.getElementById('password').focus();
+    });
+  });
+
+  document.getElementById('link-form').addEventListener('submit', function (evt) {
+    evt.preventDefault();
+    var submitBtn = evt.target.querySelector('button[type="submit"]');
+    submitBtn.disabled = true;
+
+    var db = firebase.firestore();
+    var auth = firebase.auth();
+    var name = document.getElementById('pilote-name').value.trim();
+    var email = document.getElementById('email').value.trim();
+    var password = document.getElementById('password').value;
+
+    log('Vérification du pilote "' + name + '"...');
+    db.collection('riders').get().then(function (snap) {
+      var existingNames = snap.docs.map(function (d) { return d.data().name; });
+      if (existingNames.indexOf(name) === -1) {
+        log('ATTENTION : "' + name + '" ne correspond à aucun pilote existant (' + existingNames.join(', ') + ').');
+        log('Un nouveau pilote distinct serait créé -- annulé. Corrige le nom exact et réessaie.');
+        submitBtn.disabled = false;
+        return null;
+      }
+      log('Pilote trouvé. Création du compte...');
+      return auth.createUserWithEmailAndPassword(email, password).then(function (cred) {
+        log('Compte créé (uid ' + cred.user.uid + ').');
+        return db.collection('users').doc(cred.user.uid).set({ name: name, role: 'pilote', email: email }).then(function () {
+          return db.collection('riders').doc(safeDocId(name)).set({ name: name }, { merge: true });
+        }).then(function () {
+          return cred.user.sendEmailVerification();
+        }).then(function () {
+          log('Lié à "' + name + '" et email de vérification envoyé à ' + email + '.');
+          log('Terminé -- ' + name + ' peut se connecter dès qu\'il aura cliqué le lien de vérification reçu par email.');
+        });
+      });
+    }).catch(function (err) {
+      log('ERREUR : ' + (err && err.message ? err.message : err));
+    }).finally(function () {
+      submitBtn.disabled = false;
+    });
+  });
+</script>
+</body>
+</html>
