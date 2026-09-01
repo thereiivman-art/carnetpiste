@@ -14,7 +14,7 @@
   var STATE = {
     sessions: [], events: [], circuits: {}, riders: [], usersByName: {}, friendRequests: [], feedEvents: [], myFollows: [], myFollowedTeams: [],
     myFollowedTeamTiers: {}, teams: [], myTeamMemberships: [], teamInvites: [], teamMembersByTeam: {}, teamFeed: [], teamFollowersByTeam: {},
-    followedTeamFeed: [], wallPosts: []
+    followedTeamFeed: [], wallPosts: [], coachRequests: []
   };
   var canPersist = false;
   var unsubscribers = [];
@@ -159,6 +159,55 @@
     db.collection('friendRequests').doc(id).delete().catch(function (err) {
       showToast('Erreur : ' + (err && err.message ? err.message : err));
     });
+  }
+
+  // ---- Coaching ----
+  //
+  // A Pilote or Organisateur asks a Coach (a badge, see isCoachBadge, not
+  // a signup role) to coach them -- same request/accept shape as
+  // friendRequests, kept as its own collection since it means something
+  // different (see renderCoachTab) and carries its own field (plan, the
+  // coach's training notes for that pilote, writable only once accepted).
+  function sendCoachRequest(toName) {
+    var me = currentUserProfile;
+    if (!me || !toName || toName === me.name) return;
+    var already = (STATE.coachRequests || []).some(function (r) {
+      return (r.from === me.name && r.to === toName) || (r.from === toName && r.to === me.name);
+    });
+    if (already) return;
+    db.collection('coachRequests').add({ from: me.name, to: toName, status: 'pending', plan: '' }).then(function () {
+      showToast('Demande de coaching envoyée à ' + toName + '.', 'success');
+    }).catch(function (err) {
+      showToast('Erreur : ' + (err && err.message ? err.message : err));
+    });
+  }
+  function acceptCoachRequest(id) {
+    db.collection('coachRequests').doc(id).update({ status: 'accepted' }).then(function () {
+      showToast('Demande de coaching acceptée.', 'success');
+    }).catch(function (err) {
+      showToast('Erreur : ' + (err && err.message ? err.message : err));
+    });
+  }
+  // Same delete either way -- declining, cancelling, or ending an active
+  // coaching relationship are all just removing the doc.
+  function removeCoachRequest(id) {
+    db.collection('coachRequests').doc(id).delete().catch(function (err) {
+      showToast('Erreur : ' + (err && err.message ? err.message : err));
+    });
+  }
+  function saveCoachPlan(id, plan) {
+    db.collection('coachRequests').doc(id).update({ plan: plan || '' }).catch(function (err) {
+      showToast('Erreur : ' + (err && err.message ? err.message : err));
+    });
+  }
+  // Gates the header's 🎓 icon (see renderRootUnsafe) -- shown to an
+  // actual Coach (so they can reach their roster) and to anyone with a
+  // coaching request in flight either direction (so a pilote can watch
+  // their own request's status/plan even before it's accepted).
+  function canAccessCoachSpace() {
+    if (!currentUserProfile) return false;
+    if (isCoachBadge(currentUserProfile)) return true;
+    return (STATE.coachRequests || []).length > 0;
   }
 
   // ---- Teams ----
@@ -1563,10 +1612,22 @@
     return html;
   }
 
+  // Everything that used to live in the header's own account-bar (identity,
+  // badges, role, Mon profil/Gestion des comptes/Se déconnecter) now shows
+  // up here instead, right when the header's profile-badge avatar is
+  // clicked -- the fixed header itself only carries the avatar (see
+  // renderRootUnsafe), not this whole bandeau.
   function renderProfilePanel() {
     if (!profilePanelOpen) return '';
     var p = currentUserProfile;
     var html = '<div class="card profile-panel">';
+    html += '<div class="account-bar">' +
+      '<span class="account-bar-identity">' + escapeHtml(p.name) + badgesHtml(p) + ' · ' + roleLabel(p.role) + '</span>' +
+      '<span class="account-bar-actions">' +
+        (isAdmin() ? '<button type="button" class="ghost account-bar-btn" id="account-manager-toggle">Gestion des comptes</button>' : '') +
+        '<button type="button" class="ghost account-bar-btn" id="logout-btn">Se déconnecter</button>' +
+      '</span>' +
+    '</div>';
     html += '<div class="section-title">Mon profil</div>';
     html += renderProfileTabBar();
     html += '<div class="profile-tab-body">';
@@ -1574,6 +1635,57 @@
     else if (profileSubTab === 'aide') html += renderProfileAideTab(p);
     else html += renderProfileProfilTab(p);
     html += '</div>';
+    html += '</div>';
+    return html;
+  }
+
+  // How many items the header's 🏁 notification icon badges up -- every
+  // pending thing addressed to this account across the app's three
+  // request/accept flows (friends, Teams, coaching), so the count means
+  // "things waiting on you", not an activity-log tally.
+  function pendingNotificationCount() {
+    var me = currentUserProfile;
+    if (!me) return 0;
+    var n = 0;
+    n += (STATE.friendRequests || []).filter(function (r) { return r.status === 'pending' && r.to === me.name; }).length;
+    n += (STATE.teamInvites || []).filter(function (r) { return r.status === 'pending' && r.to === me.name; }).length;
+    n += (STATE.coachRequests || []).filter(function (r) { return r.status === 'pending' && r.to === me.name; }).length;
+    return n;
+  }
+
+  // Opened from the header's 🏁 icon -- lists exactly the same pending
+  // items pendingNotificationCount() counts, each actionable right there
+  // via the same data-action handlers their own tab already uses (accept-
+  // friend/remove-friend, team-invite-accept/remove, coach-request-
+  // accept/remove), so accepting or declining here needs no new wiring.
+  function renderNotificationsPanel() {
+    if (!notificationsPanelOpen) return '';
+    var me = currentUserProfile;
+    var html = '<div class="card notifications-panel">';
+    html += '<div class="section-title">🏁 Notifications</div>';
+    if (!me) { html += '</div>'; return html; }
+    var friendReqs = (STATE.friendRequests || []).filter(function (r) { return r.status === 'pending' && r.to === me.name; });
+    var teamInvs = (STATE.teamInvites || []).filter(function (r) { return r.status === 'pending' && r.to === me.name; });
+    var coachReqs = (STATE.coachRequests || []).filter(function (r) { return r.status === 'pending' && r.to === me.name; });
+    var rows = '';
+    friendReqs.forEach(function (r) {
+      rows += renderFriendRow(r.from, '<button type="button" class="primary" data-action="accept-friend" data-id="' + r.id + '">Accepter</button>' +
+        '<button type="button" class="ghost" data-action="remove-friend" data-id="' + r.id + '">Refuser</button>') +
+        '<div class="help-text" style="margin:-0.3rem 0 0.6rem;">Demande d\'ami</div>';
+    });
+    teamInvs.forEach(function (r) {
+      rows += '<div class="friend-row"><div class="friend-row-main"><span class="friend-name-plain">' + escapeHtml(r.teamName) + '</span>' +
+        '<span class="help-text">invité par ' + escapeHtml(r.from) + '</span></div><div class="friend-row-actions">' +
+        '<button type="button" class="primary" data-action="team-invite-accept" data-id="' + r.id + '">Accepter</button>' +
+        '<button type="button" class="ghost" data-action="team-invite-remove" data-id="' + r.id + '">Refuser</button>' +
+        '</div></div>';
+    });
+    coachReqs.forEach(function (r) {
+      rows += renderFriendRow(r.from, '<button type="button" class="primary" data-action="coach-request-accept" data-id="' + r.id + '">Accepter</button>' +
+        '<button type="button" class="ghost" data-action="coach-request-remove" data-id="' + r.id + '">Refuser</button>') +
+        '<div class="help-text" style="margin:-0.3rem 0 0.6rem;">Demande de coaching</div>';
+    });
+    html += rows || '<div class="empty-state">Rien de nouveau.</div>';
     html += '</div>';
     return html;
   }
@@ -3819,13 +3931,14 @@
   // progression chart, entry form, session history) is appended to the
   // end of Circuit, since it was always about the currently active circuit
   // anyway. See renderCircuitTab().
+  // Stats has its own header icon now (see renderRootUnsafe), not a
+  // bottom-nav slot -- only these 5 make up the bottom nav, in this order.
   var MAIN_TABS = [
     ['event', 'Événements', '📅'],
-    ['planning', 'Planning', '🗓️'],
     ['circuit', 'Chronos', '⏱️'],
-    ['stats', 'Stats', '📊'],
+    ['planning', 'EN PISTE', '🏍️'],
     ['social', 'Social', '👥'],
-    ['team', 'Team', '🏍️']
+    ['team', 'Team', '🤝']
   ];
 
   // Fixed to the bottom of the viewport (see .bottom-nav), like a native
@@ -5443,15 +5556,6 @@
     renderRoot();
   }
 
-  function subtitleForView(view) {
-    if (view === 'circuit') return 'Le plan du circuit, ses infos et vos chronos.';
-    if (view === 'stats') return 'L’historique et les records du pilote.';
-    if (view === 'planning') return 'Les horaires de la sortie en cours ou à venir.';
-    if (view === 'social') return 'Tes amis, et leurs statistiques.';
-    if (view === 'team') return 'Ton équipe, ses membres et son fil d\'actualité.';
-    return 'Vos sorties, leur calendrier, et comment en ajouter une.';
-  }
-
   // ---- Thème clair / sombre ----
   //
   // Per-browser preference (like the UI state above), not shared via
@@ -5536,6 +5640,12 @@
   function isOrganizerBadge(u) {
     return !!(u && u.organizer);
   }
+  // Admin-vetted coach -- see renderCoachTab and coachRequests. Any role
+  // (pilote, accompagnant, organisateur) can carry it; it's a trust badge
+  // like the others, not a signup role of its own.
+  function isCoachBadge(u) {
+    return !!(u && u.coach);
+  }
 
   // Every badge a profile can carry -- one place to add a future one
   // (field, icon, label, and the CSS class it renders with), read by both
@@ -5545,7 +5655,8 @@
     { field: 'certified', icon: '✓', label: 'Certifié', cssClass: 'certified-badge', check: isCertified },
     { field: 'personality', icon: '★', label: 'Personnalité', cssClass: 'personality-badge', check: isPersonality },
     { field: 'pro', icon: '🏅', label: 'Pilote PRO', cssClass: 'pro-badge', check: isPro },
-    { field: 'organizer', icon: '🧭', label: 'Organisateur vérifié', cssClass: 'organizer-badge', check: isOrganizerBadge }
+    { field: 'organizer', icon: '🧭', label: 'Organisateur vérifié', cssClass: 'organizer-badge', check: isOrganizerBadge },
+    { field: 'coach', icon: '🎓', label: 'Coach', cssClass: 'coach-badge', check: isCoachBadge }
   ];
 
   function badgesHtml(u) {
@@ -5666,47 +5777,38 @@
       renderReactionBar(e.reactions, 'react-feed-event', e.id) + '</div>';
   }
 
-  function renderSocialFeed() {
-    var entries = (STATE.feedEvents || []).slice(0, 12);
-    var body = !entries.length
-      ? '<div class="empty-state">Rien de nouveau pour l\'instant.</div>'
-      : entries.map(renderFeedEntry).join('');
-    return collapsibleCard('social-actualites', 'Actualités', body, false);
+  // friendSuggestions() feeds both "Tes amis" (renderSocialTab) and the
+  // quick-add chip row inside it -- a few candidates worth nudging, not
+  // the exhaustive picker (that's the "Ajouter un ami" select).
+  function friendSuggestionChips(candidates) {
+    var suggestions = candidates.slice(0, 5);
+    if (!suggestions.length) return '';
+    return '<div class="social-suggestions-row"><span class="social-suggestions-label">Suggestions</span>' +
+      suggestions.map(function (n) {
+        return '<span class="suggestion-chip">' + escapeHtml(n) + ' <button type="button" class="ghost icon-btn" data-action="quick-add-friend" data-name="' + escapeHtml(n) + '" aria-label="Ajouter" title="Ajouter">+</button></span>';
+      }).join('') + '</div>';
   }
 
-  // A compact strip suggesting a few friend candidates and a few
-  // Personnalités not yet followed -- keeps "Ajouter un ami" itself as
-  // the exhaustive list, this is just a nudge.
-  function renderSocialSuggestions(candidates, me) {
-    var personalities = allKnownUserNames().filter(function (n) {
-      return n !== me.name && isPersonality(STATE.usersByName[n]) && (STATE.myFollows || []).indexOf(n) === -1;
-    }).slice(0, 3);
-    var friendSuggestions = candidates.slice(0, 3);
-    if (!friendSuggestions.length && !personalities.length) return '';
-    var html = '<div class="card social-suggestions">';
-    if (friendSuggestions.length) {
-      html += '<div class="social-suggestions-row"><span class="social-suggestions-label">Amis suggérés</span>' +
-        friendSuggestions.map(function (n) {
-          return '<span class="suggestion-chip">' + escapeHtml(n) + ' <button type="button" class="ghost icon-btn" data-action="quick-add-friend" data-name="' + escapeHtml(n) + '" aria-label="Ajouter" title="Ajouter">+</button></span>';
-        }).join('') + '</div>';
-    }
-    if (personalities.length) {
-      html += '<div class="social-suggestions-row"><span class="social-suggestions-label">Personnalités à suivre</span>' +
-        personalities.map(function (n) {
+  // Second rubrique of Social (see renderSocialTab) -- always its own
+  // section, followed personalities plus a nudge toward ones not yet
+  // followed, rather than only showing up once you follow someone.
+  function renderPersonalitiesCard(me) {
+    var followed = (STATE.myFollows || []).slice().sort(function (a, b) { return a.localeCompare(b); });
+    var suggestions = allKnownUserNames().filter(function (n) {
+      return n !== me.name && isPersonality(STATE.usersByName[n]) && followed.indexOf(n) === -1;
+    }).slice(0, 5);
+    var body = !followed.length
+      ? '<div class="empty-state">Tu ne suis encore aucune personnalité.</div>'
+      : followed.map(function (n) {
+        return renderFriendRow(n, '<button type="button" class="ghost icon-btn" data-action="unfollow" data-name="' + escapeHtml(n) + '" aria-label="Ne plus suivre" title="Ne plus suivre">×</button>');
+      }).join('');
+    if (suggestions.length) {
+      body += '<div class="social-suggestions-row"><span class="social-suggestions-label">À suivre</span>' +
+        suggestions.map(function (n) {
           return '<span class="suggestion-chip">' + escapeHtml(n) + ' <button type="button" class="ghost icon-btn" data-action="quick-follow" data-name="' + escapeHtml(n) + '" aria-label="Suivre" title="Suivre">★</button></span>';
         }).join('') + '</div>';
     }
-    html += '</div>';
-    return html;
-  }
-
-  function renderPersonalitiesCard(me) {
-    var followed = (STATE.myFollows || []).slice().sort(function (a, b) { return a.localeCompare(b); });
-    if (!followed.length) return '';
-    var body = followed.map(function (n) {
-      return renderFriendRow(n, '<button type="button" class="ghost icon-btn" data-action="unfollow" data-name="' + escapeHtml(n) + '" aria-label="Ne plus suivre" title="Ne plus suivre">×</button>');
-    }).join('');
-    return collapsibleCard('social-personnalites', 'Personnalités suivies (' + followed.length + ')', body, false);
+    return collapsibleCard('social-personnalites', 'Suivi des personnalités (' + followed.length + ')', body, false);
   }
 
   // ---- Mur (wall) ----
@@ -5779,17 +5881,27 @@
     return html;
   }
 
-  // The Mur is one unified, per-account feed -- not just this account's
-  // own posts, but everything relevant to it: its own wallPosts plus
-  // friends'/followed personalities' (visibleWallPosts, unchanged), the
-  // team feed of every amateur or PRO team it's actually a member of
-  // (STATE.teamFeed), and the public club news of every Team PRO it only
-  // follows without being a member (STATE.followedTeamFeed) -- gated by
-  // membership tier: an 'adherents'-only club post only shows up here if
+  // The Mur is one unified, per-account, private-by-default feed -- not
+  // just this account's own posts, but everything relevant to it: its own
+  // activity and wallPosts, friends'/followed personalities' (gated
+  // below -- an account that isn't a friend never shows up here at all,
+  // wallPosts' own audience picker on top of that), the team feed of
+  // every amateur or PRO team it's actually a member of (STATE.teamFeed),
+  // and the public club news of every Team PRO it only follows without
+  // being a member (STATE.followedTeamFeed) -- gated by membership tier:
+  // an 'adherents'-only club post only shows up here if
   // myFollowedTeamTiers says this account is actually an adherent of that
   // club, not just a follower (adherent > follower, per the brief).
   function renderWallFeed(me) {
+    var friendNames = friendsOf(me.name).map(function (f) { return f.name; });
     var items = visibleWallPosts(me).map(function (p) { return { kind: 'wall', data: p, createdAt: p.createdAt }; });
+    // Activity log (friend added, personal record) -- only from this
+    // account itself or an actual friend, never a stranger's, per "si
+    // user n'est pas ami alors il ne voit pas les actualités sur son mur".
+    (STATE.feedEvents || []).forEach(function (e) {
+      if (e.actor !== me.name && friendNames.indexOf(e.actor) === -1) return;
+      items.push({ kind: 'activity', data: e, createdAt: e.createdAt });
+    });
     var myTeamIds = (STATE.myTeamMemberships || []).map(function (m) { return m.teamId; });
     (STATE.teamFeed || []).forEach(function (f) {
       items.push({ kind: 'team', data: f, teamId: f.teamId, createdAt: f.createdAt });
@@ -5806,6 +5918,7 @@
       ? '<div class="empty-state">Rien pour l\'instant.</div>'
       : items.map(function (it) {
         if (it.kind === 'wall') return renderWallPost(it.data);
+        if (it.kind === 'activity') return renderFeedEntry(it.data);
         var t = teamById(it.teamId);
         return renderTeamFeedEntry(it.data, me, t ? t.name : null);
       }).join('');
@@ -5855,17 +5968,18 @@
         !outgoing.some(function (r) { return r.to === n; });
     });
 
-    var html = renderSocialFeed();
-    html += renderSocialSuggestions(candidates, me);
-    html += renderWallComposer();
-    html += renderWallFeed(me);
-
+    // Social, reorganized into exactly 3 rubriques: (1) Tes amis -- the
+    // friend list itself plus everything about managing it (requests,
+    // add, suggestions) folded into one card as sub-sections, so it's a
+    // single place instead of four separate cards; (2) suivi des
+    // personnalités; (3) le Mur, this account's own private-by-default
+    // activity feed (see renderWallFeed).
     var friendsBody = !friends.length
       ? '<div class="empty-state">Pas encore d’amis — ajoutes-en un ci-dessous.</div>'
       : friends.map(function (f) {
           return renderFriendRow(f.name, '<button type="button" class="ghost icon-btn" data-action="remove-friend" data-id="' + f.id + '" aria-label="Retirer cet ami" title="Retirer">×</button>', true);
         }).join('');
-    html += collapsibleCard('social-amis', 'Mes amis (' + friends.length + ')', friendsBody, false);
+    var amisHtml = collapsibleSection('social-amis-liste', 'Mes amis (' + friends.length + ')', friendsBody);
 
     if (incoming.length) {
       var incomingBody = incoming.map(function (r) {
@@ -5873,28 +5987,28 @@
           '<button type="button" class="primary" data-action="accept-friend" data-id="' + r.id + '">Accepter</button>' +
           '<button type="button" class="ghost" data-action="remove-friend" data-id="' + r.id + '">Refuser</button>');
       }).join('');
-      html += collapsibleCard('social-demandes-recues', 'Demandes reçues (' + incoming.length + ')', incomingBody, false);
+      amisHtml += collapsibleSection('social-demandes-recues', 'Demandes reçues (' + incoming.length + ')', incomingBody);
     }
-
     if (outgoing.length) {
       var outgoingBody = outgoing.map(function (r) {
         return renderFriendRow(r.to, '<button type="button" class="ghost" data-action="remove-friend" data-id="' + r.id + '">Annuler</button>');
       }).join('');
-      html += collapsibleCard('social-demandes-envoyees', 'Demandes envoyées (' + outgoing.length + ')', outgoingBody, false);
+      amisHtml += collapsibleSection('social-demandes-envoyees', 'Demandes envoyées (' + outgoing.length + ')', outgoingBody);
     }
-
-    var addFriendBody;
-    if (!candidates.length) {
-      addFriendBody = '<div class="empty-state">Personne d’autre à ajouter pour l’instant.</div>';
-    } else {
-      addFriendBody = '<form id="add-friend-form"><label for="add-friend-select">Pilote, accompagnant ou organisateur</label>' +
+    var addFriendBody = !candidates.length
+      ? '<div class="empty-state">Personne d’autre à ajouter pour l’instant.</div>'
+      : '<form id="add-friend-form"><label for="add-friend-select">Pilote, accompagnant ou organisateur</label>' +
         '<select id="add-friend-select">' + candidates.map(function (n) {
           return '<option value="' + escapeHtml(n) + '">' + escapeHtml(n) + ' — ' + roleLabel((STATE.usersByName[n] || {}).role) + '</option>';
         }).join('') + '</select>' +
-        '<button type="submit" class="primary" style="margin-top:0.7rem;">Envoyer une demande</button></form>';
-    }
-    html += collapsibleCard('social-ajouter-ami', 'Ajouter un ami', addFriendBody, false);
+        '<button type="submit" class="primary" style="margin-top:0.7rem;">Envoyer une demande</button></form>' +
+        friendSuggestionChips(candidates);
+    amisHtml += collapsibleSection('social-ajouter-ami', 'Ajouter / supprimer un ami', addFriendBody);
+
+    var html = collapsibleCard('social-amis', 'Tes amis (' + friends.length + ')', amisHtml, true);
     html += renderPersonalitiesCard(me);
+    html += renderWallComposer();
+    html += renderWallFeed(me);
     return html;
   }
 
@@ -6125,6 +6239,76 @@
       '</form></div>';
   }
 
+  // ---- Coach ----
+  //
+  // Reachable from the header's 🎓 icon (see canAccessCoachSpace), not the
+  // bottom nav -- it only matters to a Coach and to whoever's actually
+  // asked one for coaching. Two independent halves on the same page: "mes
+  // pilotes coachés" (only if this account carries the Coach badge) and
+  // "ma demande de coaching" (this account's own, as a Pilote/Organisateur
+  // asking someone else) -- an account can be both at once (a coach who's
+  // also coached by someone more senior), so both sections show whenever
+  // they have something to show.
+  function renderCoachTab() {
+    var me = currentUserProfile;
+    if (!me) return '';
+    var html = '';
+    var iAmCoach = isCoachBadge(me);
+
+    if (iAmCoach) {
+      var incomingAsCoach = (STATE.coachRequests || []).filter(function (r) { return r.status === 'pending' && r.to === me.name; });
+      if (incomingAsCoach.length) {
+        var incomingBody = incomingAsCoach.map(function (r) {
+          var u = (STATE.usersByName || {})[r.from] || {};
+          return '<div class="friend-row"><div class="friend-row-main">' + avatarHtml(u, r.from) + '<span class="friend-name-plain">' + escapeHtml(r.from) + '</span>' + badgesHtml(u) + '</div>' +
+            '<div class="friend-row-actions">' +
+            '<button type="button" class="primary" data-action="coach-request-accept" data-id="' + r.id + '">Accepter</button>' +
+            '<button type="button" class="ghost" data-action="coach-request-remove" data-id="' + r.id + '">Refuser</button>' +
+            '</div></div>';
+        }).join('');
+        html += collapsibleCard('coach-requests-in', 'Demandes de coaching reçues (' + incomingAsCoach.length + ')', incomingBody, true);
+      }
+      var myPilotes = (STATE.coachRequests || []).filter(function (r) { return r.status === 'accepted' && r.to === me.name; });
+      var rosterBody = !myPilotes.length
+        ? '<div class="empty-state">Personne pour l\'instant.</div>'
+        : myPilotes.map(function (r) {
+          var u = (STATE.usersByName || {})[r.from] || {};
+          return '<div class="coach-pilote-row">' +
+            '<div class="friend-row-main">' + avatarHtml(u, r.from) + '<span class="friend-name-plain">' + escapeHtml(r.from) + '</span>' + badgesHtml(u) + '</div>' +
+            '<label for="coach-plan-' + r.id + '" style="margin-top:0.5rem;">Planning / notes de coaching</label>' +
+            '<textarea id="coach-plan-' + r.id + '" rows="3" data-coach-plan="' + r.id + '">' + escapeHtml(r.plan || '') + '</textarea>' +
+            '<div style="margin-top:0.5rem; display:flex; gap:0.6rem;">' +
+            '<button type="button" class="ghost" data-action="coach-plan-save" data-id="' + r.id + '">Enregistrer</button>' +
+            '<button type="button" class="ghost danger" data-action="coach-request-remove" data-id="' + r.id + '">Retirer ce pilote</button>' +
+            '</div></div>';
+        }).join('');
+      html += collapsibleCard('coach-roster', 'Mes pilotes coachés (' + myPilotes.length + ')', rosterBody, true);
+    }
+
+    var mine = (STATE.coachRequests || []).filter(function (r) { return r.from === me.name; })[0];
+    var mineBody;
+    if (mine) {
+      var coachU = (STATE.usersByName || {})[mine.to] || {};
+      mineBody = '<div class="friend-row"><div class="friend-row-main">' + avatarHtml(coachU, mine.to) + '<span class="friend-name-plain">' + escapeHtml(mine.to) + '</span>' + badgesHtml(coachU) +
+        '<span class="friend-role-badge">' + (mine.status === 'accepted' ? 'Coach actif' : 'Demande envoyée') + '</span></div>' +
+        '<div class="friend-row-actions"><button type="button" class="ghost" data-action="coach-request-remove" data-id="' + mine.id + '">' +
+        (mine.status === 'accepted' ? 'Arrêter le coaching' : 'Annuler la demande') + '</button></div></div>';
+      if (mine.status === 'accepted') {
+        mineBody += '<div style="margin-top:0.7rem;"><div class="section-title" style="font-size:0.9rem;">Planning de ' + escapeHtml(mine.to) + '</div>' +
+          (mine.plan ? '<p class="help-text" style="white-space:pre-wrap;">' + escapeHtml(mine.plan) + '</p>' : '<div class="help-text">Rien pour l\'instant.</div>') + '</div>';
+      }
+    } else {
+      var coachNames = allKnownUserNames().filter(function (n) { return n !== me.name && isCoachBadge((STATE.usersByName || {})[n]); });
+      mineBody = !coachNames.length
+        ? '<div class="empty-state">Aucun compte Coach pour l\'instant.</div>'
+        : '<form id="coach-request-form"><label for="coach-request-select">Demander à être coaché par</label>' +
+          '<select id="coach-request-select">' + coachNames.map(function (n) { return '<option value="' + escapeHtml(n) + '">' + escapeHtml(n) + '</option>'; }).join('') + '</select>' +
+          '<button type="submit" class="primary" style="margin-top:0.7rem;">Envoyer la demande</button></form>';
+    }
+    html += collapsibleCard('coach-mine', 'Mon coaching', mineBody, true);
+    return html;
+  }
+
   function renderTeamTab() {
     var me = currentUserProfile;
     if (!me) return '';
@@ -6228,7 +6412,7 @@
       else if (authState === 'verify-email') authBody = renderVerifyEmailScreen();
       else authBody = renderAuthScreen();
       root.innerHTML =
-        '<header class="page-head"><div class="page-head-inner"><div class="eyebrow">Trackdays moto</div><h1 class="title">Carnet de Piste</h1></div></header>' +
+        '<header class="page-head"><div class="page-head-inner"><h1 class="title">Carnet de Piste</h1></div></header>' +
         '<div class="auth-screen">' + authBody + '</div>';
       attachAuthHandlers();
       updateFixedHeaderOffset();
@@ -6251,31 +6435,27 @@
     else if (activeView === 'planning') body = renderPlanningTab();
     else if (activeView === 'social') body = renderSocialTab();
     else if (activeView === 'team') body = renderTeamTab();
+    else if (activeView === 'coach') body = renderCoachTab();
     else body = renderEventTab(); // 'event' and safety fallback
+    var notifCount = pendingNotificationCount();
     root.innerHTML =
       '<header class="page-head">' +
         '<div class="page-head-inner">' +
           '<div class="page-head-row">' +
-            '<div class="page-head-text">' +
-              '<div class="eyebrow">Trackdays moto</div>' +
-              '<h1 class="title">Carnet de Piste</h1>' +
-              '<p class="subtitle">' + subtitleForView(activeView) + '</p>' +
-            '</div>' +
+            '<h1 class="title">Carnet de Piste</h1>' +
             '<div class="header-controls">' +
-              '<div class="live-clock" id="live-clock">--h--</div>' +
+              (canAccessCoachSpace() ? '<button type="button" class="header-icon-btn' + (activeView === 'coach' ? ' active' : '') + '" data-view="coach" aria-label="Coach" title="Coach">🎓</button>' : '') +
+              '<button type="button" class="header-icon-btn' + (activeView === 'stats' ? ' active' : '') + '" data-view="stats" aria-label="Stats" title="Stats">📊</button>' +
+              '<button type="button" class="header-icon-btn" id="notifications-toggle" aria-label="Notifications" title="Notifications">🏁' +
+                (notifCount ? '<span class="notif-count">' + (notifCount > 9 ? '9+' : notifCount) + '</span>' : '') +
+              '</button>' +
+              '<button type="button" class="profile-badge-btn" id="profile-toggle" aria-label="Mon profil" title="Mon profil">' + avatarHtml(currentUserProfile, currentUserProfile.name) + '</button>' +
             '</div>' +
-          '</div>' +
-          '<div class="account-bar">' +
-            '<span class="account-bar-identity">' + escapeHtml(currentUserProfile.name) + badgesHtml(currentUserProfile) + ' · ' + roleLabel(currentUserProfile.role) + '</span>' +
-            '<span class="account-bar-actions">' +
-              '<button type="button" class="ghost account-bar-btn" id="profile-toggle">Mon profil</button>' +
-              (isAdmin() ? '<button type="button" class="ghost account-bar-btn" id="account-manager-toggle">Gestion des comptes</button>' : '') +
-              '<button type="button" class="ghost account-bar-btn" id="logout-btn">Se déconnecter</button>' +
-            '</span>' +
           '</div>' +
           '<div class="banner" id="status-banner"></div>' +
         '</div>' +
       '</header>' +
+      renderNotificationsPanel() +
       renderProfilePanel() +
       renderAccountManagerPanel() +
       body +
@@ -6532,6 +6712,7 @@
   var pendingDeleteEvent = null;
   var pendingDeleteChecklistCategory = null;
   var profilePanelOpen = false; // pure UI state, not persisted
+  var notificationsPanelOpen = false; // pure UI state, not persisted
   var profileSubTab = 'profil'; // 'profil' | 'reglages' | 'aide' -- pure UI state, not persisted
   var profileDeleteConfirmOpen = false; // pure UI state, not persisted
   var riderManagerOpen = false; // pure UI state, not persisted
@@ -6570,7 +6751,16 @@
     if (profileToggle) {
       profileToggle.addEventListener('click', function () {
         profilePanelOpen = !profilePanelOpen;
+        notificationsPanelOpen = false;
         profileSaveMessage = '';
+        renderRoot();
+      });
+    }
+    var notificationsToggle = document.getElementById('notifications-toggle');
+    if (notificationsToggle) {
+      notificationsToggle.addEventListener('click', function () {
+        notificationsPanelOpen = !notificationsPanelOpen;
+        profilePanelOpen = false;
         renderRoot();
       });
     }
@@ -7042,6 +7232,28 @@
         toggleReaction('teamFeed', id, btn.getAttribute('data-emoji'), entry && entry.reactions);
       });
     });
+    document.querySelectorAll('[data-action="coach-request-accept"]').forEach(function (btn) {
+      btn.addEventListener('click', function () { acceptCoachRequest(btn.getAttribute('data-id')); });
+    });
+    document.querySelectorAll('[data-action="coach-request-remove"]').forEach(function (btn) {
+      btn.addEventListener('click', function () { removeCoachRequest(btn.getAttribute('data-id')); });
+    });
+    document.querySelectorAll('[data-action="coach-plan-save"]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var id = btn.getAttribute('data-id');
+        var textarea = document.querySelector('[data-coach-plan="' + id + '"]');
+        saveCoachPlan(id, textarea ? textarea.value : '');
+        showToast('Planning enregistré.', 'success');
+      });
+    });
+    var coachRequestForm = document.getElementById('coach-request-form');
+    if (coachRequestForm) {
+      coachRequestForm.addEventListener('submit', function (evt) {
+        evt.preventDefault();
+        var select = document.getElementById('coach-request-select');
+        if (select && select.value) sendCoachRequest(select.value);
+      });
+    }
     document.querySelectorAll('[data-action="team-invite-accept"]').forEach(function (btn) {
       btn.addEventListener('click', function () {
         var invite = (STATE.teamInvites || []).filter(function (r) { return r.id === btn.getAttribute('data-id'); })[0];
@@ -7216,7 +7428,7 @@
     if (sessionEditForm) sessionEditForm.addEventListener('submit', onSessionEditSubmit);
     autoFormatFrDateInput(document.getElementById('se-date'));
 
-    document.querySelectorAll('.bottom-nav-btn[data-view]').forEach(function (btn) {
+    document.querySelectorAll('[data-view]').forEach(function (btn) {
       btn.addEventListener('click', function () {
         activeView = btn.getAttribute('data-view');
         editingEventId = null;
@@ -7757,6 +7969,26 @@
         friendReqTo = {};
         snap.forEach(function (d) { friendReqTo[d.id] = Object.assign({ id: d.id }, d.data()); });
         mergeFriendRequests();
+      }, handleSyncError));
+      // Coaching -- same two-query-merged shape as friendRequests above,
+      // for the same reason (Firestore can't OR across from/to).
+      var coachReqFrom = {}, coachReqTo = {};
+      function mergeCoachRequests() {
+        var byId = {};
+        Object.keys(coachReqFrom).forEach(function (id) { byId[id] = coachReqFrom[id]; });
+        Object.keys(coachReqTo).forEach(function (id) { byId[id] = coachReqTo[id]; });
+        STATE.coachRequests = Object.keys(byId).map(function (id) { return byId[id]; });
+        renderRoot();
+      }
+      unsubscribers.push(db.collection('coachRequests').where('from', '==', currentUserProfile.name).onSnapshot(function (snap) {
+        coachReqFrom = {};
+        snap.forEach(function (d) { coachReqFrom[d.id] = Object.assign({ id: d.id }, d.data()); });
+        mergeCoachRequests();
+      }, handleSyncError));
+      unsubscribers.push(db.collection('coachRequests').where('to', '==', currentUserProfile.name).onSnapshot(function (snap) {
+        coachReqTo = {};
+        snap.forEach(function (d) { coachReqTo[d.id] = Object.assign({ id: d.id }, d.data()); });
+        mergeCoachRequests();
       }, handleSyncError));
     }
     // Social feed -- most recent first, capped since it's a scrolling

@@ -24,7 +24,7 @@
        the real header and overwrites this via updateFixedHeaderOffset()
        on every render, since the header's height isn't constant (it wraps
        differently per view, and the status banner adds a row). */
-    --header-h: 132px;
+    --header-h: 64px;
     --bottom-nav-h: 60px;
   }
   @media (prefers-color-scheme: dark) {
@@ -128,7 +128,9 @@
     gap: 0.6rem;
     font-size: 0.82rem;
     color: var(--text-muted);
-    margin-top: 0.9rem;
+    margin-bottom: 1rem;
+    padding-bottom: 0.9rem;
+    border-bottom: 1px solid var(--border);
   }
   .account-bar-identity { white-space: nowrap; }
   .account-bar-actions {
@@ -177,16 +179,62 @@
   .page-head-row {
     display: flex;
     justify-content: space-between;
-    align-items: flex-start;
+    align-items: center;
     gap: 1rem;
-    flex-wrap: wrap;
   }
   .header-controls {
     display: flex;
     align-items: center;
-    gap: 0.7rem;
+    gap: 0.4rem;
     flex-shrink: 0;
   }
+  /* Stats/Coach icon buttons in the fixed header -- same round-pill
+     language as .theme-toggle-btn, just standalone instead of grouped. */
+  .header-icon-btn {
+    position: relative;
+    width: 2.1rem;
+    height: 2.1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    border-radius: 999px;
+    background: transparent;
+    font-size: 1.15rem;
+    line-height: 1;
+    cursor: pointer;
+    color: var(--text-muted);
+  }
+  .header-icon-btn:hover { background: var(--surface-alt); color: var(--text); }
+  .header-icon-btn.active { color: var(--accent); background: var(--surface-alt); }
+  .notif-count {
+    position: absolute;
+    top: 0;
+    right: 0;
+    min-width: 1.1rem;
+    height: 1.1rem;
+    padding: 0 0.25rem;
+    border-radius: 999px;
+    background: var(--danger);
+    color: #fff;
+    font-family: var(--font-body);
+    font-size: 0.62rem;
+    font-weight: 700;
+    line-height: 1.1rem;
+    text-align: center;
+  }
+  .profile-badge-btn {
+    border: none;
+    background: none;
+    padding: 0;
+    margin-left: 0.15rem;
+    cursor: pointer;
+    line-height: 0;
+    border-radius: 999px;
+  }
+  .profile-badge-btn .mini-avatar { width: 2.2rem; height: 2.2rem; }
+  .profile-badge-btn:hover .mini-avatar { box-shadow: 0 0 0 2px var(--accent); }
+  .notifications-panel { margin-bottom: 1.2rem; }
   .theme-toggle {
     display: inline-flex;
     gap: 0.2rem;
@@ -224,19 +272,15 @@
     color: var(--accent);
     font-weight: 500;
   }
+  /* Compact for the fixed header bar (see .page-head-row) rather than a
+     page-hero title -- the app no longer has room to spare above the
+     content once both the header and bottom nav are pinned. */
   h1.title {
     font-family: var(--font-display);
     font-weight: 700;
-    font-size: clamp(1.9rem, 4vw, 2.4rem);
-    margin: 0.25rem 0 0.4rem;
-    text-wrap: balance;
-    letter-spacing: -0.01em;
-  }
-  p.subtitle {
+    font-size: 1.3rem;
     margin: 0;
-    color: var(--text-muted);
-    font-size: 0.98rem;
-    max-width: 60ch;
+    letter-spacing: -0.01em;
   }
 
   .last-outing {
@@ -637,6 +681,24 @@
     font-size: 0.72em;
     vertical-align: middle;
   }
+  .coach-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.4em;
+    height: 1.1em;
+    border-radius: 4px;
+    background: #1c8f5a;
+    color: #fff;
+    font-size: 0.72em;
+    vertical-align: middle;
+  }
+  .coach-pilote-row {
+    padding: 0.6rem 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .coach-pilote-row:last-child { border-bottom: none; }
+  .coach-pilote-row textarea { margin-top: 0.3rem; }
   .team-pro-badge {
     display: inline-flex;
     align-items: center;
@@ -1216,15 +1278,6 @@
   .planning-countdown-time {
     font-weight: 700;
     color: var(--accent);
-  }
-  .live-clock {
-    font-family: var(--font-display);
-    font-size: 1.15rem;
-    font-weight: 700;
-    letter-spacing: 0.02em;
-    color: var(--accent);
-    flex-shrink: 0;
-    font-variant-numeric: tabular-nums;
   }
 
   .planning-group-filter {
