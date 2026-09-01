@@ -3820,21 +3820,27 @@
   // end of Circuit, since it was always about the currently active circuit
   // anyway. See renderCircuitTab().
   var MAIN_TABS = [
-    ['event', 'Événements'],
-    ['planning', 'Planning'],
-    ['circuit', 'Chronos'],
-    ['stats', 'Stats'],
-    ['social', 'Social'],
-    ['team', 'Team']
+    ['event', 'Événements', '📅'],
+    ['planning', 'Planning', '🗓️'],
+    ['circuit', 'Chronos', '⏱️'],
+    ['stats', 'Stats', '📊'],
+    ['social', 'Social', '👥'],
+    ['team', 'Team', '🏍️']
   ];
 
-  function renderViewTabs() {
-    var html = '<div class="view-tabs">';
+  // Fixed to the bottom of the viewport (see .bottom-nav), like a native
+  // app's tab bar -- rendered as the very last thing in renderRoot()'s
+  // innerHTML, not up near the header, purely so its DOM position matches
+  // where position:fixed puts it visually; the fixed CSS is what actually
+  // pins it, this ordering is just for readability of the source.
+  function renderBottomNav() {
+    var html = '<nav class="bottom-nav">';
     MAIN_TABS.forEach(function (t) {
-      html += '<button type="button" class="view-tab' + (activeView === t[0] ? ' active' : '') + '" data-view="' + t[0] + '">' + t[1] + '</button>';
+      html += '<button type="button" class="bottom-nav-btn' + (activeView === t[0] ? ' active' : '') + '" data-view="' + t[0] + '">' +
+        '<span class="bottom-nav-icon">' + t[2] + '</span><span class="bottom-nav-label">' + t[1] + '</span></button>';
     });
-    html += '</div>';
-    return '<div class="main-tabs-wrap">' + html + '</div>';
+    html += '</nav>';
+    return html;
   }
 
   // Ordered for ergonomics: (1) the year's sorties at a glance, (2) the
@@ -6215,15 +6221,17 @@
 
   function renderRootUnsafe() {
     var root = document.getElementById('root');
+    document.body.classList.toggle('has-bottom-nav', authState === 'signed-in');
     if (authState !== 'signed-in') {
       var authBody;
       if (authState === 'loading') authBody = '<div class="card auth-card"><div class="empty-state">Connexion...</div></div>';
       else if (authState === 'verify-email') authBody = renderVerifyEmailScreen();
       else authBody = renderAuthScreen();
       root.innerHTML =
-        '<header class="page-head"><div class="eyebrow">Trackdays moto</div><h1 class="title">Carnet de Piste</h1></header>' +
+        '<header class="page-head"><div class="page-head-inner"><div class="eyebrow">Trackdays moto</div><h1 class="title">Carnet de Piste</h1></div></header>' +
         '<div class="auth-screen">' + authBody + '</div>';
       attachAuthHandlers();
+      updateFixedHeaderOffset();
       return;
     }
     normalizeSelection();
@@ -6246,30 +6254,32 @@
     else body = renderEventTab(); // 'event' and safety fallback
     root.innerHTML =
       '<header class="page-head">' +
-        '<div class="page-head-row">' +
-          '<div class="page-head-text">' +
-            '<div class="eyebrow">Trackdays moto</div>' +
-            '<h1 class="title">Carnet de Piste</h1>' +
-            '<p class="subtitle">' + subtitleForView(activeView) + '</p>' +
+        '<div class="page-head-inner">' +
+          '<div class="page-head-row">' +
+            '<div class="page-head-text">' +
+              '<div class="eyebrow">Trackdays moto</div>' +
+              '<h1 class="title">Carnet de Piste</h1>' +
+              '<p class="subtitle">' + subtitleForView(activeView) + '</p>' +
+            '</div>' +
+            '<div class="header-controls">' +
+              '<div class="live-clock" id="live-clock">--h--</div>' +
+            '</div>' +
           '</div>' +
-          '<div class="header-controls">' +
-            '<div class="live-clock" id="live-clock">--h--</div>' +
+          '<div class="account-bar">' +
+            '<span class="account-bar-identity">' + escapeHtml(currentUserProfile.name) + badgesHtml(currentUserProfile) + ' · ' + roleLabel(currentUserProfile.role) + '</span>' +
+            '<span class="account-bar-actions">' +
+              '<button type="button" class="ghost account-bar-btn" id="profile-toggle">Mon profil</button>' +
+              (isAdmin() ? '<button type="button" class="ghost account-bar-btn" id="account-manager-toggle">Gestion des comptes</button>' : '') +
+              '<button type="button" class="ghost account-bar-btn" id="logout-btn">Se déconnecter</button>' +
+            '</span>' +
           '</div>' +
+          '<div class="banner" id="status-banner"></div>' +
         '</div>' +
-        '<div class="account-bar">' +
-          '<span class="account-bar-identity">' + escapeHtml(currentUserProfile.name) + badgesHtml(currentUserProfile) + ' · ' + roleLabel(currentUserProfile.role) + '</span>' +
-          '<span class="account-bar-actions">' +
-            '<button type="button" class="ghost account-bar-btn" id="profile-toggle">Mon profil</button>' +
-            (isAdmin() ? '<button type="button" class="ghost account-bar-btn" id="account-manager-toggle">Gestion des comptes</button>' : '') +
-            '<button type="button" class="ghost account-bar-btn" id="logout-btn">Se déconnecter</button>' +
-          '</span>' +
-        '</div>' +
-        '<div class="banner" id="status-banner"></div>' +
       '</header>' +
       renderProfilePanel() +
       renderAccountManagerPanel() +
-      renderViewTabs() +
-      body;
+      body +
+      renderBottomNav();
     attachHandlers();
     if (focusedId) {
       var toRefocus = document.getElementById(focusedId);
@@ -6281,6 +6291,7 @@
       }
     }
     updateBanner();
+    updateFixedHeaderOffset();
     saveUiState();
     updateLiveClock();
   }
@@ -7205,13 +7216,18 @@
     if (sessionEditForm) sessionEditForm.addEventListener('submit', onSessionEditSubmit);
     autoFormatFrDateInput(document.getElementById('se-date'));
 
-    document.querySelectorAll('.view-tab[data-view]').forEach(function (btn) {
+    document.querySelectorAll('.bottom-nav-btn[data-view]').forEach(function (btn) {
       btn.addEventListener('click', function () {
         activeView = btn.getAttribute('data-view');
         editingEventId = null;
         prefillEventCircuit = null;
         editingSessionId = null;
         renderRoot();
+        // The header/bottom nav stay put (position:fixed) -- only the
+        // content between them scrolls, so switching tab has to reset
+        // that scroll itself, the way a native app's tab bar always opens
+        // each tab at its top.
+        window.scrollTo(0, 0);
       });
     });
     document.querySelectorAll('[data-calendar-view]').forEach(function (btn) {
@@ -7633,6 +7649,20 @@
     renderRoot();
     persist(prevState);
   }
+
+  // header.page-head is position:fixed (see style.css) so it stays put
+  // like a native app's title bar -- .wrap's own padding-top has to match
+  // its real rendered height exactly, or content either hides underneath
+  // it or leaves a gap, and that height isn't a constant: it wraps
+  // differently per view (subtitle length), and the status banner adds a
+  // row only when disconnected. Measured after every render (and on
+  // resize/orientation change) rather than hardcoded.
+  function updateFixedHeaderOffset() {
+    var header = document.querySelector('header.page-head');
+    if (!header) return;
+    document.documentElement.style.setProperty('--header-h', header.offsetHeight + 'px');
+  }
+  window.addEventListener('resize', updateFixedHeaderOffset);
 
   function updateBanner() {
     var banner = document.getElementById('status-banner');
