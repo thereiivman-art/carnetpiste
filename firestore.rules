@@ -25,6 +25,14 @@ service cloud.firestore {
       return exists(/databases/$(database)/documents/teamMembers/$(teamId + '_' + myName()))
         && get(/databases/$(database)/documents/teamMembers/$(teamId + '_' + myName())).data.role == 'leader';
     }
+    function isTeamMember(teamId) {
+      return exists(/databases/$(database)/documents/teamMembers/$(teamId + '_' + myName()));
+    }
+    // 'leaders' (default, via the map's own fallback) or 'members' -- who
+    // may post to teamFeed; a leader can always post regardless.
+    function teamPostPolicy(teamId) {
+      return get(/databases/$(database)/documents/teams/$(teamId)).data.get('postPolicy', 'leaders');
+    }
     function hasAcceptedTeamInvite(teamId) {
       return exists(/databases/$(database)/documents/teamInvites/$(teamId + '_' + myName()))
         && get(/databases/$(database)/documents/teamInvites/$(teamId + '_' + myName())).data.status == 'accepted';
@@ -186,8 +194,27 @@ service cloud.firestore {
     // le feed du team" is listed as one of the admin/leader powers).
     match /teamFeed/{id} {
       allow read: if request.auth != null;
-      allow create: if verified() && request.resource.data.author == myName() && isTeamLeader(request.resource.data.teamId);
+      allow create: if verified() && request.resource.data.author == myName() && (
+        isTeamLeader(request.resource.data.teamId)
+        || (isTeamMember(request.resource.data.teamId) && teamPostPolicy(request.resource.data.teamId) == 'members')
+      );
+      // A poll vote is the one update allowed on an existing post: any
+      // team member may cast/change their own vote (votes.<myName()>),
+      // nothing else about the post may change.
+      allow update: if verified() && isTeamMember(resource.data.teamId)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['votes']);
       allow delete: if verified() && (isAdmin() || resource.data.author == myName() || isTeamLeader(resource.data.teamId));
+    }
+    // Wall posts -- readable by any signed-in account like everything
+    // else here (friendRequests/follows use auto-generated ids, not
+    // deterministic ones, so a security rule can't cheaply verify "is
+    // author's friend/follower" the way isTeamLeader() does for teams);
+    // the audience field is a display-layer choice (see
+    // visibleWallPosts), not a server-enforced boundary.
+    match /wallPosts/{id} {
+      allow read: if request.auth != null;
+      allow create: if verified() && request.resource.data.author == myName();
+      allow delete: if verified() && (resource.data.author == myName() || isAdmin());
     }
   }
 }

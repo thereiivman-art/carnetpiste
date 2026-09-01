@@ -13,7 +13,7 @@
   var auth = firebase.auth();
   var STATE = {
     sessions: [], events: [], circuits: {}, riders: [], usersByName: {}, friendRequests: [], feedEvents: [], myFollows: [],
-    teams: [], myTeamMemberships: [], teamInvites: [], teamMembersByTeam: {}, teamFeed: []
+    teams: [], myTeamMemberships: [], teamInvites: [], teamMembersByTeam: {}, teamFeed: [], wallPosts: []
   };
   var canPersist = false;
   var unsubscribers = [];
@@ -230,11 +230,50 @@
     });
   }
 
-  function postTeamFeedMessage(teamId, text) {
+  // text/linkUrl/photoURL post, or a poll (postTeamPoll below) -- both are
+  // just teamFeed docs, gated by the same firestore.rules create rule
+  // (leader always, or any member when the team's postPolicy is 'members').
+  function postTeamFeedMessage(teamId, text, linkUrl, photoURL) {
     var me = currentUserProfile;
     text = (text || '').trim();
-    if (!me || !text) return;
-    db.collection('teamFeed').add({ teamId: teamId, author: me.name, text: text, createdAt: Date.now() }).catch(function (err) {
+    linkUrl = (linkUrl || '').trim();
+    if (!me) return;
+    if (!text && !linkUrl && !photoURL) return;
+    var post = { id: genId(), teamId: teamId, author: me.name, createdAt: Date.now() };
+    if (text) post.text = text;
+    if (linkUrl) post.linkUrl = linkUrl;
+    if (photoURL) post.photoURL = photoURL;
+    db.collection('teamFeed').doc(post.id).set(post).catch(function (err) {
+      showToast('Erreur : ' + (err && err.message ? err.message : err));
+    });
+  }
+
+  function postTeamPoll(teamId, question, options) {
+    var me = currentUserProfile;
+    question = (question || '').trim();
+    options = (options || []).map(function (o) { return o.trim(); }).filter(Boolean);
+    if (!me || !question || options.length < 2) {
+      showToast('Une question et au moins 2 options sont nécessaires pour un sondage.');
+      return;
+    }
+    var post = { id: genId(), teamId: teamId, author: me.name, type: 'poll', question: question, options: options, votes: {}, createdAt: Date.now() };
+    db.collection('teamFeed').doc(post.id).set(post).catch(function (err) {
+      showToast('Erreur : ' + (err && err.message ? err.message : err));
+    });
+  }
+
+  function voteTeamPoll(postId, optionIndex) {
+    var me = currentUserProfile;
+    if (!me) return;
+    var update = {};
+    update['votes.' + me.name] = optionIndex;
+    db.collection('teamFeed').doc(postId).update(update).catch(function (err) {
+      showToast('Erreur : ' + (err && err.message ? err.message : err));
+    });
+  }
+
+  function setTeamPostPolicy(teamId, policy) {
+    db.collection('teams').doc(teamId).set({ postPolicy: policy }, { merge: true }).catch(function (err) {
       showToast('Erreur : ' + (err && err.message ? err.message : err));
     });
   }
@@ -5317,13 +5356,23 @@
   // "Mes amis" list -- one at a time, pure UI state.
   var expandedFriend = null;
 
+  // A small round avatar (photoURL is already a resized data URL, see
+  // savePhoto) with a first-initial placeholder when none is set --
+  // shared by friend rows, team member rows, and the wall.
+  function avatarHtml(u, name) {
+    var initial = escapeHtml((name || '?').trim().charAt(0).toUpperCase() || '?');
+    return '<span class="mini-avatar">' + (u && u.photoURL
+      ? '<img src="' + escapeHtml(u.photoURL) + '" alt="">'
+      : '<span class="mini-avatar-placeholder">' + initial + '</span>') + '</span>';
+  }
+
   function renderFriendRow(name, actionsHtml, expandable) {
     var u = (STATE.usersByName || {})[name] || {};
     var nameHtml = expandable
       ? '<button type="button" class="friend-name-link" data-action="toggle-friend-fiche" data-name="' + escapeHtml(name) + '">' + escapeHtml(name) + '</button>'
       : '<span class="friend-name-plain">' + escapeHtml(name) + '</span>';
     var html = '<div class="friend-row">' +
-      '<div class="friend-row-main">' + nameHtml + badgesHtml(u) + '<span class="friend-role-badge">' + roleLabel(u.role) + '</span></div>' +
+      '<div class="friend-row-main">' + avatarHtml(u, name) + nameHtml + badgesHtml(u) + '<span class="friend-role-badge">' + roleLabel(u.role) + '</span></div>' +
       '<div class="friend-row-actions">' + actionsHtml + '</div>' +
       '</div>';
     if (expandable && expandedFriend === name) html += renderFriendFiche(name);
@@ -5438,6 +5487,116 @@
     return html;
   }
 
+  // ---- Mur (wall) ----
+  //
+  // A post picks its own audience (amis / followers / les deux) --
+  // filtered client-side from one capped, most-recent-first sync of every
+  // wallPost (same "readable by any signed-in account, audience is a
+  // display-layer choice" pattern as everything else in Social/Team; a
+  // truly server-enforced audience would need friendRequests/follows to
+  // use deterministic doc ids the way teamMembers does, which they don't).
+  var wallPostMessage = '';
+  var wallPostDraftPhotoURL = null;
+  // Only one team's photo picker is ever in use at a time -- paired with
+  // the team id it's for, same as wallPostDraftPhotoURL but scoped.
+  var teamPostDraftPhotoTeamId = null;
+  var teamPostDraftPhotoURL = null;
+
+  function visibleWallPosts(me) {
+    var friendNames = friendsOf(me.name).map(function (f) { return f.name; });
+    var followedNames = STATE.myFollows || [];
+    return (STATE.wallPosts || []).filter(function (p) {
+      if (p.author === me.name) return true;
+      if (friendNames.indexOf(p.author) !== -1 && (p.audience === 'friends' || p.audience === 'all')) return true;
+      if (followedNames.indexOf(p.author) !== -1 && (p.audience === 'followers' || p.audience === 'all')) return true;
+      return false;
+    });
+  }
+
+  function renderWallComposer() {
+    var html = '<div class="card"><h2 class="section-title">Mon mur</h2>';
+    html += '<form id="wall-post-form">';
+    html += '<label for="wall-post-text">Un mot, une sortie, une photo...</label><textarea id="wall-post-text" rows="2"></textarea>';
+    html += '<label for="wall-post-link" style="margin-top:0.6rem;">Lien (optionnel)</label><input type="url" id="wall-post-link" placeholder="https://...">';
+    html += '<div style="margin-top:0.6rem;">';
+    if (wallPostDraftPhotoURL) {
+      html += '<img class="wall-post-photo-preview" src="' + escapeHtml(wallPostDraftPhotoURL) + '" alt="">' +
+        '<button type="button" class="ghost" id="wall-post-photo-remove-btn">Retirer la photo</button>';
+    } else {
+      html += '<button type="button" class="ghost" id="wall-post-photo-btn">📷 Ajouter une photo</button>';
+    }
+    html += '<input type="file" id="wall-post-photo-input" accept="image/*" style="display:none;">';
+    html += '</div>';
+    html += '<label for="wall-post-audience" style="margin-top:0.6rem;">Visible par</label>' +
+      '<select id="wall-post-audience">' +
+      '<option value="friends">Mes amis</option>' +
+      '<option value="followers">Mes followers</option>' +
+      '<option value="all">Amis + followers</option>' +
+      '</select>';
+    html += '<button type="submit" class="primary" style="margin-top:0.7rem;">Publier</button>';
+    if (wallPostMessage) html += '<div class="help-text" style="margin-top:0.6rem;">' + escapeHtml(wallPostMessage) + '</div>';
+    html += '</form></div>';
+    return html;
+  }
+
+  function renderWallPost(p) {
+    var u = (STATE.usersByName || {})[p.author] || {};
+    var audienceLabel = p.audience === 'followers' ? 'Followers' : (p.audience === 'all' ? 'Amis + followers' : 'Amis');
+    var html = '<div class="wall-post">';
+    html += '<div class="wall-post-head">' + avatarHtml(u, p.author) +
+      '<span class="friend-name-plain">' + escapeHtml(p.author) + '</span>' + badgesHtml(u) +
+      '<span class="friend-role-badge">' + escapeHtml(audienceLabel) + '</span>' +
+      '<span class="feed-entry-time">' + escapeHtml(relativeTime(p.createdAt)) + '</span></div>';
+    if (p.text) html += '<div class="wall-post-text">' + escapeHtml(p.text) + '</div>';
+    if (p.linkUrl) html += '<a class="wall-post-link" href="' + escapeHtml(p.linkUrl) + '" target="_blank" rel="noopener">🔗 ' + escapeHtml(p.linkUrl) + '</a>';
+    if (p.photoURL) html += '<img class="wall-post-photo" src="' + escapeHtml(p.photoURL) + '" alt="">';
+    if (currentUserProfile && p.author === currentUserProfile.name) {
+      html += '<button type="button" class="ghost icon-btn" data-action="delete-wall-post" data-id="' + p.id + '" aria-label="Supprimer" title="Supprimer">×</button>';
+    }
+    html += '</div>';
+    return html;
+  }
+
+  function renderWallFeed(me) {
+    var posts = visibleWallPosts(me);
+    var html = '<div class="card"><h2 class="section-title">Mur</h2>';
+    html += !posts.length
+      ? '<div class="empty-state">Rien pour l\'instant.</div>'
+      : posts.map(renderWallPost).join('');
+    html += '</div>';
+    return html;
+  }
+
+  function postToWall(text, linkUrl, photoURL, audience) {
+    var me = currentUserProfile;
+    if (!me) return;
+    text = (text || '').trim();
+    linkUrl = (linkUrl || '').trim();
+    if (!text && !linkUrl && !photoURL) {
+      wallPostMessage = 'Ajoute au moins un texte, un lien ou une photo.';
+      renderRoot();
+      return;
+    }
+    var post = { id: genId(), author: me.name, audience: audience, createdAt: Date.now() };
+    if (text) post.text = text;
+    if (linkUrl) post.linkUrl = linkUrl;
+    if (photoURL) post.photoURL = photoURL;
+    db.collection('wallPosts').doc(post.id).set(post).then(function () {
+      wallPostMessage = '';
+      wallPostDraftPhotoURL = null;
+      renderRoot();
+    }).catch(function (err) {
+      wallPostMessage = 'Erreur : ' + (err && err.message ? err.message : err);
+      renderRoot();
+    });
+  }
+
+  function deleteWallPost(id) {
+    db.collection('wallPosts').doc(id).delete().catch(function (err) {
+      showToast('Erreur : ' + (err && err.message ? err.message : err));
+    });
+  }
+
   function renderSocialTab() {
     var me = currentUserProfile;
     if (!me) return '';
@@ -5453,6 +5612,8 @@
 
     var html = renderSocialFeed();
     html += renderSocialSuggestions(candidates, me);
+    html += renderWallComposer();
+    html += renderWallFeed(me);
 
     html += '<div class="card"><h2 class="section-title">Mes amis</h2>';
     html += !friends.length
@@ -5512,13 +5673,54 @@
       actions += '<button type="button" class="ghost" data-action="team-leave" data-team="' + teamId + '">Quitter</button>';
     }
     return '<div class="friend-row">' +
-      '<div class="friend-row-main"><span class="friend-name-plain">' + escapeHtml(member.name) + '</span>' + badgesHtml(u) +
+      '<div class="friend-row-main">' + avatarHtml(u, member.name) + '<span class="friend-name-plain">' + escapeHtml(member.name) + '</span>' + badgesHtml(u) +
       '<span class="friend-role-badge">' + (member.role === 'leader' ? 'Team Leader' : 'Membre') + '</span></div>' +
       '<div class="friend-row-actions">' + actions + '</div></div>';
   }
 
+  // A poll is just another teamFeed doc (type:'poll', options, votes) --
+  // votes is a plain {name: optionIndex} map, updated one dotted field at
+  // a time (votes.<myName()>) so firestore.rules can allow that one
+  // narrow update (any team member, their own vote only) without opening
+  // up the rest of the post to editing.
+  function renderTeamPollEntry(f, me) {
+    var votes = f.votes || {};
+    var counts = f.options.map(function (_, i) {
+      return Object.keys(votes).filter(function (n) { return votes[n] === i; }).length;
+    });
+    var total = counts.reduce(function (a, b) { return a + b; }, 0);
+    var myVote = votes[me.name];
+    var html = '<div class="wall-post">';
+    html += '<div class="wall-post-head"><span class="friend-name-plain">' + escapeHtml(f.author) + '</span>' +
+      '<span class="feed-entry-time">' + escapeHtml(relativeTime(f.createdAt)) + '</span></div>';
+    html += '<div class="wall-post-text">📊 ' + escapeHtml(f.question) + '</div>';
+    html += '<div class="poll-options">' + f.options.map(function (opt, i) {
+      var pct = total ? Math.round(counts[i] / total * 100) : 0;
+      return '<button type="button" class="poll-option-btn' + (myVote === i ? ' voted' : '') + '" data-action="team-poll-vote" data-id="' + f.id + '" data-option="' + i + '">' +
+        '<span class="poll-option-bar" style="width:' + pct + '%"></span>' +
+        '<span class="poll-option-label">' + escapeHtml(opt) + (myVote === i ? ' ✓' : '') + '</span>' +
+        '<span class="poll-option-pct">' + pct + '% (' + counts[i] + ')</span>' +
+        '</button>';
+    }).join('') + '</div>';
+    html += '</div>';
+    return html;
+  }
+
+  function renderTeamFeedEntry(f, me) {
+    if (f.type === 'poll') return renderTeamPollEntry(f, me);
+    var html = '<div class="wall-post">';
+    html += '<div class="wall-post-head"><span class="friend-name-plain">' + escapeHtml(f.author) + '</span>' +
+      '<span class="feed-entry-time">' + escapeHtml(relativeTime(f.createdAt)) + '</span></div>';
+    if (f.text) html += '<div class="wall-post-text">' + escapeHtml(f.text) + '</div>';
+    if (f.linkUrl) html += '<a class="wall-post-link" href="' + escapeHtml(f.linkUrl) + '" target="_blank" rel="noopener">🔗 ' + escapeHtml(f.linkUrl) + '</a>';
+    if (f.photoURL) html += '<img class="wall-post-photo" src="' + escapeHtml(f.photoURL) + '" alt="">';
+    html += '</div>';
+    return html;
+  }
+
   function renderTeamCard(team, me) {
     var isLeader = isLeaderOfTeam(team.id);
+    var canPost = isLeader || team.postPolicy === 'members';
     var members = membersOfTeam(team.id).slice().sort(function (a, b) {
       if ((a.role === 'leader') !== (b.role === 'leader')) return a.role === 'leader' ? -1 : 1;
       return a.name.localeCompare(b.name);
@@ -5531,14 +5733,32 @@
     html += '<div class="team-section-title">Fil d\'actualité</div>';
     html += !feed.length
       ? '<div class="empty-state">Rien pour l\'instant.</div>'
-      : feed.map(function (f) {
-          return '<div class="feed-entry"><span class="feed-entry-text"><strong>' + escapeHtml(f.author) + '</strong> — ' + escapeHtml(f.text) + '</span>' +
-            '<span class="feed-entry-time">' + escapeHtml(relativeTime(f.createdAt)) + '</span></div>';
-        }).join('');
-    if (isLeader) {
+      : feed.map(function (f) { return renderTeamFeedEntry(f, me); }).join('');
+    if (canPost) {
       html += '<form class="team-feed-form" data-action="team-feed-form" data-team="' + team.id + '">' +
-        '<input type="text" placeholder="Écrire au team..." data-team-feed-input required>' +
-        '<button type="submit" class="ghost">Publier</button></form>';
+        '<input type="text" placeholder="Écrire au team..." data-team-feed-input>' +
+        '<input type="url" placeholder="Lien (optionnel)" data-team-feed-link>' +
+        (teamPostDraftPhotoTeamId === team.id && teamPostDraftPhotoURL
+          ? '<img class="wall-post-photo-preview" src="' + escapeHtml(teamPostDraftPhotoURL) + '" alt="">' +
+            '<button type="button" class="ghost" data-action="team-feed-photo-remove">Retirer la photo</button>'
+          : '') +
+        '<div style="display:flex; gap:0.5rem;">' +
+        '<button type="button" class="ghost icon-btn" data-action="team-feed-photo-btn" data-team="' + team.id + '" aria-label="Ajouter une photo" title="Ajouter une photo">📷</button>' +
+        '<button type="submit" class="primary">Publier</button>' +
+        '</div></form>';
+      html += '<form class="team-poll-form" data-action="team-poll-form" data-team="' + team.id + '">' +
+        '<input type="text" placeholder="Créer un sondage : la question" data-poll-question>' +
+        '<input type="text" placeholder="Option 1" data-poll-option>' +
+        '<input type="text" placeholder="Option 2" data-poll-option>' +
+        '<input type="text" placeholder="Option 3 (optionnel)" data-poll-option>' +
+        '<button type="submit" class="ghost">Publier le sondage</button></form>';
+    }
+    if (isLeader) {
+      html += '<div class="help-text" style="margin-top:0.5rem;">Qui peut publier : ' +
+        '<select data-action="team-post-policy" data-team="' + team.id + '">' +
+        '<option value="leaders"' + (team.postPolicy !== 'members' ? ' selected' : '') + '>Team Leaders seulement</option>' +
+        '<option value="members"' + (team.postPolicy === 'members' ? ' selected' : '') + '>Tous les membres</option>' +
+        '</select></div>';
     }
 
     html += '<div class="team-section-title">Membres (' + members.length + ')</div>';
@@ -5607,6 +5827,10 @@
       html += '<div class="card"><div class="empty-state">Pas encore de team -- crée-en un, ou attends une invitation.</div></div>';
     } else {
       myTeams.forEach(function (team) { html += renderTeamCard(team, me); });
+      // Shared by every team card's 📷 button -- only one photo picker is
+      // ever open at a time, so one hidden input covers them all (see
+      // teamPostDraftPhotoTeamId).
+      html += '<input type="file" id="team-feed-photo-input" accept="image/*" style="display:none;">';
     }
     html += renderCreateTeamCard();
     return html;
@@ -6219,6 +6443,52 @@
         renderRoot();
       });
     });
+    var wallPostForm = document.getElementById('wall-post-form');
+    if (wallPostForm) {
+      wallPostForm.addEventListener('submit', function (evt) {
+        evt.preventDefault();
+        var textEl = document.getElementById('wall-post-text');
+        var linkEl = document.getElementById('wall-post-link');
+        var audienceEl = document.getElementById('wall-post-audience');
+        postToWall(textEl.value, linkEl.value, wallPostDraftPhotoURL, audienceEl.value);
+      });
+    }
+    var wallPostPhotoBtn = document.getElementById('wall-post-photo-btn');
+    var wallPostPhotoInput = document.getElementById('wall-post-photo-input');
+    if (wallPostPhotoBtn && wallPostPhotoInput) {
+      wallPostPhotoBtn.addEventListener('click', function () { wallPostPhotoInput.click(); });
+      wallPostPhotoInput.addEventListener('change', function () {
+        var file = wallPostPhotoInput.files && wallPostPhotoInput.files[0];
+        if (!file) return;
+        if (!/^image\//.test(file.type)) {
+          wallPostMessage = 'Choisis un fichier image.';
+          renderRoot();
+          return;
+        }
+        resizeImageToDataUrl(file, 1000, 0.6, function (dataUrl) {
+          if (!dataUrl) {
+            wallPostMessage = 'Impossible de lire cette image.';
+            renderRoot();
+            return;
+          }
+          if (dataUrl.length > 700000) {
+            wallPostMessage = 'Cette photo est trop volumineuse même après compression.';
+            renderRoot();
+            return;
+          }
+          wallPostDraftPhotoURL = dataUrl;
+          wallPostMessage = '';
+          renderRoot();
+        });
+      });
+    }
+    var wallPostPhotoRemoveBtn = document.getElementById('wall-post-photo-remove-btn');
+    if (wallPostPhotoRemoveBtn) {
+      wallPostPhotoRemoveBtn.addEventListener('click', function () { wallPostDraftPhotoURL = null; renderRoot(); });
+    }
+    document.querySelectorAll('[data-action="delete-wall-post"]').forEach(function (btn) {
+      btn.addEventListener('click', function () { deleteWallPost(btn.getAttribute('data-id')); });
+    });
     var deleteAccountRequestBtn = document.getElementById('delete-account-request-btn');
     if (deleteAccountRequestBtn) {
       deleteAccountRequestBtn.addEventListener('click', function () {
@@ -6291,9 +6561,63 @@
     document.querySelectorAll('[data-action="team-feed-form"]').forEach(function (form) {
       form.addEventListener('submit', function (evt) {
         evt.preventDefault();
-        var input = form.querySelector('[data-team-feed-input]');
-        if (input && input.value.trim()) postTeamFeedMessage(form.getAttribute('data-team'), input.value);
+        var teamId = form.getAttribute('data-team');
+        var textInput = form.querySelector('[data-team-feed-input]');
+        var linkInput = form.querySelector('[data-team-feed-link]');
+        var photoURL = (teamPostDraftPhotoTeamId === teamId) ? teamPostDraftPhotoURL : null;
+        postTeamFeedMessage(teamId, textInput ? textInput.value : '', linkInput ? linkInput.value : '', photoURL);
+        if (textInput) textInput.value = '';
+        if (linkInput) linkInput.value = '';
+        teamPostDraftPhotoTeamId = null;
+        teamPostDraftPhotoURL = null;
       });
+    });
+    document.querySelectorAll('[data-action="team-feed-photo-btn"]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        teamPostDraftPhotoTeamId = btn.getAttribute('data-team');
+        var input = document.getElementById('team-feed-photo-input');
+        if (input) input.click();
+      });
+    });
+    var teamFeedPhotoInput = document.getElementById('team-feed-photo-input');
+    if (teamFeedPhotoInput) {
+      teamFeedPhotoInput.addEventListener('change', function () {
+        var file = teamFeedPhotoInput.files && teamFeedPhotoInput.files[0];
+        if (!file || !teamPostDraftPhotoTeamId) return;
+        if (!/^image\//.test(file.type)) { showToast('Choisis un fichier image.'); return; }
+        resizeImageToDataUrl(file, 1000, 0.6, function (dataUrl) {
+          if (!dataUrl || dataUrl.length > 700000) {
+            showToast(dataUrl ? 'Cette photo est trop volumineuse même après compression.' : 'Impossible de lire cette image.');
+            return;
+          }
+          teamPostDraftPhotoURL = dataUrl;
+          renderRoot();
+        });
+      });
+    }
+    document.querySelectorAll('[data-action="team-feed-photo-remove"]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        teamPostDraftPhotoTeamId = null;
+        teamPostDraftPhotoURL = null;
+        renderRoot();
+      });
+    });
+    document.querySelectorAll('[data-action="team-poll-form"]').forEach(function (form) {
+      form.addEventListener('submit', function (evt) {
+        evt.preventDefault();
+        var question = form.querySelector('[data-poll-question]').value;
+        var options = Array.prototype.map.call(form.querySelectorAll('[data-poll-option]'), function (el) { return el.value; });
+        postTeamPoll(form.getAttribute('data-team'), question, options);
+        form.reset();
+      });
+    });
+    document.querySelectorAll('[data-action="team-poll-vote"]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        voteTeamPoll(btn.getAttribute('data-id'), parseInt(btn.getAttribute('data-option'), 10));
+      });
+    });
+    document.querySelectorAll('[data-action="team-post-policy"]').forEach(function (select) {
+      select.addEventListener('change', function () { setTeamPostPolicy(select.getAttribute('data-team'), select.value); });
     });
     document.querySelectorAll('[data-action="team-invite-accept"]').forEach(function (btn) {
       btn.addEventListener('click', function () {
@@ -6990,6 +7314,13 @@
     // activity log, not something that needs full history loaded.
     unsubscribers.push(db.collection('feedEvents').orderBy('createdAt', 'desc').limit(40).onSnapshot(function (snap) {
       STATE.feedEvents = snap.docs.map(function (d) { return d.data(); });
+      renderRoot();
+    }, handleSyncError));
+    // Wall posts -- same cap-and-sync-all approach as the feed above;
+    // visibleWallPosts() then filters to what this account's own
+    // friends/follows relationships actually allow it to see.
+    unsubscribers.push(db.collection('wallPosts').orderBy('createdAt', 'desc').limit(200).onSnapshot(function (snap) {
+      STATE.wallPosts = snap.docs.map(function (d) { return d.data(); });
       renderRoot();
     }, handleSyncError));
     // Who this pilote follows (Personnalités) -- one-way, no acceptance.
