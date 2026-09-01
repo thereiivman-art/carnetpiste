@@ -21,11 +21,22 @@ service cloud.firestore {
 
     // A user's own profile has to be writable right after signup, before
     // there's been time to verify anything -- no email_verified check here.
+    // `certified`/`personality` are trust badges the admin grants, not the
+    // account itself -- a self-write (uid == userId) may set every other
+    // field freely, but can never flip either of those two, on create or
+    // update; only isAdmin() can (see renderAccountManagerPanel).
     match /users/{userId} {
       allow read: if request.auth != null;
-      // A user manages their own profile; the admin can also demote or
-      // remove an accompagnant account (see renderAccountManagerPanel).
-      allow write: if request.auth != null && (request.auth.uid == userId || isAdmin());
+      allow create: if request.auth != null && request.auth.uid == userId
+        && request.resource.data.get('certified', false) == false
+        && request.resource.data.get('personality', false) == false;
+      allow update: if request.auth != null && (
+        isAdmin() ||
+        (request.auth.uid == userId
+          && request.resource.data.get('certified', false) == resource.data.get('certified', false)
+          && request.resource.data.get('personality', false) == resource.data.get('personality', false))
+      );
+      allow delete: if request.auth != null && (request.auth.uid == userId || isAdmin());
     }
     // Everything else requires a verified email to write, so a bot that
     // signs up with a throwaway address can't touch shared data. A chrono
@@ -78,6 +89,21 @@ service cloud.firestore {
         && request.resource.data.from == resource.data.from
         && request.resource.data.to == resource.data.to;
       allow delete: if verified() && (resource.data.from == myName() || resource.data.to == myName());
+    }
+    // Social feed -- append-only activity log (a new friendship, a new
+    // personal record...). Whoever the entry is about writes it themselves
+    // (actor == myName()); nothing is ever edited or removed client-side.
+    match /feedEvents/{id} {
+      allow read: if request.auth != null;
+      allow create: if verified() && request.resource.data.actor == myName();
+    }
+    // One-way follow (for Personnalités) -- unlike friendRequests, no
+    // acceptance needed: the follower alone creates and deletes their own
+    // side of it.
+    match /follows/{id} {
+      allow read: if request.auth != null;
+      allow create: if verified() && request.resource.data.follower == myName() && request.resource.data.followee != myName();
+      allow delete: if verified() && resource.data.follower == myName();
     }
   }
 }

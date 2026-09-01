@@ -11,7 +11,7 @@
   // first and hit STATE while it's still undefined.
   var db = firebase.firestore();
   var auth = firebase.auth();
-  var STATE = { sessions: [], events: [], circuits: {}, riders: [], usersByName: {}, friendRequests: [] };
+  var STATE = { sessions: [], events: [], circuits: {}, riders: [], usersByName: {}, friendRequests: [], feedEvents: [], myFollows: [] };
   var canPersist = false;
   var unsubscribers = [];
 
@@ -83,8 +83,39 @@
   }
 
   function acceptFriendRequest(id) {
+    var req = (STATE.friendRequests || []).filter(function (r) { return r.id === id; })[0];
     db.collection('friendRequests').doc(id).update({ status: 'accepted' }).then(function () {
       showToast('Vous êtes maintenant amis.', 'success');
+      if (req) writeFeedEvent('friend', { target: req.from });
+    }).catch(function (err) {
+      showToast('Erreur : ' + (err && err.message ? err.message : err));
+    });
+  }
+
+  // Best-effort activity log for the Social feed -- never blocks the
+  // action it documents (a failed write here shouldn't undo an accepted
+  // friend request or a saved chrono), so errors are swallowed silently.
+  function writeFeedEvent(type, extra) {
+    if (!currentUserProfile) return;
+    db.collection('feedEvents').add(Object.assign({
+      type: type, actor: currentUserProfile.name, createdAt: Date.now()
+    }, extra || {})).catch(function () {});
+  }
+
+  // One-way follow, for Personnalités -- no request/accept, unlike
+  // friendRequests above; just a row this pilote owns and can delete.
+  function followName(name) {
+    var me = currentUserProfile;
+    if (!me || !name || name === me.name || (STATE.myFollows || []).indexOf(name) !== -1) return;
+    db.collection('follows').add({ follower: me.name, followee: name }).catch(function (err) {
+      showToast('Erreur : ' + (err && err.message ? err.message : err));
+    });
+  }
+  function unfollowName(name) {
+    db.collection('follows').where('follower', '==', currentUserProfile.name).where('followee', '==', name).get().then(function (snap) {
+      var batch = db.batch();
+      snap.forEach(function (d) { batch.delete(d.ref); });
+      return batch.commit();
     }).catch(function (err) {
       showToast('Erreur : ' + (err && err.message ? err.message : err));
     });
@@ -940,10 +971,10 @@
       html += '<div class="empty-state">Aucune session pour ce circuit avec les pilotes sélectionnés.</div>';
     } else {
       var colCount = 4 + (showRider ? 1 : 0);
-      html += '<div class="table-scroll"><table class="session-table"><thead><tr><th>Date</th>' + (showRider ? '<th>Pilote</th>' : '') + '<th>Chronos</th><th>Moto</th><th></th></tr></thead><tbody>';
+      var tableHtml = '<div class="table-scroll"><table class="session-table"><thead><tr><th>Date</th>' + (showRider ? '<th>Pilote</th>' : '') + '<th>Chronos</th><th>Moto</th><th></th></tr></thead><tbody>';
       sessions.forEach(function (s) {
         if (s.id === editingSessionId) {
-          html += renderSessionEditRow(s, colCount);
+          tableHtml += renderSessionEditRow(s, colCount);
           return;
         }
         var best = sessionBest(s);
@@ -964,15 +995,16 @@
         else if (periodLabel) sessionTagParts.push(periodLabel);
         if (s.group) sessionTagParts.push('Groupe ' + s.group);
         var sessionTagHtml = sessionTagParts.length ? '<div class="note-text">' + escapeHtml(sessionTagParts.join(' — ')) + '</div>' : '';
-        html += '<tr data-session-id="' + s.id + '">';
-        html += '<td>' + formatDate(s.date) + sessionTagHtml + noteHtml + '</td>';
-        if (showRider) html += '<td class="rider-cell">' + (s.rider ? renderRiderLink(s.rider) : '—') + '</td>';
-        html += '<td class="laps-cell">' + lapsHtml + (isRecord ? '<span class="record-pill">RECORD</span>' : '') + '</td>';
-        html += '<td class="bike-cell">' + (s.bike ? escapeHtml(s.bike) : '—') + '</td>';
-        html += '<td class="row-actions">' + editControl(s) + deleteControl(s) + '</td>';
-        html += '</tr>';
+        tableHtml += '<tr data-session-id="' + s.id + '">';
+        tableHtml += '<td>' + formatDate(s.date) + sessionTagHtml + noteHtml + '</td>';
+        if (showRider) tableHtml += '<td class="rider-cell">' + (s.rider ? renderRiderLink(s.rider) : '—') + '</td>';
+        tableHtml += '<td class="laps-cell">' + lapsHtml + (isRecord ? '<span class="record-pill">RECORD</span>' : '') + '</td>';
+        tableHtml += '<td class="bike-cell">' + (s.bike ? escapeHtml(s.bike) : '—') + '</td>';
+        tableHtml += '<td class="row-actions">' + editControl(s) + deleteControl(s) + '</td>';
+        tableHtml += '</tr>';
       });
-      html += '</tbody></table></div>';
+      tableHtml += '</tbody></table></div>';
+      html += renderStatSummaryCategory('chronos-history-' + selectedCircuit, 'Historique', sessions.length, tableHtml);
     }
     html += '</div>';
     return html;
@@ -1032,6 +1064,7 @@
     html += renderStatSummaryCategory('bests-' + riderName, 'Meilleurs temps par circuit', stats.bests.length, bestsDetail);
     html += '</div>';
     html += '</div>';
+    html += renderAchievementsCard(riderAchievements(riderName, stats), 'achievements-' + riderName);
     return html;
   }
 
@@ -1174,10 +1207,17 @@
       '<label><input type="radio" name="profile-role" value="accompagnant"' + (p.role === 'accompagnant' ? ' checked' : '') + '> Accompagnant</label>' +
       '<label><input type="radio" name="profile-role" value="organisateur"' + (p.role === 'organisateur' ? ' checked' : '') + '> Organisateur</label>' +
       '</div>';
-    var achievements = p.role === 'organisateur' ? organisateurAchievements(p)
-      : (p.role === 'accompagnant' ? accompagnantAchievements(p) : riderAchievements(p.name, riderStats(p.name)));
-    html += renderAchievementsCard(achievements, 'achievements-profile-' + p.name);
-    if (p.role === 'organisateur') html += renderOrganizerHub();
+    // A pilote's trophées live in Stats now (next to their lap times and
+    // records, which is what most of them are actually about) -- only
+    // accompagnant/organisateur keep theirs here, since neither has a
+    // Stats screen of their own (allKnownRiders(), which drives the Stats
+    // rider picker, only ever lists pilotes).
+    if (p.role === 'organisateur') {
+      html += renderAchievementsCard(organisateurAchievements(p), 'achievements-profile-' + p.name);
+      html += renderOrganizerHub();
+    } else if (p.role === 'accompagnant') {
+      html += renderAchievementsCard(accompagnantAchievements(p), 'achievements-profile-' + p.name);
+    }
     html += '<div id="profile-bike-wrap" style="display:' + (isNonRider ? 'none' : 'block') + '; margin-top:0.9rem;">' +
       '<label for="profile-bike">Ma moto</label><input type="text" id="profile-bike" placeholder="Ex. ST 765 RS" value="' + escapeHtml(p.bike || '') + '">' +
       '<div class="help-text">Suggérée automatiquement quand tu entres un chrono.</div>' +
@@ -1207,6 +1247,16 @@
     var html = '<label class="checklist-item"><input type="checkbox" id="profile-notify"' + (p.notifyBeforeSession ? ' checked' : '') + '> <span id="profile-notify-label">' + (isNonRider ? 'Me notifier quand un pilote suivi va partir rouler' : 'Me notifier quand mon groupe va partir rouler') + '</span></label>';
     html += '<div class="help-text" style="margin-top:0.4rem;">Nécessite d\'autoriser les notifications du navigateur, et que cet onglet reste ouvert.</div>';
     html += '<div style="margin-top:1.1rem;"><label style="margin-bottom:0.4rem; display:block;">Thème</label>' + renderThemeToggle() + '</div>';
+    // What a friend can see when they open your fiche from Social (Mes
+    // amis) -- both on by default. Purely a display-level courtesy: every
+    // signed-in account can already read sessions/events/users directly,
+    // this only controls what shows up in that one card.
+    html += '<div style="margin-top:1.2rem; border-top:1px solid var(--border); padding-top:0.9rem;">';
+    html += '<div class="section-title" style="font-size:0.95rem;">Réglages social</div>';
+    html += '<div class="help-text">Ce que tes amis voient quand ils ouvrent ta fiche depuis Social.</div>';
+    html += '<label class="checklist-item" style="margin-top:0.6rem;"><input type="checkbox" id="profile-share-sorties"' + (p.shareSorties !== false ? ' checked' : '') + '> Partager mes sorties/chronos</label>';
+    html += '<label class="checklist-item" style="margin-top:0.4rem;"><input type="checkbox" id="profile-share-trophees"' + (p.shareTrophees !== false ? ' checked' : '') + '> Partager mes trophées</label>';
+    html += '</div>';
     // Separate form -- changing the sign-in email needs the current
     // password (Firebase requires a recent reauthentication for it), which
     // has nothing to do with the notify/theme settings above.
@@ -1327,12 +1377,12 @@
         var isPendingDelete = pendingDeleteAccountUid === a.uid;
         var isPilote = !a.role || a.role === 'pilote';
         var detail = isPilote ? escapeHtml(a.bike || '—') : escapeHtml((a.followedRiders || []).join(', ') || '—');
-        var certifiedHtml = a.certified ? ' <span class="certified-badge" title="Compte certifié">✓</span>' : '';
         return '<li class="rider-manager-row account-manager-row">' +
-          '<div><span class="rider-manager-name">' + escapeHtml(a.name || a.email) + '</span>' + certifiedHtml + ' <span class="friend-role-badge">' + roleLabel(a.role) + '</span>' +
+          '<div><span class="rider-manager-name">' + escapeHtml(a.name || a.email) + '</span>' + badgesHtml(a) + ' <span class="friend-role-badge">' + roleLabel(a.role) + '</span>' +
           '<div class="help-text">' + escapeHtml(a.email || '') + ' · ' + (isPilote ? 'moto : ' : 'suit : ') + detail + '</div></div>' +
           (isPilote ? '' : '<button type="button" class="ghost icon-btn" data-action="demote-account" data-uid="' + a.uid + '" aria-label="Repasser en pilote" title="Repasser en pilote">↺</button>') +
           '<button type="button" class="ghost icon-btn' + (a.certified ? ' confirm' : '') + '" data-action="toggle-certify-account" data-uid="' + a.uid + '" aria-label="' + (a.certified ? 'Retirer la certification' : 'Certifier ce compte') + '" title="' + (a.certified ? 'Retirer la certification' : 'Certifier ce compte') + '">✓</button>' +
+          '<button type="button" class="ghost icon-btn' + (a.personality ? ' confirm' : '') + '" data-action="toggle-personality-account" data-uid="' + a.uid + '" aria-label="' + (a.personality ? 'Retirer Personnalité' : 'Marquer comme Personnalité') + '" title="' + (a.personality ? 'Retirer Personnalité' : 'Marquer comme Personnalité') + '">★</button>' +
           '<button type="button" class="ghost icon-btn' + (isPendingDelete ? ' confirm' : '') + '" data-action="delete-account-request" data-uid="' + a.uid + '" aria-label="Supprimer ce compte" title="Retirer l\'accès">' + (isPendingDelete ? '✓' : '×') + '</button>' +
           '</li>';
       }).join('') + '</ul>';
@@ -1410,6 +1460,19 @@
     }).catch(function (err) {
       profilePhotoMessage = 'Erreur : ' + (err && err.message ? err.message : err);
       renderRoot();
+    });
+  }
+
+  function saveSocialShare(field, value) {
+    var uid = auth.currentUser && auth.currentUser.uid;
+    if (!uid || !currentUserProfile) return;
+    var writes = {};
+    writes[field] = value;
+    db.collection('users').doc(uid).set(writes, { merge: true }).then(function () {
+      currentUserProfile[field] = value;
+      renderRoot();
+    }).catch(function (err) {
+      showToast('Erreur : ' + (err && err.message ? err.message : err));
     });
   }
 
@@ -1903,21 +1966,22 @@
     // multi-rider overlays existed -- the fixed categorical palette only
     // kicks in once there's actually more than one line to tell apart.
     series.forEach(function (s) { s.color = isMulti ? riderSeriesColor(s.rider) : 'var(--accent)'; });
-    var html = '<div class="card progression-card"><h2 class="section-title">Visualisation de la progression</h2>';
+    var progressionKey = 'progression-' + circuit + '-' + riders.slice().sort().join(',');
+    var html = '';
 
     if (!series.length) {
-      html += '<div class="empty-state">Aucun chrono enregistré sur ' + escapeHtml(circuit) + (riders.length === 1 ? ' pour ' + escapeHtml(riders[0]) : '') + '.</div></div>';
-      return html;
+      html += '<div class="empty-state">Aucun chrono enregistré sur ' + escapeHtml(circuit) + (riders.length === 1 ? ' pour ' + escapeHtml(riders[0]) : '') + '.</div>';
+      return collapsibleCard(progressionKey, 'Visualisation de la progression', html, false);
     }
     if (series.length === 1 && series[0].raw.length === 1) {
       var only = series[0].raw[0];
-      html += '<div class="empty-state">Un seul chrono enregistré — ' + formatTime(only.time) + ' le ' + escapeHtml(formatDate(only.date)) + '. La courbe apparaîtra au prochain chrono.</div></div>';
-      return html;
+      html += '<div class="empty-state">Un seul chrono enregistré — ' + formatTime(only.time) + ' le ' + escapeHtml(formatDate(only.date)) + '. La courbe apparaîtra au prochain chrono.</div>';
+      return collapsibleCard(progressionKey, 'Visualisation de la progression', html, false);
     }
     var totalPoints = series.reduce(function (sum, s) { return sum + s.raw.length; }, 0);
     if (totalPoints < 2) {
-      html += '<div class="empty-state">Pas encore assez de chronos pour tracer une courbe.</div></div>';
-      return html;
+      html += '<div class="empty-state">Pas encore assez de chronos pour tracer une courbe.</div>';
+      return collapsibleCard(progressionKey, 'Visualisation de la progression', html, false);
     }
 
     var W = 640, H = 260;
@@ -2033,11 +2097,10 @@
       (isMulti ? escapeHtml(latest.rider) + ' — ' : '') +
       escapeHtml(formatDate(latest.date)) + ' — ' + formatTime(latest.time) + (latest.isBest ? ' (record)' : '') +
       '</div>';
-    html += '</div>';
 
     PROGRESSION_POINTS = flatPoints;
     PROGRESSION_MULTI = isMulti;
-    return html;
+    return collapsibleCard(progressionKey, 'Visualisation de la progression', html, false);
   }
 
   function circuitDatalist() {
@@ -3764,7 +3827,7 @@
       }
       return true;
     }).sort(function (a, b) { return a.dateStart < b.dateStart ? -1 : a.dateStart > b.dateStart ? 1 : 0; });
-    return renderEventGroupCard('Sorties · ' + calendarNavLabel(), events, { hideGroups: true, collapseKey: 'events-period', defaultOpen: false });
+    return renderEventGroupCard('Sorties de la période sélectionnée · ' + calendarNavLabel(), events, { hideGroups: true, collapseKey: 'events-period', defaultOpen: false });
   }
 
   // Selecting a sortie is a "picking" action — it also syncs selectedCircuit
@@ -4096,10 +4159,13 @@
     } else {
       if (ongoing.length) html += renderEventGroupCard('En cours', ongoing, { collapseKey: 'events-ongoing', defaultOpen: true });
       html += renderEventGroupCard('À venir', upcoming, { collapseKey: 'events-upcoming', defaultOpen: false });
-      html += renderPastEventsCard(past);
     }
+    // En cours / À venir / Ajouter / Calendrier / Sorties de la période /
+    // Passés -- Passés moved last since it's the least time-sensitive of
+    // the six, the one you're least likely to open on a given visit.
     html += renderEventForm();
     html += renderCalendarSection();
+    html += renderPastEventsCard(past);
     return html;
   }
 
@@ -4297,6 +4363,51 @@
       '</details>';
   }
 
+  // A photo of the horaires as posted by the organizer in the group's
+  // WhatsApp -- lets a rider cross-check what's actually announced
+  // against what's been typed into the app (a typo entering the times
+  // wouldn't otherwise be caught by anything). Stored as a resized data
+  // URL on the event doc, same approach as the profile photo, and goes
+  // through the ordinary STATE + persist() flow like every other event
+  // field (mediaLink is the same pattern) rather than a direct write.
+  var horairesPhotoMessage = '';
+  var horairesPhotoExpanded = {}; // event id -> bool, tap to zoom
+  function saveHorairesPhoto(eventId, dataUrl) {
+    var prevState = JSON.parse(JSON.stringify(STATE));
+    var ev = STATE.events.filter(function (e) { return e.id === eventId; })[0];
+    if (!ev) return;
+    if (dataUrl) {
+      ev.horairesPhotoURL = dataUrl;
+      ev.horairesPhotoAddedBy = (currentUserProfile && currentUserProfile.name) || null;
+    } else {
+      delete ev.horairesPhotoURL;
+      delete ev.horairesPhotoAddedBy;
+    }
+    horairesPhotoMessage = '';
+    renderRoot();
+    persist(prevState);
+  }
+
+  function renderHorairesPhotoSection(ev) {
+    var html = '<div class="horaires-photo-block">';
+    html += '<div class="horaires-photo-title">📷 Photo des horaires de l\'organisateur</div>';
+    html += '<div class="help-text">Pour vérifier les horaires ci-dessus par rapport à ce qui a été partagé dans le groupe WhatsApp.</div>';
+    if (ev.horairesPhotoURL) {
+      var expanded = !!horairesPhotoExpanded[ev.id];
+      html += '<img class="horaires-photo-thumb' + (expanded ? ' expanded' : '') + '" src="' + escapeHtml(ev.horairesPhotoURL) + '" alt="Photo des horaires" data-action="toggle-horaires-photo" data-id="' + ev.id + '">';
+      if (ev.horairesPhotoAddedBy) html += '<div class="help-text">Ajoutée par ' + escapeHtml(ev.horairesPhotoAddedBy) + '</div>';
+      html += '<div style="margin-top:0.5rem; display:flex; gap:0.5rem;">' +
+        '<button type="button" class="ghost" data-action="horaires-photo-add" data-id="' + ev.id + '">Remplacer</button>' +
+        '<button type="button" class="ghost" data-action="horaires-photo-remove" data-id="' + ev.id + '">Retirer</button></div>';
+    } else {
+      html += '<div style="margin-top:0.5rem;"><button type="button" class="ghost" data-action="horaires-photo-add" data-id="' + ev.id + '">Ajouter la photo de l\'organisateur</button></div>';
+    }
+    html += '<input type="file" id="horaires-photo-input" accept="image/*" style="display:none;" data-id="' + ev.id + '">';
+    if (horairesPhotoMessage) html += '<div class="help-text">' + escapeHtml(horairesPhotoMessage) + '</div>';
+    html += '</div>';
+    return html;
+  }
+
   function renderPlanningTab() {
     var target = targetPlanningEvent();
     if (!target) {
@@ -4344,6 +4455,7 @@
     if (!availableGroups.length) {
       html += briefingLine;
       html += '<div class="help-text">Aucun horaire enregistré pour ' + escapeHtml(ev.circuit) + ' — ajoutez-les depuis l\'onglet Circuit (Modifier les infos).</div>';
+      html += renderHorairesPhotoSection(ev);
       html += collapsibleSection('groupes', 'Groupes par pilote', renderRiderGroupsSection(ev));
       html += collapsibleSection('equipement', checklistCountLabel(ev), renderPlanningChecklist(ev));
       return html + '</div>';
@@ -4364,6 +4476,7 @@
     });
     horairesInner += '</div>';
     horairesInner += renderHoraireGroups(horaires, activeKeys, ev, info.briefing);
+    horairesInner += renderHorairesPhotoSection(ev);
     html += collapsibleSection('horaires', 'Horaires', horairesInner);
     html += collapsibleSection('groupes', 'Groupes par pilote', renderRiderGroupsSection(ev));
     html += collapsibleSection('equipement', checklistCountLabel(ev), renderPlanningChecklist(ev));
@@ -5033,19 +5146,143 @@
     return !!(u && (u.certified || u.email === ADMIN_EMAIL));
   }
 
-  // A friend's name only jumps to Statistiques (renderRiderLink) when
-  // they're a pilote -- normalizeSelection() only ever accepts a rider
-  // from allKnownRiders() (pilotes only) as the single selection, so
-  // pointing it at an accompagnant/organisateur name would just bounce
-  // back to some other rider on the very next render.
-  function renderFriendRow(name, actionsHtml) {
+  // Distinct from certified: certified means "this is really this person"
+  // (identity verification), personality means "a public figure worth
+  // suggesting to follow" (a pro rider, a mechanic, a consultant...) --
+  // orthogonal badges, a personality isn't necessarily certified and vice
+  // versa.
+  function isPersonality(u) {
+    return !!(u && u.personality);
+  }
+
+  function badgesHtml(u) {
+    return (isCertified(u) ? ' <span class="certified-badge" title="Profil certifié">✓</span>' : '') +
+      (isPersonality(u) ? ' <span class="personality-badge" title="Personnalité">★</span>' : '');
+  }
+
+  // Which friend's fiche (see renderFriendFiche) is expanded inline in the
+  // "Mes amis" list -- one at a time, pure UI state.
+  var expandedFriend = null;
+
+  function renderFriendRow(name, actionsHtml, expandable) {
     var u = (STATE.usersByName || {})[name] || {};
-    var isPilote = !u.role || u.role === 'pilote';
-    var nameHtml = isPilote ? renderRiderLink(name) : '<span class="friend-name-plain">' + escapeHtml(name) + '</span>';
-    return '<div class="friend-row">' +
-      '<div class="friend-row-main">' + nameHtml + (isCertified(u) ? ' <span class="certified-badge" title="Profil certifié">✓</span>' : '') + '<span class="friend-role-badge">' + roleLabel(u.role) + '</span></div>' +
+    var nameHtml = expandable
+      ? '<button type="button" class="friend-name-link" data-action="toggle-friend-fiche" data-name="' + escapeHtml(name) + '">' + escapeHtml(name) + '</button>'
+      : '<span class="friend-name-plain">' + escapeHtml(name) + '</span>';
+    var html = '<div class="friend-row">' +
+      '<div class="friend-row-main">' + nameHtml + badgesHtml(u) + '<span class="friend-role-badge">' + roleLabel(u.role) + '</span></div>' +
       '<div class="friend-row-actions">' + actionsHtml + '</div>' +
       '</div>';
+    if (expandable && expandedFriend === name) html += renderFriendFiche(name);
+    return html;
+  }
+
+  // What a friend's card shows once opened -- gated by the two sharing
+  // toggles they set themselves in Réglages (shareSorties/shareTrophees,
+  // both on by default). This is a display-level courtesy, not a real
+  // access boundary: sessions/events/users are all already readable by any
+  // signed-in account under firestore.rules, same as before Social existed.
+  function renderFriendFiche(name) {
+    var u = (STATE.usersByName || {})[name] || {};
+    var isPilote = !u.role || u.role === 'pilote';
+    var shareSorties = u.shareSorties !== false;
+    var shareTrophees = u.shareTrophees !== false;
+    var html = '<div class="friend-fiche">';
+    if (isPilote) {
+      if (shareSorties) {
+        var stats = riderStats(name);
+        html += infoRow('Sorties', String(stats.outingsCount));
+        html += infoRow('Circuits visités', String(stats.circuitsVisited));
+        html += infoRow('Jours sur piste', String(stats.trackDays));
+        if (stats.lastSession) {
+          html += infoRow('Dernière sortie', escapeHtml(stats.lastSession.circuit) + ' — ' + escapeHtml(formatDate(stats.lastSession.date)) + ' (' + formatTime(stats.lastSession.time) + ')');
+        }
+      } else {
+        html += '<div class="help-text">' + escapeHtml(name) + ' n\'a pas choisi de partager ses sorties/chronos.</div>';
+      }
+      if (shareTrophees) {
+        html += renderAchievementsCard(riderAchievements(name, riderStats(name)), 'fiche-achievements-' + name);
+      } else {
+        html += '<div class="help-text">Trophées non partagés.</div>';
+      }
+    } else {
+      if (shareTrophees) {
+        var ach = u.role === 'organisateur' ? organisateurAchievements(u) : accompagnantAchievements(u);
+        html += renderAchievementsCard(ach, 'fiche-achievements-' + name);
+      } else {
+        html += '<div class="help-text">Trophées non partagés.</div>';
+      }
+    }
+    html += '</div>';
+    return html;
+  }
+
+  function relativeTime(ms) {
+    var diff = Date.now() - ms;
+    if (diff < 60000) return 'à l\'instant';
+    if (diff < 3600000) return 'il y a ' + Math.floor(diff / 60000) + ' min';
+    if (diff < 86400000) return 'il y a ' + Math.floor(diff / 3600000) + ' h';
+    return formatDate(dateKey(new Date(ms)));
+  }
+
+  function renderFeedEntry(e) {
+    var text;
+    if (e.type === 'friend') {
+      text = escapeHtml(e.actor) + ' et ' + escapeHtml(e.target) + ' sont maintenant amis 🤝';
+    } else if (e.type === 'record') {
+      text = escapeHtml(e.actor) + ' a battu son record sur ' + escapeHtml(e.circuit) + ' : ' + formatTime(e.time) + ' 🏁';
+    } else {
+      return '';
+    }
+    return '<div class="feed-entry"><span class="feed-entry-text">' + text + '</span>' +
+      '<span class="feed-entry-time">' + escapeHtml(relativeTime(e.createdAt)) + '</span></div>';
+  }
+
+  function renderSocialFeed() {
+    var entries = (STATE.feedEvents || []).slice(0, 12);
+    var html = '<div class="card"><h2 class="section-title">Actualités</h2>';
+    html += !entries.length
+      ? '<div class="empty-state">Rien de nouveau pour l\'instant.</div>'
+      : entries.map(renderFeedEntry).join('');
+    html += '</div>';
+    return html;
+  }
+
+  // A compact strip suggesting a few friend candidates and a few
+  // Personnalités not yet followed -- keeps "Ajouter un ami" itself as
+  // the exhaustive list, this is just a nudge.
+  function renderSocialSuggestions(candidates, me) {
+    var personalities = allKnownUserNames().filter(function (n) {
+      return n !== me.name && isPersonality(STATE.usersByName[n]) && (STATE.myFollows || []).indexOf(n) === -1;
+    }).slice(0, 3);
+    var friendSuggestions = candidates.slice(0, 3);
+    if (!friendSuggestions.length && !personalities.length) return '';
+    var html = '<div class="card social-suggestions">';
+    if (friendSuggestions.length) {
+      html += '<div class="social-suggestions-row"><span class="social-suggestions-label">Amis suggérés</span>' +
+        friendSuggestions.map(function (n) {
+          return '<span class="suggestion-chip">' + escapeHtml(n) + ' <button type="button" class="ghost icon-btn" data-action="quick-add-friend" data-name="' + escapeHtml(n) + '" aria-label="Ajouter" title="Ajouter">+</button></span>';
+        }).join('') + '</div>';
+    }
+    if (personalities.length) {
+      html += '<div class="social-suggestions-row"><span class="social-suggestions-label">Personnalités à suivre</span>' +
+        personalities.map(function (n) {
+          return '<span class="suggestion-chip">' + escapeHtml(n) + ' <button type="button" class="ghost icon-btn" data-action="quick-follow" data-name="' + escapeHtml(n) + '" aria-label="Suivre" title="Suivre">★</button></span>';
+        }).join('') + '</div>';
+    }
+    html += '</div>';
+    return html;
+  }
+
+  function renderPersonalitiesCard(me) {
+    var followed = (STATE.myFollows || []).slice().sort(function (a, b) { return a.localeCompare(b); });
+    if (!followed.length) return '';
+    var html = '<div class="card"><h2 class="section-title">Personnalités suivies</h2>';
+    html += followed.map(function (n) {
+      return renderFriendRow(n, '<button type="button" class="ghost icon-btn" data-action="unfollow" data-name="' + escapeHtml(n) + '" aria-label="Ne plus suivre" title="Ne plus suivre">×</button>');
+    }).join('');
+    html += '</div>';
+    return html;
   }
 
   function renderSocialTab() {
@@ -5061,11 +5298,14 @@
         !outgoing.some(function (r) { return r.to === n; });
     });
 
-    var html = '<div class="card"><h2 class="section-title">Mes amis</h2>';
+    var html = renderSocialFeed();
+    html += renderSocialSuggestions(candidates, me);
+
+    html += '<div class="card"><h2 class="section-title">Mes amis</h2>';
     html += !friends.length
       ? '<div class="empty-state">Pas encore d’amis — ajoutes-en un ci-dessous.</div>'
       : friends.map(function (f) {
-          return renderFriendRow(f.name, '<button type="button" class="ghost icon-btn" data-action="remove-friend" data-id="' + f.id + '" aria-label="Retirer cet ami" title="Retirer">×</button>');
+          return renderFriendRow(f.name, '<button type="button" class="ghost icon-btn" data-action="remove-friend" data-id="' + f.id + '" aria-label="Retirer cet ami" title="Retirer">×</button>', true);
         }).join('');
     html += '</div>';
 
@@ -5098,6 +5338,7 @@
         '<button type="submit" class="primary" style="margin-top:0.7rem;">Envoyer une demande</button></form>';
     }
     html += '</div>';
+    html += renderPersonalitiesCard(me);
     return html;
   }
 
@@ -5160,7 +5401,11 @@
       '</header>' +
       renderProfilePanel() +
       renderAccountManagerPanel() +
-      renderGlobalRiderPicker() +
+      // Only relevant where the page actually filters by rider (Chronos,
+      // via Circuit, and Stats) -- showing a pill per pilote on every tab
+      // (Événements, Planning, Social...) got noisier as the roster grew,
+      // for no benefit on those screens.
+      ((activeView === 'circuit' || activeView === 'stats') ? renderGlobalRiderPicker() : '') +
       renderViewTabs() +
       body;
     attachHandlers();
@@ -5457,6 +5702,14 @@
         showToast(reglagesNotify.checked ? 'Notifications activées.' : 'Notifications désactivées.', 'success');
       });
     }
+    var shareSortiesEl = document.getElementById('profile-share-sorties');
+    if (shareSortiesEl) {
+      shareSortiesEl.addEventListener('change', function () { saveSocialShare('shareSorties', shareSortiesEl.checked); });
+    }
+    var shareTropheesEl = document.getElementById('profile-share-trophees');
+    if (shareTropheesEl) {
+      shareTropheesEl.addEventListener('change', function () { saveSocialShare('shareTrophees', shareTropheesEl.checked); });
+    }
     document.querySelectorAll('[data-profile-tab]').forEach(function (btn) {
       btn.addEventListener('click', function () {
         profileSubTab = btn.getAttribute('data-profile-tab');
@@ -5532,6 +5785,22 @@
         db.collection('users').doc(uid).set({ certified: next }, { merge: true }).then(function () {
           account.certified = next;
           showToast(next ? (account.name + ' est maintenant certifié.') : (account.name + ' n\'est plus certifié.'), 'success');
+          renderRoot();
+        }).catch(function (err) {
+          accountManagerError = 'Erreur : ' + (err && err.message ? err.message : err);
+          renderRoot();
+        });
+      });
+    });
+    document.querySelectorAll('[data-action="toggle-personality-account"]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var uid = btn.getAttribute('data-uid');
+        var account = (manageableAccounts || []).filter(function (a) { return a.uid === uid; })[0];
+        if (!account) return;
+        var next = !account.personality;
+        db.collection('users').doc(uid).set({ personality: next }, { merge: true }).then(function () {
+          account.personality = next;
+          showToast(next ? (account.name + ' est maintenant Personnalité.') : (account.name + ' n\'est plus Personnalité.'), 'success');
           renderRoot();
         }).catch(function (err) {
           accountManagerError = 'Erreur : ' + (err && err.message ? err.message : err);
@@ -5627,6 +5896,53 @@
     if (profilePhotoRemoveBtn) {
       profilePhotoRemoveBtn.addEventListener('click', function () { savePhoto(null); });
     }
+    var horairesPhotoInput = document.getElementById('horaires-photo-input');
+    if (horairesPhotoInput) {
+      horairesPhotoInput.addEventListener('change', function () {
+        var eventId = horairesPhotoInput.getAttribute('data-id');
+        var file = horairesPhotoInput.files && horairesPhotoInput.files[0];
+        if (!file) return;
+        if (!/^image\//.test(file.type)) {
+          horairesPhotoMessage = 'Choisis un fichier image.';
+          renderRoot();
+          return;
+        }
+        // Larger and less compressed than the avatar -- this photo needs
+        // to stay legible enough to actually read times off it.
+        resizeImageToDataUrl(file, 1400, 0.65, function (dataUrl) {
+          if (!dataUrl) {
+            horairesPhotoMessage = 'Impossible de lire cette image.';
+            renderRoot();
+            return;
+          }
+          // Firestore caps a document at 1MB, and this one also carries
+          // every other field of the sortie -- leave headroom rather than
+          // find out at save time.
+          if (dataUrl.length > 700000) {
+            horairesPhotoMessage = 'Cette photo est trop volumineuse même après compression — recadre-la ou prends-en une capture d\'écran partielle.';
+            renderRoot();
+            return;
+          }
+          saveHorairesPhoto(eventId, dataUrl);
+        });
+      });
+    }
+    document.querySelectorAll('[data-action="horaires-photo-add"]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var input = document.getElementById('horaires-photo-input');
+        if (input) input.click();
+      });
+    });
+    document.querySelectorAll('[data-action="horaires-photo-remove"]').forEach(function (btn) {
+      btn.addEventListener('click', function () { saveHorairesPhoto(btn.getAttribute('data-id'), null); });
+    });
+    document.querySelectorAll('[data-action="toggle-horaires-photo"]').forEach(function (img) {
+      img.addEventListener('click', function () {
+        var id = img.getAttribute('data-id');
+        horairesPhotoExpanded[id] = !horairesPhotoExpanded[id];
+        renderRoot();
+      });
+    });
     var deleteAccountRequestBtn = document.getElementById('delete-account-request-btn');
     if (deleteAccountRequestBtn) {
       deleteAccountRequestBtn.addEventListener('click', function () {
@@ -5663,6 +5979,22 @@
     });
     document.querySelectorAll('[data-action="remove-friend"]').forEach(function (btn) {
       btn.addEventListener('click', function () { removeFriendRequest(btn.getAttribute('data-id')); });
+    });
+    document.querySelectorAll('[data-action="toggle-friend-fiche"]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var name = btn.getAttribute('data-name');
+        expandedFriend = expandedFriend === name ? null : name;
+        renderRoot();
+      });
+    });
+    document.querySelectorAll('[data-action="quick-add-friend"]').forEach(function (btn) {
+      btn.addEventListener('click', function () { sendFriendRequest(btn.getAttribute('data-name')); });
+    });
+    document.querySelectorAll('[data-action="quick-follow"]').forEach(function (btn) {
+      btn.addEventListener('click', function () { followName(btn.getAttribute('data-name')); });
+    });
+    document.querySelectorAll('[data-action="unfollow"]').forEach(function (btn) {
+      btn.addEventListener('click', function () { unfollowName(btn.getAttribute('data-name')); });
     });
     var copyReferralBtn = document.getElementById('copy-referral-link-btn');
     if (copyReferralBtn) {
@@ -6226,6 +6558,7 @@
     var newBest = sessionBest(session);
     if (previousBest === null || newBest < previousBest) {
       showToast('Nouveau record personnel sur ' + circuit + ' : ' + formatTime(newBest) + ' !', 'success');
+      if (previousBest !== null) writeFeedEvent('record', { circuit: circuit, time: newBest });
     } else {
       showToast('Chrono enregistré.', 'success');
     }
@@ -6331,6 +6664,19 @@
         friendReqTo = {};
         snap.forEach(function (d) { friendReqTo[d.id] = Object.assign({ id: d.id }, d.data()); });
         mergeFriendRequests();
+      }, handleSyncError));
+    }
+    // Social feed -- most recent first, capped since it's a scrolling
+    // activity log, not something that needs full history loaded.
+    unsubscribers.push(db.collection('feedEvents').orderBy('createdAt', 'desc').limit(40).onSnapshot(function (snap) {
+      STATE.feedEvents = snap.docs.map(function (d) { return d.data(); });
+      renderRoot();
+    }, handleSyncError));
+    // Who this pilote follows (Personnalités) -- one-way, no acceptance.
+    if (currentUserProfile && currentUserProfile.name) {
+      unsubscribers.push(db.collection('follows').where('follower', '==', currentUserProfile.name).onSnapshot(function (snap) {
+        STATE.myFollows = snap.docs.map(function (d) { return d.data().followee; });
+        renderRoot();
       }, handleSyncError));
     }
   }
