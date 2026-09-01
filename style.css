@@ -501,24 +501,6 @@
   }
   .bike-cell, .rider-cell { color: var(--text-muted); font-size: 0.85rem; white-space: nowrap; }
 
-  .rider-filter {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.45rem;
-    margin-bottom: 1.4rem;
-  }
-  .rider-pill {
-    font-family: var(--font-body);
-    font-size: 0.82rem;
-    font-weight: 500;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    color: var(--text-muted);
-    border-radius: 999px;
-    padding: 0.32rem 0.85rem;
-    cursor: pointer;
-  }
-  .rider-pill:hover { border-color: var(--accent); color: var(--text); }
   .rider-name-link {
     background: none;
     border: none;
@@ -532,17 +514,11 @@
     cursor: pointer;
   }
   .rider-name-link:hover { text-decoration-color: var(--accent); color: var(--accent); }
-  .rider-pill.active {
-    background: var(--accent);
-    border-color: var(--accent);
-    color: var(--accent-ink);
-  }
 
   .filters-card { margin-bottom: 1.5rem; }
   .filter-block { margin-bottom: 1rem; }
   .filter-block:last-child { margin-bottom: 0; }
   .filter-block > select { max-width: 320px; }
-  .filter-block .rider-filter { margin-bottom: 0; }
 
   .rider-manager { margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border); }
   .rider-manager-list { list-style: none; margin: 0 0 0.8rem; padding: 0; display: flex; flex-direction: column; gap: 0.4rem; }
@@ -601,6 +577,27 @@
     font-size: 0.65em;
     vertical-align: middle;
   }
+  .pro-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.4em;
+    height: 1.1em;
+    border-radius: 4px;
+    background: #1e5f8c;
+    color: #fff;
+    font-size: 0.72em;
+    vertical-align: middle;
+  }
+  .admin-rider-search {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    align-items: center;
+    margin-top: 0.4rem;
+  }
+  .admin-rider-search input[type="text"] { flex: 1; min-width: 160px; margin: 0; }
+  .admin-rider-search button.active { border-color: var(--accent); color: var(--accent); }
   .friend-name-link {
     background: none;
     border: none;

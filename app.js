@@ -638,10 +638,17 @@
       var targetCircuit = target && target.ev && circuits.indexOf(target.ev.circuit) !== -1 ? target.ev.circuit : null;
       selectedCircuit = targetCircuit || mostRecentCircuit(circuits) || circuits[0];
     }
-    // Circuit/Chronos/Statistiques show either a single "pilote actif" or
-    // the complete roster ("Tous les pilotes") — picked via the global
-    // rider picker above the main tabs. allKnownRiders() so a rider with
-    // only a planned sortie and no chrono yet is still selectable.
+    // Circuit/Chronos/Statistiques show only the connected account's own
+    // data now -- Social (a friend's fiche, gated by their own sharing
+    // settings) is where you look at someone else's. The admin is the one
+    // exception: they keep a real picker (see renderAdminRiderPicker), for
+    // support and record-keeping.
+    if (!isAdmin()) {
+      selectedRiders = currentUserProfile ? new Set([currentUserProfile.name]) : new Set();
+      return;
+    }
+    // allKnownRiders() so a rider with only a planned sortie and no chrono
+    // yet is still selectable.
     var riders = allKnownRiders();
     if (!riders.length) {
       selectedRiders = new Set();
@@ -1068,30 +1075,36 @@
     return html;
   }
 
-  // ---- Sélecteur de pilote global — affiché au-dessus des 4 rubriques principales ----
-
-  function renderGlobalRiderPicker() {
+  // ---- Sélecteur de pilote — admin uniquement ----
+  //
+  // Chronos/Stats montrent uniquement les données du compte connecté pour
+  // tout le monde -- voir les stats d'un tiers passe désormais par Social
+  // (fiche d'ami, avec le consentement de partage de la personne). Seul
+  // l'admin garde un vrai sélecteur, pour le support/les records -- un
+  // mur de pastilles (une par pilote) ne tenait déjà plus la route au-delà
+  // d'une vingtaine de comptes, donc recherche + <datalist> native plutôt
+  // qu'une pastille par pilote, pour rester utilisable même avec des
+  // centaines de comptes.
+  function renderAdminRiderPicker() {
     var riders = allKnownRiders();
-    var manageBtn = isAdmin()
-      ? '<button type="button" class="ghost icon-btn" id="rider-manager-toggle" aria-label="Gérer les pilotes" title="Gérer les pilotes">⚙</button>'
-      : '';
+    var manageBtn = '<button type="button" class="ghost icon-btn" id="rider-manager-toggle" aria-label="Gérer les pilotes" title="Gérer les pilotes">⚙</button>';
     if (!riders.length && !riderManagerOpen) {
       // Still let a first-time admin create the roster before any chrono exists.
       return '<div class="card filters-card global-rider-picker"><div class="filter-block">' +
-        '<label style="display:flex; align-items:center; justify-content:space-between;"><span>Pilote</span>' + manageBtn + '</label>' +
+        '<label style="display:flex; align-items:center; justify-content:space-between;"><span>Pilote (admin)</span>' + manageBtn + '</label>' +
         '<div class="help-text">Aucun pilote pour l\'instant.</div>' +
         '</div></div>';
     }
-    var allActive = !!(selectedRiders && selectedRiders.size === riders.length && riders.every(function (r) { return selectedRiders.has(r); }));
-    var pills = riders.length ? '<button type="button" class="rider-pill' + (allActive ? ' active' : '') + '" data-global-rider="__all__">Tous les pilotes</button>' : '';
-    pills += riders.map(function (r) {
-      var active = !allActive && selectedRiders && selectedRiders.size === 1 && selectedRiders.has(r);
-      return '<button type="button" class="rider-pill' + (active ? ' active' : '') + '" data-global-rider="' + escapeHtml(r) + '">' + escapeHtml(r) + '</button>';
-    }).join('');
+    var isAll = !!(selectedRiders && selectedRiders.size === riders.length && riders.every(function (r) { return selectedRiders.has(r); }));
+    var current = (!isAll && selectedRiders && selectedRiders.size === 1) ? Array.from(selectedRiders)[0] : '';
     var html = '<div class="card filters-card global-rider-picker"><div class="filter-block">' +
-      '<label style="display:flex; align-items:center; justify-content:space-between;"><span>Pilote</span>' + manageBtn + '</label>' +
-      '<div class="rider-filter">' + pills + '</div>' +
-      '</div>' + (isAdmin() ? renderRiderManagerPanel() : '') + '</div>';
+      '<label style="display:flex; align-items:center; justify-content:space-between;"><span>Pilote (admin)</span>' + manageBtn + '</label>' +
+      '<div class="admin-rider-search">' +
+        '<input type="text" id="admin-rider-search" list="admin-rider-list" placeholder="Rechercher un pilote..." value="' + escapeHtml(current) + '">' +
+        '<datalist id="admin-rider-list">' + riders.map(function (r) { return '<option value="' + escapeHtml(r) + '">'; }).join('') + '</datalist>' +
+        '<button type="button" class="ghost' + (isAll ? ' active' : '') + '" id="admin-rider-all-btn">Tous les pilotes</button>' +
+      '</div>' +
+      '</div>' + renderRiderManagerPanel() + '</div>';
     return html;
   }
 
@@ -1242,6 +1255,22 @@
     return html;
   }
 
+  // Admin-only: self-service badges. Every other account gets these from
+  // the admin via Gestion des comptes -- the admin's own account is
+  // deliberately excluded from that list (see loadManageableAccounts), so
+  // this is the only place they can flip their own. Reads PROFILE_BADGES,
+  // so a new badge added there shows up here for free.
+  function renderSelfBadges(p) {
+    var html = '<div style="margin-top:1.2rem; border-top:1px solid var(--border); padding-top:0.9rem;">';
+    html += '<div class="section-title" style="font-size:0.95rem;">Mes badges (admin)</div>';
+    html += '<div class="help-text">Pour tout autre compte, ces badges se gèrent depuis Gestion des comptes.</div>';
+    html += PROFILE_BADGES.map(function (b) {
+      return '<label class="checklist-item" style="margin-top:0.5rem;"><input type="checkbox" data-self-badge="' + b.field + '"' + (p[b.field] ? ' checked' : '') + '> ' + b.icon + ' ' + escapeHtml(b.label) + '</label>';
+    }).join('');
+    html += '</div>';
+    return html;
+  }
+
   function renderProfileReglagesTab(p) {
     var isNonRider = p.role === 'accompagnant' || p.role === 'organisateur';
     var html = '<label class="checklist-item"><input type="checkbox" id="profile-notify"' + (p.notifyBeforeSession ? ' checked' : '') + '> <span id="profile-notify-label">' + (isNonRider ? 'Me notifier quand un pilote suivi va partir rouler' : 'Me notifier quand mon groupe va partir rouler') + '</span></label>';
@@ -1257,6 +1286,7 @@
     html += '<label class="checklist-item" style="margin-top:0.6rem;"><input type="checkbox" id="profile-share-sorties"' + (p.shareSorties !== false ? ' checked' : '') + '> Partager mes sorties/chronos</label>';
     html += '<label class="checklist-item" style="margin-top:0.4rem;"><input type="checkbox" id="profile-share-trophees"' + (p.shareTrophees !== false ? ' checked' : '') + '> Partager mes trophées</label>';
     html += '</div>';
+    if (isAdmin()) html += renderSelfBadges(p);
     // Separate form -- changing the sign-in email needs the current
     // password (Firebase requires a recent reauthentication for it), which
     // has nothing to do with the notify/theme settings above.
@@ -1381,8 +1411,11 @@
           '<div><span class="rider-manager-name">' + escapeHtml(a.name || a.email) + '</span>' + badgesHtml(a) + ' <span class="friend-role-badge">' + roleLabel(a.role) + '</span>' +
           '<div class="help-text">' + escapeHtml(a.email || '') + ' · ' + (isPilote ? 'moto : ' : 'suit : ') + detail + '</div></div>' +
           (isPilote ? '' : '<button type="button" class="ghost icon-btn" data-action="demote-account" data-uid="' + a.uid + '" aria-label="Repasser en pilote" title="Repasser en pilote">↺</button>') +
-          '<button type="button" class="ghost icon-btn' + (a.certified ? ' confirm' : '') + '" data-action="toggle-certify-account" data-uid="' + a.uid + '" aria-label="' + (a.certified ? 'Retirer la certification' : 'Certifier ce compte') + '" title="' + (a.certified ? 'Retirer la certification' : 'Certifier ce compte') + '">✓</button>' +
-          '<button type="button" class="ghost icon-btn' + (a.personality ? ' confirm' : '') + '" data-action="toggle-personality-account" data-uid="' + a.uid + '" aria-label="' + (a.personality ? 'Retirer Personnalité' : 'Marquer comme Personnalité') + '" title="' + (a.personality ? 'Retirer Personnalité' : 'Marquer comme Personnalité') + '">★</button>' +
+          PROFILE_BADGES.map(function (b) {
+            var on = !!a[b.field];
+            var title = (on ? 'Retirer ' : 'Marquer ') + b.label;
+            return '<button type="button" class="ghost icon-btn' + (on ? ' confirm' : '') + '" data-action="toggle-account-badge" data-uid="' + a.uid + '" data-field="' + b.field + '" aria-label="' + escapeHtml(title) + '" title="' + escapeHtml(title) + '">' + b.icon + '</button>';
+          }).join('') +
           '<button type="button" class="ghost icon-btn' + (isPendingDelete ? ' confirm' : '') + '" data-action="delete-account-request" data-uid="' + a.uid + '" aria-label="Supprimer ce compte" title="Retirer l\'accès">' + (isPendingDelete ? '✓' : '×') + '</button>' +
           '</li>';
       }).join('') + '</ul>';
@@ -1463,7 +1496,11 @@
     });
   }
 
-  function saveSocialShare(field, value) {
+  // Generic instant-save for a single boolean field on the connected
+  // account's own doc -- the sharing toggles (shareSorties/shareTrophees)
+  // and, for the admin only, their own badge checkboxes (see
+  // renderSelfBadges) both just call this with a different field name.
+  function saveOwnBooleanField(field, value) {
     var uid = auth.currentUser && auth.currentUser.uid;
     if (!uid || !currentUserProfile) return;
     var writes = {};
@@ -1784,10 +1821,10 @@
     if (!selectedCircuit) {
       return '<div class="card"><div class="empty-state">Choisissez un circuit dans l\'onglet Circuit avant d\'enregistrer un chrono.</div></div>';
     }
-    // An accompagnant doesn't ride, so there's nothing for them to enter
-    // here -- matches firestore.rules, which rejects a session create from
-    // an accompagnant account outright.
-    if (currentUserProfile && currentUserProfile.role === 'accompagnant' && !isAdmin()) {
+    // Neither an accompagnant nor an organisateur rides, so there's
+    // nothing for them to enter here -- matches firestore.rules, which
+    // rejects a session create from either account type outright.
+    if (currentUserProfile && (currentUserProfile.role === 'accompagnant' || currentUserProfile.role === 'organisateur') && !isAdmin()) {
       return '<div class="card"><div class="empty-state">Seuls les pilotes (et l\'administrateur) peuvent entrer des chronos.</div></div>';
     }
     var admin = isAdmin();
@@ -2181,11 +2218,14 @@
     return '<div class="info-row"><span class="info-label">' + escapeHtml(label) + '</span><span class="info-value">' + valueHtml + '</span></div>';
   }
 
-  // A rider's name as a link to their own read-only profile (Statistiques,
-  // filtered to just them) -- used anywhere a rider's name shows up
-  // (chronos table, récap du jour, groupes par pilote) so anyone can check
-  // on a teammate without hunting for the rider picker.
+  // A rider's name, used anywhere one shows up (chronos table, récap du
+  // jour, groupes par pilote). Only the admin can actually jump to
+  // Statistiques for someone else this way (their own Chronos/Stats stay
+  // locked to their own name -- see normalizeSelection) -- for anyone
+  // else it's plain text; checking on a teammate now goes through Social
+  // (fiche d'ami), not a click here.
   function renderRiderLink(name) {
+    if (!isAdmin()) return escapeHtml(name);
     return '<button type="button" class="rider-name-link" data-view-rider="' + escapeHtml(name) + '">' + escapeHtml(name) + '</button>';
   }
 
@@ -5138,26 +5178,45 @@
     return 'Pilote';
   }
 
-  // The one admin account is always certified, without needing its own
-  // `certified` field set (or a way to set it -- the admin's own account
-  // never shows up in the account manager to toggle it there). Everyone
-  // else is certified only once the admin flips it on for them.
+  // The admin account defaults to certified without ever having toggled
+  // it (there'd be no way to, before self-badges existed) -- but once
+  // they explicitly turn it off from Mon profil, that's respected rather
+  // than always winning. Everyone else is certified only once the admin
+  // flips it on for them (see renderAccountManagerPanel), or the admin
+  // does it for their own account the same way (see renderSelfBadges).
   function isCertified(u) {
-    return !!(u && (u.certified || u.email === ADMIN_EMAIL));
+    if (!u) return false;
+    if (u.certified === false) return false;
+    return !!(u.certified || u.email === ADMIN_EMAIL);
   }
 
   // Distinct from certified: certified means "this is really this person"
   // (identity verification), personality means "a public figure worth
   // suggesting to follow" (a pro rider, a mechanic, a consultant...) --
   // orthogonal badges, a personality isn't necessarily certified and vice
-  // versa.
+  // versa. pro marks an official professional rider (MotoGP, FSBK...),
+  // separate from both.
   function isPersonality(u) {
     return !!(u && u.personality);
   }
+  function isPro(u) {
+    return !!(u && u.pro);
+  }
+
+  // Every badge a profile can carry -- one place to add a future one
+  // (field, icon, label, and the CSS class it renders with), read by both
+  // badgesHtml() (anywhere a name shows up) and the admin's own
+  // self-badges toggle in Mon profil.
+  var PROFILE_BADGES = [
+    { field: 'certified', icon: '✓', label: 'Certifié', cssClass: 'certified-badge', check: isCertified },
+    { field: 'personality', icon: '★', label: 'Personnalité', cssClass: 'personality-badge', check: isPersonality },
+    { field: 'pro', icon: '🏅', label: 'Pilote PRO', cssClass: 'pro-badge', check: isPro }
+  ];
 
   function badgesHtml(u) {
-    return (isCertified(u) ? ' <span class="certified-badge" title="Profil certifié">✓</span>' : '') +
-      (isPersonality(u) ? ' <span class="personality-badge" title="Personnalité">★</span>' : '');
+    return PROFILE_BADGES.map(function (b) {
+      return b.check(u) ? ' <span class="' + b.cssClass + '" title="' + escapeHtml(b.label) + '">' + b.icon + '</span>' : '';
+    }).join('');
   }
 
   // Which friend's fiche (see renderFriendFiche) is expanded inline in the
@@ -5390,7 +5449,7 @@
           '</div>' +
         '</div>' +
         '<div class="account-bar">' +
-          '<span class="account-bar-identity">' + escapeHtml(currentUserProfile.name) + (isCertified(currentUserProfile) ? ' <span class="certified-badge" title="Profil certifié">✓</span>' : '') + ' · ' + roleLabel(currentUserProfile.role) + '</span>' +
+          '<span class="account-bar-identity">' + escapeHtml(currentUserProfile.name) + badgesHtml(currentUserProfile) + ' · ' + roleLabel(currentUserProfile.role) + '</span>' +
           '<span class="account-bar-actions">' +
             '<button type="button" class="ghost account-bar-btn" id="profile-toggle">Mon profil</button>' +
             (isAdmin() ? '<button type="button" class="ghost account-bar-btn" id="account-manager-toggle">Gestion des comptes</button>' : '') +
@@ -5401,11 +5460,10 @@
       '</header>' +
       renderProfilePanel() +
       renderAccountManagerPanel() +
-      // Only relevant where the page actually filters by rider (Chronos,
-      // via Circuit, and Stats) -- showing a pill per pilote on every tab
-      // (Événements, Planning, Social...) got noisier as the roster grew,
-      // for no benefit on those screens.
-      ((activeView === 'circuit' || activeView === 'stats') ? renderGlobalRiderPicker() : '') +
+      // Admin-only, and only on Chronos/Stats: everyone else's Chronos/
+      // Stats are locked to their own account (see normalizeSelection) --
+      // viewing someone else's now goes through Social instead.
+      ((isAdmin() && (activeView === 'circuit' || activeView === 'stats')) ? renderAdminRiderPicker() : '') +
       renderViewTabs() +
       body;
     attachHandlers();
@@ -5704,12 +5762,15 @@
     }
     var shareSortiesEl = document.getElementById('profile-share-sorties');
     if (shareSortiesEl) {
-      shareSortiesEl.addEventListener('change', function () { saveSocialShare('shareSorties', shareSortiesEl.checked); });
+      shareSortiesEl.addEventListener('change', function () { saveOwnBooleanField('shareSorties', shareSortiesEl.checked); });
     }
     var shareTropheesEl = document.getElementById('profile-share-trophees');
     if (shareTropheesEl) {
-      shareTropheesEl.addEventListener('change', function () { saveSocialShare('shareTrophees', shareTropheesEl.checked); });
+      shareTropheesEl.addEventListener('change', function () { saveOwnBooleanField('shareTrophees', shareTropheesEl.checked); });
     }
+    document.querySelectorAll('[data-self-badge]').forEach(function (cb) {
+      cb.addEventListener('change', function () { saveOwnBooleanField(cb.getAttribute('data-self-badge'), cb.checked); });
+    });
     document.querySelectorAll('[data-profile-tab]').forEach(function (btn) {
       btn.addEventListener('click', function () {
         profileSubTab = btn.getAttribute('data-profile-tab');
@@ -5776,31 +5837,19 @@
         }
       });
     });
-    document.querySelectorAll('[data-action="toggle-certify-account"]').forEach(function (btn) {
+    document.querySelectorAll('[data-action="toggle-account-badge"]').forEach(function (btn) {
       btn.addEventListener('click', function () {
         var uid = btn.getAttribute('data-uid');
+        var field = btn.getAttribute('data-field');
+        var badge = PROFILE_BADGES.filter(function (b) { return b.field === field; })[0];
         var account = (manageableAccounts || []).filter(function (a) { return a.uid === uid; })[0];
-        if (!account) return;
-        var next = !account.certified;
-        db.collection('users').doc(uid).set({ certified: next }, { merge: true }).then(function () {
-          account.certified = next;
-          showToast(next ? (account.name + ' est maintenant certifié.') : (account.name + ' n\'est plus certifié.'), 'success');
-          renderRoot();
-        }).catch(function (err) {
-          accountManagerError = 'Erreur : ' + (err && err.message ? err.message : err);
-          renderRoot();
-        });
-      });
-    });
-    document.querySelectorAll('[data-action="toggle-personality-account"]').forEach(function (btn) {
-      btn.addEventListener('click', function () {
-        var uid = btn.getAttribute('data-uid');
-        var account = (manageableAccounts || []).filter(function (a) { return a.uid === uid; })[0];
-        if (!account) return;
-        var next = !account.personality;
-        db.collection('users').doc(uid).set({ personality: next }, { merge: true }).then(function () {
-          account.personality = next;
-          showToast(next ? (account.name + ' est maintenant Personnalité.') : (account.name + ' n\'est plus Personnalité.'), 'success');
+        if (!account || !badge) return;
+        var next = !account[field];
+        var writes = {};
+        writes[field] = next;
+        db.collection('users').doc(uid).set(writes, { merge: true }).then(function () {
+          account[field] = next;
+          showToast((next ? (account.name + ' est maintenant ') : (account.name + ' n\'est plus ')) + badge.label + '.', 'success');
           renderRoot();
         }).catch(function (err) {
           accountManagerError = 'Erreur : ' + (err && err.message ? err.message : err);
@@ -6443,13 +6492,25 @@
         openAnnotation(openAnnotBtn.getAttribute('data-circuit') || selectedCircuit, openAnnotBtn.getAttribute('data-event-id') || null);
       });
     }
-    document.querySelectorAll('[data-global-rider]').forEach(function (btn) {
-      btn.addEventListener('click', function () {
-        var val = btn.getAttribute('data-global-rider');
-        selectedRiders = (val === '__all__') ? new Set(allKnownRiders()) : new Set([val]);
+    var adminRiderSearch = document.getElementById('admin-rider-search');
+    if (adminRiderSearch) {
+      // 'change' (not 'input') -- fires once the typed/picked value settles
+      // (blur, or picking a <datalist> option), not on every keystroke.
+      adminRiderSearch.addEventListener('change', function () {
+        var val = adminRiderSearch.value.trim();
+        if (val && allKnownRiders().indexOf(val) !== -1) {
+          selectedRiders = new Set([val]);
+          renderRoot();
+        }
+      });
+    }
+    var adminRiderAllBtn = document.getElementById('admin-rider-all-btn');
+    if (adminRiderAllBtn) {
+      adminRiderAllBtn.addEventListener('click', function () {
+        selectedRiders = new Set(allKnownRiders());
         renderRoot();
       });
-    });
+    }
     // A rider's name anywhere in the app (chronos table, récap du jour,
     // groupes par pilote...) jumps straight to their own read-only profile
     // -- just Statistiques filtered to them, reusing what's already there.

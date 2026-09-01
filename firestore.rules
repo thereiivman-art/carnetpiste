@@ -13,28 +13,34 @@ service cloud.firestore {
     function myRole() {
       return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
     }
-    // A chrono belongs to the pilote whose name it carries -- an
-    // accompagnant account never owns one, whatever its name field says.
+    // A chrono belongs to the pilote whose name it carries -- neither an
+    // accompagnant nor an organisateur account ever owns one, whatever its
+    // name field says (neither actually rides).
     function ownsChrono(riderValue) {
-      return myRole() != 'accompagnant' && myName() == riderValue;
+      return myRole() != 'accompagnant' && myRole() != 'organisateur' && myName() == riderValue;
     }
 
     // A user's own profile has to be writable right after signup, before
     // there's been time to verify anything -- no email_verified check here.
-    // `certified`/`personality` are trust badges the admin grants, not the
-    // account itself -- a self-write (uid == userId) may set every other
-    // field freely, but can never flip either of those two, on create or
-    // update; only isAdmin() can (see renderAccountManagerPanel).
+    // `certified`/`personality`/`pro` are trust badges the admin grants,
+    // not the account itself -- a self-write (uid == userId) may set every
+    // other field freely, but can never flip any of those three, on
+    // create or update; only isAdmin() can (see renderAccountManagerPanel
+    // and the admin's own self-badges in Mon profil -- the admin writing
+    // their own doc still goes through the isAdmin() branch below, so
+    // they can flip their own badges same as anyone else's).
     match /users/{userId} {
       allow read: if request.auth != null;
       allow create: if request.auth != null && request.auth.uid == userId
         && request.resource.data.get('certified', false) == false
-        && request.resource.data.get('personality', false) == false;
+        && request.resource.data.get('personality', false) == false
+        && request.resource.data.get('pro', false) == false;
       allow update: if request.auth != null && (
         isAdmin() ||
         (request.auth.uid == userId
           && request.resource.data.get('certified', false) == resource.data.get('certified', false)
-          && request.resource.data.get('personality', false) == resource.data.get('personality', false))
+          && request.resource.data.get('personality', false) == resource.data.get('personality', false)
+          && request.resource.data.get('pro', false) == resource.data.get('pro', false))
       );
       allow delete: if request.auth != null && (request.auth.uid == userId || isAdmin());
     }
