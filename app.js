@@ -5990,18 +5990,29 @@
     if (isLeader) {
       var memberNames = members.map(function (m) { return m.name; });
       var invitedNames = (STATE.teamInvites || []).filter(function (r) { return r.status === 'pending' && r.teamId === team.id; }).map(function (r) { return r.to; });
-      var candidates = friendsOf(me.name).map(function (f) { return f.name; })
-        .filter(function (n) { return memberNames.indexOf(n) === -1 && invitedNames.indexOf(n) === -1; });
+      // A Team PRO recruits openly -- its leader can invite anyone with an
+      // account, not just existing friends (see firestore.rules'
+      // teamInvites: only isTeamLeader() is required to create one, no
+      // friendship check ever existed server-side, so this was always
+      // just the UI being more conservative than the rules for an
+      // ordinary/amateur team). A non-PRO team keeps the friends-only pool.
+      var invitePool = team.teamPro ? allKnownUserNames() : friendsOf(me.name).map(function (f) { return f.name; });
+      var candidates = invitePool.filter(function (n) {
+        return n !== me.name && memberNames.indexOf(n) === -1 && invitedNames.indexOf(n) === -1;
+      });
       var inviteBody = !candidates.length
-        ? '<div class="help-text">Tous tes amis sont déjà dans ce team, ou aucun ami à inviter -- vois Social.</div>'
+        ? (team.teamPro
+          ? '<div class="help-text">Personne d’autre à inviter pour l’instant.</div>'
+          : '<div class="help-text">Tous tes amis sont déjà dans ce team, ou aucun ami à inviter -- vois Social.</div>')
         : '<form class="team-invite-form" data-action="team-invite-form" data-team="' + team.id + '">' +
+          (team.teamPro ? '<div class="help-text" style="margin-bottom:0.4rem;">Team PRO : tu peux inviter n’importe quel compte, ami ou non.</div>' : '') +
           '<select data-team-invite-select>' + candidates.map(function (n) {
             var cu = (STATE.usersByName || {})[n] || {};
             var roleSuffix = cu.role === 'accompagnant' ? ' (Accompagnant)' : (cu.role === 'organisateur' ? ' (Organisateur)' : '');
             return '<option value="' + escapeHtml(n) + '">' + escapeHtml(n) + escapeHtml(roleSuffix) + '</option>';
           }).join('') + '</select>' +
           '<button type="submit" class="ghost">Inviter</button></form>';
-      html += collapsibleSection('team-invite-' + team.id, 'Inviter un ami', inviteBody);
+      html += collapsibleSection('team-invite-' + team.id, team.teamPro ? 'Inviter' : 'Inviter un ami', inviteBody);
     }
 
     html += collapsibleSection('team-settings-' + team.id, '⚙ Réglages', renderTeamSettings(team, isLeader));
