@@ -584,6 +584,31 @@
     font-size: 0.72em;
     vertical-align: middle;
   }
+  .organizer-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.4em;
+    height: 1.1em;
+    border-radius: 4px;
+    background: #6a4fa0;
+    color: #fff;
+    font-size: 0.72em;
+    vertical-align: middle;
+  }
+  .team-pro-badge {
+    display: inline-flex;
+    align-items: center;
+    background: linear-gradient(135deg, #b8860b, #d4a017);
+    color: #fff;
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    border-radius: 999px;
+    padding: 0.15rem 0.55rem;
+    margin-left: 0.4rem;
+  }
+  .team-settings-disabled { opacity: 0.6; }
   .friend-name-link {
     background: none;
     border: none;
@@ -603,16 +628,24 @@
     border-radius: 8px;
   }
   .feed-entry {
-    display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-    gap: 0.6rem;
     padding: 0.5rem 0;
     border-bottom: 1px solid var(--border);
     font-size: 0.88rem;
   }
   .feed-entry:last-child { border-bottom: none; }
+  .feed-entry-row { display: flex; align-items: baseline; justify-content: space-between; gap: 0.6rem; }
   .feed-entry-time { font-size: 0.74rem; color: var(--text-muted); white-space: nowrap; flex-shrink: 0; }
+  .reaction-bar { display: flex; gap: 0.35rem; margin-top: 0.4rem; flex-wrap: wrap; }
+  .reaction-btn {
+    background: var(--surface-alt);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 0.15rem 0.5rem;
+    font-size: 0.8rem;
+    cursor: pointer;
+    line-height: 1.4;
+  }
+  .reaction-btn.active { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 15%, var(--surface-alt)); }
   .team-section-title {
     font-size: 0.72rem;
     text-transform: uppercase;
@@ -1144,9 +1177,10 @@
     color: var(--accent);
   }
   .live-clock {
-    font-family: var(--font-mono);
-    font-size: 1.1rem;
-    font-weight: 600;
+    font-family: var(--font-display);
+    font-size: 1.15rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
     color: var(--accent);
     flex-shrink: 0;
     font-variant-numeric: tabular-nums;

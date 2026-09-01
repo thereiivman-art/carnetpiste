@@ -33,6 +33,13 @@ service cloud.firestore {
     function teamPostPolicy(teamId) {
       return get(/databases/$(database)/documents/teams/$(teamId)).data.get('postPolicy', 'leaders');
     }
+    // For a map field updated one person's own key at a time (a poll vote,
+    // an emoji reaction) -- true only if the sole key that changed between
+    // before/after is the caller's own name, so nobody can touch another
+    // member's vote/reaction.
+    function onlyOwnKeyChanged(beforeMap, afterMap) {
+      return afterMap.diff(beforeMap).affectedKeys().hasOnly([myName()]);
+    }
     function hasAcceptedTeamInvite(teamId) {
       return exists(/databases/$(database)/documents/teamInvites/$(teamId + '_' + myName()))
         && get(/databases/$(database)/documents/teamInvites/$(teamId + '_' + myName())).data.status == 'accepted';
@@ -61,13 +68,15 @@ service cloud.firestore {
       allow create: if request.auth != null && request.auth.uid == userId
         && request.resource.data.get('certified', false) == false
         && request.resource.data.get('personality', false) == false
-        && request.resource.data.get('pro', false) == false;
+        && request.resource.data.get('pro', false) == false
+        && request.resource.data.get('organizer', false) == false;
       allow update: if request.auth != null && (
         isAdmin() ||
         (request.auth.uid == userId
           && request.resource.data.get('certified', false) == resource.data.get('certified', false)
           && request.resource.data.get('personality', false) == resource.data.get('personality', false)
-          && request.resource.data.get('pro', false) == resource.data.get('pro', false))
+          && request.resource.data.get('pro', false) == resource.data.get('pro', false)
+          && request.resource.data.get('organizer', false) == resource.data.get('organizer', false))
       );
       allow delete: if request.auth != null && (request.auth.uid == userId || isAdmin());
     }
@@ -134,13 +143,22 @@ service cloud.firestore {
     match /feedEvents/{id} {
       allow read: if request.auth != null;
       allow create: if verified() && request.resource.data.actor == myName();
+      // Emoji reaction -- reactions.<myName()> only, own key untouched by
+      // anyone else (see onlyOwnKeyChanged).
+      allow update: if verified()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reactions'])
+        && onlyOwnKeyChanged(resource.data.get('reactions', {}), request.resource.data.reactions);
     }
-    // One-way follow (for Personnalités) -- unlike friendRequests, no
-    // acceptance needed: the follower alone creates and deletes their own
-    // side of it.
+    // One-way follow (for Personnalités, and now Teams too) -- unlike
+    // friendRequests, no acceptance needed: the follower alone creates and
+    // deletes their own side of it. followeeType distinguishes a person's
+    // name from a team id (defaults to 'user' for docs written before
+    // Teams were followable) -- the self-follow check only makes sense
+    // for a person.
     match /follows/{id} {
       allow read: if request.auth != null;
-      allow create: if verified() && request.resource.data.follower == myName() && request.resource.data.followee != myName();
+      allow create: if verified() && request.resource.data.follower == myName()
+        && (request.resource.data.get('followeeType', 'user') != 'user' || request.resource.data.followee != myName());
       allow delete: if verified() && resource.data.follower == myName();
     }
     // Teams (an organisateur's squad of pilotes, or any group of friends
@@ -148,8 +166,16 @@ service cloud.firestore {
     // it and who leads lives in teamMembers below.
     match /teams/{teamId} {
       allow read: if request.auth != null;
-      allow create: if verified() && request.resource.data.createdBy == myName();
-      allow update: if verified() && (isAdmin() || isTeamLeader(teamId));
+      // teamPro (the "Team PRO certifié" badge) is admin-only, same
+      // integrity guarantee as certified/personality/pro on users/{}: a
+      // leader can change every other field (name, visibility,
+      // postPolicy...) but never this one themselves.
+      allow create: if verified() && request.resource.data.createdBy == myName()
+        && request.resource.data.get('teamPro', false) == false;
+      allow update: if verified() && (
+        isAdmin()
+        || (isTeamLeader(teamId) && request.resource.data.get('teamPro', false) == resource.data.get('teamPro', false))
+      );
       allow delete: if verified() && (isAdmin() || isTeamLeader(teamId));
     }
     // One doc per (team, person), id = teamId_name, so isTeamLeader() and
@@ -198,11 +224,16 @@ service cloud.firestore {
         isTeamLeader(request.resource.data.teamId)
         || (isTeamMember(request.resource.data.teamId) && teamPostPolicy(request.resource.data.teamId) == 'members')
       );
-      // A poll vote is the one update allowed on an existing post: any
-      // team member may cast/change their own vote (votes.<myName()>),
-      // nothing else about the post may change.
-      allow update: if verified() && isTeamMember(resource.data.teamId)
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['votes']);
+      // A poll vote or an emoji reaction is the only update allowed on an
+      // existing post: any team member may cast/change their own vote
+      // (votes.<myName()>) or reaction (reactions.<myName()>), one map at
+      // a time, own key only -- nothing else about the post may change.
+      allow update: if verified() && isTeamMember(resource.data.teamId) && (
+        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['votes'])
+          && onlyOwnKeyChanged(resource.data.get('votes', {}), request.resource.data.votes))
+        || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reactions'])
+          && onlyOwnKeyChanged(resource.data.get('reactions', {}), request.resource.data.reactions))
+      );
       allow delete: if verified() && (isAdmin() || resource.data.author == myName() || isTeamLeader(resource.data.teamId));
     }
     // Wall posts -- readable by any signed-in account like everything

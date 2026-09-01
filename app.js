@@ -12,7 +12,7 @@
   var db = firebase.firestore();
   var auth = firebase.auth();
   var STATE = {
-    sessions: [], events: [], circuits: {}, riders: [], usersByName: {}, friendRequests: [], feedEvents: [], myFollows: [],
+    sessions: [], events: [], circuits: {}, riders: [], usersByName: {}, friendRequests: [], feedEvents: [], myFollows: [], myFollowedTeams: [],
     teams: [], myTeamMemberships: [], teamInvites: [], teamMembersByTeam: {}, teamFeed: [], wallPosts: []
   };
   var canPersist = false;
@@ -116,6 +116,25 @@
   }
   function unfollowName(name) {
     db.collection('follows').where('follower', '==', currentUserProfile.name).where('followee', '==', name).get().then(function (snap) {
+      var batch = db.batch();
+      snap.forEach(function (d) { batch.delete(d.ref); });
+      return batch.commit();
+    }).catch(function (err) {
+      showToast('Erreur : ' + (err && err.message ? err.message : err));
+    });
+  }
+  // Same one-way follow, for a Team that has opened itself up to discovery
+  // (see renderTeamDiscovery) -- followeeType:'team' distinguishes these
+  // rows from the person-follows above.
+  function followTeam(teamId) {
+    var me = currentUserProfile;
+    if (!me || !teamId || (STATE.myFollowedTeams || []).indexOf(teamId) !== -1) return;
+    db.collection('follows').add({ follower: me.name, followee: teamId, followeeType: 'team' }).catch(function (err) {
+      showToast('Erreur : ' + (err && err.message ? err.message : err));
+    });
+  }
+  function unfollowTeam(teamId) {
+    db.collection('follows').where('follower', '==', currentUserProfile.name).where('followee', '==', teamId).where('followeeType', '==', 'team').get().then(function (snap) {
       var batch = db.batch();
       snap.forEach(function (d) { batch.delete(d.ref); });
       return batch.commit();
@@ -272,8 +291,46 @@
     });
   }
 
+  // Clicking the same emoji again removes it (FieldValue.delete on that
+  // one key) -- otherwise it just overwrites whatever reaction this
+  // account already had on the post, one per person.
+  function toggleReaction(collectionName, id, emoji, currentReactions) {
+    var me = currentUserProfile;
+    if (!me) return;
+    var already = (currentReactions || {})[me.name] === emoji;
+    var update = {};
+    update['reactions.' + me.name] = already ? firebase.firestore.FieldValue.delete() : emoji;
+    db.collection(collectionName).doc(id).update(update).catch(function (err) {
+      showToast('Erreur : ' + (err && err.message ? err.message : err));
+    });
+  }
+
   function setTeamPostPolicy(teamId, policy) {
     db.collection('teams').doc(teamId).set({ postPolicy: policy }, { merge: true }).catch(function (err) {
+      showToast('Erreur : ' + (err && err.message ? err.message : err));
+    });
+  }
+
+  function setTeamVisibility(teamId, visibility) {
+    db.collection('teams').doc(teamId).set({ visibility: visibility }, { merge: true }).catch(function (err) {
+      showToast('Erreur : ' + (err && err.message ? err.message : err));
+    });
+  }
+
+  var pendingDeleteTeamId = null;
+  function deleteTeam(teamId) {
+    db.collection('teams').doc(teamId).delete().then(function () {
+      pendingDeleteTeamId = null;
+      showToast('Team supprimé.', 'success');
+    }).catch(function (err) {
+      showToast('Erreur : ' + (err && err.message ? err.message : err));
+    });
+  }
+
+  function toggleTeamPro(teamId) {
+    var team = teamById(teamId);
+    if (!team) return;
+    db.collection('teams').doc(teamId).set({ teamPro: !team.teamPro }, { merge: true }).catch(function (err) {
       showToast('Erreur : ' + (err && err.message ? err.message : err));
     });
   }
@@ -893,6 +950,29 @@
     return { icon: icon, label: label, description: description, earned: earned, progressText: progressText };
   }
 
+  // Social/Team trophies, shared by all three roles below (pilote,
+  // accompagnant, organisateur) since none of this depends on riding --
+  // only globally-synced data is used (friendRequests, teams, wallPosts
+  // are all synced in full, unlike a given team's own roster which is only
+  // synced for teams *this* account belongs to) so these also work when
+  // shown on someone else's fiche (renderFriendFiche), not just your own.
+  function socialTeamAchievements(name) {
+    var friendsCount = (STATE.friendRequests || []).filter(function (r) {
+      return r.status === 'accepted' && (r.from === name || r.to === name);
+    }).length;
+    var teamsFounded = (STATE.teams || []).filter(function (t) { return t.createdBy === name; }).length;
+    var proTeamsFounded = (STATE.teams || []).filter(function (t) { return t.createdBy === name && t.teamPro; }).length;
+    var wallPostCount = (STATE.wallPosts || []).filter(function (w) { return w.author === name; }).length;
+    return [
+      achievementEntry('🧑‍🤝‍🧑', 'Premier ami', 'Avoir un premier ami accepté dans Social.', friendsCount, 1, 'ami(s)'),
+      achievementEntry('👥', 'Cercle fidèle', 'Avoir 5 amis acceptés ou plus.', friendsCount, 5, 'amis'),
+      achievementEntry('🏍️', 'Fondateur', 'Créer un Team.', teamsFounded, 1, 'team(s)'),
+      achievementEntry('🏆', 'Team PRO', 'Fonder un Team certifié PRO.', proTeamsFounded, 1, 'team(s)'),
+      achievementEntry('📣', 'Voix du mur', 'Publier un premier message sur le mur.', wallPostCount, 1, 'message(s)'),
+      achievementEntry('📰', 'Chroniqueur', 'Publier 5 messages sur le mur.', wallPostCount, 5, 'messages')
+    ];
+  }
+
   function riderAchievements(riderName, stats) {
     var records = allCircuitRecordHolders();
     var recordCount = Object.keys(records).filter(function (c) { return records[c].rider === riderName; }).length;
@@ -917,7 +997,7 @@
       achievementEntry('👑', 'Multi-recordman', 'Détenir le record du groupe sur 3 circuits ou plus.', recordCount, 3, 'records'),
       achievementEntry('🤝', 'Parrain', 'Faire signer un premier filleul avec ton lien de parrainage.', filleuls, 1, 'filleul(s)'),
       achievementEntry('👨‍👩‍👧', 'Grand parrain', 'Faire signer 5 filleuls avec ton lien de parrainage.', filleuls, 5, 'filleuls')
-    ];
+    ].concat(socialTeamAchievements(riderName));
   }
 
   // Accompagnants don't ride, so their achievements are about following
@@ -935,7 +1015,7 @@
       achievementEntry('🎬', 'Grand reporter', 'Partager un lien photos/vidéos pour 3 sorties.', mediaLinksAdded, 3, 'sorties'),
       achievementEntry('🤝', 'Parrain', 'Faire signer un premier filleul avec ton lien de parrainage.', filleuls, 1, 'filleul(s)'),
       achievementEntry('👨‍👩‍👧', 'Grand parrain', 'Faire signer 5 filleuls avec ton lien de parrainage.', filleuls, 5, 'filleuls')
-    ];
+    ].concat(socialTeamAchievements(profile.name));
   }
 
   // Organisateurs don't ride either, but unlike an accompagnant their
@@ -961,7 +1041,7 @@
       achievementEntry('🎬', 'Grand reporter', 'Partager un lien photos/vidéos pour 3 sorties.', mediaLinksAdded, 3, 'sorties'),
       achievementEntry('🤝', 'Parrain', 'Faire signer un premier filleul avec ton lien de parrainage.', filleuls, 1, 'filleul(s)'),
       achievementEntry('👨‍👩‍👧', 'Grand parrain', 'Faire signer 5 filleuls avec ton lien de parrainage.', filleuls, 5, 'filleuls')
-    ];
+    ].concat(socialTeamAchievements(profile.name));
   }
 
   // Shared by pilote and accompagnant profiles -- a proper section (icon,
@@ -1368,10 +1448,32 @@
     return html;
   }
 
-  function renderProfileReglagesTab(p) {
+  // One toggle per notification category, all opted-in by default (same
+  // !== false convention as shareSorties/shareTrophees) except the group-
+  // departure one which keeps its own dedicated id/handler (profile-notify,
+  // wired to saveProfile, predates this section) since it also drives
+  // maybeNotifyGroupDeparture. The other three are plain per-account
+  // booleans saved via saveOwnBooleanField and checked by
+  // notifCategoryAllowed() wherever that category's event fires -- see
+  // maybeNotifyNewTeamInvites and the teamFeed listener in
+  // refreshTeamDetailSync. "Nouvelle sortie PRO" has no live trigger yet
+  // (events aren't linked to a team in this schema) -- the setting is
+  // stored ready for when that lands, but nothing fires from it today.
+  function renderNotificationsSettings(p) {
     var isNonRider = p.role === 'accompagnant' || p.role === 'organisateur';
-    var html = '<label class="checklist-item"><input type="checkbox" id="profile-notify"' + (p.notifyBeforeSession ? ' checked' : '') + '> <span id="profile-notify-label">' + (isNonRider ? 'Me notifier quand un pilote suivi va partir rouler' : 'Me notifier quand mon groupe va partir rouler') + '</span></label>';
-    html += '<div class="help-text" style="margin-top:0.4rem;">Nécessite d\'autoriser les notifications du navigateur, et que cet onglet reste ouvert.</div>';
+    var html = '<div style="margin-top:1.2rem; border-top:1px solid var(--border); padding-top:0.9rem;">';
+    html += '<div class="section-title" style="font-size:0.95rem;">Notifications</div>';
+    html += '<div class="help-text">Nécessite d\'autoriser les notifications du navigateur, et que cet onglet reste ouvert.</div>';
+    html += '<label class="checklist-item" style="margin-top:0.6rem;"><input type="checkbox" id="profile-notify"' + (p.notifyBeforeSession ? ' checked' : '') + '> <span id="profile-notify-label">' + (isNonRider ? 'Un pilote suivi va partir rouler' : 'Mon groupe va partir rouler') + '</span></label>';
+    html += '<label class="checklist-item" style="margin-top:0.4rem;"><input type="checkbox" id="profile-notify-invites"' + (p.notifyInvites !== false ? ' checked' : '') + '> J\'ai reçu une invitation</label>';
+    html += '<label class="checklist-item" style="margin-top:0.4rem;"><input type="checkbox" id="profile-notify-team-news"' + (p.notifyTeamNews !== false ? ' checked' : '') + '> Actu de mon Team</label>';
+    html += '<label class="checklist-item" style="margin-top:0.4rem;"><input type="checkbox" id="profile-notify-pro-outings"' + (p.notifyProOutings !== false ? ' checked' : '') + '> Nouvelle sortie organisée par un Team PRO que je suis ou dont je suis adhérent</label>';
+    html += '</div>';
+    return html;
+  }
+
+  function renderProfileReglagesTab(p) {
+    var html = renderNotificationsSettings(p);
     html += '<div style="margin-top:1.1rem;"><label style="margin-bottom:0.4rem; display:block;">Thème</label>' + renderThemeToggle() + '</div>';
     // What a friend can see when they open your fiche from Social (Mes
     // amis) -- both on by default. Purely a display-level courtesy: every
@@ -1539,7 +1641,26 @@
     }
     if (accountManagerError) html += '<div class="field-error visible">' + escapeHtml(accountManagerError) + '</div>';
     html += renderRiderManagerPanel();
+    html += renderTeamManagerPanel();
     html += '</div>';
+    return html;
+  }
+
+  // Admin-only: mark a Team as "Team PRO" -- STATE.teams already syncs
+  // every team in full for everyone (it's a small collection, just
+  // identity fields), so no separate fetch is needed here the way
+  // manageableAccounts needs its own query.
+  function renderTeamManagerPanel() {
+    var teams = (STATE.teams || []).slice().sort(function (a, b) { return a.name.localeCompare(b.name); });
+    if (!teams.length) return '';
+    var html = '<div class="section-title" style="font-size:0.95rem; margin-top:1.2rem; border-top:1px solid var(--border); padding-top:0.9rem;">Gestion des Teams</div>';
+    html += '<ul class="rider-manager-list">' + teams.map(function (t) {
+      return '<li class="rider-manager-row account-manager-row">' +
+        '<div><span class="rider-manager-name">' + escapeHtml(t.name) + '</span>' + teamBadgesHtml(t) +
+        '<div class="help-text">créé par ' + escapeHtml(t.createdBy) + '</div></div>' +
+        '<button type="button" class="ghost icon-btn' + (t.teamPro ? ' confirm' : '') + '" data-action="toggle-team-pro" data-team="' + t.id + '" aria-label="' + (t.teamPro ? 'Retirer Team PRO' : 'Marquer Team PRO') + '" title="' + (t.teamPro ? 'Retirer Team PRO' : 'Marquer Team PRO') + '">🏆</button>' +
+        '</li>';
+    }).join('') + '</ul>';
     return html;
   }
 
@@ -2079,11 +2200,29 @@
     // The progression chart comes right after the chronos summary. With
     // several riders active (including "Tous les pilotes") every one of
     // them gets their own line, overlaid on the same chart, instead of
-    // arbitrarily picking just one.
-    if (selectedRiders && selectedRiders.size && selectedCircuit) {
-      html += renderProgressionChart(Array.from(selectedRiders), selectedCircuit);
+    // arbitrarily picking just one. Its own circuit dropdown (any circuit
+    // with a chrono for the active rider(s), not just whichever is picked
+    // in Circuit) defaults to the Circuit tab's selection but can be
+    // changed independently -- see progressionCircuitPick.
+    if (selectedRiders && selectedRiders.size) {
+      var progressionRiders = Array.from(selectedRiders);
+      var progressionCircuits = circuitsWithChronosFor(progressionRiders);
+      if (progressionCircuits.length) {
+        var progressionCircuit = (progressionCircuitPick && progressionCircuits.indexOf(progressionCircuitPick) !== -1)
+          ? progressionCircuitPick
+          : (progressionCircuits.indexOf(selectedCircuit) !== -1 ? selectedCircuit : progressionCircuits[0]);
+        html += renderProgressionChart(progressionRiders, progressionCircuit, progressionCircuits);
+      }
     }
     return html;
+  }
+
+  // name -> array of circuits with at least one chrono, restricted to the
+  // given riders -- feeds the progression chart's own circuit dropdown.
+  function circuitsWithChronosFor(riders) {
+    var set = {};
+    STATE.sessions.forEach(function (s) { if (riders.indexOf(s.rider) !== -1) set[s.circuit] = true; });
+    return Object.keys(set).sort(function (a, b) { return a.localeCompare(b); });
   }
 
   // Holds the flat list of {date, time, rider, isBest} points across every
@@ -2093,6 +2232,7 @@
   // DOM.
   var PROGRESSION_POINTS = [];
   var PROGRESSION_MULTI = false; // whether the last render had >1 rider series (caption then names the rider)
+  var progressionCircuitPick = null; // circuit chosen in the chart's own dropdown, overriding Circuit's selection
 
   // Fixed hue order for rider series -- a rider keeps the same color
   // whenever they appear on this chart, regardless of who else is shown
@@ -2113,7 +2253,14 @@
   // inverted — a faster (lower) time naturally plots lower on the chart,
   // same as any plain numeric axis where values grow upward (1'54 below
   // 2'00, not above it).
-  function renderProgressionChart(riders, circuit) {
+  function renderProgressionChart(riders, circuit, availableCircuits) {
+    var selectorHtml = '';
+    if (availableCircuits && availableCircuits.length > 1) {
+      selectorHtml = '<label for="progression-circuit-select" class="help-text" style="display:block; margin-bottom:0.3rem;">Circuit</label>' +
+        '<select id="progression-circuit-select" style="margin-bottom:0.8rem;">' +
+        availableCircuits.map(function (c) { return '<option value="' + escapeHtml(c) + '"' + (c === circuit ? ' selected' : '') + '>' + escapeHtml(c) + '</option>'; }).join('') +
+        '</select>';
+    }
     // Several sessions can land on the same day (matin/après-midi, or just
     // several separate entries) -- the progression is one point per rider
     // per day, so those collapse to that day's single best time rather
@@ -2136,22 +2283,22 @@
     // multi-rider overlays existed -- the fixed categorical palette only
     // kicks in once there's actually more than one line to tell apart.
     series.forEach(function (s) { s.color = isMulti ? riderSeriesColor(s.rider) : 'var(--accent)'; });
-    var progressionKey = 'progression-' + circuit + '-' + riders.slice().sort().join(',');
-    var html = '';
+    var progressionKey = 'progression-' + riders.slice().sort().join(',');
+    var html = selectorHtml;
 
     if (!series.length) {
       html += '<div class="empty-state">Aucun chrono enregistré sur ' + escapeHtml(circuit) + (riders.length === 1 ? ' pour ' + escapeHtml(riders[0]) : '') + '.</div>';
-      return collapsibleCard(progressionKey, 'Visualisation de la progression', html, false);
+      return collapsibleCard(progressionKey, 'Visualisation de la progression', html, true);
     }
     if (series.length === 1 && series[0].raw.length === 1) {
       var only = series[0].raw[0];
       html += '<div class="empty-state">Un seul chrono enregistré — ' + formatTime(only.time) + ' le ' + escapeHtml(formatDate(only.date)) + '. La courbe apparaîtra au prochain chrono.</div>';
-      return collapsibleCard(progressionKey, 'Visualisation de la progression', html, false);
+      return collapsibleCard(progressionKey, 'Visualisation de la progression', html, true);
     }
     var totalPoints = series.reduce(function (sum, s) { return sum + s.raw.length; }, 0);
     if (totalPoints < 2) {
       html += '<div class="empty-state">Pas encore assez de chronos pour tracer une courbe.</div>';
-      return collapsibleCard(progressionKey, 'Visualisation de la progression', html, false);
+      return collapsibleCard(progressionKey, 'Visualisation de la progression', html, true);
     }
 
     var W = 640, H = 260;
@@ -2270,7 +2417,7 @@
 
     PROGRESSION_POINTS = flatPoints;
     PROGRESSION_MULTI = isMulti;
-    return collapsibleCard(progressionKey, 'Visualisation de la progression', html, false);
+    return collapsibleCard(progressionKey, 'Visualisation de la progression', html, true);
   }
 
   function circuitDatalist() {
@@ -4773,6 +4920,35 @@
     new Notification('Carnet de Piste', { body: subject + ' dans ' + diff + ' min !' });
   }
 
+  // Same "opted-in + permission granted" gating as maybeNotifyGroupDeparture
+  // above, one flag per notification category (see renderNotificationsSettings)
+  // -- every category defaults to true (opted-in) via !== false, same
+  // convention as shareSorties/shareTrophees.
+  function notifCategoryAllowed(field) {
+    return !!currentUserProfile && currentUserProfile[field] !== false
+      && !!window.Notification && Notification.permission === 'granted';
+  }
+
+  // null until the first snapshot of this session's pending invites has
+  // been seen -- that first batch is the baseline (never notified, they
+  // could predate this login), only invites that show up *after* it fire.
+  var seenTeamInviteIds = null;
+  function maybeNotifyNewTeamInvites(byId) {
+    var pendingIds = Object.keys(byId).filter(function (id) { return byId[id].status === 'pending'; });
+    if (seenTeamInviteIds === null) {
+      seenTeamInviteIds = {};
+      pendingIds.forEach(function (id) { seenTeamInviteIds[id] = true; });
+      return;
+    }
+    pendingIds.forEach(function (id) {
+      if (seenTeamInviteIds[id]) return;
+      seenTeamInviteIds[id] = true;
+      if (notifCategoryAllowed('notifyInvites')) {
+        new Notification('Carnet de Piste', { body: 'Tu as reçu une invitation' + (byId[id].teamName ? ' à rejoindre ' + byId[id].teamName : '') + ' !' });
+      }
+    });
+  }
+
   // The group label(s) attached to the earliest data-slot-start currently
   // in the DOM, and among those matching, the group letter itself. Shared
   // by both the "dans X jours" and "prochaine session dans" countdowns so
@@ -5335,6 +5511,13 @@
   function isPro(u) {
     return !!(u && u.pro);
   }
+  // Trust badge for an organisateur the admin has actually vetted --
+  // distinct from the 'organisateur' role itself (anyone can pick that at
+  // signup, same as 'pilote'/'accompagnant'); this is the "Team PRO of
+  // people" equivalent, admin-granted like certified/personality/pro.
+  function isOrganizerBadge(u) {
+    return !!(u && u.organizer);
+  }
 
   // Every badge a profile can carry -- one place to add a future one
   // (field, icon, label, and the CSS class it renders with), read by both
@@ -5343,13 +5526,22 @@
   var PROFILE_BADGES = [
     { field: 'certified', icon: '✓', label: 'Certifié', cssClass: 'certified-badge', check: isCertified },
     { field: 'personality', icon: '★', label: 'Personnalité', cssClass: 'personality-badge', check: isPersonality },
-    { field: 'pro', icon: '🏅', label: 'Pilote PRO', cssClass: 'pro-badge', check: isPro }
+    { field: 'pro', icon: '🏅', label: 'Pilote PRO', cssClass: 'pro-badge', check: isPro },
+    { field: 'organizer', icon: '🧭', label: 'Organisateur vérifié', cssClass: 'organizer-badge', check: isOrganizerBadge }
   ];
 
   function badgesHtml(u) {
     return PROFILE_BADGES.map(function (b) {
       return b.check(u) ? ' <span class="' + b.cssClass + '" title="' + escapeHtml(b.label) + '">' + b.icon + '</span>' : '';
     }).join('');
+  }
+
+  // A Team's own badge, distinct from a person's (PROFILE_BADGES) --
+  // "Team PRO" marks an organisateur's official squad, set by the admin
+  // only (see toggle-team-pro in attachHandlers), to stand apart from an
+  // amateur "Team entre amis".
+  function teamBadgesHtml(team) {
+    return team && team.teamPro ? ' <span class="team-pro-badge" title="Team PRO certifié">TEAM PRO ✓</span>' : '';
   }
 
   // Which friend's fiche (see renderFriendFiche) is expanded inline in the
@@ -5427,6 +5619,21 @@
     return formatDate(dateKey(new Date(ms)));
   }
 
+  // Positive-only, on purpose -- a news feed/team wall isn't the place for
+  // a thumbs-down. Shared by Social's Actualités and the Team feed.
+  var REACTION_EMOJIS = ['🔥', '👍', '💪', '🎉'];
+  function renderReactionBar(reactions, dataAction, id) {
+    reactions = reactions || {};
+    var counts = {};
+    REACTION_EMOJIS.forEach(function (em) { counts[em] = 0; });
+    var mine = currentUserProfile ? reactions[currentUserProfile.name] : null;
+    Object.keys(reactions).forEach(function (n) { var em = reactions[n]; if (counts[em] != null) counts[em]++; });
+    return '<div class="reaction-bar">' + REACTION_EMOJIS.map(function (em) {
+      return '<button type="button" class="reaction-btn' + (mine === em ? ' active' : '') + '" data-action="' + dataAction + '" data-id="' + id + '" data-emoji="' + em + '">' +
+        em + (counts[em] ? ' ' + counts[em] : '') + '</button>';
+    }).join('') + '</div>';
+  }
+
   function renderFeedEntry(e) {
     var text;
     if (e.type === 'friend') {
@@ -5436,18 +5643,17 @@
     } else {
       return '';
     }
-    return '<div class="feed-entry"><span class="feed-entry-text">' + text + '</span>' +
-      '<span class="feed-entry-time">' + escapeHtml(relativeTime(e.createdAt)) + '</span></div>';
+    return '<div class="feed-entry"><div class="feed-entry-row"><span class="feed-entry-text">' + text + '</span>' +
+      '<span class="feed-entry-time">' + escapeHtml(relativeTime(e.createdAt)) + '</span></div>' +
+      renderReactionBar(e.reactions, 'react-feed-event', e.id) + '</div>';
   }
 
   function renderSocialFeed() {
     var entries = (STATE.feedEvents || []).slice(0, 12);
-    var html = '<div class="card"><h2 class="section-title">Actualités</h2>';
-    html += !entries.length
+    var body = !entries.length
       ? '<div class="empty-state">Rien de nouveau pour l\'instant.</div>'
       : entries.map(renderFeedEntry).join('');
-    html += '</div>';
-    return html;
+    return collapsibleCard('social-actualites', 'Actualités', body, false);
   }
 
   // A compact strip suggesting a few friend candidates and a few
@@ -5479,12 +5685,10 @@
   function renderPersonalitiesCard(me) {
     var followed = (STATE.myFollows || []).slice().sort(function (a, b) { return a.localeCompare(b); });
     if (!followed.length) return '';
-    var html = '<div class="card"><h2 class="section-title">Personnalités suivies</h2>';
-    html += followed.map(function (n) {
+    var body = followed.map(function (n) {
       return renderFriendRow(n, '<button type="button" class="ghost icon-btn" data-action="unfollow" data-name="' + escapeHtml(n) + '" aria-label="Ne plus suivre" title="Ne plus suivre">×</button>');
     }).join('');
-    html += '</div>';
-    return html;
+    return collapsibleCard('social-personnalites', 'Personnalités suivies (' + followed.length + ')', body, false);
   }
 
   // ---- Mur (wall) ----
@@ -5559,12 +5763,10 @@
 
   function renderWallFeed(me) {
     var posts = visibleWallPosts(me);
-    var html = '<div class="card"><h2 class="section-title">Mur</h2>';
-    html += !posts.length
+    var body = !posts.length
       ? '<div class="empty-state">Rien pour l\'instant.</div>'
       : posts.map(renderWallPost).join('');
-    html += '</div>';
-    return html;
+    return collapsibleCard('social-mur', 'Mur (' + posts.length + ')', body, false);
   }
 
   function postToWall(text, linkUrl, photoURL, audience) {
@@ -5615,43 +5817,40 @@
     html += renderWallComposer();
     html += renderWallFeed(me);
 
-    html += '<div class="card"><h2 class="section-title">Mes amis</h2>';
-    html += !friends.length
+    var friendsBody = !friends.length
       ? '<div class="empty-state">Pas encore d’amis — ajoutes-en un ci-dessous.</div>'
       : friends.map(function (f) {
           return renderFriendRow(f.name, '<button type="button" class="ghost icon-btn" data-action="remove-friend" data-id="' + f.id + '" aria-label="Retirer cet ami" title="Retirer">×</button>', true);
         }).join('');
-    html += '</div>';
+    html += collapsibleCard('social-amis', 'Mes amis (' + friends.length + ')', friendsBody, false);
 
     if (incoming.length) {
-      html += '<div class="card"><h2 class="section-title">Demandes reçues</h2>';
-      html += incoming.map(function (r) {
+      var incomingBody = incoming.map(function (r) {
         return renderFriendRow(r.from,
           '<button type="button" class="primary" data-action="accept-friend" data-id="' + r.id + '">Accepter</button>' +
           '<button type="button" class="ghost" data-action="remove-friend" data-id="' + r.id + '">Refuser</button>');
       }).join('');
-      html += '</div>';
+      html += collapsibleCard('social-demandes-recues', 'Demandes reçues (' + incoming.length + ')', incomingBody, false);
     }
 
     if (outgoing.length) {
-      html += '<div class="card"><h2 class="section-title">Demandes envoyées</h2>';
-      html += outgoing.map(function (r) {
+      var outgoingBody = outgoing.map(function (r) {
         return renderFriendRow(r.to, '<button type="button" class="ghost" data-action="remove-friend" data-id="' + r.id + '">Annuler</button>');
       }).join('');
-      html += '</div>';
+      html += collapsibleCard('social-demandes-envoyees', 'Demandes envoyées (' + outgoing.length + ')', outgoingBody, false);
     }
 
-    html += '<div class="card"><h2 class="section-title">Ajouter un ami</h2>';
+    var addFriendBody;
     if (!candidates.length) {
-      html += '<div class="empty-state">Personne d’autre à ajouter pour l’instant.</div>';
+      addFriendBody = '<div class="empty-state">Personne d’autre à ajouter pour l’instant.</div>';
     } else {
-      html += '<form id="add-friend-form"><label for="add-friend-select">Pilote, accompagnant ou organisateur</label>' +
+      addFriendBody = '<form id="add-friend-form"><label for="add-friend-select">Pilote, accompagnant ou organisateur</label>' +
         '<select id="add-friend-select">' + candidates.map(function (n) {
           return '<option value="' + escapeHtml(n) + '">' + escapeHtml(n) + ' — ' + roleLabel((STATE.usersByName[n] || {}).role) + '</option>';
         }).join('') + '</select>' +
         '<button type="submit" class="primary" style="margin-top:0.7rem;">Envoyer une demande</button></form>';
     }
-    html += '</div>';
+    html += collapsibleCard('social-ajouter-ami', 'Ajouter un ami', addFriendBody, false);
     html += renderPersonalitiesCard(me);
     return html;
   }
@@ -5714,7 +5913,31 @@
     if (f.text) html += '<div class="wall-post-text">' + escapeHtml(f.text) + '</div>';
     if (f.linkUrl) html += '<a class="wall-post-link" href="' + escapeHtml(f.linkUrl) + '" target="_blank" rel="noopener">🔗 ' + escapeHtml(f.linkUrl) + '</a>';
     if (f.photoURL) html += '<img class="wall-post-photo" src="' + escapeHtml(f.photoURL) + '" alt="">';
+    html += renderReactionBar(f.reactions, 'react-team-post', f.id);
     html += '</div>';
+    return html;
+  }
+
+  function renderTeamSettings(team, isLeader) {
+    if (!isLeader) {
+      return '<div class="team-settings-disabled"><div class="help-text">🔒 Réservé aux Team Leaders.</div></div>';
+    }
+    var visibility = team.visibility || 'private';
+    var html = '<label for="team-visibility-select-' + team.id + '">Visibilité (qui peut trouver et suivre ce Team)</label>' +
+      '<select id="team-visibility-select-' + team.id + '" data-action="team-visibility" data-team="' + team.id + '">' +
+      '<option value="private"' + (visibility === 'private' ? ' selected' : '') + '>Sur invitation uniquement</option>' +
+      '<option value="all"' + (visibility === 'all' ? ' selected' : '') + '>Visible par tous</option>' +
+      '<option value="pro"' + (visibility === 'pro' ? ' selected' : '') + '>Visible par les Pilotes PRO</option>' +
+      '<option value="certified"' + (visibility === 'certified' ? ' selected' : '') + '>Visible par les comptes certifiés</option>' +
+      '</select>';
+    html += '<label for="team-post-policy-select-' + team.id + '" style="margin-top:0.7rem;">Qui peut publier</label>' +
+      '<select id="team-post-policy-select-' + team.id + '" data-action="team-post-policy" data-team="' + team.id + '">' +
+      '<option value="leaders"' + (team.postPolicy !== 'members' ? ' selected' : '') + '>Team Leaders seulement</option>' +
+      '<option value="members"' + (team.postPolicy === 'members' ? ' selected' : '') + '>Tous les membres</option>' +
+      '</select>';
+    html += '<div class="danger-zone" style="margin-top:1rem;">' +
+      '<button type="button" class="ghost danger" data-action="team-delete-request" data-team="' + team.id + '">' +
+      (pendingDeleteTeamId === team.id ? 'Confirmer la suppression' : 'Supprimer ce Team') + '</button></div>';
     return html;
   }
 
@@ -5727,15 +5950,14 @@
     });
     var feed = (STATE.teamFeed || []).filter(function (f) { return f.teamId === team.id; });
     var html = '<div class="card team-card">';
-    html += '<div class="section-title" style="display:flex; align-items:center; justify-content:space-between;">' + escapeHtml(team.name) +
+    html += '<div class="section-title" style="display:flex; align-items:center; justify-content:space-between;">' + escapeHtml(team.name) + teamBadgesHtml(team) +
       '<span class="friend-role-badge">' + (isLeader ? 'Team Leader' : 'Membre') + '</span></div>';
 
-    html += '<div class="team-section-title">Fil d\'actualité</div>';
-    html += !feed.length
+    var feedBody = !feed.length
       ? '<div class="empty-state">Rien pour l\'instant.</div>'
       : feed.map(function (f) { return renderTeamFeedEntry(f, me); }).join('');
     if (canPost) {
-      html += '<form class="team-feed-form" data-action="team-feed-form" data-team="' + team.id + '">' +
+      feedBody += '<form class="team-feed-form" data-action="team-feed-form" data-team="' + team.id + '">' +
         '<input type="text" placeholder="Écrire au team..." data-team-feed-input>' +
         '<input type="url" placeholder="Lien (optionnel)" data-team-feed-link>' +
         (teamPostDraftPhotoTeamId === team.id && teamPostDraftPhotoURL
@@ -5746,40 +5968,34 @@
         '<button type="button" class="ghost icon-btn" data-action="team-feed-photo-btn" data-team="' + team.id + '" aria-label="Ajouter une photo" title="Ajouter une photo">📷</button>' +
         '<button type="submit" class="primary">Publier</button>' +
         '</div></form>';
-      html += '<form class="team-poll-form" data-action="team-poll-form" data-team="' + team.id + '">' +
+      feedBody += '<form class="team-poll-form" data-action="team-poll-form" data-team="' + team.id + '">' +
         '<input type="text" placeholder="Créer un sondage : la question" data-poll-question>' +
         '<input type="text" placeholder="Option 1" data-poll-option>' +
         '<input type="text" placeholder="Option 2" data-poll-option>' +
         '<input type="text" placeholder="Option 3 (optionnel)" data-poll-option>' +
         '<button type="submit" class="ghost">Publier le sondage</button></form>';
     }
-    if (isLeader) {
-      html += '<div class="help-text" style="margin-top:0.5rem;">Qui peut publier : ' +
-        '<select data-action="team-post-policy" data-team="' + team.id + '">' +
-        '<option value="leaders"' + (team.postPolicy !== 'members' ? ' selected' : '') + '>Team Leaders seulement</option>' +
-        '<option value="members"' + (team.postPolicy === 'members' ? ' selected' : '') + '>Tous les membres</option>' +
-        '</select></div>';
-    }
+    html += collapsibleSection('team-feed-' + team.id, 'Fil d\'actualité (' + feed.length + ')', feedBody);
 
-    html += '<div class="team-section-title">Membres (' + members.length + ')</div>';
-    html += members.map(function (m) { return renderTeamMemberRow(team.id, m, isLeader, me.name); }).join('');
+    var membersBody = members.map(function (m) { return renderTeamMemberRow(team.id, m, isLeader, me.name); }).join('');
+    html += collapsibleSection('team-members-' + team.id, 'Membres (' + members.length + ')', membersBody);
 
     if (isLeader) {
       var memberNames = members.map(function (m) { return m.name; });
       var invitedNames = (STATE.teamInvites || []).filter(function (r) { return r.status === 'pending' && r.teamId === team.id; }).map(function (r) { return r.to; });
       var candidates = friendsOf(me.name).map(function (f) { return f.name; })
         .filter(function (n) { return memberNames.indexOf(n) === -1 && invitedNames.indexOf(n) === -1; });
-      html += '<div class="team-section-title">Inviter un ami</div>';
-      if (!candidates.length) {
-        html += '<div class="help-text">Tous tes amis sont déjà dans ce team, ou aucun ami à inviter -- vois Social.</div>';
-      } else {
-        html += '<form class="team-invite-form" data-action="team-invite-form" data-team="' + team.id + '">' +
+      var inviteBody = !candidates.length
+        ? '<div class="help-text">Tous tes amis sont déjà dans ce team, ou aucun ami à inviter -- vois Social.</div>'
+        : '<form class="team-invite-form" data-action="team-invite-form" data-team="' + team.id + '">' +
           '<select data-team-invite-select>' + candidates.map(function (n) {
             return '<option value="' + escapeHtml(n) + '">' + escapeHtml(n) + '</option>';
           }).join('') + '</select>' +
           '<button type="submit" class="ghost">Inviter</button></form>';
-      }
+      html += collapsibleSection('team-invite-' + team.id, 'Inviter un ami', inviteBody);
     }
+
+    html += collapsibleSection('team-settings-' + team.id, '⚙ Réglages', renderTeamSettings(team, isLeader));
     html += '</div>';
     return html;
   }
@@ -5804,27 +6020,25 @@
 
     var html = '';
     if (incoming.length) {
-      html += '<div class="card"><h2 class="section-title">Invitations reçues</h2>';
-      html += incoming.map(function (r) {
+      var incomingBody = incoming.map(function (r) {
         return '<div class="friend-row"><div class="friend-row-main"><span class="friend-name-plain">' + escapeHtml(r.teamName) + '</span> <span class="help-text">invité par ' + escapeHtml(r.from) + '</span></div>' +
           '<div class="friend-row-actions">' +
           '<button type="button" class="primary" data-action="team-invite-accept" data-id="' + r.id + '">Accepter</button>' +
           '<button type="button" class="ghost" data-action="team-invite-remove" data-id="' + r.id + '">Refuser</button>' +
           '</div></div>';
       }).join('');
-      html += '</div>';
+      html += collapsibleCard('team-invites-in', 'Invitations reçues (' + incoming.length + ')', incomingBody, true);
     }
     if (outgoing.length) {
-      html += '<div class="card"><h2 class="section-title">Invitations envoyées</h2>';
-      html += outgoing.map(function (r) {
+      var outgoingBody = outgoing.map(function (r) {
         return '<div class="friend-row"><div class="friend-row-main"><span class="friend-name-plain">' + escapeHtml(r.to) + '</span> <span class="help-text">pour ' + escapeHtml(r.teamName) + '</span></div>' +
           '<div class="friend-row-actions"><button type="button" class="ghost" data-action="team-invite-remove" data-id="' + r.id + '">Annuler</button></div></div>';
       }).join('');
-      html += '</div>';
+      html += collapsibleCard('team-invites-out', 'Invitations envoyées (' + outgoing.length + ')', outgoingBody, false);
     }
 
     if (!myTeams.length) {
-      html += '<div class="card"><div class="empty-state">Pas encore de team -- crée-en un, ou attends une invitation.</div></div>';
+      html += '<div class="card"><div class="empty-state">Pas encore de team -- crée-en un, rejoins-en un depuis "Découvrir des Teams" ci-dessous, ou attends une invitation.</div></div>';
     } else {
       myTeams.forEach(function (team) { html += renderTeamCard(team, me); });
       // Shared by every team card's 📷 button -- only one photo picker is
@@ -5832,8 +6046,47 @@
       // teamPostDraftPhotoTeamId).
       html += '<input type="file" id="team-feed-photo-input" accept="image/*" style="display:none;">';
     }
+    html += renderTeamDiscovery(me, myTeams);
     html += renderCreateTeamCard();
     return html;
+  }
+
+  // A team only shows up here once its Team Leader opts it into being
+  // findable (team.visibility, set from that team's own Réglages) --
+  // 'private' (the default) never appears. "Suivre" is a one-way follow
+  // (see followName/toggleReaction's sibling functions), not membership --
+  // it doesn't add you to the roster or its feed, just marks the team as
+  // one you keep an eye on.
+  function renderTeamDiscovery(me, myTeams) {
+    var myTeamIds = myTeams.map(function (t) { return t.id; });
+    var followedTeamIds = (STATE.myFollowedTeams || []).map(function (f) { return f.teamId; });
+    var discoverable = (STATE.teams || []).filter(function (t) {
+      if (myTeamIds.indexOf(t.id) !== -1) return false;
+      if (t.visibility === 'all') return true;
+      if (t.visibility === 'pro') return isPro(me);
+      if (t.visibility === 'certified') return isCertified(me);
+      return false;
+    }).sort(function (a, b) { return a.name.localeCompare(b.name); });
+    if (!discoverable.length && !followedTeamIds.length) return '';
+    var body = '';
+    if (followedTeamIds.length) {
+      body += '<div class="team-section-title">Teams suivis</div>';
+      body += followedTeamIds.map(function (id) {
+        var t = teamById(id);
+        if (!t) return '';
+        return '<div class="friend-row"><div class="friend-row-main"><span class="friend-name-plain">' + escapeHtml(t.name) + '</span>' + teamBadgesHtml(t) + '</div>' +
+          '<div class="friend-row-actions"><button type="button" class="ghost icon-btn" data-action="unfollow-team" data-team="' + id + '" aria-label="Ne plus suivre" title="Ne plus suivre">×</button></div></div>';
+      }).join('');
+    }
+    var toSuggest = discoverable.filter(function (t) { return followedTeamIds.indexOf(t.id) === -1; });
+    if (toSuggest.length) {
+      body += '<div class="team-section-title">À découvrir</div>';
+      body += toSuggest.map(function (t) {
+        return '<div class="friend-row"><div class="friend-row-main"><span class="friend-name-plain">' + escapeHtml(t.name) + '</span>' + teamBadgesHtml(t) + '</div>' +
+          '<div class="friend-row-actions"><button type="button" class="ghost" data-action="follow-team" data-team="' + t.id + '">Suivre</button></div></div>';
+      }).join('');
+    }
+    return collapsibleCard('team-discovery', 'Découvrir des Teams', body, false);
   }
 
   function renderRoot() {
@@ -6048,7 +6301,7 @@
           });
         }
         name = result.name;
-        var profileDoc = { name: name, role: role, email: email };
+        var profileDoc = { name: name, role: role, email: email, notifyBeforeSession: true };
         // A parrain can't refer themselves -- someone opening their own
         // link and signing up under the same name shouldn't count.
         if (pendingReferrer && pendingReferrer !== name) profileDoc.referredBy = pendingReferrer;
@@ -6210,6 +6463,18 @@
         saveProfile(p.role, reglagesNotify.checked, p.followedRiders || [], p.bike, p.bikeNumber, p.name, '');
         showToast(reglagesNotify.checked ? 'Notifications activées.' : 'Notifications désactivées.', 'success');
       });
+    }
+    var notifyInvitesEl = document.getElementById('profile-notify-invites');
+    if (notifyInvitesEl) {
+      notifyInvitesEl.addEventListener('change', function () { saveOwnBooleanField('notifyInvites', notifyInvitesEl.checked); });
+    }
+    var notifyTeamNewsEl = document.getElementById('profile-notify-team-news');
+    if (notifyTeamNewsEl) {
+      notifyTeamNewsEl.addEventListener('change', function () { saveOwnBooleanField('notifyTeamNews', notifyTeamNewsEl.checked); });
+    }
+    var notifyProOutingsEl = document.getElementById('profile-notify-pro-outings');
+    if (notifyProOutingsEl) {
+      notifyProOutingsEl.addEventListener('change', function () { saveOwnBooleanField('notifyProOutings', notifyProOutingsEl.checked); });
     }
     var shareSortiesEl = document.getElementById('profile-share-sorties');
     if (shareSortiesEl) {
@@ -6542,6 +6807,12 @@
     document.querySelectorAll('[data-action="unfollow"]').forEach(function (btn) {
       btn.addEventListener('click', function () { unfollowName(btn.getAttribute('data-name')); });
     });
+    document.querySelectorAll('[data-action="follow-team"]').forEach(function (btn) {
+      btn.addEventListener('click', function () { followTeam(btn.getAttribute('data-team')); });
+    });
+    document.querySelectorAll('[data-action="unfollow-team"]').forEach(function (btn) {
+      btn.addEventListener('click', function () { unfollowTeam(btn.getAttribute('data-team')); });
+    });
     var createTeamForm = document.getElementById('create-team-form');
     if (createTeamForm) {
       createTeamForm.addEventListener('submit', function (evt) {
@@ -6618,6 +6889,33 @@
     });
     document.querySelectorAll('[data-action="team-post-policy"]').forEach(function (select) {
       select.addEventListener('change', function () { setTeamPostPolicy(select.getAttribute('data-team'), select.value); });
+    });
+    document.querySelectorAll('[data-action="team-visibility"]').forEach(function (select) {
+      select.addEventListener('change', function () { setTeamVisibility(select.getAttribute('data-team'), select.value); });
+    });
+    document.querySelectorAll('[data-action="team-delete-request"]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var teamId = btn.getAttribute('data-team');
+        if (pendingDeleteTeamId === teamId) deleteTeam(teamId);
+        else { pendingDeleteTeamId = teamId; renderRoot(); }
+      });
+    });
+    document.querySelectorAll('[data-action="toggle-team-pro"]').forEach(function (btn) {
+      btn.addEventListener('click', function () { toggleTeamPro(btn.getAttribute('data-team')); });
+    });
+    document.querySelectorAll('[data-action="react-feed-event"]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var id = btn.getAttribute('data-id');
+        var entry = (STATE.feedEvents || []).filter(function (e) { return e.id === id; })[0];
+        toggleReaction('feedEvents', id, btn.getAttribute('data-emoji'), entry && entry.reactions);
+      });
+    });
+    document.querySelectorAll('[data-action="react-team-post"]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var id = btn.getAttribute('data-id');
+        var entry = (STATE.teamFeed || []).filter(function (f) { return f.id === id; })[0];
+        toggleReaction('teamFeed', id, btn.getAttribute('data-emoji'), entry && entry.reactions);
+      });
     });
     document.querySelectorAll('[data-action="team-invite-accept"]').forEach(function (btn) {
       btn.addEventListener('click', function () {
@@ -7096,6 +7394,13 @@
         renderRoot();
       });
     }
+    var progressionCircuitSelect = document.getElementById('progression-circuit-select');
+    if (progressionCircuitSelect) {
+      progressionCircuitSelect.addEventListener('change', function () {
+        progressionCircuitPick = progressionCircuitSelect.value;
+        renderRoot();
+      });
+    }
     document.querySelectorAll('.progression-point').forEach(function (el) {
       el.addEventListener('click', function () {
         var idx = parseInt(el.getAttribute('data-idx'), 10);
@@ -7313,7 +7618,7 @@
     // Social feed -- most recent first, capped since it's a scrolling
     // activity log, not something that needs full history loaded.
     unsubscribers.push(db.collection('feedEvents').orderBy('createdAt', 'desc').limit(40).onSnapshot(function (snap) {
-      STATE.feedEvents = snap.docs.map(function (d) { return d.data(); });
+      STATE.feedEvents = snap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); });
       renderRoot();
     }, handleSyncError));
     // Wall posts -- same cap-and-sync-all approach as the feed above;
@@ -7323,10 +7628,14 @@
       STATE.wallPosts = snap.docs.map(function (d) { return d.data(); });
       renderRoot();
     }, handleSyncError));
-    // Who this pilote follows (Personnalités) -- one-way, no acceptance.
+    // Who this pilote follows (Personnalités and Teams) -- one-way, no
+    // acceptance. Split by followeeType into two derived arrays so
+    // existing user-follow code (myFollows) doesn't need to change.
     if (currentUserProfile && currentUserProfile.name) {
       unsubscribers.push(db.collection('follows').where('follower', '==', currentUserProfile.name).onSnapshot(function (snap) {
-        STATE.myFollows = snap.docs.map(function (d) { return d.data().followee; });
+        var docs = snap.docs.map(function (d) { return d.data(); });
+        STATE.myFollows = docs.filter(function (f) { return (f.followeeType || 'user') === 'user'; }).map(function (f) { return f.followee; });
+        STATE.myFollowedTeams = docs.filter(function (f) { return f.followeeType === 'team'; }).map(function (f) { return f.followee; });
         renderRoot();
       }, handleSyncError));
     }
@@ -7361,6 +7670,7 @@
       unsubscribers.push(db.collection('teamInvites').where('to', '==', currentUserProfile.name).onSnapshot(function (snap) {
         teamInviteTo = {};
         snap.forEach(function (d) { teamInviteTo[d.id] = Object.assign({ id: d.id }, d.data()); });
+        maybeNotifyNewTeamInvites(teamInviteTo);
         mergeTeamInvites();
       }, handleSyncError));
     }
@@ -7393,10 +7703,30 @@
     // Sorted client-side rather than orderBy('createdAt') server-side --
     // combined with where('teamId','in',...) that would need a composite
     // index configured in the Firebase console before it'd work at all.
+    // seenTeamFeedIds is local to this one subscription (re-baselined every
+    // time refreshTeamDetailSync re-subscribes, e.g. joining a new team) so
+    // switching teams never floods notifications for posts that predate it.
+    var seenTeamFeedIds = null;
     teamDetailUnsubs.push(db.collection('teamFeed').where('teamId', 'in', teamIds).limit(200).onSnapshot(function (snap) {
-      STATE.teamFeed = snap.docs.map(function (d) { return d.data(); })
+      var posts = snap.docs.map(function (d) { return d.data(); })
         .sort(function (a, b) { return (b.createdAt || 0) - (a.createdAt || 0); })
         .slice(0, 50);
+      if (seenTeamFeedIds === null) {
+        seenTeamFeedIds = {};
+        posts.forEach(function (f) { seenTeamFeedIds[f.id] = true; });
+      } else {
+        posts.forEach(function (f) {
+          if (seenTeamFeedIds[f.id]) return;
+          seenTeamFeedIds[f.id] = true;
+          if (currentUserProfile && f.author === currentUserProfile.name) return;
+          if (notifCategoryAllowed('notifyTeamNews')) {
+            var t = teamById(f.teamId);
+            var body = f.text || f.question || (f.linkUrl ? 'Nouveau lien partagé' : (f.photoURL ? 'Nouvelle photo partagée' : 'Nouvelle publication'));
+            new Notification('Carnet de Piste', { body: 'Actu' + (t ? ' de ' + t.name : ' de ton Team') + ' : ' + body.slice(0, 100) });
+          }
+        });
+      }
+      STATE.teamFeed = posts;
       renderRoot();
     }, handleSyncError));
   }
@@ -7406,6 +7736,7 @@
     unsubscribers = [];
     teamDetailUnsubs.forEach(function (unsub) { unsub(); });
     teamDetailUnsubs = [];
+    seenTeamInviteIds = null;
   }
 
   function handleSyncError() {
