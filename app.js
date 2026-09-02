@@ -7304,6 +7304,45 @@
     return collapsibleCard('team-events-' + team.id, 'Gestion des événements' + (all.length ? ' (' + all.length + ')' : ''), body, false, addBtn);
   }
 
+  // Distincte de "Gestion des événements" (réservée aux sorties que ce
+  // Team possède, ev.teamId === team.id) -- l'Historique liste toute
+  // sortie, passée ou à venir, où au moins un membre du Team a participé
+  // (ev.riders), peu importe qui l'a organisée. Visible par tout le monde
+  // sur la fiche du Team (pas juste le Team Leader), donc pas de bouton
+  // de gestion ici, juste un rappel léger de qui a couru où.
+  function renderTeamHistorique(team, members) {
+    var todayKey = dateKey(new Date());
+    var memberNames = members.map(function (m) { return m.name; });
+    var all = (STATE.events || []).filter(function (ev) {
+      return (ev.riders || []).some(function (r) { return memberNames.indexOf(r) !== -1; });
+    });
+    function eventRow(ev) {
+      var riders = (ev.riders || []).filter(function (r) { return memberNames.indexOf(r) !== -1; });
+      var organizer = ev.teamId ? (ev.teamId === team.id ? '' : ' · organisé par ' + escapeHtml((teamById(ev.teamId) || {}).name || '?')) : '';
+      return '<div class="friend-row"><div class="friend-row-main"><span class="friend-name-plain">' + escapeHtml(ev.circuit) + '</span>' +
+        '<span class="help-text">' + escapeHtml(formatEventRange(ev, true)) + ' · ' + riders.join(', ') + organizer + '</span></div></div>';
+    }
+    var ongoing = [], upcoming = [], past = [];
+    all.forEach(function (ev) {
+      var status = eventTemporalStatus(ev, todayKey);
+      if (status === 'ongoing') ongoing.push(ev);
+      else if (status === 'upcoming') upcoming.push(ev);
+      else past.push(ev);
+    });
+    ongoing.sort(function (a, b) { return a.dateStart < b.dateStart ? -1 : 1; });
+    upcoming.sort(function (a, b) { return a.dateStart < b.dateStart ? -1 : 1; });
+    past.sort(function (a, b) { return a.dateStart < b.dateStart ? 1 : -1; });
+    if (!all.length) return '';
+    var body = '';
+    body += collapsibleSection('team-historique-ongoing-' + team.id, 'En cours (' + ongoing.length + ')',
+      ongoing.length ? ongoing.map(eventRow).join('') : '<div class="help-text">Rien en ce moment.</div>', !!ongoing.length);
+    body += collapsibleSection('team-historique-upcoming-' + team.id, 'À venir (' + upcoming.length + ')',
+      upcoming.length ? upcoming.map(eventRow).join('') : '<div class="help-text">Rien de prévu.</div>', false);
+    body += collapsibleSection('team-historique-past-' + team.id, 'Passés (' + past.length + ')',
+      past.length ? past.map(eventRow).join('') : '<div class="help-text">Aucun événement passé.</div>', false);
+    return collapsibleCard('team-historique-' + team.id, 'Historique (' + all.length + ')', body, false);
+  }
+
   // The dedicated per-event management screen (see managingEventId) --
   // résumé, annonces, participants + demandes, and l'attribution des
   // groupes, each its own flat section instead of nested collapsibles.
@@ -7406,6 +7445,7 @@
     // this screen, not something to scroll past Fil d'actualité/Membres
     // to reach.
     if (isLeader) html += renderTeamEventsManagement(team);
+    html += renderTeamHistorique(team, members);
 
     var feedBody = !feed.length
       ? '<div class="empty-state">Rien pour l\'instant.</div>'
@@ -7750,9 +7790,16 @@
     actions += showUnfollow
       ? '<button type="button" class="ghost icon-btn" data-action="unfollow-team" data-team="' + t.id + '" aria-label="Ne plus suivre" title="Ne plus suivre">×</button>'
       : '<button type="button" class="ghost" data-action="follow-team" data-team="' + t.id + '">Suivre</button>';
-    actions += myRequest
-      ? '<span class="help-text">Demande envoyée</span>'
-      : '<button type="button" class="ghost" data-action="team-join-request" data-team="' + t.id + '">Rejoindre</button>';
+    // A Team Leader never needs to request to join a team it already
+    // leads -- guarded directly on role rather than relying solely on
+    // discoverable's myTeamIds filter above, so a leader whose
+    // membership sync momentarily lags never sees "Rejoindre" on their
+    // own team.
+    if (!isLeaderOfTeam(t.id)) {
+      actions += myRequest
+        ? '<span class="help-text">Demande envoyée</span>'
+        : '<button type="button" class="ghost" data-action="team-join-request" data-team="' + t.id + '">Rejoindre</button>';
+    }
     return renderTeamTile(t, actions, false);
   }
 

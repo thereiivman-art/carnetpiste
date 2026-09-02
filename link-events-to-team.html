@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Rattacher des sorties à un Team — Carnet de Piste</title>
+<style>
+  body { font: 15px -apple-system, sans-serif; max-width: 640px; margin: 3rem auto; padding: 0 1rem; color: #16212c; }
+  label { display: block; margin-top: 1rem; font-weight: 600; }
+  input, select { font-size: 1rem; padding: 0.5rem; width: 100%; box-sizing: border-box; margin-top: 0.3rem; }
+  button { font-size: 1rem; padding: 0.6rem 1.2rem; cursor: pointer; margin-top: 1.2rem; }
+  .riders-list { display: flex; flex-wrap: wrap; gap: 0.6rem; margin-top: 0.4rem; }
+  .riders-list label { display: flex; align-items: center; gap: 0.4rem; font-weight: 400; margin-top: 0; }
+  .riders-list input { width: auto; margin-top: 0; }
+  #log { white-space: pre-wrap; background: #f2f2f2; padding: 1rem; margin-top: 1.2rem; font-family: monospace; font-size: 0.85rem; max-height: 400px; overflow: auto; }
+  .help { font-size: 0.82rem; color: #666; font-weight: 400; margin-top: 0.2rem; }
+  #step2 { display: none; }
+</style>
+</head>
+<body>
+<h1>Rattacher des sorties existantes à un Team</h1>
+<p>Passe en revue toutes les sorties (passées et à venir) qui n'ont pas encore d'organisateur Team, et rattache (teamId) celles où au moins un des pilotes cochés a participé. Ne touche jamais une sortie déjà rattachée à un autre Team -- les rules ne le permettent de toute façon qu'au Team Leader concerné.</p>
+
+<div id="step1">
+  <label for="login-email">Email (compte admin)</label>
+  <input type="email" id="login-email" autocomplete="username">
+  <label for="login-password">Mot de passe</label>
+  <input type="password" id="login-password" autocomplete="current-password">
+  <button id="login-btn">Se connecter</button>
+</div>
+
+<div id="step2">
+  <label for="team-select">Team organisateur</label>
+  <select id="team-select"></select>
+
+  <label>Pilotes à relier</label>
+  <div class="riders-list" id="riders-list"></div>
+  <div class="help">Une sortie est rattachée dès qu'un des pilotes cochés figure dans ses participants.</div>
+
+  <button id="preview-btn">Prévisualiser</button>
+  <div id="preview"></div>
+</div>
+
+<div id="log"></div>
+
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore-compat.js"></script>
+<script src="firebase-config.js"></script>
+<script>
+  var logEl = document.getElementById('log');
+  function log(msg) { logEl.textContent += msg + '\n'; }
+
+  var db, auth;
+  var matchedEvents = [];
+
+  document.getElementById('login-btn').addEventListener('click', function () {
+    db = firebase.firestore();
+    auth = firebase.auth();
+    var email = document.getElementById('login-email').value.trim();
+    var password = document.getElementById('login-password').value;
+    log('Connexion...');
+    auth.signInWithEmailAndPassword(email, password).then(function () {
+      log('Connecté.');
+      return Promise.all([db.collection('teams').get(), db.collection('riders').get()]);
+    }).then(function (results) {
+      var teamsSnap = results[0], ridersSnap = results[1];
+      var teamSelect = document.getElementById('team-select');
+      teamSelect.innerHTML = '';
+      teamsSnap.forEach(function (doc) {
+        var t = doc.data();
+        var opt = document.createElement('option');
+        opt.value = doc.id;
+        opt.textContent = t.name || doc.id;
+        teamSelect.appendChild(opt);
+      });
+      var ridersList = document.getElementById('riders-list');
+      ridersList.innerHTML = '';
+      var preset = ['Xavier', 'Marc', 'Patrick'];
+      ridersSnap.forEach(function (doc) {
+        var name = doc.data().name;
+        if (!name) return;
+        var id = 'rider-' + doc.id;
+        var wrap = document.createElement('label');
+        wrap.setAttribute('for', id);
+        var cb = document.createElement('input');
+        cb.type = 'checkbox';
+        cb.id = id;
+        cb.value = name;
+        cb.checked = preset.indexOf(name) !== -1;
+        wrap.appendChild(cb);
+        wrap.appendChild(document.createTextNode(name));
+        ridersList.appendChild(wrap);
+      });
+      if (!teamsSnap.size) { log('Aucun Team trouvé.'); return; }
+      document.getElementById('step1').style.display = 'none';
+      document.getElementById('step2').style.display = 'block';
+    }).catch(function (err) {
+      log('ERREUR : ' + (err && err.message ? err.message : err));
+    });
+  });
+
+  document.getElementById('preview-btn').addEventListener('click', function () {
+    var teamId = document.getElementById('team-select').value;
+    var teamName = document.getElementById('team-select').selectedOptions[0].textContent;
+    var checked = Array.prototype.slice.call(document.querySelectorAll('#riders-list input:checked')).map(function (cb) { return cb.value; });
+    if (!checked.length) { log('Coche au moins un pilote.'); return; }
+    log('Recherche des sorties de ' + checked.join(', ') + ' sans organisateur...');
+    db.collection('events').get().then(function (snap) {
+      matchedEvents = [];
+      snap.forEach(function (doc) {
+        var ev = doc.data();
+        if (ev.teamId) return; // déjà rattachée à un Team -- on n'y touche pas
+        var riders = ev.riders || [];
+        var hit = checked.some(function (n) { return riders.indexOf(n) !== -1; });
+        if (hit) matchedEvents.push({ id: doc.id, circuit: ev.circuit, dateStart: ev.dateStart, dateEnd: ev.dateEnd, riders: riders });
+      });
+      var previewEl = document.getElementById('preview');
+      if (!matchedEvents.length) {
+        previewEl.innerHTML = '<div class="help">Aucune sortie sans organisateur trouvée pour ces pilotes.</div>';
+        log('Rien à faire.');
+        return;
+      }
+      previewEl.innerHTML = '<div class="help" style="margin-top:0.8rem;">' + matchedEvents.length + ' sortie(s) seront rattachées à "' + teamName + '" :</div>' +
+        '<ul>' + matchedEvents.map(function (e) {
+          return '<li>' + (e.circuit || '?') + ' (' + (e.dateStart || '?') + ' → ' + (e.dateEnd || e.dateStart || '?') + ') -- ' + e.riders.join(', ') + '</li>';
+        }).join('') + '</ul>' +
+        '<button id="confirm-btn">Confirmer le rattachement (' + matchedEvents.length + ' sortie' + (matchedEvents.length > 1 ? 's' : '') + ')</button>';
+      document.getElementById('confirm-btn').addEventListener('click', function () {
+        document.getElementById('confirm-btn').disabled = true;
+        log('Rattachement de ' + matchedEvents.length + ' sortie(s) à "' + teamName + '"...');
+        var batch = db.batch();
+        matchedEvents.forEach(function (e) {
+          batch.update(db.collection('events').doc(e.id), { teamId: teamId });
+        });
+        batch.commit().then(function () {
+          log('Terminé -- ' + matchedEvents.length + ' sortie(s) rattachée(s).');
+          previewEl.innerHTML = '';
+        }).catch(function (err) {
+          log('ERREUR : ' + (err && err.message ? err.message : err));
+          document.getElementById('confirm-btn').disabled = false;
+        });
+      });
+    }).catch(function (err) {
+      log('ERREUR : ' + (err && err.message ? err.message : err));
+    });
+  });
+</script>
+</body>
+</html>
