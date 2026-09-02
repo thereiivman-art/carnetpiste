@@ -4767,12 +4767,14 @@
     return html;
   }
 
-  // Deleting a sortie is admin-only (matches firestore.rules) -- several
-  // riders can be relying on it (groupes, horaires, checklist), not just
-  // whoever created it.
-  function deleteEventControl(id) {
-    if (!isAdmin()) return '';
-    return '<button type="button" class="ghost icon-btn" data-action="delete-event-request" data-id="' + id + '" aria-label="Supprimer cette sortie" title="Supprimer">×</button>';
+  // Deleting a sortie is admin-only, or the Team Leader of the Team that
+  // owns it (matches firestore.rules) -- a personal (non-Team) sortie
+  // stays admin-only since several riders can be relying on it (groupes,
+  // horaires, checklist), not just whoever created it, and there's no
+  // Team Leader to trust with that call on those.
+  function deleteEventControl(ev) {
+    if (!isAdmin() && !(ev.teamId && isLeaderOfTeam(ev.teamId))) return '';
+    return '<button type="button" class="ghost icon-btn" data-action="delete-event-request" data-id="' + ev.id + '" aria-label="Supprimer cette sortie" title="Supprimer">×</button>';
   }
 
   function renderSessionDayCard(dateStr) {
@@ -5002,7 +5004,7 @@
     html += '<div class="event-circuit-map"><div class="event-checklist-title">Carte du circuit</div>' + renderCircuitVisual(circuitInfo(ev.circuit), ev.circuit, ev.id) + '</div>';
     // The équipement checklist (with its count) lives entirely in
     // Planning now -- Événements stays simple and informative.
-    html += '<div class="event-detail-actions"><button type="button" class="ghost" id="edit-event-btn" data-id="' + ev.id + '">Modifier</button>' + deleteEventControl(ev.id) + '</div>';
+    html += '<div class="event-detail-actions"><button type="button" class="ghost" id="edit-event-btn" data-id="' + ev.id + '">Modifier</button>' + deleteEventControl(ev) + '</div>';
     html += '</div>';
     return html;
   }
@@ -6898,7 +6900,7 @@
           (reqs.length ? collapsibleSection('team-event-requests-' + ev.id, 'Demandes (' + reqs.length + ')', reqRows, true) : '') +
           '<div style="margin-top:0.6rem; display:flex; gap:0.5rem;">' +
           '<button type="button" class="ghost" data-action="team-event-edit" data-id="' + ev.id + '">Modifier</button>' +
-          deleteEventControl(ev.id) +
+          deleteEventControl(ev) +
           '</div>' +
           (editingEventId === ev.id ? renderEventForm() : '');
         return collapsibleSection('team-event-' + ev.id, escapeHtml(ev.circuit) + ' — ' + escapeHtml(formatEventRange(ev, true)), eventBody);

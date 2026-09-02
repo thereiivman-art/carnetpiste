@@ -145,7 +145,7 @@ service cloud.firestore {
             && request.resource.data.riders.size() == resource.data.get('riders', []).size() + 1
             && (myName() in request.resource.data.riders))
       );
-      allow delete: if verified() && isAdmin();
+      allow delete: if verified() && (isAdmin() || (resource.data.get('teamId', null) != null && isTeamLeader(resource.data.teamId)));
     }
     // A 'public' Team Event needs the leader's OK to actually join (unlike
     // 'ouvert', which self-registers straight onto the event, see above)
