@@ -2577,32 +2577,55 @@
   // inverted — a faster (lower) time naturally plots lower on the chart,
   // same as any plain numeric axis where values grow upward (1'54 below
   // 2'00, not above it).
-  // 'day' (default, one point per day -- several sessions the same day
-  // collapse to that day's best), 'event' (one point per sortie -- several
-  // days/sessions within the same événement collapse to its best; a
-  // chrono with no linked event stands on its own, nothing to group it
-  // by), or 'all' (every chrono its own point, nothing collapsed, so a
-  // rider can see exactly how many times they went out even within one
-  // day/événement). Pure UI state, not persisted, shared across every
-  // progression chart currently on screen.
+  // 'day' (a single day, picked below -- every chrono entered that day),
+  // 'event' (every chrono entered on any of the selected événement's
+  // dates, whichever circuit day it falls on), or 'all' (every chrono
+  // ever entered on this circuit, any date/événement). Nothing is ever
+  // aggregated to a "best of the group" point -- every chrono in scope
+  // gets its own point, so several attempts the same day show as a
+  // vertical scatter instead of hiding behind one collapsed value. Pure
+  // UI state, not persisted, shared across every progression chart
+  // currently on screen.
   var progressionGranularity = 'day';
+  var progressionDayPick = null; // 'YYYY-MM-DD', re-validated against the actual date list on every render
+  var progressionEventPick = null; // an event id, same re-validation
+
+  // Every distinct date any of these riders has a chrono on this circuit --
+  // the option list for the Jour picker, and how Événement resolves which
+  // of an événement's days actually have chronos to show.
+  function circuitSessionDates(riders, circuit) {
+    var set = {};
+    STATE.sessions.forEach(function (s) {
+      if (riders.indexOf(s.rider) === -1 || s.circuit !== circuit) return;
+      set[s.date] = true;
+    });
+    return Object.keys(set).sort();
+  }
+  // Événements on this circuit that actually overlap at least one of
+  // those dates -- an événement with no chrono yet doesn't clutter the
+  // picker.
+  function circuitEventsWithSessions(riders, circuit) {
+    var dates = circuitSessionDates(riders, circuit);
+    return eventsList().filter(function (ev) {
+      if (ev.circuit !== circuit) return false;
+      var end = ev.dateEnd || ev.dateStart;
+      return dates.some(function (d) { return d >= ev.dateStart && d <= end; });
+    }).sort(function (a, b) { return a.dateStart < b.dateStart ? 1 : a.dateStart > b.dateStart ? -1 : 0; });
+  }
 
   function progressionSeriesRaw(riderName, circuit) {
     var relevant = STATE.sessions.filter(function (s) { return s.rider === riderName && s.circuit === circuit; });
-    if (progressionGranularity === 'all') {
-      return relevant.map(function (s) { return { date: s.date, time: sessionBest(s) }; });
+    if (progressionGranularity === 'day') {
+      if (!progressionDayPick) return [];
+      relevant = relevant.filter(function (s) { return s.date === progressionDayPick; });
+    } else if (progressionGranularity === 'event') {
+      var ev = progressionEventPick ? (STATE.events || []).filter(function (e) { return e.id === progressionEventPick; })[0] : null;
+      if (!ev) return [];
+      var end = ev.dateEnd || ev.dateStart;
+      relevant = relevant.filter(function (s) { return s.date >= ev.dateStart && s.date <= end; });
     }
-    var byKey = {};
-    relevant.forEach(function (s) {
-      var key = progressionGranularity === 'event' ? (s.eventId || 'noevent-' + s.id) : s.date;
-      var b = sessionBest(s);
-      if (!byKey[key]) byKey[key] = { time: b, date: s.date };
-      else {
-        if (b < byKey[key].time) byKey[key].time = b;
-        if (s.date < byKey[key].date) byKey[key].date = s.date;
-      }
-    });
-    return Object.keys(byKey).map(function (k) { return byKey[k]; });
+    // 'all' falls straight through with every session on this circuit.
+    return relevant.map(function (s) { return { date: s.date, time: sessionBest(s) }; });
   }
 
   function renderProgressionChart(riders, circuit, availableCircuits) {
@@ -2616,11 +2639,31 @@
     selectorHtml += '<div class="progression-granularity">' + [['day', 'Jour'], ['event', 'Événement'], ['all', 'All time']].map(function (g) {
       return '<button type="button" class="ghost' + (progressionGranularity === g[0] ? ' active' : '') + '" data-action="progression-granularity" data-granularity="' + g[0] + '">' + g[1] + '</button>';
     }).join('') + '</div>';
-    // Several sessions can land on the same day/événement (matin/après-
-    // midi, or just several separate entries) -- collapsed to one point
-    // per the current granularity (see progressionSeriesRaw) rather than
-    // plotting redundant/misleading points on top of each other, unless
-    // 'all' is picked specifically to see every one of them.
+    // The Jour/Événement picker only shows once there's actually a choice
+    // to make -- re-validated every render (not just when granularity
+    // changes) since switching circuit/rider can invalidate whichever day
+    // or événement was picked for a different one.
+    if (progressionGranularity === 'day') {
+      var days = circuitSessionDates(riders, circuit);
+      if (!progressionDayPick || days.indexOf(progressionDayPick) === -1) progressionDayPick = days.length ? days[days.length - 1] : null;
+      if (days.length > 1) {
+        selectorHtml += '<select id="progression-day-select" style="margin-bottom:0.8rem;">' +
+          days.map(function (d) { return '<option value="' + d + '"' + (d === progressionDayPick ? ' selected' : '') + '>' + escapeHtml(formatDate(d)) + '</option>'; }).join('') +
+          '</select>';
+      }
+    } else if (progressionGranularity === 'event') {
+      var evOptions = circuitEventsWithSessions(riders, circuit);
+      if (!progressionEventPick || !evOptions.some(function (e) { return e.id === progressionEventPick; })) {
+        progressionEventPick = evOptions.length ? evOptions[0].id : null;
+      }
+      if (evOptions.length) {
+        selectorHtml += '<select id="progression-event-select" style="margin-bottom:0.8rem;">' +
+          evOptions.map(function (e) { return '<option value="' + e.id + '"' + (e.id === progressionEventPick ? ' selected' : '') + '>' + escapeHtml(formatEventRange(e, true)) + '</option>'; }).join('') +
+          '</select>';
+      } else {
+        selectorHtml += '<div class="help-text" style="margin-bottom:0.6rem;">Aucun événement avec chrono sur ' + escapeHtml(circuit) + '.</div>';
+      }
+    }
     var series = riders.map(function (riderName) {
       var raw = progressionSeriesRaw(riderName, circuit)
         .sort(function (a, b) { return a.date < b.date ? -1 : a.date > b.date ? 1 : 0; });
@@ -8510,6 +8553,20 @@
     if (progressionCircuitSelect) {
       progressionCircuitSelect.addEventListener('change', function () {
         progressionCircuitPick = progressionCircuitSelect.value;
+        renderRoot();
+      });
+    }
+    var progressionDaySelect = document.getElementById('progression-day-select');
+    if (progressionDaySelect) {
+      progressionDaySelect.addEventListener('change', function () {
+        progressionDayPick = progressionDaySelect.value;
+        renderRoot();
+      });
+    }
+    var progressionEventSelect = document.getElementById('progression-event-select');
+    if (progressionEventSelect) {
+      progressionEventSelect.addEventListener('change', function () {
+        progressionEventPick = progressionEventSelect.value;
         renderRoot();
       });
     }
