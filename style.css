@@ -652,8 +652,9 @@
     overflow: hidden;
     background: var(--surface-alt);
     border: 1px solid var(--border);
+    position: relative;
   }
-  .crop-modal-viewport img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .crop-modal-viewport img { position: absolute; top: 50%; left: 50%; max-width: none; }
   .mini-avatar {
     display: inline-flex;
     align-items: center;

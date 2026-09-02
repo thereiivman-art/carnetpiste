@@ -575,75 +575,98 @@
 
   // ---- Recadrage de photo (badge rond) ----
   //
-  // A round badge (mini-avatar, object-fit:cover) otherwise always crops
-  // to dead-center, which is fine for a portrait but chops the sides off
-  // a wide team photo/logo. This lets whoever's uploading pick the
-  // framing first: pan (object-position, pure CSS, no math needed for
-  // the live preview) and zoom (an extra CSS scale), then replicates the
-  // exact same math against the source image's real pixels on save.
+  // A round badge (mini-avatar) otherwise always crops to dead-center,
+  // fine for a portrait but chops the sides off a wide team photo/logo
+  // (or hides "95" off the edge of "Mototeam95"). This lets whoever's
+  // uploading pick the framing: zoom (down to well below "fits the
+  // circle", so the whole image can float small inside it with empty
+  // space around, or in a lot) and pan, both in real pixels against a
+  // known viewport size (CROP_VIEWPORT) rather than CSS object-fit, since
+  // object-fit:cover can never zoom out past "fill the frame". Shared by
+  // both the Team photo and the account's own profile photo (kind
+  // 'team'|'user').
+  var CROP_VIEWPORT = 220; // must match .crop-modal-viewport's CSS width/height
   var cropModalOpen = false;
-  var cropModalTeamId = null;
+  var cropModalKind = null; // 'team' | 'user'
+  var cropModalTeamId = null; // only used for kind 'team'
   var cropModalSrc = null; // full-res data URL of the just-picked file
-  var cropZoom = 100; // 100..300, i.e. 1x..3x
-  var cropOffsetXPct = 50;
-  var cropOffsetYPct = 50;
-  function openCropModal(teamId, dataUrl) {
-    cropModalOpen = true;
-    cropModalTeamId = teamId;
-    cropModalSrc = dataUrl;
-    cropZoom = 100;
-    cropOffsetXPct = 50;
-    cropOffsetYPct = 50;
-    renderRoot();
+  var cropNaturalW = 0;
+  var cropNaturalH = 0;
+  var cropZoom = 100; // % of "contain" (whole image just fits the circle) -- 20..400
+  var cropOffsetXPx = 0;
+  var cropOffsetYPx = 0;
+  function openCropModal(kind, teamId, dataUrl) {
+    var probe = new Image();
+    probe.onload = function () {
+      cropModalOpen = true;
+      cropModalKind = kind;
+      cropModalTeamId = teamId;
+      cropModalSrc = dataUrl;
+      cropNaturalW = probe.naturalWidth;
+      cropNaturalH = probe.naturalHeight;
+      cropZoom = 100;
+      cropOffsetXPx = 0;
+      cropOffsetYPx = 0;
+      renderRoot();
+    };
+    probe.onerror = function () { showToast('Impossible de lire cette image.'); };
+    probe.src = dataUrl;
   }
   function closeCropModal() {
     cropModalOpen = false;
+    cropModalKind = null;
     cropModalTeamId = null;
     cropModalSrc = null;
     renderRoot();
+  }
+  // The image's on-screen size at the current zoom -- "contain" (whole
+  // image visible) at zoom=100, smaller below that, larger above.
+  function cropDisplaySize() {
+    var s = Math.min(CROP_VIEWPORT / cropNaturalW, CROP_VIEWPORT / cropNaturalH) * (cropZoom / 100);
+    return { w: cropNaturalW * s, h: cropNaturalH * s };
+  }
+  function cropImgTransform() {
+    var size = cropDisplaySize();
+    return 'width:' + size.w + 'px; height:' + size.h + 'px; ' +
+      'transform: translate(calc(-50% + ' + cropOffsetXPx + 'px), calc(-50% + ' + cropOffsetYPx + 'px));';
   }
   function renderCropModal() {
     if (!cropModalOpen || !cropModalSrc) return '';
     return '<div class="crop-modal-overlay">' +
       '<div class="crop-modal">' +
       '<h2 class="section-title">Recadrer la photo</h2>' +
-      '<div class="help-text">Comme elle apparaîtra en badge rond.</div>' +
-      '<div class="crop-modal-viewport"><img id="crop-modal-img" src="' + escapeHtml(cropModalSrc) + '" style="object-position:' + cropOffsetXPct + '% ' + cropOffsetYPct + '%; transform: scale(' + (cropZoom / 100) + ');"></div>' +
-      '<label style="margin-top:0.8rem; display:block;">Zoom<input type="range" id="crop-zoom" min="100" max="300" value="' + cropZoom + '"></label>' +
-      '<label style="margin-top:0.5rem; display:block;">Horizontal<input type="range" id="crop-offset-x" min="0" max="100" value="' + cropOffsetXPct + '"></label>' +
-      '<label style="margin-top:0.5rem; display:block;">Vertical<input type="range" id="crop-offset-y" min="0" max="100" value="' + cropOffsetYPct + '"></label>' +
+      '<div class="help-text">Comme elle apparaîtra en badge rond -- dézoome autant que tu veux, l\'image peut rester petite dans le cercle.</div>' +
+      '<div class="crop-modal-viewport"><img id="crop-modal-img" src="' + escapeHtml(cropModalSrc) + '" style="' + cropImgTransform() + '"></div>' +
+      '<label style="margin-top:0.8rem; display:block;">Zoom<input type="range" id="crop-zoom" min="20" max="400" step="5" value="' + cropZoom + '"></label>' +
+      '<label style="margin-top:0.5rem; display:block;">Horizontal<input type="range" id="crop-offset-x" min="-400" max="400" value="' + cropOffsetXPx + '"></label>' +
+      '<label style="margin-top:0.5rem; display:block;">Vertical<input type="range" id="crop-offset-y" min="-400" max="400" value="' + cropOffsetYPx + '"></label>' +
       '<div style="margin-top:0.8rem; display:flex; gap:0.6rem;">' +
       '<button type="button" class="primary" id="crop-save-btn">Enregistrer</button>' +
       '<button type="button" class="ghost" id="crop-cancel-btn">Annuler</button>' +
       '</div></div></div>';
   }
-  // Replicates, in source-image pixels, exactly what the CSS preview
-  // shows: object-fit:cover's own crop (viewport/image ratio) positioned
-  // by object-position%, then the extra transform:scale(zoom) shrinking
-  // that same window further inward around its own center.
-  function computeCropRect(iw, ih, xPct, yPct, zoom) {
-    var s0 = Math.max(1 / iw, 1 / ih); // vw = vh = 1 (a ratio, not a real size)
-    var coverW = 1 / s0, coverH = 1 / s0;
-    var left = (iw - coverW) * (xPct / 100);
-    var top = (ih - coverH) * (yPct / 100);
-    var w = coverW / zoom, h = coverH / zoom;
-    left += coverW * (1 - 1 / zoom) / 2;
-    top += coverH * (1 - 1 / zoom) / 2;
-    return { sx: left, sy: top, sw: w, sh: h };
-  }
   function saveCroppedPhoto() {
-    if (!cropModalTeamId || !cropModalSrc) return;
-    var teamId = cropModalTeamId;
+    if (!cropModalKind || !cropModalSrc) return;
+    var kind = cropModalKind, teamId = cropModalTeamId;
     var img = new Image();
     img.onload = function () {
-      var rect = computeCropRect(img.naturalWidth, img.naturalHeight, cropOffsetXPct, cropOffsetYPct, cropZoom / 100);
       var OUT = 400;
+      var k = OUT / CROP_VIEWPORT;
+      var size = cropDisplaySize();
+      var outW = size.w * k, outH = size.h * k;
+      var outX = (CROP_VIEWPORT / 2 + cropOffsetXPx - size.w / 2) * k;
+      var outY = (CROP_VIEWPORT / 2 + cropOffsetYPx - size.h / 2) * k;
       var canvas = document.createElement('canvas');
       canvas.width = OUT;
       canvas.height = OUT;
       var ctx = canvas.getContext('2d');
-      ctx.drawImage(img, rect.sx, rect.sy, rect.sw, rect.sh, 0, 0, OUT, OUT);
-      saveTeamPhoto(teamId, canvas.toDataURL('image/jpeg', 0.85));
+      // PNG (transparent), not JPEG -- zoomed out, the image no longer
+      // fills the whole square, and the round badge's own background
+      // should show through instead of a hard-coded fill color.
+      ctx.drawImage(img, 0, 0, img.naturalWidth, img.naturalHeight, outX, outY, outW, outH);
+      var dataUrl = canvas.toDataURL('image/png');
+      if (kind === 'team') saveTeamPhoto(teamId, dataUrl);
+      else savePhoto(dataUrl);
       closeCropModal();
     };
     img.src = cropModalSrc;
@@ -6763,6 +6786,17 @@
   // the team id it's for, same as wallPostDraftPhotoURL but scoped.
   var teamPostDraftPhotoTeamId = null;
   var teamPostDraftPhotoURL = null;
+  // Which composer, if any, is open on the Fil d'actualité -- null shows
+  // just the two "Écrire un message"/"Sondage" buttons instead of every
+  // field always expanded. One at a time, per the single teamPostDraft*
+  // vars above already being un-scoped-per-team (same convention).
+  var teamComposerMode = null; // null | 'message' | 'poll'
+  // The poll draft's question + option values, read fresh off the form
+  // right before "+ Ajouter une option" re-renders it -- otherwise
+  // growing the options list would blow away whatever was already typed
+  // (renderRoot() rebuilds the whole form from scratch every time).
+  var pollDraftQuestion = '';
+  var pollDraftOptions = ['', ''];
   // Which Team's own profile photo (Réglages) is currently being replaced
   // -- unlike teamPostDraftPhotoURL above, this uploads straight to the
   // team doc on selection (see saveTeamPhoto), no preview/draft step.
@@ -6996,19 +7030,48 @@
   // teamName is only passed when this entry shows up out of its own Team
   // card (i.e. on the Mur, see renderWallFeed) -- inside the Team card
   // itself the team is already the whole context, so it's omitted there.
+  var editingTeamPostId = null; // id of the one Fil d'actualité post currently shown as an inline edit form, or null
   function renderTeamFeedEntry(f, me, teamName) {
     if (f.type === 'poll') return renderTeamPollEntry(f, me, teamName);
+    var canEdit = !!(me && f.author === me.name);
+    var canDelete = !!(me && (f.author === me.name || isLeaderOfTeam(f.teamId)));
+    if (canEdit && editingTeamPostId === f.id) {
+      return '<div class="wall-post"><form data-action="team-post-edit-form" data-id="' + f.id + '">' +
+        '<input type="text" value="' + escapeHtml(f.text || '') + '" placeholder="Écrire au team..." data-team-post-edit-text>' +
+        '<input type="url" value="' + escapeHtml(f.linkUrl || '') + '" placeholder="Lien (optionnel)" data-team-post-edit-link>' +
+        '<div style="display:flex; gap:0.5rem; margin-top:0.4rem;"><button type="submit" class="primary">Enregistrer</button>' +
+        '<button type="button" class="ghost" data-action="team-post-edit-cancel">Annuler</button></div></form></div>';
+    }
     var html = '<div class="wall-post">';
     html += '<div class="wall-post-head"><span class="friend-name-plain">' + escapeHtml(f.author) + '</span>' +
       (teamName ? '<span class="friend-role-badge">' + escapeHtml(teamName) + '</span>' : '') +
       (f.audience === 'adherents' ? '<span class="friend-role-badge adherent-badge">Adhérents</span>' : '') +
-      '<span class="feed-entry-time">' + escapeHtml(relativeTime(f.createdAt)) + '</span></div>';
+      '<span class="feed-entry-time">' + escapeHtml(relativeTime(f.editedAt || f.createdAt)) + (f.editedAt ? ' (modifié)' : '') + '</span>' +
+      (canEdit ? '<button type="button" class="ghost icon-btn" data-action="team-post-edit" data-id="' + f.id + '" aria-label="Modifier" title="Modifier">✎</button>' : '') +
+      (canDelete ? '<button type="button" class="ghost icon-btn" data-action="team-post-delete" data-id="' + f.id + '" aria-label="Supprimer" title="Supprimer">×</button>' : '') +
+      '</div>';
     if (f.text) html += '<div class="wall-post-text">' + escapeHtml(f.text) + '</div>';
     if (f.linkUrl) html += '<a class="wall-post-link" href="' + escapeHtml(f.linkUrl) + '" target="_blank" rel="noopener">🔗 ' + escapeHtml(f.linkUrl) + '</a>';
     if (f.photoURL) html += '<img class="wall-post-photo" src="' + escapeHtml(f.photoURL) + '" alt="">';
     html += renderReactionBar(f.reactions, 'react-team-post', f.id);
     html += '</div>';
     return html;
+  }
+  function updateTeamFeedPost(id, text, linkUrl) {
+    text = (text || '').trim();
+    linkUrl = (linkUrl || '').trim();
+    if (!text && !linkUrl) { showToast('Le message ne peut pas être vide.'); return; }
+    db.collection('teamFeed').doc(id).update({ text: text || null, linkUrl: linkUrl || null, editedAt: Date.now() }).then(function () {
+      editingTeamPostId = null;
+      renderRoot();
+    }).catch(function (err) {
+      showToast('Erreur : ' + (err && err.message ? err.message : err));
+    });
+  }
+  function deleteTeamFeedPost(id) {
+    db.collection('teamFeed').doc(id).delete().catch(function (err) {
+      showToast('Erreur : ' + (err && err.message ? err.message : err));
+    });
   }
 
   // One unified "Membres" list, not two -- a plain member listing for
@@ -7318,25 +7381,39 @@
           '<option value="adherents">Adhérents seulement</option>' +
           '</select>'
         : '';
-      feedBody += '<form class="team-feed-form" data-action="team-feed-form" data-team="' + team.id + '">' +
-        '<input type="text" placeholder="Écrire au team..." data-team-feed-input>' +
-        '<input type="url" placeholder="Lien (optionnel)" data-team-feed-link>' +
-        (teamPostDraftPhotoTeamId === team.id && teamPostDraftPhotoURL
-          ? '<img class="wall-post-photo-preview" src="' + escapeHtml(teamPostDraftPhotoURL) + '" alt="">' +
-            '<button type="button" class="ghost" data-action="team-feed-photo-remove">Retirer la photo</button>'
-          : '') +
-        audienceSelect +
-        '<div style="display:flex; gap:0.5rem;">' +
-        '<button type="button" class="ghost icon-btn" data-action="team-feed-photo-btn" data-team="' + team.id + '" aria-label="Ajouter une photo" title="Ajouter une photo">📷</button>' +
-        '<button type="submit" class="primary">Publier</button>' +
-        '</div></form>';
-      feedBody += '<form class="team-poll-form" data-action="team-poll-form" data-team="' + team.id + '">' +
-        '<input type="text" placeholder="Créer un sondage : la question" data-poll-question>' +
-        '<input type="text" placeholder="Option 1" data-poll-option>' +
-        '<input type="text" placeholder="Option 2" data-poll-option>' +
-        '<input type="text" placeholder="Option 3 (optionnel)" data-poll-option>' +
-        audienceSelect +
-        '<button type="submit" class="ghost">Publier le sondage</button></form>';
+      if (teamComposerMode === 'message') {
+        feedBody += '<form class="team-feed-form" data-action="team-feed-form" data-team="' + team.id + '">' +
+          '<input type="text" placeholder="Écrire au team..." data-team-feed-input autofocus>' +
+          '<input type="url" placeholder="Lien (optionnel)" data-team-feed-link>' +
+          (teamPostDraftPhotoTeamId === team.id && teamPostDraftPhotoURL
+            ? '<img class="wall-post-photo-preview" src="' + escapeHtml(teamPostDraftPhotoURL) + '" alt="">' +
+              '<button type="button" class="ghost" data-action="team-feed-photo-remove">Retirer la photo</button>'
+            : '') +
+          audienceSelect +
+          '<div style="display:flex; gap:0.5rem;">' +
+          '<button type="button" class="ghost icon-btn" data-action="team-feed-photo-btn" data-team="' + team.id + '" aria-label="Ajouter une photo" title="Ajouter une photo">📷</button>' +
+          '<button type="submit" class="primary">Publier</button>' +
+          '<button type="button" class="ghost" data-action="team-composer-close">Annuler</button>' +
+          '</div></form>';
+      } else if (teamComposerMode === 'poll') {
+        var optionInputs = pollDraftOptions.map(function (val, pi) {
+          return '<input type="text" placeholder="Option ' + (pi + 1) + (pi >= 2 ? ' (optionnel)' : '') + '" value="' + escapeHtml(val) + '" data-poll-option>';
+        }).join('');
+        feedBody += '<form class="team-poll-form" data-action="team-poll-form" data-team="' + team.id + '">' +
+          '<input type="text" placeholder="Créer un sondage : la question" value="' + escapeHtml(pollDraftQuestion) + '" data-poll-question autofocus>' +
+          optionInputs +
+          '<button type="button" class="ghost" data-action="team-poll-add-option">+ Ajouter une option</button>' +
+          audienceSelect +
+          '<div style="display:flex; gap:0.5rem; margin-top:0.4rem;">' +
+          '<button type="submit" class="ghost">Publier le sondage</button>' +
+          '<button type="button" class="ghost" data-action="team-composer-close">Annuler</button>' +
+          '</div></form>';
+      } else {
+        feedBody += '<div style="display:flex; gap:0.5rem; margin-top:0.6rem;">' +
+          '<button type="button" class="ghost" data-action="team-composer-open" data-mode="message">✎ Écrire un message</button>' +
+          '<button type="button" class="ghost" data-action="team-composer-open" data-mode="poll">📊 Sondage</button>' +
+          '</div>';
+      }
     }
     html += collapsibleSection('team-feed-' + team.id, 'Fil d\'actualité (' + feed.length + ')', feedBody);
 
@@ -7592,7 +7669,14 @@
   // actually in -- a discoverable team it isn't in has no such data.
   function renderTeamTile(t, innerActionsHtml, clickable) {
     var likeCount = (STATE.teamLikes || []).filter(function (l) { return l.teamId === t.id; }).length;
-    var memberCount = t.memberCount || 0;
+    // t.memberCount was never actually written anywhere (no denormalized
+    // counter maintained on the team doc), so it was always 0/undefined --
+    // teamMembersByTeam is the real roster, already synced for every team
+    // this account is in (see refreshTeamDetailSync), which covers every
+    // tile in "Mes Teams" (team-tile-grid). Discovery tiles for teams
+    // this account isn't in still fall back to the (currently unused)
+    // field, since their roster was never fetched.
+    var memberCount = ((STATE.teamMembersByTeam || {})[t.id] || []).length || t.memberCount || 0;
     var desc = t.description ? '<div class="team-tile-desc">' + escapeHtml(t.description) + '</div>' : '';
     var mainInner = avatarHtml(t, t.name) +
       '<div class="team-tile-name">' + escapeHtml(t.name) + teamBadgesHtml(t) + '</div>' +
@@ -8253,13 +8337,13 @@
           renderRoot();
           return;
         }
-        resizeImageToDataUrl(file, 200, 0.7, function (dataUrl) {
+        resizeImageToDataUrl(file, 1000, 0.85, function (dataUrl) {
           if (!dataUrl) {
             profilePhotoMessage = 'Impossible de lire cette image.';
             renderRoot();
             return;
           }
-          savePhoto(dataUrl);
+          openCropModal('user', null, dataUrl);
         });
       });
     }
@@ -8444,10 +8528,10 @@
         var audienceSelect = form.querySelector('[data-team-feed-audience]');
         var photoURL = (teamPostDraftPhotoTeamId === teamId) ? teamPostDraftPhotoURL : null;
         postTeamFeedMessage(teamId, textInput ? textInput.value : '', linkInput ? linkInput.value : '', photoURL, audienceSelect ? audienceSelect.value : null);
-        if (textInput) textInput.value = '';
-        if (linkInput) linkInput.value = '';
         teamPostDraftPhotoTeamId = null;
         teamPostDraftPhotoURL = null;
+        teamComposerMode = null;
+        renderRoot();
       });
     });
     document.querySelectorAll('[data-action="team-feed-photo-btn"]').forEach(function (btn) {
@@ -8487,7 +8571,44 @@
         var options = Array.prototype.map.call(form.querySelectorAll('[data-poll-option]'), function (el) { return el.value; });
         var audienceSelect = form.querySelector('[data-team-feed-audience]');
         postTeamPoll(form.getAttribute('data-team'), question, options, audienceSelect ? audienceSelect.value : null);
-        form.reset();
+        // Same "question + at least 2 options" check postTeamPoll makes
+        // internally -- only close the composer once it's actually valid,
+        // so an incomplete draft (and postTeamPoll's own toast) isn't
+        // silently thrown away.
+        if (question.trim() && options.filter(function (o) { return o.trim(); }).length >= 2) {
+          teamComposerMode = null;
+          pollDraftQuestion = '';
+          pollDraftOptions = ['', ''];
+          renderRoot();
+        }
+      });
+    });
+    document.querySelectorAll('[data-action="team-composer-open"]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        teamComposerMode = btn.getAttribute('data-mode');
+        pollDraftQuestion = '';
+        pollDraftOptions = ['', ''];
+        renderRoot();
+      });
+    });
+    document.querySelectorAll('[data-action="team-composer-close"]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        teamComposerMode = null;
+        teamPostDraftPhotoTeamId = null;
+        teamPostDraftPhotoURL = null;
+        renderRoot();
+      });
+    });
+    document.querySelectorAll('[data-action="team-poll-add-option"]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var form = btn.closest('form');
+        if (form) {
+          var questionEl = form.querySelector('[data-poll-question]');
+          pollDraftQuestion = questionEl ? questionEl.value : pollDraftQuestion;
+          pollDraftOptions = Array.prototype.map.call(form.querySelectorAll('[data-poll-option]'), function (el) { return el.value; });
+        }
+        pollDraftOptions.push('');
+        renderRoot();
       });
     });
     document.querySelectorAll('[data-action="team-poll-vote"]').forEach(function (btn) {
@@ -8541,7 +8662,7 @@
         // still real detail left to pan/zoom into in the crop modal.
         resizeImageToDataUrl(file, 1000, 0.85, function (dataUrl) {
           if (!dataUrl) { showToast('Impossible de lire cette image.'); return; }
-          openCropModal(teamPhotoUploadTeamId, dataUrl);
+          openCropModal('team', teamPhotoUploadTeamId, dataUrl);
         });
       });
     }
@@ -8585,17 +8706,24 @@
     // Live preview via direct style writes (no renderRoot()) so dragging
     // a slider stays smooth -- the module vars are kept in sync too, so
     // whatever the preview shows is exactly what saveCroppedPhoto() crops.
+    var applyCropTransform = function () {
+      if (!cropModalImgEl) return;
+      var size = cropDisplaySize();
+      cropModalImgEl.style.width = size.w + 'px';
+      cropModalImgEl.style.height = size.h + 'px';
+      cropModalImgEl.style.transform = 'translate(calc(-50% + ' + cropOffsetXPx + 'px), calc(-50% + ' + cropOffsetYPx + 'px))';
+    };
     if (cropModalImgEl && cropZoomEl) {
       cropZoomEl.addEventListener('input', function () {
         cropZoom = parseInt(cropZoomEl.value, 10);
-        cropModalImgEl.style.transform = 'scale(' + (cropZoom / 100) + ')';
+        applyCropTransform();
       });
     }
     if (cropModalImgEl && cropOffsetXEl && cropOffsetYEl) {
       var updateCropOffset = function () {
-        cropOffsetXPct = parseInt(cropOffsetXEl.value, 10);
-        cropOffsetYPct = parseInt(cropOffsetYEl.value, 10);
-        cropModalImgEl.style.objectPosition = cropOffsetXPct + '% ' + cropOffsetYPct + '%';
+        cropOffsetXPx = parseInt(cropOffsetXEl.value, 10);
+        cropOffsetYPx = parseInt(cropOffsetYEl.value, 10);
+        applyCropTransform();
       };
       cropOffsetXEl.addEventListener('input', updateCropOffset);
       cropOffsetYEl.addEventListener('input', updateCropOffset);
@@ -8673,6 +8801,23 @@
         var entry = (STATE.teamFeed || []).filter(function (f) { return f.id === id; })[0];
         toggleReaction('teamFeed', id, btn.getAttribute('data-emoji'), entry && entry.reactions);
       });
+    });
+    document.querySelectorAll('[data-action="team-post-edit"]').forEach(function (btn) {
+      btn.addEventListener('click', function () { editingTeamPostId = btn.getAttribute('data-id'); renderRoot(); });
+    });
+    document.querySelectorAll('[data-action="team-post-edit-cancel"]').forEach(function (btn) {
+      btn.addEventListener('click', function () { editingTeamPostId = null; renderRoot(); });
+    });
+    document.querySelectorAll('[data-action="team-post-edit-form"]').forEach(function (form) {
+      form.addEventListener('submit', function (evt) {
+        evt.preventDefault();
+        var textEl = form.querySelector('[data-team-post-edit-text]');
+        var linkEl = form.querySelector('[data-team-post-edit-link]');
+        updateTeamFeedPost(form.getAttribute('data-id'), textEl ? textEl.value : '', linkEl ? linkEl.value : '');
+      });
+    });
+    document.querySelectorAll('[data-action="team-post-delete"]').forEach(function (btn) {
+      btn.addEventListener('click', function () { deleteTeamFeedPost(btn.getAttribute('data-id')); });
     });
     document.querySelectorAll('[data-action="react-event"]').forEach(function (btn) {
       btn.addEventListener('click', function () {

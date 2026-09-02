@@ -384,15 +384,19 @@ service cloud.firestore {
         isTeamLeader(request.resource.data.teamId)
         || (isTeamMember(request.resource.data.teamId) && teamPostPolicy(request.resource.data.teamId) == 'members')
       );
-      // A poll vote or an emoji reaction is the only update allowed on an
-      // existing post: any team member may cast/change their own vote
-      // (votes.<myName()>) or reaction (reactions.<myName()>), one map at
-      // a time, own key only -- nothing else about the post may change.
+      // A poll vote or an emoji reaction is the only update allowed for
+      // any team member: cast/change their own vote (votes.<myName()>)
+      // or reaction (reactions.<myName()>), one map at a time, own key
+      // only. The post's own author may separately edit its text/link
+      // (never a poll's question/options -- votes would no longer match
+      // what was asked).
       allow update: if verified() && isTeamMember(resource.data.teamId) && (
         (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['votes'])
           && onlyOwnKeyChanged(resource.data.get('votes', {}), request.resource.data.votes))
         || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reactions'])
           && onlyOwnKeyChanged(resource.data.get('reactions', {}), request.resource.data.reactions))
+        || (resource.data.author == myName()
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['text', 'linkUrl', 'editedAt']))
       );
       allow delete: if verified() && (isAdmin() || resource.data.author == myName() || isTeamLeader(resource.data.teamId));
     }
