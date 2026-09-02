@@ -182,16 +182,36 @@ service cloud.firestore {
     // a Team PRO) -- a follower can never self-grant 'adherent' on
     // create (no payment backend here, so that's trust-based and only the
     // Team's own leader can promote/demote it via update).
+    // A Team Leader can also create/delete a team-type follow row for
+    // anyone directly (grant/revoke "droits de suivi" from the unified
+    // member-management panel, see renderTeamMembersManagement) -- always
+    // capped to tier 'follower' on create either way, same as a
+    // self-follow; only the separate update path above ever sets
+    // 'adherent'.
     match /follows/{id} {
       allow read: if request.auth != null;
-      allow create: if verified() && request.resource.data.follower == myName()
-        && (request.resource.data.get('followeeType', 'user') != 'user' || request.resource.data.followee != myName())
-        && request.resource.data.get('tier', 'follower') == 'follower';
-      allow update: if verified() && resource.data.followeeType == 'team'
-        && isTeamLeader(resource.data.followee)
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['tier'])
-        && (request.resource.data.tier == 'adherent' || request.resource.data.tier == 'follower');
-      allow delete: if verified() && resource.data.follower == myName();
+      allow create: if verified() && request.resource.data.get('tier', 'follower') == 'follower' && (
+        (request.resource.data.follower == myName()
+          && (request.resource.data.get('followeeType', 'user') != 'user' || request.resource.data.followee != myName()))
+        || (request.resource.data.get('followeeType', 'user') == 'team' && isTeamLeader(request.resource.data.followee))
+      );
+      // adherentRequested is the follower's own self-service "I'd like to
+      // become an adherent" flag (see requestTeamAdherent) -- they can
+      // only ever set it themselves, never clear someone else's or set
+      // tier; the leader is the only one who can act on it (accept: tier
+      // 'adherent' + adherentRequested false in one write; decline: just
+      // clears the flag), from the unified member-management panel.
+      allow update: if verified() && resource.data.followeeType == 'team' && (
+        (isTeamLeader(resource.data.followee)
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['tier', 'adherentRequested'])
+          && (request.resource.data.tier == 'adherent' || request.resource.data.tier == 'follower'))
+        || (resource.data.follower == myName()
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['adherentRequested']))
+      );
+      allow delete: if verified() && (
+        resource.data.follower == myName()
+        || (resource.data.followeeType == 'team' && isTeamLeader(resource.data.followee))
+      );
     }
     // Teams (an organisateur's squad of pilotes, or any group of friends
     // riding together) -- the team doc itself is just identity; who's in
@@ -204,9 +224,14 @@ service cloud.firestore {
       // postPolicy...) but never this one themselves.
       allow create: if verified() && request.resource.data.createdBy == myName()
         && request.resource.data.get('teamPro', false) == false;
+      // memberCount is a display-only counter (member tiles/discovery, see
+      // renderTeamTile) nudged by whoever's own join/leave changed it --
+      // not a security-sensitive field, so any verified account may bump
+      // it, same trust level as a like.
       allow update: if verified() && (
         isAdmin()
         || (isTeamLeader(teamId) && request.resource.data.get('teamPro', false) == resource.data.get('teamPro', false))
+        || request.resource.data.diff(resource.data).affectedKeys().hasOnly(['memberCount'])
       );
       allow delete: if verified() && (isAdmin() || isTeamLeader(teamId));
     }
@@ -226,15 +251,11 @@ service cloud.firestore {
             && hasAcceptedTeamInvite(request.resource.data.teamId))
         || isTeamLeader(request.resource.data.teamId)
       );
-      // A leader can change anything on a member's doc (role, adherent...);
-      // the member themselves can only ever flip their own
-      // adherentRequested (asking to become an adherent -- see
-      // requestTeamAdherent), never adherent itself, which stays the
-      // leader's call alone.
-      allow update: if verified() && (
-        isAdmin() || isTeamLeader(resource.data.teamId)
-        || (resource.data.name == myName() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['adherentRequested']))
-      );
+      // A leader can change anything on a member's doc -- role (Team
+      // Leader/Membre) and teamRole (a free-form in-team tag: mécano,
+      // assistant, photographe...). Adherent status lives on the
+      // matching follows doc instead (see follows below), not here.
+      allow update: if verified() && (isAdmin() || isTeamLeader(resource.data.teamId));
       allow delete: if verified() && (isAdmin() || isTeamLeader(resource.data.teamId) || resource.data.name == myName());
     }
     // A non-member asking to join a Team, either as a plain member or

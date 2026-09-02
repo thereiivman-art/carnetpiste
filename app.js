@@ -13,7 +13,7 @@
   var auth = firebase.auth();
   var STATE = {
     sessions: [], events: [], circuits: {}, riders: [], usersByName: {}, friendRequests: [], feedEvents: [], myFollows: [], myFollowedTeams: [],
-    myFollowedTeamTiers: {}, teams: [], myTeamMemberships: [], teamInvites: [], teamMembersByTeam: {}, teamFeed: [], teamFollowersByTeam: {},
+    myFollowedTeamTiers: {}, myTeamFollowDocs: {}, teams: [], myTeamMemberships: [], teamInvites: [], teamMembersByTeam: {}, teamFeed: [], teamFollowersByTeam: {},
     followedTeamFeed: [], wallPosts: [], coachRequests: [], teamJoinRequests: [], teamLikes: []
   };
   var canPersist = false;
@@ -26,6 +26,12 @@
   var authMode = 'login'; // 'login' | 'signup' -- which form the auth screen shows
   var authError = '';
   var autoVerifyEmailSent = false; // guards the auto-resend in onAuthStateChanged, see there
+  // Set right before an interactive login/signup attempt, consumed the
+  // next time onAuthStateChanged actually lands on 'signed-in' -- lets
+  // that one shared handler (also fired on every page reload's session
+  // restore) tell a *fresh* connection apart from just reopening the app,
+  // so the home tab/profile panel only reset on the former.
+  var justAuthenticated = false;
   var riderBikeMap = {}; // rider name -> their bike, from users/{uid}.bike (see startSync)
 
   // name -> filleul count, fetched on demand (not live-synced) since it's
@@ -143,15 +149,6 @@
       showToast('Erreur : ' + (err && err.message ? err.message : err));
     });
   }
-  // Promote/demote one follower's membership tier on a Team PRO ("club") --
-  // leader-only (see firestore.rules' follows update rule), the follower
-  // themselves can't self-grant 'adherent' (a paid membership, tracked
-  // outside the app since there's no payment backend here).
-  function setTeamFollowerTier(followId, tier) {
-    db.collection('follows').doc(followId).update({ tier: tier }).catch(function (err) {
-      showToast('Erreur : ' + (err && err.message ? err.message : err));
-    });
-  }
 
   // Same delete either way -- declining a request received, cancelling one
   // sent, and un-friending an accepted one are all just removing the doc.
@@ -252,7 +249,7 @@
     name = (name || '').trim();
     if (!me || !name) return;
     var teamId = genId();
-    db.collection('teams').doc(teamId).set({ id: teamId, name: name, createdBy: me.name, createdAt: Date.now() }).then(function () {
+    db.collection('teams').doc(teamId).set({ id: teamId, name: name, createdBy: me.name, createdAt: Date.now(), memberCount: 1 }).then(function () {
       return db.collection('teamMembers').doc(teamMemberDocId(teamId, me.name)).set({ teamId: teamId, name: me.name, role: 'leader', joinedAt: Date.now() });
     }).then(function () {
       showToast('Team "' + name + '" créée.', 'success');
@@ -283,6 +280,7 @@
       });
     }).then(function () {
       showToast('Bienvenue dans "' + invite.teamName + '".', 'success');
+      bumpTeamMemberCount(invite.teamId, 1);
     }).catch(function (err) {
       showToast('Erreur : ' + (err && err.message ? err.message : err));
     });
@@ -294,9 +292,17 @@
     });
   }
 
+  // Display-only counter (see renderTeamTile) -- nudged by whoever's own
+  // action changed it, not read-then-written, so concurrent joins/leaves
+  // never race each other (increment() is a server-side atomic op).
+  function bumpTeamMemberCount(teamId, delta) {
+    db.collection('teams').doc(teamId).update({ memberCount: firebase.firestore.FieldValue.increment(delta) }).catch(function () {});
+  }
+
   // Same doc either way, whether a leader removes someone else or a
   // member removes themselves (leaving the team) -- see firestore.rules.
   function removeTeamMember(teamId, name) {
+    bumpTeamMemberCount(teamId, -1);
     db.collection('teamMembers').doc(teamMemberDocId(teamId, name)).delete().catch(function (err) {
       showToast('Erreur : ' + (err && err.message ? err.message : err));
     });
@@ -308,41 +314,105 @@
     });
   }
 
-  // An already-joined member asking their own Team Leader to promote them
-  // to adherent (paying club member) -- self-service, only the
-  // adherentRequested flag (firestore.rules blocks anything else on a
-  // self-update); the leader alone can actually flip adherent itself, see
-  // decideTeamAdherentRequest.
+  function teamOpError(err) {
+    showToast('Erreur : ' + (err && err.message ? err.message : err));
+  }
+
+  // Adherent status lives entirely on the follows doc (tier), whether or
+  // not the person is also a teamMembers member -- one unified concept
+  // per the brief's "octroyer ou retirer les droits de suivi, membre,
+  // adhérent et team leader", not two parallel ones. A member asking
+  // their own Team Leader to promote them to adherent just sets their own
+  // adherentRequested (creating their own follows doc first if they
+  // never followed); the leader alone can actually flip tier itself, see
+  // decideTeamAdherentRequest / setTeamMemberStatus below.
   function requestTeamAdherent(teamId) {
     var me = currentUserProfile;
     if (!me) return;
-    db.collection('teamMembers').doc(teamMemberDocId(teamId, me.name)).update({ adherentRequested: true }).then(function () {
+    var existing = (STATE.myTeamFollowDocs || {})[teamId];
+    var id = existing ? existing.id : teamMemberDocId(teamId, me.name);
+    db.collection('follows').doc(id).set({
+      follower: me.name, followee: teamId, followeeType: 'team', adherentRequested: true
+    }, { merge: true }).then(function () {
       showToast('Demande d\'adhésion envoyée.', 'success');
-    }).catch(function (err) {
-      showToast('Erreur : ' + (err && err.message ? err.message : err));
-    });
+    }).catch(teamOpError);
   }
-  // Leader-only in practice (firestore.rules' teamMembers update rule) --
-  // accept sets adherent and clears the request; decline just clears it.
-  function decideTeamAdherentRequest(teamId, name, accept) {
-    db.collection('teamMembers').doc(teamMemberDocId(teamId, name)).update({
-      adherentRequested: false, adherent: accept
-    }).catch(function (err) {
-      showToast('Erreur : ' + (err && err.message ? err.message : err));
-    });
+  // Leader-only in practice (firestore.rules' follows update rule) --
+  // accept sets tier 'adherent' and clears the request; decline just
+  // clears it. followId is the requester's own follows doc (it must
+  // exist for a request to have been made at all).
+  function decideTeamAdherentRequest(followId, accept) {
+    db.collection('follows').doc(followId).update({
+      adherentRequested: false, tier: accept ? 'adherent' : 'follower'
+    }).catch(teamOpError);
   }
 
-  // A non-member asking to join a Team PRO ("club") -- either as a plain
-  // member or straight in as an adherent (see renderTeamDiscovery); the
-  // leader accepts by creating the teamMembers doc themselves (see
-  // acceptTeamJoinRequest), teamJoinRequests itself never gets an
-  // "accepted" status, only created then deleted either way.
-  function requestJoinTeam(teamId, kind) {
+  // The unified member-management panel's one entry point (see
+  // renderTeamMembersManagement) -- statusKey is 'follow' | 'member' |
+  // 'adherent' | 'leader', independently toggled per the brief. Granting
+  // 'adherent' or 'leader' to someone with no existing follows/teamMembers
+  // doc yet creates it first (as plain follower/member) since
+  // firestore.rules never lets either be created with an elevated status
+  // directly -- only promoted to one via a separate update, same
+  // create-then-elevate shape as everywhere else trust badges work here.
+  function setTeamMemberStatus(teamId, followDoc, memberDoc, name, statusKey, on) {
+    if (statusKey === 'follow') {
+      if (on) {
+        var newId = followDoc ? followDoc.id : teamMemberDocId(teamId, name);
+        db.collection('follows').doc(newId).set({ follower: name, followee: teamId, followeeType: 'team' }, { merge: true }).catch(teamOpError);
+      } else if (followDoc) {
+        db.collection('follows').doc(followDoc.id).delete().catch(teamOpError);
+      }
+      return;
+    }
+    if (statusKey === 'adherent') {
+      var fid = followDoc ? followDoc.id : teamMemberDocId(teamId, name);
+      var fref = db.collection('follows').doc(fid);
+      var ensure = followDoc ? Promise.resolve() : fref.set({ follower: name, followee: teamId, followeeType: 'team' });
+      ensure.then(function () {
+        return fref.update({ tier: on ? 'adherent' : 'follower', adherentRequested: false });
+      }).catch(teamOpError);
+      return;
+    }
+    if (statusKey === 'member') {
+      if (on) {
+        db.collection('teamMembers').doc(teamMemberDocId(teamId, name)).set({ teamId: teamId, name: name, role: 'member', joinedAt: Date.now() }, { merge: true })
+          .then(function () { bumpTeamMemberCount(teamId, 1); }).catch(teamOpError);
+      } else {
+        removeTeamMember(teamId, name);
+      }
+      return;
+    }
+    if (statusKey === 'leader') {
+      if (on && !memberDoc) {
+        db.collection('teamMembers').doc(teamMemberDocId(teamId, name)).set({ teamId: teamId, name: name, role: 'leader', joinedAt: Date.now() }, { merge: true })
+          .then(function () { bumpTeamMemberCount(teamId, 1); }).catch(teamOpError);
+      } else {
+        setTeamMemberRole(teamId, name, on ? 'leader' : 'member');
+      }
+    }
+  }
+  // Free-form in-team tag a Team Leader can hang on any member -- mécano,
+  // assistant, photographe, etc. (see the brief) -- entirely separate
+  // from role (leader/member) and adherent, just a label.
+  function setTeamMemberTeamRole(teamId, name, teamRole) {
+    db.collection('teamMembers').doc(teamMemberDocId(teamId, name)).update({ teamRole: (teamRole || '').trim() || null }).catch(teamOpError);
+  }
+
+  // A non-member asking to join a Team as a plain member -- adherent is
+  // never requested directly, only granted afterwards by a Team Leader
+  // (see decideTeamAdherentRequest and the unified member-management
+  // panel, renderTeamMembersManagement). The leader accepts by creating
+  // the teamMembers doc themselves (see acceptTeamJoinRequest);
+  // teamJoinRequests itself never gets an "accepted" status, only
+  // created then deleted either way. kind is kept on the doc for
+  // forward-compatibility with older requests already in flight.
+  function requestJoinTeam(teamId) {
     var me = currentUserProfile;
     var team = teamById(teamId);
     if (!me || !team) return;
     db.collection('teamJoinRequests').doc(teamMemberDocId(teamId, me.name)).set({
-      teamId: teamId, teamName: team.name, from: me.name, kind: kind, status: 'pending'
+      teamId: teamId, teamName: team.name, from: me.name, kind: 'member', status: 'pending'
     }).then(function () {
       showToast('Demande envoyée à ' + team.name + '.', 'success');
     }).catch(function (err) {
@@ -351,12 +421,12 @@
   }
   function acceptTeamJoinRequest(req) {
     db.collection('teamMembers').doc(teamMemberDocId(req.teamId, req.from)).set({
-      teamId: req.teamId, name: req.from, role: 'member', joinedAt: Date.now(),
-      adherent: req.kind === 'adherent'
+      teamId: req.teamId, name: req.from, role: 'member', joinedAt: Date.now()
     }, { merge: true }).then(function () {
       return db.collection('teamJoinRequests').doc(req.id).delete();
     }).then(function () {
       showToast(req.from + ' a rejoint ' + req.teamName + '.', 'success');
+      bumpTeamMemberCount(req.teamId, 1);
     }).catch(function (err) {
       showToast('Erreur : ' + (err && err.message ? err.message : err));
     });
@@ -468,13 +538,37 @@
     });
   }
 
+  // Deleting a Team (amateur or PRO) requires the same fresh
+  // reauthentication as deleting one's own account -- a leader typing
+  // their password again is the one confirmation step that can't be
+  // fat-fingered the way a second click can.
+  // Which team's full detail is open below the tile grid (see
+  // renderTeamTile/renderTeamTab) -- one at a time, so the tab stays
+  // uncluttered. manageTeamsOpen is the small "which of my Teams am I a
+  // leader of" picker behind the "Gestion des Teams" button.
+  var expandedTeamId = null;
+  var manageTeamsOpen = false;
   var pendingDeleteTeamId = null;
-  function deleteTeam(teamId) {
-    db.collection('teams').doc(teamId).delete().then(function () {
+  var teamDeleteMessage = '';
+  function deleteTeam(teamId, currentPassword) {
+    var user = auth.currentUser;
+    if (!user) return;
+    if (!currentPassword) {
+      teamDeleteMessage = 'Indique ton mot de passe actuel pour confirmer.';
+      renderRoot();
+      return;
+    }
+    var cred = firebase.auth.EmailAuthProvider.credential(user.email, currentPassword);
+    user.reauthenticateWithCredential(cred).then(function () {
+      return db.collection('teams').doc(teamId).delete();
+    }).then(function () {
       pendingDeleteTeamId = null;
+      teamDeleteMessage = '';
       showToast('Team supprimé.', 'success');
+      renderRoot();
     }).catch(function (err) {
-      showToast('Erreur : ' + (err && err.message ? err.message : err));
+      teamDeleteMessage = translateAuthError(err);
+      renderRoot();
     });
   }
 
@@ -6162,21 +6256,17 @@
   // A team's roster and feed (see refreshTeamDetailSync) only ever cover
   // the team(s) this account is actually in -- there's no "browse other
   // teams" here, same boundary as Social's friend-only visibility.
-  function renderTeamMemberRow(teamId, member, isLeader, myName, teamPro) {
+  // Read-only member listing -- promoting/demoting, granting/revoking
+  // adherent and suivi, and everything else a leader can DO to a member
+  // now lives in the unified renderTeamMembersManagement panel instead,
+  // so this row only carries the one self-service action every member
+  // has for themselves (request adherent / quitter).
+  function renderTeamMemberRow(teamId, member, myName, isAdherent, adherentRequested) {
     var u = (STATE.usersByName || {})[member.name] || {};
     var actions = '';
-    if (isLeader && member.name !== myName) {
-      actions += member.role === 'leader'
-        ? '<button type="button" class="ghost icon-btn" data-action="team-demote" data-team="' + teamId + '" data-name="' + escapeHtml(member.name) + '" aria-label="Retirer Team Leader" title="Retirer Team Leader">↓</button>'
-        : '<button type="button" class="ghost icon-btn" data-action="team-promote" data-team="' + teamId + '" data-name="' + escapeHtml(member.name) + '" aria-label="Nommer Team Leader" title="Nommer Team Leader">↑</button>';
-      if (teamPro && member.adherentRequested) {
-        actions += '<button type="button" class="primary" data-action="team-adherent-accept" data-team="' + teamId + '" data-name="' + escapeHtml(member.name) + '">Valider adhérent</button>' +
-          '<button type="button" class="ghost" data-action="team-adherent-decline" data-team="' + teamId + '" data-name="' + escapeHtml(member.name) + '">Refuser</button>';
-      }
-      actions += '<button type="button" class="ghost icon-btn" data-action="team-remove-member" data-team="' + teamId + '" data-name="' + escapeHtml(member.name) + '" aria-label="Retirer du team" title="Retirer du team">×</button>';
-    } else if (member.name === myName) {
-      if (teamPro && !member.adherent) {
-        actions += member.adherentRequested
+    if (member.name === myName) {
+      if (!isAdherent) {
+        actions += adherentRequested
           ? '<span class="help-text">Demande envoyée</span>'
           : '<button type="button" class="ghost" data-action="team-request-adherent" data-team="' + teamId + '">Devenir adhérent</button>';
       }
@@ -6191,7 +6281,8 @@
     return '<div class="friend-row">' +
       '<div class="friend-row-main">' + avatarHtml(u, member.name) + '<span class="friend-name-plain">' + escapeHtml(member.name) + '</span>' + badgesHtml(u) +
       (accountRoleLabel ? '<span class="account-role-tag">' + accountRoleLabel + '</span>' : '') +
-      (member.adherent ? '<span class="friend-role-badge adherent-badge">Adhérent</span>' : '') +
+      (member.teamRole ? '<span class="account-role-tag">' + escapeHtml(member.teamRole) + '</span>' : '') +
+      (isAdherent ? '<span class="friend-role-badge adherent-badge">Adhérent</span>' : '') +
       '<span class="friend-role-badge">' + (member.role === 'leader' ? 'Team Leader' : 'Membre') + '</span></div>' +
       '<div class="friend-row-actions">' + actions + '</div></div>';
   }
@@ -6244,32 +6335,47 @@
     return html;
   }
 
-  // Leader-only, Team PRO ("club") only: the roster of everyone who
-  // follows this team, split into paying 'adherent' and plain 'follower'
-  // -- adherent > follower per the brief, so adherents are listed first
-  // and the count shown is "adherents/total" rather than just a raw
-  // count. Promoting/demoting is the only thing this button does; there's
-  // no in-app payment, an adherent is whoever the leader has actually
-  // collected annual dues from outside the app.
-  function renderTeamAdherentsSection(team) {
-    var followers = (STATE.teamFollowersByTeam || {})[team.id] || [];
-    var sorted = followers.slice().sort(function (a, b) {
-      if ((a.tier === 'adherent') !== (b.tier === 'adherent')) return a.tier === 'adherent' ? -1 : 1;
-      return a.follower.localeCompare(b.follower);
-    });
-    var adherentCount = sorted.filter(function (f) { return f.tier === 'adherent'; }).length;
-    var body = !sorted.length
-      ? '<div class="help-text">Personne ne suit encore ce Team.</div>'
-      : sorted.map(function (f) {
-        var u = (STATE.usersByName || {})[f.follower] || {};
-        var isAdherent = f.tier === 'adherent';
-        return '<div class="friend-row"><div class="friend-row-main">' + avatarHtml(u, f.follower) +
-          '<span class="friend-name-plain">' + escapeHtml(f.follower) + '</span>' + badgesHtml(u) +
-          '<span class="friend-role-badge' + (isAdherent ? ' adherent-badge' : '') + '">' + (isAdherent ? 'Adhérent' : 'Follower') + '</span></div>' +
-          '<div class="friend-row-actions"><button type="button" class="ghost" data-action="toggle-follower-tier" data-follow-id="' + f.id + '" data-tier="' + (isAdherent ? 'follower' : 'adherent') + '">' +
-          (isAdherent ? 'Rétrograder' : 'Adhérent ✓') + '</button></div></div>';
-      }).join('');
-    return collapsibleSection('team-adherents-' + team.id, 'Adhérents (' + adherentCount + '/' + sorted.length + ')', body);
+  // Leader-only unified panel: everyone with ANY relationship to this
+  // Team -- a current member and/or a follower -- gets one row with four
+  // independent toggle pills (Suivi / Membre / Adhérent / Team Leader,
+  // see setTeamMemberStatus) instead of the scattered promote/demote/
+  // follower-tier controls this used to be split across. A member also
+  // gets a free-form "rôle" tag (mécano, assistant, photographe...).
+  function renderTeamMembersManagement(team, members, teamFollowers) {
+    var byName = {};
+    members.forEach(function (m) { (byName[m.name] = byName[m.name] || {}).member = m; });
+    teamFollowers.forEach(function (f) { (byName[f.follower] = byName[f.follower] || {}).follow = f; });
+    var names = Object.keys(byName).sort(function (a, b) { return a.localeCompare(b); });
+    function pill(name, key, label, on) {
+      return '<button type="button" class="team-status-pill' + (on ? ' active' : '') + '" data-action="team-status-toggle" data-team="' + team.id + '" data-name="' + escapeHtml(name) + '" data-status="' + key + '" data-on="' + (on ? '0' : '1') + '">' + label + '</button>';
+    }
+    var body = !names.length
+      ? '<div class="help-text">Personne pour l\'instant.</div>'
+      : names.map(function (name) {
+        var entry = byName[name];
+        var memberDoc = entry.member, followDoc = entry.follow;
+        var u = (STATE.usersByName || {})[name] || {};
+        var isAdherent = !!(followDoc && followDoc.tier === 'adherent');
+        var isTeamLeaderRole = !!(memberDoc && memberDoc.role === 'leader');
+        var pills = pill(name, 'follow', 'Suivi', !!followDoc) + pill(name, 'member', 'Membre', !!memberDoc) +
+          pill(name, 'adherent', 'Adhérent', isAdherent) + pill(name, 'leader', 'Team Leader', isTeamLeaderRole);
+        // A pending "je veux être adhérent" request (see requestTeamAdherent)
+        // surfaces here rather than in a separate list -- toggling the
+        // Adhérent pill above already clears it either way, this just makes
+        // sure the leader notices there's one waiting.
+        var pendingNote = (followDoc && followDoc.adherentRequested && !isAdherent)
+          ? '<div class="team-manage-pending">Demande d\'adhésion en attente' +
+            ' <button type="button" class="ghost" data-action="team-adherent-accept" data-follow-id="' + followDoc.id + '">Accepter</button>' +
+            ' <button type="button" class="ghost" data-action="team-adherent-decline" data-follow-id="' + followDoc.id + '">Refuser</button></div>'
+          : '';
+        var roleField = memberDoc
+          ? '<div class="team-role-field"><input type="text" placeholder="Rôle (mécano, assistant...)" value="' + escapeHtml(memberDoc.teamRole || '') + '" data-team-role-input list="team-role-suggestions">' +
+            '<button type="button" class="ghost icon-btn" data-action="team-role-save" data-team="' + team.id + '" data-name="' + escapeHtml(name) + '" aria-label="Enregistrer le rôle" title="Enregistrer">✓</button></div>'
+          : '';
+        return '<div class="team-manage-row"><div class="friend-row-main">' + avatarHtml(u, name) + '<span class="friend-name-plain">' + escapeHtml(name) + '</span>' + badgesHtml(u) + '</div>' +
+          '<div class="team-status-pills">' + pills + '</div>' + pendingNote + roleField + '</div>';
+      }).join('') + '<datalist id="team-role-suggestions"><option value="Mécano"><option value="Assistant"><option value="Photographe"><option value="Logistique"></datalist>';
+    return collapsibleSection('team-manage-' + team.id, 'Gestion des membres', body);
   }
 
   function renderTeamSettings(team, isLeader) {
@@ -6297,9 +6403,21 @@
       '<option value="leaders"' + (team.postPolicy !== 'members' ? ' selected' : '') + '>Team Leaders seulement</option>' +
       '<option value="members"' + (team.postPolicy === 'members' ? ' selected' : '') + '>Tous les membres</option>' +
       '</select>';
-    html += '<div class="danger-zone" style="margin-top:1rem;">' +
-      '<button type="button" class="ghost danger" data-action="team-delete-request" data-team="' + team.id + '">' +
-      (pendingDeleteTeamId === team.id ? 'Confirmer la suppression' : 'Supprimer ce Team') + '</button></div>';
+    html += '<div class="danger-zone" style="margin-top:1rem;">';
+    if (pendingDeleteTeamId !== team.id) {
+      html += '<button type="button" class="ghost danger" data-action="team-delete-request" data-team="' + team.id + '">Supprimer ce Team</button>';
+    } else {
+      html += '<form id="team-delete-form" data-team="' + team.id + '">' +
+        '<div class="help-text">Cette action est irréversible. Confirme avec ton mot de passe actuel.</div>' +
+        '<label for="team-delete-password" style="margin-top:0.6rem;">Mot de passe actuel</label>' +
+        '<input type="password" id="team-delete-password" autocomplete="current-password">' +
+        '<div style="margin-top:0.7rem; display:flex; gap:0.6rem;">' +
+        '<button type="submit" class="ghost danger">Confirmer la suppression</button>' +
+        '<button type="button" class="ghost" data-action="team-delete-cancel">Annuler</button></div>' +
+        (teamDeleteMessage ? '<div class="help-text" style="margin-top:0.6rem;">' + escapeHtml(teamDeleteMessage) + '</div>' : '') +
+        '</form>';
+    }
+    html += '</div>';
     return html;
   }
 
@@ -6322,7 +6440,7 @@
       : feed.map(function (f) { return renderTeamFeedEntry(f, me); }).join('');
     if (canPost) {
       // The Adhérents-only audience option only makes sense for a Team PRO
-      // ("club", see renderTeamAdherentsSection) and only the leader hands
+      // ("club", see renderTeamMembersManagement) and only the leader hands
       // out exclusive club news -- an ordinary member posting to an
       // amateur team never sees this selector, and their posts stay
       // visible to every follower (no audience field written at all).
@@ -6354,8 +6472,16 @@
     }
     html += collapsibleSection('team-feed-' + team.id, 'Fil d\'actualité (' + feed.length + ')', feedBody);
 
-    var membersBody = members.map(function (m) { return renderTeamMemberRow(team.id, m, isLeader, me.name, team.teamPro); }).join('');
+    var teamFollowers = (STATE.teamFollowersByTeam || {})[team.id] || [];
+    var membersBody = members.map(function (m) {
+      var f = teamFollowers.filter(function (fl) { return fl.follower === m.name; })[0];
+      return renderTeamMemberRow(team.id, m, me.name, !!(f && f.tier === 'adherent'), !!(f && f.adherentRequested));
+    }).join('');
     html += collapsibleSection('team-members-' + team.id, 'Membres (' + members.length + ')', membersBody);
+
+    if (isLeader) {
+      html += renderTeamMembersManagement(team, members, teamFollowers);
+    }
 
     if (isLeader) {
       var memberNames = members.map(function (m) { return m.name; });
@@ -6399,10 +6525,6 @@
         }).join('');
         html += collapsibleSection('team-join-requests-' + team.id, 'Demandes pour rejoindre (' + joinRequests.length + ')', joinReqBody);
       }
-    }
-
-    if (isLeader && team.teamPro) {
-      html += renderTeamAdherentsSection(team);
     }
 
     html += collapsibleSection('team-settings-' + team.id, '⚙ Réglages', renderTeamSettings(team, isLeader));
@@ -6520,7 +6642,34 @@
     if (!myTeams.length) {
       html += '<div class="card"><div class="empty-state">Pas encore de team -- crée-en un, rejoins-en un depuis "Découvrir des Teams" ci-dessous, ou attends une invitation.</div></div>';
     } else {
-      myTeams.forEach(function (team) { html += renderTeamCard(team, me); });
+      // Clean grid of small "encadrés" first -- clicking one opens its
+      // full detail (feed, membres, réglages) below, one at a time, so
+      // the tab stays uncluttered instead of every team's whole content
+      // always being on screen at once.
+      html += '<div class="team-tile-grid">' + myTeams.map(function (t) {
+        var tag = '<span class="friend-role-badge">' + (isLeaderOfTeam(t.id) ? 'Team Leader' : 'Membre') + '</span>';
+        return renderTeamTile(t, tag, true);
+      }).join('') + '</div>';
+
+      var ledTeams = myTeams.filter(function (t) { return isLeaderOfTeam(t.id); });
+      if (ledTeams.length) {
+        html += '<button type="button" class="ghost" id="team-manage-toggle" style="margin-top:0.8rem;">⚙ Gestion des Teams</button>';
+        if (manageTeamsOpen) {
+          var manageBody = ledTeams.map(function (t) {
+            return '<div class="friend-row"><div class="friend-row-main">' + avatarHtml(t, t.name) + '<span class="friend-name-plain">' + escapeHtml(t.name) + '</span>' + teamBadgesHtml(t) + '</div>' +
+              '<div class="friend-row-actions"><button type="button" class="ghost" data-action="team-tile-open" data-team="' + t.id + '">Gérer</button></div></div>';
+          }).join('');
+          html += '<div class="card" style="margin-top:0.6rem;">' + manageBody + '</div>';
+        }
+      }
+
+      var expandedTeam = expandedTeamId ? myTeams.filter(function (t) { return t.id === expandedTeamId; })[0] : null;
+      if (expandedTeam) {
+        html += '<div style="margin-top:1rem;">' +
+          '<button type="button" class="ghost" data-action="team-tile-close" style="margin-bottom:0.6rem;">← Retour aux Teams</button>' +
+          renderTeamCard(expandedTeam, me) +
+          '</div>';
+      }
       // Shared by every team card's 📷 button -- only one photo picker is
       // ever open at a time, so one hidden input covers them all (see
       // teamPostDraftPhotoTeamId).
@@ -6532,38 +6681,48 @@
     return html;
   }
 
+  // A small, clean "encadré" for one Team -- photo, name, member/like
+  // counts, a short description -- shared by "Mes Teams" (clickable, see
+  // expandedTeamId) and "Découvrir des Teams" (informational + action
+  // buttons only, see renderTeamDiscoveryTile). memberCount comes off the
+  // team doc itself (see bumpTeamMemberCount) rather than a live count of
+  // membersOfTeam(), which is only ever synced for teams this account is
+  // actually in -- a discoverable team it isn't in has no such data.
+  function renderTeamTile(t, innerActionsHtml, clickable) {
+    var likeCount = (STATE.teamLikes || []).filter(function (l) { return l.teamId === t.id; }).length;
+    var memberCount = t.memberCount || 0;
+    var desc = t.description ? '<div class="team-tile-desc">' + escapeHtml(t.description) + '</div>' : '';
+    var mainInner = avatarHtml(t, t.name) +
+      '<div class="team-tile-name">' + escapeHtml(t.name) + teamBadgesHtml(t) + '</div>' +
+      desc +
+      '<div class="team-tile-stats">' + memberCount + ' membre' + (memberCount === 1 ? '' : 's') + ' · ❤ ' + likeCount + '</div>';
+    var main = clickable
+      ? '<button type="button" class="team-tile-main" data-action="team-tile-open" data-team="' + t.id + '">' + mainInner + '</button>'
+      : '<div class="team-tile-main">' + mainInner + '</div>';
+    return '<div class="team-tile">' + main +
+      (innerActionsHtml ? '<div class="team-tile-actions">' + innerActionsHtml + '</div>' : '') +
+      '</div>';
+  }
+
   // A team only shows up here once its Team Leader opts it into being
   // findable (team.visibility, set from that team's own Réglages) --
   // 'private' (the default) never appears. "Suivre" is a one-way follow
   // (see followName/toggleReaction's sibling functions), not membership --
   // it doesn't add you to the roster or its feed, just marks the team as
-  // one you keep an eye on.
-  // A discoverable team's row: its like count (anyone can like/unlike,
-  // no request needed), then whichever of Suivre / Rejoindre (membre) /
-  // Devenir adhérent still applies -- a pending join request (mine)
-  // replaces its button with a plain status, rather than letting a
-  // second one be sent (teamJoinRequests' doc id is deterministic so a
-  // second create would just overwrite anyway, but this avoids the
-  // confusing "did that go through" moment).
-  function renderTeamDiscoveryRow(t, me, showUnfollow) {
-    var likeCount = (STATE.teamLikes || []).filter(function (l) { return l.teamId === t.id; }).length;
+  // one you keep an eye on. Joining is member-only from here -- adherent
+  // is never requested directly, only granted afterwards by a Team
+  // Leader (see requestJoinTeam).
+  function renderTeamDiscoveryTile(t, me, showUnfollow) {
     var iLike = (STATE.teamLikes || []).some(function (l) { return l.teamId === t.id && l.name === me.name; });
     var myRequest = (STATE.teamJoinRequests || []).filter(function (r) { return r.teamId === t.id && r.from === me.name; })[0];
-    var actions = '<button type="button" class="ghost icon-btn' + (iLike ? ' liked' : '') + '" data-action="team-like-toggle" data-team="' + t.id + '" aria-label="' + (iLike ? 'Retirer le like' : 'Liker') + '" title="' + (iLike ? 'Retirer le like' : 'Liker') + '">❤' + (likeCount ? ' ' + likeCount : '') + '</button>';
-    if (showUnfollow) {
-      actions += '<button type="button" class="ghost icon-btn" data-action="unfollow-team" data-team="' + t.id + '" aria-label="Ne plus suivre" title="Ne plus suivre">×</button>';
-    } else {
-      actions += '<button type="button" class="ghost" data-action="follow-team" data-team="' + t.id + '">Suivre</button>';
-    }
-    if (myRequest) {
-      actions += '<span class="help-text">' + (myRequest.kind === 'adherent' ? 'Demande d\'adhésion envoyée' : 'Demande de membre envoyée') + '</span>';
-    } else {
-      actions += '<button type="button" class="ghost" data-action="team-join-request" data-team="' + t.id + '" data-kind="member">Rejoindre</button>';
-      if (t.teamPro) actions += '<button type="button" class="ghost" data-action="team-join-request" data-team="' + t.id + '" data-kind="adherent">Devenir adhérent</button>';
-    }
-    var desc = t.description ? '<div class="help-text team-discovery-desc">' + escapeHtml(t.description) + '</div>' : '';
-    return '<div class="friend-row team-discovery-row"><div class="friend-row-main">' + avatarHtml(t, t.name) + '<span class="friend-name-plain">' + escapeHtml(t.name) + '</span>' + teamBadgesHtml(t) + desc + '</div>' +
-      '<div class="friend-row-actions">' + actions + '</div></div>';
+    var actions = '<button type="button" class="ghost icon-btn' + (iLike ? ' liked' : '') + '" data-action="team-like-toggle" data-team="' + t.id + '" aria-label="' + (iLike ? 'Retirer le like' : 'Liker') + '" title="' + (iLike ? 'Retirer le like' : 'Liker') + '">❤</button>';
+    actions += showUnfollow
+      ? '<button type="button" class="ghost icon-btn" data-action="unfollow-team" data-team="' + t.id + '" aria-label="Ne plus suivre" title="Ne plus suivre">×</button>'
+      : '<button type="button" class="ghost" data-action="follow-team" data-team="' + t.id + '">Suivre</button>';
+    actions += myRequest
+      ? '<span class="help-text">Demande envoyée</span>'
+      : '<button type="button" class="ghost" data-action="team-join-request" data-team="' + t.id + '">Rejoindre</button>';
+    return renderTeamTile(t, actions, false);
   }
 
   function renderTeamDiscovery(me, myTeams) {
@@ -6579,16 +6738,16 @@
     if (!discoverable.length && !followedTeamIds.length) return '';
     var body = '';
     if (followedTeamIds.length) {
-      body += '<div class="team-section-title">Teams suivis</div>';
+      body += '<div class="team-section-title">Teams suivis</div><div class="team-tile-grid">';
       body += followedTeamIds.map(function (id) {
         var t = teamById(id);
-        return t ? renderTeamDiscoveryRow(t, me, true) : '';
-      }).join('');
+        return t ? renderTeamDiscoveryTile(t, me, true) : '';
+      }).join('') + '</div>';
     }
     var toSuggest = discoverable.filter(function (t) { return followedTeamIds.indexOf(t.id) === -1; });
     if (toSuggest.length) {
-      body += '<div class="team-section-title">À découvrir</div>';
-      body += toSuggest.map(function (t) { return renderTeamDiscoveryRow(t, me, false); }).join('');
+      body += '<div class="team-section-title">À découvrir</div><div class="team-tile-grid">';
+      body += toSuggest.map(function (t) { return renderTeamDiscoveryTile(t, me, false); }).join('') + '</div>';
     }
     return collapsibleCard('team-discovery', 'Découvrir des Teams', body, false);
   }
@@ -6765,6 +6924,7 @@
 
   function onLoginSubmit(evt) {
     evt.preventDefault();
+    justAuthenticated = true;
     var email = document.getElementById('au-email').value.trim();
     var password = document.getElementById('au-password').value;
     var rememberEl = document.getElementById('au-remember');
@@ -6784,6 +6944,7 @@
 
   function onSignupSubmit(evt) {
     evt.preventDefault();
+    justAuthenticated = true;
     var roleEl = document.querySelector('input[name="au-role"]:checked');
     var role = roleEl ? roleEl.value : 'pilote';
     var numberEl = document.getElementById('au-number');
@@ -6863,6 +7024,9 @@
           if (doc.exists) currentUserProfile = doc.data();
           authState = 'signed-in';
           canPersist = true;
+          activeView = 'planning';
+          profilePanelOpen = false;
+          justAuthenticated = false;
           startSync();
           renderRoot();
         });
@@ -7419,8 +7583,22 @@
     document.querySelectorAll('[data-action="team-post-policy"]').forEach(function (select) {
       select.addEventListener('change', function () { setTeamPostPolicy(select.getAttribute('data-team'), select.value); });
     });
-    document.querySelectorAll('[data-action="toggle-follower-tier"]').forEach(function (btn) {
-      btn.addEventListener('click', function () { setTeamFollowerTier(btn.getAttribute('data-follow-id'), btn.getAttribute('data-tier')); });
+    document.querySelectorAll('[data-action="team-status-toggle"]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var teamId = btn.getAttribute('data-team');
+        var name = btn.getAttribute('data-name');
+        var memberDoc = ((STATE.teamMembersByTeam || {})[teamId] || []).filter(function (m) { return m.name === name; })[0] || null;
+        var followDoc = ((STATE.teamFollowersByTeam || {})[teamId] || []).filter(function (f) { return f.follower === name; })[0] || null;
+        setTeamMemberStatus(teamId, followDoc, memberDoc, name, btn.getAttribute('data-status'), btn.getAttribute('data-on') === '1');
+      });
+    });
+    document.querySelectorAll('[data-action="team-role-save"]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var row = btn.closest('.team-manage-row');
+        var input = row ? row.querySelector('[data-team-role-input]') : null;
+        setTeamMemberTeamRole(btn.getAttribute('data-team'), btn.getAttribute('data-name'), input ? input.value : '');
+        showToast('Rôle enregistré.', 'success');
+      });
     });
     document.querySelectorAll('[data-action="team-visibility"]').forEach(function (select) {
       select.addEventListener('change', function () { setTeamVisibility(select.getAttribute('data-team'), select.value); });
@@ -7455,11 +7633,41 @@
     });
     document.querySelectorAll('[data-action="team-delete-request"]').forEach(function (btn) {
       btn.addEventListener('click', function () {
-        var teamId = btn.getAttribute('data-team');
-        if (pendingDeleteTeamId === teamId) deleteTeam(teamId);
-        else { pendingDeleteTeamId = teamId; renderRoot(); }
+        pendingDeleteTeamId = btn.getAttribute('data-team');
+        teamDeleteMessage = '';
+        renderRoot();
       });
     });
+    document.querySelectorAll('[data-action="team-delete-cancel"]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        pendingDeleteTeamId = null;
+        teamDeleteMessage = '';
+        renderRoot();
+      });
+    });
+    var teamDeleteForm = document.getElementById('team-delete-form');
+    if (teamDeleteForm) {
+      teamDeleteForm.addEventListener('submit', function (evt) {
+        evt.preventDefault();
+        var pwEl = document.getElementById('team-delete-password');
+        deleteTeam(teamDeleteForm.getAttribute('data-team'), pwEl ? pwEl.value : '');
+      });
+    }
+    document.querySelectorAll('[data-action="team-tile-open"]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        expandedTeamId = btn.getAttribute('data-team');
+        manageTeamsOpen = false;
+        renderRoot();
+        window.scrollTo(0, 0);
+      });
+    });
+    document.querySelectorAll('[data-action="team-tile-close"]').forEach(function (btn) {
+      btn.addEventListener('click', function () { expandedTeamId = null; renderRoot(); });
+    });
+    var teamManageToggle = document.getElementById('team-manage-toggle');
+    if (teamManageToggle) {
+      teamManageToggle.addEventListener('click', function () { manageTeamsOpen = !manageTeamsOpen; renderRoot(); });
+    }
     document.querySelectorAll('[data-action="toggle-team-pro"]').forEach(function (btn) {
       btn.addEventListener('click', function () { toggleTeamPro(btn.getAttribute('data-team')); });
     });
@@ -7508,15 +7716,6 @@
     document.querySelectorAll('[data-action="team-invite-remove"]').forEach(function (btn) {
       btn.addEventListener('click', function () { removeTeamInvite(btn.getAttribute('data-id')); });
     });
-    document.querySelectorAll('[data-action="team-promote"]').forEach(function (btn) {
-      btn.addEventListener('click', function () { setTeamMemberRole(btn.getAttribute('data-team'), btn.getAttribute('data-name'), 'leader'); });
-    });
-    document.querySelectorAll('[data-action="team-demote"]').forEach(function (btn) {
-      btn.addEventListener('click', function () { setTeamMemberRole(btn.getAttribute('data-team'), btn.getAttribute('data-name'), 'member'); });
-    });
-    document.querySelectorAll('[data-action="team-remove-member"]').forEach(function (btn) {
-      btn.addEventListener('click', function () { removeTeamMember(btn.getAttribute('data-team'), btn.getAttribute('data-name')); });
-    });
     document.querySelectorAll('[data-action="team-leave"]').forEach(function (btn) {
       btn.addEventListener('click', function () {
         if (currentUserProfile) removeTeamMember(btn.getAttribute('data-team'), currentUserProfile.name);
@@ -7526,13 +7725,13 @@
       btn.addEventListener('click', function () { requestTeamAdherent(btn.getAttribute('data-team')); });
     });
     document.querySelectorAll('[data-action="team-adherent-accept"]').forEach(function (btn) {
-      btn.addEventListener('click', function () { decideTeamAdherentRequest(btn.getAttribute('data-team'), btn.getAttribute('data-name'), true); });
+      btn.addEventListener('click', function () { decideTeamAdherentRequest(btn.getAttribute('data-follow-id'), true); });
     });
     document.querySelectorAll('[data-action="team-adherent-decline"]').forEach(function (btn) {
-      btn.addEventListener('click', function () { decideTeamAdherentRequest(btn.getAttribute('data-team'), btn.getAttribute('data-name'), false); });
+      btn.addEventListener('click', function () { decideTeamAdherentRequest(btn.getAttribute('data-follow-id'), false); });
     });
     document.querySelectorAll('[data-action="team-join-request"]').forEach(function (btn) {
-      btn.addEventListener('click', function () { requestJoinTeam(btn.getAttribute('data-team'), btn.getAttribute('data-kind')); });
+      btn.addEventListener('click', function () { requestJoinTeam(btn.getAttribute('data-team')); });
     });
     document.querySelectorAll('[data-action="team-join-request-accept"]').forEach(function (btn) {
       btn.addEventListener('click', function () {
@@ -8278,7 +8477,7 @@
     // existing user-follow code (myFollows) doesn't need to change.
     // Team follows also carry a tier ('follower', the default, or
     // 'adherent' -- a paid club member, promoted by that Team's leader,
-    // see setTeamFollowerTier) captured into myFollowedTeamTiers so
+    // see requestTeamAdherent/setTeamMemberStatus) captured into myFollowedTeamTiers so
     // rendering the Mur can tell which "adherents only" club posts this
     // account is entitled to see.
     if (currentUserProfile && currentUserProfile.name) {
@@ -8287,9 +8486,16 @@
         STATE.myFollows = docs.filter(function (f) { return (f.followeeType || 'user') === 'user'; }).map(function (f) { return f.followee; });
         var teamFollows = docs.filter(function (f) { return f.followeeType === 'team'; });
         STATE.myFollowedTeams = teamFollows.map(function (f) { return f.followee; });
-        var tiers = {};
-        teamFollows.forEach(function (f) { tiers[f.followee] = f.tier === 'adherent' ? 'adherent' : 'follower'; });
+        var tiers = {}, byTeam = {};
+        teamFollows.forEach(function (f) {
+          tiers[f.followee] = f.tier === 'adherent' ? 'adherent' : 'follower';
+          byTeam[f.followee] = f;
+        });
         STATE.myFollowedTeamTiers = tiers;
+        // My own follows/{id} doc per team I follow, keyed by teamId --
+        // requestTeamAdherent needs the doc id (create vs update) and
+        // adherentRequested to know whether it's already pending.
+        STATE.myTeamFollowDocs = byTeam;
         refreshFollowedTeamFeedSync();
         renderRoot();
       }, handleSyncError));
@@ -8415,9 +8621,9 @@
       STATE.teamFeed = posts;
       renderRoot();
     }, handleSyncError));
-    // Followers (and adherents -- see setTeamFollowerTier) of every team
+    // Followers (and adherents -- see requestTeamAdherent/setTeamMemberStatus) of every team
     // this account is in, so a Team Leader can manage its Adhérents list
-    // (renderTeamAdherentsSection) -- cheap to scope by the same teamIds
+    // (renderTeamMembersManagement) -- cheap to scope by the same teamIds
     // as the two listeners above, no separate "leader-only" query needed
     // since firestore.rules already keeps the actual promote/demote action
     // leader-gated.
@@ -8443,7 +8649,7 @@
 
   // Re-subscribed whenever STATE.myFollowedTeams changes (see the follows
   // listener above) -- the feed of every Team PRO ("club", see
-  // renderTeamAdherentsSection) this account follows but isn't a member
+  // renderTeamMembersManagement) this account follows but isn't a member
   // of, so the Mur (renderWallFeed) can fold in their public news
   // alongside "adherents only" posts this account is actually entitled to
   // (checked against myFollowedTeamTiers at render time, not here --
@@ -8613,6 +8819,11 @@
           currentUserProfile = doc.data();
           authState = 'signed-in';
           canPersist = true;
+          if (justAuthenticated) {
+            activeView = 'planning';
+            profilePanelOpen = false;
+            justAuthenticated = false;
+          }
           startSync();
           renderRoot();
         } else {
