@@ -549,6 +549,105 @@
       showToast('Erreur : ' + (err && err.message ? err.message : err));
     });
   }
+  // A wide logo (e.g. "Mototeam95" text-and-mark) would get chopped to an
+  // unreadable sliver by the round badge crop -- kept as its own field,
+  // shown full-width, uncropped, on the Team's own profile.
+  function saveTeamLogo(teamId, dataUrl) {
+    db.collection('teams').doc(teamId).set({ logoURL: dataUrl || null }, { merge: true }).catch(function (err) {
+      showToast('Erreur : ' + (err && err.message ? err.message : err));
+    });
+  }
+  // "Site internet / boutique / photographe..." -- one link per line as
+  // "Nom | URL", parsed into {label, url} objects. A free-form textarea
+  // rather than an add/remove-row widget, consistent with how riders/
+  // horaires are typed elsewhere in this app.
+  function saveTeamLinks(teamId, raw) {
+    var links = (raw || '').split('\n').map(function (line) { return line.trim(); }).filter(Boolean).map(function (line) {
+      var parts = line.split('|');
+      var url = (parts.length > 1 ? parts.slice(1).join('|') : parts[0]).trim();
+      var label = parts.length > 1 ? parts[0].trim() : url;
+      return { label: label, url: url };
+    }).filter(function (l) { return l.url; });
+    db.collection('teams').doc(teamId).set({ links: links }, { merge: true }).catch(function (err) {
+      showToast('Erreur : ' + (err && err.message ? err.message : err));
+    });
+  }
+
+  // ---- Recadrage de photo (badge rond) ----
+  //
+  // A round badge (mini-avatar, object-fit:cover) otherwise always crops
+  // to dead-center, which is fine for a portrait but chops the sides off
+  // a wide team photo/logo. This lets whoever's uploading pick the
+  // framing first: pan (object-position, pure CSS, no math needed for
+  // the live preview) and zoom (an extra CSS scale), then replicates the
+  // exact same math against the source image's real pixels on save.
+  var cropModalOpen = false;
+  var cropModalTeamId = null;
+  var cropModalSrc = null; // full-res data URL of the just-picked file
+  var cropZoom = 100; // 100..300, i.e. 1x..3x
+  var cropOffsetXPct = 50;
+  var cropOffsetYPct = 50;
+  function openCropModal(teamId, dataUrl) {
+    cropModalOpen = true;
+    cropModalTeamId = teamId;
+    cropModalSrc = dataUrl;
+    cropZoom = 100;
+    cropOffsetXPct = 50;
+    cropOffsetYPct = 50;
+    renderRoot();
+  }
+  function closeCropModal() {
+    cropModalOpen = false;
+    cropModalTeamId = null;
+    cropModalSrc = null;
+    renderRoot();
+  }
+  function renderCropModal() {
+    if (!cropModalOpen || !cropModalSrc) return '';
+    return '<div class="crop-modal-overlay">' +
+      '<div class="crop-modal">' +
+      '<h2 class="section-title">Recadrer la photo</h2>' +
+      '<div class="help-text">Comme elle apparaîtra en badge rond.</div>' +
+      '<div class="crop-modal-viewport"><img id="crop-modal-img" src="' + escapeHtml(cropModalSrc) + '" style="object-position:' + cropOffsetXPct + '% ' + cropOffsetYPct + '%; transform: scale(' + (cropZoom / 100) + ');"></div>' +
+      '<label style="margin-top:0.8rem; display:block;">Zoom<input type="range" id="crop-zoom" min="100" max="300" value="' + cropZoom + '"></label>' +
+      '<label style="margin-top:0.5rem; display:block;">Horizontal<input type="range" id="crop-offset-x" min="0" max="100" value="' + cropOffsetXPct + '"></label>' +
+      '<label style="margin-top:0.5rem; display:block;">Vertical<input type="range" id="crop-offset-y" min="0" max="100" value="' + cropOffsetYPct + '"></label>' +
+      '<div style="margin-top:0.8rem; display:flex; gap:0.6rem;">' +
+      '<button type="button" class="primary" id="crop-save-btn">Enregistrer</button>' +
+      '<button type="button" class="ghost" id="crop-cancel-btn">Annuler</button>' +
+      '</div></div></div>';
+  }
+  // Replicates, in source-image pixels, exactly what the CSS preview
+  // shows: object-fit:cover's own crop (viewport/image ratio) positioned
+  // by object-position%, then the extra transform:scale(zoom) shrinking
+  // that same window further inward around its own center.
+  function computeCropRect(iw, ih, xPct, yPct, zoom) {
+    var s0 = Math.max(1 / iw, 1 / ih); // vw = vh = 1 (a ratio, not a real size)
+    var coverW = 1 / s0, coverH = 1 / s0;
+    var left = (iw - coverW) * (xPct / 100);
+    var top = (ih - coverH) * (yPct / 100);
+    var w = coverW / zoom, h = coverH / zoom;
+    left += coverW * (1 - 1 / zoom) / 2;
+    top += coverH * (1 - 1 / zoom) / 2;
+    return { sx: left, sy: top, sw: w, sh: h };
+  }
+  function saveCroppedPhoto() {
+    if (!cropModalTeamId || !cropModalSrc) return;
+    var teamId = cropModalTeamId;
+    var img = new Image();
+    img.onload = function () {
+      var rect = computeCropRect(img.naturalWidth, img.naturalHeight, cropOffsetXPct, cropOffsetYPct, cropZoom / 100);
+      var OUT = 400;
+      var canvas = document.createElement('canvas');
+      canvas.width = OUT;
+      canvas.height = OUT;
+      var ctx = canvas.getContext('2d');
+      ctx.drawImage(img, rect.sx, rect.sy, rect.sw, rect.sh, 0, 0, OUT, OUT);
+      saveTeamPhoto(teamId, canvas.toDataURL('image/jpeg', 0.85));
+      closeCropModal();
+    };
+    img.src = cropModalSrc;
+  }
 
   // Deleting a Team (amateur or PRO) requires the same fresh
   // reauthentication as deleting one's own account -- a leader typing
@@ -1743,6 +1842,7 @@
     html += '<label class="checklist-item" style="margin-top:0.4rem;"><input type="checkbox" id="profile-notify-pro-outings"' + (p.notifyProOutings !== false ? ' checked' : '') + '> Nouvelle sortie organisée par un Team PRO que je suis ou dont je suis adhérent</label>';
     html += '<label class="checklist-item" style="margin-top:0.4rem;"><input type="checkbox" id="profile-notify-coach-messages"' + (p.notifyCoachMessages !== false ? ' checked' : '') + '> Nouveau message dans l\'espace coaching</label>';
     html += '<label class="checklist-item" style="margin-top:0.4rem;"><input type="checkbox" id="profile-notify-event-announcements"' + (p.notifyEventAnnouncements !== false ? ' checked' : '') + '> Annonce du Team Leader sur un événement</label>';
+    html += '<label class="checklist-item" style="margin-top:0.4rem;"><input type="checkbox" id="profile-notify-event-ended"' + (p.notifyEventEndedReaction !== false ? ' checked' : '') + '> Un event auquel j\'ai participé vient de se terminer</label>';
     html += '</div>';
     return html;
   }
@@ -4310,17 +4410,43 @@
       showToast('Erreur : ' + (err && err.message ? err.message : err));
     });
   }
+  function updateEventAnnouncement(id, text) {
+    text = (text || '').trim();
+    if (!text) return;
+    db.collection('eventAnnouncements').doc(id).update({ text: text, editedAt: Date.now() }).then(function () {
+      editingAnnouncementId = null;
+      renderRoot();
+    }).catch(function (err) {
+      showToast('Erreur : ' + (err && err.message ? err.message : err));
+    });
+  }
+  function deleteEventAnnouncement(id) {
+    db.collection('eventAnnouncements').doc(id).delete().catch(function (err) {
+      showToast('Erreur : ' + (err && err.message ? err.message : err));
+    });
+  }
+  var editingAnnouncementId = null; // id of the one announcement currently shown as an inline edit form, or null
   // Reused both in the Team's "Gestion des événements" (leader, with the
-  // posting form) and in Planning for a rider on that event (read-only) --
-  // isLeader controls whether the form is appended.
+  // posting form and edit/delete) and in Planning for a rider on that
+  // event (read-only) -- isLeader controls whether those show.
   function renderEventAnnouncements(ev, isLeader) {
     var posts = (STATE.eventAnnouncements || []).filter(function (a) { return a.eventId === ev.id; });
     if (!posts.length && !isLeader) return '';
     var body = !posts.length
       ? '<div class="empty-state">Aucune annonce pour l\'instant.</div>'
       : posts.map(function (a) {
+        if (isLeader && editingAnnouncementId === a.id) {
+          return '<form class="coach-message-form" data-action="event-announcement-edit-form" data-id="' + a.id + '">' +
+            '<input type="text" value="' + escapeHtml(a.text) + '" data-event-announcement-edit-input>' +
+            '<button type="submit" class="primary">Enregistrer</button>' +
+            '<button type="button" class="ghost" data-action="event-announcement-edit-cancel">Annuler</button></form>';
+        }
+        var actions = isLeader
+          ? '<button type="button" class="ghost icon-btn" data-action="event-announcement-edit" data-id="' + a.id + '" aria-label="Modifier" title="Modifier">✎</button>' +
+            '<button type="button" class="ghost icon-btn" data-action="event-announcement-delete" data-id="' + a.id + '" aria-label="Supprimer" title="Supprimer">×</button>'
+          : '';
         return '<div class="coach-message"><div class="coach-message-head"><span class="friend-name-plain">' + escapeHtml(a.from) + '</span>' +
-          '<span class="feed-entry-time">' + escapeHtml(relativeTime(a.createdAt)) + '</span></div>' +
+          '<span class="feed-entry-time">' + escapeHtml(relativeTime(a.editedAt || a.createdAt)) + (a.editedAt ? ' (modifié)' : '') + '</span>' + actions + '</div>' +
           '<div class="coach-message-text">' + escapeHtml(a.text) + '</div></div>';
       }).join('');
     if (isLeader) {
@@ -4941,7 +5067,8 @@
       var removeBtn = removable ? '<button type="button" class="ghost icon-btn" data-action="event-group-remove" data-id="' + ev.id + '" data-rider="' + escapeHtml(name) + '" aria-label="Retirer du groupe" title="Retirer du groupe">×</button>' : '';
       return '<div class="friend-row"><div class="friend-row-main">' + nameLinkHtml(name) + badgesHtml(u) + timeHtml + '</div><div class="friend-row-actions">' + removeBtn + '</div></div>' + maybeFicheHtml(name);
     }
-    var html = '<div class="section-title" style="margin-top:1rem;">Groupes</div>';
+    var assignedCount = riders.length - unassigned.length;
+    var html = '<div class="section-title" style="margin-top:1rem;">Groupes (' + assignedCount + ')</div>';
     if (unassigned.length) {
       html += collapsibleSection('event-group-unassigned-' + ev.id, 'Non attribués (' + unassigned.length + ')', unassigned.map(function (r) { return riderRow(r, false); }).join(''), true);
     }
@@ -5060,6 +5187,13 @@
     html += infoRow('Circuit', escapeHtml(ev.circuit));
     html += infoRow('Dates', escapeHtml(formatEventRange(ev, true)));
     if (ev.note) html += infoRow('Note', escapeHtml(ev.note));
+    // Once the event is over, its own rider can react with an emoji --
+    // the lightweight "on a kiffé" ask (see maybeNotifyEndedEvents), never
+    // a text/photo comment thread.
+    if (currentUserProfile && (ev.riders || []).indexOf(currentUserProfile.name) !== -1
+      && eventTemporalStatus(ev, dateKey(new Date())) === 'past') {
+      html += '<div style="margin-top:0.6rem;"><div class="help-text">Comment s\'est passé cet event ?</div>' + renderReactionBar(ev.reactions, 'react-event', ev.id) + '</div>';
+    }
     // No full roster/groups here any more -- only what's the connected
     // account's own (+ friends'), per "seuls les renseignements du user +
     // éventuellement ses amis seront affichés sur la fiche de l'Event".
@@ -5487,10 +5621,17 @@
   // which always starts closed, a key that's never been toggled yet can
   // default open (En cours) so the one thing actually happening today
   // isn't hidden behind an extra click.
-  function collapsibleCard(key, title, bodyHtml, defaultOpen) {
+  // titleActionsHtml (optional): extra controls next to the title, inside
+  // the <summary> -- e.g. "+ Ajouter un événement" right by "Gestion des
+  // événements" instead of buried at the bottom of the list. Each such
+  // control MUST call evt.preventDefault() in its own click handler (see
+  // the "team-event-add" handler) or clicking it would also toggle the
+  // <details> open/closed, since a click anywhere in <summary> does that
+  // by default.
+  function collapsibleCard(key, title, bodyHtml, defaultOpen, titleActionsHtml) {
     var isOpen = planningSectionsOpen.hasOwnProperty(key) ? !!planningSectionsOpen[key] : !!defaultOpen;
     return '<details class="card events-list-card" data-planning-section="' + key + '"' + (isOpen ? ' open' : '') + '>' +
-      '<summary class="section-title collapsible-card-summary">' + escapeHtml(title) + '</summary>' +
+      '<summary class="section-title collapsible-card-summary">' + escapeHtml(title) + (titleActionsHtml || '') + '</summary>' +
       '<div class="collapsible-card-body">' + bodyHtml + '</div>' +
       '</details>';
   }
@@ -5782,6 +5923,28 @@
   function notifCategoryAllowed(field) {
     return !!currentUserProfile && currentUserProfile[field] !== false
       && !!window.Notification && Notification.permission === 'granted';
+  }
+
+  // Once, the day after an event a rider took part in ends: a nudge to
+  // react with an emoji (see toggleReaction('events', ...)/renderReactionBar)
+  // -- deliberately not an invitation to write a comment or upload a
+  // photo, which would cost far more to store and moderate for what's
+  // meant to be a lightweight "on a kiffé" gauge. notifiedEventEndedIds
+  // is session-local (re-checked, harmlessly, on every reload) since
+  // there's no server-side "already notified" flag to persist.
+  var notifiedEventEndedIds = {};
+  function maybeNotifyEndedEvents() {
+    var me = currentUserProfile;
+    if (!me || !notifCategoryAllowed('notifyEventEndedReaction')) return;
+    var yesterdayKey = dateKey(new Date(Date.now() - 86400000));
+    (STATE.events || []).forEach(function (ev) {
+      if (!ev.riders || ev.riders.indexOf(me.name) === -1) return;
+      if ((ev.dateEnd || ev.dateStart) !== yesterdayKey) return;
+      if (notifiedEventEndedIds[ev.id]) return;
+      notifiedEventEndedIds[ev.id] = true;
+      if ((ev.reactions || {})[me.name]) return;
+      new Notification('Carnet de Piste', { body: 'Comment s\'est passé ' + ev.circuit + ' ? Réagis avec un emoji !' });
+    });
   }
 
   // null until the first snapshot of this session's pending invites has
@@ -6920,10 +7083,23 @@
       '<textarea id="team-description-' + team.id + '" rows="2" placeholder="Quelques mots sur le Team...">' + escapeHtml(team.description || '') + '</textarea>' +
       '<div style="margin-top:0.5rem; display:flex; align-items:center; gap:0.6rem;">' +
       '<button type="button" class="ghost" data-action="team-description-save" data-team="' + team.id + '">Enregistrer la présentation</button>' +
-      (team.photoURL
-        ? '<button type="button" class="ghost" data-action="team-photo-remove" data-team="' + team.id + '">Retirer la photo</button>'
-        : '<button type="button" class="ghost" data-action="team-photo-btn" data-team="' + team.id + '">Ajouter une photo</button>') +
-      '</div></div>';
+      '<button type="button" class="ghost" data-action="team-photo-btn" data-team="' + team.id + '">' + (team.photoURL ? 'Changer la photo (badge)' : 'Ajouter une photo (badge)') + '</button>' +
+      (team.photoURL ? '<button type="button" class="ghost" data-action="team-photo-remove" data-team="' + team.id + '">Retirer</button>' : '') +
+      '</div>' +
+      '<div class="help-text" style="margin-top:0.3rem;">S\'affiche partout en rond (fil d\'actu, membres, invitations...) -- le prochain écran te laisse choisir le cadrage.</div>' +
+      '</div>';
+    html += '<div style="margin-top:0.9rem;"><label>Logo (affiché en largeur sur la fiche du Team)</label>' +
+      '<div style="margin-top:0.3rem; display:flex; align-items:center; gap:0.6rem;">' +
+      '<button type="button" class="ghost" data-action="team-logo-btn" data-team="' + team.id + '">' + (team.logoURL ? 'Changer le logo' : 'Ajouter un logo') + '</button>' +
+      (team.logoURL ? '<button type="button" class="ghost" data-action="team-logo-remove" data-team="' + team.id + '">Retirer</button>' : '') +
+      '</div>' +
+      '<div class="help-text" style="margin-top:0.3rem;">Utile pour un logo large (ex. "Mototeam95") que le badge rond couperait.</div>' +
+      '</div>';
+    html += '<div style="margin-top:0.9rem;"><form data-action="team-links-form" data-team="' + team.id + '">' +
+      '<label for="team-links-' + team.id + '">Liens (un par ligne : Nom | URL)</label>' +
+      '<textarea id="team-links-' + team.id + '" data-team-links-input rows="3" placeholder="Site internet | https://...\nBoutique | https://...\nPhotographe | https://...">' +
+      escapeHtml((team.links || []).map(function (l) { return l.label + ' | ' + l.url; }).join('\n')) + '</textarea>' +
+      '<button type="submit" class="ghost" style="margin-top:0.4rem;">Enregistrer les liens</button></form></div>';
     html += '<label for="team-visibility-select-' + team.id + '" style="margin-top:0.9rem;">Visibilité (qui peut trouver et suivre ce Team)</label>' +
       '<select id="team-visibility-select-' + team.id + '" data-action="team-visibility" data-team="' + team.id + '">' +
       '<option value="private"' + (visibility === 'private' ? ' selected' : '') + '>Sur invitation uniquement</option>' +
@@ -6966,31 +7142,62 @@
   // demandes, groupes) now lives in its own dedicated screen (see
   // renderEventManagementScreen), not stacked three <details> deep here.
   function renderTeamEventsManagement(team) {
-    var events = (STATE.events || []).filter(function (ev) { return ev.teamId === team.id; })
-      .sort(function (a, b) { return a.dateStart < b.dateStart ? 1 : a.dateStart > b.dateStart ? -1 : 0; });
+    var todayKey = dateKey(new Date());
+    var all = (STATE.events || []).filter(function (ev) { return ev.teamId === team.id; });
     var pendingByEvent = {};
     (STATE.eventJoinRequests || []).forEach(function (r) {
       if (r.status !== 'pending' || r.teamId !== team.id) return;
       (pendingByEvent[r.eventId] = pendingByEvent[r.eventId] || []).push(r);
     });
-    var body = !events.length
-      ? '<div class="empty-state">Aucun événement pour ce Team.</div>'
-      : events.map(function (ev) {
-        var reqs = pendingByEvent[ev.id] || [];
-        var riders = ev.riders || [];
-        var meta = [String(riders.length) + ' participant' + (riders.length > 1 ? 's' : '')];
-        if (reqs.length) meta.push(reqs.length + ' demande' + (reqs.length > 1 ? 's' : '') + ' en attente');
-        return '<div class="friend-row"><div class="friend-row-main"><span class="friend-name-plain">' + escapeHtml(ev.circuit) + '</span>' +
-          '<span class="help-text">' + escapeHtml(formatEventRange(ev, true)) + ' · ' + meta.join(' · ') + '</span></div>' +
-          '<div class="friend-row-actions"><button type="button" class="primary" data-action="team-event-manage-open" data-id="' + ev.id + '">Gérer</button></div></div>';
-      }).join('');
-    body += '<div style="margin-top:0.6rem;"><button type="button" class="primary" data-action="team-event-add" data-team="' + team.id + '">+ Ajouter un événement</button></div>';
+    function eventRow(ev) {
+      var reqs = pendingByEvent[ev.id] || [];
+      var riders = ev.riders || [];
+      var meta = [String(riders.length) + ' participant' + (riders.length > 1 ? 's' : '')];
+      if (reqs.length) meta.push(reqs.length + ' demande' + (reqs.length > 1 ? 's' : '') + ' en attente');
+      // Réactions ne comptent qu'une fois l'event passé -- avant ça,
+      // personne n'a encore été invité à réagir (voir renderEventSummaryCard).
+      var likesHtml = '';
+      if (eventTemporalStatus(ev, todayKey) === 'past') {
+        var likeCount = Object.keys(ev.reactions || {}).length;
+        if (likeCount) likesHtml = ' <span class="event-likes-badge">👍 ' + likeCount + '</span>';
+      }
+      return '<div class="friend-row"><div class="friend-row-main"><span class="friend-name-plain">' + escapeHtml(ev.circuit) + '</span>' +
+        '<span class="help-text">' + escapeHtml(formatEventRange(ev, true)) + ' · ' + meta.join(' · ') + '</span>' + likesHtml + '</div>' +
+        '<div class="friend-row-actions"><button type="button" class="primary" data-action="team-event-manage-open" data-id="' + ev.id + '">Gérer</button></div></div>';
+    }
+    var ongoing = [], upcoming = [], past = [];
+    all.forEach(function (ev) {
+      var status = eventTemporalStatus(ev, todayKey);
+      if (status === 'ongoing') ongoing.push(ev);
+      else if (status === 'upcoming') upcoming.push(ev);
+      else past.push(ev);
+    });
+    ongoing.sort(function (a, b) { return a.dateStart < b.dateStart ? -1 : 1; });
+    upcoming.sort(function (a, b) { return a.dateStart < b.dateStart ? -1 : 1; });
+    past.sort(function (a, b) { return a.dateStart < b.dateStart ? 1 : -1; });
+    var body = '';
+    if (!all.length) {
+      body = '<div class="empty-state">Aucun événement pour ce Team.</div>';
+    } else {
+      // Toutes rétractées, sauf En cours s'il y en a -- et à défaut, À
+      // venir (le prochain), pour toujours ouvrir sur ce qui compte
+      // maintenant plutôt que sur du passé.
+      body += collapsibleSection('team-events-ongoing-' + team.id, 'En cours (' + ongoing.length + ')',
+        ongoing.length ? ongoing.map(eventRow).join('') : '<div class="help-text">Rien en ce moment.</div>', true);
+      body += collapsibleSection('team-events-upcoming-' + team.id, 'À venir (' + upcoming.length + ')',
+        upcoming.length ? upcoming.map(eventRow).join('') : '<div class="help-text">Rien de prévu.</div>', !ongoing.length);
+      body += collapsibleSection('team-events-past-' + team.id, 'Passés (' + past.length + ')',
+        past.length ? past.map(eventRow).join('') : '<div class="help-text">Aucun événement passé.</div>', false);
+    }
     if (editingEventId === 'new' && prefillEventTeamId === team.id) body += renderEventForm();
     // Its own full card, not just another collapsibleSection folded in
     // among Fil d'actualité/Membres/Inviter -- a separate, self-contained
     // menu since this is where a Team Leader creates/manages an event,
-    // not something to stumble into between unrelated controls.
-    return collapsibleCard('team-events-' + team.id, 'Gestion des événements' + (events.length ? ' (' + events.length + ')' : ''), body, false);
+    // not something to stumble into between unrelated controls. The
+    // "+ Ajouter" lives right next to the title (see collapsibleCard's
+    // titleActionsHtml) instead of buried at the bottom of a long list.
+    var addBtn = '<button type="button" class="ghost" data-action="team-event-add" data-team="' + team.id + '" style="margin-left:0.6rem; font-weight:400;">+ Ajouter un événement</button>';
+    return collapsibleCard('team-events-' + team.id, 'Gestion des événements' + (all.length ? ' (' + all.length + ')' : ''), body, false, addBtn);
   }
 
   // The dedicated per-event management screen (see managingEventId) --
@@ -7076,7 +7283,21 @@
     html += '<div class="section-title" style="display:flex; align-items:center; gap:0.6rem;">' + avatarHtml(team, team.name) +
       '<span style="flex:1;">' + escapeHtml(team.name) + teamBadgesHtml(team) + '</span>' +
       '<span class="friend-role-badge">' + (isLeader ? 'Team Leader' : 'Membre') + '</span></div>';
+    // A wide logo (e.g. "Mototeam95") shown full-width, uncropped -- the
+    // round avatar above is for badges everywhere else, this is the one
+    // place it's shown properly.
+    if (team.logoURL) html += '<div class="team-logo-frame"><img class="team-logo-img" src="' + escapeHtml(team.logoURL) + '" alt="Logo ' + escapeHtml(team.name) + '"></div>';
     if (team.description) html += '<div class="help-text team-description">' + escapeHtml(team.description) + '</div>';
+    if (team.links && team.links.length) {
+      html += '<div class="team-links-row">' + team.links.map(function (l) {
+        return '<a class="team-link-chip" href="' + escapeHtml(l.url) + '" target="_blank" rel="noopener">' + escapeHtml(l.label) + '</a>';
+      }).join('') + '</div>';
+    }
+    // Gestion des événements right under the profile (header/logo/
+    // présentation/liens) -- it's the main reason a Team Leader opens
+    // this screen, not something to scroll past Fil d'actualité/Membres
+    // to reach.
+    if (isLeader) html += renderTeamEventsManagement(team);
 
     var feedBody = !feed.length
       ? '<div class="empty-state">Rien pour l\'instant.</div>'
@@ -7117,10 +7338,6 @@
 
     var teamFollowers = (STATE.teamFollowersByTeam || {})[team.id] || [];
     html += renderTeamMembersSection(team, members, teamFollowers, me, isLeader);
-
-    if (isLeader) {
-      html += renderTeamEventsManagement(team);
-    }
 
     if (isLeader) {
       var memberNames = members.map(function (m) { return m.name; });
@@ -7350,6 +7567,7 @@
       // teamPostDraftPhotoTeamId).
       html += '<input type="file" id="team-feed-photo-input" accept="image/*" style="display:none;">';
       html += '<input type="file" id="team-photo-input" accept="image/*" style="display:none;">';
+      html += '<input type="file" id="team-logo-input" accept="image/*" style="display:none;">';
     }
     // Same reasoning as the tile grid above -- Découvrir des Teams/Créer
     // un Team belong on the Team space's home screen, not trailing behind
@@ -7515,7 +7733,8 @@
       renderProfilePanel() +
       renderAccountManagerPanel() +
       body +
-      renderBottomNav();
+      renderBottomNav() +
+      renderCropModal();
     attachHandlers();
     if (focusedId) {
       var toRefocus = document.getElementById(focusedId);
@@ -7854,6 +8073,10 @@
     var notifyEventAnnouncementsEl = document.getElementById('profile-notify-event-announcements');
     if (notifyEventAnnouncementsEl) {
       notifyEventAnnouncementsEl.addEventListener('change', function () { saveOwnBooleanField('notifyEventAnnouncements', notifyEventAnnouncementsEl.checked); });
+    }
+    var notifyEventEndedEl = document.getElementById('profile-notify-event-ended');
+    if (notifyEventEndedEl) {
+      notifyEventEndedEl.addEventListener('change', function () { saveOwnBooleanField('notifyEventEndedReaction', notifyEventEndedEl.checked); });
     }
     var shareSortiesEl = document.getElementById('profile-share-sorties');
     if (shareSortiesEl) {
@@ -8310,15 +8533,73 @@
         var file = teamPhotoInput.files && teamPhotoInput.files[0];
         if (!file || !teamPhotoUploadTeamId) return;
         if (!/^image\//.test(file.type)) { showToast('Choisis un fichier image.'); return; }
-        resizeImageToDataUrl(file, 400, 0.7, function (dataUrl) {
+        // Kept larger than the final 400x400 badge output so there's
+        // still real detail left to pan/zoom into in the crop modal.
+        resizeImageToDataUrl(file, 1000, 0.85, function (dataUrl) {
           if (!dataUrl) { showToast('Impossible de lire cette image.'); return; }
-          saveTeamPhoto(teamPhotoUploadTeamId, dataUrl);
+          openCropModal(teamPhotoUploadTeamId, dataUrl);
         });
       });
     }
     document.querySelectorAll('[data-action="team-photo-remove"]').forEach(function (btn) {
       btn.addEventListener('click', function () { saveTeamPhoto(btn.getAttribute('data-team'), null); });
     });
+    var teamLogoInput = document.getElementById('team-logo-input');
+    document.querySelectorAll('[data-action="team-logo-btn"]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        teamPhotoUploadTeamId = btn.getAttribute('data-team');
+        if (teamLogoInput) teamLogoInput.click();
+      });
+    });
+    if (teamLogoInput) {
+      teamLogoInput.addEventListener('change', function () {
+        var file = teamLogoInput.files && teamLogoInput.files[0];
+        if (!file || !teamPhotoUploadTeamId) return;
+        if (!/^image\//.test(file.type)) { showToast('Choisis un fichier image.'); return; }
+        // No crop step here -- the whole point of the logo field is to
+        // show a wide mark (e.g. "Mototeam95") uncropped, full-width.
+        resizeImageToDataUrl(file, 1000, 0.85, function (dataUrl) {
+          if (!dataUrl) { showToast('Impossible de lire cette image.'); return; }
+          saveTeamLogo(teamPhotoUploadTeamId, dataUrl);
+        });
+      });
+    }
+    document.querySelectorAll('[data-action="team-logo-remove"]').forEach(function (btn) {
+      btn.addEventListener('click', function () { saveTeamLogo(btn.getAttribute('data-team'), null); });
+    });
+    document.querySelectorAll('[data-action="team-links-form"]').forEach(function (form) {
+      form.addEventListener('submit', function (evt) {
+        evt.preventDefault();
+        var textarea = form.querySelector('[data-team-links-input]');
+        saveTeamLinks(form.getAttribute('data-team'), textarea ? textarea.value : '');
+      });
+    });
+    var cropModalImgEl = document.getElementById('crop-modal-img');
+    var cropZoomEl = document.getElementById('crop-zoom');
+    var cropOffsetXEl = document.getElementById('crop-offset-x');
+    var cropOffsetYEl = document.getElementById('crop-offset-y');
+    // Live preview via direct style writes (no renderRoot()) so dragging
+    // a slider stays smooth -- the module vars are kept in sync too, so
+    // whatever the preview shows is exactly what saveCroppedPhoto() crops.
+    if (cropModalImgEl && cropZoomEl) {
+      cropZoomEl.addEventListener('input', function () {
+        cropZoom = parseInt(cropZoomEl.value, 10);
+        cropModalImgEl.style.transform = 'scale(' + (cropZoom / 100) + ')';
+      });
+    }
+    if (cropModalImgEl && cropOffsetXEl && cropOffsetYEl) {
+      var updateCropOffset = function () {
+        cropOffsetXPct = parseInt(cropOffsetXEl.value, 10);
+        cropOffsetYPct = parseInt(cropOffsetYEl.value, 10);
+        cropModalImgEl.style.objectPosition = cropOffsetXPct + '% ' + cropOffsetYPct + '%';
+      };
+      cropOffsetXEl.addEventListener('input', updateCropOffset);
+      cropOffsetYEl.addEventListener('input', updateCropOffset);
+    }
+    var cropSaveBtn = document.getElementById('crop-save-btn');
+    if (cropSaveBtn) cropSaveBtn.addEventListener('click', saveCroppedPhoto);
+    var cropCancelBtn = document.getElementById('crop-cancel-btn');
+    if (cropCancelBtn) cropCancelBtn.addEventListener('click', closeCropModal);
     document.querySelectorAll('[data-action="team-delete-request"]').forEach(function (btn) {
       btn.addEventListener('click', function () {
         pendingDeleteTeamId = btn.getAttribute('data-team');
@@ -8389,6 +8670,13 @@
         toggleReaction('teamFeed', id, btn.getAttribute('data-emoji'), entry && entry.reactions);
       });
     });
+    document.querySelectorAll('[data-action="react-event"]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var id = btn.getAttribute('data-id');
+        var entry = (STATE.events || []).filter(function (e) { return e.id === id; })[0];
+        toggleReaction('events', id, btn.getAttribute('data-emoji'), entry && entry.reactions);
+      });
+    });
     document.querySelectorAll('[data-action="coach-request-accept"]').forEach(function (btn) {
       btn.addEventListener('click', function () { acceptCoachRequest(btn.getAttribute('data-id')); });
     });
@@ -8426,6 +8714,22 @@
         if (input && input.value.trim()) sendEventAnnouncement(form.getAttribute('data-event-id'), form.getAttribute('data-team-id'), input.value);
         if (input) input.value = '';
       });
+    });
+    document.querySelectorAll('[data-action="event-announcement-edit"]').forEach(function (btn) {
+      btn.addEventListener('click', function () { editingAnnouncementId = btn.getAttribute('data-id'); renderRoot(); });
+    });
+    document.querySelectorAll('[data-action="event-announcement-edit-cancel"]').forEach(function (btn) {
+      btn.addEventListener('click', function () { editingAnnouncementId = null; renderRoot(); });
+    });
+    document.querySelectorAll('[data-action="event-announcement-edit-form"]').forEach(function (form) {
+      form.addEventListener('submit', function (evt) {
+        evt.preventDefault();
+        var input = form.querySelector('[data-event-announcement-edit-input]');
+        updateEventAnnouncement(form.getAttribute('data-id'), input ? input.value : '');
+      });
+    });
+    document.querySelectorAll('[data-action="event-announcement-delete"]').forEach(function (btn) {
+      btn.addEventListener('click', function () { deleteEventAnnouncement(btn.getAttribute('data-id')); });
     });
     document.querySelectorAll('[data-action="team-invite-accept"]').forEach(function (btn) {
       btn.addEventListener('click', function () {
@@ -8776,7 +9080,12 @@
       });
     }
     document.querySelectorAll('[data-action="team-event-add"]').forEach(function (btn) {
-      btn.addEventListener('click', function () {
+      btn.addEventListener('click', function (evt) {
+        // Sits inside the "Gestion des événements" card's <summary> now
+        // (see collapsibleCard's titleActionsHtml) -- without this, the
+        // click would also toggle the card open/closed, since that's the
+        // default action of clicking anywhere in a <summary>.
+        evt.preventDefault();
         editingEventId = 'new';
         selectedEventId = null;
         prefillEventCircuit = null;
@@ -9192,6 +9501,7 @@
     }, handleSyncError));
     unsubscribers.push(db.collection('events').onSnapshot(function (snap) {
       STATE.events = snap.docs.map(function (d) { return d.data(); });
+      maybeNotifyEndedEvents();
       renderRoot();
     }, handleSyncError));
     unsubscribers.push(db.collection('circuits').onSnapshot(function (snap) {

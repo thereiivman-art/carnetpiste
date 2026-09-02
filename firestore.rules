@@ -137,6 +137,10 @@ service cloud.firestore {
       // themselves (only themselves, only an addition) to riders directly
       // -- true self-registration, "sans validation" per the brief; every
       // other visibility tier and every other field stays leader-only.
+      // A rider of the event may also react with one emoji once it's
+      // over (reactions.<myName()>, own key only, see onlyOwnKeyChanged)
+      // -- the lightweight post-event "likes" ask, deliberately not a
+      // free-text comment/photo thread.
       allow update: if verified() && (
         resource.data.get('teamId', null) == null
         || isTeamLeader(resource.data.teamId)
@@ -144,6 +148,9 @@ service cloud.firestore {
             && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['riders'])
             && request.resource.data.riders.size() == resource.data.get('riders', []).size() + 1
             && (myName() in request.resource.data.riders))
+        || (myName() in resource.data.get('riders', [])
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reactions'])
+            && onlyOwnKeyChanged(resource.data.get('reactions', {}), request.resource.data.reactions))
       );
       allow delete: if verified() && (isAdmin() || (resource.data.get('teamId', null) != null && isTeamLeader(resource.data.teamId)));
     }
@@ -404,12 +411,15 @@ service cloud.firestore {
     // ("ADMINISTRATION OUVERTE DE 18H A 20H", "BRIEFING DEMAIN A 8H15"...)
     // -- read is open to any signed-in account like teamFeed/wallPosts
     // (display-layer filtered to the event's own riders + the leader, not
-    // server-enforced); only that event's owning Team's leader may post
-    // one, and it's never edited or deleted once sent.
+    // server-enforced); only that event's owning Team's leader may post,
+    // edit or delete one.
     match /eventAnnouncements/{id} {
       allow read: if request.auth != null;
       allow create: if verified() && request.resource.data.from == myName()
         && isTeamLeader(request.resource.data.teamId);
+      allow update: if verified() && isTeamLeader(resource.data.teamId)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['text', 'editedAt']);
+      allow delete: if verified() && isTeamLeader(resource.data.teamId);
     }
     // Hôtel/avion/aéroport, personal per (event, account) -- unlike every
     // other event field, the Team orga never fills these in for anyone
