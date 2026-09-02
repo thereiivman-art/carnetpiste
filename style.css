@@ -536,6 +536,7 @@
     padding: 0.12rem 0.4rem;
     white-space: nowrap;
   }
+  .my-group-letter { font-weight: 700; color: var(--accent); font-size: 1.05rem; }
   .event-likes-badge {
     display: inline-block;
     font-size: 0.7rem;

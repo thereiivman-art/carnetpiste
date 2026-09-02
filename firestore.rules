@@ -325,13 +325,40 @@ service cloud.firestore {
         || (request.resource.data.name == myName() && request.resource.data.role == 'member'
             && hasAcceptedTeamInvite(request.resource.data.teamId))
         || isTeamLeader(request.resource.data.teamId)
+        // Rename self-heal (see saveProfile's migrateTeamMembershipsForRename):
+        // this account's own display name change moves its membership to
+        // a new id, since ids (and every isTeamLeader()/isTeamMember()
+        // lookup) are keyed by name. migratedFromId must point to a real
+        // teamMembers doc that's genuinely this same account's -- proven
+        // by uid (request.auth.uid, unforgeable), never by the
+        // self-reported name -- with the same role and team, so a rename
+        // can never grant a role it didn't already hold.
+        || (request.resource.data.get('uid', null) == request.auth.uid
+            && request.resource.data.get('migratedFromId', '') != ''
+            && exists(/databases/$(database)/documents/teamMembers/$(request.resource.data.migratedFromId))
+            && get(/databases/$(database)/documents/teamMembers/$(request.resource.data.migratedFromId)).data.uid == request.auth.uid
+            && get(/databases/$(database)/documents/teamMembers/$(request.resource.data.migratedFromId)).data.role == request.resource.data.role
+            && get(/databases/$(database)/documents/teamMembers/$(request.resource.data.migratedFromId)).data.teamId == request.resource.data.teamId)
       );
       // A leader can change anything on a member's doc -- role (Team
       // Leader/Membre) and teamRole (a free-form in-team tag: mécano,
       // assistant, photographe...). Adherent status lives on the
-      // matching follows doc instead (see follows below), not here.
-      allow update: if verified() && (isAdmin() || isTeamLeader(resource.data.teamId));
-      allow delete: if verified() && (isAdmin() || isTeamLeader(resource.data.teamId) || resource.data.name == myName());
+      // matching follows doc instead (see follows below), not here. A
+      // member may also self-service-add their own uid (only that field)
+      // to a doc that predates uid tracking -- see the sync-time backfill
+      // in refreshMyTeamMembershipsSync -- so a *future* rename has an
+      // unforgeable owner to migrate from.
+      allow update: if verified() && (
+        isAdmin()
+        || isTeamLeader(resource.data.teamId)
+        || (resource.data.name == myName()
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['uid'])
+            && !resource.data.keys().hasAny(['uid']))
+      );
+      allow delete: if verified() && (
+        isAdmin() || isTeamLeader(resource.data.teamId) || resource.data.name == myName()
+        || resource.data.get('uid', null) == request.auth.uid
+      );
     }
     // A non-member asking to join a Team, either as a plain member or
     // straight in as an adherent -- id = teamId_from so a second request

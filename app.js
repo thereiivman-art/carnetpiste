@@ -261,8 +261,9 @@
     name = (name || '').trim();
     if (!me || !name) return;
     var teamId = genId();
+    var uid = auth.currentUser && auth.currentUser.uid;
     db.collection('teams').doc(teamId).set({ id: teamId, name: name, createdBy: me.name, createdAt: Date.now(), memberCount: 1 }).then(function () {
-      return db.collection('teamMembers').doc(teamMemberDocId(teamId, me.name)).set({ teamId: teamId, name: me.name, role: 'leader', joinedAt: Date.now() });
+      return db.collection('teamMembers').doc(teamMemberDocId(teamId, me.name)).set({ teamId: teamId, name: me.name, role: 'leader', joinedAt: Date.now(), uid: uid });
     }).then(function () {
       showToast('Team "' + name + '" créée.', 'success');
     }).catch(function (err) {
@@ -288,7 +289,7 @@
     if (!me) return;
     db.collection('teamInvites').doc(invite.id).update({ status: 'accepted' }).then(function () {
       return db.collection('teamMembers').doc(teamMemberDocId(invite.teamId, me.name)).set({
-        teamId: invite.teamId, name: me.name, role: 'member', joinedAt: Date.now()
+        teamId: invite.teamId, name: me.name, role: 'member', joinedAt: Date.now(), uid: (auth.currentUser && auth.currentUser.uid)
       });
     }).then(function () {
       showToast('Bienvenue dans "' + invite.teamName + '".', 'success');
@@ -386,9 +387,10 @@
       }).catch(teamOpError);
       return;
     }
+    var targetUid = (STATE.usersByName && STATE.usersByName[name] && STATE.usersByName[name].uid) || null;
     if (statusKey === 'member') {
       if (on) {
-        db.collection('teamMembers').doc(teamMemberDocId(teamId, name)).set({ teamId: teamId, name: name, role: 'member', joinedAt: Date.now() }, { merge: true })
+        db.collection('teamMembers').doc(teamMemberDocId(teamId, name)).set({ teamId: teamId, name: name, role: 'member', joinedAt: Date.now(), uid: targetUid }, { merge: true })
           .then(function () { bumpTeamMemberCount(teamId, 1); }).catch(teamOpError);
       } else {
         removeTeamMember(teamId, name);
@@ -397,7 +399,7 @@
     }
     if (statusKey === 'leader') {
       if (on && !memberDoc) {
-        db.collection('teamMembers').doc(teamMemberDocId(teamId, name)).set({ teamId: teamId, name: name, role: 'leader', joinedAt: Date.now() }, { merge: true })
+        db.collection('teamMembers').doc(teamMemberDocId(teamId, name)).set({ teamId: teamId, name: name, role: 'leader', joinedAt: Date.now(), uid: targetUid }, { merge: true })
           .then(function () { bumpTeamMemberCount(teamId, 1); }).catch(teamOpError);
       } else {
         setTeamMemberRole(teamId, name, on ? 'leader' : 'member');
@@ -432,8 +434,9 @@
     });
   }
   function acceptTeamJoinRequest(req) {
+    var reqUid = (STATE.usersByName && STATE.usersByName[req.from] && STATE.usersByName[req.from].uid) || null;
     db.collection('teamMembers').doc(teamMemberDocId(req.teamId, req.from)).set({
-      teamId: req.teamId, name: req.from, role: 'member', joinedAt: Date.now()
+      teamId: req.teamId, name: req.from, role: 'member', joinedAt: Date.now(), uid: reqUid
     }, { merge: true }).then(function () {
       return db.collection('teamJoinRequests').doc(req.id).delete();
     }).then(function () {
@@ -2126,6 +2129,34 @@
   }
 
   var profileSaveMessage = '';
+  // Moves each of this account's own teamMembers docs from the old
+  // name-keyed id to the new one, preserving role -- otherwise a rename
+  // silently orphans the old doc (still there, still correct data, but
+  // firestore.rules' isTeamLeader()/isTeamMember() look it up by the
+  // CURRENT name, which no longer matches its id) and every Team-Leader-
+  // gated action starts failing with no obvious cause. migratedFromId
+  // lets firestore.rules verify (via uid, not the self-reported name)
+  // that the new doc is a genuine continuation of an account's own prior
+  // membership, not a way to self-grant a role never actually held.
+  function migrateTeamMembershipsForRename(oldName, newName, memberships) {
+    var uid = auth.currentUser && auth.currentUser.uid;
+    if (!uid) return;
+    (memberships || []).forEach(function (m) {
+      var oldId = teamMemberDocId(m.teamId, oldName);
+      var newId = teamMemberDocId(m.teamId, newName);
+      db.collection('teamMembers').doc(newId).set({
+        teamId: m.teamId, name: newName, role: m.role, uid: uid,
+        joinedAt: m.joinedAt || Date.now(),
+        teamRole: m.teamRole || null,
+        migratedFromId: oldId
+      }).then(function () {
+        return db.collection('teamMembers').doc(oldId).delete();
+      }).catch(function (err) {
+        showToast('Erreur de migration Team : ' + (err && err.message ? err.message : err));
+      });
+    });
+  }
+
   function saveProfile(role, notifyBeforeSession, followedRiders, bike, bikeNumber, newRawName, nameNumber) {
     var uid = auth.currentUser && auth.currentUser.uid;
     if (!uid || !currentUserProfile) return;
@@ -2136,6 +2167,11 @@
     var finalName = oldName;
     var renamePrevState = null;
     var nameChanged = false;
+    // Snapshot now -- migrateTeamMembershipsForRename needs to know which
+    // teams/roles to carry over to the new name, and this account's own
+    // teamMembers docs are about to become unreachable by the usual
+    // name-keyed lookups the instant the rename below succeeds.
+    var teamMembershipsBeforeRename = (STATE.myTeamMemberships || []).slice();
     // Resolved (and compared to the current name) every time, not just
     // when the base name text changes -- a pilote can add, change, or
     // remove their disambiguation number on its own, even with a unique
@@ -2172,6 +2208,10 @@
       profileSaveMessage = 'Profil enregistré.';
       renderRoot();
       if (renamePrevState) persist(renamePrevState);
+      if (nameChanged) {
+        migrateTeamMembershipsForRename(oldName, finalName, teamMembershipsBeforeRename);
+        refreshMyTeamMembershipsSync();
+      }
     }).catch(function (err) {
       profileSaveMessage = 'Erreur : ' + (err && err.message ? err.message : err);
       renderRoot();
@@ -5134,7 +5174,8 @@
     if (!me || (ev.riders || []).indexOf(me.name) === -1) return '';
     var group = riderEventGroup(ev, me.name);
     if (!group) return '';
-    return collapsibleSection('my-group-' + ev.id, 'Mon groupe', infoRow('Groupe', escapeHtml(group)), true);
+    var row = infoRow(me.name, '<span class="my-group-letter">' + escapeHtml(group) + '</span>');
+    return collapsibleSection('my-group-' + ev.id, 'Mon groupe', row, true);
   }
 
   // And "Mes amis" -- same idea, but for friends also on this event (see
@@ -7422,7 +7463,8 @@
 
     if (isLeader) {
       var memberNames = members.map(function (m) { return m.name; });
-      var invitedNames = (STATE.teamInvites || []).filter(function (r) { return r.status === 'pending' && r.teamId === team.id; }).map(function (r) { return r.to; });
+      var outgoingInvites = (STATE.teamInvites || []).filter(function (r) { return r.status === 'pending' && r.teamId === team.id; });
+      var invitedNames = outgoingInvites.map(function (r) { return r.to; });
       // A Team PRO recruits openly -- its leader can invite anyone with an
       // account, not just existing friends (see firestore.rules'
       // teamInvites: only isTeamLeader() is required to create one, no
@@ -7445,6 +7487,13 @@
             return '<option value="' + escapeHtml(n) + '">' + escapeHtml(n) + escapeHtml(roleSuffix) + '</option>';
           }).join('') + '</select>' +
           '<button type="submit" class="ghost">Inviter</button></form>';
+      if (outgoingInvites.length) {
+        var outgoingBody = outgoingInvites.map(function (r) {
+          return '<div class="friend-row"><div class="friend-row-main"><span class="friend-name-plain">' + escapeHtml(r.to) + '</span></div>' +
+            '<div class="friend-row-actions"><button type="button" class="ghost" data-action="team-invite-remove" data-id="' + r.id + '">Annuler</button></div></div>';
+        }).join('');
+        inviteBody += collapsibleSection('team-invites-out-' + team.id, 'Invitations envoyées (' + outgoingInvites.length + ')', outgoingBody);
+      }
       html += collapsibleSection('team-invite-' + team.id, team.teamPro ? 'Inviter' : 'Inviter un ami', inviteBody);
     }
 
@@ -7574,7 +7623,6 @@
     var me = currentUserProfile;
     if (!me) return '';
     var incoming = (STATE.teamInvites || []).filter(function (r) { return r.status === 'pending' && r.to === me.name; });
-    var outgoing = (STATE.teamInvites || []).filter(function (r) { return r.status === 'pending' && r.from === me.name; });
     var myTeams = (STATE.myTeamMemberships || []).map(function (m) { return teamById(m.teamId); }).filter(Boolean)
       .sort(function (a, b) { return a.name.localeCompare(b.name); });
 
@@ -7589,13 +7637,10 @@
       }).join('');
       html += collapsibleCard('team-invites-in', 'Invitations reçues (' + incoming.length + ')', incomingBody, true);
     }
-    if (outgoing.length) {
-      var outgoingBody = outgoing.map(function (r) {
-        return '<div class="friend-row"><div class="friend-row-main"><span class="friend-name-plain">' + escapeHtml(r.to) + '</span> <span class="help-text">pour ' + escapeHtml(r.teamName) + '</span></div>' +
-          '<div class="friend-row-actions"><button type="button" class="ghost" data-action="team-invite-remove" data-id="' + r.id + '">Annuler</button></div></div>';
-      }).join('');
-      html += collapsibleCard('team-invites-out', 'Invitations envoyées (' + outgoing.length + ')', outgoingBody, false);
-    }
+    // "Invitations envoyées" (this account inviting others into a team it
+    // leads) moved into that team's own "Inviter" section (renderTeamCard)
+    // instead of sitting here, unscoped, right under the header -- it's
+    // per-team info, not something to show before you've even picked one.
 
     if (!myTeams.length) {
       html += '<div class="card"><div class="empty-state">Pas encore de team -- crée-en un, rejoins-en un depuis "Découvrir des Teams" ci-dessous, ou attends une invitation.</div></div>';
@@ -8623,9 +8668,20 @@
       btn.addEventListener('click', function () {
         var teamId = btn.getAttribute('data-team');
         var name = btn.getAttribute('data-name');
+        var status = btn.getAttribute('data-status');
+        var turningOn = btn.getAttribute('data-on') === '1';
+        // Granting or revoking Team Leader is the one pill worth a pause
+        // for -- it's full control over the Team (members, événements,
+        // suppression), not a lightweight tag like Suivi/Membre/Adhérent.
+        if (status === 'leader') {
+          var msg = turningOn
+            ? 'Faire de ' + name + ' un Team Leader ? Il aura le contrôle complet du Team.'
+            : 'Retirer le rôle de Team Leader à ' + name + ' ?';
+          if (!window.confirm(msg)) return;
+        }
         var memberDoc = ((STATE.teamMembersByTeam || {})[teamId] || []).filter(function (m) { return m.name === name; })[0] || null;
         var followDoc = ((STATE.teamFollowersByTeam || {})[teamId] || []).filter(function (f) { return f.follower === name; })[0] || null;
-        setTeamMemberStatus(teamId, followDoc, memberDoc, name, btn.getAttribute('data-status'), btn.getAttribute('data-on') === '1');
+        setTeamMemberStatus(teamId, followDoc, memberDoc, name, status, turningOn);
       });
     });
     document.querySelectorAll('[data-action="team-role-save"]').forEach(function (btn) {
@@ -9680,7 +9736,11 @@
         var data = doc.data();
         if (!data.name) return;
         if (data.bike) bikeMap[data.name] = data.bike;
-        usersByName[data.name] = data;
+        // uid (the doc's own id) isn't part of data() -- carried along
+        // here so a rename's teamMembers migration (see saveProfile) can
+        // tag the new doc with an unforgeable owner, not just a name that
+        // itself just changed.
+        usersByName[data.name] = Object.assign({ uid: doc.id }, data);
       });
       riderBikeMap = bikeMap;
       STATE.usersByName = usersByName;
@@ -9806,11 +9866,7 @@
         myEventJoinRequestsOut = snap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); });
         mergeEventJoinRequests();
       }, handleSyncError));
-      unsubscribers.push(db.collection('teamMembers').where('name', '==', currentUserProfile.name).onSnapshot(function (snap) {
-        STATE.myTeamMemberships = snap.docs.map(function (d) { return d.data(); });
-        refreshTeamDetailSync();
-        renderRoot();
-      }, handleSyncError));
+      refreshMyTeamMembershipsSync();
       var teamInviteFrom = {}, teamInviteTo = {};
       function mergeTeamInvites() {
         var byId = {};
@@ -9852,6 +9908,38 @@
     eventJoinRequestsIn.forEach(function (r) { byId[r.id] = r; });
     STATE.eventJoinRequests = Object.keys(byId).map(function (id) { return byId[id]; });
     renderRoot();
+  }
+
+  // Re-subscribed (not just a one-time listener) so a display-name change
+  // re-points the query at the new name -- it used to be bound once in
+  // startSync() with whatever currentUserProfile.name was at that moment,
+  // which meant it kept matching the OLD name for the rest of the
+  // session even after a rename migrated the underlying teamMembers docs
+  // (see saveProfile), silently emptying "Mes Teams"/leader rights out
+  // from under the renamed account.
+  var myTeamMembershipsUnsub = null;
+  function refreshMyTeamMembershipsSync() {
+    if (myTeamMembershipsUnsub) { myTeamMembershipsUnsub(); myTeamMembershipsUnsub = null; }
+    if (!currentUserProfile) return;
+    myTeamMembershipsUnsub = db.collection('teamMembers').where('name', '==', currentUserProfile.name).onSnapshot(function (snap) {
+      STATE.myTeamMemberships = snap.docs.map(function (d) { return d.data(); });
+      // Opportunistic backfill: a membership doc created before uid was
+      // tracked has none yet -- add it now, while the name still matches
+      // (see firestore.rules' teamMembers update, the
+      // name==myName()-and-uid-only clause), so a *future* rename can
+      // migrate this membership instead of silently losing it (see
+      // saveProfile's own migration, which needs uid to prove ownership
+      // of the pre-rename doc).
+      var myUid = auth.currentUser && auth.currentUser.uid;
+      snap.docs.forEach(function (d) {
+        var data = d.data();
+        if (myUid && !data.uid) {
+          d.ref.update({ uid: myUid }).catch(function () {});
+        }
+      });
+      refreshTeamDetailSync();
+      renderRoot();
+    }, handleSyncError);
   }
 
   // Re-subscribed (not just once) whenever STATE.myTeamMemberships changes
@@ -10034,6 +10122,7 @@
   function stopSync() {
     unsubscribers.forEach(function (unsub) { unsub(); });
     unsubscribers = [];
+    if (myTeamMembershipsUnsub) { myTeamMembershipsUnsub(); myTeamMembershipsUnsub = null; }
     teamDetailUnsubs.forEach(function (unsub) { unsub(); });
     teamDetailUnsubs = [];
     followedTeamFeedUnsubs.forEach(function (unsub) { unsub(); });
