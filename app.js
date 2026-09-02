@@ -562,6 +562,15 @@
   var manageTeamsOpen = false;
   var pendingDeleteTeamId = null;
   var teamDeleteMessage = '';
+  // Which event, if any, is open in its own dedicated management screen
+  // (see renderEventManagementScreen) -- a full takeover of the Team tab's
+  // body, not one more nested collapsible among others: managing an
+  // event (résumé, annonces, participants, demandes, groupes) is its own
+  // big chunk of work, mainly done from a Team PRO's desktop, and burying
+  // it three <details> deep is what made "Groupes de départ" hard to
+  // tell apart from "Modifier l'événement".
+  var managingEventId = null;
+  var riderGroupSearch = ''; // filters renderRiderGroupsSection's rider list, reset whenever managingEventId changes
   function deleteTeam(teamId, currentPassword) {
     var user = auth.currentUser;
     if (!user) return;
@@ -4902,9 +4911,20 @@
         ROSTER_GROUP_LETTERS.map(function (g) { return '<option value="' + g + '">' + g + '</option>'; }).join('') +
         '</select></label>';
     }
+    // Search-to-filter, not search-to-add -- everyone here is already a
+    // participant, this just narrows a long roster down to the handful
+    // being reassigned right now (a Team PRO's roster is easily 30+
+    // pilotes, one at a time down a comma list doesn't scale).
+    var q = riderGroupSearch.trim().toLowerCase();
+    var visibleRiders = q ? ev.riders.filter(function (r) { return r.toLowerCase().indexOf(q) !== -1; }) : ev.riders;
+    if (ev.riders.length > 6) {
+      html += '<input type="text" id="rider-group-search" placeholder="Rechercher un pilote..." value="' + escapeHtml(riderGroupSearch) + '" style="margin-top:0.6rem;">';
+    }
+    if (!visibleRiders.length) html += '<div class="help-text" style="margin-top:0.6rem;">Aucun pilote ne correspond à « ' + escapeHtml(riderGroupSearch) + ' ».</div>';
     dates.forEach(function (date) {
+      if (!visibleRiders.length) return;
       if (showDateLabel) html += '<div class="rider-groups-date-label">' + escapeHtml(formatDate(date)) + '</div>';
-      ev.riders.forEach(function (rider) {
+      visibleRiders.forEach(function (rider) {
         var am = riderGroupFor(ev, rider, date, 'matin');
         var pm = riderGroupFor(ev, rider, date, 'apres-midi');
         // Best verified chrono on this circuit -- the reference a Team
@@ -6971,6 +6991,11 @@
   // own space to hunt through the global Événements tab. Reuses the exact
   // same renderEventForm()/onEventSubmit() and accept/refuse plumbing as
   // Événements -- this is just a second, Team-scoped entry point onto it.
+  // Compact list only -- one row per event (circuit, dates, headcount,
+  // pending-requests badge) with a single "Gérer" button. Everything
+  // about actually managing one event (résumé, annonces, participants,
+  // demandes, groupes) now lives in its own dedicated screen (see
+  // renderEventManagementScreen), not stacked three <details> deep here.
   function renderTeamEventsManagement(team) {
     var events = (STATE.events || []).filter(function (ev) { return ev.teamId === team.id; })
       .sort(function (a, b) { return a.dateStart < b.dateStart ? 1 : a.dateStart > b.dateStart ? -1 : 0; });
@@ -6984,48 +7009,75 @@
       : events.map(function (ev) {
         var reqs = pendingByEvent[ev.id] || [];
         var riders = ev.riders || [];
-        var riderRows = riders.length
-          ? riders.map(function (name) {
-              var u = (STATE.usersByName || {})[name] || {};
-              return '<div class="friend-row"><div class="friend-row-main">' + nameLinkHtml(name) + (u.bikeNumber ? ' <span class="account-role-tag">#' + escapeHtml(u.bikeNumber) + '</span>' : '') + '</div>' +
-                '<div class="friend-row-actions"><button type="button" class="ghost icon-btn" data-action="team-event-remove-rider" data-id="' + ev.id + '" data-rider="' + escapeHtml(name) + '" aria-label="Retirer" title="Retirer">×</button></div></div>' + maybeFicheHtml(name);
-            }).join('')
-          : '<div class="help-text">Aucun participant.</div>';
-        // Search-to-add, name + # (bikeNumber) shown per candidate so a
-        // Team Leader can tell same-name pilotes apart before adding one.
-        var candidates = candidateRidersForTeamEvent(team, riders);
-        if (candidates.length) {
-          riderRows += '<form class="team-event-add-rider-form" data-action="team-event-add-rider-form" data-event-id="' + ev.id + '">' +
-            '<select data-team-event-add-rider-select>' + candidates.map(function (n) {
-              var u = (STATE.usersByName || {})[n] || {};
-              return '<option value="' + escapeHtml(n) + '">' + escapeHtml(n) + (u.bikeNumber ? ' #' + escapeHtml(u.bikeNumber) : '') + '</option>';
-            }).join('') + '</select>' +
-            '<button type="submit" class="ghost">Ajouter</button></form>';
-        }
-        var reqRows = reqs.map(function (r) {
-          var u = (STATE.usersByName || {})[r.from] || {};
-          return '<div class="friend-row"><div class="friend-row-main">' + avatarHtml(u, r.from) + '<span class="friend-name-plain">' + escapeHtml(r.from) + '</span>' + badgesHtml(u) + '</div>' +
-            '<div class="friend-row-actions">' +
-            '<button type="button" class="primary" data-action="event-join-request-accept" data-id="' + r.id + '">Accepter</button>' +
-            '<button type="button" class="ghost" data-action="event-join-request-remove" data-id="' + r.id + '">Refuser</button>' +
-            '</div></div>';
-        }).join('');
-        var eventBody = '<div class="help-text">' + escapeHtml(formatEventRange(ev, true)) + '</div>' +
-          renderEventAnnouncements(ev, true) +
-          collapsibleSection('team-event-riders-' + ev.id, 'Participants (' + riders.length + ')', riderRows) +
-          collapsibleSection('team-event-groups-' + ev.id, 'Groupes de départ', renderRiderGroupsSection(ev)) +
-          (reqs.length ? collapsibleSection('team-event-requests-' + ev.id, 'Demandes (' + reqs.length + ')', reqRows, true) : '') +
-          '<div style="margin-top:0.6rem;"><button type="button" class="ghost" data-action="team-event-edit" data-id="' + ev.id + '">Modifier</button></div>' +
-          (editingEventId === ev.id ? renderEventForm() : '');
-        return collapsibleSection('team-event-' + ev.id, escapeHtml(ev.circuit) + ' — ' + escapeHtml(formatEventRange(ev, true)), eventBody);
+        var meta = [String(riders.length) + ' participant' + (riders.length > 1 ? 's' : '')];
+        if (reqs.length) meta.push(reqs.length + ' demande' + (reqs.length > 1 ? 's' : '') + ' en attente');
+        return '<div class="friend-row"><div class="friend-row-main"><span class="friend-name-plain">' + escapeHtml(ev.circuit) + '</span>' +
+          '<span class="help-text">' + escapeHtml(formatEventRange(ev, true)) + ' · ' + meta.join(' · ') + '</span></div>' +
+          '<div class="friend-row-actions"><button type="button" class="primary" data-action="team-event-manage-open" data-id="' + ev.id + '">Gérer</button></div></div>';
       }).join('');
     body += '<div style="margin-top:0.6rem;"><button type="button" class="primary" data-action="team-event-add" data-team="' + team.id + '">+ Ajouter un événement</button></div>';
     if (editingEventId === 'new' && prefillEventTeamId === team.id) body += renderEventForm();
     // Its own full card, not just another collapsibleSection folded in
     // among Fil d'actualité/Membres/Inviter -- a separate, self-contained
-    // menu since this is where a Team Leader creates/edits/deletes an
-    // event, not something to stumble into between unrelated controls.
+    // menu since this is where a Team Leader creates/manages an event,
+    // not something to stumble into between unrelated controls.
     return collapsibleCard('team-events-' + team.id, 'Gestion des événements' + (events.length ? ' (' + events.length + ')' : ''), body, false);
+  }
+
+  // The dedicated per-event management screen (see managingEventId) --
+  // résumé, annonces, participants + demandes, and l'attribution des
+  // groupes, each its own flat section instead of nested collapsibles.
+  // Mainly a Team PRO desktop tool: a big roster to search/filter and
+  // reassign, not something meant to be skimmed on a phone between two
+  // other things.
+  function renderEventManagementScreen(ev, team) {
+    var reqs = (STATE.eventJoinRequests || []).filter(function (r) { return r.status === 'pending' && r.eventId === ev.id; });
+    var riders = ev.riders || [];
+    var html = '<div class="card">';
+    html += '<h2 class="section-title">' + escapeHtml(ev.circuit) + ' — ' + escapeHtml(formatEventRange(ev, true)) + '</h2>';
+    // Modifier right under the title -- it used to sit at the bottom of a
+    // long stack of sections, easy to lose track of and easy to confuse
+    // with the collapsible headers just above it.
+    html += '<div style="margin:0.6rem 0 1rem;"><button type="button" class="ghost" data-action="team-event-edit" data-id="' + ev.id + '">Modifier l\'événement</button></div>';
+    if (editingEventId === ev.id) html += renderEventForm();
+    // Résumé -- no dates here, already in the title above.
+    if (ev.note) html += infoRow('Note', escapeHtml(ev.note));
+    var evTeamVis = { public: 'Public', adherent: 'Adhérent only', membre: 'Membre only', ouvert: 'Ouvert' };
+    if (team.teamPro) html += infoRow('Visibilité', evTeamVis[ev.eventVisibility] || 'Membre only');
+    html += renderEventAnnouncements(ev, true);
+    var riderRows = riders.length
+      ? riders.map(function (name) {
+          var u = (STATE.usersByName || {})[name] || {};
+          return '<div class="friend-row"><div class="friend-row-main">' + nameLinkHtml(name) + (u.bikeNumber ? ' <span class="account-role-tag">#' + escapeHtml(u.bikeNumber) + '</span>' : '') + '</div>' +
+            '<div class="friend-row-actions"><button type="button" class="ghost icon-btn" data-action="team-event-remove-rider" data-id="' + ev.id + '" data-rider="' + escapeHtml(name) + '" aria-label="Retirer" title="Retirer">×</button></div></div>' + maybeFicheHtml(name);
+        }).join('')
+      : '<div class="help-text">Aucun participant.</div>';
+    // Search-to-add, name + # (bikeNumber) shown per candidate so a Team
+    // Leader can tell same-name pilotes apart before adding one.
+    var candidates = candidateRidersForTeamEvent(team, riders);
+    if (candidates.length) {
+      riderRows += '<form class="team-event-add-rider-form" data-action="team-event-add-rider-form" data-event-id="' + ev.id + '">' +
+        '<select data-team-event-add-rider-select>' + candidates.map(function (n) {
+          var u = (STATE.usersByName || {})[n] || {};
+          return '<option value="' + escapeHtml(n) + '">' + escapeHtml(n) + (u.bikeNumber ? ' #' + escapeHtml(u.bikeNumber) : '') + '</option>';
+        }).join('') + '</select>' +
+        '<button type="submit" class="ghost">Ajouter</button></form>';
+    }
+    html += collapsibleSection('event-manage-riders-' + ev.id, 'Participants (' + riders.length + ')', riderRows, true);
+    if (reqs.length) {
+      var reqRows = reqs.map(function (r) {
+        var u = (STATE.usersByName || {})[r.from] || {};
+        return '<div class="friend-row"><div class="friend-row-main">' + avatarHtml(u, r.from) + '<span class="friend-name-plain">' + escapeHtml(r.from) + '</span>' + badgesHtml(u) + '</div>' +
+          '<div class="friend-row-actions">' +
+          '<button type="button" class="primary" data-action="event-join-request-accept" data-id="' + r.id + '">Accepter</button>' +
+          '<button type="button" class="ghost" data-action="event-join-request-remove" data-id="' + r.id + '">Refuser</button>' +
+          '</div></div>';
+      }).join('');
+      html += collapsibleSection('event-manage-requests-' + ev.id, 'Demandes à accepter (' + reqs.length + ')', reqRows, true);
+    }
+    html += collapsibleSection('event-manage-groups-' + ev.id, 'Groupes de départ', renderRiderGroupsSection(ev), true);
+    html += '</div>';
+    return html;
   }
 
   function renderTeamCard(team, me) {
@@ -7289,10 +7341,20 @@
 
       var expandedTeam = expandedTeamId ? myTeams.filter(function (t) { return t.id === expandedTeamId; })[0] : null;
       if (expandedTeam) {
-        html += '<div style="margin-top:1rem;">' +
-          '<button type="button" class="ghost" data-action="team-tile-close" style="margin-bottom:0.6rem;">← Retour aux Teams</button>' +
-          renderTeamCard(expandedTeam, me) +
-          '</div>';
+        var managingEvent = managingEventId
+          ? (STATE.events || []).filter(function (e) { return e.id === managingEventId && e.teamId === expandedTeam.id; })[0]
+          : null;
+        if (managingEvent) {
+          html += '<div style="margin-top:1rem;">' +
+            '<button type="button" class="ghost" data-action="event-manage-close" style="margin-bottom:0.6rem;">← Retour à ' + escapeHtml(expandedTeam.name) + '</button>' +
+            renderEventManagementScreen(managingEvent, expandedTeam) +
+            '</div>';
+        } else {
+          html += '<div style="margin-top:1rem;">' +
+            '<button type="button" class="ghost" data-action="team-tile-close" style="margin-bottom:0.6rem;">← Retour aux Teams</button>' +
+            renderTeamCard(expandedTeam, me) +
+            '</div>';
+        }
       }
       // Shared by every team card's 📷 button -- only one photo picker is
       // ever open at a time, so one hidden input covers them all (see
@@ -8289,12 +8351,29 @@
       btn.addEventListener('click', function () {
         expandedTeamId = btn.getAttribute('data-team');
         manageTeamsOpen = false;
+        managingEventId = null;
         renderRoot();
         window.scrollTo(0, 0);
       });
     });
     document.querySelectorAll('[data-action="team-tile-close"]').forEach(function (btn) {
-      btn.addEventListener('click', function () { expandedTeamId = null; renderRoot(); });
+      btn.addEventListener('click', function () { expandedTeamId = null; managingEventId = null; renderRoot(); });
+    });
+    document.querySelectorAll('[data-action="team-event-manage-open"]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        managingEventId = btn.getAttribute('data-id');
+        editingEventId = null;
+        riderGroupSearch = '';
+        renderRoot();
+        window.scrollTo(0, 0);
+      });
+    });
+    document.querySelectorAll('[data-action="event-manage-close"]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        managingEventId = null;
+        editingEventId = null;
+        renderRoot();
+      });
     });
     var teamManageToggle = document.getElementById('team-manage-toggle');
     if (teamManageToggle) {
@@ -8920,6 +8999,13 @@
     if (accountManagerSearchEl) {
       accountManagerSearchEl.addEventListener('input', function () {
         accountManagerSearch = accountManagerSearchEl.value;
+        renderRoot();
+      });
+    }
+    var riderGroupSearchEl = document.getElementById('rider-group-search');
+    if (riderGroupSearchEl) {
+      riderGroupSearchEl.addEventListener('input', function () {
+        riderGroupSearch = riderGroupSearchEl.value;
         renderRoot();
       });
     }
