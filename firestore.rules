@@ -226,8 +226,40 @@ service cloud.firestore {
             && hasAcceptedTeamInvite(request.resource.data.teamId))
         || isTeamLeader(request.resource.data.teamId)
       );
-      allow update: if verified() && (isAdmin() || isTeamLeader(resource.data.teamId));
+      // A leader can change anything on a member's doc (role, adherent...);
+      // the member themselves can only ever flip their own
+      // adherentRequested (asking to become an adherent -- see
+      // requestTeamAdherent), never adherent itself, which stays the
+      // leader's call alone.
+      allow update: if verified() && (
+        isAdmin() || isTeamLeader(resource.data.teamId)
+        || (resource.data.name == myName() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['adherentRequested']))
+      );
       allow delete: if verified() && (isAdmin() || isTeamLeader(resource.data.teamId) || resource.data.name == myName());
+    }
+    // A non-member asking to join a Team, either as a plain member or
+    // straight in as an adherent -- id = teamId_from so a second request
+    // overwrites instead of stacking, same shape as teamInvites but
+    // initiated by the other side (the requester, not the leader). Accept
+    // is the leader's job and happens by creating (or updating) the
+    // matching teamMembers doc directly -- isTeamLeader() already lets a
+    // leader create/update any member of their own team, so no separate
+    // "accepted" status transition needs to live here; declining is just
+    // deleting the request.
+    match /teamJoinRequests/{id} {
+      allow read: if request.auth != null;
+      allow create: if verified() && request.resource.data.from == myName()
+        && (request.resource.data.kind == 'member' || request.resource.data.kind == 'adherent')
+        && request.resource.data.status == 'pending';
+      allow delete: if verified() && (resource.data.from == myName() || isTeamLeader(resource.data.teamId));
+    }
+    // A plain, no-strings like -- id = teamId_name, one per (team, person),
+    // self-service create/delete only, like followTeam's own follows rows
+    // but without any tier or request semantics.
+    match /teamLikes/{id} {
+      allow read: if request.auth != null;
+      allow create: if verified() && request.resource.data.name == myName();
+      allow delete: if verified() && resource.data.name == myName();
     }
     // Id = teamId_to, so a leader can only ever have one pending/accepted
     // invite outstanding per person per team (a second create would just

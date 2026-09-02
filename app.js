@@ -14,7 +14,7 @@
   var STATE = {
     sessions: [], events: [], circuits: {}, riders: [], usersByName: {}, friendRequests: [], feedEvents: [], myFollows: [], myFollowedTeams: [],
     myFollowedTeamTiers: {}, teams: [], myTeamMemberships: [], teamInvites: [], teamMembersByTeam: {}, teamFeed: [], teamFollowersByTeam: {},
-    followedTeamFeed: [], wallPosts: [], coachRequests: []
+    followedTeamFeed: [], wallPosts: [], coachRequests: [], teamJoinRequests: [], teamLikes: []
   };
   var canPersist = false;
   var unsubscribers = [];
@@ -308,6 +308,81 @@
     });
   }
 
+  // An already-joined member asking their own Team Leader to promote them
+  // to adherent (paying club member) -- self-service, only the
+  // adherentRequested flag (firestore.rules blocks anything else on a
+  // self-update); the leader alone can actually flip adherent itself, see
+  // decideTeamAdherentRequest.
+  function requestTeamAdherent(teamId) {
+    var me = currentUserProfile;
+    if (!me) return;
+    db.collection('teamMembers').doc(teamMemberDocId(teamId, me.name)).update({ adherentRequested: true }).then(function () {
+      showToast('Demande d\'adhésion envoyée.', 'success');
+    }).catch(function (err) {
+      showToast('Erreur : ' + (err && err.message ? err.message : err));
+    });
+  }
+  // Leader-only in practice (firestore.rules' teamMembers update rule) --
+  // accept sets adherent and clears the request; decline just clears it.
+  function decideTeamAdherentRequest(teamId, name, accept) {
+    db.collection('teamMembers').doc(teamMemberDocId(teamId, name)).update({
+      adherentRequested: false, adherent: accept
+    }).catch(function (err) {
+      showToast('Erreur : ' + (err && err.message ? err.message : err));
+    });
+  }
+
+  // A non-member asking to join a Team PRO ("club") -- either as a plain
+  // member or straight in as an adherent (see renderTeamDiscovery); the
+  // leader accepts by creating the teamMembers doc themselves (see
+  // acceptTeamJoinRequest), teamJoinRequests itself never gets an
+  // "accepted" status, only created then deleted either way.
+  function requestJoinTeam(teamId, kind) {
+    var me = currentUserProfile;
+    var team = teamById(teamId);
+    if (!me || !team) return;
+    db.collection('teamJoinRequests').doc(teamMemberDocId(teamId, me.name)).set({
+      teamId: teamId, teamName: team.name, from: me.name, kind: kind, status: 'pending'
+    }).then(function () {
+      showToast('Demande envoyée à ' + team.name + '.', 'success');
+    }).catch(function (err) {
+      showToast('Erreur : ' + (err && err.message ? err.message : err));
+    });
+  }
+  function acceptTeamJoinRequest(req) {
+    db.collection('teamMembers').doc(teamMemberDocId(req.teamId, req.from)).set({
+      teamId: req.teamId, name: req.from, role: 'member', joinedAt: Date.now(),
+      adherent: req.kind === 'adherent'
+    }, { merge: true }).then(function () {
+      return db.collection('teamJoinRequests').doc(req.id).delete();
+    }).then(function () {
+      showToast(req.from + ' a rejoint ' + req.teamName + '.', 'success');
+    }).catch(function (err) {
+      showToast('Erreur : ' + (err && err.message ? err.message : err));
+    });
+  }
+  // Same delete either way -- declining a request received or cancelling
+  // one sent.
+  function removeTeamJoinRequest(id) {
+    db.collection('teamJoinRequests').doc(id).delete().catch(function (err) {
+      showToast('Erreur : ' + (err && err.message ? err.message : err));
+    });
+  }
+
+  // A plain like, no request/accept -- see firestore.rules' teamLikes.
+  function toggleTeamLike(teamId) {
+    var me = currentUserProfile;
+    if (!me) return;
+    var id = teamMemberDocId(teamId, me.name);
+    var already = (STATE.teamLikes || []).some(function (l) { return l.teamId === teamId && l.name === me.name; });
+    var op = already
+      ? db.collection('teamLikes').doc(id).delete()
+      : db.collection('teamLikes').doc(id).set({ teamId: teamId, name: me.name });
+    op.catch(function (err) {
+      showToast('Erreur : ' + (err && err.message ? err.message : err));
+    });
+  }
+
   // text/linkUrl/photoURL post, or a poll (postTeamPoll below) -- both are
   // just teamFeed docs, gated by the same firestore.rules create rule
   // (leader always, or any member when the team's postPolicy is 'members').
@@ -374,6 +449,21 @@
 
   function setTeamVisibility(teamId, visibility) {
     db.collection('teams').doc(teamId).set({ visibility: visibility }, { merge: true }).catch(function (err) {
+      showToast('Erreur : ' + (err && err.message ? err.message : err));
+    });
+  }
+
+  function saveTeamDescription(teamId, text) {
+    db.collection('teams').doc(teamId).set({ description: (text || '').trim() || null }, { merge: true }).then(function () {
+      showToast('Présentation enregistrée.', 'success');
+    }).catch(function (err) {
+      showToast('Erreur : ' + (err && err.message ? err.message : err));
+    });
+  }
+  // Same base64-data-URL-on-the-doc approach as savePhoto (users) -- no
+  // Firebase Storage setup, resized client-side first.
+  function saveTeamPhoto(teamId, dataUrl) {
+    db.collection('teams').doc(teamId).set({ photoURL: dataUrl || null }, { merge: true }).catch(function (err) {
       showToast('Erreur : ' + (err && err.message ? err.message : err));
     });
   }
@@ -687,7 +777,10 @@
   // 'calendar' was itself a later, now-retired standalone tab — Calendrier
   // is merged into Événements, so any saved 'calendar' state maps forward
   // to 'event' too.
-  var activeView = (_rawSavedView === 'sessions' || _rawSavedView === 'chronos') ? 'circuit' : (_rawSavedView === 'calendar' ? 'event' : (_rawSavedView || 'event')); // 'event' | 'circuit' | 'stats'
+  // Home page is EN PISTE (Planning) -- the fallback below only kicks in
+  // with no saved state at all (a new browser/account); any previously
+  // saved tab, on any device, keeps landing on itself as before.
+  var activeView = (_rawSavedView === 'sessions' || _rawSavedView === 'chronos') ? 'circuit' : (_rawSavedView === 'calendar' ? 'event' : (_rawSavedView || 'planning')); // 'event' | 'circuit' | 'stats'
   var calendarAnchor = _savedUiState.calendarAnchor || dateKey(new Date()); // 'YYYY-MM-DD'
   var calendarViewMode = _savedUiState.calendarViewMode || '2month'; // one of ZOOM_LEVELS below — base view is 2 months (current + next)
   var selectedEventId = _savedUiState.selectedEventId || null; // which sortie the Événement tab (and Calendrier's detail card) shows
@@ -2563,6 +2656,30 @@
     var out = '';
     allKnownRiders().forEach(function (r) {
       out += '<option value="' + escapeHtml(r) + '">';
+    });
+    return out;
+  }
+
+  // Suggestions for the event form's "Pilotes" field -- scoped to riders
+  // this account actually knows (a friend, or a fellow member of any Team
+  // it's in) rather than the entire roster, per "les pilotes ajoutés sont
+  // des amis ou bien un Team". Still a plain text input underneath (see
+  // renderEventForm), so this only narrows the datalist's suggestions --
+  // the admin, who manages every account, keeps seeing everyone.
+  function riderDatalistForEventForm(existingRiders) {
+    if (isAdmin()) return riderDatalist();
+    var me = currentUserProfile;
+    var known = {};
+    (existingRiders || []).forEach(function (r) { known[r] = true; });
+    if (me) {
+      friendsOf(me.name).forEach(function (f) { known[f.name] = true; });
+      (STATE.myTeamMemberships || []).forEach(function (m) {
+        membersOfTeam(m.teamId).forEach(function (tm) { known[tm.name] = true; });
+      });
+    }
+    var out = '';
+    allKnownRiders().forEach(function (r) {
+      if (known[r]) out += '<option value="' + escapeHtml(r) + '">';
     });
     return out;
   }
@@ -4881,25 +4998,31 @@
     html += '</div>';
     var sub = [];
     if (!isOngoing) sub.push(escapeHtml(formatEventRange(ev, true)) + ' (' + weekdayName(ev.dateStart) + ')');
-    if (info.organizer) sub.push('Organisateur ' + escapeHtml(info.organizer));
     if (sub.length) html += '<div class="help-text" style="font-size:0.78rem; font-weight:400;">' + sub.join(' · ') + '</div>';
     // Briefing lives with Horaires (above the group filter) now, not up
     // here -- it's schedule information, same family as the slot times.
     var briefingLine = info.briefing ? '<div class="help-text" style="margin-bottom:0.6rem; color:var(--accent); font-weight:600;">Briefing ' + escapeHtml(info.briefing) + '</div>' : '';
 
+    // Organisateur/hôtel/avion/aéroport -- practical logistics, not
+    // something to read every time this card is opened, so it's its own
+    // collapsed-by-default rubrique (Infos pratiques) instead of sitting
+    // inline above the horaires.
+    var practicalInfo = '';
+    if (info.organizer) practicalInfo += '<div class="help-text">Organisateur : ' + escapeHtml(info.organizer) + '</div>';
     if (ev.hotelName || ev.hotelAddress) {
-      html += '<div class="help-text location-line">Hôtel : ' + [ev.hotelName, ev.hotelAddress].filter(Boolean).map(escapeHtml).join(' — ') +
+      practicalInfo += '<div class="help-text location-line">Hôtel : ' + [ev.hotelName, ev.hotelAddress].filter(Boolean).map(escapeHtml).join(' — ') +
         renderLocationActions(ev.hotelAddress || ev.hotelName) + '</div>';
     }
     if (ev.flightOutDep || ev.flightOutArr) {
-      html += '<div class="help-text">Avion aller : ' + escapeHtml([ev.flightOutDep, ev.flightOutArr].filter(Boolean).join(' → ')) + '</div>';
+      practicalInfo += '<div class="help-text">Avion aller : ' + escapeHtml([ev.flightOutDep, ev.flightOutArr].filter(Boolean).join(' → ')) + '</div>';
     }
     if (ev.flightBackDep || ev.flightBackArr) {
-      html += '<div class="help-text">Avion retour : ' + escapeHtml([ev.flightBackDep, ev.flightBackArr].filter(Boolean).join(' → ')) + '</div>';
+      practicalInfo += '<div class="help-text">Avion retour : ' + escapeHtml([ev.flightBackDep, ev.flightBackArr].filter(Boolean).join(' → ')) + '</div>';
     }
     if (ev.airport) {
-      html += '<div class="help-text location-line">Aéroport : ' + escapeHtml(ev.airport) + renderLocationActions(ev.airport) + '</div>';
+      practicalInfo += '<div class="help-text location-line">Aéroport : ' + escapeHtml(ev.airport) + renderLocationActions(ev.airport) + '</div>';
     }
+    var practicalInfoHtml = collapsibleSection('infos-pratiques', 'Infos pratiques', practicalInfo);
 
     var availableGroups = horaires ? HORAIRES_GROUPS.filter(function (g) { return horaires[g.key]; }) : [];
     if (!availableGroups.length) {
@@ -4908,6 +5031,7 @@
       html += renderHorairesPhotoSection(ev);
       html += collapsibleSection('groupes', 'Groupes par pilote', renderRiderGroupsSection(ev));
       html += collapsibleSection('equipement', checklistCountLabel(ev), renderPlanningChecklist(ev));
+      html += practicalInfoHtml;
       return html + '</div>';
     }
 
@@ -4930,6 +5054,7 @@
     html += collapsibleSection('horaires', 'Horaires', horairesInner);
     html += collapsibleSection('groupes', 'Groupes par pilote', renderRiderGroupsSection(ev));
     html += collapsibleSection('equipement', checklistCountLabel(ev), renderPlanningChecklist(ev));
+    html += practicalInfoHtml;
     if (isOngoing) {
       var todayKey = dateKey(new Date());
       if (myGroupFinishedToday(ev, horaires, todayKey)) {
@@ -5297,7 +5422,22 @@
       '<datalist id="circuit-options-ev">' + circuitDatalist() + '</datalist></div>';
     html += '<div><label for="ev-date-start">Date de début</label><input type="text" id="ev-date-start" inputmode="numeric" placeholder="JJ/MM/AAAA" value="' + isoToFrDate(ev.dateStart) + '" required></div>';
     html += '<div><label for="ev-date-end">Date de fin (optionnel)</label><input type="text" id="ev-date-end" inputmode="numeric" placeholder="JJ/MM/AAAA" value="' + isoToFrDate(ev.dateEnd) + '"></div>';
-    html += '<div><label for="ev-organizer">Organisateur</label><input type="text" id="ev-organizer" placeholder="Ex. MT95" value="' + escapeHtml(ev.organizer || '') + '"></div>';
+    // Only a verified Organisateur account (the admin-granted "Organisateur
+    // vérifié" badge, see isOrganizerBadge) can be picked -- a plain
+    // select, not free text, per "l'organisateur doit être un compte pro
+    // vérifié". The sortie's current value is always kept as an option
+    // even if that account lost the badge since, so saving again doesn't
+    // silently wipe it.
+    var verifiedOrganizers = allKnownUserNames().filter(function (n) { return isOrganizerBadge((STATE.usersByName || {})[n]); });
+    if (ev.organizer && verifiedOrganizers.indexOf(ev.organizer) === -1) verifiedOrganizers.push(ev.organizer);
+    verifiedOrganizers.sort(function (a, b) { return a.localeCompare(b); });
+    html += '<div><label for="ev-organizer">Organisateur</label>' +
+      (verifiedOrganizers.length
+        ? '<select id="ev-organizer"><option value="">—</option>' + verifiedOrganizers.map(function (n) {
+            return '<option value="' + escapeHtml(n) + '"' + (n === ev.organizer ? ' selected' : '') + '>' + escapeHtml(n) + '</option>';
+          }).join('') + '</select>'
+        : '<select id="ev-organizer" disabled><option value="">Aucun compte Organisateur vérifié pour l\'instant</option></select>') +
+      '</div>';
     html += '</div>';
     // Horaires live on the circuit (shared across every sortie there, see
     // renderCircuitInfoEditForm), but any pilote creating a sortie can set
@@ -5314,7 +5454,8 @@
     html += '</div></div>';
     html += '<label for="ev-riders" style="margin-top:0.9rem; display:block;">Pilotes (séparés par une virgule)</label>' +
       '<input type="text" id="ev-riders" list="rider-options-ev" placeholder="Ex. Marc, Xavier" value="' + escapeHtml((ev.riders || []).join(', ')) + '">' +
-      '<datalist id="rider-options-ev">' + riderDatalist() + '</datalist>';
+      '<div class="help-text">Suggestions limitées à tes amis et aux membres de tes Teams.</div>' +
+      '<datalist id="rider-options-ev">' + riderDatalistForEventForm(ev.riders) + '</datalist>';
     html += '<div class="event-checklist" style="margin-top:0.9rem;"><div class="event-checklist-title">Groupe de départ</div><div id="ev-groups-grid">' +
       renderEventFormGroupsGrid(ev.riders || []) + '</div></div>';
     html += '<div style="margin-top:0.9rem;"><label for="ev-note">Note (optionnel)</label><input type="text" id="ev-note" placeholder="Ex. Inscriptions avant le 1er septembre" value="' + escapeHtml(ev.note || '') + '"></div>';
@@ -5825,6 +5966,10 @@
   // the team id it's for, same as wallPostDraftPhotoURL but scoped.
   var teamPostDraftPhotoTeamId = null;
   var teamPostDraftPhotoURL = null;
+  // Which Team's own profile photo (Réglages) is currently being replaced
+  // -- unlike teamPostDraftPhotoURL above, this uploads straight to the
+  // team doc on selection (see saveTeamPhoto), no preview/draft step.
+  var teamPhotoUploadTeamId = null;
 
   function visibleWallPosts(me) {
     var friendNames = friendsOf(me.name).map(function (f) { return f.name; });
@@ -6017,15 +6162,24 @@
   // A team's roster and feed (see refreshTeamDetailSync) only ever cover
   // the team(s) this account is actually in -- there's no "browse other
   // teams" here, same boundary as Social's friend-only visibility.
-  function renderTeamMemberRow(teamId, member, isLeader, myName) {
+  function renderTeamMemberRow(teamId, member, isLeader, myName, teamPro) {
     var u = (STATE.usersByName || {})[member.name] || {};
     var actions = '';
     if (isLeader && member.name !== myName) {
       actions += member.role === 'leader'
         ? '<button type="button" class="ghost icon-btn" data-action="team-demote" data-team="' + teamId + '" data-name="' + escapeHtml(member.name) + '" aria-label="Retirer Team Leader" title="Retirer Team Leader">↓</button>'
         : '<button type="button" class="ghost icon-btn" data-action="team-promote" data-team="' + teamId + '" data-name="' + escapeHtml(member.name) + '" aria-label="Nommer Team Leader" title="Nommer Team Leader">↑</button>';
+      if (teamPro && member.adherentRequested) {
+        actions += '<button type="button" class="primary" data-action="team-adherent-accept" data-team="' + teamId + '" data-name="' + escapeHtml(member.name) + '">Valider adhérent</button>' +
+          '<button type="button" class="ghost" data-action="team-adherent-decline" data-team="' + teamId + '" data-name="' + escapeHtml(member.name) + '">Refuser</button>';
+      }
       actions += '<button type="button" class="ghost icon-btn" data-action="team-remove-member" data-team="' + teamId + '" data-name="' + escapeHtml(member.name) + '" aria-label="Retirer du team" title="Retirer du team">×</button>';
     } else if (member.name === myName) {
+      if (teamPro && !member.adherent) {
+        actions += member.adherentRequested
+          ? '<span class="help-text">Demande envoyée</span>'
+          : '<button type="button" class="ghost" data-action="team-request-adherent" data-team="' + teamId + '">Devenir adhérent</button>';
+      }
       actions += '<button type="button" class="ghost" data-action="team-leave" data-team="' + teamId + '">Quitter</button>';
     }
     // member.role is the *team* hierarchy (leader/member); u.role is the
@@ -6037,6 +6191,7 @@
     return '<div class="friend-row">' +
       '<div class="friend-row-main">' + avatarHtml(u, member.name) + '<span class="friend-name-plain">' + escapeHtml(member.name) + '</span>' + badgesHtml(u) +
       (accountRoleLabel ? '<span class="account-role-tag">' + accountRoleLabel + '</span>' : '') +
+      (member.adherent ? '<span class="friend-role-badge adherent-badge">Adhérent</span>' : '') +
       '<span class="friend-role-badge">' + (member.role === 'leader' ? 'Team Leader' : 'Membre') + '</span></div>' +
       '<div class="friend-row-actions">' + actions + '</div></div>';
   }
@@ -6122,7 +6277,15 @@
       return '<div class="team-settings-disabled"><div class="help-text">🔒 Réservé aux Team Leaders.</div></div>';
     }
     var visibility = team.visibility || 'private';
-    var html = '<label for="team-visibility-select-' + team.id + '">Visibilité (qui peut trouver et suivre ce Team)</label>' +
+    var html = '<div><label for="team-description-' + team.id + '">Présentation</label>' +
+      '<textarea id="team-description-' + team.id + '" rows="2" placeholder="Quelques mots sur le Team...">' + escapeHtml(team.description || '') + '</textarea>' +
+      '<div style="margin-top:0.5rem; display:flex; align-items:center; gap:0.6rem;">' +
+      '<button type="button" class="ghost" data-action="team-description-save" data-team="' + team.id + '">Enregistrer la présentation</button>' +
+      (team.photoURL
+        ? '<button type="button" class="ghost" data-action="team-photo-remove" data-team="' + team.id + '">Retirer la photo</button>'
+        : '<button type="button" class="ghost" data-action="team-photo-btn" data-team="' + team.id + '">Ajouter une photo</button>') +
+      '</div></div>';
+    html += '<label for="team-visibility-select-' + team.id + '" style="margin-top:0.9rem;">Visibilité (qui peut trouver et suivre ce Team)</label>' +
       '<select id="team-visibility-select-' + team.id + '" data-action="team-visibility" data-team="' + team.id + '">' +
       '<option value="private"' + (visibility === 'private' ? ' selected' : '') + '>Sur invitation uniquement</option>' +
       '<option value="all"' + (visibility === 'all' ? ' selected' : '') + '>Visible par tous</option>' +
@@ -6149,8 +6312,10 @@
     });
     var feed = (STATE.teamFeed || []).filter(function (f) { return f.teamId === team.id; });
     var html = '<div class="card team-card">';
-    html += '<div class="section-title" style="display:flex; align-items:center; justify-content:space-between;">' + escapeHtml(team.name) + teamBadgesHtml(team) +
+    html += '<div class="section-title" style="display:flex; align-items:center; gap:0.6rem;">' + avatarHtml(team, team.name) +
+      '<span style="flex:1;">' + escapeHtml(team.name) + teamBadgesHtml(team) + '</span>' +
       '<span class="friend-role-badge">' + (isLeader ? 'Team Leader' : 'Membre') + '</span></div>';
+    if (team.description) html += '<div class="help-text team-description">' + escapeHtml(team.description) + '</div>';
 
     var feedBody = !feed.length
       ? '<div class="empty-state">Rien pour l\'instant.</div>'
@@ -6189,7 +6354,7 @@
     }
     html += collapsibleSection('team-feed-' + team.id, 'Fil d\'actualité (' + feed.length + ')', feedBody);
 
-    var membersBody = members.map(function (m) { return renderTeamMemberRow(team.id, m, isLeader, me.name); }).join('');
+    var membersBody = members.map(function (m) { return renderTeamMemberRow(team.id, m, isLeader, me.name, team.teamPro); }).join('');
     html += collapsibleSection('team-members-' + team.id, 'Membres (' + members.length + ')', membersBody);
 
     if (isLeader) {
@@ -6218,6 +6383,22 @@
           }).join('') + '</select>' +
           '<button type="submit" class="ghost">Inviter</button></form>';
       html += collapsibleSection('team-invite-' + team.id, team.teamPro ? 'Inviter' : 'Inviter un ami', inviteBody);
+    }
+
+    if (isLeader) {
+      var joinRequests = (STATE.teamJoinRequests || []).filter(function (r) { return r.teamId === team.id && r.status === 'pending'; });
+      if (joinRequests.length) {
+        var joinReqBody = joinRequests.map(function (r) {
+          var u = (STATE.usersByName || {})[r.from] || {};
+          return '<div class="friend-row"><div class="friend-row-main">' + avatarHtml(u, r.from) + '<span class="friend-name-plain">' + escapeHtml(r.from) + '</span>' + badgesHtml(u) +
+            '<span class="friend-role-badge">' + (r.kind === 'adherent' ? 'Adhérent' : 'Membre') + '</span></div>' +
+            '<div class="friend-row-actions">' +
+            '<button type="button" class="primary" data-action="team-join-request-accept" data-id="' + r.id + '">Accepter</button>' +
+            '<button type="button" class="ghost" data-action="team-join-request-remove" data-id="' + r.id + '">Refuser</button>' +
+            '</div></div>';
+        }).join('');
+        html += collapsibleSection('team-join-requests-' + team.id, 'Demandes pour rejoindre (' + joinRequests.length + ')', joinReqBody);
+      }
     }
 
     if (isLeader && team.teamPro) {
@@ -6344,6 +6525,7 @@
       // ever open at a time, so one hidden input covers them all (see
       // teamPostDraftPhotoTeamId).
       html += '<input type="file" id="team-feed-photo-input" accept="image/*" style="display:none;">';
+      html += '<input type="file" id="team-photo-input" accept="image/*" style="display:none;">';
     }
     html += renderTeamDiscovery(me, myTeams);
     html += renderCreateTeamCard();
@@ -6356,9 +6538,37 @@
   // (see followName/toggleReaction's sibling functions), not membership --
   // it doesn't add you to the roster or its feed, just marks the team as
   // one you keep an eye on.
+  // A discoverable team's row: its like count (anyone can like/unlike,
+  // no request needed), then whichever of Suivre / Rejoindre (membre) /
+  // Devenir adhérent still applies -- a pending join request (mine)
+  // replaces its button with a plain status, rather than letting a
+  // second one be sent (teamJoinRequests' doc id is deterministic so a
+  // second create would just overwrite anyway, but this avoids the
+  // confusing "did that go through" moment).
+  function renderTeamDiscoveryRow(t, me, showUnfollow) {
+    var likeCount = (STATE.teamLikes || []).filter(function (l) { return l.teamId === t.id; }).length;
+    var iLike = (STATE.teamLikes || []).some(function (l) { return l.teamId === t.id && l.name === me.name; });
+    var myRequest = (STATE.teamJoinRequests || []).filter(function (r) { return r.teamId === t.id && r.from === me.name; })[0];
+    var actions = '<button type="button" class="ghost icon-btn' + (iLike ? ' liked' : '') + '" data-action="team-like-toggle" data-team="' + t.id + '" aria-label="' + (iLike ? 'Retirer le like' : 'Liker') + '" title="' + (iLike ? 'Retirer le like' : 'Liker') + '">❤' + (likeCount ? ' ' + likeCount : '') + '</button>';
+    if (showUnfollow) {
+      actions += '<button type="button" class="ghost icon-btn" data-action="unfollow-team" data-team="' + t.id + '" aria-label="Ne plus suivre" title="Ne plus suivre">×</button>';
+    } else {
+      actions += '<button type="button" class="ghost" data-action="follow-team" data-team="' + t.id + '">Suivre</button>';
+    }
+    if (myRequest) {
+      actions += '<span class="help-text">' + (myRequest.kind === 'adherent' ? 'Demande d\'adhésion envoyée' : 'Demande de membre envoyée') + '</span>';
+    } else {
+      actions += '<button type="button" class="ghost" data-action="team-join-request" data-team="' + t.id + '" data-kind="member">Rejoindre</button>';
+      if (t.teamPro) actions += '<button type="button" class="ghost" data-action="team-join-request" data-team="' + t.id + '" data-kind="adherent">Devenir adhérent</button>';
+    }
+    var desc = t.description ? '<div class="help-text team-discovery-desc">' + escapeHtml(t.description) + '</div>' : '';
+    return '<div class="friend-row team-discovery-row"><div class="friend-row-main">' + avatarHtml(t, t.name) + '<span class="friend-name-plain">' + escapeHtml(t.name) + '</span>' + teamBadgesHtml(t) + desc + '</div>' +
+      '<div class="friend-row-actions">' + actions + '</div></div>';
+  }
+
   function renderTeamDiscovery(me, myTeams) {
     var myTeamIds = myTeams.map(function (t) { return t.id; });
-    var followedTeamIds = (STATE.myFollowedTeams || []).map(function (f) { return f.teamId; });
+    var followedTeamIds = STATE.myFollowedTeams || [];
     var discoverable = (STATE.teams || []).filter(function (t) {
       if (myTeamIds.indexOf(t.id) !== -1) return false;
       if (t.visibility === 'all') return true;
@@ -6372,18 +6582,13 @@
       body += '<div class="team-section-title">Teams suivis</div>';
       body += followedTeamIds.map(function (id) {
         var t = teamById(id);
-        if (!t) return '';
-        return '<div class="friend-row"><div class="friend-row-main"><span class="friend-name-plain">' + escapeHtml(t.name) + '</span>' + teamBadgesHtml(t) + '</div>' +
-          '<div class="friend-row-actions"><button type="button" class="ghost icon-btn" data-action="unfollow-team" data-team="' + id + '" aria-label="Ne plus suivre" title="Ne plus suivre">×</button></div></div>';
+        return t ? renderTeamDiscoveryRow(t, me, true) : '';
       }).join('');
     }
     var toSuggest = discoverable.filter(function (t) { return followedTeamIds.indexOf(t.id) === -1; });
     if (toSuggest.length) {
       body += '<div class="team-section-title">À découvrir</div>';
-      body += toSuggest.map(function (t) {
-        return '<div class="friend-row"><div class="friend-row-main"><span class="friend-name-plain">' + escapeHtml(t.name) + '</span>' + teamBadgesHtml(t) + '</div>' +
-          '<div class="friend-row-actions"><button type="button" class="ghost" data-action="follow-team" data-team="' + t.id + '">Suivre</button></div></div>';
-      }).join('');
+      body += toSuggest.map(function (t) { return renderTeamDiscoveryRow(t, me, false); }).join('');
     }
     return collapsibleCard('team-discovery', 'Découvrir des Teams', body, false);
   }
@@ -6405,6 +6610,18 @@
 
   function renderRootUnsafe() {
     var root = document.getElementById('root');
+    // Snapshot every collapsible <details>' current open/closed state right
+    // before the DOM under it gets torn down (root.innerHTML replaced
+    // below) -- relying solely on their 'toggle' event listener (see
+    // attachHandlers) missed cases where a *different* action elsewhere on
+    // the page (e.g. clicking an unrelated Enregistrer button) triggered a
+    // re-render: nothing had toggled, so nothing had fired, but the old
+    // <details> were still open and about to be destroyed. This makes sure
+    // planningSectionsOpen always reflects reality at render time, not just
+    // at the last manual toggle.
+    document.querySelectorAll('[data-planning-section]').forEach(function (details) {
+      planningSectionsOpen[details.getAttribute('data-planning-section')] = details.open;
+    });
     document.body.classList.toggle('has-bottom-nav', authState === 'signed-in');
     if (authState !== 'signed-in') {
       var authBody;
@@ -7208,6 +7425,34 @@
     document.querySelectorAll('[data-action="team-visibility"]').forEach(function (select) {
       select.addEventListener('change', function () { setTeamVisibility(select.getAttribute('data-team'), select.value); });
     });
+    document.querySelectorAll('[data-action="team-description-save"]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var teamId = btn.getAttribute('data-team');
+        var textarea = document.getElementById('team-description-' + teamId);
+        saveTeamDescription(teamId, textarea ? textarea.value : '');
+      });
+    });
+    var teamPhotoInput = document.getElementById('team-photo-input');
+    document.querySelectorAll('[data-action="team-photo-btn"]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        teamPhotoUploadTeamId = btn.getAttribute('data-team');
+        if (teamPhotoInput) teamPhotoInput.click();
+      });
+    });
+    if (teamPhotoInput) {
+      teamPhotoInput.addEventListener('change', function () {
+        var file = teamPhotoInput.files && teamPhotoInput.files[0];
+        if (!file || !teamPhotoUploadTeamId) return;
+        if (!/^image\//.test(file.type)) { showToast('Choisis un fichier image.'); return; }
+        resizeImageToDataUrl(file, 400, 0.7, function (dataUrl) {
+          if (!dataUrl) { showToast('Impossible de lire cette image.'); return; }
+          saveTeamPhoto(teamPhotoUploadTeamId, dataUrl);
+        });
+      });
+    }
+    document.querySelectorAll('[data-action="team-photo-remove"]').forEach(function (btn) {
+      btn.addEventListener('click', function () { saveTeamPhoto(btn.getAttribute('data-team'), null); });
+    });
     document.querySelectorAll('[data-action="team-delete-request"]').forEach(function (btn) {
       btn.addEventListener('click', function () {
         var teamId = btn.getAttribute('data-team');
@@ -7276,6 +7521,30 @@
       btn.addEventListener('click', function () {
         if (currentUserProfile) removeTeamMember(btn.getAttribute('data-team'), currentUserProfile.name);
       });
+    });
+    document.querySelectorAll('[data-action="team-request-adherent"]').forEach(function (btn) {
+      btn.addEventListener('click', function () { requestTeamAdherent(btn.getAttribute('data-team')); });
+    });
+    document.querySelectorAll('[data-action="team-adherent-accept"]').forEach(function (btn) {
+      btn.addEventListener('click', function () { decideTeamAdherentRequest(btn.getAttribute('data-team'), btn.getAttribute('data-name'), true); });
+    });
+    document.querySelectorAll('[data-action="team-adherent-decline"]').forEach(function (btn) {
+      btn.addEventListener('click', function () { decideTeamAdherentRequest(btn.getAttribute('data-team'), btn.getAttribute('data-name'), false); });
+    });
+    document.querySelectorAll('[data-action="team-join-request"]').forEach(function (btn) {
+      btn.addEventListener('click', function () { requestJoinTeam(btn.getAttribute('data-team'), btn.getAttribute('data-kind')); });
+    });
+    document.querySelectorAll('[data-action="team-join-request-accept"]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var req = (STATE.teamJoinRequests || []).filter(function (r) { return r.id === btn.getAttribute('data-id'); })[0];
+        if (req) acceptTeamJoinRequest(req);
+      });
+    });
+    document.querySelectorAll('[data-action="team-join-request-remove"]').forEach(function (btn) {
+      btn.addEventListener('click', function () { removeTeamJoinRequest(btn.getAttribute('data-id')); });
+    });
+    document.querySelectorAll('[data-action="team-like-toggle"]').forEach(function (btn) {
+      btn.addEventListener('click', function () { toggleTeamLike(btn.getAttribute('data-team')); });
     });
     var copyReferralBtn = document.getElementById('copy-referral-link-btn');
     if (copyReferralBtn) {
@@ -8034,7 +8303,22 @@
       STATE.teams = snap.docs.map(function (d) { return d.data(); });
       renderRoot();
     }, handleSyncError));
+    // Likes: cheap to sync in full, like teams itself -- a flat {teamId,
+    // name} row per like, small enough at this app's scale that a plain
+    // count/lookup client-side beats scoping it like teamMembers is.
+    unsubscribers.push(db.collection('teamLikes').onSnapshot(function (snap) {
+      STATE.teamLikes = snap.docs.map(function (d) { return d.data(); });
+      renderRoot();
+    }, handleSyncError));
     if (currentUserProfile && currentUserProfile.name) {
+      // My own outgoing join requests (see renderTeamDiscovery) -- the
+      // matching incoming side, for teams this account leads, is synced
+      // separately in refreshTeamDetailSync (scoped to teams it's
+      // actually in, same as teamFollowersByTeam).
+      unsubscribers.push(db.collection('teamJoinRequests').where('from', '==', currentUserProfile.name).onSnapshot(function (snap) {
+        myTeamJoinRequestsOut = snap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); });
+        mergeTeamJoinRequests();
+      }, handleSyncError));
       unsubscribers.push(db.collection('teamMembers').where('name', '==', currentUserProfile.name).onSnapshot(function (snap) {
         STATE.myTeamMemberships = snap.docs.map(function (d) { return d.data(); });
         refreshTeamDetailSync();
@@ -8062,6 +8346,19 @@
     }
   }
 
+  // Split the same way teamInvites' from/to halves are (see mergeTeamInvites
+  // above) -- my own outgoing join requests (synced in startSync) plus the
+  // incoming ones for every team I lead (synced in refreshTeamDetailSync
+  // below), merged into one STATE.teamJoinRequests list.
+  var myTeamJoinRequestsOut = [], teamJoinRequestsIn = [];
+  function mergeTeamJoinRequests() {
+    var byId = {};
+    myTeamJoinRequestsOut.forEach(function (r) { byId[r.id] = r; });
+    teamJoinRequestsIn.forEach(function (r) { byId[r.id] = r; });
+    STATE.teamJoinRequests = Object.keys(byId).map(function (id) { return byId[id]; });
+    renderRoot();
+  }
+
   // Re-subscribed (not just once) whenever STATE.myTeamMemberships changes
   // -- e.g. joining a new team -- so its roster and feed start syncing
   // without needing a full page reload. Firestore's 'in' operator caps at
@@ -8075,6 +8372,8 @@
       STATE.teamMembersByTeam = {};
       STATE.teamFeed = [];
       STATE.teamFollowersByTeam = {};
+      teamJoinRequestsIn = [];
+      mergeTeamJoinRequests();
       return;
     }
     teamDetailUnsubs.push(db.collection('teamMembers').where('teamId', 'in', teamIds).onSnapshot(function (snap) {
@@ -8132,6 +8431,14 @@
       STATE.teamFollowersByTeam = byTeam;
       renderRoot();
     }, handleSyncError));
+    // Incoming join requests (see teamJoinRequests above) for every team
+    // this account is in -- only the leader-facing UI actually reads
+    // these (renderTeamJoinRequestsSection), but scoping the query to
+    // "my" teams is what keeps it cheap regardless.
+    teamDetailUnsubs.push(db.collection('teamJoinRequests').where('teamId', 'in', teamIds).onSnapshot(function (snap) {
+      teamJoinRequestsIn = snap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); });
+      mergeTeamJoinRequests();
+    }, handleSyncError));
   }
 
   // Re-subscribed whenever STATE.myFollowedTeams changes (see the follows
@@ -8166,6 +8473,8 @@
     teamDetailUnsubs = [];
     followedTeamFeedUnsubs.forEach(function (unsub) { unsub(); });
     followedTeamFeedUnsubs = [];
+    myTeamJoinRequestsOut = [];
+    teamJoinRequestsIn = [];
     seenTeamInviteIds = null;
   }
 
