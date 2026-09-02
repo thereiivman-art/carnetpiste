@@ -4795,9 +4795,20 @@
   // stays admin-only since several riders can be relying on it (groupes,
   // horaires, checklist), not just whoever created it, and there's no
   // Team Leader to trust with that call on those.
+  // Rendered only inside renderEventForm's own danger zone now (see
+  // below), never as a bare × next to "Modifier" in a list row -- that
+  // placement is exactly what caused an accidental double-delete: the
+  // confirm-armed state used to live only in the clicked button's own
+  // DOM (textContent/class), so a live-sync re-render between the two
+  // clicks silently reset the button back to "×" while pendingDeleteEvent
+  // stayed armed underneath, and the next ordinary-looking click deleted
+  // immediately with no visible warning. Reading pendingDeleteEvent here
+  // keeps the armed state correct across re-renders too.
   function deleteEventControl(ev) {
     if (!isAdmin() && !(ev.teamId && isLeaderOfTeam(ev.teamId))) return '';
-    return '<button type="button" class="ghost icon-btn" data-action="delete-event-request" data-id="' + ev.id + '" aria-label="Supprimer cet événement" title="Supprimer">×</button>';
+    var armed = pendingDeleteEvent === ev.id;
+    return '<button type="button" class="ghost danger' + (armed ? ' confirm' : '') + '" data-action="delete-event-request" data-id="' + ev.id + '">' +
+      (armed ? 'Confirmer la suppression' : 'Supprimer cet événement') + '</button>';
   }
 
   function renderSessionDayCard(dateStr) {
@@ -5073,7 +5084,7 @@
     html += '<div class="event-circuit-map"><div class="event-checklist-title">Carte du circuit</div>' + renderCircuitVisual(circuitInfo(ev.circuit), ev.circuit, ev.id) + '</div>';
     // The équipement checklist (with its count) lives entirely in
     // Planning now -- Événements stays simple and informative.
-    html += '<div class="event-detail-actions"><button type="button" class="ghost" id="edit-event-btn" data-id="' + ev.id + '">Modifier</button>' + deleteEventControl(ev) + '</div>';
+    html += '<div class="event-detail-actions"><button type="button" class="ghost" id="edit-event-btn" data-id="' + ev.id + '">Modifier</button></div>';
     html += '</div>';
     return html;
   }
@@ -6083,7 +6094,15 @@
       '<button type="submit" class="primary">Enregistrer</button>' +
       '<button type="button" class="ghost" id="cancel-event-btn">Annuler</button>' +
       '</div>';
-    html += '</form></div>';
+    html += '</form>';
+    // Deleting only lives here now, inside Modifier -- a deliberate two-
+    // step (open Modifier, then confirm) instead of a bare × sitting next
+    // to Modifier in every list row, which is what got clicked by mistake.
+    if (!isNew) {
+      var deleteBtn = deleteEventControl(ev);
+      if (deleteBtn) html += '<div class="danger-zone" style="margin-top:1rem;">' + deleteBtn + '</div>';
+    }
+    html += '</div>';
     return html;
   }
 
@@ -6196,6 +6215,7 @@
     editingEventId = null;
     prefillEventCircuit = null;
     prefillEventTeamId = null;
+    pendingDeleteEvent = null;
     renderRoot();
     persist(prevState);
   }
@@ -6787,36 +6807,9 @@
   // A team's roster and feed (see refreshTeamDetailSync) only ever cover
   // the team(s) this account is actually in -- there's no "browse other
   // teams" here, same boundary as Social's friend-only visibility.
-  // Read-only member listing -- promoting/demoting, granting/revoking
-  // adherent and suivi, and everything else a leader can DO to a member
-  // now lives in the unified renderTeamMembersManagement panel instead,
-  // so this row only carries the one self-service action every member
-  // has for themselves (request adherent / quitter).
-  function renderTeamMemberRow(teamId, member, myName, isAdherent, adherentRequested) {
-    var u = (STATE.usersByName || {})[member.name] || {};
-    var actions = '';
-    if (member.name === myName) {
-      if (!isAdherent) {
-        actions += adherentRequested
-          ? '<span class="help-text">Demande envoyée</span>'
-          : '<button type="button" class="ghost" data-action="team-request-adherent" data-team="' + teamId + '">Devenir adhérent</button>';
-      }
-      actions += '<button type="button" class="ghost" data-action="team-leave" data-team="' + teamId + '">Quitter</button>';
-    }
-    // member.role is the *team* hierarchy (leader/member); u.role is the
-    // account type (pilote/accompagnant/organisateur) -- an Accompagnant
-    // or Organisateur can be a Team member same as a Pilote (a Team can be
-    // a whole riding group, not just the riders), but is tagged separately
-    // so it's clear at a glance who's actually on track.
-    var accountRoleLabel = u.role === 'accompagnant' ? 'Accompagnant' : (u.role === 'organisateur' ? 'Organisateur' : '');
-    return '<div class="friend-row">' +
-      '<div class="friend-row-main">' + avatarHtml(u, member.name) + nameLinkHtml(member.name) + badgesHtml(u) +
-      (accountRoleLabel ? '<span class="account-role-tag">' + accountRoleLabel + '</span>' : '') +
-      (member.teamRole ? '<span class="account-role-tag">' + escapeHtml(member.teamRole) + '</span>' : '') +
-      (isAdherent ? '<span class="friend-role-badge adherent-badge">Adhérent</span>' : '') +
-      '<span class="friend-role-badge">' + (member.role === 'leader' ? 'Team Leader' : 'Membre') + '</span></div>' +
-      '<div class="friend-row-actions">' + actions + '</div></div>' + maybeFicheHtml(member.name);
-  }
+  // Member rows (and, for the leader, their management pills) are built
+  // by the unified renderTeamMembersSection below -- one list instead of
+  // a plain "Membres" and a second, overlapping "Gestion des membres".
 
   // A poll is just another teamFeed doc (type:'poll', options, votes) --
   // votes is a plain {name: optionIndex} map, updated one dotted field at
@@ -6866,20 +6859,21 @@
     return html;
   }
 
-  // Leader-only unified panel: everyone with ANY relationship to this
-  // Team -- a current member and/or a follower -- gets one row with four
-  // independent toggle pills (Suivi / Membre / Adhérent / Team Leader,
-  // see setTeamMemberStatus) instead of the scattered promote/demote/
-  // follower-tier controls this used to be split across. A member also
-  // gets a free-form "rôle" tag (mécano, assistant, photographe...).
-  function renderTeamMembersManagement(team, members, teamFollowers) {
-    var byName = {};
-    members.forEach(function (m) { (byName[m.name] = byName[m.name] || {}).member = m; });
-    teamFollowers.forEach(function (f) { (byName[f.follower] = byName[f.follower] || {}).follow = f; });
-    var names = Object.keys(byName).sort(function (a, b) { return a.localeCompare(b); });
+  // One unified "Membres" list, not two -- a plain member listing for
+  // everyone, and for the Team Leader the same rows also carry the four
+  // status toggle pills (Suivi / Membre / Adhérent / Team Leader, see
+  // setTeamMemberStatus) and a free-form "rôle" field, plus the list
+  // widens to include followers who aren't (yet) members. This used to be
+  // two separate sections ("Membres" and "Gestion des membres") showing
+  // overlapping people twice with different controls -- folded into one.
+  function renderTeamMembersSection(team, members, teamFollowers, me, isLeader) {
     function pill(name, key, label, on) {
       return '<button type="button" class="team-status-pill' + (on ? ' active' : '') + '" data-action="team-status-toggle" data-team="' + team.id + '" data-name="' + escapeHtml(name) + '" data-status="' + key + '" data-on="' + (on ? '0' : '1') + '">' + label + '</button>';
     }
+    var byName = {};
+    members.forEach(function (m) { (byName[m.name] = byName[m.name] || {}).member = m; });
+    if (isLeader) teamFollowers.forEach(function (f) { (byName[f.follower] = byName[f.follower] || {}).follow = f; });
+    var names = Object.keys(byName).sort(function (a, b) { return a.localeCompare(b); });
     var body = !names.length
       ? '<div class="help-text">Personne pour l\'instant.</div>'
       : names.map(function (name) {
@@ -6887,26 +6881,45 @@
         var memberDoc = entry.member, followDoc = entry.follow;
         var u = (STATE.usersByName || {})[name] || {};
         var isAdherent = !!(followDoc && followDoc.tier === 'adherent');
-        var isTeamLeaderRole = !!(memberDoc && memberDoc.role === 'leader');
-        var pills = pill(name, 'follow', 'Suivi', !!followDoc) + pill(name, 'member', 'Membre', !!memberDoc) +
-          pill(name, 'adherent', 'Adhérent', isAdherent) + pill(name, 'leader', 'Team Leader', isTeamLeaderRole);
-        // A pending "je veux être adhérent" request (see requestTeamAdherent)
-        // surfaces here rather than in a separate list -- toggling the
-        // Adhérent pill above already clears it either way, this just makes
-        // sure the leader notices there's one waiting.
-        var pendingNote = (followDoc && followDoc.adherentRequested && !isAdherent)
-          ? '<div class="team-manage-pending">Demande d\'adhésion en attente' +
-            ' <button type="button" class="ghost" data-action="team-adherent-accept" data-follow-id="' + followDoc.id + '">Accepter</button>' +
-            ' <button type="button" class="ghost" data-action="team-adherent-decline" data-follow-id="' + followDoc.id + '">Refuser</button></div>'
-          : '';
-        var roleField = memberDoc
-          ? '<div class="team-role-field"><input type="text" placeholder="Rôle (mécano, assistant...)" value="' + escapeHtml(memberDoc.teamRole || '') + '" data-team-role-input list="team-role-suggestions">' +
-            '<button type="button" class="ghost icon-btn" data-action="team-role-save" data-team="' + team.id + '" data-name="' + escapeHtml(name) + '" aria-label="Enregistrer le rôle" title="Enregistrer">✓</button></div>'
-          : '';
-        return '<div class="team-manage-row"><div class="friend-row-main">' + avatarHtml(u, name) + '<span class="friend-name-plain">' + escapeHtml(name) + '</span>' + badgesHtml(u) + '</div>' +
-          '<div class="team-status-pills">' + pills + '</div>' + pendingNote + roleField + '</div>';
-      }).join('') + '<datalist id="team-role-suggestions"><option value="Mécano"><option value="Assistant"><option value="Photographe"><option value="Logistique"></datalist>';
-    return collapsibleSection('team-manage-' + team.id, 'Gestion des membres', body);
+        var accountRoleLabel = u.role === 'accompagnant' ? 'Accompagnant' : (u.role === 'organisateur' ? 'Organisateur' : '');
+        var actions = '';
+        if (name === me.name && memberDoc) {
+          if (!isAdherent) {
+            actions += (followDoc && followDoc.adherentRequested)
+              ? '<span class="help-text">Demande envoyée</span>'
+              : '<button type="button" class="ghost" data-action="team-request-adherent" data-team="' + team.id + '">Devenir adhérent</button>';
+          }
+          actions += '<button type="button" class="ghost" data-action="team-leave" data-team="' + team.id + '">Quitter</button>';
+        }
+        var row = '<div style="display:flex; align-items:center; justify-content:space-between; gap:0.6rem;">' +
+          '<div class="friend-row-main">' + avatarHtml(u, name) + nameLinkHtml(name) + badgesHtml(u) +
+          (accountRoleLabel ? '<span class="account-role-tag">' + accountRoleLabel + '</span>' : '') +
+          (memberDoc && memberDoc.teamRole ? '<span class="account-role-tag">' + escapeHtml(memberDoc.teamRole) + '</span>' : '') +
+          (isAdherent ? '<span class="friend-role-badge adherent-badge">Adhérent</span>' : '') +
+          (memberDoc ? '<span class="friend-role-badge">' + (memberDoc.role === 'leader' ? 'Team Leader' : 'Membre') + '</span>' : '') +
+          '</div><div class="friend-row-actions">' + actions + '</div></div>';
+        if (isLeader) {
+          var isTeamLeaderRole = !!(memberDoc && memberDoc.role === 'leader');
+          var pills = pill(name, 'follow', 'Suivi', !!followDoc) + pill(name, 'member', 'Membre', !!memberDoc) +
+            pill(name, 'adherent', 'Adhérent', isAdherent) + pill(name, 'leader', 'Team Leader', isTeamLeaderRole);
+          // A pending "je veux être adhérent" request (see
+          // requestTeamAdherent) surfaces here rather than in a separate
+          // list -- toggling the Adhérent pill above already clears it
+          // either way, this just makes sure the leader notices one's waiting.
+          var pendingNote = (followDoc && followDoc.adherentRequested && !isAdherent)
+            ? '<div class="team-manage-pending">Demande d\'adhésion en attente' +
+              ' <button type="button" class="ghost" data-action="team-adherent-accept" data-follow-id="' + followDoc.id + '">Accepter</button>' +
+              ' <button type="button" class="ghost" data-action="team-adherent-decline" data-follow-id="' + followDoc.id + '">Refuser</button></div>'
+            : '';
+          var roleField = memberDoc
+            ? '<div class="team-role-field"><input type="text" placeholder="Rôle (mécano, assistant...)" value="' + escapeHtml(memberDoc.teamRole || '') + '" data-team-role-input list="team-role-suggestions">' +
+              '<button type="button" class="ghost icon-btn" data-action="team-role-save" data-team="' + team.id + '" data-name="' + escapeHtml(name) + '" aria-label="Enregistrer le rôle" title="Enregistrer">✓</button></div>'
+            : '';
+          row += '<div class="team-status-pills">' + pills + '</div>' + pendingNote + roleField;
+        }
+        return '<div class="team-manage-row">' + row + '</div>' + maybeFicheHtml(name);
+      }).join('') + (isLeader ? '<datalist id="team-role-suggestions"><option value="Mécano"><option value="Assistant"><option value="Photographe"><option value="Logistique"></datalist>' : '');
+    return collapsibleSection('team-members-' + team.id, 'Membres (' + members.length + ')', body);
   }
 
   function renderTeamSettings(team, isLeader) {
@@ -7002,16 +7015,17 @@
           collapsibleSection('team-event-riders-' + ev.id, 'Participants (' + riders.length + ')', riderRows) +
           collapsibleSection('team-event-groups-' + ev.id, 'Groupes de départ', renderRiderGroupsSection(ev)) +
           (reqs.length ? collapsibleSection('team-event-requests-' + ev.id, 'Demandes (' + reqs.length + ')', reqRows, true) : '') +
-          '<div style="margin-top:0.6rem; display:flex; gap:0.5rem;">' +
-          '<button type="button" class="ghost" data-action="team-event-edit" data-id="' + ev.id + '">Modifier</button>' +
-          deleteEventControl(ev) +
-          '</div>' +
+          '<div style="margin-top:0.6rem;"><button type="button" class="ghost" data-action="team-event-edit" data-id="' + ev.id + '">Modifier</button></div>' +
           (editingEventId === ev.id ? renderEventForm() : '');
         return collapsibleSection('team-event-' + ev.id, escapeHtml(ev.circuit) + ' — ' + escapeHtml(formatEventRange(ev, true)), eventBody);
       }).join('');
     body += '<div style="margin-top:0.6rem;"><button type="button" class="primary" data-action="team-event-add" data-team="' + team.id + '">+ Ajouter un événement</button></div>';
     if (editingEventId === 'new' && prefillEventTeamId === team.id) body += renderEventForm();
-    return collapsibleSection('team-events-' + team.id, 'Gestion des événements' + (events.length ? ' (' + events.length + ')' : ''), body);
+    // Its own full card, not just another collapsibleSection folded in
+    // among Fil d'actualité/Membres/Inviter -- a separate, self-contained
+    // menu since this is where a Team Leader creates/edits/deletes an
+    // event, not something to stumble into between unrelated controls.
+    return collapsibleCard('team-events-' + team.id, 'Gestion des événements' + (events.length ? ' (' + events.length + ')' : ''), body, false);
   }
 
   function renderTeamCard(team, me) {
@@ -7066,15 +7080,7 @@
     html += collapsibleSection('team-feed-' + team.id, 'Fil d\'actualité (' + feed.length + ')', feedBody);
 
     var teamFollowers = (STATE.teamFollowersByTeam || {})[team.id] || [];
-    var membersBody = members.map(function (m) {
-      var f = teamFollowers.filter(function (fl) { return fl.follower === m.name; })[0];
-      return renderTeamMemberRow(team.id, m, me.name, !!(f && f.tier === 'adherent'), !!(f && f.adherentRequested));
-    }).join('');
-    html += collapsibleSection('team-members-' + team.id, 'Membres (' + members.length + ')', membersBody);
-
-    if (isLeader) {
-      html += renderTeamMembersManagement(team, members, teamFollowers);
-    }
+    html += renderTeamMembersSection(team, members, teamFollowers, me, isLeader);
 
     if (isLeader) {
       html += renderTeamEventsManagement(team);
@@ -8565,6 +8571,7 @@
         editingEventId = null;
         prefillEventCircuit = null;
         prefillEventTeamId = null;
+        pendingDeleteEvent = null;
         editingSessionId = null;
         renderRoot();
         // The header/bottom nav stay put (position:fixed) -- only the
@@ -8657,6 +8664,7 @@
     if (editEventBtn) {
       editEventBtn.addEventListener('click', function () {
         editingEventId = editEventBtn.getAttribute('data-id');
+        pendingDeleteEvent = null;
         renderRoot();
       });
     }
@@ -8689,6 +8697,7 @@
         selectedEventId = null;
         prefillEventCircuit = null;
         prefillEventTeamId = null;
+        pendingDeleteEvent = null;
         renderRoot();
       });
     }
@@ -8698,6 +8707,7 @@
         selectedEventId = null;
         prefillEventCircuit = null;
         prefillEventTeamId = btn.getAttribute('data-team');
+        pendingDeleteEvent = null;
         renderRoot();
       });
     });
@@ -8706,6 +8716,7 @@
         editingEventId = btn.getAttribute('data-id');
         prefillEventCircuit = null;
         prefillEventTeamId = null;
+        pendingDeleteEvent = null;
         renderRoot();
       });
     });
@@ -8720,7 +8731,7 @@
       });
     });
     var cancelEventBtn = document.getElementById('cancel-event-btn');
-    if (cancelEventBtn) cancelEventBtn.addEventListener('click', function () { editingEventId = null; prefillEventCircuit = null; prefillEventTeamId = null; renderRoot(); });
+    if (cancelEventBtn) cancelEventBtn.addEventListener('click', function () { editingEventId = null; prefillEventCircuit = null; prefillEventTeamId = null; pendingDeleteEvent = null; renderRoot(); });
     var eventForm = document.getElementById('event-form');
     if (eventForm) eventForm.addEventListener('submit', onEventSubmit);
     // Riders and dates typed into the open sortie form drive the groups
@@ -8760,11 +8771,12 @@
           pendingDeleteEvent = null;
         } else {
           pendingDeleteEvent = id;
-          btn.textContent = '✓';
-          btn.setAttribute('aria-label', 'Confirmer la suppression');
-          btn.setAttribute('title', 'Confirmer la suppression');
-          btn.classList.add('confirm');
         }
+        // Re-rendered rather than mutated in place -- deleteEventControl()
+        // now reads pendingDeleteEvent itself, so the confirm state stays
+        // correct even if a live-sync update re-renders this button
+        // in between the two clicks (see deleteEventControl's comment).
+        renderRoot();
       });
     });
 
