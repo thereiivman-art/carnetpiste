@@ -2891,18 +2891,18 @@
   function certifyControl(session) {
     var manageable = canManageCertification(session);
     if (session.certifiedBy) {
-      var pill = '<span class="certified-pill" title="Certifié par ' + escapeHtml(session.certifiedBy) + '">✓ Certifié</span>';
+      var pill = '<span class="verified-pill" title="Vérifié par ' + escapeHtml(session.certifiedBy) + '">✓ Vérifié</span>';
       if (!manageable) return pill;
-      return pill + '<button type="button" class="ghost icon-btn" data-action="uncertify-session" data-id="' + session.id + '" aria-label="Retirer la certification" title="Retirer la certification">×</button>';
+      return pill + '<button type="button" class="ghost icon-btn" data-action="uncertify-session" data-id="' + session.id + '" aria-label="Retirer la vérification" title="Retirer la vérification">×</button>';
     }
     if (!manageable) return '';
-    return '<button type="button" class="ghost icon-btn" data-action="certify-session" data-id="' + session.id + '" aria-label="Certifier ce chrono" title="Certifier ce chrono">✓</button>';
+    return '<button type="button" class="ghost icon-btn" data-action="certify-session" data-id="' + session.id + '" aria-label="Vérifier ce chrono" title="Vérifier ce chrono">✓</button>';
   }
   function certifyChrono(sessionId) {
     var me = currentUserProfile;
     if (!me) return;
     db.collection('sessions').doc(sessionId).update({ certifiedBy: me.name }).then(function () {
-      showToast('Chrono certifié.', 'success');
+      showToast('Chrono vérifié.', 'success');
     }).catch(function (err) {
       showToast('Erreur : ' + (err && err.message ? err.message : err));
     });
@@ -2911,6 +2911,24 @@
     db.collection('sessions').doc(sessionId).update({ certifiedBy: null }).catch(function (err) {
       showToast('Erreur : ' + (err && err.message ? err.message : err));
     });
+  }
+
+  // Organisateur view: one row per pilote of this event, its best chrono
+  // and its certification status, so a Team Leader can check who's
+  // certified for the sortie without opening each pilote's fiche one by
+  // one -- the check-in he'd otherwise do rider by rider before building
+  // groups.
+  function renderEventCertificationSection(ev) {
+    if (!ev.teamId || !isLeaderOfTeam(ev.teamId)) return '';
+    var riders = (ev.riders || []).slice().sort();
+    if (!riders.length) return '';
+    var rows = riders.map(function (rider) {
+      var sessions = STATE.sessions.filter(function (s) { return s.rider === rider && s.eventId === ev.id; });
+      if (!sessions.length) return infoRow(rider, '<span class="help-text">Aucun chrono</span>');
+      var best = sessions.reduce(function (a, b) { return sessionBest(b) < sessionBest(a) ? b : a; });
+      return infoRow(rider, formatTime(sessionBest(best)) + ' ' + certifyControl(best));
+    }).join('');
+    return collapsibleSection('cert-' + ev.id, 'Chronos vérifiés', rows, true);
   }
 
   // ---- Circuit info (km, virages, prochaine sortie) + visuel annotable ----
@@ -4909,6 +4927,7 @@
       html += infoRow('Aéroport', escapeHtml(ev.airport) + renderLocationActions(ev.airport));
     }
     if (ev.note) html += infoRow('Note', escapeHtml(ev.note));
+    html += renderEventCertificationSection(ev);
     html += renderMediaLinkSection(ev);
     // The circuit's own interactive map, so the annotated track is one tap
     // away from the sortie it belongs to, not just reachable from Circuit.
@@ -5254,10 +5273,10 @@
   // change -- without this a <details> would snap shut the moment you
   // ticked a checkbox inside it.
   var planningSectionsOpen = {};
-  function collapsibleSection(key, title, innerHtml) {
+  function collapsibleSection(key, title, innerHtml, defaultOpen) {
     if (!innerHtml) return '';
-    var open = planningSectionsOpen[key] ? ' open' : '';
-    return '<details class="planning-section" data-planning-section="' + key + '"' + open + '><summary>' + escapeHtml(title) + '</summary><div class="planning-section-body">' + innerHtml + '</div></details>';
+    var isOpen = planningSectionsOpen.hasOwnProperty(key) ? !!planningSectionsOpen[key] : !!defaultOpen;
+    return '<details class="planning-section" data-planning-section="' + key + '"' + (isOpen ? ' open' : '') + '><summary>' + escapeHtml(title) + '</summary><div class="planning-section-body">' + innerHtml + '</div></details>';
   }
 
   // Same open/closed tracking as collapsibleSection above, but styled as a
@@ -5368,38 +5387,40 @@
     }
     var practicalInfoHtml = collapsibleSection('infos-pratiques', 'Infos pratiques', practicalInfo);
 
+    // Groupes/Équipement/Infos pratiques are the same three rubriques
+    // whether or not this circuit has horaires recorded -- only the
+    // Horaires rubrique itself (and the countdown/recap that depend on
+    // slot times) differs between the two cases, so that's the only part
+    // built conditionally below.
     var availableGroups = horaires ? HORAIRES_GROUPS.filter(function (g) { return horaires[g.key]; }) : [];
     if (!availableGroups.length) {
       html += briefingLine;
       html += '<div class="help-text">Aucun horaire enregistré pour ' + escapeHtml(ev.circuit) + ' — ajoutez-les depuis l\'onglet Circuit (Modifier les infos).</div>';
       html += renderHorairesPhotoSection(ev);
-      html += collapsibleSection('groupes', 'Groupes par pilote', renderRiderGroupsSection(ev));
-      html += collapsibleSection('equipement', checklistCountLabel(ev), renderPlanningChecklist(ev));
-      html += practicalInfoHtml;
-      return html + '</div>';
+    } else {
+      var activeKeys = (planningGroupFilter && planningGroupFilter.length)
+        ? planningGroupFilter.filter(function (k) { return availableGroups.some(function (g) { return g.key === k; }); })
+        : availableGroups.map(function (g) { return g.key; });
+      if (!activeKeys.length) activeKeys = availableGroups.map(function (g) { return g.key; });
+
+      html += '<div id="planning-countdown" class="planning-countdown"></div>';
+      if (isOngoing) html += renderFollowedRidersStatus(ev, horaires, dateKey(new Date()));
+
+      var horairesInner = briefingLine;
+      horairesInner += '<div class="planning-group-filter">';
+      availableGroups.forEach(function (g) {
+        var checked = activeKeys.indexOf(g.key) !== -1;
+        horairesInner += '<label class="planning-group-check"><input type="checkbox" data-planning-group="' + g.key + '"' + (checked ? ' checked' : '') + '> ' + escapeHtml(g.label) + '</label>';
+      });
+      horairesInner += '</div>';
+      horairesInner += renderHoraireGroups(horaires, activeKeys, ev, info.briefing);
+      horairesInner += renderHorairesPhotoSection(ev);
+      html += collapsibleSection('horaires', 'Horaires', horairesInner, true);
     }
-
-    var activeKeys = (planningGroupFilter && planningGroupFilter.length)
-      ? planningGroupFilter.filter(function (k) { return availableGroups.some(function (g) { return g.key === k; }); })
-      : availableGroups.map(function (g) { return g.key; });
-    if (!activeKeys.length) activeKeys = availableGroups.map(function (g) { return g.key; });
-
-    html += '<div id="planning-countdown" class="planning-countdown"></div>';
-
-    var horairesInner = briefingLine;
-    horairesInner += '<div class="planning-group-filter">';
-    availableGroups.forEach(function (g) {
-      var checked = activeKeys.indexOf(g.key) !== -1;
-      horairesInner += '<label class="planning-group-check"><input type="checkbox" data-planning-group="' + g.key + '"' + (checked ? ' checked' : '') + '> ' + escapeHtml(g.label) + '</label>';
-    });
-    horairesInner += '</div>';
-    horairesInner += renderHoraireGroups(horaires, activeKeys, ev, info.briefing);
-    horairesInner += renderHorairesPhotoSection(ev);
-    html += collapsibleSection('horaires', 'Horaires', horairesInner);
-    html += collapsibleSection('groupes', 'Groupes par pilote', renderRiderGroupsSection(ev));
+    html += collapsibleSection('groupes', 'Groupes par pilote', renderRiderGroupsSection(ev), true);
     html += collapsibleSection('equipement', checklistCountLabel(ev), renderPlanningChecklist(ev));
     html += practicalInfoHtml;
-    if (isOngoing) {
+    if (isOngoing && availableGroups.length) {
       var todayKey = dateKey(new Date());
       if (myGroupFinishedToday(ev, horaires, todayKey)) {
         html += '<div class="return-reminder">De retour au paddock — pense à vérifier la <strong>PRESSION PNEUS</strong> et l\'<strong>ESSENCE</strong>.</div>';
@@ -5431,6 +5452,48 @@
     if (!ends.length) return false;
     var nowMinutes = new Date().getHours() * 60 + new Date().getMinutes();
     return nowMinutes >= Math.max.apply(null, ends);
+  }
+
+  // Same am/pm-priority group lookup as myGroupLetterToday, but for any
+  // named rider -- used to build the accompagnant's followed-riders status
+  // card below (myGroupLetterToday only ever answers for the connected
+  // account itself).
+  function riderGroupLetterToday(ev, riderName, dateStr) {
+    return riderGroupFor(ev, riderName, dateStr, 'apres-midi') || riderGroupFor(ev, riderName, dateStr, 'matin') || '';
+  }
+
+  // One line of status per followed rider ("en piste", "prochain départ à
+  // 14h20", "terminé pour aujourd'hui", "pas de groupe aujourd'hui"),
+  // computed from the schedule directly rather than relying on the
+  // browser Notification firing while the tab happens to be open -- an
+  // accompagnant can check this on demand at any time.
+  function followedRiderStatusToday(ev, horaires, dateStr, riderName) {
+    var letter = riderGroupLetterToday(ev, riderName, dateStr);
+    if (!letter) return 'Pas de groupe aujourd\'hui';
+    var line = horaires && horaires['group' + letter];
+    var slots = line ? parseHoraireLine(line) : [];
+    var withTimes = slots.filter(function (s) { return s.start != null && s.end != null; });
+    if (!withTimes.length) return 'Groupe ' + letter;
+    var nowMinutes = new Date().getHours() * 60 + new Date().getMinutes();
+    var current = withTimes.filter(function (s) { return nowMinutes >= s.start && nowMinutes < s.end; })[0];
+    if (current) return 'Groupe ' + letter + ' — en piste maintenant';
+    var next = withTimes.filter(function (s) { return s.start > nowMinutes; }).sort(function (a, b) { return a.start - b.start; })[0];
+    if (next) return 'Groupe ' + letter + ' — prochain départ ' + pad2(Math.floor(next.start / 60)) + 'h' + pad2(next.start % 60);
+    return 'Groupe ' + letter + ' — terminé pour aujourd\'hui';
+  }
+
+  // Priority card for an accompagnant on an ongoing sortie: at-a-glance
+  // status of every rider they follow, so they don't have to rely solely
+  // on the best-effort browser Notification (lost if the tab is closed).
+  function renderFollowedRidersStatus(ev, horaires, dateStr) {
+    if (!currentUserProfile || currentUserProfile.role !== 'accompagnant') return '';
+    var followed = (currentUserProfile.followedRiders || []).slice().sort();
+    if (!followed.length) return '';
+    var rows = followed.map(function (name) {
+      return infoRow(name, escapeHtml(followedRiderStatusToday(ev, horaires, dateStr, name)));
+    }).join('');
+    return '<div class="card followed-riders-status-card">' +
+      '<h2 class="section-title">Statut de mes pilotes</h2>' + rows + '</div>';
   }
 
   // A same-day leaderboard: every rider who logged a chrono today on this
