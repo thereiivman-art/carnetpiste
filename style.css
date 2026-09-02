@@ -883,6 +883,13 @@
   }
   .team-invite-form select { flex: 1; margin: 0; }
   .team-invite-form button { flex-shrink: 0; margin: 0; }
+  .team-event-add-rider-form {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 0.6rem;
+  }
+  .team-event-add-rider-form select { flex: 1; margin: 0; }
+  .team-event-add-rider-form button { flex-shrink: 0; margin: 0; }
   .team-feed-form, .team-poll-form {
     display: flex;
     flex-direction: column;

@@ -1066,6 +1066,10 @@
   // per-day/per-période rider assignment on a sortie and for tagging a
   // chrono entry with which group's session it belongs to.
   var GROUP_LETTERS = ['A', 'B', 'C', 'D'];
+  // Same, plus ORGA (mécano, photographe, autre staff du Team) -- only
+  // used for the Team Leader's roster assignment (renderRiderGroupsSection),
+  // never offered when tagging a chrono's group since ORGA never rides.
+  var ROSTER_GROUP_LETTERS = GROUP_LETTERS.concat(['ORGA']);
 
   // Every calendar date from start to end (inclusive), 'YYYY-MM-DD' strings
   // -- used to build the per-day group-assignment grid for a multi-day
@@ -2378,7 +2382,7 @@
     var options = candidates.map(function (e) {
       return '<option value="' + e.id + '"' + (e.id === preselect ? ' selected' : '') + '>' + escapeHtml(formatEventRange(e, true)) + '</option>';
     }).join('');
-    return '<div style="margin-top:0.9rem;"><label for="f-linked-event">Sortie associée</label>' +
+    return '<div style="margin-top:0.9rem;"><label for="f-linked-event">Événement associé</label>' +
       '<select id="f-linked-event"><option value="">Aucune</option>' + options + '</select></div>';
   }
 
@@ -2450,7 +2454,7 @@
       '</select></div>';
     html += '<div><label for="f-slot">Session</label><select id="f-slot">' + renderSlotOptions(slots, suggestedSlotIdx) + '</select></div>';
     html += '</div>';
-    html += '<div class="help-text" id="f-group-hint"' + (groupHint ? '' : ' style="display:none;"') + '>Groupe suggéré depuis la sortie associée : ' + escapeHtml(groupHint) + '.</div>';
+    html += '<div class="help-text" id="f-group-hint"' + (groupHint ? '' : ' style="display:none;"') + '>Groupe suggéré depuis l’événement associé : ' + escapeHtml(groupHint) + '.</div>';
     html += '<div class="help-text" id="f-slot-hint"' + (suggestedSlotIdx !== -1 ? '' : ' style="display:none;"') + '>Session suggérée selon l\'heure actuelle — modifie si besoin.</div>';
     html += '<label for="f-laps">Chronos</label>' +
       '<textarea id="f-laps" placeholder="1:23.456' + String.fromCharCode(10) + '1:22.980' + String.fromCharCode(10) + '1:23.120" required></textarea>' +
@@ -3057,12 +3061,12 @@
     if (info.briefing) html += infoRow('Briefing', escapeHtml(info.briefing));
     var lastEvent = (lastSession && lastSession.eventId) ? eventsList().filter(function (e) { return e.id === lastSession.eventId; })[0] : null;
     var lastOutingText = lastSession ? (escapeHtml(formatDate(lastSession.date)) + ' — ' + formatTime(sessionBest(lastSession))) : '—';
-    html += infoRow('Dernière sortie', lastEvent
+    html += infoRow('Dernier événement', lastEvent
       ? '<button type="button" class="link-btn" id="last-outing-link" data-event-id="' + lastEvent.id + '">' + lastOutingText + '</button>'
       : lastOutingText);
     html += infoRow('Record circuit', recordSession ? (formatTime(recordTime) + ' (' + escapeHtml(recordSession.rider) + ')') : '—');
     var upcoming = nextOutingForCircuit(selectedCircuit);
-    html += infoRow('Prochaine sortie', upcoming
+    html += infoRow('Prochain événement', upcoming
       ? '<button type="button" class="link-btn" id="next-outing-link" data-event-id="' + upcoming.id + '">' + escapeHtml(formatEventRange(upcoming, true)) + '</button>'
       : '<button type="button" class="link-btn" id="plan-outing-link">Non planifiée — planifier</button>');
     if (editingCircuitInfo) {
@@ -3327,7 +3331,7 @@
       var evDrawing = evForAnnot && evForAnnot.drawing;
       var evLevelId = eventLevelSessionId(annot.eventId);
       options += '<option value="' + evLevelId + '"' + (annot.sessionId === evLevelId ? ' selected' : '') + '>' +
-        'Cette sortie (nouveau plan)' + (evDrawing ? ' ✎' : '') + '</option>';
+        'Cet événement (nouveau plan)' + (evDrawing ? ' ✎' : '') + '</option>';
     }
     options += '<option value="' + ANNOT_CIRCUIT_LEVEL + '"' + (annot.sessionId === ANNOT_CIRCUIT_LEVEL ? ' selected' : '') + '>' +
       'Plan général' + (info.drawing ? ' ✎' : '') + '</option>';
@@ -3344,7 +3348,7 @@
     html += '<div class="annot-header">';
     html += '<button type="button" class="ghost icon-btn" id="annot-close" aria-label="Fermer">←</button>';
     html += '<div class="annot-title">' + escapeHtml(annot.circuit) + '</div>';
-    html += '<select id="annot-session-select" aria-label="Sortie à annoter">' + options + '</select>';
+    html += '<select id="annot-session-select" aria-label="Événement à annoter">' + options + '</select>';
     html += '<button type="button" class="ghost icon-btn annot-fullscreen-btn" id="annot-fullscreen" aria-label="Plein écran paysage" title="Forcer l\'affichage paysage">' + svgFullscreen + '</button>';
     html += '</div>';
     html += '<div class="annot-orientation-hint">Astuce : passez le téléphone en mode paysage (ou utilisez le bouton paysage) pour annoter plus confortablement.</div>';
@@ -4259,6 +4263,25 @@
   // the Team's "Gestion des événements" panel -- same field write as the
   // event form's own "Pilotes" list, just one click instead of re-editing
   // the whole comma-separated field.
+  // Candidates for a Team Leader's search-to-add on an event: the Team's
+  // own members plus the leader's own friends (admin sees everyone),
+  // minus whoever's already a participant.
+  function candidateRidersForTeamEvent(team, currentRiders) {
+    var known = {};
+    membersOfTeam(team.id).forEach(function (m) { known[m.name] = true; });
+    if (currentUserProfile) friendsOf(currentUserProfile.name).forEach(function (f) { known[f.name] = true; });
+    if (isAdmin()) allKnownUserNames().forEach(function (n) { known[n] = true; });
+    return Object.keys(known).filter(function (n) { return currentRiders.indexOf(n) === -1; }).sort();
+  }
+  function addRiderToEvent(eventId, rider) {
+    var ev = (STATE.events || []).filter(function (e) { return e.id === eventId; })[0];
+    if (!ev || !rider) return;
+    var riders = ev.riders || [];
+    if (riders.indexOf(rider) !== -1) return;
+    db.collection('events').doc(eventId).update({ riders: riders.concat([rider]) }).catch(function (err) {
+      showToast('Erreur : ' + (err && err.message ? err.message : err));
+    });
+  }
   function removeRiderFromEvent(eventId, rider) {
     var ev = (STATE.events || []).filter(function (e) { return e.id === eventId; })[0];
     if (!ev) return;
@@ -4713,11 +4736,11 @@
     var cell = eventInfo[calendarAnchor];
     var html = '<div class="card calendar-grid-card">';
     if (!cell) {
-      html += '<div class="empty-state">Aucune sortie ce jour-là.</div></div>';
+      html += '<div class="empty-state">Aucun événement ce jour-là.</div></div>';
       return html;
     }
     var ev = eventsList().filter(function (e) { return e.id === cell.eventId; })[0];
-    if (!ev) { html += '<div class="empty-state">Aucune sortie ce jour-là.</div></div>'; return html; }
+    if (!ev) { html += '<div class="empty-state">Aucun événement ce jour-là.</div></div>'; return html; }
     var info = circuitInfo(ev.circuit);
     html += '<div class="eyebrow">' + escapeHtml(ev.circuit) + '</div>';
     var calOrganizerTeam = info.organizerTeamId ? teamById(info.organizerTeamId) : null;
@@ -4774,7 +4797,7 @@
   // Team Leader to trust with that call on those.
   function deleteEventControl(ev) {
     if (!isAdmin() && !(ev.teamId && isLeaderOfTeam(ev.teamId))) return '';
-    return '<button type="button" class="ghost icon-btn" data-action="delete-event-request" data-id="' + ev.id + '" aria-label="Supprimer cette sortie" title="Supprimer">×</button>';
+    return '<button type="button" class="ghost icon-btn" data-action="delete-event-request" data-id="' + ev.id + '" aria-label="Supprimer cet événement" title="Supprimer">×</button>';
   }
 
   function renderSessionDayCard(dateStr) {
@@ -4805,7 +4828,7 @@
       }
       return true;
     }).sort(function (a, b) { return a.dateStart < b.dateStart ? -1 : a.dateStart > b.dateStart ? 1 : 0; });
-    return renderEventGroupCard('Sorties de la période sélectionnée · ' + calendarNavLabel(), events, { hideGroups: true, collapseKey: 'events-period', defaultOpen: false });
+    return renderEventGroupCard('Événements de la période sélectionnée · ' + calendarNavLabel(), events, { hideGroups: true, collapseKey: 'events-period', defaultOpen: false });
   }
 
   // Selecting a sortie is a "picking" action — it also syncs selectedCircuit
@@ -4856,7 +4879,7 @@
     var showDateLabel = dates.length > 1;
     var groupOptions = function (current) {
       var opts = '<option value=""' + (!current ? ' selected' : '') + '>—</option>';
-      GROUP_LETTERS.forEach(function (g) {
+      ROSTER_GROUP_LETTERS.forEach(function (g) {
         opts += '<option value="' + g + '"' + (current === g ? ' selected' : '') + '>' + g + '</option>';
       });
       return opts;
@@ -4865,7 +4888,7 @@
     if (ev.riders.length > 1) {
       html += '<label class="rider-group-common"><span>Groupe commun à tous les pilotes</span><select data-common-group data-event-id="' + ev.id + '">' +
         '<option value="" selected>— Choisir pour appliquer à tous —</option>' +
-        GROUP_LETTERS.map(function (g) { return '<option value="' + g + '">' + g + '</option>'; }).join('') +
+        ROSTER_GROUP_LETTERS.map(function (g) { return '<option value="' + g + '">' + g + '</option>'; }).join('') +
         '</select></label>';
     }
     dates.forEach(function (date) {
@@ -4873,8 +4896,13 @@
       ev.riders.forEach(function (rider) {
         var am = riderGroupFor(ev, rider, date, 'matin');
         var pm = riderGroupFor(ev, rider, date, 'apres-midi');
+        // Best verified chrono on this circuit -- the reference a Team
+        // Leader uses to decide who moves up/down a group, right next to
+        // the rider's name instead of having to look it up separately.
+        var verified = STATE.sessions.filter(function (s) { return s.rider === rider && s.circuit === ev.circuit && s.certifiedBy; })
+          .sort(function (a, b) { return sessionBest(a) - sessionBest(b); })[0];
         html += '<div class="rider-group-row">';
-        html += '<span class="rider-group-name">' + escapeHtml(rider) + '</span>';
+        html += '<span class="rider-group-name">' + nameLinkHtml(rider) + (verified ? ' <span class="verified-pill" title="Meilleur chrono vérifié sur ' + escapeHtml(ev.circuit) + '">' + formatTime(sessionBest(verified)) + '</span>' : '') + '</span>' + maybeFicheHtml(rider);
         html += '<label class="rider-group-field">Matin <select data-rider-group data-event-id="' + ev.id + '" data-rider="' + escapeHtml(rider) + '" data-date="' + date + '" data-period="am">' + groupOptions(am) + '</select></label>';
         html += '<label class="rider-group-field">Après-midi <select data-rider-group data-event-id="' + ev.id + '" data-rider="' + escapeHtml(rider) + '" data-date="' + date + '" data-period="pm">' + groupOptions(pm) + '</select></label>';
         html += '</div>';
@@ -4882,6 +4910,59 @@
     });
     html += '</div>';
     return html;
+  }
+
+  // Formats one rider's am/pm group assignment for a given date into a
+  // single readable label -- shared by "Mon groupe" and "Mes amis" below,
+  // which both show only a slice of the roster (never everyone) now that
+  // full group management lives in the Team's own "Gestion des
+  // événements" (renderRiderGroupsSection above).
+  function riderGroupLabelForDate(ev, rider, date) {
+    var am = riderGroupFor(ev, rider, date, 'matin');
+    var pm = riderGroupFor(ev, rider, date, 'apres-midi');
+    if (!am && !pm) return '';
+    if (am && pm && am !== pm) return 'Matin ' + am + ' · Après-midi ' + pm;
+    return am || pm;
+  }
+
+  // Replaces the old "Groupes par pilote" (every rider's group, visible to
+  // everyone) in Planning -- a pilote now only ever sees their own
+  // assignment here, per "seuls les renseignements du user seront
+  // affichés sur la fiche de l'Event".
+  function renderMyGroupSection(ev) {
+    var me = currentUserProfile;
+    if (!me || (ev.riders || []).indexOf(me.name) === -1) return '';
+    var dates = datesInRange(ev.dateStart, ev.dateEnd);
+    var multiDay = dates.length > 1;
+    var rows = dates.map(function (date) {
+      var label = riderGroupLabelForDate(ev, me.name, date);
+      if (!label) return '';
+      return infoRow(multiDay ? formatDate(date) : 'Groupe', escapeHtml(label));
+    }).filter(Boolean).join('');
+    if (!rows) return '';
+    return collapsibleSection('my-group-' + ev.id, 'Mon groupe', rows, true);
+  }
+
+  // And "Mes amis" -- same idea, but for friends also on this event (see
+  // "un autre champ : mes amis"), each one still just a click away from
+  // their own fiche.
+  function renderFriendsGroupSection(ev) {
+    var me = currentUserProfile;
+    if (!me) return '';
+    var friendNames = friendsOf(me.name).map(function (f) { return f.name; });
+    var onEvent = (ev.riders || []).filter(function (r) { return friendNames.indexOf(r) !== -1; }).sort();
+    if (!onEvent.length) return '';
+    var dates = datesInRange(ev.dateStart, ev.dateEnd);
+    var multiDay = dates.length > 1;
+    var rows = onEvent.map(function (name) {
+      var parts = dates.map(function (date) {
+        var label = riderGroupLabelForDate(ev, name, date);
+        return label ? (multiDay ? escapeHtml(formatDate(date)) + ' : ' + escapeHtml(label) : escapeHtml(label)) : '';
+      }).filter(Boolean).join(' — ');
+      return '<div class="info-row"><span class="info-label">' + nameLinkHtml(name) + '</span><span class="info-value">' +
+        (parts || '<span class="help-text">Pas encore de groupe</span>') + '</span></div>' + maybeFicheHtml(name);
+    }).join('');
+    return collapsibleSection('friends-group-' + ev.id, 'Mes amis', rows, true);
   }
 
   function setRiderGroup(eventId, rider, date, period, group) {
@@ -4975,28 +5056,16 @@
     }
     html += infoRow('Circuit', escapeHtml(ev.circuit));
     html += infoRow('Dates', escapeHtml(formatEventRange(ev, true)));
-    if (!ev.teamId) html += infoRow('Organisateur', ev.organizer ? escapeHtml(ev.organizer) : '—');
-    if (ev.riders && ev.riders.length) html += infoRow('Pilotes', escapeHtml(ev.riders.join(', ')));
-    // Just the starting group here, for a quick glance -- the full day-by-
-    // jour/matin-après-midi breakdown (and the ability to change it) lives
-    // in the Planning tab, so Événements stays simple and informative.
-    if (!opts.hideGroups) {
-      var groupsSummary = riderStartGroupsSummary(ev);
-      if (groupsSummary) html += infoRow('Groupes', groupsSummary);
-    }
-    if (ev.hotelName || ev.hotelAddress) {
-      html += infoRow('Hôtel', [ev.hotelName, ev.hotelAddress].filter(Boolean).map(escapeHtml).join(' — ') + renderLocationActions(ev.hotelAddress || ev.hotelName));
-    }
-    if (ev.flightOutDep || ev.flightOutArr) {
-      html += infoRow('Avion aller', [ev.flightOutDep, ev.flightOutArr].filter(Boolean).join(' → '));
-    }
-    if (ev.flightBackDep || ev.flightBackArr) {
-      html += infoRow('Avion retour', [ev.flightBackDep, ev.flightBackArr].filter(Boolean).join(' → '));
-    }
-    if (ev.airport) {
-      html += infoRow('Aéroport', escapeHtml(ev.airport) + renderLocationActions(ev.airport));
-    }
     if (ev.note) html += infoRow('Note', escapeHtml(ev.note));
+    // No full roster/groups here any more -- only what's the connected
+    // account's own (+ friends'), per "seuls les renseignements du user +
+    // éventuellement ses amis seront affichés sur la fiche de l'Event".
+    // The complete roster and group assignment now live entirely in the
+    // Team's own "Gestion des événements" (renderTeamEventsManagement).
+    if (!opts.hideGroups) {
+      html += renderMyGroupSection(ev);
+      html += renderFriendsGroupSection(ev);
+    }
     html += renderEventCertificationSection(ev);
     html += renderMediaLinkSection(ev);
     // The circuit's own interactive map, so the annotated track is one tap
@@ -5009,7 +5078,64 @@
     return html;
   }
 
-  // Photos/vidéos de la sortie -- one link per event (Drive, WeTransfer,
+  // Hôtel/avion/aéroport -- personal per (event, account) travel info, not
+  // filled in by the Team orga for everyone (see eventTravelInfo in
+  // firestore.rules: read/write is restricted server-side to its own
+  // rider, the one genuinely private collection here besides
+  // coachMessages). Loaded lazily, one doc at a time, since it's only ever
+  // needed for whichever event is currently open/showing in Planning --
+  // not synced globally like the rest of STATE.
+  var travelInfoByEvent = {}; // eventId -> data, once loaded ({} meaning "loaded, nothing saved yet")
+  function ensureMyTravelInfoLoaded(eventId) {
+    if (!currentUserProfile || travelInfoByEvent.hasOwnProperty(eventId)) return;
+    travelInfoByEvent[eventId] = {};
+    db.collection('eventTravelInfo').doc(eventId + '_' + currentUserProfile.name).get().then(function (doc) {
+      travelInfoByEvent[eventId] = doc.exists ? doc.data() : {};
+      renderRoot();
+    }).catch(function () {});
+  }
+  function saveMyTravelInfo(eventId) {
+    var me = currentUserProfile;
+    if (!me) return;
+    var data = {
+      rider: me.name,
+      hotelName: (document.getElementById('travel-hotel-name').value || '').trim() || null,
+      hotelAddress: (document.getElementById('travel-hotel-address').value || '').trim() || null,
+      flightOutDep: (document.getElementById('travel-flight-out-dep').value || '').trim() || null,
+      flightOutArr: (document.getElementById('travel-flight-out-arr').value || '').trim() || null,
+      flightBackDep: (document.getElementById('travel-flight-back-dep').value || '').trim() || null,
+      flightBackArr: (document.getElementById('travel-flight-back-arr').value || '').trim() || null,
+      airport: (document.getElementById('travel-airport').value || '').trim() || null
+    };
+    db.collection('eventTravelInfo').doc(eventId + '_' + me.name).set(data, { merge: true }).then(function () {
+      travelInfoByEvent[eventId] = data;
+      showToast('Infos de voyage enregistrées.', 'success');
+      renderRoot();
+    }).catch(function (err) {
+      showToast('Erreur : ' + (err && err.message ? err.message : err));
+    });
+  }
+  function renderMyTravelInfoSection(ev) {
+    if (!currentUserProfile) return '';
+    ensureMyTravelInfoLoaded(ev.id);
+    var info = travelInfoByEvent[ev.id] || {};
+    var body = '<div class="help-text">Visible uniquement par toi.</div>';
+    body += '<div class="field-row" style="margin-top:0.6rem;">';
+    body += '<div><label for="travel-hotel-name">Hôtel — nom</label><input type="text" id="travel-hotel-name" placeholder="Ex. Ibis Le Mans" value="' + escapeHtml(info.hotelName || '') + '"></div>';
+    body += '<div><label for="travel-hotel-address">Hôtel — adresse</label><input type="text" id="travel-hotel-address" placeholder="Ex. 12 rue de la Sarthe, 72100 Le Mans" value="' + escapeHtml(info.hotelAddress || '') + '"></div>';
+    body += '</div>';
+    body += '<label style="margin-top:0.6rem; display:block;">Avion</label><div class="field-row">';
+    body += '<div><label for="travel-flight-out-dep" class="horaires-sublabel">Aller — départ</label><input type="text" id="travel-flight-out-dep" placeholder="Ex. 6h40" value="' + escapeHtml(info.flightOutDep || '') + '"></div>';
+    body += '<div><label for="travel-flight-out-arr" class="horaires-sublabel">Aller — arrivée</label><input type="text" id="travel-flight-out-arr" placeholder="Ex. 8h15" value="' + escapeHtml(info.flightOutArr || '') + '"></div>';
+    body += '<div><label for="travel-flight-back-dep" class="horaires-sublabel">Retour — départ</label><input type="text" id="travel-flight-back-dep" placeholder="Ex. 18h00" value="' + escapeHtml(info.flightBackDep || '') + '"></div>';
+    body += '<div><label for="travel-flight-back-arr" class="horaires-sublabel">Retour — arrivée</label><input type="text" id="travel-flight-back-arr" placeholder="Ex. 19h35" value="' + escapeHtml(info.flightBackArr || '') + '"></div>';
+    body += '<div><label for="travel-airport" class="horaires-sublabel">Aéroport</label><input type="text" id="travel-airport" placeholder="Ex. Aéroport de Bologne" value="' + escapeHtml(info.airport || '') + '"></div>';
+    body += '</div>';
+    body += '<div style="margin-top:0.6rem;"><button type="button" class="ghost" data-action="save-travel-info" data-event-id="' + ev.id + '">Enregistrer</button></div>';
+    return collapsibleSection('travel-info-' + ev.id, 'Mes infos de voyage', body);
+  }
+
+  // Photos/vidéos de la sortie -- one link par event (Drive, WeTransfer,
   // an album, whatever), added by whoever was on the ground with a phone
   // (usually the accompagnant, but not restricted to them -- same
   // collaborative model as everything else here). Feeds the accompagnant's
@@ -5074,7 +5200,7 @@
 
   function renderEventGroupCard(title, events, opts) {
     opts = opts || {};
-    var body = !events.length ? '<div class="empty-state">Aucune sortie.</div>' :
+    var body = !events.length ? '<div class="empty-state">Aucun événement.</div>' :
       events.map(function (ev) { return renderEventRow(ev, opts); }).join('');
     if (opts.collapseKey) return collapsibleCard(opts.collapseKey, title, body, opts.defaultOpen);
     return '<div class="card events-list-card"><h2 class="section-title">' + escapeHtml(title) + '</h2>' + body + '</div>';
@@ -5090,7 +5216,7 @@
   // first) instead of one long flat list -- opening a year reveals its
   // sorties in place, same accordion row as everywhere else.
   function renderPastEventsCard(past) {
-    if (!past.length) return collapsibleCard('events-past', 'Passés', '<div class="empty-state">Aucune sortie.</div>', false);
+    if (!past.length) return collapsibleCard('events-past', 'Passés', '<div class="empty-state">Aucun événement.</div>', false);
     var byYear = {};
     past.forEach(function (ev) {
       var year = (ev.dateStart || '').slice(0, 4) || '—';
@@ -5106,7 +5232,7 @@
       body += '<button type="button" class="past-year-toggle" data-past-year="' + escapeHtml(year) + '" aria-expanded="' + (isExpanded ? 'true' : 'false') + '">' +
         '<span class="past-year-chevron">' + (isExpanded ? '▾' : '▸') + '</span>' +
         '<span class="past-year-label">' + escapeHtml(year) + '</span>' +
-        '<span class="past-year-count">' + yearEvents.length + ' sortie' + (yearEvents.length > 1 ? 's' : '') + '</span>' +
+        '<span class="past-year-count">' + yearEvents.length + ' événement' + (yearEvents.length > 1 ? 's' : '') + '</span>' +
         '</button>';
       if (isExpanded) {
         body += '<div class="past-year-body">';
@@ -5154,10 +5280,13 @@
       html += collapsibleCard('event-join-requests-in', 'Demandes pour participer (' + incomingEventRequests.length + ')', incomingBody, true);
     }
     if (!all.length) {
-      html += '<div class="card"><div class="empty-state">Aucune sortie enregistrée — ajoutez-en une ci-dessous.</div></div>';
+      html += '<div class="card"><div class="empty-state">Aucun événement enregistré — ajoutez-en un ci-dessous.</div></div>';
     } else {
       if (ongoing.length) html += renderEventGroupCard('En cours', ongoing, { collapseKey: 'events-ongoing', defaultOpen: true });
-      html += renderEventGroupCard('À venir', upcoming, { collapseKey: 'events-upcoming', defaultOpen: false });
+      // Upcoming defaults open only when nothing's ongoing -- whichever of
+      // the two actually has something to show for right now is the one
+      // that shouldn't need an extra click.
+      html += renderEventGroupCard('À venir', upcoming, { collapseKey: 'events-upcoming', defaultOpen: !ongoing.length });
     }
     // En cours / À venir / Ajouter / Calendrier / Sorties de la période /
     // Passés -- Passés moved last since it's the least time-sensitive of
@@ -5411,7 +5540,7 @@
   function renderPlanningTab() {
     var target = targetPlanningEvent();
     if (!target) {
-      return '<div class="card"><div class="empty-state">Aucune sortie en cours ou à venir — planifiez-en une dans l\'onglet Événements.</div></div>';
+      return '<div class="card"><div class="empty-state">Aucun événement en cours ou à venir — planifiez-en un dans l\'onglet Événements.</div></div>';
     }
     var ev = target.ev, isOngoing = target.mode === 'ongoing';
     // Read by updateLiveClock() so it knows whether "now" actually falls
@@ -5426,7 +5555,7 @@
 
     var html = '<div class="card today-schedule-card">';
     html += '<div class="today-schedule-head">';
-    html += '<div class="eyebrow">' + (isOngoing ? 'En ce moment — ' : 'Prochaine sortie — ') + escapeHtml(ev.circuit) + '</div>';
+    html += '<div class="eyebrow">' + (isOngoing ? 'En ce moment — ' : 'Prochain événement — ') + escapeHtml(ev.circuit) + '</div>';
     if (isOngoing) html += '<div class="planning-big-clock" id="planning-big-clock">--h--</div>';
     html += '</div>';
     var sub = [];
@@ -5437,27 +5566,14 @@
     // here -- it's schedule information, same family as the slot times.
     var briefingLine = info.briefing ? '<div class="help-text" style="margin-bottom:0.6rem; color:var(--accent); font-weight:600;">Briefing ' + escapeHtml(info.briefing) + '</div>' : '';
 
-    // Organisateur/hôtel/avion/aéroport -- practical logistics, not
-    // something to read every time this card is opened, so it's its own
-    // collapsed-by-default rubrique (Infos pratiques) instead of sitting
-    // inline above the horaires.
+    // Just the organizing Team here now -- hôtel/avion/aéroport moved to
+    // renderMyTravelInfoSection below (personal per-account info, not
+    // something the Team orga fills in for everyone).
     var practicalInfo = '';
     var planningOrganizerTeam = info.organizerTeamId ? teamById(info.organizerTeamId) : null;
     if (planningOrganizerTeam) practicalInfo += '<div class="help-text">Organisateur : ' + escapeHtml(planningOrganizerTeam.name) + '</div>';
-    if (ev.hotelName || ev.hotelAddress) {
-      practicalInfo += '<div class="help-text location-line">Hôtel : ' + [ev.hotelName, ev.hotelAddress].filter(Boolean).map(escapeHtml).join(' — ') +
-        renderLocationActions(ev.hotelAddress || ev.hotelName) + '</div>';
-    }
-    if (ev.flightOutDep || ev.flightOutArr) {
-      practicalInfo += '<div class="help-text">Avion aller : ' + escapeHtml([ev.flightOutDep, ev.flightOutArr].filter(Boolean).join(' → ')) + '</div>';
-    }
-    if (ev.flightBackDep || ev.flightBackArr) {
-      practicalInfo += '<div class="help-text">Avion retour : ' + escapeHtml([ev.flightBackDep, ev.flightBackArr].filter(Boolean).join(' → ')) + '</div>';
-    }
-    if (ev.airport) {
-      practicalInfo += '<div class="help-text location-line">Aéroport : ' + escapeHtml(ev.airport) + renderLocationActions(ev.airport) + '</div>';
-    }
     var practicalInfoHtml = collapsibleSection('infos-pratiques', 'Infos pratiques', practicalInfo);
+    practicalInfoHtml += renderMyTravelInfoSection(ev);
 
     // Groupes/Équipement/Infos pratiques are the same three rubriques
     // whether or not this circuit has horaires recorded -- only the
@@ -5489,7 +5605,8 @@
       horairesInner += renderHorairesPhotoSection(ev);
       html += collapsibleSection('horaires', 'Horaires', horairesInner, true);
     }
-    html += collapsibleSection('groupes', 'Groupes par pilote', renderRiderGroupsSection(ev), true);
+    html += renderMyGroupSection(ev);
+    html += renderFriendsGroupSection(ev);
     html += collapsibleSection('equipement', checklistCountLabel(ev), renderPlanningChecklist(ev));
     html += practicalInfoHtml;
     if (isOngoing && availableGroups.length) {
@@ -5863,7 +5980,7 @@
   function renderEventForm() {
     if (editingEventId === null) {
       eventFormDraftGroupsFor = null;
-      return '<div class="card add-event-card"><h2 class="section-title">Ajouter un événement</h2><button type="button" class="primary" id="add-event-btn">+ Ajouter une sortie</button></div>';
+      return '<div class="card add-event-card"><h2 class="section-title">Ajouter un événement</h2><button type="button" class="primary" id="add-event-btn">+ Ajouter un événement</button></div>';
     }
     var isNew = editingEventId === 'new';
     var ev = isNew ? { circuit: prefillEventCircuit || '' } : (eventsList().filter(function (e) { return e.id === editingEventId; })[0] || {});
@@ -5899,7 +6016,7 @@
       eventFormDraftGroupsFor = editingEventId;
     }
     var html = '<div class="card">';
-    html += '<h2 class="section-title">' + (isNew ? 'Ajouter une sortie' : 'Modifier la sortie') + '</h2>';
+    html += '<h2 class="section-title">' + (isNew ? 'Ajouter un événement' : 'Modifier l\'événement') + '</h2>';
     html += '<form id="event-form" novalidate>';
     html += '<div class="field-row">';
     html += '<div><label for="ev-circuit">Circuit</label>' +
@@ -5907,22 +6024,6 @@
       '<datalist id="circuit-options-ev">' + circuitDatalist() + '</datalist></div>';
     html += '<div><label for="ev-date-start">Date de début</label><input type="text" id="ev-date-start" inputmode="numeric" placeholder="JJ/MM/AAAA" value="' + isoToFrDate(ev.dateStart) + '" required></div>';
     html += '<div><label for="ev-date-end">Date de fin (optionnel)</label><input type="text" id="ev-date-end" inputmode="numeric" placeholder="JJ/MM/AAAA" value="' + isoToFrDate(ev.dateEnd) + '"></div>';
-    // Only a verified Organisateur account (the admin-granted "Organisateur
-    // vérifié" badge, see isOrganizerBadge) can be picked -- a plain
-    // select, not free text, per "l'organisateur doit être un compte pro
-    // vérifié". The sortie's current value is always kept as an option
-    // even if that account lost the badge since, so saving again doesn't
-    // silently wipe it.
-    var verifiedOrganizers = allKnownUserNames().filter(function (n) { return isOrganizerBadge((STATE.usersByName || {})[n]); });
-    if (ev.organizer && verifiedOrganizers.indexOf(ev.organizer) === -1) verifiedOrganizers.push(ev.organizer);
-    verifiedOrganizers.sort(function (a, b) { return a.localeCompare(b); });
-    html += '<div><label for="ev-organizer">Organisateur</label>' +
-      (verifiedOrganizers.length
-        ? '<select id="ev-organizer"><option value="">—</option>' + verifiedOrganizers.map(function (n) {
-            return '<option value="' + escapeHtml(n) + '"' + (n === ev.organizer ? ' selected' : '') + '>' + escapeHtml(n) + '</option>';
-          }).join('') + '</select>'
-        : '<select id="ev-organizer" disabled><option value="">Aucun compte Organisateur vérifié pour l\'instant</option></select>') +
-      '</div>';
     html += '</div>';
     // A Team Event is "owned" by whichever Team leads it -- only teams
     // this account actually leads are offered, per "un event doit être
@@ -5961,25 +6062,22 @@
         '<input type="text" id="ev-horaires-' + g.key + '" placeholder="Ex. 9h, 10h40, 14h, 15h20, 16h40" value="' + escapeHtml(evHorairesVal[g.key] || '') + '"></div>';
     });
     html += '</div></div>';
-    html += '<label for="ev-riders" style="margin-top:0.9rem; display:block;">Pilotes (séparés par une virgule)</label>' +
-      '<input type="text" id="ev-riders" list="rider-options-ev" placeholder="Ex. Marc, Xavier" value="' + escapeHtml((ev.riders || []).join(', ')) + '">' +
-      '<div class="help-text">Suggestions limitées à tes amis et aux membres de tes Teams.</div>' +
-      '<datalist id="rider-options-ev">' + riderDatalistForEventForm(ev.riders) + '</datalist>';
-    html += '<div class="event-checklist" style="margin-top:0.9rem;"><div class="event-checklist-title">Groupe de départ</div><div id="ev-groups-grid">' +
-      renderEventFormGroupsGrid(ev.riders || []) + '</div></div>';
+    // Pilotes/groupes for a Team event now live entirely in the Team's own
+    // "Gestion des événements" (search-to-add, chronos vérifiés as
+    // reference for group moves) -- this form only still carries the
+    // riders field for a personal (non-Team) event, which has no Team
+    // Leader to manage a roster from anywhere else.
+    if (!ev.teamId) {
+      html += '<label for="ev-riders" style="margin-top:0.9rem; display:block;">Pilotes (séparés par une virgule)</label>' +
+        '<input type="text" id="ev-riders" list="rider-options-ev" placeholder="Ex. Marc, Xavier" value="' + escapeHtml((ev.riders || []).join(', ')) + '">' +
+        '<div class="help-text">Suggestions limitées à tes amis et aux membres de tes Teams.</div>' +
+        '<datalist id="rider-options-ev">' + riderDatalistForEventForm(ev.riders) + '</datalist>';
+      html += '<div class="event-checklist" style="margin-top:0.9rem;"><div class="event-checklist-title">Groupe de départ</div><div id="ev-groups-grid">' +
+        renderEventFormGroupsGrid(ev.riders || []) + '</div></div>';
+    } else {
+      html += '<div class="help-text" style="margin-top:0.9rem;">Participants et groupes se gèrent depuis la Gestion des événements du Team.</div>';
+    }
     html += '<div style="margin-top:0.9rem;"><label for="ev-note">Note (optionnel)</label><input type="text" id="ev-note" placeholder="Ex. Inscriptions avant le 1er septembre" value="' + escapeHtml(ev.note || '') + '"></div>';
-    html += '<div class="field-row" style="margin-top:0.9rem;">';
-    html += '<div><label for="ev-hotel-name">Hôtel — nom</label><input type="text" id="ev-hotel-name" placeholder="Ex. Ibis Le Mans" value="' + escapeHtml(ev.hotelName || '') + '"></div>';
-    html += '<div><label for="ev-hotel-address">Hôtel — adresse</label><input type="text" id="ev-hotel-address" placeholder="Ex. 12 rue de la Sarthe, 72100 Le Mans" value="' + escapeHtml(ev.hotelAddress || '') + '"></div>';
-    html += '</div>';
-    html += '<label style="margin-top:0.9rem; display:block;">Avion</label>';
-    html += '<div class="field-row">';
-    html += '<div><label for="ev-flight-out-dep" class="horaires-sublabel">Aller — départ</label><input type="text" id="ev-flight-out-dep" placeholder="Ex. 6h40" value="' + escapeHtml(ev.flightOutDep || '') + '"></div>';
-    html += '<div><label for="ev-flight-out-arr" class="horaires-sublabel">Aller — arrivée</label><input type="text" id="ev-flight-out-arr" placeholder="Ex. 8h15" value="' + escapeHtml(ev.flightOutArr || '') + '"></div>';
-    html += '<div><label for="ev-flight-back-dep" class="horaires-sublabel">Retour — départ</label><input type="text" id="ev-flight-back-dep" placeholder="Ex. 18h00" value="' + escapeHtml(ev.flightBackDep || '') + '"></div>';
-    html += '<div><label for="ev-flight-back-arr" class="horaires-sublabel">Retour — arrivée</label><input type="text" id="ev-flight-back-arr" placeholder="Ex. 19h35" value="' + escapeHtml(ev.flightBackArr || '') + '"></div>';
-    html += '<div><label for="ev-airport" class="horaires-sublabel">Aéroport</label><input type="text" id="ev-airport" placeholder="Ex. Aéroport de Bologne" value="' + escapeHtml(ev.airport || '') + '"></div>';
-    html += '</div>';
     html += '<div class="field-error" id="event-form-error"></div>';
     html += '<div style="margin-top:0.9rem; display:flex; gap:0.6rem;">' +
       '<button type="submit" class="primary">Enregistrer</button>' +
@@ -5995,8 +6093,7 @@
     var dateStartRaw = document.getElementById('ev-date-start').value;
     var dateEndRawInput = document.getElementById('ev-date-end').value;
     var dateStart = frDateToIso(dateStartRaw);
-    var organizer = document.getElementById('ev-organizer').value.trim();
-    var ridersRaw = document.getElementById('ev-riders').value;
+    var ridersEl = document.getElementById('ev-riders');
     var note = document.getElementById('ev-note').value.trim();
     var errEl = document.getElementById('event-form-error');
     errEl.textContent = '';
@@ -6024,7 +6121,28 @@
       errEl.classList.add('visible');
       return;
     }
-    var riders = ridersRaw.split(',').map(function (r) { return r.trim(); }).filter(Boolean);
+    var teamEl = document.getElementById('ev-team');
+    var teamId = teamEl && teamEl.value ? teamEl.value : null;
+    var visibilityEl = document.getElementById('ev-visibility');
+    var eventVisibility = teamId && visibilityEl ? visibilityEl.value : null;
+    // The live STATE.events entry being edited, or null for a new one --
+    // used both to read forward what a Team event's roster/groups already
+    // are (see riders/riderGroups below) and, further down, as the actual
+    // record to mutate on save.
+    var existingEvent = editingEventId !== 'new' ? (STATE.events.filter(function (e) { return e.id === editingEventId; })[0] || null) : null;
+    // A Team event's roster is managed entirely from the Team's own
+    // "Gestion des événements" (ridersEl doesn't even render for one, see
+    // renderEventForm) -- riders/groups here are simply carried forward
+    // untouched. A personal (non-Team) event still reads them from the
+    // field, same as before Team events existed.
+    // ridersEl only fails to exist when the form was rendered for a Team
+    // event (see renderEventForm) -- if the Team was then switched to
+    // "Aucun" in this same edit, there's no typed field to read from, so
+    // fall back to the event's existing roster rather than wiping it to
+    // empty.
+    var riders = ridersEl
+      ? ridersEl.value.split(',').map(function (r) { return r.trim(); }).filter(Boolean)
+      : (existingEvent ? (existingEvent.riders || []) : []);
     var horairesFromForm = {};
     var anyHoraireFromForm = false;
     HORAIRES_GROUPS.forEach(function (g) {
@@ -6032,65 +6150,38 @@
       var v = el ? el.value.trim() : '';
       if (v) { horairesFromForm[g.key] = v; anyHoraireFromForm = true; }
     });
-    var hotelName = document.getElementById('ev-hotel-name').value.trim();
-    var hotelAddress = document.getElementById('ev-hotel-address').value.trim();
-    var flightOutDep = document.getElementById('ev-flight-out-dep').value.trim();
-    var flightOutArr = document.getElementById('ev-flight-out-arr').value.trim();
-    var flightBackDep = document.getElementById('ev-flight-back-dep').value.trim();
-    var flightBackArr = document.getElementById('ev-flight-back-arr').value.trim();
-    var airport = document.getElementById('ev-airport').value.trim();
-    var teamEl = document.getElementById('ev-team');
-    var teamId = teamEl && teamEl.value ? teamEl.value : null;
-    var visibilityEl = document.getElementById('ev-visibility');
-    var eventVisibility = teamId && visibilityEl ? visibilityEl.value : null;
 
     // Trim the form's draft down to riders still in the field and dates
     // still within range -- a rider removed from the field, or a date
     // dropped by shortening the range, shouldn't leave orphaned group data
     // behind in the saved sortie. Existing per-day/période assignments
-    // (fine-tuned in Planning) are carried forward, not reset.
-    var existingForGroups = editingEventId !== 'new'
-      ? (STATE.events.filter(function (e) { return e.id === editingEventId; })[0] || {}).riderGroups
-      : null;
-    var riderGroups = draftRiderGroupsFor(riders, dateStart, dateEnd, existingForGroups);
+    // (fine-tuned in Team's group management) are carried forward, not reset.
+    var riderGroups = teamId
+      ? (existingEvent ? existingEvent.riderGroups : null)
+      : draftRiderGroupsFor(riders, dateStart, dateEnd, existingEvent && existingEvent.riderGroups);
 
     var prevState = JSON.parse(JSON.stringify(STATE));
     eventsList();
     if (editingEventId === 'new') {
-      var newEvent = { id: genId(), circuit: circuit, dateStart: dateStart, dateEnd: dateEnd, riders: riders, organizer: organizer, note: note };
+      var newEvent = { id: genId(), circuit: circuit, dateStart: dateStart, dateEnd: dateEnd, riders: riders, note: note };
       if (teamId) newEvent.teamId = teamId;
       if (eventVisibility) newEvent.eventVisibility = eventVisibility;
       if (riderGroups) newEvent.riderGroups = riderGroups;
-      if (hotelName) newEvent.hotelName = hotelName;
-      if (hotelAddress) newEvent.hotelAddress = hotelAddress;
-      if (flightOutDep) newEvent.flightOutDep = flightOutDep;
-      if (flightOutArr) newEvent.flightOutArr = flightOutArr;
-      if (flightBackDep) newEvent.flightBackDep = flightBackDep;
-      if (flightBackArr) newEvent.flightBackArr = flightBackArr;
-      if (airport) newEvent.airport = airport;
       STATE.events.push(newEvent);
       selectedEventId = newEvent.id;
     } else {
-      var existing = STATE.events.filter(function (e) { return e.id === editingEventId; })[0];
+      var existing = existingEvent;
       if (existing) {
         existing.circuit = circuit;
         existing.dateStart = dateStart;
         existing.dateEnd = dateEnd;
         existing.riders = riders;
-        existing.organizer = organizer;
         existing.note = note;
         existing.teamId = teamId || null;
         existing.eventVisibility = eventVisibility || null;
         existing.autoCreated = false; // a manual edit means it's no longer just a byproduct of a chrono
         // checklist isn't touched here -- it's checked off in Planning, not the sortie form.
         existing.riderGroups = riderGroups || null; // never `undefined` -- Firestore rejects that as a field value
-        existing.hotelName = hotelName || null;
-        existing.hotelAddress = hotelAddress || null;
-        existing.flightOutDep = flightOutDep || null;
-        existing.flightOutArr = flightOutArr || null;
-        existing.flightBackDep = flightBackDep || null;
-        existing.flightBackArr = flightBackArr || null;
-        existing.airport = airport || null;
         selectedEventId = existing.id;
       }
     }
@@ -6882,10 +6973,22 @@
         var riders = ev.riders || [];
         var riderRows = riders.length
           ? riders.map(function (name) {
-              return '<div class="friend-row"><div class="friend-row-main">' + nameLinkHtml(name) + '</div>' +
+              var u = (STATE.usersByName || {})[name] || {};
+              return '<div class="friend-row"><div class="friend-row-main">' + nameLinkHtml(name) + (u.bikeNumber ? ' <span class="account-role-tag">#' + escapeHtml(u.bikeNumber) + '</span>' : '') + '</div>' +
                 '<div class="friend-row-actions"><button type="button" class="ghost icon-btn" data-action="team-event-remove-rider" data-id="' + ev.id + '" data-rider="' + escapeHtml(name) + '" aria-label="Retirer" title="Retirer">×</button></div></div>' + maybeFicheHtml(name);
             }).join('')
           : '<div class="help-text">Aucun participant.</div>';
+        // Search-to-add, name + # (bikeNumber) shown per candidate so a
+        // Team Leader can tell same-name pilotes apart before adding one.
+        var candidates = candidateRidersForTeamEvent(team, riders);
+        if (candidates.length) {
+          riderRows += '<form class="team-event-add-rider-form" data-action="team-event-add-rider-form" data-event-id="' + ev.id + '">' +
+            '<select data-team-event-add-rider-select>' + candidates.map(function (n) {
+              var u = (STATE.usersByName || {})[n] || {};
+              return '<option value="' + escapeHtml(n) + '">' + escapeHtml(n) + (u.bikeNumber ? ' #' + escapeHtml(u.bikeNumber) : '') + '</option>';
+            }).join('') + '</select>' +
+            '<button type="submit" class="ghost">Ajouter</button></form>';
+        }
         var reqRows = reqs.map(function (r) {
           var u = (STATE.usersByName || {})[r.from] || {};
           return '<div class="friend-row"><div class="friend-row-main">' + avatarHtml(u, r.from) + '<span class="friend-name-plain">' + escapeHtml(r.from) + '</span>' + badgesHtml(u) + '</div>' +
@@ -6897,6 +7000,7 @@
         var eventBody = '<div class="help-text">' + escapeHtml(formatEventRange(ev, true)) + '</div>' +
           renderEventAnnouncements(ev, true) +
           collapsibleSection('team-event-riders-' + ev.id, 'Participants (' + riders.length + ')', riderRows) +
+          collapsibleSection('team-event-groups-' + ev.id, 'Groupes de départ', renderRiderGroupsSection(ev)) +
           (reqs.length ? collapsibleSection('team-event-requests-' + ev.id, 'Demandes (' + reqs.length + ')', reqRows, true) : '') +
           '<div style="margin-top:0.6rem; display:flex; gap:0.5rem;">' +
           '<button type="button" class="ghost" data-action="team-event-edit" data-id="' + ev.id + '">Modifier</button>' +
@@ -8356,7 +8460,7 @@
       if (groupHintEl) {
         if (hint) {
           groupHintEl.style.display = '';
-          groupHintEl.textContent = 'Groupe suggéré depuis la sortie associée : ' + hint + '.';
+          groupHintEl.textContent = 'Groupe suggéré depuis l’événement associé : ' + hint + '.';
         } else {
           groupHintEl.style.display = 'none';
         }
@@ -8575,6 +8679,9 @@
         saveMediaLink(btn.getAttribute('data-id'), input.value.trim());
       });
     });
+    document.querySelectorAll('[data-action="save-travel-info"]').forEach(function (btn) {
+      btn.addEventListener('click', function () { saveMyTravelInfo(btn.getAttribute('data-event-id')); });
+    });
     var addEventBtn = document.getElementById('add-event-btn');
     if (addEventBtn) {
       addEventBtn.addEventListener('click', function () {
@@ -8604,6 +8711,13 @@
     });
     document.querySelectorAll('[data-action="team-event-remove-rider"]').forEach(function (btn) {
       btn.addEventListener('click', function () { removeRiderFromEvent(btn.getAttribute('data-id'), btn.getAttribute('data-rider')); });
+    });
+    document.querySelectorAll('[data-action="team-event-add-rider-form"]').forEach(function (form) {
+      form.addEventListener('submit', function (evt) {
+        evt.preventDefault();
+        var select = form.querySelector('[data-team-event-add-rider-select]');
+        if (select && select.value) addRiderToEvent(form.getAttribute('data-event-id'), select.value);
+      });
     });
     var cancelEventBtn = document.getElementById('cancel-event-btn');
     if (cancelEventBtn) cancelEventBtn.addEventListener('click', function () { editingEventId = null; prefillEventCircuit = null; prefillEventTeamId = null; renderRoot(); });

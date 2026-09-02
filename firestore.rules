@@ -411,5 +411,15 @@ service cloud.firestore {
       allow create: if verified() && request.resource.data.from == myName()
         && isTeamLeader(request.resource.data.teamId);
     }
+    // Hôtel/avion/aéroport, personal per (event, account) -- unlike every
+    // other event field, the Team orga never fills these in for anyone
+    // else, so this is genuinely private (like coachMessages), not just
+    // display-layer filtered: only its own rider (or admin) may ever
+    // read or write one doc.
+    match /eventTravelInfo/{id} {
+      allow read: if verified() && (isAdmin() || resource.data.rider == myName());
+      allow create: if verified() && request.resource.data.rider == myName();
+      allow update, delete: if verified() && (isAdmin() || resource.data.rider == myName());
+    }
   }
 }
