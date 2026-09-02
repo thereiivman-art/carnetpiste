@@ -525,6 +525,17 @@
     padding: 0.12rem 0.4rem;
     margin-left: 0.4rem;
   }
+  .certified-pill {
+    display: inline-block;
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    color: var(--accent);
+    background: color-mix(in srgb, var(--accent) 15%, var(--surface));
+    border-radius: 5px;
+    padding: 0.12rem 0.4rem;
+    white-space: nowrap;
+  }
   .lap-delta {
     font-size: 0.72rem;
     color: var(--text-muted);

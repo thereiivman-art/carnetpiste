@@ -14,7 +14,7 @@
   var STATE = {
     sessions: [], events: [], circuits: {}, riders: [], usersByName: {}, friendRequests: [], feedEvents: [], myFollows: [], myFollowedTeams: [],
     myFollowedTeamTiers: {}, myTeamFollowDocs: {}, teams: [], myTeamMemberships: [], teamInvites: [], teamMembersByTeam: {}, teamFeed: [], teamFollowersByTeam: {},
-    followedTeamFeed: [], wallPosts: [], coachRequests: [], teamJoinRequests: [], teamLikes: []
+    followedTeamFeed: [], wallPosts: [], coachRequests: [], teamJoinRequests: [], teamLikes: [], eventJoinRequests: []
   };
   var canPersist = false;
   var unsubscribers = [];
@@ -1464,7 +1464,7 @@
         if (showRider) tableHtml += '<td class="rider-cell">' + (s.rider ? renderRiderLink(s.rider) : '—') + '</td>';
         tableHtml += '<td class="laps-cell">' + lapsHtml + (isRecord ? '<span class="record-pill">RECORD</span>' : '') + '</td>';
         tableHtml += '<td class="bike-cell">' + (s.bike ? escapeHtml(s.bike) : '—') + '</td>';
-        tableHtml += '<td class="row-actions">' + editControl(s) + deleteControl(s) + '</td>';
+        tableHtml += '<td class="row-actions">' + certifyControl(s) + editControl(s) + deleteControl(s) + '</td>';
         tableHtml += '</tr>';
       });
       tableHtml += '</tbody></table></div>';
@@ -2795,6 +2795,32 @@
     return '<button type="button" class="ghost icon-btn" data-action="edit-session-request" data-id="' + session.id + '" aria-label="Modifier ce chrono" title="Modifier">✎</button>';
   }
 
+  // A chrono logged under a Team Event can be certified by that event's
+  // own Team Leader -- the pitch to clubs: a future organizer building
+  // homogeneous, safe groups can trust a certified time instead of
+  // having to ask every pilote for their references by hand.
+  function canCertifySession(session) {
+    if (!session.eventId || session.certifiedBy) return false;
+    var ev = (STATE.events || []).filter(function (e) { return e.id === session.eventId; })[0];
+    return !!(ev && ev.teamId && isLeaderOfTeam(ev.teamId));
+  }
+  function certifyControl(session) {
+    if (session.certifiedBy) {
+      return '<span class="certified-pill" title="Certifié par ' + escapeHtml(session.certifiedBy) + '">✓ Certifié</span>';
+    }
+    if (!canCertifySession(session)) return '';
+    return '<button type="button" class="ghost icon-btn" data-action="certify-session" data-id="' + session.id + '" aria-label="Certifier ce chrono" title="Certifier ce chrono">✓</button>';
+  }
+  function certifyChrono(sessionId) {
+    var me = currentUserProfile;
+    if (!me) return;
+    db.collection('sessions').doc(sessionId).update({ certifiedBy: me.name }).then(function () {
+      showToast('Chrono certifié.', 'success');
+    }).catch(function (err) {
+      showToast('Erreur : ' + (err && err.message ? err.message : err));
+    });
+  }
+
   // ---- Circuit info (km, virages, prochaine sortie) + visuel annotable ----
 
   function circuitInfo(name) {
@@ -4014,9 +4040,120 @@
   var MONTH_NAMES_FR = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
   var WEEKDAY_LETTERS_FR = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
 
+  // A personal/backfilled sortie (no teamId) is visible to everyone, same
+  // as before Team Events existed -- that's what keeps "add my past
+  // outings to rebuild my history" working for a brand-new account no
+  // matter who organized them. A Team Event's visibility depends on the
+  // owning Team: the leader/admin always sees it; a member of that Team
+  // (any role) or anyone explicitly on ev.invitedNames always sees it;
+  // beyond that, a Team PRO's own eventVisibility opens it further
+  // ('public'/'ouvert' to everyone, 'adherent' to that Team's adherents)
+  // -- an amateur Team's events never go past members/invited. Display-
+  // layer only (see firestore.rules' events match), same convention as
+  // every other audience filter in this app.
+  function canSeeEvent(ev) {
+    if (!ev.teamId) return true;
+    var me = currentUserProfile;
+    if (!me) return false;
+    if (isAdmin() || isLeaderOfTeam(ev.teamId)) return true;
+    var isMember = (STATE.myTeamMemberships || []).some(function (m) { return m.teamId === ev.teamId; });
+    if (isMember) return true;
+    if ((ev.riders || []).indexOf(me.name) !== -1) return true;
+    var team = teamById(ev.teamId);
+    if (team && team.teamPro) {
+      var vis = ev.eventVisibility || 'membre';
+      if (vis === 'public' || vis === 'ouvert') return true;
+      if (vis === 'adherent') return (STATE.myFollowedTeamTiers || {})[ev.teamId] === 'adherent';
+    }
+    return false;
+  }
+
   function eventsList() {
     STATE.events = STATE.events || [];
-    return STATE.events;
+    return STATE.events.filter(canSeeEvent);
+  }
+
+  // 'ouvert' Team Events self-register straight onto the event (see
+  // firestore.rules' events update rule -- any verified account may add
+  // *itself* to riders when eventVisibility is 'ouvert', nothing else).
+  function selfJoinOuvertEvent(eventId) {
+    var me = currentUserProfile;
+    var ev = (STATE.events || []).filter(function (e) { return e.id === eventId; })[0];
+    if (!me || !ev || (ev.riders || []).indexOf(me.name) !== -1) return;
+    var riders = (ev.riders || []).concat([me.name]);
+    db.collection('events').doc(eventId).update({ riders: riders }).then(function () {
+      showToast('Tu as rejoint "' + ev.circuit + '".', 'success');
+    }).catch(function (err) {
+      showToast('Erreur : ' + (err && err.message ? err.message : err));
+    });
+  }
+  // 'public' Team Events need the leader's OK -- id = eventId_from so a
+  // second request overwrites instead of stacking, same shape as
+  // teamJoinRequests; accept is the leader adding the rider to
+  // event.riders themselves (already allowed) then deleting this doc.
+  function requestJoinEvent(eventId) {
+    var me = currentUserProfile;
+    var ev = (STATE.events || []).filter(function (e) { return e.id === eventId; })[0];
+    if (!me || !ev) return;
+    db.collection('eventJoinRequests').doc(eventId + '_' + me.name).set({
+      eventId: eventId, teamId: ev.teamId, circuit: ev.circuit, from: me.name, status: 'pending'
+    }).then(function () {
+      showToast('Demande envoyée.', 'success');
+    }).catch(function (err) {
+      showToast('Erreur : ' + (err && err.message ? err.message : err));
+    });
+  }
+  function acceptEventJoinRequest(req) {
+    var ev = (STATE.events || []).filter(function (e) { return e.id === req.eventId; })[0];
+    if (!ev) return;
+    var riders = (ev.riders || []).indexOf(req.from) === -1 ? (ev.riders || []).concat([req.from]) : (ev.riders || []);
+    db.collection('events').doc(req.eventId).update({ riders: riders }).then(function () {
+      return db.collection('eventJoinRequests').doc(req.id).delete();
+    }).then(function () {
+      showToast(req.from + ' a rejoint l\'événement.', 'success');
+    }).catch(function (err) {
+      showToast('Erreur : ' + (err && err.message ? err.message : err));
+    });
+  }
+  // Same delete either way -- declining a request received or cancelling
+  // one sent.
+  function removeEventJoinRequest(id) {
+    db.collection('eventJoinRequests').doc(id).delete().catch(function (err) {
+      showToast('Erreur : ' + (err && err.message ? err.message : err));
+    });
+  }
+
+  // "Découvrir les Événements PRO" -- every Team PRO event this account
+  // can't already see in its own Événements list (not a member of the
+  // owning team, not already registered), open enough to browse
+  // ('public' or 'ouvert'). Amateur Team Events never show up here --
+  // per the brief, only invited members/friends ever see those at all.
+  function renderProEventDiscovery(me) {
+    if (!me) return '';
+    var myTeamIds = (STATE.myTeamMemberships || []).map(function (m) { return m.teamId; });
+    var candidates = (STATE.events || []).filter(function (ev) {
+      if (!ev.teamId || myTeamIds.indexOf(ev.teamId) !== -1) return false;
+      var team = teamById(ev.teamId);
+      if (!team || !team.teamPro) return false;
+      var vis = ev.eventVisibility || 'membre';
+      if (vis !== 'public' && vis !== 'ouvert') return false;
+      return (ev.riders || []).indexOf(me.name) === -1;
+    }).sort(function (a, b) { return a.dateStart < b.dateStart ? -1 : a.dateStart > b.dateStart ? 1 : 0; });
+    if (!candidates.length) return '';
+    var body = candidates.map(function (ev) {
+      var team = teamById(ev.teamId);
+      var myRequest = (STATE.eventJoinRequests || []).filter(function (r) { return r.eventId === ev.id && r.from === me.name; })[0];
+      var actionHtml = ev.eventVisibility === 'ouvert'
+        ? '<button type="button" class="primary" data-action="event-join-ouvert" data-id="' + ev.id + '">Rejoindre</button>'
+        : (myRequest
+          ? '<span class="help-text">Demande envoyée</span>'
+          : '<button type="button" class="ghost" data-action="event-join-request" data-id="' + ev.id + '">Demander à participer</button>');
+      return '<div class="friend-row"><div class="friend-row-main"><span class="friend-name-plain">' + escapeHtml(ev.circuit) + '</span>' +
+        '<span class="help-text">' + escapeHtml(formatEventRange(ev, true)) + ' — ' + escapeHtml(team ? team.name : '') +
+        (ev.eventVisibility === 'ouvert' ? ' · Ouvert' : ' · Public') + '</span></div>' +
+        '<div class="friend-row-actions">' + actionHtml + '</div></div>';
+    }).join('');
+    return collapsibleCard('event-discovery-pro', 'Découvrir les Événements PRO', body, false);
   }
 
   function pad2(n) {
@@ -4650,9 +4787,15 @@
     opts = opts || {};
     var html = '<div class="card event-detail-card">';
     html += '<div class="event-detail-header"><h3>' + escapeHtml(ev.circuit) + '</h3><button type="button" class="ghost icon-btn" id="close-event-detail" aria-label="Fermer">×</button></div>';
+    if (ev.teamId) {
+      var evTeam = teamById(ev.teamId);
+      var visLabels = { public: 'Public', adherent: 'Adhérent only', membre: 'Membre only', ouvert: 'Ouvert' };
+      html += infoRow('Team', (evTeam ? escapeHtml(evTeam.name) + teamBadgesHtml(evTeam) : '—') +
+        (evTeam && evTeam.teamPro ? ' <span class="friend-role-badge">' + (visLabels[ev.eventVisibility] || 'Membre only') + '</span>' : ''));
+    }
     html += infoRow('Circuit', escapeHtml(ev.circuit));
     html += infoRow('Dates', escapeHtml(formatEventRange(ev, true)));
-    html += infoRow('Organisateur', ev.organizer ? escapeHtml(ev.organizer) : '—');
+    if (!ev.teamId) html += infoRow('Organisateur', ev.organizer ? escapeHtml(ev.organizer) : '—');
     if (ev.riders && ev.riders.length) html += infoRow('Pilotes', escapeHtml(ev.riders.join(', ')));
     // Just the starting group here, for a quick glance -- the full day-by-
     // jour/matin-après-midi breakdown (and the ability to change it) lives
@@ -4814,7 +4957,21 @@
     ongoing.sort(function (a, b) { return a.dateStart < b.dateStart ? -1 : a.dateStart > b.dateStart ? 1 : 0; });
     upcoming.sort(function (a, b) { return a.dateStart < b.dateStart ? -1 : a.dateStart > b.dateStart ? 1 : 0; });
     past.sort(function (a, b) { return a.dateStart < b.dateStart ? 1 : a.dateStart > b.dateStart ? -1 : 0; });
+    var me = currentUserProfile;
+    var incomingEventRequests = (STATE.eventJoinRequests || []).filter(function (r) { return r.status === 'pending' && teamById(r.teamId) && isLeaderOfTeam(r.teamId); });
     var html = '';
+    if (incomingEventRequests.length) {
+      var incomingBody = incomingEventRequests.map(function (r) {
+        var u = (STATE.usersByName || {})[r.from] || {};
+        return '<div class="friend-row"><div class="friend-row-main">' + avatarHtml(u, r.from) + '<span class="friend-name-plain">' + escapeHtml(r.from) + '</span>' + badgesHtml(u) +
+          '<span class="help-text">' + escapeHtml(r.circuit || '') + '</span></div>' +
+          '<div class="friend-row-actions">' +
+          '<button type="button" class="primary" data-action="event-join-request-accept" data-id="' + r.id + '">Accepter</button>' +
+          '<button type="button" class="ghost" data-action="event-join-request-remove" data-id="' + r.id + '">Refuser</button>' +
+          '</div></div>';
+      }).join('');
+      html += collapsibleCard('event-join-requests-in', 'Demandes pour participer (' + incomingEventRequests.length + ')', incomingBody, true);
+    }
     if (!all.length) {
       html += '<div class="card"><div class="empty-state">Aucune sortie enregistrée — ajoutez-en une ci-dessous.</div></div>';
     } else {
@@ -4827,6 +4984,7 @@
     html += renderEventForm();
     html += renderCalendarSection();
     html += renderPastEventsCard(past);
+    html += renderProEventDiscovery(me);
     return html;
   }
 
@@ -5533,6 +5691,30 @@
         : '<select id="ev-organizer" disabled><option value="">Aucun compte Organisateur vérifié pour l\'instant</option></select>') +
       '</div>';
     html += '</div>';
+    // A Team Event is "owned" by whichever Team leads it -- only teams
+    // this account actually leads are offered, per "un event doit être
+    // détenu par un Team Leader" -- left as "Aucun" this stays a plain
+    // personal sortie (unrestricted, exactly like before Team Events
+    // existed, which is what keeps backfilling old history unaffected).
+    var ledTeamsForEvent = (STATE.myTeamMemberships || []).filter(function (m) { return m.role === 'leader'; })
+      .map(function (m) { return teamById(m.teamId); }).filter(Boolean);
+    if (ledTeamsForEvent.length) {
+      html += '<div style="margin-top:0.9rem;"><label for="ev-team">Team organisateur (optionnel)</label>' +
+        '<select id="ev-team"><option value="">Aucun (événement personnel)</option>' +
+        ledTeamsForEvent.map(function (t) {
+          return '<option value="' + t.id + '"' + (ev.teamId === t.id ? ' selected' : '') + '>' + escapeHtml(t.name) + (t.teamPro ? ' (PRO)' : '') + '</option>';
+        }).join('') + '</select></div>';
+      var selectedTeam = ev.teamId ? teamById(ev.teamId) : null;
+      html += '<div id="ev-visibility-wrap" style="margin-top:0.9rem; display:' + (selectedTeam && selectedTeam.teamPro ? 'block' : 'none') + ';">' +
+        '<label for="ev-visibility">Visibilité</label>' +
+        '<select id="ev-visibility">' +
+        '<option value="membre"' + (ev.eventVisibility === 'membre' ? ' selected' : '') + '>Membre only</option>' +
+        '<option value="adherent"' + (ev.eventVisibility === 'adherent' ? ' selected' : '') + '>Adhérent only</option>' +
+        '<option value="public"' + (ev.eventVisibility === 'public' ? ' selected' : '') + '>Public (visible par tous, invitation requise)</option>' +
+        '<option value="ouvert"' + (ev.eventVisibility === 'ouvert' ? ' selected' : '') + '>Ouvert (inscription libre)</option>' +
+        '</select>' +
+        '<div class="help-text">Réservé aux Teams PRO -- un Team amateur reste visible par ses membres et les pilotes invités.</div></div>';
+    }
     // Horaires live on the circuit (shared across every sortie there, see
     // renderCircuitInfoEditForm), but any pilote creating a sortie can set
     // them here too instead of having to detour through l'onglet Circuit --
@@ -5624,6 +5806,10 @@
     var flightBackDep = document.getElementById('ev-flight-back-dep').value.trim();
     var flightBackArr = document.getElementById('ev-flight-back-arr').value.trim();
     var airport = document.getElementById('ev-airport').value.trim();
+    var teamEl = document.getElementById('ev-team');
+    var teamId = teamEl && teamEl.value ? teamEl.value : null;
+    var visibilityEl = document.getElementById('ev-visibility');
+    var eventVisibility = teamId && visibilityEl ? visibilityEl.value : null;
 
     // Trim the form's draft down to riders still in the field and dates
     // still within range -- a rider removed from the field, or a date
@@ -5639,6 +5825,8 @@
     eventsList();
     if (editingEventId === 'new') {
       var newEvent = { id: genId(), circuit: circuit, dateStart: dateStart, dateEnd: dateEnd, riders: riders, organizer: organizer, note: note };
+      if (teamId) newEvent.teamId = teamId;
+      if (eventVisibility) newEvent.eventVisibility = eventVisibility;
       if (riderGroups) newEvent.riderGroups = riderGroups;
       if (hotelName) newEvent.hotelName = hotelName;
       if (hotelAddress) newEvent.hotelAddress = hotelAddress;
@@ -5658,6 +5846,8 @@
         existing.riders = riders;
         existing.organizer = organizer;
         existing.note = note;
+        existing.teamId = teamId || null;
+        existing.eventVisibility = eventVisibility || null;
         existing.autoCreated = false; // a manual edit means it's no longer just a byproduct of a chrono
         // checklist isn't touched here -- it's checked off in Planning, not the sortie form.
         existing.riderGroups = riderGroups || null; // never `undefined` -- Firestore rejects that as a field value
@@ -7742,6 +7932,21 @@
     document.querySelectorAll('[data-action="team-join-request-remove"]').forEach(function (btn) {
       btn.addEventListener('click', function () { removeTeamJoinRequest(btn.getAttribute('data-id')); });
     });
+    document.querySelectorAll('[data-action="event-join-ouvert"]').forEach(function (btn) {
+      btn.addEventListener('click', function () { selfJoinOuvertEvent(btn.getAttribute('data-id')); });
+    });
+    document.querySelectorAll('[data-action="event-join-request"]').forEach(function (btn) {
+      btn.addEventListener('click', function () { requestJoinEvent(btn.getAttribute('data-id')); });
+    });
+    document.querySelectorAll('[data-action="event-join-request-accept"]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var req = (STATE.eventJoinRequests || []).filter(function (r) { return r.id === btn.getAttribute('data-id'); })[0];
+        if (req) acceptEventJoinRequest(req);
+      });
+    });
+    document.querySelectorAll('[data-action="event-join-request-remove"]').forEach(function (btn) {
+      btn.addEventListener('click', function () { removeEventJoinRequest(btn.getAttribute('data-id')); });
+    });
     document.querySelectorAll('[data-action="team-like-toggle"]').forEach(function (btn) {
       btn.addEventListener('click', function () { toggleTeamLike(btn.getAttribute('data-team')); });
     });
@@ -7884,6 +8089,9 @@
       });
     });
 
+    document.querySelectorAll('[data-action="certify-session"]').forEach(function (btn) {
+      btn.addEventListener('click', function () { certifyChrono(btn.getAttribute('data-id')); });
+    });
     document.querySelectorAll('[data-action="edit-session-request"]').forEach(function (btn) {
       btn.addEventListener('click', function () {
         editingSessionId = btn.getAttribute('data-id');
@@ -8038,6 +8246,15 @@
         var defaults = circuitInfo(evCircuitEl.value.trim());
         var orgEl = document.getElementById('ev-organizer');
         if (orgEl && !orgEl.value.trim() && defaults.organizer) orgEl.value = defaults.organizer;
+      });
+    }
+    var evTeamEl = document.getElementById('ev-team');
+    if (evTeamEl) {
+      evTeamEl.addEventListener('change', function () {
+        var wrap = document.getElementById('ev-visibility-wrap');
+        if (!wrap) return;
+        var team = evTeamEl.value ? teamById(evTeamEl.value) : null;
+        wrap.style.display = (team && team.teamPro) ? 'block' : 'none';
       });
     }
     var evDateStartEl = document.getElementById('ev-date-start');
@@ -8525,6 +8742,14 @@
         myTeamJoinRequestsOut = snap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); });
         mergeTeamJoinRequests();
       }, handleSyncError));
+      // Same shape as teamJoinRequests -- my own outgoing "demander à
+      // participer" requests for a 'public' Team PRO event (see
+      // renderProEventDiscovery); the incoming side, for events owned by
+      // a team this account leads, is synced in refreshTeamDetailSync.
+      unsubscribers.push(db.collection('eventJoinRequests').where('from', '==', currentUserProfile.name).onSnapshot(function (snap) {
+        myEventJoinRequestsOut = snap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); });
+        mergeEventJoinRequests();
+      }, handleSyncError));
       unsubscribers.push(db.collection('teamMembers').where('name', '==', currentUserProfile.name).onSnapshot(function (snap) {
         STATE.myTeamMemberships = snap.docs.map(function (d) { return d.data(); });
         refreshTeamDetailSync();
@@ -8564,6 +8789,14 @@
     STATE.teamJoinRequests = Object.keys(byId).map(function (id) { return byId[id]; });
     renderRoot();
   }
+  var myEventJoinRequestsOut = [], eventJoinRequestsIn = [];
+  function mergeEventJoinRequests() {
+    var byId = {};
+    myEventJoinRequestsOut.forEach(function (r) { byId[r.id] = r; });
+    eventJoinRequestsIn.forEach(function (r) { byId[r.id] = r; });
+    STATE.eventJoinRequests = Object.keys(byId).map(function (id) { return byId[id]; });
+    renderRoot();
+  }
 
   // Re-subscribed (not just once) whenever STATE.myTeamMemberships changes
   // -- e.g. joining a new team -- so its roster and feed start syncing
@@ -8580,6 +8813,8 @@
       STATE.teamFollowersByTeam = {};
       teamJoinRequestsIn = [];
       mergeTeamJoinRequests();
+      eventJoinRequestsIn = [];
+      mergeEventJoinRequests();
       return;
     }
     teamDetailUnsubs.push(db.collection('teamMembers').where('teamId', 'in', teamIds).onSnapshot(function (snap) {
@@ -8645,6 +8880,12 @@
       teamJoinRequestsIn = snap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); });
       mergeTeamJoinRequests();
     }, handleSyncError));
+    // Same for eventJoinRequests -- every pending "demander à participer"
+    // for a Team Event owned by one of this account's teams.
+    teamDetailUnsubs.push(db.collection('eventJoinRequests').where('teamId', 'in', teamIds).onSnapshot(function (snap) {
+      eventJoinRequestsIn = snap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); });
+      mergeEventJoinRequests();
+    }, handleSyncError));
   }
 
   // Re-subscribed whenever STATE.myFollowedTeams changes (see the follows
@@ -8681,6 +8922,8 @@
     followedTeamFeedUnsubs = [];
     myTeamJoinRequestsOut = [];
     teamJoinRequestsIn = [];
+    myEventJoinRequestsOut = [];
+    eventJoinRequestsIn = [];
     seenTeamInviteIds = null;
   }
 

@@ -53,6 +53,16 @@ service cloud.firestore {
       return teamId != null && isTeamLeader(teamId)
         && exists(/databases/$(database)/documents/teamMembers/$(teamId + '_' + riderValue));
     }
+    // A Team Event (events/{id}.teamId set) is "owned" by that Team's
+    // leader(s) -- the club-adoption pitch is that a chrono logged under
+    // one of their events can be certified as genuine, so only the
+    // leader of the event's own Team may ever flip that flag.
+    function isOrganizerOfLinkedEvent(eventId) {
+      return eventId != null
+        && exists(/databases/$(database)/documents/events/$(eventId))
+        && get(/databases/$(database)/documents/events/$(eventId)).data.get('teamId', null) != null
+        && isTeamLeader(get(/databases/$(database)/documents/events/$(eventId)).data.teamId);
+    }
 
     // A user's own profile has to be writable right after signup, before
     // there's been time to verify anything -- no email_verified check here.
@@ -94,15 +104,53 @@ service cloud.firestore {
       allow update: if verified() && (isAdmin()
         || (ownsChrono(resource.data.rider) && ownsChrono(request.resource.data.rider))
         || (ownsChronoViaTeam(resource.data.rider, resource.data.get('teamId', null))
-            && ownsChronoViaTeam(request.resource.data.rider, request.resource.data.get('teamId', null))));
+            && ownsChronoViaTeam(request.resource.data.rider, request.resource.data.get('teamId', null)))
+        // Certification -- the linked event's own Team Leader, and only
+        // the certifiedBy field, so this can never be used to touch the
+        // rider/laps/date of someone else's chrono.
+        || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['certifiedBy'])
+            && isOrganizerOfLinkedEvent(resource.data.get('eventId', null))));
       allow delete: if verified() && (isAdmin() || ownsChrono(resource.data.rider)
         || ownsChronoViaTeam(resource.data.rider, resource.data.get('teamId', null)));
     }
+    // events/{id}.teamId (optional) makes an event a Team Event, "owned"
+    // by that Team's leader(s) -- per the brief, a personal/backfilled
+    // sortie (no teamId) stays exactly as permissive as before (any
+    // verified account, so a new account can rebuild years of history
+    // under whatever organizer name it actually rode under). Visibility
+    // (public/adherent/membre/ouvert) is a display-layer filter only
+    // (see eventsList()), same convention as every other audience field
+    // in this app -- read stays open to any signed-in account.
     match /events/{id} {
       allow read: if request.auth != null;
-      allow create: if verified();
-      allow update: if verified();
+      allow create: if verified() && (request.resource.data.get('teamId', null) == null || isTeamLeader(request.resource.data.teamId));
+      // A Team Event flagged 'ouvert' also lets any verified account add
+      // themselves (only themselves, only an addition) to riders directly
+      // -- true self-registration, "sans validation" per the brief; every
+      // other visibility tier and every other field stays leader-only.
+      allow update: if verified() && (
+        resource.data.get('teamId', null) == null
+        || isTeamLeader(resource.data.teamId)
+        || (resource.data.get('eventVisibility', null) == 'ouvert'
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['riders'])
+            && request.resource.data.riders.size() == resource.data.get('riders', []).size() + 1
+            && (myName() in request.resource.data.riders))
+      );
       allow delete: if verified() && isAdmin();
+    }
+    // A 'public' Team Event needs the leader's OK to actually join (unlike
+    // 'ouvert', which self-registers straight onto the event, see above)
+    // -- id = eventId_from so a second request overwrites, same
+    // create-then-delete shape as teamJoinRequests; accept is just the
+    // leader adding the rider to event.riders themselves (already allowed)
+    // then deleting this doc, no "accepted" status needed.
+    match /eventJoinRequests/{id} {
+      allow read: if request.auth != null;
+      allow create: if verified() && request.resource.data.from == myName() && request.resource.data.status == 'pending';
+      allow delete: if verified() && (
+        resource.data.from == myName()
+        || isTeamLeader(get(/databases/$(database)/documents/events/$(resource.data.eventId)).data.get('teamId', ''))
+      );
     }
     match /circuits/{id} {
       allow read: if request.auth != null;
