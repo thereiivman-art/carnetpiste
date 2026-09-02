@@ -14,7 +14,7 @@
   var STATE = {
     sessions: [], events: [], circuits: {}, riders: [], usersByName: {}, friendRequests: [], feedEvents: [], myFollows: [], myFollowedTeams: [],
     myFollowedTeamTiers: {}, myTeamFollowDocs: {}, teams: [], myTeamMemberships: [], teamInvites: [], teamMembersByTeam: {}, teamFeed: [], teamFollowersByTeam: {},
-    followedTeamFeed: [], wallPosts: [], coachRequests: [], teamJoinRequests: [], teamLikes: [], eventJoinRequests: [], coachMessages: []
+    followedTeamFeed: [], wallPosts: [], coachRequests: [], teamJoinRequests: [], teamLikes: [], eventJoinRequests: [], coachMessages: [], eventAnnouncements: []
   };
   var canPersist = false;
   var unsubscribers = [];
@@ -892,6 +892,7 @@
   var selectedEventId = _savedUiState.selectedEventId || null; // which sortie the Événement tab (and Calendrier's detail card) shows
   var editingEventId = null; // null | 'new' | an event id — never restored (don't reopen a form after reload)
   var prefillEventCircuit = null; // one-shot pre-fill for the "Ajouter une sortie" form's circuit field
+  var prefillEventTeamId = null; // one-shot pre-fill for the "Ajouter un événement" form's Team, when opened from a Team's own "Gestion des événements"
   // Draft group assignment while the sortie form (add or edit) is open --
   // riders/dates aren't committed to a real event yet (or may still change
   // while editing), so this lives outside STATE until submit. Reset
@@ -1729,6 +1730,7 @@
     html += '<label class="checklist-item" style="margin-top:0.4rem;"><input type="checkbox" id="profile-notify-team-news"' + (p.notifyTeamNews !== false ? ' checked' : '') + '> Actu de mon Team</label>';
     html += '<label class="checklist-item" style="margin-top:0.4rem;"><input type="checkbox" id="profile-notify-pro-outings"' + (p.notifyProOutings !== false ? ' checked' : '') + '> Nouvelle sortie organisée par un Team PRO que je suis ou dont je suis adhérent</label>';
     html += '<label class="checklist-item" style="margin-top:0.4rem;"><input type="checkbox" id="profile-notify-coach-messages"' + (p.notifyCoachMessages !== false ? ' checked' : '') + '> Nouveau message dans l\'espace coaching</label>';
+    html += '<label class="checklist-item" style="margin-top:0.4rem;"><input type="checkbox" id="profile-notify-event-announcements"' + (p.notifyEventAnnouncements !== false ? ' checked' : '') + '> Annonce du Team Leader sur un événement</label>';
     html += '</div>';
     return html;
   }
@@ -2924,9 +2926,13 @@
     if (!riders.length) return '';
     var rows = riders.map(function (rider) {
       var sessions = STATE.sessions.filter(function (s) { return s.rider === rider && s.eventId === ev.id; });
-      if (!sessions.length) return infoRow(rider, '<span class="help-text">Aucun chrono</span>');
-      var best = sessions.reduce(function (a, b) { return sessionBest(b) < sessionBest(a) ? b : a; });
-      return infoRow(rider, formatTime(sessionBest(best)) + ' ' + certifyControl(best));
+      var valueHtml = !sessions.length
+        ? '<span class="help-text">Aucun chrono</span>'
+        : (function () {
+            var best = sessions.reduce(function (a, b) { return sessionBest(b) < sessionBest(a) ? b : a; });
+            return formatTime(sessionBest(best)) + ' ' + certifyControl(best);
+          })();
+      return '<div class="info-row"><span class="info-label">' + nameLinkHtml(rider) + '</span><span class="info-value">' + valueHtml + '</span></div>' + maybeFicheHtml(rider);
     }).join('');
     return collapsibleSection('cert-' + ev.id, 'Chronos vérifiés', rows, true);
   }
@@ -2976,6 +2982,18 @@
   // go; checking on a teammate goes through Social (fiche d'ami) instead.
   function renderRiderLink(name) {
     return escapeHtml(name);
+  }
+
+  // Turns any name into the same clickable "open fiche" link Social's Mes
+  // amis list uses (see renderFriendRow/renderFriendFiche) -- reused
+  // wherever a name shows up in Team/Événements so a fiche (with its
+  // shared chronos, chronos vérifiés, trophées...) is one click away, not
+  // just from Social.
+  function nameLinkHtml(name) {
+    return '<button type="button" class="friend-name-link" data-action="toggle-friend-fiche" data-name="' + escapeHtml(name) + '">' + escapeHtml(name) + '</button>';
+  }
+  function maybeFicheHtml(name) {
+    return expandedFriend === name ? renderFriendFiche(name) : '';
   }
 
   // Copier/Maps/Waze actions for any free-text address or place name --
@@ -3034,7 +3052,8 @@
     html += '<div class="circuit-name" style="margin-bottom:0.5rem;">' + escapeHtml(selectedCircuit) + '</div>';
     html += infoRow('Distance', info.km != null ? (escapeHtml(String(info.km)) + ' km') : '—');
     html += infoRow('Virages (D / G)', turnsHtml);
-    html += infoRow('Organisateur habituel', info.organizer ? escapeHtml(info.organizer) : '—');
+    var organizerTeam = info.organizerTeamId ? teamById(info.organizerTeamId) : null;
+    html += infoRow('Organisateur', organizerTeam ? escapeHtml(organizerTeam.name) + (organizerTeam.teamPro ? ' (PRO)' : '') : '—');
     if (info.briefing) html += infoRow('Briefing', escapeHtml(info.briefing));
     var lastEvent = (lastSession && lastSession.eventId) ? eventsList().filter(function (e) { return e.id === lastSession.eventId; })[0] : null;
     var lastOutingText = lastSession ? (escapeHtml(formatDate(lastSession.date)) + ' — ' + formatTime(sessionBest(lastSession))) : '—';
@@ -3062,7 +3081,11 @@
     html += '<div><label for="ci-km">Distance (km)</label><input type="text" inputmode="decimal" id="ci-km" value="' + (info.km != null ? escapeHtml(String(info.km)) : '') + '" placeholder="Ex. 4.2"></div>';
     html += '<div><label for="ci-right">Virages à droite</label><input type="text" inputmode="numeric" id="ci-right" value="' + (info.turnsRight != null ? escapeHtml(String(info.turnsRight)) : '') + '" placeholder="Ex. 9"></div>';
     html += '<div><label for="ci-left">Virages à gauche</label><input type="text" inputmode="numeric" id="ci-left" value="' + (info.turnsLeft != null ? escapeHtml(String(info.turnsLeft)) : '') + '" placeholder="Ex. 5"></div>';
-    html += '<div><label for="ci-organizer">Organisateur habituel</label><input type="text" id="ci-organizer" value="' + escapeHtml(info.organizer || '') + '" placeholder="Ex. MT95"</div>';
+    var allTeamsForOrganizer = (STATE.teams || []).slice().sort(function (a, b) { return a.name.localeCompare(b.name); });
+    html += '<div><label for="ci-organizer">Organisateur</label><select id="ci-organizer"><option value="">—</option>' +
+      allTeamsForOrganizer.map(function (t) {
+        return '<option value="' + t.id + '"' + (t.id === info.organizerTeamId ? ' selected' : '') + '>' + escapeHtml(t.name) + (t.teamPro ? ' (PRO)' : '') + '</option>';
+      }).join('') + '</select></div>';
     html += '<div><label for="ci-briefing">Briefing</label><input type="text" id="ci-briefing" value="' + escapeHtml(info.briefing || '') + '" placeholder="Ex. 8h15"></div>';
     html += '</div>';
     // These usual times pre-remplissent automatiquement une nouvelle sortie
@@ -3113,7 +3136,7 @@
     var km = kmRaw ? parseFloat(kmRaw) : null;
     var right = rightRaw ? parseInt(rightRaw, 10) : null;
     var left = leftRaw ? parseInt(leftRaw, 10) : null;
-    var organizer = document.getElementById('ci-organizer').value.trim();
+    var organizerTeamId = document.getElementById('ci-organizer').value;
     var briefing = document.getElementById('ci-briefing').value.trim();
     var horaires = {};
     var anyHoraire = false;
@@ -3128,7 +3151,7 @@
     entry.km = (km != null && !isNaN(km)) ? km : null;
     entry.turnsRight = (right != null && !isNaN(right)) ? right : null;
     entry.turnsLeft = (left != null && !isNaN(left)) ? left : null;
-    entry.organizer = organizer || null;
+    entry.organizerTeamId = organizerTeamId || null;
     entry.briefing = briefing || null;
     entry.horaires = anyHoraire ? horaires : null;
     STATE.circuits[selectedCircuit] = entry;
@@ -4232,6 +4255,50 @@
       showToast('Erreur : ' + (err && err.message ? err.message : err));
     });
   }
+  // Team Leader removing a participant from their own event's roster, from
+  // the Team's "Gestion des événements" panel -- same field write as the
+  // event form's own "Pilotes" list, just one click instead of re-editing
+  // the whole comma-separated field.
+  function removeRiderFromEvent(eventId, rider) {
+    var ev = (STATE.events || []).filter(function (e) { return e.id === eventId; })[0];
+    if (!ev) return;
+    var riders = (ev.riders || []).filter(function (r) { return r !== rider; });
+    db.collection('events').doc(eventId).update({ riders: riders }).catch(function (err) {
+      showToast('Erreur : ' + (err && err.message ? err.message : err));
+    });
+  }
+  // Free-text broadcast from a Team Leader to an event's pilotes -- "ADMINISTRATION
+  // OUVERTE DE 18H A 20H CE SOIR", "BRIEFING DEMAIN A 8H15", "INCIDENT SUR LA
+  // PISTE : TRAITEMENT"... left entirely free-form, no preset templates, per
+  // "laisser champs libre d'écriture aux Team Leaders".
+  function sendEventAnnouncement(eventId, teamId, text) {
+    var me = currentUserProfile;
+    text = (text || '').trim();
+    if (!me || !text) return;
+    db.collection('eventAnnouncements').add({ eventId: eventId, teamId: teamId, from: me.name, text: text, createdAt: Date.now() }).catch(function (err) {
+      showToast('Erreur : ' + (err && err.message ? err.message : err));
+    });
+  }
+  // Reused both in the Team's "Gestion des événements" (leader, with the
+  // posting form) and in Planning for a rider on that event (read-only) --
+  // isLeader controls whether the form is appended.
+  function renderEventAnnouncements(ev, isLeader) {
+    var posts = (STATE.eventAnnouncements || []).filter(function (a) { return a.eventId === ev.id; });
+    if (!posts.length && !isLeader) return '';
+    var body = !posts.length
+      ? '<div class="empty-state">Aucune annonce pour l\'instant.</div>'
+      : posts.map(function (a) {
+        return '<div class="coach-message"><div class="coach-message-head"><span class="friend-name-plain">' + escapeHtml(a.from) + '</span>' +
+          '<span class="feed-entry-time">' + escapeHtml(relativeTime(a.createdAt)) + '</span></div>' +
+          '<div class="coach-message-text">' + escapeHtml(a.text) + '</div></div>';
+      }).join('');
+    if (isLeader) {
+      body += '<form class="coach-message-form" data-action="event-announcement-form" data-event-id="' + ev.id + '" data-team-id="' + ev.teamId + '">' +
+        '<input type="text" placeholder="Ex. BRIEFING DEMAIN A 8H15" data-event-announcement-input>' +
+        '<button type="submit" class="primary">Envoyer</button></form>';
+    }
+    return collapsibleSection('event-announcements-' + ev.id, 'Annonces' + (posts.length ? ' (' + posts.length + ')' : ''), body, true);
+  }
 
   // "Découvrir les Événements PRO" -- every Team PRO event this account
   // can't already see in its own Événements list (not a member of the
@@ -4653,7 +4720,8 @@
     if (!ev) { html += '<div class="empty-state">Aucune sortie ce jour-là.</div></div>'; return html; }
     var info = circuitInfo(ev.circuit);
     html += '<div class="eyebrow">' + escapeHtml(ev.circuit) + '</div>';
-    if (info.organizer) html += '<div class="help-text">Organisateur ' + escapeHtml(info.organizer) + '</div>';
+    var calOrganizerTeam = info.organizerTeamId ? teamById(info.organizerTeamId) : null;
+    if (calOrganizerTeam) html += '<div class="help-text">Organisateur ' + escapeHtml(calOrganizerTeam.name) + '</div>';
     if (!info.horaires) {
       html += '<div class="help-text">Aucun horaire enregistré pour ' + escapeHtml(ev.circuit) + '.</div>';
     } else {
@@ -5362,6 +5430,7 @@
     var sub = [];
     if (!isOngoing) sub.push(escapeHtml(formatEventRange(ev, true)) + ' (' + weekdayName(ev.dateStart) + ')');
     if (sub.length) html += '<div class="help-text" style="font-size:0.78rem; font-weight:400;">' + sub.join(' · ') + '</div>';
+    if (ev.teamId) html += renderEventAnnouncements(ev, false);
     // Briefing lives with Horaires (above the group filter) now, not up
     // here -- it's schedule information, same family as the slot times.
     var briefingLine = info.briefing ? '<div class="help-text" style="margin-bottom:0.6rem; color:var(--accent); font-weight:600;">Briefing ' + escapeHtml(info.briefing) + '</div>' : '';
@@ -5371,7 +5440,8 @@
     // collapsed-by-default rubrique (Infos pratiques) instead of sitting
     // inline above the horaires.
     var practicalInfo = '';
-    if (info.organizer) practicalInfo += '<div class="help-text">Organisateur : ' + escapeHtml(info.organizer) + '</div>';
+    var planningOrganizerTeam = info.organizerTeamId ? teamById(info.organizerTeamId) : null;
+    if (planningOrganizerTeam) practicalInfo += '<div class="help-text">Organisateur : ' + escapeHtml(planningOrganizerTeam.name) + '</div>';
     if (ev.hotelName || ev.hotelAddress) {
       practicalInfo += '<div class="help-text location-line">Hôtel : ' + [ev.hotelName, ev.hotelAddress].filter(Boolean).map(escapeHtml).join(' — ') +
         renderLocationActions(ev.hotelAddress || ev.hotelName) + '</div>';
@@ -5795,15 +5865,21 @@
     }
     var isNew = editingEventId === 'new';
     var ev = isNew ? { circuit: prefillEventCircuit || '' } : (eventsList().filter(function (e) { return e.id === editingEventId; })[0] || {});
-    // A new sortie starts from its circuit's usual organizer (set via
-    // Circuit > Modifier les infos) -- the organizer is normally the same
-    // every time, so re-typing it per sortie would be pure friction.
+    // A new sortie starts from its circuit's usual organizing Team (set via
+    // Chronos > Modifier les infos) -- the organizer is normally the same
+    // every time, so re-picking it per sortie would be pure friction. Only
+    // takes if this account actually leads that team (the only teams
+    // ev-team ever offers below).
     // Horaires themselves aren't edited here at all anymore -- Planning
     // reads them straight from the circuit.
     if (isNew && ev.circuit) {
       var circuitDefaults = circuitInfo(ev.circuit);
-      if (circuitDefaults.organizer) ev.organizer = circuitDefaults.organizer;
+      if (circuitDefaults.organizerTeamId) ev.teamId = circuitDefaults.organizerTeamId;
     }
+    // Opened from a Team's own "Gestion des événements" -- that Team wins
+    // over the circuit's usual organizing Team, since the leader picked it
+    // explicitly by clicking there.
+    if (isNew && prefillEventTeamId) ev.teamId = prefillEventTeamId;
     // The draft starts from each rider's day-1 group when editing an
     // existing sortie (just a representative "groupe de départ", not the
     // full day-by-day breakdown -- that's edited in Planning), or empty
@@ -6026,6 +6102,7 @@
     calendarAnchor = dateStart;
     editingEventId = null;
     prefillEventCircuit = null;
+    prefillEventTeamId = null;
     renderRoot();
     persist(prevState);
   }
@@ -6299,6 +6376,22 @@
         html += infoRow('Jours sur piste', String(stats.trackDays));
         if (stats.lastSession) {
           html += infoRow('Dernière sortie', escapeHtml(stats.lastSession.circuit) + ' — ' + escapeHtml(formatDate(stats.lastSession.date)) + ' (' + formatTime(stats.lastSession.time) + ')');
+        }
+        var verifiedSessions = STATE.sessions.filter(function (s) { return s.rider === name && s.certifiedBy; })
+          .sort(function (a, b) { return a.date < b.date ? 1 : a.date > b.date ? -1 : 0; });
+        if (verifiedSessions.length) {
+          var verifiedRows = verifiedSessions.map(function (s) {
+            return infoRow(escapeHtml(s.circuit) + ' — ' + escapeHtml(formatDate(s.date)), formatTime(sessionBest(s)) + ' ' + certifyControl(s));
+          }).join('');
+          html += collapsibleSection('fiche-verified-' + name, 'Chronos vérifiés (' + verifiedSessions.length + ')', verifiedRows);
+        }
+        var recentSessions = STATE.sessions.filter(function (s) { return s.rider === name; })
+          .sort(function (a, b) { return a.date < b.date ? 1 : a.date > b.date ? -1 : 0; }).slice(0, 10);
+        if (recentSessions.length) {
+          var historyRows = recentSessions.map(function (s) {
+            return infoRow(escapeHtml(s.circuit) + ' — ' + escapeHtml(formatDate(s.date)), formatTime(sessionBest(s)));
+          }).join('');
+          html += collapsibleSection('fiche-history-' + name, 'Historique', historyRows);
         }
       } else {
         html += '<div class="help-text">' + escapeHtml(name) + ' n\'a pas choisi de partager ses sorties/chronos.</div>';
@@ -6624,12 +6717,12 @@
     // so it's clear at a glance who's actually on track.
     var accountRoleLabel = u.role === 'accompagnant' ? 'Accompagnant' : (u.role === 'organisateur' ? 'Organisateur' : '');
     return '<div class="friend-row">' +
-      '<div class="friend-row-main">' + avatarHtml(u, member.name) + '<span class="friend-name-plain">' + escapeHtml(member.name) + '</span>' + badgesHtml(u) +
+      '<div class="friend-row-main">' + avatarHtml(u, member.name) + nameLinkHtml(member.name) + badgesHtml(u) +
       (accountRoleLabel ? '<span class="account-role-tag">' + accountRoleLabel + '</span>' : '') +
       (member.teamRole ? '<span class="account-role-tag">' + escapeHtml(member.teamRole) + '</span>' : '') +
       (isAdherent ? '<span class="friend-role-badge adherent-badge">Adhérent</span>' : '') +
       '<span class="friend-role-badge">' + (member.role === 'leader' ? 'Team Leader' : 'Membre') + '</span></div>' +
-      '<div class="friend-row-actions">' + actions + '</div></div>';
+      '<div class="friend-row-actions">' + actions + '</div></div>' + maybeFicheHtml(member.name);
   }
 
   // A poll is just another teamFeed doc (type:'poll', options, votes) --
@@ -6766,6 +6859,55 @@
     return html;
   }
 
+  // A Team Leader's own "Gestion des événements" -- create/modify a
+  // sortie owned by this Team and manage its roster (participants +
+  // pending "demander à participer" requests) without leaving the Team's
+  // own space to hunt through the global Événements tab. Reuses the exact
+  // same renderEventForm()/onEventSubmit() and accept/refuse plumbing as
+  // Événements -- this is just a second, Team-scoped entry point onto it.
+  function renderTeamEventsManagement(team) {
+    var events = (STATE.events || []).filter(function (ev) { return ev.teamId === team.id; })
+      .sort(function (a, b) { return a.dateStart < b.dateStart ? 1 : a.dateStart > b.dateStart ? -1 : 0; });
+    var pendingByEvent = {};
+    (STATE.eventJoinRequests || []).forEach(function (r) {
+      if (r.status !== 'pending' || r.teamId !== team.id) return;
+      (pendingByEvent[r.eventId] = pendingByEvent[r.eventId] || []).push(r);
+    });
+    var body = !events.length
+      ? '<div class="empty-state">Aucun événement pour ce Team.</div>'
+      : events.map(function (ev) {
+        var reqs = pendingByEvent[ev.id] || [];
+        var riders = ev.riders || [];
+        var riderRows = riders.length
+          ? riders.map(function (name) {
+              return '<div class="friend-row"><div class="friend-row-main">' + nameLinkHtml(name) + '</div>' +
+                '<div class="friend-row-actions"><button type="button" class="ghost icon-btn" data-action="team-event-remove-rider" data-id="' + ev.id + '" data-rider="' + escapeHtml(name) + '" aria-label="Retirer" title="Retirer">×</button></div></div>' + maybeFicheHtml(name);
+            }).join('')
+          : '<div class="help-text">Aucun participant.</div>';
+        var reqRows = reqs.map(function (r) {
+          var u = (STATE.usersByName || {})[r.from] || {};
+          return '<div class="friend-row"><div class="friend-row-main">' + avatarHtml(u, r.from) + '<span class="friend-name-plain">' + escapeHtml(r.from) + '</span>' + badgesHtml(u) + '</div>' +
+            '<div class="friend-row-actions">' +
+            '<button type="button" class="primary" data-action="event-join-request-accept" data-id="' + r.id + '">Accepter</button>' +
+            '<button type="button" class="ghost" data-action="event-join-request-remove" data-id="' + r.id + '">Refuser</button>' +
+            '</div></div>';
+        }).join('');
+        var eventBody = '<div class="help-text">' + escapeHtml(formatEventRange(ev, true)) + '</div>' +
+          renderEventAnnouncements(ev, true) +
+          collapsibleSection('team-event-riders-' + ev.id, 'Participants (' + riders.length + ')', riderRows) +
+          (reqs.length ? collapsibleSection('team-event-requests-' + ev.id, 'Demandes (' + reqs.length + ')', reqRows, true) : '') +
+          '<div style="margin-top:0.6rem; display:flex; gap:0.5rem;">' +
+          '<button type="button" class="ghost" data-action="team-event-edit" data-id="' + ev.id + '">Modifier</button>' +
+          deleteEventControl(ev.id) +
+          '</div>' +
+          (editingEventId === ev.id ? renderEventForm() : '');
+        return collapsibleSection('team-event-' + ev.id, escapeHtml(ev.circuit) + ' — ' + escapeHtml(formatEventRange(ev, true)), eventBody);
+      }).join('');
+    body += '<div style="margin-top:0.6rem;"><button type="button" class="primary" data-action="team-event-add" data-team="' + team.id + '">+ Ajouter un événement</button></div>';
+    if (editingEventId === 'new' && prefillEventTeamId === team.id) body += renderEventForm();
+    return collapsibleSection('team-events-' + team.id, 'Gestion des événements' + (events.length ? ' (' + events.length + ')' : ''), body);
+  }
+
   function renderTeamCard(team, me) {
     var isLeader = isLeaderOfTeam(team.id);
     var canPost = isLeader || team.postPolicy === 'members';
@@ -6826,6 +6968,10 @@
 
     if (isLeader) {
       html += renderTeamMembersManagement(team, members, teamFollowers);
+    }
+
+    if (isLeader) {
+      html += renderTeamEventsManagement(team);
     }
 
     if (isLeader) {
@@ -7537,6 +7683,10 @@
     if (notifyCoachMessagesEl) {
       notifyCoachMessagesEl.addEventListener('change', function () { saveOwnBooleanField('notifyCoachMessages', notifyCoachMessagesEl.checked); });
     }
+    var notifyEventAnnouncementsEl = document.getElementById('profile-notify-event-announcements');
+    if (notifyEventAnnouncementsEl) {
+      notifyEventAnnouncementsEl.addEventListener('change', function () { saveOwnBooleanField('notifyEventAnnouncements', notifyEventAnnouncementsEl.checked); });
+    }
     var shareSortiesEl = document.getElementById('profile-share-sorties');
     if (shareSortiesEl) {
       shareSortiesEl.addEventListener('change', function () { saveOwnBooleanField('shareSorties', shareSortiesEl.checked); });
@@ -8085,6 +8235,14 @@
         if (input) input.value = '';
       });
     });
+    document.querySelectorAll('[data-action="event-announcement-form"]').forEach(function (form) {
+      form.addEventListener('submit', function (evt) {
+        evt.preventDefault();
+        var input = form.querySelector('[data-event-announcement-input]');
+        if (input && input.value.trim()) sendEventAnnouncement(form.getAttribute('data-event-id'), form.getAttribute('data-team-id'), input.value);
+        if (input) input.value = '';
+      });
+    });
     document.querySelectorAll('[data-action="team-invite-accept"]').forEach(function (btn) {
       btn.addEventListener('click', function () {
         var invite = (STATE.teamInvites || []).filter(function (r) { return r.id === btn.getAttribute('data-id'); })[0];
@@ -8300,6 +8458,7 @@
         activeView = btn.getAttribute('data-view');
         editingEventId = null;
         prefillEventCircuit = null;
+        prefillEventTeamId = null;
         editingSessionId = null;
         renderRoot();
         // The header/bottom nav stay put (position:fixed) -- only the
@@ -8420,11 +8579,32 @@
         editingEventId = 'new';
         selectedEventId = null;
         prefillEventCircuit = null;
+        prefillEventTeamId = null;
         renderRoot();
       });
     }
+    document.querySelectorAll('[data-action="team-event-add"]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        editingEventId = 'new';
+        selectedEventId = null;
+        prefillEventCircuit = null;
+        prefillEventTeamId = btn.getAttribute('data-team');
+        renderRoot();
+      });
+    });
+    document.querySelectorAll('[data-action="team-event-edit"]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        editingEventId = btn.getAttribute('data-id');
+        prefillEventCircuit = null;
+        prefillEventTeamId = null;
+        renderRoot();
+      });
+    });
+    document.querySelectorAll('[data-action="team-event-remove-rider"]').forEach(function (btn) {
+      btn.addEventListener('click', function () { removeRiderFromEvent(btn.getAttribute('data-id'), btn.getAttribute('data-rider')); });
+    });
     var cancelEventBtn = document.getElementById('cancel-event-btn');
-    if (cancelEventBtn) cancelEventBtn.addEventListener('click', function () { editingEventId = null; prefillEventCircuit = null; renderRoot(); });
+    if (cancelEventBtn) cancelEventBtn.addEventListener('click', function () { editingEventId = null; prefillEventCircuit = null; prefillEventTeamId = null; renderRoot(); });
     var eventForm = document.getElementById('event-form');
     if (eventForm) eventForm.addEventListener('submit', onEventSubmit);
     // Riders and dates typed into the open sortie form drive the groups
@@ -8435,8 +8615,11 @@
     if (evCircuitEl && editingEventId === 'new') {
       evCircuitEl.addEventListener('change', function () {
         var defaults = circuitInfo(evCircuitEl.value.trim());
-        var orgEl = document.getElementById('ev-organizer');
-        if (orgEl && !orgEl.value.trim() && defaults.organizer) orgEl.value = defaults.organizer;
+        var teamEl = document.getElementById('ev-team');
+        if (teamEl && !teamEl.value && defaults.organizerTeamId) {
+          var hasOption = Array.prototype.some.call(teamEl.options, function (o) { return o.value === defaults.organizerTeamId; });
+          if (hasOption) { teamEl.value = defaults.organizerTeamId; teamEl.dispatchEvent(new Event('change')); }
+        }
       });
     }
     var evTeamEl = document.getElementById('ev-team');
@@ -9027,6 +9210,7 @@
       mergeTeamJoinRequests();
       eventJoinRequestsIn = [];
       mergeEventJoinRequests();
+      STATE.eventAnnouncements = [];
       return;
     }
     teamDetailUnsubs.push(db.collection('teamMembers').where('teamId', 'in', teamIds).onSnapshot(function (snap) {
@@ -9097,6 +9281,30 @@
     teamDetailUnsubs.push(db.collection('eventJoinRequests').where('teamId', 'in', teamIds).onSnapshot(function (snap) {
       eventJoinRequestsIn = snap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); });
       mergeEventJoinRequests();
+    }, handleSyncError));
+    // Team Leader broadcasts to an event's pilotes ("BRIEFING DEMAIN A
+    // 8H15"...) -- same seen-id notification pattern as teamFeed above,
+    // scoped to this account's own teams the same way.
+    var seenEventAnnouncementIds = null;
+    teamDetailUnsubs.push(db.collection('eventAnnouncements').where('teamId', 'in', teamIds).limit(200).onSnapshot(function (snap) {
+      var posts = snap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); })
+        .sort(function (a, b) { return (b.createdAt || 0) - (a.createdAt || 0); });
+      if (seenEventAnnouncementIds === null) {
+        seenEventAnnouncementIds = {};
+        posts.forEach(function (a) { seenEventAnnouncementIds[a.id] = true; });
+      } else {
+        posts.forEach(function (a) {
+          if (seenEventAnnouncementIds[a.id]) return;
+          seenEventAnnouncementIds[a.id] = true;
+          if (currentUserProfile && a.from === currentUserProfile.name) return;
+          if (notifCategoryAllowed('notifyEventAnnouncements')) {
+            var ev = (STATE.events || []).filter(function (e) { return e.id === a.eventId; })[0];
+            new Notification('Carnet de Piste', { body: (ev ? ev.circuit + ' — ' : '') + (a.text || '').slice(0, 150) });
+          }
+        });
+      }
+      STATE.eventAnnouncements = posts;
+      renderRoot();
     }, handleSyncError));
   }
 

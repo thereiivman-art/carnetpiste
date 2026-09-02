@@ -114,10 +114,12 @@
       circuit = ev.circuit;
       log('Sortie sur ' + circuit + '.');
 
-      // A wide date range so the sortie reads as "En cours" (Planning's
-      // "En ce moment") no matter which day this tool gets run on.
-      var wideStart = dateKey(addDays(today, -365));
-      var wideEnd = dateKey(addDays(today, 365));
+      // A 3-day window centered on today, re-centered every time this tool
+      // runs, so the sortie reads as "En cours" (Planning's "En ce moment")
+      // on the day you actually test -- a year-wide range was cluttering
+      // Planning/Événements with a year's worth of nonsense schedule.
+      var wideStart = dateKey(addDays(today, -1));
+      var wideEnd = dateKey(addDays(today, 1));
 
       // Real rotation: only one group is ever on track at a time -- A alone
       // for 20 min, then B, then C, then D, then back to A, round the clock.
