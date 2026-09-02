@@ -1785,10 +1785,17 @@
     var followed = p.followedRiders || [];
     var html = '<form id="profile-form">';
     html += renderProfileAvatar(p);
-    html += '<label for="profile-name">Nom</label><input type="text" id="profile-name" value="' + escapeHtml(p.name) + '" required>';
+    html += '<label for="profile-name">Pseudo</label><input type="text" id="profile-name" value="' + escapeHtml(p.name) + '" required>';
     html += '<div id="profile-name-number-wrap" style="display:' + (isNonRider ? 'none' : 'block') + '; margin-top:0.5rem;">' +
       '<label for="profile-name-number">N° (optionnel, même sans homonyme)</label>' +
       '<input type="text" id="profile-name-number" placeholder="Ex. 12" value="' + escapeHtml(riderNumberSuffix(p.name)) + '"></div>';
+    // Distinct de Pseudo (l'identifiant utilisé partout dans l'app --
+    // chronos, riders, connexion) -- Prénom/Nom sont facultatifs, remplis
+    // par le user quand il veut, jamais requis, et ne cascadent nulle part.
+    html += '<div style="display:flex; gap:0.6rem; margin-top:0.7rem;">' +
+      '<div style="flex:1;"><label for="profile-firstname">Prénom</label><input type="text" id="profile-firstname" value="' + escapeHtml(p.firstName || '') + '"></div>' +
+      '<div style="flex:1;"><label for="profile-lastname">Nom</label><input type="text" id="profile-lastname" value="' + escapeHtml(p.lastName || '') + '"></div>' +
+      '</div>';
     html += '<label style="margin-top:0.9rem;">Je suis</label>';
     html += '<div class="auth-role-choice">' +
       '<label><input type="radio" name="profile-role" value="pilote"' + (p.role !== 'accompagnant' && p.role !== 'organisateur' ? ' checked' : '') + '> Pilote</label>' +
@@ -2157,7 +2164,7 @@
     });
   }
 
-  function saveProfile(role, notifyBeforeSession, followedRiders, bike, bikeNumber, newRawName, nameNumber) {
+  function saveProfile(role, notifyBeforeSession, followedRiders, bike, bikeNumber, newRawName, nameNumber, firstName, lastName) {
     var uid = auth.currentUser && auth.currentUser.uid;
     if (!uid || !currentUserProfile) return;
     if (notifyBeforeSession && window.Notification && Notification.permission === 'default') {
@@ -2190,7 +2197,8 @@
         if (isKnownRider) renamePrevState = renameRiderEverywhere(oldName, finalName);
       }
     }
-    var writes = { role: role, notifyBeforeSession: notifyBeforeSession, followedRiders: followedRiders, bike: bike || null, bikeNumber: bikeNumber || null };
+    var writes = { role: role, notifyBeforeSession: notifyBeforeSession, followedRiders: followedRiders, bike: bike || null, bikeNumber: bikeNumber || null,
+      firstName: firstName || null, lastName: lastName || null };
     if (nameChanged) writes.name = finalName;
     db.collection('users').doc(uid).set(writes, { merge: true }).then(function () {
       // Covers switching to Pilote (or renaming while already one) without
@@ -2205,6 +2213,8 @@
       currentUserProfile.followedRiders = followedRiders;
       currentUserProfile.bike = bike || null;
       currentUserProfile.bikeNumber = bikeNumber || null;
+      currentUserProfile.firstName = firstName || null;
+      currentUserProfile.lastName = lastName || null;
       profileSaveMessage = 'Profil enregistré.';
       renderRoot();
       if (renamePrevState) persist(renamePrevState);
@@ -5384,6 +5394,7 @@
   // plain "En cours"/"À venir" lists and the per-year "Passés" bands below,
   // so the row markup and its open/edit behavior stay in exactly one place.
   function renderEventRow(ev, opts) {
+    opts = opts || {};
     var isOpen = ev.id === selectedEventId;
     var html = '<div class="event-row event-row-toggle' + (isOpen ? ' selected' : '') + '" data-event-id="' + ev.id + '" aria-expanded="' + (isOpen ? 'true' : 'false') + '">';
     html += '<div class="event-row-main"><span class="event-row-circuit">' + escapeHtml(ev.circuit) + '</span>';
@@ -5391,7 +5402,9 @@
     // checklist to act on) -- it added nothing here, least of all for a
     // past sortie where it's just a stale "0/43".
     html += '<span class="event-row-dates">' + escapeHtml(formatEventRange(ev)) + '</span></div>';
-    html += '<div class="event-row-riders">' + ((ev.riders && ev.riders.length) ? escapeHtml(ev.riders.join(', ')) : 'Pilotes non précisés') + '</div>';
+    if (!opts.hideRiders) {
+      html += '<div class="event-row-riders">' + ((ev.riders && ev.riders.length) ? escapeHtml(ev.riders.join(', ')) : 'Pilotes non précisés') + '</div>';
+    }
     html += '</div>';
     if (isOpen) {
       html += '<div class="event-accordion-panel">' + ((editingEventId === ev.id) ? renderEventForm() : renderEventSummaryCard(ev, opts)) + '</div>';
@@ -7305,23 +7318,22 @@
   }
 
   // Distincte de "Gestion des événements" (réservée aux sorties que ce
-  // Team possède, ev.teamId === team.id) -- l'Historique liste toute
+  // Team possède, ev.teamId === team.id) -- cette section liste toute
   // sortie, passée ou à venir, où au moins un membre du Team a participé
   // (ev.riders), peu importe qui l'a organisée. Visible par tout le monde
-  // sur la fiche du Team (pas juste le Team Leader), donc pas de bouton
-  // de gestion ici, juste un rappel léger de qui a couru où.
+  // sur la fiche du Team (pas juste le Team Leader). Chaque ligne réutilise
+  // exactement le même accordéon cliquable que l'onglet Événements
+  // personnel (renderEventRow/renderEventSummaryCard) -- ouvrir une sortie
+  // donne accès à son "Modifier" comme partout ailleurs, passée ou non
+  // (rien ne bloquait déjà l'édition d'une sortie passée server-side --
+  // c'est cette section qui n'offrait tout simplement aucun moyen d'ouvrir
+  // une sortie avant).
   function renderTeamHistorique(team, members) {
     var todayKey = dateKey(new Date());
     var memberNames = members.map(function (m) { return m.name; });
     var all = (STATE.events || []).filter(function (ev) {
       return (ev.riders || []).some(function (r) { return memberNames.indexOf(r) !== -1; });
     });
-    function eventRow(ev) {
-      var riders = (ev.riders || []).filter(function (r) { return memberNames.indexOf(r) !== -1; });
-      var organizer = ev.teamId ? (ev.teamId === team.id ? '' : ' · organisé par ' + escapeHtml((teamById(ev.teamId) || {}).name || '?')) : '';
-      return '<div class="friend-row"><div class="friend-row-main"><span class="friend-name-plain">' + escapeHtml(ev.circuit) + '</span>' +
-        '<span class="help-text">' + escapeHtml(formatEventRange(ev, true)) + ' · ' + riders.join(', ') + organizer + '</span></div></div>';
-    }
     var ongoing = [], upcoming = [], past = [];
     all.forEach(function (ev) {
       var status = eventTemporalStatus(ev, todayKey);
@@ -7335,12 +7347,14 @@
     if (!all.length) return '';
     var body = '';
     body += collapsibleSection('team-historique-ongoing-' + team.id, 'En cours (' + ongoing.length + ')',
-      ongoing.length ? ongoing.map(eventRow).join('') : '<div class="help-text">Rien en ce moment.</div>', !!ongoing.length);
+      ongoing.length ? ongoing.map(function (ev) { return renderEventRow(ev, { hideGroups: true }); }).join('') : '<div class="help-text">Rien en ce moment.</div>', !!ongoing.length);
     body += collapsibleSection('team-historique-upcoming-' + team.id, 'À venir (' + upcoming.length + ')',
-      upcoming.length ? upcoming.map(eventRow).join('') : '<div class="help-text">Rien de prévu.</div>', false);
+      upcoming.length ? upcoming.map(function (ev) { return renderEventRow(ev, { hideGroups: true }); }).join('') : '<div class="help-text">Rien de prévu.</div>', false);
+    // Passé : pas de liste de pilotes sur la ligne -- juste circuit + dates,
+    // épuré, le détail complet reste un clic (Modifier) plus loin.
     body += collapsibleSection('team-historique-past-' + team.id, 'Passés (' + past.length + ')',
-      past.length ? past.map(eventRow).join('') : '<div class="help-text">Aucun événement passé.</div>', false);
-    return collapsibleCard('team-historique-' + team.id, 'Historique (' + all.length + ')', body, false);
+      past.length ? past.map(function (ev) { return renderEventRow(ev, { hideGroups: true, hideRiders: true }); }).join('') : '<div class="help-text">Aucun événement passé.</div>', false);
+    return collapsibleCard('team-historique-' + team.id, 'Événements (' + all.length + ')', body, false);
   }
 
   // The dedicated per-event management screen (see managingEventId) --
@@ -7963,7 +7977,7 @@
     if (authMode === 'signup') {
       html += '<h2 class="section-title">Créer un compte</h2>';
       html += '<form id="signup-form" novalidate>';
-      html += '<label for="au-name">Nom</label><input type="text" id="au-name" name="name" autocomplete="name" placeholder="Ex. Xavier" required>';
+      html += '<label for="au-name">Pseudo</label><input type="text" id="au-name" name="name" autocomplete="username" placeholder="Ex. Xavier" required>';
       html += '<div id="au-number-wrap" style="margin-top:0.7rem;"><label for="au-number">N° de moto <span class="help-text" style="display:inline;">(optionnel, même sans homonyme)</span></label><input type="text" id="au-number" placeholder="Ex. 12"></div>';
       html += '<label style="margin-top:0.7rem;">Je suis</label><div class="auth-role-choice">' +
         '<label><input type="radio" name="au-role" value="pilote" checked> Pilote</label>' +
@@ -7978,7 +7992,7 @@
     } else {
       html += '<h2 class="section-title">Connexion</h2>';
       html += '<form id="login-form" novalidate>';
-      html += '<label for="au-email">Email</label><input type="email" id="au-email" name="email" autocomplete="username" required>';
+      html += '<label for="au-email">Email ou pseudo</label><input type="text" id="au-email" name="email" autocomplete="username" required>';
       html += '<label for="au-password" style="margin-top:0.7rem;">Mot de passe</label><input type="password" id="au-password" name="password" autocomplete="current-password" required>';
       html += '<label class="checklist-item" style="margin-top:0.6rem;"><input type="checkbox" id="au-remember" checked> Se souvenir de moi</label>';
       html += '<div class="field-error' + (authError ? ' visible' : '') + '" id="auth-error">' + escapeHtml(authError) + '</div>';
@@ -8001,10 +8015,42 @@
     return 'Erreur : ' + ((err && err.message) || err);
   }
 
+  // Connexion par pseudo (en plus de l'email) -- le pseudo (users.name)
+  // n'est pas une adresse email, Firebase Auth ne peut signer qu'avec un
+  // email, donc on le résout d'abord vers l'email associé via une lecture
+  // Firestore. Cette lecture nécessite d'être authentifié (voir
+  // firestore.rules users: allow read: if request.auth != null) alors
+  // qu'on ne l'est pas encore -- un aller-retour anonyme le temps de la
+  // résolution (même mécanisme que rename-organizer.html) le permet sans
+  // ouvrir la lecture des emails à tout le monde. onAuthStateChanged
+  // ignore les users anonymes (voir init()) donc ce passage est invisible.
+  function resolveLoginIdentifier(identifier) {
+    if (identifier.indexOf('@') !== -1) return Promise.resolve(identifier);
+    return auth.signInAnonymously().then(function () {
+      return db.collection('users').where('name', '==', identifier).limit(1).get();
+    }).then(function (snap) {
+      if (!snap.empty) return snap.docs[0].data().email;
+      // Query exacte d'abord (rapide) -- secours insensible à la casse
+      // seulement si rien trouvé, en relisant toute la collection (petite
+      // base, pas d'index composé pour une comparaison lowercase).
+      return db.collection('users').get().then(function (allSnap) {
+        var match = null;
+        allSnap.forEach(function (doc) {
+          var n = doc.data().name;
+          if (n && n.toLowerCase() === identifier.toLowerCase()) match = doc.data();
+        });
+        return match && match.email;
+      });
+    }).then(function (email) {
+      if (!email) return Promise.reject({ code: 'auth/user-not-found' });
+      return email;
+    });
+  }
+
   function onLoginSubmit(evt) {
     evt.preventDefault();
     justAuthenticated = true;
-    var email = document.getElementById('au-email').value.trim();
+    var identifier = document.getElementById('au-email').value.trim();
     var password = document.getElementById('au-password').value;
     var rememberEl = document.getElementById('au-remember');
     var remember = !rememberEl || rememberEl.checked;
@@ -8014,6 +8060,8 @@
     // for a shared/public device where the next person shouldn't land
     // straight in someone else's account.
     auth.setPersistence(remember ? firebase.auth.Auth.Persistence.LOCAL : firebase.auth.Auth.Persistence.SESSION).then(function () {
+      return resolveLoginIdentifier(identifier);
+    }).then(function (email) {
       return auth.signInWithEmailAndPassword(email, password);
     }).catch(function (err) {
       authError = translateAuthError(err);
@@ -8230,7 +8278,7 @@
     if (reglagesNotify && !document.getElementById('profile-form')) {
       reglagesNotify.addEventListener('change', function () {
         var p = currentUserProfile;
-        saveProfile(p.role, reglagesNotify.checked, p.followedRiders || [], p.bike, p.bikeNumber, p.name, '');
+        saveProfile(p.role, reglagesNotify.checked, p.followedRiders || [], p.bike, p.bikeNumber, p.name, '', p.firstName || '', p.lastName || '');
         showToast(reglagesNotify.checked ? 'Notifications activées.' : 'Notifications désactivées.', 'success');
       });
     }
@@ -8390,7 +8438,11 @@
         var newName = nameEl ? nameEl.value.trim() : '';
         var nameNumberEl = document.getElementById('profile-name-number');
         var nameNumber = nameNumberEl ? nameNumberEl.value.trim() : '';
-        saveProfile(role, notify, followedRiders, bike, bikeNumber, newName, nameNumber);
+        var firstNameEl = document.getElementById('profile-firstname');
+        var firstName = firstNameEl ? firstNameEl.value.trim() : '';
+        var lastNameEl = document.getElementById('profile-lastname');
+        var lastName = lastNameEl ? lastNameEl.value.trim() : '';
+        saveProfile(role, notify, followedRiders, bike, bikeNumber, newName, nameNumber, firstName, lastName);
       });
       var notifyLabel = document.getElementById('profile-notify-label');
       profileForm.querySelectorAll('input[name="profile-role"]').forEach(function (radio) {
@@ -10287,6 +10339,11 @@
     // doc just means that write hasn't landed yet, so it's a no-op rather
     // than an error.
     auth.onAuthStateChanged(function (user) {
+      // The anonymous sign-in used only to resolve a pseudo to its email
+      // before the real login (see resolveLoginIdentifier) also fires this
+      // -- ignore it entirely, the real signInWithEmailAndPassword that
+      // follows fires it again with the actual account moments later.
+      if (user && user.isAnonymous) return;
       if (!user) {
         stopSync();
         authState = 'signed-out';

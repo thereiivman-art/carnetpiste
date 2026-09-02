@@ -201,7 +201,7 @@ service cloud.firestore {
         && request.resource.data.status == 'accepted'
         && request.resource.data.from == resource.data.from
         && request.resource.data.to == resource.data.to;
-      allow delete: if verified() && (resource.data.from == myName() || resource.data.to == myName());
+      allow delete: if verified() && (isAdmin() || resource.data.from == myName() || resource.data.to == myName());
     }
     // Coaching -- a Pilote or Organisateur (from) requests coaching from a
     // Coach (to, expected to carry the 'coach' badge, but that's only
@@ -222,18 +222,22 @@ service cloud.firestore {
           && request.resource.data.from == resource.data.from && request.resource.data.to == resource.data.to)
         || request.resource.data.diff(resource.data).affectedKeys().hasOnly(['plan'])
       );
-      allow delete: if verified() && (resource.data.from == myName() || resource.data.to == myName());
+      allow delete: if verified() && (isAdmin() || resource.data.from == myName() || resource.data.to == myName());
     }
     // Coach <-> coaché messaging, append-only (see sendCoachMessage) --
     // only the two parties to that accepted coachRequests can read or
-    // post into it; nothing is ever edited or deleted client-side.
+    // post into it; nothing is ever edited client-side. Delete is
+    // otherwise unreachable (no client-side action for it) except by
+    // the admin, for cleanup of stale/orphaned data (see e.g. a renamed
+    // account's old-name messages left behind by a rename bug).
     match /coachMessages/{id} {
       // Private 1:1 messaging, unlike the rest of this app's social
       // features -- read is actually restricted to the two parties
       // (via their coachRequests doc), not just a display-layer filter.
-      allow read: if verified() && isPartyToCoachRequest(resource.data.requestId);
+      allow read: if verified() && (isAdmin() || isPartyToCoachRequest(resource.data.requestId));
       allow create: if verified() && request.resource.data.from == myName()
         && isPartyToCoachRequest(request.resource.data.requestId);
+      allow delete: if verified() && isAdmin();
     }
     // Social feed -- append-only activity log (a new friendship, a new
     // personal record...). Whoever the entry is about writes it themselves
@@ -284,7 +288,8 @@ service cloud.firestore {
             && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['adherentRequested']))
       );
       allow delete: if verified() && (
-        resource.data.follower == myName()
+        isAdmin()
+        || resource.data.follower == myName()
         || (resource.data.followeeType == 'team' && isTeamLeader(resource.data.followee))
       );
     }
@@ -374,7 +379,7 @@ service cloud.firestore {
       allow create: if verified() && request.resource.data.from == myName()
         && (request.resource.data.kind == 'member' || request.resource.data.kind == 'adherent')
         && request.resource.data.status == 'pending';
-      allow delete: if verified() && (resource.data.from == myName() || isTeamLeader(resource.data.teamId));
+      allow delete: if verified() && (isAdmin() || resource.data.from == myName() || isTeamLeader(resource.data.teamId));
     }
     // A plain, no-strings like -- id = teamId_name, one per (team, person),
     // self-service create/delete only, like followTeam's own follows rows
@@ -382,7 +387,7 @@ service cloud.firestore {
     match /teamLikes/{id} {
       allow read: if request.auth != null;
       allow create: if verified() && request.resource.data.name == myName();
-      allow delete: if verified() && resource.data.name == myName();
+      allow delete: if verified() && (isAdmin() || resource.data.name == myName());
     }
     // Id = teamId_to, so a leader can only ever have one pending/accepted
     // invite outstanding per person per team (a second create would just
@@ -401,7 +406,7 @@ service cloud.firestore {
         && request.resource.data.teamId == resource.data.teamId
         && request.resource.data.from == resource.data.from
         && request.resource.data.to == resource.data.to;
-      allow delete: if verified() && (resource.data.from == myName() || resource.data.to == myName() || isTeamLeader(resource.data.teamId));
+      allow delete: if verified() && (isAdmin() || resource.data.from == myName() || resource.data.to == myName() || isTeamLeader(resource.data.teamId));
     }
     // Team feed -- announcements, leader-only per the brief ("écrire dans
     // le feed du team" is listed as one of the admin/leader powers).
@@ -450,7 +455,7 @@ service cloud.firestore {
         && isTeamLeader(request.resource.data.teamId);
       allow update: if verified() && isTeamLeader(resource.data.teamId)
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['text', 'editedAt']);
-      allow delete: if verified() && isTeamLeader(resource.data.teamId);
+      allow delete: if verified() && (isAdmin() || isTeamLeader(resource.data.teamId));
     }
     // Hôtel/avion/aéroport, personal per (event, account) -- unlike every
     // other event field, the Team orga never fills these in for anyone

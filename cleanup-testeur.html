@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Nettoyer les traces de Testeur — Carnet de Piste</title>
+<style>
+  body { font: 15px -apple-system, sans-serif; max-width: 720px; margin: 3rem auto; padding: 0 1rem; color: #16212c; }
+  label { display: block; margin-top: 1rem; font-weight: 600; }
+  input { font-size: 1rem; padding: 0.5rem; width: 100%; box-sizing: border-box; margin-top: 0.3rem; }
+  button { font-size: 1rem; padding: 0.6rem 1.2rem; cursor: pointer; margin-top: 1.2rem; }
+  #log { white-space: pre-wrap; background: #f2f2f2; padding: 1rem; margin-top: 1.2rem; font-family: monospace; font-size: 0.85rem; max-height: 480px; overflow: auto; }
+  .help { font-size: 0.82rem; color: #666; font-weight: 400; margin-top: 0.2rem; }
+  #step2 { display: none; }
+  .warn { color: #a33; font-weight: 600; }
+</style>
+</head>
+<body>
+<h1>Nettoyer les traces de "Testeur"</h1>
+<p>Trouve et supprime, dans toute la base, tout document qui référence encore un nom contenant "testeur" (ancien nom du compte renommé en William95 -- ces docs sont des restes orphelins que le rename n'a pas migrés). <strong>Ne touche jamais</strong> un document référençant exactement "William95".</p>
+<p class="help">Nécessite les correctifs de firestore.rules déjà déployés (isAdmin() sur les deletes de friendRequests/coachRequests/coachMessages/follows/teamLikes/teamJoinRequests/teamInvites/eventAnnouncements) -- republie les rules avant de lancer ce nettoyage.</p>
+
+<div id="step1">
+  <label for="login-email">Email (compte admin)</label>
+  <input type="email" id="login-email" autocomplete="username">
+  <label for="login-password">Mot de passe</label>
+  <input type="password" id="login-password" autocomplete="current-password">
+  <button id="login-btn">Se connecter</button>
+</div>
+
+<div id="step2">
+  <button id="scan-btn">Scanner la base</button>
+  <div id="preview"></div>
+</div>
+
+<div id="log"></div>
+
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore-compat.js"></script>
+<script src="firebase-config.js"></script>
+<script>
+  var logEl = document.getElementById('log');
+  function log(msg) { logEl.textContent += msg + '\n'; }
+
+  var db, auth;
+  var TESTEUR_RE = /testeur/i;
+  var SAFE_NAME = 'William95'; // never touched, whatever the match logic says
+  function isTesteur(name) { return !!name && TESTEUR_RE.test(name) && name !== SAFE_NAME; }
+
+  document.getElementById('login-btn').addEventListener('click', function () {
+    db = firebase.firestore();
+    auth = firebase.auth();
+    var email = document.getElementById('login-email').value.trim();
+    var password = document.getElementById('login-password').value;
+    log('Connexion...');
+    auth.signInWithEmailAndPassword(email, password).then(function () {
+      log('Connecté.');
+      document.getElementById('step1').style.display = 'none';
+      document.getElementById('step2').style.display = 'block';
+    }).catch(function (err) {
+      log('ERREUR : ' + (err && err.message ? err.message : err));
+    });
+  });
+
+  // Each plan entry: { label, run(actions) } where run() reads the
+  // relevant collection(s) and pushes { desc, apply() } into actions for
+  // anything that needs cleanup. apply() returns a promise.
+  var plans = [];
+
+  function simpleNameCollection(coll, field, alsoFields) {
+    var fields = [field].concat(alsoFields || []);
+    plans.push({
+      label: coll,
+      run: function (actions) {
+        return db.collection(coll).get().then(function (snap) {
+          snap.forEach(function (doc) {
+            var d = doc.data();
+            var hit = fields.some(function (f) { return isTesteur(d[f]); });
+            if (!hit) return;
+            actions.push({
+              desc: coll + '/' + doc.id + ' (' + fields.map(function (f) { return f + '=' + d[f]; }).join(', ') + ')',
+              apply: function () { return db.collection(coll).doc(doc.id).delete(); }
+            });
+          });
+        });
+      }
+    });
+  }
+
+  simpleNameCollection('users', 'name');
+  simpleNameCollection('riders', 'name');
+  simpleNameCollection('sessions', 'rider');
+  simpleNameCollection('teamMembers', 'name');
+  simpleNameCollection('friendRequests', 'from', ['to']);
+  simpleNameCollection('coachRequests', 'from', ['to']);
+  simpleNameCollection('follows', 'follower');
+  simpleNameCollection('teamLikes', 'name');
+  simpleNameCollection('teamJoinRequests', 'from');
+  simpleNameCollection('teamInvites', 'from', ['to']);
+  simpleNameCollection('teamFeed', 'author');
+  simpleNameCollection('wallPosts', 'author');
+  simpleNameCollection('eventAnnouncements', 'from');
+  simpleNameCollection('eventTravelInfo', 'rider');
+
+  // coachMessages don't carry a name field directly, only the sender
+  // (from) -- and per firestore.rules, requestId points to a
+  // coachRequests doc that (per the plan above) may already be gone.
+  // Match on 'from' alone, same as the other plain-name collections.
+  simpleNameCollection('coachMessages', 'from');
+
+  // Events: never delete the whole event (other real riders may be on
+  // it) -- just strip the Testeur name out of riders[]/riderGroups/
+  // reactions, same shape as renameRiderEverywhere but as a removal.
+  plans.push({
+    label: 'events (riders/riderGroups/reactions)',
+    run: function (actions) {
+      return db.collection('events').get().then(function (snap) {
+        snap.forEach(function (doc) {
+          var ev = doc.data();
+          var riders = ev.riders || [];
+          var badRiders = riders.filter(isTesteur);
+          var badGroupKeys = Object.keys(ev.riderGroups || {}).filter(isTesteur);
+          var badReactionKeys = Object.keys(ev.reactions || {}).filter(isTesteur);
+          if (!badRiders.length && !badGroupKeys.length && !badReactionKeys.length) return;
+          actions.push({
+            desc: 'events/' + doc.id + ' (' + (ev.circuit || '?') + ') -- retire ' +
+              [].concat(badRiders, badGroupKeys, badReactionKeys).filter(function (v, i, a) { return a.indexOf(v) === i; }).join(', '),
+            apply: function () {
+              var update = {};
+              if (badRiders.length) update.riders = riders.filter(function (r) { return !isTesteur(r); });
+              var riderGroups = ev.riderGroups;
+              if (badGroupKeys.length) {
+                riderGroups = Object.assign({}, riderGroups);
+                badGroupKeys.forEach(function (k) { delete riderGroups[k]; });
+                update.riderGroups = riderGroups;
+              }
+              var reactions = ev.reactions;
+              if (badReactionKeys.length) {
+                reactions = Object.assign({}, reactions);
+                badReactionKeys.forEach(function (k) { delete reactions[k]; });
+                update.reactions = reactions;
+              }
+              return db.collection('events').doc(doc.id).update(update);
+            }
+          });
+        });
+      });
+    }
+  });
+
+  document.getElementById('scan-btn').addEventListener('click', function () {
+    document.getElementById('scan-btn').disabled = true;
+    log('Scan de ' + plans.length + ' collections...');
+    var actions = [];
+    var chain = Promise.resolve();
+    plans.forEach(function (p) {
+      chain = chain.then(function () {
+        return p.run(actions).catch(function (err) {
+          log('  ' + p.label + ' -- ERREUR : ' + (err && err.message ? err.message : err));
+        });
+      });
+    });
+    chain.then(function () {
+      var previewEl = document.getElementById('preview');
+      if (!actions.length) {
+        previewEl.innerHTML = '<div class="help">Rien trouvé -- la base est déjà propre.</div>';
+        log('Rien à nettoyer.');
+        return;
+      }
+      log(actions.length + ' document(s) à supprimer/nettoyer :');
+      actions.forEach(function (a) { log('  - ' + a.desc); });
+      previewEl.innerHTML = '<div class="warn" style="margin-top:0.8rem;">' + actions.length + ' document(s) seront supprimés/nettoyés (voir le détail ci-dessous).</div>' +
+        '<button id="confirm-btn">Confirmer le nettoyage (' + actions.length + ')</button>';
+      document.getElementById('confirm-btn').addEventListener('click', function () {
+        document.getElementById('confirm-btn').disabled = true;
+        log('Application...');
+        var chain2 = Promise.resolve();
+        var done = 0, failed = 0;
+        actions.forEach(function (a) {
+          chain2 = chain2.then(function () {
+            return a.apply().then(function () {
+              done++;
+            }).catch(function (err) {
+              failed++;
+              log('  ÉCHEC : ' + a.desc + ' -- ' + (err && err.message ? err.message : err));
+            });
+          });
+        });
+        chain2.then(function () {
+          log('Terminé -- ' + done + ' appliqué(s)' + (failed ? ', ' + failed + ' échoué(s) (vérifie que les rules sont bien republiées)' : '') + '.');
+          previewEl.innerHTML = '';
+        });
+      });
+    }).finally(function () {
+      document.getElementById('scan-btn').disabled = false;
+    });
+  });
+</script>
+</body>
+</html>
