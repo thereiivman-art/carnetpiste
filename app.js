@@ -14,7 +14,7 @@
   var STATE = {
     sessions: [], events: [], circuits: {}, riders: [], usersByName: {}, friendRequests: [], feedEvents: [], myFollows: [], myFollowedTeams: [],
     myFollowedTeamTiers: {}, myTeamFollowDocs: {}, teams: [], myTeamMemberships: [], teamInvites: [], teamMembersByTeam: {}, teamFeed: [], teamFollowersByTeam: {},
-    followedTeamFeed: [], wallPosts: [], coachRequests: [], teamJoinRequests: [], teamLikes: [], eventJoinRequests: []
+    followedTeamFeed: [], wallPosts: [], coachRequests: [], teamJoinRequests: [], teamLikes: [], eventJoinRequests: [], coachMessages: []
   };
   var canPersist = false;
   var unsubscribers = [];
@@ -194,6 +194,18 @@
   }
   function saveCoachPlan(id, plan) {
     db.collection('coachRequests').doc(id).update({ plan: plan || '' }).catch(function (err) {
+      showToast('Erreur : ' + (err && err.message ? err.message : err));
+    });
+  }
+  // Coach <-> coaché messaging within one accepted coaching relationship
+  // (requestId = that coachRequests doc's id) -- append-only, like
+  // teamFeed/feedEvents, read by both parties (see firestore.rules'
+  // isPartyToCoachRequest).
+  function sendCoachMessage(requestId, text) {
+    var me = currentUserProfile;
+    text = (text || '').trim();
+    if (!me || !text) return;
+    db.collection('coachMessages').add({ requestId: requestId, from: me.name, text: text, createdAt: Date.now() }).catch(function (err) {
       showToast('Erreur : ' + (err && err.message ? err.message : err));
     });
   }
@@ -1716,6 +1728,7 @@
     html += '<label class="checklist-item" style="margin-top:0.4rem;"><input type="checkbox" id="profile-notify-invites"' + (p.notifyInvites !== false ? ' checked' : '') + '> J\'ai reçu une invitation</label>';
     html += '<label class="checklist-item" style="margin-top:0.4rem;"><input type="checkbox" id="profile-notify-team-news"' + (p.notifyTeamNews !== false ? ' checked' : '') + '> Actu de mon Team</label>';
     html += '<label class="checklist-item" style="margin-top:0.4rem;"><input type="checkbox" id="profile-notify-pro-outings"' + (p.notifyProOutings !== false ? ' checked' : '') + '> Nouvelle sortie organisée par un Team PRO que je suis ou dont je suis adhérent</label>';
+    html += '<label class="checklist-item" style="margin-top:0.4rem;"><input type="checkbox" id="profile-notify-coach-messages"' + (p.notifyCoachMessages !== false ? ' checked' : '') + '> Nouveau message dans l\'espace coaching</label>';
     html += '</div>';
     return html;
   }
@@ -2564,6 +2577,34 @@
   // inverted — a faster (lower) time naturally plots lower on the chart,
   // same as any plain numeric axis where values grow upward (1'54 below
   // 2'00, not above it).
+  // 'day' (default, one point per day -- several sessions the same day
+  // collapse to that day's best), 'event' (one point per sortie -- several
+  // days/sessions within the same événement collapse to its best; a
+  // chrono with no linked event stands on its own, nothing to group it
+  // by), or 'all' (every chrono its own point, nothing collapsed, so a
+  // rider can see exactly how many times they went out even within one
+  // day/événement). Pure UI state, not persisted, shared across every
+  // progression chart currently on screen.
+  var progressionGranularity = 'day';
+
+  function progressionSeriesRaw(riderName, circuit) {
+    var relevant = STATE.sessions.filter(function (s) { return s.rider === riderName && s.circuit === circuit; });
+    if (progressionGranularity === 'all') {
+      return relevant.map(function (s) { return { date: s.date, time: sessionBest(s) }; });
+    }
+    var byKey = {};
+    relevant.forEach(function (s) {
+      var key = progressionGranularity === 'event' ? (s.eventId || 'noevent-' + s.id) : s.date;
+      var b = sessionBest(s);
+      if (!byKey[key]) byKey[key] = { time: b, date: s.date };
+      else {
+        if (b < byKey[key].time) byKey[key].time = b;
+        if (s.date < byKey[key].date) byKey[key].date = s.date;
+      }
+    });
+    return Object.keys(byKey).map(function (k) { return byKey[k]; });
+  }
+
   function renderProgressionChart(riders, circuit, availableCircuits) {
     var selectorHtml = '';
     if (availableCircuits && availableCircuits.length > 1) {
@@ -2572,19 +2613,16 @@
         availableCircuits.map(function (c) { return '<option value="' + escapeHtml(c) + '"' + (c === circuit ? ' selected' : '') + '>' + escapeHtml(c) + '</option>'; }).join('') +
         '</select>';
     }
-    // Several sessions can land on the same day (matin/après-midi, or just
-    // several separate entries) -- the progression is one point per rider
-    // per day, so those collapse to that day's single best time rather
-    // than plotting redundant/misleading points on top of each other.
+    selectorHtml += '<div class="progression-granularity">' + [['day', 'Jour'], ['event', 'Événement'], ['all', 'All time']].map(function (g) {
+      return '<button type="button" class="ghost' + (progressionGranularity === g[0] ? ' active' : '') + '" data-action="progression-granularity" data-granularity="' + g[0] + '">' + g[1] + '</button>';
+    }).join('') + '</div>';
+    // Several sessions can land on the same day/événement (matin/après-
+    // midi, or just several separate entries) -- collapsed to one point
+    // per the current granularity (see progressionSeriesRaw) rather than
+    // plotting redundant/misleading points on top of each other, unless
+    // 'all' is picked specifically to see every one of them.
     var series = riders.map(function (riderName) {
-      var bestByDate = {};
-      STATE.sessions.forEach(function (s) {
-        if (s.rider !== riderName || s.circuit !== circuit) return;
-        var b = sessionBest(s);
-        if (!bestByDate[s.date] || b < bestByDate[s.date]) bestByDate[s.date] = b;
-      });
-      var raw = Object.keys(bestByDate)
-        .map(function (date) { return { date: date, time: bestByDate[date] }; })
+      var raw = progressionSeriesRaw(riderName, circuit)
         .sort(function (a, b) { return a.date < b.date ? -1 : a.date > b.date ? 1 : 0; });
       return { rider: riderName, raw: raw };
     }).filter(function (s) { return s.raw.length > 0; });
@@ -2798,17 +2836,23 @@
   // A chrono logged under a Team Event can be certified by that event's
   // own Team Leader -- the pitch to clubs: a future organizer building
   // homogeneous, safe groups can trust a certified time instead of
-  // having to ask every pilote for their references by hand.
-  function canCertifySession(session) {
-    if (!session.eventId || session.certifiedBy) return false;
+  // having to ask every pilote for their references by hand. Whether it's
+  // already certified or not doesn't change who can manage it -- the same
+  // leader can revoke or hand it to a co-leader just as easily as grant
+  // it the first time.
+  function canManageCertification(session) {
+    if (!session.eventId) return false;
     var ev = (STATE.events || []).filter(function (e) { return e.id === session.eventId; })[0];
     return !!(ev && ev.teamId && isLeaderOfTeam(ev.teamId));
   }
   function certifyControl(session) {
+    var manageable = canManageCertification(session);
     if (session.certifiedBy) {
-      return '<span class="certified-pill" title="Certifié par ' + escapeHtml(session.certifiedBy) + '">✓ Certifié</span>';
+      var pill = '<span class="certified-pill" title="Certifié par ' + escapeHtml(session.certifiedBy) + '">✓ Certifié</span>';
+      if (!manageable) return pill;
+      return pill + '<button type="button" class="ghost icon-btn" data-action="uncertify-session" data-id="' + session.id + '" aria-label="Retirer la certification" title="Retirer la certification">×</button>';
     }
-    if (!canCertifySession(session)) return '';
+    if (!manageable) return '';
     return '<button type="button" class="ghost icon-btn" data-action="certify-session" data-id="' + session.id + '" aria-label="Certifier ce chrono" title="Certifier ce chrono">✓</button>';
   }
   function certifyChrono(sessionId) {
@@ -2817,6 +2861,11 @@
     db.collection('sessions').doc(sessionId).update({ certifiedBy: me.name }).then(function () {
       showToast('Chrono certifié.', 'success');
     }).catch(function (err) {
+      showToast('Erreur : ' + (err && err.message ? err.message : err));
+    });
+  }
+  function uncertifyChrono(sessionId) {
+    db.collection('sessions').doc(sessionId).update({ certifiedBy: null }).catch(function (err) {
       showToast('Erreur : ' + (err && err.message ? err.message : err));
     });
   }
@@ -6742,6 +6791,26 @@
   // asking someone else) -- an account can be both at once (a coach who's
   // also coached by someone more senior), so both sections show whenever
   // they have something to show.
+  // Shared by both sides of one coaching relationship (the coach's own
+  // roster row and the coaché's "Mon coaching" card) -- same requestId,
+  // same thread.
+  function renderCoachMessageThread(requestId) {
+    var me = currentUserProfile;
+    var messages = (STATE.coachMessages || []).filter(function (m) { return m.requestId === requestId; });
+    var body = !messages.length
+      ? '<div class="empty-state">Aucun message pour l\'instant.</div>'
+      : messages.map(function (m) {
+        return '<div class="coach-message' + (me && m.from === me.name ? ' mine' : '') + '">' +
+          '<div class="coach-message-head"><span class="friend-name-plain">' + escapeHtml(m.from) + '</span>' +
+          '<span class="feed-entry-time">' + escapeHtml(relativeTime(m.createdAt)) + '</span></div>' +
+          '<div class="coach-message-text">' + escapeHtml(m.text) + '</div></div>';
+      }).join('');
+    body += '<form class="coach-message-form" data-action="coach-message-form" data-request-id="' + requestId + '">' +
+      '<input type="text" placeholder="Écrire un message..." data-coach-message-input>' +
+      '<button type="submit" class="primary">Envoyer</button></form>';
+    return collapsibleSection('coach-messages-' + requestId, 'Messages', body);
+  }
+
   function renderCoachTab() {
     var me = currentUserProfile;
     if (!me) return '';
@@ -6773,7 +6842,7 @@
             '<div style="margin-top:0.5rem; display:flex; gap:0.6rem;">' +
             '<button type="button" class="ghost" data-action="coach-plan-save" data-id="' + r.id + '">Enregistrer</button>' +
             '<button type="button" class="ghost danger" data-action="coach-request-remove" data-id="' + r.id + '">Retirer ce pilote</button>' +
-            '</div></div>';
+            '</div>' + renderCoachMessageThread(r.id) + '</div>';
         }).join('');
       html += collapsibleCard('coach-roster', 'Mes pilotes coachés (' + myPilotes.length + ')', rosterBody, true);
     }
@@ -6789,6 +6858,7 @@
       if (mine.status === 'accepted') {
         mineBody += '<div style="margin-top:0.7rem;"><div class="section-title" style="font-size:0.9rem;">Planning de ' + escapeHtml(mine.to) + '</div>' +
           (mine.plan ? '<p class="help-text" style="white-space:pre-wrap;">' + escapeHtml(mine.plan) + '</p>' : '<div class="help-text">Rien pour l\'instant.</div>') + '</div>';
+        mineBody += renderCoachMessageThread(mine.id);
       }
     } else {
       var coachNames = allKnownUserNames().filter(function (n) { return n !== me.name && isCoachBadge((STATE.usersByName || {})[n]); });
@@ -7357,6 +7427,10 @@
     if (notifyProOutingsEl) {
       notifyProOutingsEl.addEventListener('change', function () { saveOwnBooleanField('notifyProOutings', notifyProOutingsEl.checked); });
     }
+    var notifyCoachMessagesEl = document.getElementById('profile-notify-coach-messages');
+    if (notifyCoachMessagesEl) {
+      notifyCoachMessagesEl.addEventListener('change', function () { saveOwnBooleanField('notifyCoachMessages', notifyCoachMessagesEl.checked); });
+    }
     var shareSortiesEl = document.getElementById('profile-share-sorties');
     if (shareSortiesEl) {
       shareSortiesEl.addEventListener('change', function () { saveOwnBooleanField('shareSorties', shareSortiesEl.checked); });
@@ -7897,6 +7971,14 @@
         if (select && select.value) sendCoachRequest(select.value);
       });
     }
+    document.querySelectorAll('[data-action="coach-message-form"]').forEach(function (form) {
+      form.addEventListener('submit', function (evt) {
+        evt.preventDefault();
+        var input = form.querySelector('[data-coach-message-input]');
+        if (input && input.value.trim()) sendCoachMessage(form.getAttribute('data-request-id'), input.value);
+        if (input) input.value = '';
+      });
+    });
     document.querySelectorAll('[data-action="team-invite-accept"]').forEach(function (btn) {
       btn.addEventListener('click', function () {
         var invite = (STATE.teamInvites || []).filter(function (r) { return r.id === btn.getAttribute('data-id'); })[0];
@@ -8091,6 +8173,9 @@
 
     document.querySelectorAll('[data-action="certify-session"]').forEach(function (btn) {
       btn.addEventListener('click', function () { certifyChrono(btn.getAttribute('data-id')); });
+    });
+    document.querySelectorAll('[data-action="uncertify-session"]').forEach(function (btn) {
+      btn.addEventListener('click', function () { uncertifyChrono(btn.getAttribute('data-id')); });
     });
     document.querySelectorAll('[data-action="edit-session-request"]').forEach(function (btn) {
       btn.addEventListener('click', function () {
@@ -8428,6 +8513,12 @@
         renderRoot();
       });
     }
+    document.querySelectorAll('[data-action="progression-granularity"]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        progressionGranularity = btn.getAttribute('data-granularity');
+        renderRoot();
+      });
+    });
     document.querySelectorAll('.progression-point').forEach(function (el) {
       el.addEventListener('click', function () {
         var idx = parseInt(el.getAttribute('data-idx'), 10);
@@ -8663,6 +8754,7 @@
         Object.keys(coachReqFrom).forEach(function (id) { byId[id] = coachReqFrom[id]; });
         Object.keys(coachReqTo).forEach(function (id) { byId[id] = coachReqTo[id]; });
         STATE.coachRequests = Object.keys(byId).map(function (id) { return byId[id]; });
+        refreshCoachMessagesSync();
         renderRoot();
       }
       unsubscribers.push(db.collection('coachRequests').where('from', '==', currentUserProfile.name).onSnapshot(function (snap) {
@@ -8913,6 +9005,43 @@
     }, handleSyncError));
   }
 
+  // Re-subscribed whenever STATE.coachRequests changes (see
+  // mergeCoachRequests above) -- every message across every accepted
+  // coaching relationship this account is a party to, whichever side
+  // (see renderCoachMessageThread). seenCoachMessageIds is local to this
+  // one subscription, re-baselined on every re-subscribe, same reasoning
+  // as seenTeamFeedIds: a relationship's own history shouldn't flood
+  // notifications the moment it's (re)synced.
+  var coachMessagesUnsubs = [];
+  function refreshCoachMessagesSync() {
+    coachMessagesUnsubs.forEach(function (unsub) { unsub(); });
+    coachMessagesUnsubs = [];
+    var requestIds = (STATE.coachRequests || []).filter(function (r) { return r.status === 'accepted'; }).map(function (r) { return r.id; }).slice(0, 10);
+    if (!requestIds.length) {
+      STATE.coachMessages = [];
+      return;
+    }
+    var seenCoachMessageIds = null;
+    coachMessagesUnsubs.push(db.collection('coachMessages').where('requestId', 'in', requestIds).onSnapshot(function (snap) {
+      var messages = snap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); });
+      if (seenCoachMessageIds === null) {
+        seenCoachMessageIds = {};
+        messages.forEach(function (m) { seenCoachMessageIds[m.id] = true; });
+      } else {
+        messages.forEach(function (m) {
+          if (seenCoachMessageIds[m.id]) return;
+          seenCoachMessageIds[m.id] = true;
+          if (currentUserProfile && m.from === currentUserProfile.name) return;
+          if (notifCategoryAllowed('notifyCoachMessages')) {
+            new Notification('Carnet de Piste', { body: 'Message de ' + m.from + ' (coaching) : ' + (m.text || '').slice(0, 100) });
+          }
+        });
+      }
+      STATE.coachMessages = messages.sort(function (a, b) { return (a.createdAt || 0) - (b.createdAt || 0); });
+      renderRoot();
+    }, handleSyncError));
+  }
+
   function stopSync() {
     unsubscribers.forEach(function (unsub) { unsub(); });
     unsubscribers = [];
@@ -8920,6 +9049,8 @@
     teamDetailUnsubs = [];
     followedTeamFeedUnsubs.forEach(function (unsub) { unsub(); });
     followedTeamFeedUnsubs = [];
+    coachMessagesUnsubs.forEach(function (unsub) { unsub(); });
+    coachMessagesUnsubs = [];
     myTeamJoinRequestsOut = [];
     teamJoinRequestsIn = [];
     myEventJoinRequestsOut = [];

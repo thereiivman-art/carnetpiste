@@ -712,6 +712,21 @@
   }
   .coach-pilote-row:last-child { border-bottom: none; }
   .coach-pilote-row textarea { margin-top: 0.3rem; }
+  .coach-message {
+    background: var(--surface-alt);
+    border-radius: 8px;
+    padding: 0.5rem 0.7rem;
+    margin-bottom: 0.5rem;
+    max-width: 85%;
+  }
+  .coach-message.mine {
+    background: color-mix(in srgb, var(--accent) 14%, var(--surface-alt));
+    margin-left: auto;
+  }
+  .coach-message-head { display: flex; justify-content: space-between; gap: 0.6rem; font-size: 0.72rem; }
+  .coach-message-text { font-size: 0.86rem; margin-top: 0.15rem; white-space: pre-wrap; word-break: break-word; }
+  .coach-message-form { display: flex; gap: 0.5rem; margin-top: 0.6rem; }
+  .coach-message-form input { flex: 1; }
   .team-pro-badge {
     display: inline-flex;
     align-items: center;
@@ -2138,6 +2153,20 @@
     font-size: 0.95rem;
     color: var(--text);
     box-sizing: border-box;
+  }
+  .progression-granularity {
+    display: flex;
+    gap: 0.4rem;
+    margin-bottom: 0.6rem;
+  }
+  .progression-granularity button {
+    font-size: 0.78rem;
+    padding: 0.3rem 0.65rem;
+  }
+  .progression-granularity button.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--accent-ink);
   }
   .progression-chart {
     width: 100%;

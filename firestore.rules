@@ -63,6 +63,15 @@ service cloud.firestore {
         && get(/databases/$(database)/documents/events/$(eventId)).data.get('teamId', null) != null
         && isTeamLeader(get(/databases/$(database)/documents/events/$(eventId)).data.teamId);
     }
+    // Only the two sides of an *accepted* coachRequests doc may message
+    // each other in it (see coachMessages below) -- pending or already
+    // ended relationships don't get a live thread.
+    function isPartyToCoachRequest(requestId) {
+      return exists(/databases/$(database)/documents/coachRequests/$(requestId))
+        && get(/databases/$(database)/documents/coachRequests/$(requestId)).data.status == 'accepted'
+        && (get(/databases/$(database)/documents/coachRequests/$(requestId)).data.from == myName()
+            || get(/databases/$(database)/documents/coachRequests/$(requestId)).data.to == myName());
+    }
 
     // A user's own profile has to be writable right after signup, before
     // there's been time to verify anything -- no email_verified check here.
@@ -207,6 +216,17 @@ service cloud.firestore {
         || request.resource.data.diff(resource.data).affectedKeys().hasOnly(['plan'])
       );
       allow delete: if verified() && (resource.data.from == myName() || resource.data.to == myName());
+    }
+    // Coach <-> coaché messaging, append-only (see sendCoachMessage) --
+    // only the two parties to that accepted coachRequests can read or
+    // post into it; nothing is ever edited or deleted client-side.
+    match /coachMessages/{id} {
+      // Private 1:1 messaging, unlike the rest of this app's social
+      // features -- read is actually restricted to the two parties
+      // (via their coachRequests doc), not just a display-layer filter.
+      allow read: if verified() && isPartyToCoachRequest(resource.data.requestId);
+      allow create: if verified() && request.resource.data.from == myName()
+        && isPartyToCoachRequest(request.resource.data.requestId);
     }
     // Social feed -- append-only activity log (a new friendship, a new
     // personal record...). Whoever the entry is about writes it themselves
