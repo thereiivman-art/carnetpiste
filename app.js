@@ -5631,7 +5631,7 @@
   function collapsibleCard(key, title, bodyHtml, defaultOpen, titleActionsHtml) {
     var isOpen = planningSectionsOpen.hasOwnProperty(key) ? !!planningSectionsOpen[key] : !!defaultOpen;
     return '<details class="card events-list-card" data-planning-section="' + key + '"' + (isOpen ? ' open' : '') + '>' +
-      '<summary class="section-title collapsible-card-summary">' + escapeHtml(title) + (titleActionsHtml || '') + '</summary>' +
+      '<summary class="section-title collapsible-card-summary"><span class="collapsible-card-title">' + escapeHtml(title) + '</span>' + (titleActionsHtml || '') + '</summary>' +
       '<div class="collapsible-card-body">' + bodyHtml + '</div>' +
       '</details>';
   }
@@ -7196,7 +7196,7 @@
     // not something to stumble into between unrelated controls. The
     // "+ Ajouter" lives right next to the title (see collapsibleCard's
     // titleActionsHtml) instead of buried at the bottom of a long list.
-    var addBtn = '<button type="button" class="ghost" data-action="team-event-add" data-team="' + team.id + '" style="margin-left:0.6rem; font-weight:400;">+ Ajouter un événement</button>';
+    var addBtn = '<button type="button" class="ghost" data-action="team-event-add" data-team="' + team.id + '">+ Ajouter un événement</button>';
     return collapsibleCard('team-events-' + team.id, 'Gestion des événements' + (all.length ? ' (' + all.length + ')' : ''), body, false, addBtn);
   }
 
@@ -7283,6 +7283,10 @@
     html += '<div class="section-title" style="display:flex; align-items:center; gap:0.6rem;">' + avatarHtml(team, team.name) +
       '<span style="flex:1;">' + escapeHtml(team.name) + teamBadgesHtml(team) + '</span>' +
       '<span class="friend-role-badge">' + (isLeader ? 'Team Leader' : 'Membre') + '</span></div>';
+    var teamLikeCount = (STATE.teamLikes || []).filter(function (l) { return l.teamId === team.id; }).length;
+    var teamFollowCount = ((STATE.teamFollowersByTeam || {})[team.id] || []).length;
+    html += '<div class="team-stats-row"><span>❤ ' + teamLikeCount + ' like' + (teamLikeCount > 1 ? 's' : '') + '</span>' +
+      '<span>👥 ' + teamFollowCount + ' follow' + (teamFollowCount > 1 ? 's' : '') + '</span></div>';
     // A wide logo (e.g. "Mototeam95") shown full-width, uncropped -- the
     // round avatar above is for badges everywhere else, this is the one
     // place it's shown properly.
