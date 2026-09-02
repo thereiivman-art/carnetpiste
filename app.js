@@ -570,7 +570,6 @@
   // it three <details> deep is what made "Groupes de départ" hard to
   // tell apart from "Modifier l'événement".
   var managingEventId = null;
-  var riderGroupSearch = ''; // filters renderRiderGroupsSection's rider list, reset whenever managingEventId changes
   function deleteTeam(teamId, currentPassword) {
     var user = auth.currentUser;
     if (!user) return;
@@ -1076,7 +1075,7 @@
   // chrono entry with which group's session it belongs to.
   var GROUP_LETTERS = ['A', 'B', 'C', 'D'];
   // Same, plus ORGA (mécano, photographe, autre staff du Team) -- only
-  // used for the Team Leader's roster assignment (renderRiderGroupsSection),
+  // used for the Team Leader's roster assignment (renderGroupsSection),
   // never offered when tagging a chrono's group since ORGA never rides.
   var ROSTER_GROUP_LETTERS = GROUP_LETTERS.concat(['ORGA']);
 
@@ -4877,83 +4876,103 @@
   // up or down at the lunch break (matin vs après-midi) or overnight (a
   // fresh choice each day), so this renders one Matin/Après-midi pair of
   // selects per rider per day rather than a single group for the event.
-  // "Marc (A), Xavier (B)" -- each rider's day-1 group, as a quick-glance
-  // summary for Événements. The full breakdown (which can differ by day or
-  // by matin/après-midi) is only in Planning's renderRiderGroupsSection().
-  function riderStartGroupsSummary(ev) {
-    if (!ev.riders || !ev.riders.length) return '';
+  // One group per rider for the whole event -- no more matin/après-midi,
+  // no more day-by-day. Still stored as ev.riderGroups[rider][date] =
+  // {am, pm} underneath (unchanged, so Planning's schedule/récap/notify
+  // code keeps working as-is), but every date/période is always written
+  // together with the same value (see assignRiderToGroup), so reading any
+  // one of them back gives the rider's one group. Scans every date rather
+  // than assuming dates[0] purely to self-heal old events that still
+  // carry differing legacy values.
+  function riderEventGroup(ev, rider) {
     var dates = datesInRange(ev.dateStart, ev.dateEnd);
-    if (!dates.length) return '';
-    var parts = [];
-    ev.riders.forEach(function (rider) {
-      var group = riderGroupFor(ev, rider, dates[0], 'matin') || riderGroupFor(ev, rider, dates[0], 'apres-midi');
-      parts.push(escapeHtml(rider) + (group ? ' (' + escapeHtml(group) + ')' : ''));
-    });
-    return parts.join(', ');
+    for (var i = 0; i < dates.length; i++) {
+      var g = riderGroupFor(ev, rider, dates[i], 'matin') || riderGroupFor(ev, rider, dates[i], 'apres-midi');
+      if (g) return g;
+    }
+    return '';
   }
-
-  function renderRiderGroupsSection(ev) {
-    if (!ev.riders || !ev.riders.length) return '';
+  function assignRiderToGroup(eventId, rider, group) {
+    var ev = (STATE.events || []).filter(function (e) { return e.id === eventId; })[0];
+    if (!ev) return;
     var dates = datesInRange(ev.dateStart, ev.dateEnd);
-    if (!dates.length) return '';
-    var showDateLabel = dates.length > 1;
-    var groupOptions = function (current) {
-      var opts = '<option value=""' + (!current ? ' selected' : '') + '>—</option>';
-      ROSTER_GROUP_LETTERS.forEach(function (g) {
-        opts += '<option value="' + g + '"' + (current === g ? ' selected' : '') + '>' + g + '</option>';
-      });
-      return opts;
-    };
-    var html = '<div class="event-checklist">';
-    if (ev.riders.length > 1) {
-      html += '<label class="rider-group-common"><span>Groupe commun à tous les pilotes</span><select data-common-group data-event-id="' + ev.id + '">' +
-        '<option value="" selected>— Choisir pour appliquer à tous —</option>' +
-        ROSTER_GROUP_LETTERS.map(function (g) { return '<option value="' + g + '">' + g + '</option>'; }).join('') +
-        '</select></label>';
-    }
-    // Search-to-filter, not search-to-add -- everyone here is already a
-    // participant, this just narrows a long roster down to the handful
-    // being reassigned right now (a Team PRO's roster is easily 30+
-    // pilotes, one at a time down a comma list doesn't scale).
-    var q = riderGroupSearch.trim().toLowerCase();
-    var visibleRiders = q ? ev.riders.filter(function (r) { return r.toLowerCase().indexOf(q) !== -1; }) : ev.riders;
-    if (ev.riders.length > 6) {
-      html += '<input type="text" id="rider-group-search" placeholder="Rechercher un pilote..." value="' + escapeHtml(riderGroupSearch) + '" style="margin-top:0.6rem;">';
-    }
-    if (!visibleRiders.length) html += '<div class="help-text" style="margin-top:0.6rem;">Aucun pilote ne correspond à « ' + escapeHtml(riderGroupSearch) + ' ».</div>';
-    dates.forEach(function (date) {
-      if (!visibleRiders.length) return;
-      if (showDateLabel) html += '<div class="rider-groups-date-label">' + escapeHtml(formatDate(date)) + '</div>';
-      visibleRiders.forEach(function (rider) {
-        var am = riderGroupFor(ev, rider, date, 'matin');
-        var pm = riderGroupFor(ev, rider, date, 'apres-midi');
-        // Best verified chrono on this circuit -- the reference a Team
-        // Leader uses to decide who moves up/down a group, right next to
-        // the rider's name instead of having to look it up separately.
-        var verified = STATE.sessions.filter(function (s) { return s.rider === rider && s.circuit === ev.circuit && s.certifiedBy; })
-          .sort(function (a, b) { return sessionBest(a) - sessionBest(b); })[0];
-        html += '<div class="rider-group-row">';
-        html += '<span class="rider-group-name">' + nameLinkHtml(rider) + (verified ? ' <span class="verified-pill" title="Meilleur chrono vérifié sur ' + escapeHtml(ev.circuit) + '">' + formatTime(sessionBest(verified)) + '</span>' : '') + '</span>' + maybeFicheHtml(rider);
-        html += '<label class="rider-group-field">Matin <select data-rider-group data-event-id="' + ev.id + '" data-rider="' + escapeHtml(rider) + '" data-date="' + date + '" data-period="am">' + groupOptions(am) + '</select></label>';
-        html += '<label class="rider-group-field">Après-midi <select data-rider-group data-event-id="' + ev.id + '" data-rider="' + escapeHtml(rider) + '" data-date="' + date + '" data-period="pm">' + groupOptions(pm) + '</select></label>';
-        html += '</div>';
-      });
+    var riderGroups = Object.assign({}, ev.riderGroups || {});
+    var entry = {};
+    dates.forEach(function (date) { entry[date] = { am: group, pm: group }; });
+    riderGroups[rider] = entry;
+    db.collection('events').doc(eventId).update({ riderGroups: riderGroups }).catch(function (err) {
+      showToast('Erreur : ' + (err && err.message ? err.message : err));
     });
-    html += '</div>';
+  }
+  function removeRiderFromGroup(eventId, rider) {
+    var ev = (STATE.events || []).filter(function (e) { return e.id === eventId; })[0];
+    if (!ev) return;
+    var riderGroups = Object.assign({}, ev.riderGroups || {});
+    delete riderGroups[rider];
+    db.collection('events').doc(eventId).update({ riderGroups: riderGroups }).catch(function (err) {
+      showToast('Erreur : ' + (err && err.message ? err.message : err));
+    });
+  }
+  function riderVerifiedBest(ev, rider) {
+    var s = STATE.sessions.filter(function (x) { return x.rider === rider && x.circuit === ev.circuit && x.certifiedBy; })
+      .sort(function (a, b) { return sessionBest(a) - sessionBest(b); })[0];
+    return s ? sessionBest(s) : null;
+  }
+  // One rubrique per group, each with its own search-to-add -- and, per
+  // "suggestion d'ajout en fonction des chronos vérifiés", candidates in
+  // that search are ordered by how close their best verified chrono is to
+  // the group's current average (fastest-first when the group's still
+  // empty), so the pilotes who best fit that group's level surface first.
+  function renderGroupsSection(ev) {
+    var riders = ev.riders || [];
+    if (!riders.length) return '<div class="section-title" style="margin-top:1rem;">Groupes</div><div class="help-text">Ajoute des participants pour pouvoir les répartir en groupes.</div>';
+    var byGroup = {};
+    ROSTER_GROUP_LETTERS.forEach(function (g) { byGroup[g] = []; });
+    var unassigned = [];
+    riders.forEach(function (r) {
+      var g = riderEventGroup(ev, r);
+      if (g && byGroup[g]) byGroup[g].push(r);
+      else unassigned.push(r);
+    });
+    function riderRow(name, removable) {
+      var u = (STATE.usersByName || {})[name] || {};
+      var t = riderVerifiedBest(ev, name);
+      var timeHtml = t != null ? ' <span class="verified-pill">' + formatTime(t) + '</span>' : '';
+      var removeBtn = removable ? '<button type="button" class="ghost icon-btn" data-action="event-group-remove" data-id="' + ev.id + '" data-rider="' + escapeHtml(name) + '" aria-label="Retirer du groupe" title="Retirer du groupe">×</button>' : '';
+      return '<div class="friend-row"><div class="friend-row-main">' + nameLinkHtml(name) + badgesHtml(u) + timeHtml + '</div><div class="friend-row-actions">' + removeBtn + '</div></div>' + maybeFicheHtml(name);
+    }
+    var html = '<div class="section-title" style="margin-top:1rem;">Groupes</div>';
+    if (unassigned.length) {
+      html += collapsibleSection('event-group-unassigned-' + ev.id, 'Non attribués (' + unassigned.length + ')', unassigned.map(function (r) { return riderRow(r, false); }).join(''), true);
+    }
+    ROSTER_GROUP_LETTERS.forEach(function (g) {
+      var members = byGroup[g];
+      var times = members.map(function (r) { return riderVerifiedBest(ev, r); }).filter(function (t) { return t != null; });
+      var avg = times.length ? times.reduce(function (a, b) { return a + b; }, 0) / times.length : null;
+      var body = members.length ? members.map(function (r) { return riderRow(r, true); }).join('') : '<div class="help-text">Personne pour l\'instant.</div>';
+      var candidates = riders.filter(function (r) { return members.indexOf(r) === -1; }).sort(function (a, b) {
+        var ta = riderVerifiedBest(ev, a), tb = riderVerifiedBest(ev, b);
+        if (avg != null) {
+          var da = ta == null ? Infinity : Math.abs(ta - avg), db = tb == null ? Infinity : Math.abs(tb - avg);
+          return da - db;
+        }
+        if (ta == null && tb == null) return a.localeCompare(b);
+        if (ta == null) return 1;
+        if (tb == null) return -1;
+        return ta - tb;
+      });
+      if (candidates.length) {
+        body += '<form class="team-event-add-rider-form" data-action="event-group-add-form" data-event-id="' + ev.id + '" data-group="' + g + '">' +
+          '<input type="text" list="event-group-candidates-' + g + '-' + ev.id + '" placeholder="Rechercher un pilote..." data-event-group-add-input>' +
+          '<datalist id="event-group-candidates-' + g + '-' + ev.id + '">' + candidates.map(function (n) {
+            var t = riderVerifiedBest(ev, n);
+            return '<option value="' + escapeHtml(n) + '">' + escapeHtml(n) + (t != null ? ' — ' + formatTime(t) : '') + '</option>';
+          }).join('') + '</datalist>' +
+          '<button type="submit" class="ghost">Ajouter</button></form>';
+      }
+      html += collapsibleSection('event-group-' + g + '-' + ev.id, (g === 'ORGA' ? 'Groupe ORGA (staff)' : 'Groupe ' + g) + ' (' + members.length + ')', body, true);
+    });
     return html;
-  }
-
-  // Formats one rider's am/pm group assignment for a given date into a
-  // single readable label -- shared by "Mon groupe" and "Mes amis" below,
-  // which both show only a slice of the roster (never everyone) now that
-  // full group management lives in the Team's own "Gestion des
-  // événements" (renderRiderGroupsSection above).
-  function riderGroupLabelForDate(ev, rider, date) {
-    var am = riderGroupFor(ev, rider, date, 'matin');
-    var pm = riderGroupFor(ev, rider, date, 'apres-midi');
-    if (!am && !pm) return '';
-    if (am && pm && am !== pm) return 'Matin ' + am + ' · Après-midi ' + pm;
-    return am || pm;
   }
 
   // Replaces the old "Groupes par pilote" (every rider's group, visible to
@@ -4963,15 +4982,9 @@
   function renderMyGroupSection(ev) {
     var me = currentUserProfile;
     if (!me || (ev.riders || []).indexOf(me.name) === -1) return '';
-    var dates = datesInRange(ev.dateStart, ev.dateEnd);
-    var multiDay = dates.length > 1;
-    var rows = dates.map(function (date) {
-      var label = riderGroupLabelForDate(ev, me.name, date);
-      if (!label) return '';
-      return infoRow(multiDay ? formatDate(date) : 'Groupe', escapeHtml(label));
-    }).filter(Boolean).join('');
-    if (!rows) return '';
-    return collapsibleSection('my-group-' + ev.id, 'Mon groupe', rows, true);
+    var group = riderEventGroup(ev, me.name);
+    if (!group) return '';
+    return collapsibleSection('my-group-' + ev.id, 'Mon groupe', infoRow('Groupe', escapeHtml(group)), true);
   }
 
   // And "Mes amis" -- same idea, but for friends also on this event (see
@@ -4983,53 +4996,12 @@
     var friendNames = friendsOf(me.name).map(function (f) { return f.name; });
     var onEvent = (ev.riders || []).filter(function (r) { return friendNames.indexOf(r) !== -1; }).sort();
     if (!onEvent.length) return '';
-    var dates = datesInRange(ev.dateStart, ev.dateEnd);
-    var multiDay = dates.length > 1;
     var rows = onEvent.map(function (name) {
-      var parts = dates.map(function (date) {
-        var label = riderGroupLabelForDate(ev, name, date);
-        return label ? (multiDay ? escapeHtml(formatDate(date)) + ' : ' + escapeHtml(label) : escapeHtml(label)) : '';
-      }).filter(Boolean).join(' — ');
+      var group = riderEventGroup(ev, name);
       return '<div class="info-row"><span class="info-label">' + nameLinkHtml(name) + '</span><span class="info-value">' +
-        (parts || '<span class="help-text">Pas encore de groupe</span>') + '</span></div>' + maybeFicheHtml(name);
+        (group ? escapeHtml(group) : '<span class="help-text">Pas encore de groupe</span>') + '</span></div>' + maybeFicheHtml(name);
     }).join('');
     return collapsibleSection('friends-group-' + ev.id, 'Mes amis', rows, true);
-  }
-
-  function setRiderGroup(eventId, rider, date, period, group) {
-    var prevState = JSON.parse(JSON.stringify(STATE));
-    var ev = eventsList().filter(function (e) { return e.id === eventId; })[0];
-    if (!ev) return;
-    ev.riderGroups = ev.riderGroups || {};
-    ev.riderGroups[rider] = ev.riderGroups[rider] || {};
-    ev.riderGroups[rider][date] = ev.riderGroups[rider][date] || {};
-    if (group) ev.riderGroups[rider][date][period] = group;
-    else delete ev.riderGroups[rider][date][period];
-    renderRoot();
-    persist(prevState);
-  }
-
-  // "Groupe commun à tous les pilotes" -- one click assigns the same group
-  // to every rider, every day and both périodes of the sortie at once,
-  // instead of clicking through each rider/day/matin-après-midi cell
-  // individually when the whole group rides together.
-  function applyCommonGroup(eventId, group) {
-    if (!group) return;
-    var prevState = JSON.parse(JSON.stringify(STATE));
-    var ev = eventsList().filter(function (e) { return e.id === eventId; })[0];
-    if (!ev) return;
-    var dates = datesInRange(ev.dateStart, ev.dateEnd);
-    ev.riderGroups = ev.riderGroups || {};
-    (ev.riders || []).forEach(function (rider) {
-      ev.riderGroups[rider] = ev.riderGroups[rider] || {};
-      dates.forEach(function (date) {
-        ev.riderGroups[rider][date] = ev.riderGroups[rider][date] || {};
-        ev.riderGroups[rider][date].am = group;
-        ev.riderGroups[rider][date].pm = group;
-      });
-    });
-    renderRoot();
-    persist(prevState);
   }
 
   // Trims the sortie form's in-memory group draft down to a clean
@@ -5956,17 +5928,14 @@
     }
   }
 
-  // Same grid as renderRiderGroupsSection (Matin/Après-midi per rider per
-  // day, plus a "groupe commun" shortcut), but reading/writing the form's
-  // in-memory draft instead of a saved event's ev.riderGroups -- riders and
-  // dates typed into the form aren't a real sortie yet, so there's nothing
-  // to key setRiderGroup() off of until Enregistrer is pressed.
-  // Just one "groupe de départ" per rider here -- the day-by-day/matin-
-  // après-midi breakdown (which can differ if someone switches group at
-  // lunch, or from one day to the next) is edited in the Planning tab
-  // instead, on the saved sortie. This starting group only seeds that
-  // breakdown uniformly when the sortie is created/saved (see
-  // draftRiderGroupsFor); it doesn't try to represent it in full.
+  // Only ever shown for a personal (non-Team) event -- a Team event's
+  // groups are entirely managed afterward from renderGroupsSection
+  // instead. Reads/writes the form's in-memory draft, not a saved event's
+  // ev.riderGroups -- riders typed into the form aren't a real sortie yet,
+  // there's nothing to key off of until Enregistrer is pressed. This
+  // single "groupe de départ" per rider seeds ev.riderGroups uniformly
+  // across every date/période when the sortie is created/saved (see
+  // draftRiderGroupsFor).
   function renderEventFormGroupsGrid(riders) {
     if (!riders.length) return '<div class="help-text">Ajoutez au moins un pilote pour lui assigner un groupe de départ.</div>';
     var groupOptions = function (current) {
@@ -7045,10 +7014,25 @@
     var evTeamVis = { public: 'Public', adherent: 'Adhérent only', membre: 'Membre only', ouvert: 'Ouvert' };
     if (team.teamPro) html += infoRow('Visibilité', evTeamVis[ev.eventVisibility] || 'Membre only');
     html += renderEventAnnouncements(ev, true);
+    // Badges + rôle Team (Membre/Adhérent/Team Leader/Suivi) right on each
+    // participant row -- a quick read for the Team orga without having to
+    // open every fiche one by one.
+    var teamMembers = membersOfTeam(team.id);
+    var teamFollowers = (STATE.teamFollowersByTeam || {})[team.id] || [];
+    function participantRoleTag(name) {
+      var m = teamMembers.filter(function (x) { return x.name === name; })[0];
+      var f = teamFollowers.filter(function (x) { return x.follower === name; })[0];
+      var isAdherent = !!(f && f.tier === 'adherent');
+      var tags = '';
+      if (m) tags += '<span class="friend-role-badge">' + (m.role === 'leader' ? 'Team Leader' : 'Membre') + '</span>';
+      if (isAdherent) tags += ' <span class="friend-role-badge adherent-badge">Adhérent</span>';
+      else if (f && !m) tags += ' <span class="friend-role-badge">Suivi</span>';
+      return tags;
+    }
     var riderRows = riders.length
       ? riders.map(function (name) {
           var u = (STATE.usersByName || {})[name] || {};
-          return '<div class="friend-row"><div class="friend-row-main">' + nameLinkHtml(name) + (u.bikeNumber ? ' <span class="account-role-tag">#' + escapeHtml(u.bikeNumber) + '</span>' : '') + '</div>' +
+          return '<div class="friend-row"><div class="friend-row-main">' + nameLinkHtml(name) + badgesHtml(u) + participantRoleTag(name) + (u.bikeNumber ? ' <span class="account-role-tag">#' + escapeHtml(u.bikeNumber) + '</span>' : '') + '</div>' +
             '<div class="friend-row-actions"><button type="button" class="ghost icon-btn" data-action="team-event-remove-rider" data-id="' + ev.id + '" data-rider="' + escapeHtml(name) + '" aria-label="Retirer" title="Retirer">×</button></div></div>' + maybeFicheHtml(name);
         }).join('')
       : '<div class="help-text">Aucun participant.</div>';
@@ -7075,7 +7059,7 @@
       }).join('');
       html += collapsibleSection('event-manage-requests-' + ev.id, 'Demandes à accepter (' + reqs.length + ')', reqRows, true);
     }
-    html += collapsibleSection('event-manage-groups-' + ev.id, 'Groupes de départ', renderRiderGroupsSection(ev), true);
+    html += renderGroupsSection(ev);
     html += '</div>';
     return html;
   }
@@ -7321,21 +7305,26 @@
       // Clean grid of small "encadrés" first -- clicking one opens its
       // full detail (feed, membres, réglages) below, one at a time, so
       // the tab stays uncluttered instead of every team's whole content
-      // always being on screen at once.
-      html += '<div class="team-tile-grid">' + myTeams.map(function (t) {
-        var tag = '<span class="friend-role-badge">' + (isLeaderOfTeam(t.id) ? 'Team Leader' : 'Membre') + '</span>';
-        return renderTeamTile(t, tag, true);
-      }).join('') + '</div>';
+      // always being on screen at once. Hidden entirely once drilled into
+      // a Team (or one of its events) -- it's the Team space's own home
+      // screen, not something to keep scrolling past once you're already
+      // deep in a specific Team/Event.
+      if (!expandedTeamId) {
+        html += '<div class="team-tile-grid">' + myTeams.map(function (t) {
+          var tag = '<span class="friend-role-badge">' + (isLeaderOfTeam(t.id) ? 'Team Leader' : 'Membre') + '</span>';
+          return renderTeamTile(t, tag, true);
+        }).join('') + '</div>';
 
-      var ledTeams = myTeams.filter(function (t) { return isLeaderOfTeam(t.id); });
-      if (ledTeams.length) {
-        html += '<button type="button" class="ghost" id="team-manage-toggle" style="margin-top:0.8rem;">⚙ Gestion des Teams</button>';
-        if (manageTeamsOpen) {
-          var manageBody = ledTeams.map(function (t) {
-            return '<div class="friend-row"><div class="friend-row-main">' + avatarHtml(t, t.name) + '<span class="friend-name-plain">' + escapeHtml(t.name) + '</span>' + teamBadgesHtml(t) + '</div>' +
-              '<div class="friend-row-actions"><button type="button" class="ghost" data-action="team-tile-open" data-team="' + t.id + '">Gérer</button></div></div>';
-          }).join('');
-          html += '<div class="card" style="margin-top:0.6rem;">' + manageBody + '</div>';
+        var ledTeams = myTeams.filter(function (t) { return isLeaderOfTeam(t.id); });
+        if (ledTeams.length) {
+          html += '<button type="button" class="ghost" id="team-manage-toggle" style="margin-top:0.8rem;">⚙ Gestion des Teams</button>';
+          if (manageTeamsOpen) {
+            var manageBody = ledTeams.map(function (t) {
+              return '<div class="friend-row"><div class="friend-row-main">' + avatarHtml(t, t.name) + '<span class="friend-name-plain">' + escapeHtml(t.name) + '</span>' + teamBadgesHtml(t) + '</div>' +
+                '<div class="friend-row-actions"><button type="button" class="ghost" data-action="team-tile-open" data-team="' + t.id + '">Gérer</button></div></div>';
+            }).join('');
+            html += '<div class="card" style="margin-top:0.6rem;">' + manageBody + '</div>';
+          }
         }
       }
 
@@ -7362,8 +7351,13 @@
       html += '<input type="file" id="team-feed-photo-input" accept="image/*" style="display:none;">';
       html += '<input type="file" id="team-photo-input" accept="image/*" style="display:none;">';
     }
-    html += renderTeamDiscovery(me, myTeams);
-    html += renderCreateTeamCard();
+    // Same reasoning as the tile grid above -- Découvrir des Teams/Créer
+    // un Team belong on the Team space's home screen, not trailing behind
+    // whatever specific Team/Event you've drilled into.
+    if (!expandedTeamId) {
+      html += renderTeamDiscovery(me, myTeams);
+      html += renderCreateTeamCard();
+    }
     return html;
   }
 
@@ -8363,7 +8357,6 @@
       btn.addEventListener('click', function () {
         managingEventId = btn.getAttribute('data-id');
         editingEventId = null;
-        riderGroupSearch = '';
         renderRoot();
         window.scrollTo(0, 0);
       });
@@ -8729,15 +8722,17 @@
         toggleEventChecklist(cb.getAttribute('data-event-id'), cb.getAttribute('data-checklist-key'), cb.checked);
       });
     });
-    document.querySelectorAll('select[data-rider-group]').forEach(function (sel) {
-      sel.addEventListener('change', function () {
-        setRiderGroup(sel.getAttribute('data-event-id'), sel.getAttribute('data-rider'), sel.getAttribute('data-date'), sel.getAttribute('data-period'), sel.value);
+    document.querySelectorAll('[data-action="event-group-add-form"]').forEach(function (form) {
+      form.addEventListener('submit', function (evt) {
+        evt.preventDefault();
+        var input = form.querySelector('[data-event-group-add-input]');
+        var name = input ? input.value.trim() : '';
+        if (name) assignRiderToGroup(form.getAttribute('data-event-id'), name, form.getAttribute('data-group'));
+        if (input) input.value = '';
       });
     });
-    document.querySelectorAll('select[data-common-group]').forEach(function (sel) {
-      sel.addEventListener('change', function () {
-        applyCommonGroup(sel.getAttribute('data-event-id'), sel.value);
-      });
+    document.querySelectorAll('[data-action="event-group-remove"]').forEach(function (btn) {
+      btn.addEventListener('click', function () { removeRiderFromGroup(btn.getAttribute('data-id'), btn.getAttribute('data-rider')); });
     });
     var editEventBtn = document.getElementById('edit-event-btn');
     if (editEventBtn) {
@@ -8999,13 +8994,6 @@
     if (accountManagerSearchEl) {
       accountManagerSearchEl.addEventListener('input', function () {
         accountManagerSearch = accountManagerSearchEl.value;
-        renderRoot();
-      });
-    }
-    var riderGroupSearchEl = document.getElementById('rider-group-search');
-    if (riderGroupSearchEl) {
-      riderGroupSearchEl.addEventListener('input', function () {
-        riderGroupSearch = riderGroupSearchEl.value;
         renderRoot();
       });
     }
