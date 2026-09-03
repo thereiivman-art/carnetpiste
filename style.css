@@ -691,6 +691,9 @@
     background: #f5d78e;
   }
   .friend-row-actions { display: flex; gap: 0.5rem; flex-shrink: 0; }
+  /* Column labels for .participants-list on desktop -- meaningless on
+     mobile's stacked rows, hidden there. */
+  .participants-list-head { display: none; }
   .organizer-hub-list {
     margin: 0.5rem 0 0;
     padding-left: 1.2rem;
@@ -1440,7 +1443,12 @@
   :root { --sidebar-w: 220px; }
   @media (min-width: 960px) {
     .wrap {
-      max-width: 1100px;
+      /* Fluid, not a fixed 1100px -- on a genuinely wide monitor a flat
+         cap left a dead strip of empty page down the right side (worse
+         the wider the screen), which is the opposite of "plus d'espace =
+         plus de confort". Grows with the viewport, capped at 1600px so
+         a line of text never gets absurdly long on an ultrawide. */
+      max-width: 1600px;
       margin: 0 0 0 var(--sidebar-w);
       padding: calc(var(--header-h) + 1.5rem) 2.2rem 2.5rem;
     }
@@ -1449,7 +1457,7 @@
       padding-bottom: 2.5rem;
     }
     header.page-head { left: var(--sidebar-w); }
-    .page-head-inner { max-width: 1100px; margin: 0; padding: 1rem 2.2rem 0.8rem; }
+    .page-head-inner { max-width: 1600px; margin: 0; padding: 1rem 2.2rem 0.8rem; }
     .bottom-nav {
       top: 0;
       bottom: 0;
@@ -1495,6 +1503,39 @@
       overflow-x: auto;
       padding-bottom: 0.6rem;
       margin-top: 0.6rem;
+    }
+    /* Text fields shouldn't stretch to the same width as the wide
+       .wrap around them -- a Pseudo/Circuit input spanning 1500px reads
+       worse than the narrow-page version did. Dense flex/grid layouts
+       (friend-row, groups-board, the participants table below) aren't
+       affected, only bare form fields. */
+    input[type="date"], input[type="text"], input[type="email"],
+    input[type="password"], input[type="url"], textarea, select {
+      max-width: 480px;
+    }
+    /* renderEventManagementScreen's Participants list -- same friend-row
+       markup as everywhere else (mobile keeps the usual stacked rows),
+       but here each row becomes a grid line: identité (nom, badges, rôle
+       Team, #moto) / N° pour l'event / retirer, columns lined up across
+       every row instead of a long stack of wrapped, differently-sized
+       rows. Much faster to scan for an organiser checking 20-30 pilotes. */
+    .participants-list .friend-row {
+      display: grid;
+      grid-template-columns: 2fr 1fr auto;
+      align-items: center;
+      gap: 0.8rem;
+    }
+    .participants-list .team-role-field { margin-top: 0; }
+    .participants-list-head {
+      display: grid;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 0.4rem;
+      margin-bottom: 0.2rem;
+      font-size: 0.74rem;
+      font-weight: 700;
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+      color: var(--text-muted);
     }
     .groups-board > .planning-section {
       flex: 0 0 260px;

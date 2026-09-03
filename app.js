@@ -8036,7 +8036,17 @@
       return tags;
     }
     var eventBikeNumbers = ev.riderBikeNumbers || {};
-    var riderRows = riders.length
+    // .participants-list: same friend-row markup as everywhere else in
+    // the app (mobile keeps its usual stacked look), but on desktop (see
+    // style.css) each row becomes a grid line -- identité / rôle Team /
+    // N° pour l'event / retirer, lined up in columns like a real table
+    // instead of an organiser scanning a long stack of wrapped rows for
+    // 20-30 pilotes.
+    // Column labels -- hidden on mobile (see style.css), only meaningful
+    // once .participants-list actually lays out as a grid on desktop.
+    var riderRows = '<div class="participants-list">' +
+      '<div class="participants-list-head friend-row"><span>Pilote</span><span>' + (canEdit ? 'N° pour cet event' : '') + '</span><span></span></div>';
+    riderRows += riders.length
       ? riders.map(function (name) {
           var u = (STATE.usersByName || {})[name] || {};
           var eventNumber = eventBikeNumbers[name] || '';
@@ -8049,6 +8059,7 @@
             actions + '</div>' + maybeFicheHtml(name);
         }).join('')
       : '<div class="help-text">Aucun participant.</div>';
+    riderRows += '</div>';
     // Search-to-add, name + # (bikeNumber) shown per candidate so a Team
     // Leader can tell same-name pilotes apart before adding one.
     if (canEdit) {
