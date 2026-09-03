@@ -1432,13 +1432,33 @@
 
   .rider-start-groups { display: flex; flex-direction: column; gap: 0.3rem; }
 
-  .today-schedule-card { border-color: var(--accent); }
+  .today-schedule-card { border-color: var(--accent); margin-bottom: 1rem; }
   .today-schedule-head {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 0.8rem;
   }
+  .today-schedule-head-right {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.3rem;
+  }
+  /* Team badge, top-right of the orange card -- what distinguishes
+     organizer-provided info from this account's own, in the grey card
+     right below it (see .personal-info-card). */
+  .team-pro-badge {
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: var(--accent);
+    background: var(--accent-bg, rgba(217, 105, 27, 0.12));
+    border: 1px solid var(--accent);
+    border-radius: 999px;
+    padding: 0.2rem 0.6rem;
+    white-space: nowrap;
+  }
+  .personal-info-card { background: var(--surface-alt); }
   .planning-big-clock {
     font-family: var(--font-body);
     font-variant-numeric: tabular-nums;

@@ -4789,6 +4789,63 @@
     return collapsibleSection('event-announcements-' + ev.id, 'Annonces' + (posts.length ? ' (' + posts.length + ')' : ''), body, true);
   }
 
+  // Team-Leader-only free text blocks on the event itself (unlike
+  // Annonces, a running thread, these are single fields the leader
+  // keeps up to date) -- "Infos pratiques" (parking, accès, restauration...)
+  // and, optionally, special activities for the day (baptêmes, coaching).
+  // Both live in the orange "TEAM PRO" card since they're organizer-
+  // provided, not personal info.
+  var editingPracticalInfoFor = null;
+  var editingSpecialActivitiesFor = null;
+  function savePracticalInfo(eventId, text) {
+    db.collection('events').doc(eventId).update({ practicalInfo: (text || '').trim() || null }).then(function () {
+      editingPracticalInfoFor = null;
+      renderRoot();
+    }).catch(function (err) {
+      showToast('Erreur : ' + (err && err.message ? err.message : err));
+    });
+  }
+  function saveSpecialActivities(eventId, text) {
+    db.collection('events').doc(eventId).update({ specialActivities: (text || '').trim() || null }).then(function () {
+      editingSpecialActivitiesFor = null;
+      renderRoot();
+    }).catch(function (err) {
+      showToast('Erreur : ' + (err && err.message ? err.message : err));
+    });
+  }
+  function renderEventLeaderTextSection(ev, isLeader, opts) {
+    var value = ev[opts.field] || '';
+    var editing = opts.editingId() === ev.id;
+    if (!value && !isLeader) return '';
+    var body;
+    if (editing) {
+      body = '<textarea id="' + opts.inputId + '" rows="3" placeholder="' + escapeHtml(opts.placeholder) + '">' + escapeHtml(value) + '</textarea>' +
+        '<div style="margin-top:0.5rem; display:flex; gap:0.5rem;">' +
+        '<button type="button" class="primary" data-action="' + opts.saveAction + '" data-id="' + ev.id + '">Enregistrer</button>' +
+        '<button type="button" class="ghost" data-action="' + opts.cancelAction + '">Annuler</button></div>';
+    } else {
+      body = value ? '<div class="help-text" style="white-space:pre-wrap;">' + escapeHtml(value) + '</div>' : '<div class="help-text">Rien renseigné pour l\'instant.</div>';
+      if (isLeader) body += '<button type="button" class="ghost" data-action="' + opts.editAction + '" data-id="' + ev.id + '" style="margin-top:0.5rem;">' + (value ? 'Modifier' : 'Compléter') + '</button>';
+    }
+    return collapsibleSection(opts.key + '-' + ev.id, opts.label, body, !!value);
+  }
+  function renderPracticalInfoSection(ev, isLeader) {
+    return renderEventLeaderTextSection(ev, isLeader, {
+      field: 'practicalInfo', key: 'infos-pratiques-team', label: 'Infos pratiques',
+      inputId: 'practical-info-input', placeholder: 'Ex. Parking, accès paddock, restauration...',
+      editingId: function () { return editingPracticalInfoFor; },
+      saveAction: 'save-practical-info', cancelAction: 'cancel-practical-info', editAction: 'edit-practical-info'
+    });
+  }
+  function renderSpecialActivitiesSection(ev, isLeader) {
+    return renderEventLeaderTextSection(ev, isLeader, {
+      field: 'specialActivities', key: 'special-activities', label: 'Baptêmes, coaching...',
+      inputId: 'special-activities-input', placeholder: 'Ex. Baptêmes de piste 12h-14h, coaching sur inscription...',
+      editingId: function () { return editingSpecialActivitiesFor; },
+      saveAction: 'save-special-activities', cancelAction: 'cancel-special-activities', editAction: 'edit-special-activities'
+    });
+  }
+
   // "Découvrir les Événements PRO" -- every Team PRO event this account
   // can't already see in its own Événements list (not a member of the
   // owning team, not already registered), open enough to browse
@@ -6089,28 +6146,36 @@
     var info = circuitInfo(ev.circuit);
     var horaires = info.horaires;
 
+    // Orange card: everything the organizing Team PRO/Team provides --
+    // schedule, announcements, and the two leader-editable blocks below.
+    // Distinguished from the grey card underneath (this account's own,
+    // personal info) by a Team badge top-right and its accent border
+    // (see .today-schedule-card).
+    var isLeader = !!(ev.teamId && isLeaderOfTeam(ev.teamId));
+    var orgTeam = ev.teamId ? teamById(ev.teamId) : null;
     var html = '<div class="card today-schedule-card">';
     html += '<div class="today-schedule-head">';
     html += '<div class="eyebrow">' + (isOngoing ? 'En ce moment — ' : 'Prochain événement — ') + escapeHtml(ev.circuit) + '</div>';
+    html += '<div class="today-schedule-head-right">';
+    if (orgTeam) html += '<span class="team-pro-badge">' + escapeHtml(orgTeam.name) + (orgTeam.teamPro ? ' 🏆' : '') + '</span>';
     if (isOngoing) html += '<div class="planning-big-clock" id="planning-big-clock">--h--</div>';
+    html += '</div>';
     html += '</div>';
     var sub = [];
     if (!isOngoing) sub.push(escapeHtml(formatEventRange(ev, true)) + ' (' + weekdayName(ev.dateStart) + ')');
     if (sub.length) html += '<div class="help-text" style="font-size:0.78rem; font-weight:400;">' + sub.join(' · ') + '</div>';
+    // Raccourci vers Modifier l'événement, uniquement pour le Team Leader
+    // du Team qui gère cet event -- pas besoin d'aller jusqu'à Team ->
+    // Gestion des événements pour un ajustement rapide.
+    if (isLeader) {
+      if (editingEventId === ev.id) html += renderEventForm();
+      else html += '<div style="margin:0.5rem 0;"><button type="button" class="ghost" data-action="team-event-edit" data-id="' + ev.id + '">✎ Modifier l\'événement</button></div>';
+    }
     if (ev.teamId) html += renderEventAnnouncements(ev, false);
+    html += renderSpecialActivitiesSection(ev, isLeader);
     // Briefing lives with Horaires (above the group filter) now, not up
     // here -- it's schedule information, same family as the slot times.
     var briefingLine = info.briefing ? '<div class="help-text" style="margin-bottom:0.6rem; color:var(--accent); font-weight:600;">Briefing ' + escapeHtml(info.briefing) + '</div>' : '';
-
-    // Just the organizing Team here now -- hôtel/avion/aéroport moved to
-    // renderMyTravelInfoSection below (personal per-account info, not
-    // something the Team orga fills in for everyone).
-    var practicalInfo = '';
-    var planningOrganizerTeam = info.organizerTeamId ? teamById(info.organizerTeamId) : null;
-    if (planningOrganizerTeam) practicalInfo += '<div class="help-text">Organisateur : ' + escapeHtml(planningOrganizerTeam.name) + '</div>';
-    var practicalInfoHtml = collapsibleSection('infos-pratiques', 'Infos pratiques', practicalInfo);
-    practicalInfoHtml += renderMyTravelInfoSection(ev);
-    practicalInfoHtml += renderFollowedTravelInfoSection(ev);
 
     // Groupes/Équipement/Infos pratiques are the same three rubriques
     // whether or not this circuit has horaires recorded -- only the
@@ -6142,10 +6207,7 @@
       horairesInner += renderHorairesPhotoSection(ev);
       html += collapsibleSection('horaires', 'Horaires', horairesInner, true);
     }
-    html += renderMyGroupSection(ev);
-    html += renderFriendsGroupSection(ev);
-    html += collapsibleSection('equipement', checklistCountLabel(ev), renderPlanningChecklist(ev));
-    html += practicalInfoHtml;
+    html += renderPracticalInfoSection(ev, isLeader);
     if (isOngoing && availableGroups.length) {
       var todayKey = dateKey(new Date());
       if (myGroupFinishedToday(ev, horaires, todayKey)) {
@@ -6153,7 +6215,19 @@
       }
       html += renderDailyRecap(ev, horaires, todayKey);
     }
-    return html + '</div>';
+    html += '</div>';
+
+    // Grey card: this account's own personal info for the sortie -- never
+    // something the Team orga fills in for everyone.
+    var personal = '<div class="card personal-info-card">';
+    personal += renderMyGroupSection(ev);
+    personal += renderFriendsGroupSection(ev);
+    personal += collapsibleSection('equipement', checklistCountLabel(ev), renderPlanningChecklist(ev));
+    personal += renderMyTravelInfoSection(ev);
+    personal += renderFollowedTravelInfoSection(ev);
+    personal += '</div>';
+
+    return html + personal;
   }
 
   // The connected pilote's own group for a given date -- pm takes
@@ -9507,6 +9581,30 @@
         evt.preventDefault();
         var input = form.querySelector('[data-event-announcement-edit-input]');
         updateEventAnnouncement(form.getAttribute('data-id'), input ? input.value : '');
+      });
+    });
+    document.querySelectorAll('[data-action="edit-practical-info"]').forEach(function (btn) {
+      btn.addEventListener('click', function () { editingPracticalInfoFor = btn.getAttribute('data-id'); renderRoot(); });
+    });
+    document.querySelectorAll('[data-action="cancel-practical-info"]').forEach(function (btn) {
+      btn.addEventListener('click', function () { editingPracticalInfoFor = null; renderRoot(); });
+    });
+    document.querySelectorAll('[data-action="save-practical-info"]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var input = document.getElementById('practical-info-input');
+        savePracticalInfo(btn.getAttribute('data-id'), input ? input.value : '');
+      });
+    });
+    document.querySelectorAll('[data-action="edit-special-activities"]').forEach(function (btn) {
+      btn.addEventListener('click', function () { editingSpecialActivitiesFor = btn.getAttribute('data-id'); renderRoot(); });
+    });
+    document.querySelectorAll('[data-action="cancel-special-activities"]').forEach(function (btn) {
+      btn.addEventListener('click', function () { editingSpecialActivitiesFor = null; renderRoot(); });
+    });
+    document.querySelectorAll('[data-action="save-special-activities"]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var input = document.getElementById('special-activities-input');
+        saveSpecialActivities(btn.getAttribute('data-id'), input ? input.value : '');
       });
     });
     document.querySelectorAll('[data-action="event-announcement-delete"]').forEach(function (btn) {
