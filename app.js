@@ -1693,6 +1693,7 @@
       return infoRow(escapeHtml(s.circuit) + ' — ' + escapeHtml(formatDate(s.date)), formatTime(sessionBest(s)) + ' ' + certifyControl(s));
     }).join('');
     html += renderStatSummaryCategory('verified-' + riderName, 'Chronos vérifiés', verifiedSessions.length, verifiedDetail);
+    html += renderRiderRecordsCategory(riderName);
     html += '</div>';
     html += '</div>';
     return html;
@@ -1774,27 +1775,52 @@
       '</div>';
   }
 
-  // A concrete list of what the role actually unlocks, plus shortcuts to
-  // go do it -- otherwise "Organisateur" would just be a label with
-  // nothing behind it. These actions aren't exclusive to organisateurs at
-  // the Firestore-rules level (any verified account can already create a
-  // sortie or edit a circuit) -- this is the organisateur's dedicated
-  // starting point for them, not a new permission.
-  function renderOrganizerHub() {
-    var html = '<div class="card organizer-hub">';
-    html += '<div class="section-title" style="font-size:0.95rem;">Espace organisateur</div>';
-    html += '<div class="help-text">En tant qu\'organisateur, tu peux :</div>';
-    html += '<ul class="organizer-hub-list">' +
-      '<li>Créer et gérer les sorties : dates, horaires, groupes, hôtel, vols</li>' +
-      '<li>Renseigner le champ "Organisateur" d\'une sortie avec ton nom pour qu\'elle compte dans tes trophées</li>' +
-      '<li>Gérer la fiche d\'un circuit (plan, infos, horaires par défaut)</li>' +
-      '<li>Partager un lien photos/vidéos après une sortie</li>' +
-      '<li>Suivre des pilotes et être notifié de leurs départs, comme un accompagnant</li>' +
-      '</ul>';
-    html += '<div style="margin-top:0.8rem; display:flex; gap:0.6rem; flex-wrap:wrap;">' +
-      '<button type="button" class="ghost" data-action="goto-events">Aller à Événements</button>' +
-      '<button type="button" class="ghost" data-action="goto-circuit">Aller à Chronos/Circuit</button>' +
-      '</div>';
+  // What Carnet de Piste actually does for each role -- shown live as soon
+  // as a role is selected in the "Je suis" choice (see the profile-role
+  // change listener), not just after Enregistrer, so switching the radio
+  // immediately answers "qu'est-ce que ça m'apporte ?" without a round
+  // trip through the server. Deliberately never mentions Trophées/Stats --
+  // that's covered on its own tab, this is purely "quels services".
+  var ROLE_INFO = {
+    pilote: {
+      title: 'Espace pilote',
+      items: [
+        'Enregistrer tes chronos sortie par sortie et suivre tes meilleurs temps par circuit',
+        'Faire certifier tes chronos par un Team Leader ("Chrono vérifié")',
+        'Retrouver les horaires, groupes et infos pratiques de chaque sortie dans EN PISTE',
+        'Partager tes infos de voyage (hôtel, vols) avec tes amis, et voir les leurs',
+        'Suivre tes amis, réagir sur leur mur et sur celui de ton Team',
+        'Rejoindre un Team (amateur ou PRO) et participer à ses sorties'
+      ]
+    },
+    accompagnant: {
+      title: 'Espace accompagnant',
+      items: [
+        'Suivre des pilotes et être notifié quand leur groupe va partir rouler',
+        'Consulter les horaires, groupes et infos pratiques de la sortie en cours, sans y rouler toi-même',
+        'Voir les chronos et la progression des pilotes que tu suis',
+        'Voir les infos de voyage des pilotes suivis, si elles sont partagées',
+        'Suivre des Teams, réagir sur leur mur, et publier sur ton propre mur'
+      ]
+    },
+    organisateur: {
+      title: 'Espace organisateur',
+      items: [
+        'Créer et gérer une sortie : dates, horaires par groupe, infos pratiques, baptêmes/coaching',
+        'Tenir à jour la fiche d\'un circuit (plan, distance, virages, horaires par défaut)',
+        'Partager un lien photos/vidéos après la sortie',
+        'Suivre des pilotes et être notifié de leurs départs, comme un accompagnant',
+        'Si tu es aussi Team Leader d\'un Team : gérer ses membres, son fil d\'actualité, ses événements et certifier les chronos de tes pilotes'
+      ]
+    }
+  };
+  function renderRoleInfoCard(role, currentRole) {
+    var info = ROLE_INFO[role];
+    var visible = role === currentRole;
+    var html = '<div class="card organizer-hub" id="profile-role-info-' + role + '" style="display:' + (visible ? 'block' : 'none') + ';">';
+    html += '<div class="section-title" style="font-size:0.95rem;">' + escapeHtml(info.title) + '</div>';
+    html += '<div class="help-text">Carnet de Piste t\'aide à :</div>';
+    html += '<ul class="organizer-hub-list">' + info.items.map(function (t) { return '<li>' + escapeHtml(t) + '</li>'; }).join('') + '</ul>';
     html += '</div>';
     return html;
   }
@@ -1841,10 +1867,14 @@
       '<label><input type="radio" name="profile-role" value="organisateur"' + (p.role === 'organisateur' ? ' checked' : '') + '> Organisateur</label>' +
       '</div>';
     // Trophées unifiés dans Stats désormais, quel que soit le rôle (voir
-    // renderStatsTab) -- Profil n'en montre plus une copie séparée.
-    if (p.role === 'organisateur') {
-      html += renderOrganizerHub();
-    }
+    // renderStatsTab) -- Profil n'en montre plus une copie séparée. Les
+    // trois cartes sont toutes rendues (une seule visible à la fois) pour
+    // que changer le radio "Je suis" bascule instantanément vers la bonne,
+    // avant même Enregistrer -- voir le listener de profile-role.
+    var currentRole = (p.role === 'accompagnant' || p.role === 'organisateur') ? p.role : 'pilote';
+    html += renderRoleInfoCard('pilote', currentRole);
+    html += renderRoleInfoCard('accompagnant', currentRole);
+    html += renderRoleInfoCard('organisateur', currentRole);
     html += '<div id="profile-bike-wrap" style="display:' + (isNonRider ? 'none' : 'block') + '; margin-top:0.9rem;">' +
       '<label for="profile-bike">Ma moto</label><input type="text" id="profile-bike" placeholder="Ex. ST 765 RS" value="' + escapeHtml(p.bike || '') + '">' +
       '<div class="help-text">Suggérée automatiquement quand tu entres un chrono.</div>' +
@@ -2727,53 +2757,52 @@
     return seconds.toFixed(3) + 's';
   }
 
-  function renderRecordsThisYearCard() {
+  // Records battus, scoped to this one rider and folded right into their
+  // own stats card, right after Chronos vérifiés -- no longer a separate
+  // "à part" card sitting between the rider list and the Trophées cards.
+  function renderRiderRecordsCategory(riderName) {
     var year = String(new Date().getFullYear());
-    var riderFilter = (selectedRiders && selectedRiders.size) ? selectedRiders : null;
-    var records = personalRecordsBrokenInYear(year, riderFilter);
-    var detail;
-    if (!records.length) {
-      detail = '<div class="empty-state">Aucun record personnel battu en ' + year + ' pour l’instant.</div>';
-    } else {
-      detail = '<div class="table-scroll"><table class="session-table"><thead><tr><th>Date</th><th>Pilote</th><th>Circuit</th><th>Nouveau temps</th><th>Gain</th></tr></thead><tbody>';
+    var records = personalRecordsBrokenInYear(year, new Set([riderName]));
+    var detail = '';
+    if (records.length) {
+      detail = '<div class="table-scroll"><table class="session-table"><thead><tr><th>Date</th><th>Circuit</th><th>Nouveau temps</th><th>Gain</th></tr></thead><tbody>';
       records.forEach(function (r) {
-        detail += '<tr><td>' + escapeHtml(formatDateShortYear(r.date)) + '</td><td class="rider-cell">' + renderRiderLink(r.rider) + '</td><td>' + escapeHtml(r.circuit) + '</td>' +
+        detail += '<tr><td>' + escapeHtml(formatDateShortYear(r.date)) + '</td><td>' + escapeHtml(r.circuit) + '</td>' +
           '<td class="laps-cell">' + formatTime(r.time) + '<span class="record-pill">RECORD</span></td>' +
           '<td class="gain-cell">-' + formatGain(r.previous - r.time) + '</td></tr>';
       });
       detail += '</tbody></table></div>';
     }
-    return '<div class="card records-year-card">' + renderStatSummaryCategory('records-' + year, 'Records battus en ' + year, records.length, detail) + '</div>';
+    return renderStatSummaryCategory('records-' + year + '-' + riderName, 'Records battus en ' + year, records.length, detail);
   }
 
   function renderStatsTab() {
     var me = currentUserProfile;
     var html = '';
-    // Trophées unifiées ici pour tout le monde, y compris un compte
-    // Accompagnant/Organisateur qui n'a pas de chronos et n'apparaît donc
-    // jamais dans allKnownRiders() -- sa propre carte Trophées vient en
-    // premier, avant même la liste des pilotes.
-    if (me && (me.role === 'accompagnant' || me.role === 'organisateur')) {
-      var nonRiderAch = me.role === 'organisateur' ? organisateurAchievements(me) : accompagnantAchievements(me);
-      html += renderAchievementsCard(nonRiderAch, 'achievements-profile-' + me.name);
-    }
+    var isNonRider = !!(me && (me.role === 'accompagnant' || me.role === 'organisateur'));
+    var nonRiderAch = isNonRider ? (me.role === 'organisateur' ? organisateurAchievements(me) : accompagnantAchievements(me)) : null;
     var riders = allKnownRiders();
     if (!riders.length) {
+      // Un compte accompagnant/organisateur qui n'a pas de chronos et
+      // n'apparaît donc jamais dans allKnownRiders() garde tout de même
+      // sa propre carte Trophées.
+      if (isNonRider) html += renderAchievementsCard(nonRiderAch, 'achievements-profile-' + me.name);
       return html || '<div class="card"><div class="empty-state">Aucun pilote pour l\'instant — ajoutez une sortie ou un chrono pour commencer.</div></div>';
     }
     var rider = (selectedRiders && selectedRiders.size === 1) ? Array.from(selectedRiders)[0] : null;
-    // Chronos vérifiés -> Records -> Trophées, in that order: every
-    // rider's stats card (ending in Chronos vérifiés) first, then the
-    // single Records-of-the-year card, then every rider's Trophées last.
+    // Chronos vérifiés -> Records (repliés dans la même carte, voir
+    // renderRiderRecordsCategory) -> Trophées, dans cet ordre pour tout le
+    // monde, y compris un compte accompagnant/organisateur dont la propre
+    // carte Trophées vient tout en bas, après celles des pilotes.
     var names = rider ? [rider] : (selectedRiders && selectedRiders.size ? Array.from(selectedRiders) : riders).slice().sort(function (a, b) { return a.localeCompare(b); });
     names.forEach(function (r) { html += renderRiderStatsCard(r); });
-    html += renderRecordsThisYearCard();
     // Un compte accompagnant/organisateur qui apparaît aussi dans
     // allKnownRiders() (ex. listé une fois comme participant d'un event)
-    // a déjà eu sa carte Trophées ci-dessus (nonRiderAch) -- ne pas la
+    // a déjà sa propre carte Trophées rendue juste après -- ne pas la
     // rendre une deuxième fois ici via la boucle rider générique.
-    var skipAchievementsFor = (me && (me.role === 'accompagnant' || me.role === 'organisateur')) ? me.name : null;
+    var skipAchievementsFor = isNonRider ? me.name : null;
     names.forEach(function (r) { if (r !== skipAchievementsFor) html += renderRiderAchievementsCard(r); });
+    if (isNonRider) html += renderAchievementsCard(nonRiderAch, 'achievements-profile-' + me.name);
     return html;
   }
 
@@ -8841,22 +8870,6 @@
         renderRoot();
       });
     });
-    var gotoEventsBtn = document.querySelector('[data-action="goto-events"]');
-    if (gotoEventsBtn) {
-      gotoEventsBtn.addEventListener('click', function () {
-        activeView = 'event';
-        profilePanelOpen = false;
-        renderRoot();
-      });
-    }
-    var gotoCircuitBtn = document.querySelector('[data-action="goto-circuit"]');
-    if (gotoCircuitBtn) {
-      gotoCircuitBtn.addEventListener('click', function () {
-        activeView = 'circuit';
-        profilePanelOpen = false;
-        renderRoot();
-      });
-    }
     var accountManagerToggle = document.getElementById('account-manager-toggle');
     if (accountManagerToggle) {
       accountManagerToggle.addEventListener('click', function () {
@@ -8992,6 +9005,10 @@
             var bikeWrap = document.getElementById('profile-bike-wrap');
             if (bikeWrap) bikeWrap.style.display = isNonRider ? 'none' : 'block';
             if (notifyLabel) notifyLabel.textContent = isNonRider ? 'Me notifier quand un pilote suivi va partir rouler' : 'Me notifier quand mon groupe va partir rouler';
+            ['pilote', 'accompagnant', 'organisateur'].forEach(function (r) {
+              var card = document.getElementById('profile-role-info-' + r);
+              if (card) card.style.display = (r === radio.value) ? 'block' : 'none';
+            });
           }
         });
       });
