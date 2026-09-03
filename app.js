@@ -2351,6 +2351,36 @@
     });
     return n ? batch.commit() : Promise.resolve();
   }
+  // Catches up any Group A doc left stale by a rename that didn't go
+  // through saveProfile's own migration above -- namely a pseudo edited
+  // directly in the Firestore console (bypasses the app entirely, so
+  // fetchGroupARenameTargets/applyGroupARenames never ran) rather than via
+  // "Modifier le pseudo". Queried by uidField (not by an old name we don't
+  // know), so it self-heals regardless of how many times or how the name
+  // actually changed -- e.g. a wallPost still carrying author:"Xavier"
+  // long after that account renamed itself to "Xav" straight in the
+  // database, which left it unable to delete/react to its own old post
+  // (resource.data.author == myName() no longer matched). Fires once,
+  // silently, right after sign-in (see onAuthStateChanged) -- canRenameField
+  // already permits exactly this (uid-proven, one field, new value ==
+  // current myName()), this just triggers it proactively instead of only
+  // during a live rename.
+  function selfHealStaleNames(uid, currentName) {
+    Promise.all(groupARenameSpecs().map(function (spec) {
+      return db.collection(spec.coll).where(spec.uidField, '==', uid).get().then(function (snap) {
+        var batch = db.batch(), n = 0;
+        snap.forEach(function (doc) {
+          var d = doc.data();
+          if (spec.skip && spec.skip(d)) return;
+          if (d[spec.field] === currentName) return;
+          var patch = {}; patch[spec.field] = currentName;
+          batch.update(doc.ref, patch);
+          n++;
+        });
+        return n ? batch.commit() : Promise.resolve();
+      }).catch(function () {});
+    }));
+  }
   // The doc-id-embedded-name collections -- recreate under the new id
   // (migratedFromId + uid, same shape as migrateTeamMembershipsForRename)
   // and delete the old one, run only after the users doc rename has
@@ -11143,6 +11173,7 @@
           }
           startSync();
           renderRoot();
+          selfHealStaleNames(user.uid, currentUserProfile.name);
         } else {
           // The admin removed this account (see renderAccountManagerPanel) --
           // sign them out cleanly instead of leaving the app stuck on
