@@ -5444,7 +5444,7 @@
   // that search are ordered by how close their best verified chrono is to
   // the group's current average (fastest-first when the group's still
   // empty), so the pilotes who best fit that group's level surface first.
-  function renderGroupsSection(ev) {
+  function renderGroupsSection(ev, canEdit) {
     var riders = ev.riders || [];
     if (!riders.length) return '<div class="section-title" style="margin-top:1rem;">Groupes</div><div class="help-text">Ajoute des participants pour pouvoir les répartir en groupes.</div>';
     var byGroup = {};
@@ -5459,7 +5459,7 @@
       var u = (STATE.usersByName || {})[name] || {};
       var t = riderVerifiedBest(ev, name);
       var timeHtml = t != null ? ' <span class="verified-pill">' + formatTime(t) + '</span>' : '';
-      var removeBtn = removable ? '<button type="button" class="ghost icon-btn" data-action="event-group-remove" data-id="' + ev.id + '" data-rider="' + escapeHtml(name) + '" aria-label="Retirer du groupe" title="Retirer du groupe">×</button>' : '';
+      var removeBtn = (removable && canEdit) ? '<button type="button" class="ghost icon-btn" data-action="event-group-remove" data-id="' + ev.id + '" data-rider="' + escapeHtml(name) + '" aria-label="Retirer du groupe" title="Retirer du groupe">×</button>' : '';
       return '<div class="friend-row"><div class="friend-row-main">' + nameLinkHtml(name) + badgesHtml(u) + timeHtml + '</div><div class="friend-row-actions">' + removeBtn + '</div></div>' + maybeFicheHtml(name);
     }
     var assignedCount = riders.length - unassigned.length;
@@ -5483,7 +5483,7 @@
         if (tb == null) return -1;
         return ta - tb;
       });
-      if (candidates.length) {
+      if (canEdit && candidates.length) {
         body += '<form class="team-event-add-rider-form" data-action="event-group-add-form" data-event-id="' + ev.id + '" data-group="' + g + '">' +
           '<input type="text" list="event-group-candidates-' + g + '-' + ev.id + '" placeholder="Rechercher un pilote..." data-event-group-add-input>' +
           '<datalist id="event-group-candidates-' + g + '-' + ev.id + '">' + candidates.map(function (n) {
@@ -7778,9 +7778,13 @@
       var crossRows = crossEvents.map(function (ev) {
         var orgTeam = teamById(ev.teamId);
         var mine = (ev.riders || []).filter(function (r) { return roster.indexOf(r) !== -1; });
+        // Same "team-event-manage-open" action as a normal row -- clickable
+        // like on the organizing Team PRO's own screen, just opened
+        // read-only (see renderEventManagementScreen's canEdit).
         return '<div class="friend-row"><div class="friend-row-main"><span class="friend-name-plain">' + escapeHtml(ev.circuit) + '</span>' +
           (orgTeam ? '<span class="friend-role-badge">' + escapeHtml(orgTeam.name) + '</span>' : '') +
-          '<span class="help-text">' + escapeHtml(formatEventRange(ev, true)) + ' · ' + escapeHtml(mine.join(', ')) + '</span></div></div>';
+          '<span class="help-text">' + escapeHtml(formatEventRange(ev, true)) + ' · ' + escapeHtml(mine.join(', ')) + '</span></div>' +
+          '<div class="friend-row-actions"><button type="button" class="ghost" data-action="team-event-manage-open" data-id="' + ev.id + '">Voir</button></div></div>';
       }).join('');
       body += collapsibleSection('team-events-cross-' + team.id, 'Membres présents sur d\'autres événements (' + crossEvents.length + ')', crossRows, false);
     }
@@ -7802,25 +7806,40 @@
   // reassign, not something meant to be skimmed on a phone between two
   // other things.
   function renderEventManagementScreen(ev, team) {
+    // team is just the screen the viewer navigated in from -- it's the
+    // organizing Team (canEdit true) when opened from that Team's own
+    // Gestion des événements, but can also be another Team whose member(s)
+    // happen to ride this event (see the cross-team, read-only list in
+    // renderTeamEventsManagement). Every roster/visibility detail below
+    // must reflect the event's actual organizing Team (orgTeam), and every
+    // write control must be gated on canEdit, not on which Team's page got
+    // us here -- firestore.rules enforces the same isTeamLeader(ev.teamId)
+    // boundary server-side regardless of what the UI shows.
+    var canEdit = !!(ev.teamId && isLeaderOfTeam(ev.teamId));
+    var orgTeam = teamById(ev.teamId) || team;
     var reqs = (STATE.eventJoinRequests || []).filter(function (r) { return r.status === 'pending' && r.eventId === ev.id; });
     var riders = ev.riders || [];
     var html = '<div class="card">';
     html += '<h2 class="section-title">' + escapeHtml(ev.circuit) + ' — ' + escapeHtml(formatEventRange(ev, true)) + '</h2>';
+    if (!canEdit && orgTeam !== team) html += '<div class="help-text" style="margin-bottom:0.6rem;">Organisé par ' + escapeHtml(orgTeam.name) + ' — lecture seule, seul le Team Leader de ' + escapeHtml(orgTeam.name) + ' peut modifier cet événement.</div>';
     // Modifier right under the title -- it used to sit at the bottom of a
     // long stack of sections, easy to lose track of and easy to confuse
     // with the collapsible headers just above it.
-    html += '<div style="margin:0.6rem 0 1rem;"><button type="button" class="ghost" data-action="team-event-edit" data-id="' + ev.id + '">Modifier l\'événement</button></div>';
-    if (editingEventId === ev.id) html += renderEventForm();
+    if (canEdit) {
+      html += '<div style="margin:0.6rem 0 1rem;"><button type="button" class="ghost" data-action="team-event-edit" data-id="' + ev.id + '">Modifier l\'événement</button></div>';
+      if (editingEventId === ev.id) html += renderEventForm();
+    }
     // Résumé -- no dates here, already in the title above.
     if (ev.note) html += infoRow('Note', escapeHtml(ev.note));
     var evTeamVis = { public: 'Public', adherent: 'Adhérent only', membre: 'Membre only', ouvert: 'Ouvert' };
-    if (team.teamPro) html += infoRow('Visibilité', evTeamVis[ev.eventVisibility] || 'Membre only');
-    html += renderEventAnnouncements(ev, true);
+    if (orgTeam.teamPro) html += infoRow('Visibilité', evTeamVis[ev.eventVisibility] || 'Membre only');
+    html += renderEventAnnouncements(ev, canEdit);
     // Badges + rôle Team (Membre/Adhérent/Team Leader/Suivi) right on each
     // participant row -- a quick read for the Team orga without having to
-    // open every fiche one by one.
-    var teamMembers = membersOfTeam(team.id);
-    var teamFollowers = (STATE.teamFollowersByTeam || {})[team.id] || [];
+    // open every fiche one by one. Always the organizing Team's own roster,
+    // never the viewing Team's.
+    var teamMembers = membersOfTeam(orgTeam.id);
+    var teamFollowers = (STATE.teamFollowersByTeam || {})[orgTeam.id] || [];
     function participantRoleTag(name) {
       var m = teamMembers.filter(function (x) { return x.name === name; })[0];
       var f = teamFollowers.filter(function (x) { return x.follower === name; })[0];
@@ -7836,31 +7855,37 @@
       ? riders.map(function (name) {
           var u = (STATE.usersByName || {})[name] || {};
           var eventNumber = eventBikeNumbers[name] || '';
+          var actions = canEdit
+            ? '<div class="friend-row-actions"><button type="button" class="ghost icon-btn" data-action="team-event-remove-rider" data-id="' + ev.id + '" data-rider="' + escapeHtml(name) + '" aria-label="Retirer" title="Retirer">×</button></div>' +
+              '<div class="team-role-field"><input type="text" placeholder="N° pour cet event" value="' + escapeHtml(eventNumber) + '" data-event-bike-number-input inputmode="numeric">' +
+              '<button type="button" class="ghost icon-btn" data-action="event-bike-number-save" data-id="' + ev.id + '" data-rider="' + escapeHtml(name) + '" aria-label="Enregistrer le N°" title="Enregistrer">✓</button></div>'
+            : (eventNumber ? '<div class="team-role-field"><span class="account-role-tag">N° pour cet event : #' + escapeHtml(eventNumber) + '</span></div>' : '');
           return '<div class="friend-row"><div class="friend-row-main">' + nameLinkHtml(name) + badgesHtml(u) + participantRoleTag(name) + (u.bikeNumber ? ' <span class="account-role-tag">#' + escapeHtml(u.bikeNumber) + '</span>' : '') + '</div>' +
-            '<div class="friend-row-actions"><button type="button" class="ghost icon-btn" data-action="team-event-remove-rider" data-id="' + ev.id + '" data-rider="' + escapeHtml(name) + '" aria-label="Retirer" title="Retirer">×</button></div>' +
-            '<div class="team-role-field"><input type="text" placeholder="N° pour cet event" value="' + escapeHtml(eventNumber) + '" data-event-bike-number-input inputmode="numeric">' +
-            '<button type="button" class="ghost icon-btn" data-action="event-bike-number-save" data-id="' + ev.id + '" data-rider="' + escapeHtml(name) + '" aria-label="Enregistrer le N°" title="Enregistrer">✓</button></div>' +
-            '</div>' + maybeFicheHtml(name);
+            actions + '</div>' + maybeFicheHtml(name);
         }).join('')
       : '<div class="help-text">Aucun participant.</div>';
     // Search-to-add, name + # (bikeNumber) shown per candidate so a Team
     // Leader can tell same-name pilotes apart before adding one.
-    var candidates = candidateRidersForTeamEvent(team, riders);
-    if (candidates.length) {
-      riderRows += '<form class="team-event-add-rider-form" data-action="team-event-add-rider-form" data-event-id="' + ev.id + '">' +
-        '<select data-team-event-add-rider-select>' + candidates.map(function (n) {
-          var u = (STATE.usersByName || {})[n] || {};
-          return '<option value="' + escapeHtml(n) + '">' + escapeHtml(n) + (u.bikeNumber ? ' #' + escapeHtml(u.bikeNumber) : '') + '</option>';
-        }).join('') + '</select>' +
-        '<button type="submit" class="ghost">Ajouter</button></form>';
+    if (canEdit) {
+      var candidates = candidateRidersForTeamEvent(orgTeam, riders);
+      if (candidates.length) {
+        riderRows += '<form class="team-event-add-rider-form" data-action="team-event-add-rider-form" data-event-id="' + ev.id + '">' +
+          '<select data-team-event-add-rider-select>' + candidates.map(function (n) {
+            var u = (STATE.usersByName || {})[n] || {};
+            return '<option value="' + escapeHtml(n) + '">' + escapeHtml(n) + (u.bikeNumber ? ' #' + escapeHtml(u.bikeNumber) : '') + '</option>';
+          }).join('') + '</select>' +
+          '<button type="submit" class="ghost">Ajouter</button></form>';
+      }
     }
     html += collapsibleSection('event-manage-riders-' + ev.id, 'Participants (' + riders.length + ')', riderRows, true);
     // Easy per-rider chrono check right here, next to the roster --
     // renderEventCertificationSection already lets the leader verify (✓)
     // or un-verify a rider's best chrono for this sortie whenever they
-    // want, not just right after the event.
+    // want, not just right after the event. Self-gated on isLeaderOfTeam
+    // (ev.teamId) already, so it naturally stays empty here for a viewer
+    // who isn't the organizing Team's leader.
     html += renderEventCertificationSection(ev);
-    if (reqs.length) {
+    if (canEdit && reqs.length) {
       var reqRows = reqs.map(function (r) {
         var u = (STATE.usersByName || {})[r.from] || {};
         return '<div class="friend-row"><div class="friend-row-main">' + avatarHtml(u, r.from) + '<span class="friend-name-plain">' + escapeHtml(r.from) + '</span>' + badgesHtml(u) + '</div>' +
@@ -7871,7 +7896,7 @@
       }).join('');
       html += collapsibleSection('event-manage-requests-' + ev.id, 'Demandes à accepter (' + reqs.length + ')', reqRows, true);
     }
-    html += renderGroupsSection(ev);
+    html += renderGroupsSection(ev, canEdit);
     html += '</div>';
     return html;
   }
@@ -8206,8 +8231,13 @@
 
       var expandedTeam = expandedTeamId ? myTeams.filter(function (t) { return t.id === expandedTeamId; })[0] : null;
       if (expandedTeam) {
+        // No teamId restriction here on purpose -- managingEventId can
+        // point at a cross-team event opened read-only from the cross-team
+        // list below (see renderTeamEventsManagement), not just one this
+        // Team itself organizes. renderEventManagementScreen figures out
+        // canEdit on its own from the event's actual teamId.
         var managingEvent = managingEventId
-          ? (STATE.events || []).filter(function (e) { return e.id === managingEventId && e.teamId === expandedTeam.id; })[0]
+          ? (STATE.events || []).filter(function (e) { return e.id === managingEventId; })[0]
           : null;
         if (managingEvent) {
           html += '<div style="margin-top:1rem;">' +
