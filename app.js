@@ -1042,6 +1042,7 @@
   var eventFormDraftGroups = {}; // { [rider]: { [date]: { am, pm } } }
   var eventFormDraftGroupsFor = null; // editingEventId the draft above belongs to
   var editingSessionId = null; // id of the chrono row being edited inline in the Circuit history table, or null
+  var addChronoOpen = false; // whether renderForm() shows the actual "Entrer un nouveau chrono" form, or just its collapsed teaser button
   var selectedSessionDate = _savedUiState.selectedSessionDate || null; // 'YYYY-MM-DD' — shows the "chronos of that day" card
   var planningGroupFilter = _savedUiState.planningGroupFilter || null; // array of HORAIRES_GROUPS keys, or null for "all available"
   var planningIsOngoing = false; // set by renderPlanningTab(), read by updateLiveClock()
@@ -1683,6 +1684,15 @@
       });
     }
     html += renderStatSummaryCategory('bests-' + riderName, 'Meilleurs temps par circuit', stats.bests.length, bestsDetail);
+    // Vérifiés par un Team Leader (voir certifyControl/renderEventCertification-
+    // Section) -- même liste que sur la fiche d'un ami, mais ici pour le
+    // pilote dont les Stats sont affichées.
+    var verifiedSessions = STATE.sessions.filter(function (s) { return s.rider === riderName && s.certifiedBy; })
+      .sort(function (a, b) { return a.date < b.date ? 1 : a.date > b.date ? -1 : 0; });
+    var verifiedDetail = !verifiedSessions.length ? '' : verifiedSessions.map(function (s) {
+      return infoRow(escapeHtml(s.circuit) + ' — ' + escapeHtml(formatDate(s.date)), formatTime(sessionBest(s)) + ' ' + certifyControl(s));
+    }).join('');
+    html += renderStatSummaryCategory('verified-' + riderName, 'Chronos vérifiés', verifiedSessions.length, verifiedDetail);
     html += '</div>';
     html += '</div>';
     html += renderAchievementsCard(riderAchievements(riderName, stats), 'achievements-' + riderName);
@@ -2790,6 +2800,12 @@
       return '<div class="card"><div class="empty-state">Seuls les pilotes (et l\'administrateur) peuvent entrer des chronos' +
         (currentUserProfile.role === 'organisateur' ? ' -- ou un Team Leader, pour un pilote de son team.' : '.') + '</div></div>';
     }
+    // Retracté par défaut -- juste un bouton pleine largeur en évidence,
+    // le formulaire complet n'apparaît qu'une fois cliqué (et redisparaît
+    // au profit du bouton une fois le chrono envoyé, voir onSubmit).
+    if (!addChronoOpen) {
+      return '<button type="button" class="primary add-chrono-btn" id="add-chrono-toggle">+ Ajouter un chrono</button>';
+    }
     var rider = (selectedRiders && selectedRiders.size === 1) ? Array.from(selectedRiders)[0] : null;
     // A pilote can only ever enter their own chronos, or a teammate's if
     // they lead a team that includes them; an organisateur/admin-less
@@ -2908,13 +2924,13 @@
 
   function renderChronosTab() {
     var html = '';
-    html += renderForm();
     // The history table already supports any number of selected riders
     // (it shows a "Pilote" column when more than one is active), so keep
     // it visible in "Tous les pilotes" mode too.
     if (selectedCircuit && selectedRiders && selectedRiders.size) {
       html += renderSessionsCard();
     }
+    html += '<div style="margin-top:1rem;">' + renderForm() + '</div>';
     // The progression chart comes right after the chronos summary. With
     // several riders active (including "Tous les pilotes") every one of
     // them gets their own line, overlaid on the same chart, instead of
@@ -3455,13 +3471,12 @@
       turnsHtml = (info.turnsRight != null ? info.turnsRight + ' D' : '—') + ' / ' + (info.turnsLeft != null ? info.turnsLeft + ' G' : '—');
     }
 
-    var html = '<div class="card circuit-info-card"><div class="circuit-info-grid"><div class="circuit-info-list">';
-    html += '<div class="circuit-name" style="margin-bottom:0.5rem;">' + escapeHtml(selectedCircuit) + '</div>';
+    var html = '<div class="card circuit-info-card">';
+    html += '<div class="circuit-name">' + escapeHtml(selectedCircuit) + '</div>';
+    html += '<div class="circuit-info-map-full">' + renderCircuitVisual(info) + '</div>';
+    html += '<div class="circuit-info-list">';
     html += infoRow('Distance', info.km != null ? (escapeHtml(String(info.km)) + ' km') : '—');
     html += infoRow('Virages (D / G)', turnsHtml);
-    var organizerTeam = info.organizerTeamId ? teamById(info.organizerTeamId) : null;
-    html += infoRow('Organisateur', organizerTeam ? escapeHtml(organizerTeam.name) + (organizerTeam.teamPro ? ' (PRO)' : '') : '—');
-    if (info.briefing) html += infoRow('Briefing', escapeHtml(info.briefing));
     var lastEvent = (lastSession && lastSession.eventId) ? eventsList().filter(function (e) { return e.id === lastSession.eventId; })[0] : null;
     var lastOutingText = lastSession ? (escapeHtml(formatDate(lastSession.date)) + ' — ' + formatTime(sessionBest(lastSession))) : '—';
     html += infoRow('Dernier événement', lastEvent
@@ -3478,8 +3493,7 @@
       html += '<button type="button" class="ghost" id="edit-circuit-info-btn" style="margin-top:0.6rem;">Modifier les infos</button>';
     }
     html += '</div>';
-    html += renderCircuitVisual(info);
-    html += '</div></div>';
+    html += '</div>';
     return html;
   }
 
@@ -6959,6 +6973,8 @@
   // Which friend's fiche (see renderFriendFiche) is expanded inline in the
   // "Mes amis" list -- one at a time, pure UI state.
   var expandedFriend = null;
+  var pendingRemoveFriendId = null; // friendRequests doc id awaiting a second click to confirm removal (see renderFriendFiche)
+  var addFriendOpen = false; // whether Social shows the "Ajouter un ami" form, or just its collapsed teaser button
 
   // A small round avatar (photoURL is already a resized data URL, see
   // savePhoto) with a first-initial placeholder when none is set --
@@ -7034,6 +7050,23 @@
       } else {
         html += '<div class="help-text">Trophées non partagés.</div>';
       }
+    }
+    // Removing a friend now happens here, on their own fiche, instead of
+    // a bare × sitting in the list row -- a second click still required
+    // (no password, just a plain "tu es sûr ?" to avoid an accidental
+    // tap), same spirit as every other delete confirmation in the app.
+    var friendship = currentUserProfile ? friendsOf(currentUserProfile.name).filter(function (f) { return f.name === name; })[0] : null;
+    if (friendship) {
+      html += '<div class="danger-zone" style="margin-top:0.9rem;">';
+      if (pendingRemoveFriendId === friendship.id) {
+        html += '<div class="help-text">Retirer ' + escapeHtml(name) + ' de tes amis ?</div>' +
+          '<div style="margin-top:0.5rem; display:flex; gap:0.6rem;">' +
+          '<button type="button" class="ghost danger" data-action="remove-friend-confirm" data-id="' + friendship.id + '">Confirmer</button>' +
+          '<button type="button" class="ghost" data-action="remove-friend-cancel">Annuler</button></div>';
+      } else {
+        html += '<button type="button" class="ghost danger" data-action="remove-friend-request" data-id="' + friendship.id + '">Retirer cet ami</button>';
+      }
+      html += '</div>';
     }
     html += '</div>';
     return html;
@@ -7151,8 +7184,14 @@
     });
   }
 
+  var wallComposerOpen = false; // whether the "Publier un message" form is expanded, or just its collapsed teaser button
+
   function renderWallComposer() {
-    var html = '<div class="card"><h2 class="section-title">Mon mur</h2>';
+    if (!wallComposerOpen) {
+      return '<button type="button" class="primary add-chrono-btn" id="wall-composer-toggle" style="margin-top:1rem;">Publier un message sur mon Mur</button>';
+    }
+    var html = '<div class="card" style="margin-top:1rem;"><h2 class="section-title">Publier un message sur mon Mur</h2>';
+    html += '<div class="help-text">Ce que tu publies sera visible par tes amis (ou followers, selon ce que tu choisis ci-dessous).</div>';
     html += '<form id="wall-post-form">';
     html += '<label for="wall-post-text">Un mot, une sortie, une photo...</label><textarea id="wall-post-text" rows="2"></textarea>';
     html += '<label for="wall-post-link" style="margin-top:0.6rem;">Lien (optionnel)</label><input type="url" id="wall-post-link" placeholder="https://...">';
@@ -7236,7 +7275,7 @@
         var t = teamById(it.teamId);
         return renderTeamFeedEntry(it.data, me, t ? t.name : null);
       }).join('');
-    return collapsibleCard('social-mur', 'Mur (' + items.length + ')', body, false);
+    return collapsibleCard('social-mur', 'Mon Mur (' + items.length + ')', body, false);
   }
 
   function postToWall(text, linkUrl, photoURL, audience) {
@@ -7256,6 +7295,7 @@
     db.collection('wallPosts').doc(post.id).set(post).then(function () {
       wallPostMessage = '';
       wallPostDraftPhotoURL = null;
+      wallComposerOpen = false;
       renderRoot();
     }).catch(function (err) {
       wallPostMessage = 'Erreur : ' + (err && err.message ? err.message : err);
@@ -7288,12 +7328,13 @@
     // single place instead of four separate cards; (2) suivi des
     // personnalités; (3) le Mur, this account's own private-by-default
     // activity feed (see renderWallFeed).
+    // Retirer un ami se fait maintenant depuis sa propre fiche (voir
+    // renderFriendFiche), plus un bare × sur la ligne -- chaque ligne
+    // n'a donc plus d'action, juste le nom cliquable pour l'ouvrir.
     var friendsBody = !friends.length
       ? '<div class="empty-state">Pas encore d’amis — ajoutes-en un ci-dessous.</div>'
-      : friends.map(function (f) {
-          return renderFriendRow(f.name, '<button type="button" class="ghost icon-btn" data-action="remove-friend" data-id="' + f.id + '" aria-label="Retirer cet ami" title="Retirer">×</button>', true);
-        }).join('');
-    var amisHtml = collapsibleSection('social-amis-liste', 'Mes amis (' + friends.length + ')', friendsBody);
+      : friends.map(function (f) { return renderFriendRow(f.name, '', true); }).join('');
+    var amisHtml = collapsibleSection('social-amis-liste', 'Mes amis (' + friends.length + ')', friendsBody, true);
 
     if (incoming.length) {
       var incomingBody = incoming.map(function (r) {
@@ -7301,7 +7342,7 @@
           '<button type="button" class="primary" data-action="accept-friend" data-id="' + r.id + '">Accepter</button>' +
           '<button type="button" class="ghost" data-action="remove-friend" data-id="' + r.id + '">Refuser</button>');
       }).join('');
-      amisHtml += collapsibleSection('social-demandes-recues', 'Demandes reçues (' + incoming.length + ')', incomingBody);
+      amisHtml += collapsibleSection('social-demandes-recues', 'Demandes reçues (' + incoming.length + ')', incomingBody, true);
     }
     if (outgoing.length) {
       var outgoingBody = outgoing.map(function (r) {
@@ -7309,20 +7350,27 @@
       }).join('');
       amisHtml += collapsibleSection('social-demandes-envoyees', 'Demandes envoyées (' + outgoing.length + ')', outgoingBody);
     }
-    var addFriendBody = !candidates.length
-      ? '<div class="empty-state">Personne d’autre à ajouter pour l’instant.</div>'
-      : '<form id="add-friend-form"><label for="add-friend-select">Pilote, accompagnant ou organisateur</label>' +
-        '<select id="add-friend-select">' + candidates.map(function (n) {
-          return '<option value="' + escapeHtml(n) + '">' + escapeHtml(n) + ' — ' + roleLabel((STATE.usersByName[n] || {}).role) + '</option>';
-        }).join('') + '</select>' +
-        '<button type="submit" class="primary" style="margin-top:0.7rem;">Envoyer une demande</button></form>' +
-        friendSuggestionChips(candidates);
-    amisHtml += collapsibleSection('social-ajouter-ami', 'Ajouter / supprimer un ami', addFriendBody);
+    // Retracté par défaut, juste un bouton -- le formulaire (avec ses
+    // suggestions) n'apparaît qu'une fois cliqué, même logique que
+    // "+ Ajouter un chrono" dans Chronos.
+    if (!addFriendOpen) {
+      amisHtml += '<button type="button" class="primary add-chrono-btn" id="add-friend-toggle" style="margin-top:0.8rem;">+ Ajouter un ami</button>';
+    } else {
+      var addFriendBody = !candidates.length
+        ? '<div class="empty-state">Personne d’autre à ajouter pour l’instant.</div>'
+        : '<form id="add-friend-form"><label for="add-friend-select">Pilote, accompagnant ou organisateur</label>' +
+          '<select id="add-friend-select">' + candidates.map(function (n) {
+            return '<option value="' + escapeHtml(n) + '">' + escapeHtml(n) + ' — ' + roleLabel((STATE.usersByName[n] || {}).role) + '</option>';
+          }).join('') + '</select>' +
+          '<button type="submit" class="primary" style="margin-top:0.7rem;">Envoyer une demande</button></form>' +
+          friendSuggestionChips(candidates);
+      amisHtml += '<div style="margin-top:0.8rem;">' + addFriendBody + '</div>';
+    }
 
     var html = collapsibleCard('social-amis', 'Tes amis (' + friends.length + ')', amisHtml, true);
     html += renderPersonalitiesCard(me);
-    html += renderWallComposer();
     html += renderWallFeed(me);
+    html += renderWallComposer();
     return html;
   }
 
@@ -8824,6 +8872,13 @@
         renderRoot();
       });
     });
+    var wallComposerToggle = document.getElementById('wall-composer-toggle');
+    if (wallComposerToggle) {
+      wallComposerToggle.addEventListener('click', function () {
+        wallComposerOpen = true;
+        renderRoot();
+      });
+    }
     var wallPostForm = document.getElementById('wall-post-form');
     if (wallPostForm) {
       wallPostForm.addEventListener('submit', function (evt) {
@@ -8899,6 +8954,8 @@
         evt.preventDefault();
         var select = document.getElementById('add-friend-select');
         if (select && select.value) sendFriendRequest(select.value);
+        addFriendOpen = false;
+        renderRoot();
       });
     }
     document.querySelectorAll('[data-action="accept-friend"]').forEach(function (btn) {
@@ -8907,10 +8964,38 @@
     document.querySelectorAll('[data-action="remove-friend"]').forEach(function (btn) {
       btn.addEventListener('click', function () { removeFriendRequest(btn.getAttribute('data-id')); });
     });
+    document.querySelectorAll('[data-action="remove-friend-request"]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        pendingRemoveFriendId = btn.getAttribute('data-id');
+        renderRoot();
+      });
+    });
+    document.querySelectorAll('[data-action="remove-friend-confirm"]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        removeFriendRequest(btn.getAttribute('data-id'));
+        pendingRemoveFriendId = null;
+        expandedFriend = null;
+        renderRoot();
+      });
+    });
+    document.querySelectorAll('[data-action="remove-friend-cancel"]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        pendingRemoveFriendId = null;
+        renderRoot();
+      });
+    });
+    var addFriendToggle = document.getElementById('add-friend-toggle');
+    if (addFriendToggle) {
+      addFriendToggle.addEventListener('click', function () {
+        addFriendOpen = true;
+        renderRoot();
+      });
+    }
     document.querySelectorAll('[data-action="toggle-friend-fiche"]').forEach(function (btn) {
       btn.addEventListener('click', function () {
         var name = btn.getAttribute('data-name');
         expandedFriend = expandedFriend === name ? null : name;
+        pendingRemoveFriendId = null;
         renderRoot();
       });
     });
@@ -9572,6 +9657,7 @@
       btn.addEventListener('click', function () {
         activeView = btn.getAttribute('data-view');
         profilePanelOpen = false;
+        notificationsPanelOpen = false;
         editingEventId = null;
         prefillEventCircuit = null;
         prefillEventTeamId = null;
@@ -9696,6 +9782,13 @@
     document.querySelectorAll('[data-action="save-travel-info"]').forEach(function (btn) {
       btn.addEventListener('click', function () { saveMyTravelInfo(btn.getAttribute('data-event-id')); });
     });
+    var addChronoToggle = document.getElementById('add-chrono-toggle');
+    if (addChronoToggle) {
+      addChronoToggle.addEventListener('click', function () {
+        addChronoOpen = true;
+        renderRoot();
+      });
+    }
     var addEventBtn = document.getElementById('add-event-btn');
     if (addEventBtn) {
       addEventBtn.addEventListener('click', function () {
@@ -10060,6 +10153,7 @@
     STATE.sessions.push(session);
     selectedRiders = new Set([rider]);
     selectedCircuit = circuit;
+    addChronoOpen = false;
     renderRoot();
     persist(prevState);
 

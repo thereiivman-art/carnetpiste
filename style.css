@@ -415,6 +415,7 @@
   }
   button.primary:hover { background: var(--accent-strong); }
   button.primary:disabled { opacity: 0.6; cursor: default; }
+  .add-chrono-btn { width: 100%; padding: 0.8rem; font-size: 0.95rem; font-weight: 600; }
   button.ghost {
     background: transparent;
     border-color: var(--border);
@@ -1270,12 +1271,9 @@
   }
 
   .circuit-info-card { margin-bottom: 1.5rem; }
-  .circuit-info-grid {
-    display: flex;
-    gap: 1.1rem;
-    align-items: flex-start;
-  }
-  .circuit-info-list { flex: 1; min-width: 0; }
+  .circuit-info-map-full { margin: 0.7rem 0 1.1rem; }
+  .circuit-info-map-full .circuit-visual-frame { width: 100%; }
+  .circuit-info-list { min-width: 0; }
   .info-row {
     display: flex;
     justify-content: space-between;
