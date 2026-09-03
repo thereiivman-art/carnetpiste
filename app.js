@@ -2150,11 +2150,32 @@
     if (!teams.length) return '';
     var html = '<div class="section-title" style="font-size:0.95rem; margin-top:1.2rem; border-top:1px solid var(--border); padding-top:0.9rem;">Gestion des Teams</div>';
     html += '<ul class="rider-manager-list">' + teams.map(function (t) {
-      return '<li class="rider-manager-row account-manager-row">' +
+      var deleteControl = pendingDeleteTeamId !== t.id
+        ? '<button type="button" class="ghost icon-btn danger" data-action="admin-team-delete-request" data-team="' + t.id + '" aria-label="Supprimer ce Team" title="Supprimer ce Team">🗑</button>'
+        : '';
+      var row = '<li class="rider-manager-row account-manager-row">' +
         '<div><span class="rider-manager-name">' + escapeHtml(t.name) + '</span>' + teamBadgesHtml(t) +
         '<div class="help-text">créé par ' + escapeHtml(t.createdBy) + '</div></div>' +
         '<button type="button" class="ghost icon-btn' + (t.teamPro ? ' confirm' : '') + '" data-action="toggle-team-pro" data-team="' + t.id + '" aria-label="' + (t.teamPro ? 'Retirer Team PRO' : 'Marquer Team PRO') + '" title="' + (t.teamPro ? 'Retirer Team PRO' : 'Marquer Team PRO') + '">🏆</button>' +
+        deleteControl +
         '</li>';
+      // Same password-confirmation dance as a Team Leader deleting their
+      // own Team from Réglages (see deleteTeam/team-delete-form) -- every
+      // delete button in this app requires it, and the admin is no
+      // exception just because isAdmin() also happens to bypass the
+      // ownership check server-side.
+      if (pendingDeleteTeamId === t.id) {
+        row += '<li class="rider-manager-row"><form id="admin-team-delete-form" data-team="' + t.id + '" style="width:100%;">' +
+          '<div class="help-text">Supprimer "' + escapeHtml(t.name) + '" est irréversible. Confirme avec ton mot de passe actuel.</div>' +
+          '<label for="admin-team-delete-password" style="margin-top:0.6rem;">Mot de passe actuel</label>' +
+          '<input type="password" id="admin-team-delete-password" autocomplete="current-password">' +
+          '<div style="margin-top:0.7rem; display:flex; gap:0.6rem;">' +
+          '<button type="submit" class="ghost danger">Confirmer la suppression</button>' +
+          '<button type="button" class="ghost" data-action="admin-team-delete-cancel">Annuler</button></div>' +
+          (teamDeleteMessage ? '<div class="help-text" style="margin-top:0.6rem;">' + escapeHtml(teamDeleteMessage) + '</div>' : '') +
+          '</form></li>';
+      }
+      return row;
     }).join('') + '</ul>';
     return html;
   }
@@ -9196,6 +9217,28 @@
         evt.preventDefault();
         var pwEl = document.getElementById('team-delete-password');
         deleteTeam(teamDeleteForm.getAttribute('data-team'), pwEl ? pwEl.value : '');
+      });
+    }
+    document.querySelectorAll('[data-action="admin-team-delete-request"]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        pendingDeleteTeamId = btn.getAttribute('data-team');
+        teamDeleteMessage = '';
+        renderRoot();
+      });
+    });
+    document.querySelectorAll('[data-action="admin-team-delete-cancel"]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        pendingDeleteTeamId = null;
+        teamDeleteMessage = '';
+        renderRoot();
+      });
+    });
+    var adminTeamDeleteForm = document.getElementById('admin-team-delete-form');
+    if (adminTeamDeleteForm) {
+      adminTeamDeleteForm.addEventListener('submit', function (evt) {
+        evt.preventDefault();
+        var pwEl = document.getElementById('admin-team-delete-password');
+        deleteTeam(adminTeamDeleteForm.getAttribute('data-team'), pwEl ? pwEl.value : '');
       });
     }
     document.querySelectorAll('[data-action="team-tile-open"]').forEach(function (btn) {
