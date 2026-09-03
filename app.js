@@ -1695,8 +1695,15 @@
     html += renderStatSummaryCategory('verified-' + riderName, 'Chronos vérifiés', verifiedSessions.length, verifiedDetail);
     html += '</div>';
     html += '</div>';
-    html += renderAchievementsCard(riderAchievements(riderName, stats), 'achievements-' + riderName);
     return html;
+  }
+
+  // Trophées, kept separate from renderRiderStatsCard itself so
+  // renderStatsTab can place every rider's stats card first, then
+  // Records-of-the-year, then Trophées last -- visual order Chronos
+  // vérifiés -> Records -> Trophées, not interleaved per rider.
+  function renderRiderAchievementsCard(riderName) {
+    return renderAchievementsCard(riderAchievements(riderName, riderStats(riderName)), 'achievements-' + riderName);
   }
 
 
@@ -1833,16 +1840,10 @@
       '<label><input type="radio" name="profile-role" value="accompagnant"' + (p.role === 'accompagnant' ? ' checked' : '') + '> Accompagnant</label>' +
       '<label><input type="radio" name="profile-role" value="organisateur"' + (p.role === 'organisateur' ? ' checked' : '') + '> Organisateur</label>' +
       '</div>';
-    // A pilote's trophées live in Stats now (next to their lap times and
-    // records, which is what most of them are actually about) -- only
-    // accompagnant/organisateur keep theirs here, since neither has a
-    // Stats screen of their own (allKnownRiders(), which drives the Stats
-    // rider picker, only ever lists pilotes).
+    // Trophées unifiés dans Stats désormais, quel que soit le rôle (voir
+    // renderStatsTab) -- Profil n'en montre plus une copie séparée.
     if (p.role === 'organisateur') {
-      html += renderAchievementsCard(organisateurAchievements(p), 'achievements-profile-' + p.name);
       html += renderOrganizerHub();
-    } else if (p.role === 'accompagnant') {
-      html += renderAchievementsCard(accompagnantAchievements(p), 'achievements-profile-' + p.name);
     }
     html += '<div id="profile-bike-wrap" style="display:' + (isNonRider ? 'none' : 'block') + '; margin-top:0.9rem;">' +
       '<label for="profile-bike">Ma moto</label><input type="text" id="profile-bike" placeholder="Ex. ST 765 RS" value="' + escapeHtml(p.bike || '') + '">' +
@@ -2745,22 +2746,28 @@
   }
 
   function renderStatsTab() {
+    var me = currentUserProfile;
+    var html = '';
+    // Trophées unifiées ici pour tout le monde, y compris un compte
+    // Accompagnant/Organisateur qui n'a pas de chronos et n'apparaît donc
+    // jamais dans allKnownRiders() -- sa propre carte Trophées vient en
+    // premier, avant même la liste des pilotes.
+    if (me && (me.role === 'accompagnant' || me.role === 'organisateur')) {
+      var nonRiderAch = me.role === 'organisateur' ? organisateurAchievements(me) : accompagnantAchievements(me);
+      html += renderAchievementsCard(nonRiderAch, 'achievements-profile-' + me.name);
+    }
     var riders = allKnownRiders();
     if (!riders.length) {
-      return '<div class="card"><div class="empty-state">Aucun pilote pour l\'instant — ajoutez une sortie ou un chrono pour commencer.</div></div>';
+      return html || '<div class="card"><div class="empty-state">Aucun pilote pour l\'instant — ajoutez une sortie ou un chrono pour commencer.</div></div>';
     }
-    var html = '';
     var rider = (selectedRiders && selectedRiders.size === 1) ? Array.from(selectedRiders)[0] : null;
-    if (rider) {
-      html += renderRiderStatsCard(rider);
-    } else {
-      // "Tous les pilotes" (ou un état transitoire) — empile la carte de chaque pilote.
-      var names = (selectedRiders && selectedRiders.size ? Array.from(selectedRiders) : riders).slice().sort(function (a, b) { return a.localeCompare(b); });
-      names.forEach(function (r) {
-        html += renderRiderStatsCard(r);
-      });
-    }
+    // Chronos vérifiés -> Records -> Trophées, in that order: every
+    // rider's stats card (ending in Chronos vérifiés) first, then the
+    // single Records-of-the-year card, then every rider's Trophées last.
+    var names = rider ? [rider] : (selectedRiders && selectedRiders.size ? Array.from(selectedRiders) : riders).slice().sort(function (a, b) { return a.localeCompare(b); });
+    names.forEach(function (r) { html += renderRiderStatsCard(r); });
     html += renderRecordsThisYearCard();
+    names.forEach(function (r) { html += renderRiderAchievementsCard(r); });
     return html;
   }
 
