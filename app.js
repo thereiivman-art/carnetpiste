@@ -1720,7 +1720,6 @@
     html += riders.length ? '<ul class="rider-manager-list">' + rows + '</ul>' : '';
     html += '<form id="add-rider-form" class="rider-manager-add-form">' +
       '<input type="text" id="new-rider-name" placeholder="Nom du nouveau pilote" required>' +
-      '<input type="text" id="new-rider-number" placeholder="N° moto (si homonyme)" style="max-width:9rem;">' +
       '<button type="submit" class="primary">Ajouter</button>' +
       '</form>';
     if (riderManagerError) {
@@ -1735,9 +1734,9 @@
   // A pilote's name doubles as the roster's join key (STATE.riders /
   // ev.riderGroups / session.rider all key off it), so renaming it here
   // cascades through renameRiderEverywhere() just like the admin-only
-  // rider manager's rename -- and hits the same homonym guard as signup
-  // (see riderBaseName/checkRiderNameCollision) if the new name collides
-  // with someone else's.
+  // rider manager's rename -- and hits the same uniqueness guard as
+  // signup (see resolveUniquePseudo) if the new pseudo collides with
+  // someone else's.
   function renderProfileTabBar() {
     var tabs = [['profil', 'Profil'], ['reglages', 'Réglages'], ['aide', 'Aide']];
     return '<div class="profile-tabs" role="tablist">' + tabs.map(function (t) {
@@ -2346,7 +2345,7 @@
     return Promise.all(jobs);
   }
 
-  function saveProfile(role, notifyBeforeSession, followedRiders, bike, bikeNumber, newRawName, nameNumber, firstName, lastName) {
+  function saveProfile(role, notifyBeforeSession, followedRiders, bike, bikeNumber, newRawName, firstName, lastName) {
     var uid = auth.currentUser && auth.currentUser.uid;
     if (!uid || !currentUserProfile) return;
     if (notifyBeforeSession && window.Notification && Notification.permission === 'default') {
@@ -2361,12 +2360,8 @@
     // teamMembers docs are about to become unreachable by the usual
     // name-keyed lookups the instant the rename below succeeds.
     var teamMembershipsBeforeRename = (STATE.myTeamMemberships || []).slice();
-    // Resolved (and compared to the current name) every time, not just
-    // when the base name text changes -- a pilote can add, change, or
-    // remove their disambiguation number on its own, even with a unique
-    // name, without retyping their name too.
     if (newRawName) {
-      var result = resolveDisambiguatedName(newRawName, nameNumber, allKnownRiders(), oldName);
+      var result = resolveUniquePseudo(newRawName, allKnownRiders(), oldName);
       if (!result.ok) {
         profileSaveMessage = result.error;
         renderRoot();
@@ -2577,46 +2572,29 @@
   }
 
   // Riders are keyed by their display name throughout the app (sessions,
-  // riderGroups, checklist...), so two people who happen to share a first
-  // name can't otherwise coexist as distinct riders. Rather than a deeper
-  // id-based refactor, a rider whose base name collides with an existing
-  // one gets a bike number folded into the name itself -- "Julien (#12)" --
-  // which stays a single opaque string everywhere else already treats a
-  // rider name as one.
-  function riderBaseName(name) {
-    return (name || '').replace(/\s*\(#[^)]*\)\s*$/, '').trim();
-  }
-
-  // The number folded into "Julien (#12)", or '' if the name carries none --
-  // used to prefill the profile's N° field with whatever's already set,
-  // since a pilote can add/change/remove it without touching their name.
-  function riderNumberSuffix(name) {
-    var m = /\(#([^)]*)\)\s*$/.exec(name || '');
-    return m ? m[1] : '';
-  }
-
-  // Shared by adding a rider, the admin rename, and a pilote renaming
-  // themselves from "Mon profil" (and the equivalent check at signup) --
-  // one name collision rule everywhere a rider identity gets typed in.
-  // excludeName lets a rename/self-rename compare against every OTHER
-  // rider without tripping over its own current name.
-  function resolveDisambiguatedName(rawName, number, known, excludeName) {
-    var base = riderBaseName(rawName);
-    number = (number || '').trim();
-    var baseCollision = known.some(function (r) { return r !== excludeName && riderBaseName(r).toLowerCase() === base.toLowerCase(); });
-    if (baseCollision && !number) {
-      return { ok: false, error: 'Un pilote "' + base + '" existe déjà — ajoute un numéro de moto pour vous différencier.' };
+  // riderGroups, checklist...), so the pseudo itself must stay unique --
+  // two people who happen to share a first name need a distinguishable
+  // pseudo (e.g. "Julien" / "Julien P."), not a hidden bike-number suffix:
+  // that number is now purely "Ma moto" in Mon profil, a single field with
+  // nothing to do with identity (see also renderEventManagementScreen's
+  // per-event override, a separate, event-scoped number an orga can set).
+  // Shared by adding a rider, the admin rename, a pilote renaming
+  // themselves from "Mon profil", and signup -- one collision rule
+  // everywhere a pseudo gets typed in. excludeName lets a rename/self-
+  // rename compare against every OTHER rider without tripping over its
+  // own current name.
+  function resolveUniquePseudo(rawName, known, excludeName) {
+    var name = (rawName || '').trim();
+    if (!name) return { ok: false, error: 'Indique un pseudo.' };
+    if (known.some(function (r) { return r !== excludeName && r.toLowerCase() === name.toLowerCase(); })) {
+      return { ok: false, error: 'Ce pseudo est déjà utilisé -- essaie une variante (ex. "Julien" / "Julien P.").' };
     }
-    var finalName = number ? (base + ' (#' + number + ')') : base;
-    if (known.some(function (r) { return r !== excludeName && r.toLowerCase() === finalName.toLowerCase(); })) {
-      return { ok: false, error: 'Ce nom est déjà utilisé.' };
-    }
-    return { ok: true, name: finalName };
+    return { ok: true, name: name };
   }
 
-  function addRider(name, number) {
+  function addRider(name) {
     riderManagerError = '';
-    var result = resolveDisambiguatedName(name, number, allKnownRiders(), null);
+    var result = resolveUniquePseudo(name, allKnownRiders(), null);
     if (!result.ok) {
       riderManagerError = result.error;
       renderRoot();
@@ -3325,6 +3303,21 @@
   }
   function uncertifyChrono(sessionId) {
     db.collection('sessions').doc(sessionId).update({ certifiedBy: null }).catch(function (err) {
+      showToast('Erreur : ' + (err && err.message ? err.message : err));
+    });
+  }
+
+  // A rider's usual "N° de moto" lives on their own profile (Mon profil ->
+  // Ma moto) -- this is a separate, event-scoped override an orga
+  // (Team Leader) can set arbitrarily for a given sortie (e.g. a grid
+  // number assigned for that trackday only), never touching the rider's
+  // own account. Stored on the event doc itself, ev.riderBikeNumbers[name],
+  // since only that Team's leader can already write anything on a
+  // Team-owned event.
+  function saveEventRiderBikeNumber(eventId, riderName, number) {
+    var patch = {};
+    patch['riderBikeNumbers.' + riderName] = (number || '').trim() || firebase.firestore.FieldValue.delete();
+    db.collection('events').doc(eventId).update(patch).catch(function (err) {
       showToast('Erreur : ' + (err && err.message ? err.message : err));
     });
   }
@@ -5414,6 +5407,11 @@
     var group = riderEventGroup(ev, me.name);
     if (!group) return '';
     var row = infoRow(me.name, '<span class="my-group-letter">' + escapeHtml(group) + '</span>');
+    // A Team Leader can assign a rider a different bike number just for
+    // this sortie (see saveEventRiderBikeNumber) -- separate from, and
+    // never touching, "Ma moto" on the rider's own profile.
+    var eventNumber = (ev.riderBikeNumbers || {})[me.name];
+    if (eventNumber) row += infoRow('N° pour cette sortie', '#' + escapeHtml(eventNumber));
     return collapsibleSection('my-group-' + ev.id, 'Mon groupe', row, true);
   }
 
@@ -7639,11 +7637,16 @@
       else if (f && !m) tags += ' <span class="friend-role-badge">Suivi</span>';
       return tags;
     }
+    var eventBikeNumbers = ev.riderBikeNumbers || {};
     var riderRows = riders.length
       ? riders.map(function (name) {
           var u = (STATE.usersByName || {})[name] || {};
+          var eventNumber = eventBikeNumbers[name] || '';
           return '<div class="friend-row"><div class="friend-row-main">' + nameLinkHtml(name) + badgesHtml(u) + participantRoleTag(name) + (u.bikeNumber ? ' <span class="account-role-tag">#' + escapeHtml(u.bikeNumber) + '</span>' : '') + '</div>' +
-            '<div class="friend-row-actions"><button type="button" class="ghost icon-btn" data-action="team-event-remove-rider" data-id="' + ev.id + '" data-rider="' + escapeHtml(name) + '" aria-label="Retirer" title="Retirer">×</button></div></div>' + maybeFicheHtml(name);
+            '<div class="friend-row-actions"><button type="button" class="ghost icon-btn" data-action="team-event-remove-rider" data-id="' + ev.id + '" data-rider="' + escapeHtml(name) + '" aria-label="Retirer" title="Retirer">×</button></div>' +
+            '<div class="team-role-field"><input type="text" placeholder="N° pour cet event" value="' + escapeHtml(eventNumber) + '" data-event-bike-number-input inputmode="numeric">' +
+            '<button type="button" class="ghost icon-btn" data-action="event-bike-number-save" data-id="' + ev.id + '" data-rider="' + escapeHtml(name) + '" aria-label="Enregistrer le N°" title="Enregistrer">✓</button></div>' +
+            '</div>' + maybeFicheHtml(name);
         }).join('')
       : '<div class="help-text">Aucun participant.</div>';
     // Search-to-add, name + # (bikeNumber) shown per candidate so a Team
@@ -8257,7 +8260,6 @@
       html += '<h2 class="section-title">Créer un compte</h2>';
       html += '<form id="signup-form" novalidate>';
       html += '<label for="au-name">Pseudo</label><input type="text" id="au-name" name="name" autocomplete="username" placeholder="Ex. Xavier" required>';
-      html += '<div id="au-number-wrap" style="margin-top:0.7rem;"><label for="au-number">N° de moto <span class="help-text" style="display:inline;">(optionnel, même sans homonyme)</span></label><input type="text" id="au-number" placeholder="Ex. 12"></div>';
       html += '<label style="margin-top:0.7rem;">Je suis</label><div class="auth-role-choice">' +
         '<label><input type="radio" name="au-role" value="pilote" checked> Pilote</label>' +
         '<label><input type="radio" name="au-role" value="accompagnant"> Accompagnant</label>' +
@@ -8353,18 +8355,16 @@
     justAuthenticated = true;
     var roleEl = document.querySelector('input[name="au-role"]:checked');
     var role = roleEl ? roleEl.value : 'pilote';
-    var numberEl = document.getElementById('au-number');
-    var number = (role === 'pilote' && numberEl) ? numberEl.value.trim() : '';
     var rawName = document.getElementById('au-name').value.trim();
     var email = document.getElementById('au-email').value.trim();
     var password = document.getElementById('au-password').value;
     if (!rawName) {
-      authError = 'Indique ton nom.';
+      authError = 'Indique ton pseudo.';
       renderRoot();
       return;
     }
     authError = '';
-    var name = riderBaseName(rawName) + (number ? ' (#' + number + ')' : '');
+    var name = rawName;
     auth.createUserWithEmailAndPassword(email, password).then(function (cred) {
       // STATE.riders isn't synced yet at this point (that only starts once
       // signed in) -- a live query is the only way to check for a homonym
@@ -8376,7 +8376,7 @@
           })
         : Promise.resolve([]);
       return collisionCheck.then(function (existingNames) {
-        var result = resolveDisambiguatedName(rawName, number, existingNames, null);
+        var result = resolveUniquePseudo(rawName, existingNames, null);
         if (!result.ok) {
           // The auth account already exists at this point -- back it out
           // rather than leave an orphaned, nameless account behind.
@@ -8446,15 +8446,7 @@
     var loginForm = document.getElementById('login-form');
     if (loginForm) loginForm.addEventListener('submit', onLoginSubmit);
     var signupForm = document.getElementById('signup-form');
-    if (signupForm) {
-      signupForm.addEventListener('submit', onSignupSubmit);
-      signupForm.querySelectorAll('input[name="au-role"]').forEach(function (radio) {
-        radio.addEventListener('change', function () {
-          var numberWrap = document.getElementById('au-number-wrap');
-          if (numberWrap && radio.checked) numberWrap.style.display = radio.value === 'pilote' ? 'block' : 'none';
-        });
-      });
-    }
+    if (signupForm) signupForm.addEventListener('submit', onSignupSubmit);
     var toSignup = document.getElementById('switch-to-signup');
     if (toSignup) toSignup.addEventListener('click', function () { authMode = 'signup'; authError = ''; renderRoot(); });
     var toLogin = document.getElementById('switch-to-login');
@@ -8557,7 +8549,7 @@
     if (reglagesNotify && !document.getElementById('profile-form')) {
       reglagesNotify.addEventListener('change', function () {
         var p = currentUserProfile;
-        saveProfile(p.role, reglagesNotify.checked, p.followedRiders || [], p.bike, p.bikeNumber, p.name, riderNumberSuffix(p.name), p.firstName || '', p.lastName || '');
+        saveProfile(p.role, reglagesNotify.checked, p.followedRiders || [], p.bike, p.bikeNumber, p.name, p.firstName || '', p.lastName || '');
         showToast(reglagesNotify.checked ? 'Notifications activées.' : 'Notifications désactivées.', 'success');
       });
     }
@@ -8733,13 +8725,7 @@
             return;
           }
         }
-        // No UI control left to add/change the disambiguation number from
-        // here (removed per the brief) -- silently carry over whatever
-        // number the pseudo already has so a save never strips it by
-        // accident; still resolved fresh each time in case the base name
-        // itself changed (see resolveDisambiguatedName).
-        var nameNumber = riderNumberSuffix(currentUserProfile.name);
-        saveProfile(role, notify, followedRiders, bike, bikeNumber, newName, nameNumber, firstName, lastName);
+        saveProfile(role, notify, followedRiders, bike, bikeNumber, newName, firstName, lastName);
         pseudoEditUnlocked = false;
       });
       var notifyLabel = document.getElementById('profile-notify-label');
@@ -9085,6 +9071,14 @@
         var input = row ? row.querySelector('[data-team-role-input]') : null;
         setTeamMemberTeamRole(btn.getAttribute('data-team'), btn.getAttribute('data-name'), input ? input.value : '');
         showToast('Rôle enregistré.', 'success');
+      });
+    });
+    document.querySelectorAll('[data-action="event-bike-number-save"]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var row = btn.closest('.friend-row');
+        var input = row ? row.querySelector('[data-event-bike-number-input]') : null;
+        saveEventRiderBikeNumber(btn.getAttribute('data-id'), btn.getAttribute('data-rider'), input ? input.value : '');
+        showToast('N° enregistré.', 'success');
       });
     });
     document.querySelectorAll('[data-action="team-visibility"]').forEach(function (select) {
@@ -9866,10 +9860,9 @@
       addRiderForm.addEventListener('submit', function (evt) {
         evt.preventDefault();
         var input = document.getElementById('new-rider-name');
-        var numberInput = document.getElementById('new-rider-number');
         var name = input.value.trim();
         if (!name) return;
-        addRider(name, numberInput ? numberInput.value : '');
+        addRider(name);
       });
     }
     document.querySelectorAll('[data-action="rename-rider-request"]').forEach(function (btn) {
