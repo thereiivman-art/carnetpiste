@@ -2171,11 +2171,11 @@
   // membership, not a way to self-grant a role never actually held.
   function migrateTeamMembershipsForRename(oldName, newName, memberships) {
     var uid = auth.currentUser && auth.currentUser.uid;
-    if (!uid) return;
-    (memberships || []).forEach(function (m) {
+    if (!uid) return Promise.resolve();
+    return Promise.all((memberships || []).map(function (m) {
       var oldId = teamMemberDocId(m.teamId, oldName);
       var newId = teamMemberDocId(m.teamId, newName);
-      db.collection('teamMembers').doc(newId).set({
+      return db.collection('teamMembers').doc(newId).set({
         teamId: m.teamId, name: newName, role: m.role, uid: uid,
         joinedAt: m.joinedAt || Date.now(),
         teamRole: m.teamRole || null,
@@ -2185,7 +2185,7 @@
       }).catch(function (err) {
         showToast('Erreur de migration Team : ' + (err && err.message ? err.message : err));
       });
-    });
+    }));
   }
 
   // Rate limit for a pseudo change -- 1 per 30 days, enforced both here
@@ -2223,7 +2223,15 @@
       { coll: 'teamInvites', field: 'from', uidField: 'fromUid' },
       { coll: 'teamFeed', field: 'author', uidField: 'authorUid' },
       { coll: 'wallPosts', field: 'author', uidField: 'authorUid' },
-      { coll: 'eventAnnouncements', field: 'from', uidField: 'fromUid' }
+      { coll: 'eventAnnouncements', field: 'from', uidField: 'fromUid' },
+      // sessions.rider deliberately lives here, not in
+      // renameRiderEverywhere/persist() -- that path's rule (ownsChrono
+      // on both the before AND after rider value) can never hold during
+      // an actual rename for a non-admin account, since myName() only
+      // ever resolves to one value at a time. Handled with the same
+      // uid-based rename as everything else above instead (see
+      // firestore.rules' sessions update rule).
+      { coll: 'sessions', field: 'rider', uidField: 'uid' }
     ];
   }
   // Queried once, up front, while this account's own name (per
@@ -2355,7 +2363,19 @@
         nameChanged = true;
         finalName = result.name;
         var isKnownRider = allKnownRiders().indexOf(oldName) !== -1;
-        if (isKnownRider) renamePrevState = renameRiderEverywhere(oldName, finalName);
+        if (isKnownRider) {
+          renamePrevState = renameRiderEverywhere(oldName, finalName);
+          // sessions.rider is migrated separately (see
+          // groupARenameSpecs/applyGroupARenames) -- revert STATE.sessions
+          // back to their pre-rename values so the persist() call below
+          // only ever touches riders/events for this rename. Firestore
+          // batches are all-or-nothing: bundling a sessions write here
+          // too would poison the whole batch the instant a non-admin
+          // account's sessions can't yet satisfy the old ownsChrono-based
+          // rule (see that rule's own comment), silently rolling back the
+          // riders/events changes as well.
+          STATE.sessions = renamePrevState.sessions;
+        }
       }
     }
     var writes = { role: role, notifyBeforeSession: notifyBeforeSession, followedRiders: followedRiders, bike: bike || null, bikeNumber: bikeNumber || null,
@@ -2394,10 +2414,17 @@
       currentUserProfile.lastName = lastName || null;
       profileSaveMessage = 'Profil enregistré.';
       renderRoot();
-      if (renamePrevState) persist(renamePrevState);
       if (nameChanged) {
-        migrateTeamMembershipsForRename(oldName, finalName, teamMembershipsBeforeRename);
-        refreshMyTeamMembershipsSync();
+        // Team memberships first, and awaited -- persist() below may touch
+        // a team-owned event, and its rule needs isTeamLeader() to find
+        // this account's teamMembers doc under its NEW name (see that
+        // doc's own migratedFromId dance); starting it concurrently with
+        // persist() risked the event write landing first and finding no
+        // migrated doc yet, denying it.
+        migrateTeamMembershipsForRename(oldName, finalName, teamMembershipsBeforeRename).then(function () {
+          refreshMyTeamMembershipsSync();
+          if (renamePrevState) persist(renamePrevState);
+        });
         if (groupATargets) applyGroupARenames(groupATargets, finalName).catch(function (err) {
           showToast('Migration partielle : ' + (err && err.message ? err.message : err));
         });

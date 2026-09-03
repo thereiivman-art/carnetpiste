@@ -60,7 +60,11 @@ service cloud.firestore {
     function canBackfillUid(res, nameField, uidField) {
       return res.data[nameField] == myName()
         && request.resource.data.diff(res.data).affectedKeys().hasOnly([uidField])
-        && !res.data.keys().hasAny([uidField]);
+        // Absent OR explicitly null both count as "not backfilled yet" --
+        // some docs store an explicit null (e.g. an invite target whose
+        // uid wasn't resolvable at send time) rather than omitting the
+        // key, which .hasAny() alone would treat as already set.
+        && res.data.get(uidField, null) == null;
     }
     function hasAcceptedTeamInvite(teamId) {
       return exists(/databases/$(database)/documents/teamInvites/$(teamId + '_' + myName()))
@@ -147,7 +151,14 @@ service cloud.firestore {
         // the certifiedBy field, so this can never be used to touch the
         // rider/laps/date of someone else's chrono.
         || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['certifiedBy'])
-            && isOrganizerOfLinkedEvent(resource.data.get('eventId', null))));
+            && isOrganizerOfLinkedEvent(resource.data.get('eventId', null)))
+        // Rename self-heal -- ownsChrono(before) && ownsChrono(after)
+        // above can never both hold during an actual rename (myName()
+        // only ever resolves to one value at a time), so a pseudo change
+        // needs its own proof of ownership: the doc's own uid, unforgeable,
+        // same shape as every other collection's canRenameField/
+        // canBackfillUid (see saveProfile's groupARenameSpecs).
+        || canRenameField(resource, 'rider', 'uid') || canBackfillUid(resource, 'rider', 'uid'));
       allow delete: if verified() && (isAdmin() || ownsChrono(resource.data.rider)
         || ownsChronoViaTeam(resource.data.rider, resource.data.get('teamId', null)));
     }
@@ -201,11 +212,20 @@ service cloud.firestore {
       allow read: if request.auth != null;
       allow write: if verified();
     }
+    // A shared roster, not privately owned data -- create/update were
+    // already open to any verified account (so a new account can rebuild
+    // years of history under whatever name it actually rode under).
+    // Delete matches that same permissiveness now: it used to require
+    // isAdmin(), which silently broke a self-service pseudo rename (see
+    // diffRiders' create-new-name-then-delete-old-name pair, both in the
+    // same persist() batch as sessions/events -- if the delete half was
+    // ever denied, the WHOLE batch rolled back atomically, leaving the
+    // old name stuck forever and blocking anyone from ever reusing it).
     match /riders/{id} {
       allow read: if request.auth != null;
       allow create: if verified();
       allow update: if verified();
-      allow delete: if verified() && isAdmin();
+      allow delete: if verified();
     }
     match /settings/{id} {
       allow read: if request.auth != null;
