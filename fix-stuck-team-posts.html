@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Réparer les posts (Team/Mur) — Carnet de Piste</title>
+<style>
+  body { font: 15px -apple-system, sans-serif; max-width: 780px; margin: 3rem auto; padding: 0 1rem; color: #16212c; }
+  label { display: block; margin-top: 1rem; font-weight: 600; }
+  input { font-size: 1rem; padding: 0.5rem; width: 100%; box-sizing: border-box; margin-top: 0.3rem; }
+  button { font-size: 0.95rem; padding: 0.5rem 1rem; cursor: pointer; }
+  #login-btn, #scan-btn { font-size: 1rem; padding: 0.6rem 1.2rem; margin-top: 1.2rem; }
+  #log { white-space: pre-wrap; background: #f2f2f2; padding: 1rem; margin-top: 1.2rem; font-family: monospace; font-size: 0.82rem; max-height: 300px; overflow: auto; }
+  .help { font-size: 0.82rem; color: #666; font-weight: 400; margin-top: 0.2rem; }
+  #step2 { display: none; }
+  .row { border: 1px solid #ddd; border-radius: 8px; padding: 0.7rem 0.9rem; margin-top: 0.7rem; }
+  .row .meta { font-size: 0.78rem; color: #666; margin-bottom: 0.3rem; }
+  .row .text { white-space: pre-wrap; margin-bottom: 0.5rem; }
+  .row .mismatch { color: #a33; font-weight: 600; }
+  .row.removed { opacity: 0.4; }
+  .empty { color: #666; font-style: italic; margin-top: 0.8rem; }
+</style>
+</head>
+<body>
+<h1>Réparer les posts (Team feed / Mur)</h1>
+<p>Liste tout post <code>teamFeed</code>/<code>wallPosts</code> dont l'auteur enregistré ne correspond plus au pseudo actuel du compte qui l'a écrit (rename fait hors app, jamais migré) -- ce sont ceux qui plantent en "Missing or insufficient permissions" pour leur propre auteur (réagir, modifier, supprimer). Un compte concerné peut se réparer lui-même en se reconnectant (voir selfHealStaleNames dans app.js) ; en attendant, ou pour un post qu'on veut juste retirer, ce outil permet de le supprimer directement en tant qu'admin.</p>
+
+<div id="step1">
+  <label for="login-email">Email (compte admin)</label>
+  <input type="email" id="login-email" autocomplete="username">
+  <label for="login-password">Mot de passe</label>
+  <input type="password" id="login-password" autocomplete="current-password">
+  <button id="login-btn">Se connecter</button>
+</div>
+
+<div id="step2">
+  <label for="search">Filtrer par texte (optionnel)</label>
+  <input type="text" id="search" placeholder="Ex. Bonjour la Team Motop">
+  <button id="scan-btn">Scanner teamFeed + wallPosts</button>
+  <div id="results"></div>
+</div>
+
+<div id="log"></div>
+
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore-compat.js"></script>
+<script src="firebase-config.js"></script>
+<script>
+  var logEl = document.getElementById('log');
+  function log(msg) { logEl.textContent += msg + '\n'; }
+
+  var db, auth;
+
+  document.getElementById('login-btn').addEventListener('click', function () {
+    db = firebase.firestore();
+    auth = firebase.auth();
+    var email = document.getElementById('login-email').value.trim();
+    var password = document.getElementById('login-password').value;
+    log('Connexion...');
+    auth.signInWithEmailAndPassword(email, password).then(function () {
+      log('Connecté.');
+      document.getElementById('step1').style.display = 'none';
+      document.getElementById('step2').style.display = 'block';
+    }).catch(function (err) {
+      log('ERREUR : ' + (err && err.message ? err.message : err));
+    });
+  });
+
+  function loadUsersByUid() {
+    return db.collection('users').get().then(function (snap) {
+      var map = {};
+      snap.forEach(function (doc) { map[doc.id] = doc.data().name; });
+      return map;
+    });
+  }
+
+  function rowHtml(coll, doc, usersByUid) {
+    var d = doc.data();
+    var author = d.author;
+    var uidField = coll === 'teamFeed' ? 'authorUid' : 'authorUid';
+    var ownerUid = d[uidField];
+    var currentName = ownerUid ? usersByUid[ownerUid] : null;
+    var mismatch = ownerUid && currentName && currentName !== author;
+    var text = d.text || (d.type === 'poll' ? '[Sondage] ' + (d.question || '') : '') || '(sans texte)';
+    var meta = coll + ' · ' + (d.createdAt ? new Date(d.createdAt).toLocaleString('fr-FR') : '?') +
+      (d.teamId ? ' · team ' + d.teamId : '');
+    var mismatchLine = mismatch
+      ? '<div class="mismatch">Auteur enregistré : "' + author + '" -- pseudo actuel du même compte : "' + currentName + '"</div>'
+      : (!ownerUid ? '<div class="help">Pas de ' + uidField + ' -- pas de compte propriétaire identifiable (post ancien ou seedé).</div>' : '');
+    return '<div class="row" data-coll="' + coll + '" data-id="' + doc.id + '">' +
+      '<div class="meta">' + meta + ' · par ' + author + '</div>' +
+      '<div class="text">' + text.replace(/</g, '&lt;') + '</div>' +
+      mismatchLine +
+      '<button type="button" data-delete data-coll="' + coll + '" data-id="' + doc.id + '">Supprimer ce post</button>' +
+      '</div>';
+  }
+
+  document.getElementById('scan-btn').addEventListener('click', function () {
+    var scanBtn = document.getElementById('scan-btn');
+    scanBtn.disabled = true;
+    var filter = document.getElementById('search').value.trim().toLowerCase();
+    log('Scan en cours...');
+    Promise.all([loadUsersByUid(), db.collection('teamFeed').get(), db.collection('wallPosts').get()])
+      .then(function (results) {
+        var usersByUid = results[0];
+        var teamFeedDocs = results[1].docs;
+        var wallPostDocs = results[2].docs;
+        var rows = [];
+        teamFeedDocs.concat(wallPostDocs.map(function (d) { d._coll = 'wallPosts'; return d; })).forEach(function (doc) {
+          var coll = doc._coll || 'teamFeed';
+          var d = doc.data();
+          if (filter && !((d.text || '').toLowerCase().indexOf(filter) !== -1 || (d.author || '').toLowerCase().indexOf(filter) !== -1)) return;
+          rows.push({ coll: coll, doc: doc, html: rowHtml(coll, doc, usersByUid) });
+        });
+        var mismatchCount = rows.filter(function (r) {
+          var d = r.doc.data();
+          var uid = d.authorUid;
+          return uid && usersByUid[uid] && usersByUid[uid] !== d.author;
+        }).length;
+        var resultsEl = document.getElementById('results');
+        if (!rows.length) {
+          resultsEl.innerHTML = '<div class="empty">Rien trouvé' + (filter ? ' pour ce filtre' : '') + '.</div>';
+        } else {
+          resultsEl.innerHTML = '<div class="help" style="margin-top:0.8rem;">' + rows.length + ' post(s) affiché(s), dont ' + mismatchCount + ' avec un auteur qui ne correspond plus au pseudo actuel du compte.</div>' +
+            rows.map(function (r) { return r.html; }).join('');
+        }
+        log('Scan terminé -- ' + rows.length + ' post(s), ' + mismatchCount + ' avec nom périmé.');
+      }).catch(function (err) {
+        log('ERREUR : ' + (err && err.message ? err.message : err));
+      }).finally(function () {
+        scanBtn.disabled = false;
+      });
+  });
+
+  document.getElementById('results').addEventListener('click', function (evt) {
+    var btn = evt.target.closest('[data-delete]');
+    if (!btn) return;
+    var coll = btn.getAttribute('data-coll');
+    var id = btn.getAttribute('data-id');
+    if (!window.confirm('Supprimer définitivement ce post (' + coll + '/' + id + ') ?')) return;
+    btn.disabled = true;
+    db.collection(coll).doc(id).delete().then(function () {
+      log('Supprimé : ' + coll + '/' + id);
+      btn.closest('.row').classList.add('removed');
+      btn.textContent = 'Supprimé';
+    }).catch(function (err) {
+      log('ERREUR suppression ' + coll + '/' + id + ' : ' + (err && err.message ? err.message : err));
+      btn.disabled = false;
+    });
+  });
+</script>
+</body>
+</html>
