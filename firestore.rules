@@ -555,11 +555,15 @@ service cloud.firestore {
     }
     // Hôtel/avion/aéroport, personal per (event, account) -- unlike every
     // other event field, the Team orga never fills these in for anyone
-    // else, so this is genuinely private (like coachMessages), not just
-    // display-layer filtered: only its own rider (or admin) may ever
-    // read or write one doc.
+    // else. Still only ever writable by its own rider (or admin), but
+    // readable too by anyone who follows that rider (an accompagnant's
+    // own "Pilotes que je suis", see renderFollowedTravelInfoSection) --
+    // "partager les infos de voyage avec les accompagnants" per the brief.
     match /eventTravelInfo/{id} {
-      allow read: if verified() && (isAdmin() || resource.data.rider == myName());
+      allow read: if verified() && (
+        isAdmin() || resource.data.rider == myName()
+        || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('followedRiders', []).hasAny([resource.data.rider])
+      );
       allow create: if verified() && (
         request.resource.data.rider == myName()
         // Id = eventId_rider, so a rename needs a new id -- same

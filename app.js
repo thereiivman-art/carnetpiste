@@ -1813,9 +1813,6 @@
       html += '<input type="text" id="profile-name" value="' + escapeHtml(p.name) + '" disabled>' +
         '<button type="button" class="ghost" id="pseudo-edit-unlock" style="margin-top:0.4rem;">Modifier le pseudo</button>';
     }
-    html += '<div id="profile-name-number-wrap" style="display:' + (isNonRider ? 'none' : 'block') + '; margin-top:0.5rem;">' +
-      '<label for="profile-name-number">N° (optionnel, même sans homonyme)</label>' +
-      '<input type="text" id="profile-name-number" placeholder="Ex. 12" value="' + escapeHtml(riderNumberSuffix(p.name)) + '"></div>';
     // Distinct de Pseudo (l'identifiant utilisé partout dans l'app --
     // chronos, riders, connexion) -- Prénom/Nom sont facultatifs, remplis
     // par le user quand il veut, jamais requis, et ne cascadent nulle part.
@@ -5491,6 +5488,21 @@
       renderRoot();
     }).catch(function () {});
   }
+  // Read-only counterpart for an accompagnant/organisateur: firestore.rules
+  // now also lets eventTravelInfo be read by anyone who follows that rider
+  // (see myFollowedRiders() there), so a pilote sharing "Pilotes que je
+  // suis" effectively shares their hôtel/avion info with whoever follows
+  // them -- keyed eventId -> rider -> data (or {} once loaded, nothing set).
+  var travelInfoByEventRider = {};
+  function ensureFollowedTravelInfoLoaded(eventId, rider) {
+    travelInfoByEventRider[eventId] = travelInfoByEventRider[eventId] || {};
+    if (travelInfoByEventRider[eventId].hasOwnProperty(rider)) return;
+    travelInfoByEventRider[eventId][rider] = {};
+    db.collection('eventTravelInfo').doc(eventId + '_' + rider).get().then(function (doc) {
+      travelInfoByEventRider[eventId][rider] = doc.exists ? doc.data() : {};
+      renderRoot();
+    }).catch(function () {});
+  }
   function saveMyTravelInfo(eventId) {
     var me = currentUserProfile;
     if (!me) return;
@@ -5517,7 +5529,7 @@
     if (!currentUserProfile) return '';
     ensureMyTravelInfoLoaded(ev.id);
     var info = travelInfoByEvent[ev.id] || {};
-    var body = '<div class="help-text">Visible uniquement par toi.</div>';
+    var body = '<div class="help-text">Visible par toi et par tes accompagnants (comptes Accompagnant qui te suivent).</div>';
     body += '<div class="field-row" style="margin-top:0.6rem;">';
     body += '<div><label for="travel-hotel-name">Hôtel — nom</label><input type="text" id="travel-hotel-name" placeholder="Ex. Ibis Le Mans" value="' + escapeHtml(info.hotelName || '') + '"></div>';
     body += '<div><label for="travel-hotel-address">Hôtel — adresse</label><input type="text" id="travel-hotel-address" placeholder="Ex. 12 rue de la Sarthe, 72100 Le Mans" value="' + escapeHtml(info.hotelAddress || '') + '"></div>';
@@ -5531,6 +5543,35 @@
     body += '</div>';
     body += '<div style="margin-top:0.6rem;"><button type="button" class="ghost" data-action="save-travel-info" data-event-id="' + ev.id + '">Enregistrer</button></div>';
     return collapsibleSection('travel-info-' + ev.id, 'Mes infos de voyage', body);
+  }
+
+  // Read-only: an accompagnant/organisateur's own followed riders' travel
+  // info for this event, right next to (never instead of) their own. Never
+  // editable here -- eventTravelInfo stays each rider's own to fill in
+  // (see firestore.rules), this is purely "what my followed pilote(s)
+  // already shared with me by following works both ways" visibility.
+  function renderFollowedTravelInfoSection(ev) {
+    var me = currentUserProfile;
+    if (!me) return '';
+    var followed = (me.followedRiders || []).filter(function (r) { return (ev.riders || []).indexOf(r) !== -1; });
+    if (!followed.length) return '';
+    var body = followed.map(function (rider) {
+      ensureFollowedTravelInfoLoaded(ev.id, rider);
+      var info = (travelInfoByEventRider[ev.id] || {})[rider];
+      var rows;
+      if (!info) rows = '<div class="help-text">Chargement...</div>';
+      else if (!Object.keys(info).length) rows = '<div class="help-text">Rien renseigné pour l\'instant.</div>';
+      else {
+        rows = '';
+        if (info.hotelName) rows += infoRow('Hôtel', escapeHtml(info.hotelName) + (info.hotelAddress ? ' — ' + escapeHtml(info.hotelAddress) : ''));
+        if (info.flightOutDep || info.flightOutArr) rows += infoRow('Aller', escapeHtml(info.flightOutDep || '?') + ' → ' + escapeHtml(info.flightOutArr || '?'));
+        if (info.flightBackDep || info.flightBackArr) rows += infoRow('Retour', escapeHtml(info.flightBackDep || '?') + ' → ' + escapeHtml(info.flightBackArr || '?'));
+        if (info.airport) rows += infoRow('Aéroport', escapeHtml(info.airport));
+        if (!rows) rows = '<div class="help-text">Rien renseigné pour l\'instant.</div>';
+      }
+      return '<div style="margin-top:0.6rem;"><div class="account-role-tag" style="margin-bottom:0.3rem;">' + escapeHtml(rider) + '</div>' + rows + '</div>';
+    }).join('');
+    return collapsibleSection('followed-travel-' + ev.id, 'Infos de voyage des pilotes suivis', body);
   }
 
   // Photos/vidéos de la sortie -- one link par event (Drive, WeTransfer,
@@ -5988,6 +6029,7 @@
     if (planningOrganizerTeam) practicalInfo += '<div class="help-text">Organisateur : ' + escapeHtml(planningOrganizerTeam.name) + '</div>';
     var practicalInfoHtml = collapsibleSection('infos-pratiques', 'Infos pratiques', practicalInfo);
     practicalInfoHtml += renderMyTravelInfoSection(ev);
+    practicalInfoHtml += renderFollowedTravelInfoSection(ev);
 
     // Groupes/Équipement/Infos pratiques are the same three rubriques
     // whether or not this circuit has horaires recorded -- only the
@@ -7773,32 +7815,49 @@
     return collapsibleSection('coach-messages-' + requestId, 'Messages', body);
   }
 
+  // A coachRequests doc no longer implies "from = the pilote asking, to =
+  // the coach" -- a coach can now also initiate one directly to any
+  // pilote (see the search field below), which necessarily makes the
+  // coach the "from" (firestore.rules requires the creator to be from).
+  // So which side is the coach is read off the coach badge, never off
+  // from/to order.
+  function coachSideOf(r) {
+    var fromIsCoach = isCoachBadge((STATE.usersByName || {})[r.from]);
+    return { coach: fromIsCoach ? r.from : r.to, pilote: fromIsCoach ? r.to : r.from };
+  }
+
   function renderCoachTab() {
     var me = currentUserProfile;
     if (!me) return '';
     var html = '';
     var iAmCoach = isCoachBadge(me);
+    var myRequests = (STATE.coachRequests || []).filter(function (r) { return r.from === me.name || r.to === me.name; });
+
+    // Any pending request where I'm the recipient needs my accept/refuse,
+    // whichever direction created it -- a pilote asking a coach, or (new)
+    // a coach proposing directly to a pilote.
+    var incoming = myRequests.filter(function (r) { return r.status === 'pending' && r.to === me.name; });
+    if (incoming.length) {
+      var incomingBody = incoming.map(function (r) {
+        var u = (STATE.usersByName || {})[r.from] || {};
+        return '<div class="friend-row"><div class="friend-row-main">' + avatarHtml(u, r.from) + '<span class="friend-name-plain">' + escapeHtml(r.from) + '</span>' + badgesHtml(u) + '</div>' +
+          '<div class="friend-row-actions">' +
+          '<button type="button" class="primary" data-action="coach-request-accept" data-id="' + r.id + '">Accepter</button>' +
+          '<button type="button" class="ghost" data-action="coach-request-remove" data-id="' + r.id + '">Refuser</button>' +
+          '</div></div>';
+      }).join('');
+      html += collapsibleCard('coach-requests-in', 'Demandes de coaching reçues (' + incoming.length + ')', incomingBody, true);
+    }
 
     if (iAmCoach) {
-      var incomingAsCoach = (STATE.coachRequests || []).filter(function (r) { return r.status === 'pending' && r.to === me.name; });
-      if (incomingAsCoach.length) {
-        var incomingBody = incomingAsCoach.map(function (r) {
-          var u = (STATE.usersByName || {})[r.from] || {};
-          return '<div class="friend-row"><div class="friend-row-main">' + avatarHtml(u, r.from) + '<span class="friend-name-plain">' + escapeHtml(r.from) + '</span>' + badgesHtml(u) + '</div>' +
-            '<div class="friend-row-actions">' +
-            '<button type="button" class="primary" data-action="coach-request-accept" data-id="' + r.id + '">Accepter</button>' +
-            '<button type="button" class="ghost" data-action="coach-request-remove" data-id="' + r.id + '">Refuser</button>' +
-            '</div></div>';
-        }).join('');
-        html += collapsibleCard('coach-requests-in', 'Demandes de coaching reçues (' + incomingAsCoach.length + ')', incomingBody, true);
-      }
-      var myPilotes = (STATE.coachRequests || []).filter(function (r) { return r.status === 'accepted' && r.to === me.name; });
+      var myPilotes = myRequests.filter(function (r) { return r.status === 'accepted'; });
       var rosterBody = !myPilotes.length
         ? '<div class="empty-state">Personne pour l\'instant.</div>'
         : myPilotes.map(function (r) {
-          var u = (STATE.usersByName || {})[r.from] || {};
+          var piloteName = coachSideOf(r).pilote;
+          var u = (STATE.usersByName || {})[piloteName] || {};
           return '<div class="coach-pilote-row">' +
-            '<div class="friend-row-main">' + avatarHtml(u, r.from) + '<span class="friend-name-plain">' + escapeHtml(r.from) + '</span>' + badgesHtml(u) + '</div>' +
+            '<div class="friend-row-main">' + avatarHtml(u, piloteName) + '<span class="friend-name-plain">' + escapeHtml(piloteName) + '</span>' + badgesHtml(u) + '</div>' +
             '<label for="coach-plan-' + r.id + '" style="margin-top:0.5rem;">Planning / notes de coaching</label>' +
             '<textarea id="coach-plan-' + r.id + '" rows="3" data-coach-plan="' + r.id + '">' + escapeHtml(r.plan || '') + '</textarea>' +
             '<div style="margin-top:0.5rem; display:flex; gap:0.6rem;">' +
@@ -7807,18 +7866,43 @@
             '</div>' + renderCoachMessageThread(r.id) + '</div>';
         }).join('');
       html += collapsibleCard('coach-roster', 'Mes pilotes coachés (' + myPilotes.length + ')', rosterBody, true);
+
+      // Proposer un coaching à n'importe quel pilote -- pas besoin d'être
+      // amis ou de se suivre, juste un champ de recherche (datalist) sur
+      // tous les comptes Pilote, moins ceux déjà liés (demande en cours
+      // ou déjà coachés).
+      var linkedPilotes = myRequests.map(function (r) { return coachSideOf(r).pilote; });
+      var proposeCandidates = allKnownUserNames().filter(function (n) {
+        var u = (STATE.usersByName || {})[n] || {};
+        return n !== me.name && u.role === 'pilote' && linkedPilotes.indexOf(n) === -1;
+      });
+      if (proposeCandidates.length) {
+        var proposeBody = '<form id="coach-propose-form">' +
+          '<label for="coach-propose-input">Rechercher un pilote</label>' +
+          '<input type="text" id="coach-propose-input" list="coach-propose-list" placeholder="Nom du pilote" autocomplete="off">' +
+          '<datalist id="coach-propose-list">' + proposeCandidates.map(function (n) { return '<option value="' + escapeHtml(n) + '">'; }).join('') + '</datalist>' +
+          '<button type="submit" class="primary" style="margin-top:0.7rem;">Proposer le coaching</button></form>';
+        html += collapsibleCard('coach-propose', 'Proposer un coaching', proposeBody, false);
+      }
     }
 
-    var mine = (STATE.coachRequests || []).filter(function (r) { return r.from === me.name; })[0];
+    // My own side as a pilote -- an active/pending relationship I'm part
+    // of where I'm not the coach (whether I asked for it, or a coach
+    // proposed it to me and I already accepted it above). A still-pending
+    // one I received sits in "Demandes reçues" above, not duplicated here.
+    var mine = myRequests.filter(function (r) {
+      return coachSideOf(r).pilote === me.name && (r.status === 'accepted' || r.from === me.name);
+    })[0];
     var mineBody;
     if (mine) {
-      var coachU = (STATE.usersByName || {})[mine.to] || {};
-      mineBody = '<div class="friend-row"><div class="friend-row-main">' + avatarHtml(coachU, mine.to) + '<span class="friend-name-plain">' + escapeHtml(mine.to) + '</span>' + badgesHtml(coachU) +
+      var coachName = coachSideOf(mine).coach;
+      var coachU = (STATE.usersByName || {})[coachName] || {};
+      mineBody = '<div class="friend-row"><div class="friend-row-main">' + avatarHtml(coachU, coachName) + '<span class="friend-name-plain">' + escapeHtml(coachName) + '</span>' + badgesHtml(coachU) +
         '<span class="friend-role-badge">' + (mine.status === 'accepted' ? 'Coach actif' : 'Demande envoyée') + '</span></div>' +
         '<div class="friend-row-actions"><button type="button" class="ghost" data-action="coach-request-remove" data-id="' + mine.id + '">' +
         (mine.status === 'accepted' ? 'Arrêter le coaching' : 'Annuler la demande') + '</button></div></div>';
       if (mine.status === 'accepted') {
-        mineBody += '<div style="margin-top:0.7rem;"><div class="section-title" style="font-size:0.9rem;">Planning de ' + escapeHtml(mine.to) + '</div>' +
+        mineBody += '<div style="margin-top:0.7rem;"><div class="section-title" style="font-size:0.9rem;">Planning de ' + escapeHtml(coachName) + '</div>' +
           (mine.plan ? '<p class="help-text" style="white-space:pre-wrap;">' + escapeHtml(mine.plan) + '</p>' : '<div class="help-text">Rien pour l\'instant.</div>') + '</div>';
         mineBody += renderCoachMessageThread(mine.id);
       }
@@ -8439,7 +8523,7 @@
     if (reglagesNotify && !document.getElementById('profile-form')) {
       reglagesNotify.addEventListener('change', function () {
         var p = currentUserProfile;
-        saveProfile(p.role, reglagesNotify.checked, p.followedRiders || [], p.bike, p.bikeNumber, p.name, '', p.firstName || '', p.lastName || '');
+        saveProfile(p.role, reglagesNotify.checked, p.followedRiders || [], p.bike, p.bikeNumber, p.name, riderNumberSuffix(p.name), p.firstName || '', p.lastName || '');
         showToast(reglagesNotify.checked ? 'Notifications activées.' : 'Notifications désactivées.', 'success');
       });
     }
@@ -8606,8 +8690,6 @@
         );
         var nameEl = document.getElementById('profile-name');
         var newName = nameEl ? nameEl.value.trim() : '';
-        var nameNumberEl = document.getElementById('profile-name-number');
-        var nameNumber = nameNumberEl ? nameNumberEl.value.trim() : '';
         var firstNameEl = document.getElementById('profile-firstname');
         var firstName = firstNameEl ? firstNameEl.value.trim() : '';
         var lastNameEl = document.getElementById('profile-lastname');
@@ -8617,6 +8699,12 @@
             return;
           }
         }
+        // No UI control left to add/change the disambiguation number from
+        // here (removed per the brief) -- silently carry over whatever
+        // number the pseudo already has so a save never strips it by
+        // accident; still resolved fresh each time in case the base name
+        // itself changed (see resolveDisambiguatedName).
+        var nameNumber = riderNumberSuffix(currentUserProfile.name);
         saveProfile(role, notify, followedRiders, bike, bikeNumber, newName, nameNumber, firstName, lastName);
         pseudoEditUnlocked = false;
       });
@@ -8629,8 +8717,6 @@
             if (wrap) wrap.style.display = isNonRider ? 'block' : 'none';
             var bikeWrap = document.getElementById('profile-bike-wrap');
             if (bikeWrap) bikeWrap.style.display = isNonRider ? 'none' : 'block';
-            var nameNumberWrap = document.getElementById('profile-name-number-wrap');
-            if (nameNumberWrap) nameNumberWrap.style.display = isNonRider ? 'none' : 'block';
             if (notifyLabel) notifyLabel.textContent = isNonRider ? 'Me notifier quand un pilote suivi va partir rouler' : 'Me notifier quand mon groupe va partir rouler';
           }
         });
@@ -9177,6 +9263,22 @@
         evt.preventDefault();
         var select = document.getElementById('coach-request-select');
         if (select && select.value) sendCoachRequest(select.value);
+      });
+    }
+    var coachProposeForm = document.getElementById('coach-propose-form');
+    if (coachProposeForm) {
+      coachProposeForm.addEventListener('submit', function (evt) {
+        evt.preventDefault();
+        var input = document.getElementById('coach-propose-input');
+        var name = input ? input.value.trim() : '';
+        if (!name) return;
+        var u = (STATE.usersByName || {})[name];
+        if (!u || u.role !== 'pilote') {
+          showToast('Choisis un pilote dans la liste proposée.');
+          return;
+        }
+        sendCoachRequest(name);
+        input.value = '';
       });
     }
     document.querySelectorAll('[data-action="coach-message-form"]').forEach(function (form) {
