@@ -2065,7 +2065,7 @@
     return html;
   }
 
-  // How many items the header's 🏁 notification icon badges up -- every
+  // How many items the header's 🔔 notification icon badges up -- every
   // pending thing addressed to this account across the app's three
   // request/accept flows (friends, Teams, coaching), so the count means
   // "things waiting on you", not an activity-log tally.
@@ -2079,7 +2079,7 @@
     return n;
   }
 
-  // Opened from the header's 🏁 icon -- lists exactly the same pending
+  // Opened from the header's 🔔 icon -- lists exactly the same pending
   // items pendingNotificationCount() counts, each actionable right there
   // via the same data-action handlers their own tab already uses (accept-
   // friend/remove-friend, team-invite-accept/remove, coach-request-
@@ -2088,7 +2088,7 @@
     if (!notificationsPanelOpen) return '';
     var me = currentUserProfile;
     var html = '<div class="card notifications-panel">';
-    html += '<div class="section-title">🏁 Notifications</div>';
+    html += '<div class="section-title">🔔 Notifications</div>';
     if (!me) { html += '</div>'; return html; }
     var friendReqs = (STATE.friendRequests || []).filter(function (r) { return r.status === 'pending' && r.to === me.name; });
     var teamInvs = (STATE.teamInvites || []).filter(function (r) { return r.status === 'pending' && r.to === me.name; });
@@ -7845,7 +7845,7 @@
           '<span class="help-text">' + escapeHtml(formatEventRange(ev, true)) + ' · ' + escapeHtml(mine.join(', ')) + '</span></div>' +
           '<div class="friend-row-actions"><button type="button" class="ghost" data-action="team-event-manage-open" data-id="' + ev.id + '">Voir</button></div></div>';
       }).join('');
-      body += collapsibleSection('team-events-cross-' + team.id, 'Membres présents sur d\'autres événements (' + crossEvents.length + ')', crossRows, false);
+      body += collapsibleSection('team-events-cross-' + team.id, 'Événements (' + crossEvents.length + ')', crossRows, false);
     }
     if (editingEventId === 'new' && prefillEventTeamId === team.id) body += renderEventForm();
     // Its own full card, not just another collapsibleSection folded in
@@ -8490,7 +8490,7 @@
             '<div class="header-controls">' +
               (canAccessCoachSpace() ? '<button type="button" class="header-icon-btn' + (activeView === 'coach' ? ' active' : '') + '" data-view="coach" aria-label="Coach" title="Coach">🎓</button>' : '') +
               '<button type="button" class="header-icon-btn' + (activeView === 'stats' ? ' active' : '') + '" data-view="stats" aria-label="Stats" title="Stats">📊</button>' +
-              '<button type="button" class="header-icon-btn" id="notifications-toggle" aria-label="Notifications" title="Notifications">🏁' +
+              '<button type="button" class="header-icon-btn" id="notifications-toggle" aria-label="Notifications" title="Notifications">🔔' +
                 (notifCount ? '<span class="notif-count">' + (notifCount > 9 ? '9+' : notifCount) + '</span>' : '') +
               '</button>' +
               '<button type="button" class="profile-badge-btn" id="profile-toggle" aria-label="Mon profil" title="Mon profil">' + avatarHtml(currentUserProfile, currentUserProfile.name) + '</button>' +
