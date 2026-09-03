@@ -2768,7 +2768,12 @@
     var names = rider ? [rider] : (selectedRiders && selectedRiders.size ? Array.from(selectedRiders) : riders).slice().sort(function (a, b) { return a.localeCompare(b); });
     names.forEach(function (r) { html += renderRiderStatsCard(r); });
     html += renderRecordsThisYearCard();
-    names.forEach(function (r) { html += renderRiderAchievementsCard(r); });
+    // Un compte accompagnant/organisateur qui apparaît aussi dans
+    // allKnownRiders() (ex. listé une fois comme participant d'un event)
+    // a déjà eu sa carte Trophées ci-dessus (nonRiderAch) -- ne pas la
+    // rendre une deuxième fois ici via la boucle rider générique.
+    var skipAchievementsFor = (me && (me.role === 'accompagnant' || me.role === 'organisateur')) ? me.name : null;
+    names.forEach(function (r) { if (r !== skipAchievementsFor) html += renderRiderAchievementsCard(r); });
     return html;
   }
 
@@ -7758,6 +7763,26 @@
         upcoming.length ? upcoming.map(eventRow).join('') : '<div class="help-text">Rien de prévu.</div>', !ongoing.length);
       body += collapsibleSection('team-events-past-' + team.id, 'Passés (' + past.length + ')',
         past.length ? past.map(eventRow).join('') : '<div class="help-text">Aucun événement passé.</div>', false);
+    }
+    // Cross-team, read-only : un event organisé par un autre Team (le
+    // plus souvent un Team PRO) où au moins un membre de CE Team-ci
+    // participe -- pas de bouton Gérer, les droits de modification
+    // restent réservés au Team Leader du Team organisateur (voir
+    // renderEventManagementScreen).
+    var roster = membersOfTeam(team.id).map(function (m) { return m.name; });
+    var crossEvents = (STATE.events || []).filter(function (ev) {
+      return ev.teamId && ev.teamId !== team.id && (ev.riders || []).some(function (r) { return roster.indexOf(r) !== -1; });
+    });
+    if (crossEvents.length) {
+      crossEvents.sort(function (a, b) { return a.dateStart < b.dateStart ? 1 : -1; });
+      var crossRows = crossEvents.map(function (ev) {
+        var orgTeam = teamById(ev.teamId);
+        var mine = (ev.riders || []).filter(function (r) { return roster.indexOf(r) !== -1; });
+        return '<div class="friend-row"><div class="friend-row-main"><span class="friend-name-plain">' + escapeHtml(ev.circuit) + '</span>' +
+          (orgTeam ? '<span class="friend-role-badge">' + escapeHtml(orgTeam.name) + '</span>' : '') +
+          '<span class="help-text">' + escapeHtml(formatEventRange(ev, true)) + ' · ' + escapeHtml(mine.join(', ')) + '</span></div></div>';
+      }).join('');
+      body += collapsibleSection('team-events-cross-' + team.id, 'Membres présents sur d\'autres événements (' + crossEvents.length + ')', crossRows, false);
     }
     if (editingEventId === 'new' && prefillEventTeamId === team.id) body += renderEventForm();
     // Its own full card, not just another collapsibleSection folded in
