@@ -557,7 +557,15 @@ service cloud.firestore {
     match /wallPosts/{id} {
       allow read: if request.auth != null;
       allow create: if verified() && request.resource.data.author == myName();
-      allow update: if verified() && (canRenameField(resource, 'author', 'authorUid') || canBackfillUid(resource, 'author', 'authorUid'));
+      // Emoji reaction, own key only -- same "anyone who can see it can
+      // react to it" reasoning as teamFeed (see there for why this isn't
+      // gated on friend/follower status: not cheaply checkable here, and
+      // reading the post is already open to any signed-in account above).
+      allow update: if verified() && (
+        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reactions'])
+          && onlyOwnKeyChanged(resource.data.get('reactions', {}), request.resource.data.reactions))
+        || canRenameField(resource, 'author', 'authorUid') || canBackfillUid(resource, 'author', 'authorUid')
+      );
       allow delete: if verified() && (resource.data.author == myName() || isAdmin());
     }
     // Free-text broadcasts a Team Leader sends to an event's pilotes

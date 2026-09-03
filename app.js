@@ -7409,6 +7409,10 @@
     if (currentUserProfile && p.author === currentUserProfile.name) {
       html += '<button type="button" class="ghost icon-btn" data-action="delete-wall-post" data-id="' + p.id + '" aria-label="Supprimer" title="Supprimer">×</button>';
     }
+    // Same reaction bar as teamFeed -- was missing entirely here, so
+    // anyone who could see a wallPost (a follower included, not just a
+    // friend) had no way to react to it at all.
+    html += renderReactionBar(p.reactions, 'react-wall-post', p.id);
     html += '</div>';
     return html;
   }
@@ -9646,6 +9650,13 @@
         var id = btn.getAttribute('data-id');
         var entry = (STATE.teamFeed || []).filter(function (f) { return f.id === id; })[0];
         toggleReaction('teamFeed', id, btn.getAttribute('data-emoji'), entry && entry.reactions);
+      });
+    });
+    document.querySelectorAll('[data-action="react-wall-post"]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var id = btn.getAttribute('data-id');
+        var entry = (STATE.wallPosts || []).filter(function (p) { return p.id === id; })[0];
+        toggleReaction('wallPosts', id, btn.getAttribute('data-emoji'), entry && entry.reactions);
       });
     });
     document.querySelectorAll('[data-action="team-post-edit"]').forEach(function (btn) {
