@@ -1476,6 +1476,36 @@
     .bottom-nav-icon { font-size: 1.15rem; }
     .bottom-nav-label { font-size: 0.86rem; overflow: visible; }
     .toast-stack { bottom: 1.2rem; }
+
+    /* renderGroupsSection's board (Gestion des événements' Groupes) --
+       the one screen this whole desktop pass is really for: an
+       organisateur checking "les pilotes dans les bons groupes" at a
+       glance instead of scrolling one long accordion. Each group stays
+       its own <details data-planning-section>, already open by default
+       (see renderGroupsSection), just laid out as a column instead of a
+       full-width block -- still individually collapsible to free up
+       horizontal room. Horizontal scroll rather than wrapping: a 6th
+       group scrolling into view reads better than the board reflowing to
+       two uneven rows.
+    */
+    .groups-board {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.9rem;
+      overflow-x: auto;
+      padding-bottom: 0.6rem;
+      margin-top: 0.6rem;
+    }
+    .groups-board > .planning-section {
+      flex: 0 0 260px;
+      margin-top: 0;
+      border-top: none;
+      padding-top: 0;
+      background: var(--surface-alt);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 0.8rem;
+    }
   }
 
   .horaires-grid {

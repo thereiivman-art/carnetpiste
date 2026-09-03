@@ -5579,6 +5579,14 @@
     }
     var assignedCount = riders.length - unassigned.length;
     var html = '<div class="section-title" style="margin-top:1rem;">Groupes (' + assignedCount + ')</div>';
+    // .groups-board: on desktop (see style.css) this becomes a row of
+    // columns -- Non attribués + every group side by side, like a board,
+    // instead of one long vertical stack of accordions. That's exactly
+    // "les pilotes dans les bons groupes" at a glance for an organizer
+    // with a wide screen; each column stays its own <details> underneath
+    // so mobile keeps the accordion behaviour unchanged, and a column can
+    // still be collapsed individually to free up horizontal room.
+    html += '<div class="groups-board">';
     if (unassigned.length) {
       html += collapsibleSection('event-group-unassigned-' + ev.id, 'Non attribués (' + unassigned.length + ')', unassigned.map(function (r) { return riderRow(r, false); }).join(''), true);
     }
@@ -5609,6 +5617,7 @@
       }
       html += collapsibleSection('event-group-' + g + '-' + ev.id, (g === 'ORGA' ? 'Groupe ORGA (staff)' : 'Groupe ' + g) + ' (' + members.length + ')', body, true);
     });
+    html += '</div>';
     return html;
   }
 
