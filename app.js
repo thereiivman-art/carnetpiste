@@ -1924,6 +1924,7 @@
     html += '<div class="help-text">Ce que tes amis voient quand ils ouvrent ta fiche depuis Social.</div>';
     html += '<label class="checklist-item" style="margin-top:0.6rem;"><input type="checkbox" id="profile-share-sorties"' + (p.shareSorties !== false ? ' checked' : '') + '> Partager mes sorties/chronos</label>';
     html += '<label class="checklist-item" style="margin-top:0.4rem;"><input type="checkbox" id="profile-share-trophees"' + (p.shareTrophees !== false ? ' checked' : '') + '> Partager mes trophées</label>';
+    html += '<label class="checklist-item" style="margin-top:0.4rem;"><input type="checkbox" id="profile-share-travel-info"' + (p.shareTravelInfo !== false ? ' checked' : '') + '> Partager mes infos de voyage (avec les amis qui te suivent)</label>';
     html += '</div>';
     if (isAdmin()) html += renderSelfBadges(p);
     // Separate form -- changing the sign-in email needs the current
@@ -5691,7 +5692,11 @@
   function renderFollowedTravelInfoSection(ev) {
     var me = currentUserProfile;
     if (!me) return '';
-    var followed = (me.followedRiders || []).filter(function (r) { return (ev.riders || []).indexOf(r) !== -1; });
+    var followed = (me.followedRiders || []).filter(function (r) {
+      if ((ev.riders || []).indexOf(r) === -1) return false;
+      var u = STATE.usersByName && STATE.usersByName[r];
+      return !u || u.shareTravelInfo !== false;
+    });
     if (!followed.length) return '';
     var body = followed.map(function (rider) {
       ensureFollowedTravelInfoLoaded(ev.id, rider);
@@ -6111,6 +6116,8 @@
   }
 
   function renderHorairesPhotoSection(ev) {
+    var isLeader = ev.teamId && isLeaderOfTeam(ev.teamId);
+    if (!ev.horairesPhotoURL && !isLeader) return '';
     var html = '<div class="horaires-photo-block">';
     html += '<div class="horaires-photo-title">📷 Photo des horaires de l\'organisateur</div>';
     html += '<div class="help-text">Pour vérifier les horaires ci-dessus par rapport à ce qui a été partagé dans le groupe WhatsApp.</div>';
@@ -6118,9 +6125,11 @@
       var expanded = !!horairesPhotoExpanded[ev.id];
       html += '<img class="horaires-photo-thumb' + (expanded ? ' expanded' : '') + '" src="' + escapeHtml(ev.horairesPhotoURL) + '" alt="Photo des horaires" data-action="toggle-horaires-photo" data-id="' + ev.id + '">';
       if (ev.horairesPhotoAddedBy) html += '<div class="help-text">Ajoutée par ' + escapeHtml(ev.horairesPhotoAddedBy) + '</div>';
-      html += '<div style="margin-top:0.5rem; display:flex; gap:0.5rem;">' +
-        '<button type="button" class="ghost" data-action="horaires-photo-add" data-id="' + ev.id + '">Remplacer</button>' +
-        '<button type="button" class="ghost" data-action="horaires-photo-remove" data-id="' + ev.id + '">Retirer</button></div>';
+      if (isLeader) {
+        html += '<div style="margin-top:0.5rem; display:flex; gap:0.5rem;">' +
+          '<button type="button" class="ghost" data-action="horaires-photo-add" data-id="' + ev.id + '">Remplacer</button>' +
+          '<button type="button" class="ghost" data-action="horaires-photo-remove" data-id="' + ev.id + '">Retirer</button></div>';
+      }
     } else {
       html += '<div style="margin-top:0.5rem;"><button type="button" class="ghost" data-action="horaires-photo-add" data-id="' + ev.id + '">Ajouter la photo de l\'organisateur</button></div>';
     }
@@ -6177,6 +6186,8 @@
     // here -- it's schedule information, same family as the slot times.
     var briefingLine = info.briefing ? '<div class="help-text" style="margin-bottom:0.6rem; color:var(--accent); font-weight:600;">Briefing ' + escapeHtml(info.briefing) + '</div>' : '';
 
+    html += renderMyGroupSection(ev);
+
     // Groupes/Équipement/Infos pratiques are the same three rubriques
     // whether or not this circuit has horaires recorded -- only the
     // Horaires rubrique itself (and the countdown/recap that depend on
@@ -6205,7 +6216,7 @@
       horairesInner += '</div>';
       horairesInner += renderHoraireGroups(horaires, activeKeys, ev, info.briefing);
       horairesInner += renderHorairesPhotoSection(ev);
-      html += collapsibleSection('horaires', 'Horaires', horairesInner, true);
+      html += collapsibleSection('horaires', 'Horaires', horairesInner, false);
     }
     html += renderPracticalInfoSection(ev, isLeader);
     if (isOngoing && availableGroups.length) {
@@ -6220,7 +6231,6 @@
     // Grey card: this account's own personal info for the sortie -- never
     // something the Team orga fills in for everyone.
     var personal = '<div class="card personal-info-card">';
-    personal += renderMyGroupSection(ev);
     personal += renderFriendsGroupSection(ev);
     personal += collapsibleSection('equipement', checklistCountLabel(ev), renderPlanningChecklist(ev));
     personal += renderMyTravelInfoSection(ev);
@@ -8762,6 +8772,10 @@
     var shareTropheesEl = document.getElementById('profile-share-trophees');
     if (shareTropheesEl) {
       shareTropheesEl.addEventListener('change', function () { saveOwnBooleanField('shareTrophees', shareTropheesEl.checked); });
+    }
+    var shareTravelInfoEl = document.getElementById('profile-share-travel-info');
+    if (shareTravelInfoEl) {
+      shareTravelInfoEl.addEventListener('change', function () { saveOwnBooleanField('shareTravelInfo', shareTravelInfoEl.checked); });
     }
     document.querySelectorAll('[data-self-badge]').forEach(function (cb) {
       cb.addEventListener('change', function () { saveOwnBooleanField(cb.getAttribute('data-self-badge'), cb.checked); });
