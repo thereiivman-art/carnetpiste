@@ -2841,6 +2841,9 @@
     // monde, y compris un compte accompagnant/organisateur dont la propre
     // carte Trophées vient tout en bas, après celles des pilotes.
     var names = rider ? [rider] : (selectedRiders && selectedRiders.size ? Array.from(selectedRiders) : riders).slice().sort(function (a, b) { return a.localeCompare(b); });
+    // Exporte exactement ce que la page affiche -- le(s) pilote(s)
+    // actuellement filtré(s) par le sélecteur global, pas toute la base.
+    html += '<div style="margin-bottom:0.8rem;"><button type="button" class="ghost" data-action="export-chronos-csv">⬇ Exporter en CSV</button></div>';
     names.forEach(function (r) { html += renderRiderStatsCard(r); });
     // Un compte accompagnant/organisateur qui apparaît aussi dans
     // allKnownRiders() (ex. listé une fois comme participant d'un event)
@@ -2850,6 +2853,37 @@
     names.forEach(function (r) { if (r !== skipAchievementsFor) html += renderRiderAchievementsCard(r); });
     if (isNonRider) html += renderAchievementsCard(nonRiderAch, 'achievements-profile-' + me.name);
     return html;
+  }
+
+  // One row per session, meilleur tour + tous les tours + certification --
+  // covers what a rider would want to keep outside the app (a personal
+  // spreadsheet, a season recap) without needing a backend to generate it.
+  function csvField(v) {
+    var s = String(v == null ? '' : v);
+    return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+  }
+  function exportSessionsCsv(names) {
+    var rows = [['Pilote', 'Date', 'Circuit', 'Meilleur tour', 'Tous les tours', 'Vérifié', 'Vérifié par']];
+    STATE.sessions
+      .filter(function (s) { return names.indexOf(s.rider) !== -1; })
+      .sort(function (a, b) { return a.date < b.date ? -1 : a.date > b.date ? 1 : (a.rider < b.rider ? -1 : 1); })
+      .forEach(function (s) {
+        rows.push([
+          s.rider, s.date, s.circuit, formatTime(sessionBest(s)),
+          s.laps.map(formatTime).join(' / '),
+          s.certifiedBy ? 'Oui' : 'Non', s.certifiedBy || ''
+        ]);
+      });
+    var csv = rows.map(function (r) { return r.map(csvField).join(','); }).join('\r\n');
+    var blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = 'chronos-' + dateKey(new Date()) + '.csv';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   }
 
   // Every sortie on this circuit whose date range covers dateStr -- lets
@@ -5685,6 +5719,20 @@
       html += renderMyGroupSection(ev);
       html += renderFriendsGroupSection(ev);
     }
+    // Une fois l'event passé, EN PISTE ne cible plus que l'event en cours/à
+    // venir (voir targetPlanningEvent) -- sans ça, "qui était dans quel
+    // groupe à quelle heure" disparaissait complètement après coup, alors
+    // que ev.riderGroups et les horaires du circuit restent là. Repliée
+    // par défaut (ce n'est plus l'info qu'on vient chercher en premier une
+    // fois la sortie terminée) ; live=false, pas de mise en avant du
+    // créneau "en cours" qui n'aurait plus de sens pour une date passée.
+    if (eventTemporalStatus(ev, dateKey(new Date())) === 'past') {
+      var pastInfo = circuitInfo(ev.circuit);
+      if (pastInfo.horaires) {
+        var pastGroups = renderHoraireGroups(pastInfo.horaires, null, ev, pastInfo.briefing, false);
+        if (pastGroups) html += collapsibleSection('event-past-horaires-' + ev.id, 'Groupes & horaires de cette sortie', pastGroups, false);
+      }
+    }
     html += renderEventCertificationSection(ev);
     html += renderMediaLinkSection(ev);
     // The circuit's own interactive map, so the annotated track is one tap
@@ -7425,19 +7473,29 @@
     return html;
   }
 
+  var editingWallPostId = null; // id of the one wallPost currently shown as an inline edit form, or null -- same pattern as editingTeamPostId
   function renderWallPost(p) {
     var u = (STATE.usersByName || {})[p.author] || {};
     var audienceLabel = p.audience === 'followers' ? 'Followers' : (p.audience === 'all' ? 'Amis + followers' : 'Amis');
+    var canEdit = !!(currentUserProfile && p.author === currentUserProfile.name);
+    if (canEdit && editingWallPostId === p.id) {
+      return '<div class="wall-post"><form data-action="wall-post-edit-form" data-id="' + p.id + '">' +
+        '<textarea rows="2" placeholder="Un mot, un événement, une photo..." data-wall-post-edit-text>' + escapeHtml(p.text || '') + '</textarea>' +
+        '<input type="url" value="' + escapeHtml(p.linkUrl || '') + '" placeholder="Lien (optionnel)" data-wall-post-edit-link>' +
+        '<div style="display:flex; gap:0.5rem; margin-top:0.4rem;"><button type="submit" class="primary">Enregistrer</button>' +
+        '<button type="button" class="ghost" data-action="wall-post-edit-cancel">Annuler</button></div></form></div>';
+    }
     var html = '<div class="wall-post">';
     html += '<div class="wall-post-head">' + avatarHtml(u, p.author) +
       '<span class="friend-name-plain">' + escapeHtml(p.author) + '</span>' + badgesHtml(u) +
       '<span class="friend-role-badge">' + escapeHtml(audienceLabel) + '</span>' +
-      '<span class="feed-entry-time">' + escapeHtml(relativeTime(p.createdAt)) + '</span></div>';
+      '<span class="feed-entry-time">' + escapeHtml(relativeTime(p.editedAt || p.createdAt)) + (p.editedAt ? ' (modifié)' : '') + '</span></div>';
     if (p.text) html += '<div class="wall-post-text">' + escapeHtml(p.text) + '</div>';
     if (p.linkUrl) html += '<a class="wall-post-link" href="' + escapeHtml(p.linkUrl) + '" target="_blank" rel="noopener">🔗 ' + escapeHtml(p.linkUrl) + '</a>';
     if (p.photoURL) html += '<img class="wall-post-photo" src="' + escapeHtml(p.photoURL) + '" alt="">';
-    if (currentUserProfile && p.author === currentUserProfile.name) {
-      html += '<button type="button" class="ghost icon-btn" data-action="delete-wall-post" data-id="' + p.id + '" aria-label="Supprimer" title="Supprimer">×</button>';
+    if (canEdit) {
+      html += '<button type="button" class="ghost icon-btn" data-action="wall-post-edit" data-id="' + p.id + '" aria-label="Modifier" title="Modifier">✎</button>' +
+        '<button type="button" class="ghost icon-btn" data-action="delete-wall-post" data-id="' + p.id + '" aria-label="Supprimer" title="Supprimer">×</button>';
     }
     // Same reaction bar as teamFeed -- was missing entirely here, so
     // anyone who could see a wallPost (a follower included, not just a
@@ -7518,6 +7576,18 @@
 
   function deleteWallPost(id) {
     db.collection('wallPosts').doc(id).delete().catch(function (err) {
+      showToast('Erreur : ' + (err && err.message ? err.message : err));
+    });
+  }
+
+  function updateWallPost(id, text, linkUrl) {
+    text = (text || '').trim();
+    linkUrl = (linkUrl || '').trim();
+    if (!text && !linkUrl) { showToast('Le message ne peut pas être vide.'); return; }
+    db.collection('wallPosts').doc(id).update({ text: text || null, linkUrl: linkUrl || null, editedAt: Date.now() }).then(function () {
+      editingWallPostId = null;
+      renderRoot();
+    }).catch(function (err) {
       showToast('Erreur : ' + (err && err.message ? err.message : err));
     });
   }
@@ -9240,8 +9310,31 @@
     if (wallPostPhotoRemoveBtn) {
       wallPostPhotoRemoveBtn.addEventListener('click', function () { wallPostDraftPhotoURL = null; renderRoot(); });
     }
+    var exportCsvBtn = document.querySelector('[data-action="export-chronos-csv"]');
+    if (exportCsvBtn) {
+      exportCsvBtn.addEventListener('click', function () {
+        var riders = allKnownRiders();
+        var rider = (selectedRiders && selectedRiders.size === 1) ? Array.from(selectedRiders)[0] : null;
+        var names = rider ? [rider] : (selectedRiders && selectedRiders.size ? Array.from(selectedRiders) : riders);
+        exportSessionsCsv(names);
+      });
+    }
     document.querySelectorAll('[data-action="delete-wall-post"]').forEach(function (btn) {
       btn.addEventListener('click', function () { deleteWallPost(btn.getAttribute('data-id')); });
+    });
+    document.querySelectorAll('[data-action="wall-post-edit"]').forEach(function (btn) {
+      btn.addEventListener('click', function () { editingWallPostId = btn.getAttribute('data-id'); renderRoot(); });
+    });
+    document.querySelectorAll('[data-action="wall-post-edit-cancel"]').forEach(function (btn) {
+      btn.addEventListener('click', function () { editingWallPostId = null; renderRoot(); });
+    });
+    document.querySelectorAll('[data-action="wall-post-edit-form"]').forEach(function (form) {
+      form.addEventListener('submit', function (evt) {
+        evt.preventDefault();
+        var textEl = form.querySelector('[data-wall-post-edit-text]');
+        var linkEl = form.querySelector('[data-wall-post-edit-link]');
+        updateWallPost(form.getAttribute('data-id'), textEl ? textEl.value : '', linkEl ? linkEl.value : '');
+      });
     });
     var deleteAccountRequestBtn = document.getElementById('delete-account-request-btn');
     if (deleteAccountRequestBtn) {

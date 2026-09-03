@@ -564,6 +564,8 @@ service cloud.firestore {
       allow update: if verified() && (
         (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reactions'])
           && onlyOwnKeyChanged(resource.data.get('reactions', {}), request.resource.data.reactions))
+        || (resource.data.author == myName()
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['text', 'linkUrl', 'editedAt']))
         || canRenameField(resource, 'author', 'authorUid') || canBackfillUid(resource, 'author', 'authorUid')
       );
       allow delete: if verified() && (resource.data.author == myName() || isAdmin());
