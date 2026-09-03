@@ -5382,8 +5382,13 @@
   function deleteEventControl(ev) {
     if (!isAdmin() && !(ev.teamId && isLeaderOfTeam(ev.teamId))) return '';
     var armed = pendingDeleteEvent === ev.id;
-    return '<button type="button" class="ghost danger' + (armed ? ' confirm' : '') + '" data-action="delete-event-request" data-id="' + ev.id + '">' +
+    var btn = '<button type="button" class="ghost danger' + (armed ? ' confirm' : '') + '" data-action="delete-event-request" data-id="' + ev.id + '">' +
       (armed ? 'Confirmer la suppression' : 'Supprimer cet événement') + '</button>';
+    // Explicit Annuler once armed -- otherwise the only way out is to
+    // notice the click didn't do what you expected and guess that
+    // clicking away resets it.
+    if (armed) btn += ' <button type="button" class="ghost" data-action="delete-event-cancel">Annuler</button>';
+    return btn;
   }
 
   function renderSessionDayCard(dateStr) {
@@ -7688,6 +7693,12 @@
           var isTeamLeaderRole = !!(memberDoc && memberDoc.role === 'leader');
           var pills = pill(name, 'follow', 'Suivi', !!followDoc) + pill(name, 'member', 'Membre', !!memberDoc) +
             pill(name, 'adherent', 'Adhérent', isAdherent) + pill(name, 'leader', 'Team Leader', isTeamLeaderRole);
+          // Explicit Annuler once the Team Leader pill is armed -- same
+          // reasoning as deleteEventControl: otherwise the only way out is
+          // to guess that clicking elsewhere resets it.
+          if (pendingLeaderToggle && pendingLeaderToggle.team === team.id && pendingLeaderToggle.name === name) {
+            pills += '<button type="button" class="ghost" data-action="team-leader-toggle-cancel">Annuler</button>';
+          }
           // A pending "je veux être adhérent" request (see
           // requestTeamAdherent) surfaces here rather than in a separate
           // list -- toggling the Adhérent pill above already clears it
@@ -7777,27 +7788,50 @@
   // renderEventManagementScreen), not stacked three <details> deep here.
   function renderTeamEventsManagement(team) {
     var todayKey = dateKey(new Date());
-    var all = (STATE.events || []).filter(function (ev) { return ev.teamId === team.id; });
+    var own = (STATE.events || []).filter(function (ev) { return ev.teamId === team.id; });
+    // Cross-team, read-only : un event organisé par un autre Team (le
+    // plus souvent un Team PRO) où au moins un membre de CE Team-ci
+    // participe -- pas de bouton Gérer, les droits de modification
+    // restent réservés au Team Leader du Team organisateur (voir
+    // renderEventManagementScreen). Mélangé dans les mêmes buckets
+    // En cours/À venir/Passés que les events propres au Team (plutôt
+    // qu'une 4e section à part) pour que le regroupement reste
+    // temporel partout -- seuls le badge du Team organisateur et le
+    // bouton Voir (au lieu de Gérer) distinguent une ligne cross-team.
+    var roster = membersOfTeam(team.id).map(function (m) { return m.name; });
+    var cross = (STATE.events || []).filter(function (ev) {
+      return ev.teamId && ev.teamId !== team.id && (ev.riders || []).some(function (r) { return roster.indexOf(r) !== -1; });
+    });
+    var all = own.concat(cross);
     var pendingByEvent = {};
     (STATE.eventJoinRequests || []).forEach(function (r) {
       if (r.status !== 'pending' || r.teamId !== team.id) return;
       (pendingByEvent[r.eventId] = pendingByEvent[r.eventId] || []).push(r);
     });
     function eventRow(ev) {
+      var isOwn = ev.teamId === team.id;
+      var orgTeam = isOwn ? null : teamById(ev.teamId);
       var reqs = pendingByEvent[ev.id] || [];
       var riders = ev.riders || [];
-      var meta = [String(riders.length) + ' participant' + (riders.length > 1 ? 's' : '')];
-      if (reqs.length) meta.push(reqs.length + ' demande' + (reqs.length > 1 ? 's' : '') + ' en attente');
+      var meta;
+      if (isOwn) {
+        meta = [String(riders.length) + ' participant' + (riders.length > 1 ? 's' : '')];
+        if (reqs.length) meta.push(reqs.length + ' demande' + (reqs.length > 1 ? 's' : '') + ' en attente');
+      } else {
+        var mine = riders.filter(function (r) { return roster.indexOf(r) !== -1; });
+        meta = [mine.join(', ')];
+      }
       // Réactions ne comptent qu'une fois l'event passé -- avant ça,
       // personne n'a encore été invité à réagir (voir renderEventSummaryCard).
       var likesHtml = '';
-      if (eventTemporalStatus(ev, todayKey) === 'past') {
+      if (isOwn && eventTemporalStatus(ev, todayKey) === 'past') {
         var likeCount = Object.keys(ev.reactions || {}).length;
         if (likeCount) likesHtml = ' <span class="event-likes-badge">👍 ' + likeCount + '</span>';
       }
       return '<div class="friend-row"><div class="friend-row-main"><span class="friend-name-plain">' + escapeHtml(ev.circuit) + '</span>' +
+        (orgTeam ? '<span class="friend-role-badge">' + escapeHtml(orgTeam.name) + '</span>' : '') +
         '<span class="help-text">' + escapeHtml(formatEventRange(ev, true)) + ' · ' + meta.join(' · ') + '</span>' + likesHtml + '</div>' +
-        '<div class="friend-row-actions"><button type="button" class="primary" data-action="team-event-manage-open" data-id="' + ev.id + '">Gérer</button></div></div>';
+        '<div class="friend-row-actions"><button type="button" class="' + (isOwn ? 'primary' : 'ghost') + '" data-action="team-event-manage-open" data-id="' + ev.id + '">' + (isOwn ? 'Gérer' : 'Voir') + '</button></div></div>';
     }
     var ongoing = [], upcoming = [], past = [];
     all.forEach(function (ev) {
@@ -7823,30 +7857,6 @@
       body += collapsibleSection('team-events-past-' + team.id, 'Passés (' + past.length + ')',
         past.length ? past.map(eventRow).join('') : '<div class="help-text">Aucun événement passé.</div>', false);
     }
-    // Cross-team, read-only : un event organisé par un autre Team (le
-    // plus souvent un Team PRO) où au moins un membre de CE Team-ci
-    // participe -- pas de bouton Gérer, les droits de modification
-    // restent réservés au Team Leader du Team organisateur (voir
-    // renderEventManagementScreen).
-    var roster = membersOfTeam(team.id).map(function (m) { return m.name; });
-    var crossEvents = (STATE.events || []).filter(function (ev) {
-      return ev.teamId && ev.teamId !== team.id && (ev.riders || []).some(function (r) { return roster.indexOf(r) !== -1; });
-    });
-    if (crossEvents.length) {
-      crossEvents.sort(function (a, b) { return a.dateStart < b.dateStart ? 1 : -1; });
-      var crossRows = crossEvents.map(function (ev) {
-        var orgTeam = teamById(ev.teamId);
-        var mine = (ev.riders || []).filter(function (r) { return roster.indexOf(r) !== -1; });
-        // Same "team-event-manage-open" action as a normal row -- clickable
-        // like on the organizing Team PRO's own screen, just opened
-        // read-only (see renderEventManagementScreen's canEdit).
-        return '<div class="friend-row"><div class="friend-row-main"><span class="friend-name-plain">' + escapeHtml(ev.circuit) + '</span>' +
-          (orgTeam ? '<span class="friend-role-badge">' + escapeHtml(orgTeam.name) + '</span>' : '') +
-          '<span class="help-text">' + escapeHtml(formatEventRange(ev, true)) + ' · ' + escapeHtml(mine.join(', ')) + '</span></div>' +
-          '<div class="friend-row-actions"><button type="button" class="ghost" data-action="team-event-manage-open" data-id="' + ev.id + '">Voir</button></div></div>';
-      }).join('');
-      body += collapsibleSection('team-events-cross-' + team.id, 'Événements (' + crossEvents.length + ')', crossRows, false);
-    }
     if (editingEventId === 'new' && prefillEventTeamId === team.id) body += renderEventForm();
     // Its own full card, not just another collapsibleSection folded in
     // among Fil d'actualité/Membres/Inviter -- a separate, self-contained
@@ -7855,7 +7865,10 @@
     // "+ Ajouter" lives right next to the title (see collapsibleCard's
     // titleActionsHtml) instead of buried at the bottom of a long list.
     var addBtn = '<button type="button" class="ghost" data-action="team-event-add" data-team="' + team.id + '">+ Ajouter un événement</button>';
-    return collapsibleCard('team-events-' + team.id, 'Gestion des événements' + (all.length ? ' (' + all.length + ')' : ''), body, false, addBtn);
+    // The card title's count is own.length, not all.length -- "Gestion"
+    // in the title is about what's actually manageable here; the
+    // cross-team, read-only events mixed into the buckets below aren't.
+    return collapsibleCard('team-events-' + team.id, 'Gestion des événements' + (own.length ? ' (' + own.length + ')' : ''), body, false, addBtn);
   }
 
   // The dedicated per-event management screen (see managingEventId) --
@@ -9433,6 +9446,9 @@
         setTeamMemberStatus(teamId, followDoc, memberDoc, name, status, turningOn);
       });
     });
+    document.querySelectorAll('[data-action="team-leader-toggle-cancel"]').forEach(function (btn) {
+      btn.addEventListener('click', function () { pendingLeaderToggle = null; renderRoot(); });
+    });
     document.querySelectorAll('[data-action="team-role-save"]').forEach(function (btn) {
       btn.addEventListener('click', function () {
         var row = btn.closest('.team-manage-row');
@@ -10189,6 +10205,9 @@
         // in between the two clicks (see deleteEventControl's comment).
         renderRoot();
       });
+    });
+    document.querySelectorAll('[data-action="delete-event-cancel"]').forEach(function (btn) {
+      btn.addEventListener('click', function () { pendingDeleteEvent = null; renderRoot(); });
     });
 
     document.querySelectorAll('[data-planning-section]').forEach(function (details) {
