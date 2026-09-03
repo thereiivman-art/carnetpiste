@@ -23,6 +23,16 @@
   // whole app behind a login/signup screen (see renderAuthScreen()).
   var authState = 'loading'; // 'loading' | 'signed-out' | 'signed-in'
   var currentUserProfile = null; // { name, role: 'pilote'|'accompagnant', email } once loaded
+  // Distinguishes "no data" from "data not in yet" on the main tabs --
+  // without this, a slow first connection briefly shows "Aucun événement"/
+  // "Aucun pilote" (STATE's arrays start empty) before the real onSnapshot
+  // payloads land, which reads as broken rather than loading. Reset to the
+  // full set at the top of startSync(), each key removed the first time
+  // its own listener actually fires (see startSync()).
+  var CORE_SYNC_KEYS = ['sessions', 'events', 'circuits', 'riders', 'users'];
+  var coreSyncPending = null;
+  function markCoreSynced(key) { if (coreSyncPending) coreSyncPending.delete(key); }
+  function coreDataLoading() { return !!(coreSyncPending && coreSyncPending.size); }
   var authMode = 'login'; // 'login' | 'signup' -- which form the auth screen shows
   var authError = '';
   var autoVerifyEmailSent = false; // guards the auto-resend in onAuthStateChanged, see there
@@ -1395,10 +1405,10 @@
       achievementEntry('🗺️', 'Grand voyageur', 'Rouler sur 10 circuits différents.', stats.circuitsVisited, 10, 'circuits'),
       achievementEntry('📅', 'Habitué', 'Cumuler 10 jours sur piste.', stats.trackDays, 10, 'jours'),
       achievementEntry('🎖️', 'Vétéran', 'Cumuler 30 jours sur piste.', stats.trackDays, 30, 'jours'),
-      achievementEntry('🔥', 'Régulier', 'Revenir 3 fois ou plus sur le même circuit.', maxOutingsOnOneCircuit, 3, 'sorties'),
+      achievementEntry('🔥', 'Régulier', 'Revenir 3 fois ou plus sur le même circuit.', maxOutingsOnOneCircuit, 3, 'événements'),
       achievementEntry('📈', 'Assidu', 'Enregistrer 20 chronos.', chronoCount, 20, 'chronos'),
-      achievementEntry('🚀', 'Grosse progression', 'Gagner au moins 1 seconde sur un circuit depuis sa première sortie là-bas.', Math.floor(maxGainSeconds), 1, 's gagnées'),
-      achievementEntry('⚡', 'Éclair', 'Gagner au moins 3 secondes sur un circuit depuis sa première sortie là-bas.', Math.floor(maxGainSeconds), 3, 's gagnées'),
+      achievementEntry('🚀', 'Grosse progression', 'Gagner au moins 1 seconde sur un circuit depuis son premier événement là-bas.', Math.floor(maxGainSeconds), 1, 's gagnées'),
+      achievementEntry('⚡', 'Éclair', 'Gagner au moins 3 secondes sur un circuit depuis son premier événement là-bas.', Math.floor(maxGainSeconds), 3, 's gagnées'),
       achievementEntry('🥇', 'Recordman', 'Détenir le record du groupe sur au moins un circuit.', recordCount, 1, 'record(s)'),
       achievementEntry('👑', 'Multi-recordman', 'Détenir le record du groupe sur 3 circuits ou plus.', recordCount, 3, 'records'),
       achievementEntry('🤝', 'Parrain', 'Faire signer un premier filleul avec ton lien de parrainage.', filleuls, 1, 'filleul(s)'),
@@ -1417,18 +1427,18 @@
       achievementEntry('👀', 'Premier suivi', 'Suivre au moins un pilote depuis Mon profil.', followed, 1, 'pilote(s)'),
       achievementEntry('🧭', 'Supporter fidèle', 'Suivre 3 pilotes ou plus.', followed, 3, 'pilotes'),
       achievementEntry('🔔', 'Toujours alerte', 'Activer les notifications de départ en piste.', profile.notifyBeforeSession ? 1 : 0, 1),
-      achievementEntry('📸', 'Reporter', 'Partager un lien photos/vidéos pour une sortie.', mediaLinksAdded, 1, 'sortie(s)'),
-      achievementEntry('🎬', 'Grand reporter', 'Partager un lien photos/vidéos pour 3 sorties.', mediaLinksAdded, 3, 'sorties'),
+      achievementEntry('📸', 'Reporter', 'Partager un lien photos/vidéos pour un événement.', mediaLinksAdded, 1, 'événement(s)'),
+      achievementEntry('🎬', 'Grand reporter', 'Partager un lien photos/vidéos pour 3 événements.', mediaLinksAdded, 3, 'événements'),
       achievementEntry('🤝', 'Parrain', 'Faire signer un premier filleul avec ton lien de parrainage.', filleuls, 1, 'filleul(s)'),
       achievementEntry('👨‍👩‍👧', 'Grand parrain', 'Faire signer 5 filleuls avec ton lien de parrainage.', filleuls, 5, 'filleuls')
     ].concat(socialTeamAchievements(profile.name));
   }
 
   // Organisateurs don't ride either, but unlike an accompagnant their
-  // activity is about running sorties -- counted off the "Organisateur"
-  // free-text field every sortie already carries (see renderEventForm),
+  // activity is about running events -- counted off the "Organisateur"
+  // free-text field every event already carries (see renderEventForm),
   // matched against this account's own name. No schema change: an
-  // organisateur just signs their sorties with the same name they signed
+  // organisateur just signs their events with the same name they signed
   // up under.
   function organisateurAchievements(profile) {
     var organized = STATE.events.filter(function (ev) { return ev.organizer === profile.name; });
@@ -1438,13 +1448,13 @@
     loadFilleulCount(profile.name);
     var filleuls = filleulCounts[profile.name] || 0;
     return [
-      achievementEntry('🏁', 'Premier événement', 'Organiser une sortie (champ "Organisateur" de la sortie = ton nom).', organized.length, 1, 'sortie(s)'),
-      achievementEntry('📋', 'Organisateur confirmé', 'Organiser 5 sorties.', organized.length, 5, 'sorties'),
-      achievementEntry('🏆', 'Organisateur chevronné', 'Organiser 15 sorties.', organized.length, 15, 'sorties'),
-      achievementEntry('🗺️', 'Multi-circuits', 'Organiser des sorties sur 3 circuits différents.', Object.keys(circuitsOrganized).length, 3, 'circuits'),
+      achievementEntry('🏁', 'Premier événement', 'Organiser un événement (champ "Organisateur" de l\'événement = ton nom).', organized.length, 1, 'événement(s)'),
+      achievementEntry('📋', 'Organisateur confirmé', 'Organiser 5 événements.', organized.length, 5, 'événements'),
+      achievementEntry('🏆', 'Organisateur chevronné', 'Organiser 15 événements.', organized.length, 15, 'événements'),
+      achievementEntry('🗺️', 'Multi-circuits', 'Organiser des événements sur 3 circuits différents.', Object.keys(circuitsOrganized).length, 3, 'circuits'),
       achievementEntry('🔔', 'Toujours alerte', 'Activer les notifications de départ en piste.', profile.notifyBeforeSession ? 1 : 0, 1),
-      achievementEntry('📸', 'Reporter', 'Partager un lien photos/vidéos pour une sortie.', mediaLinksAdded, 1, 'sortie(s)'),
-      achievementEntry('🎬', 'Grand reporter', 'Partager un lien photos/vidéos pour 3 sorties.', mediaLinksAdded, 3, 'sorties'),
+      achievementEntry('📸', 'Reporter', 'Partager un lien photos/vidéos pour un événement.', mediaLinksAdded, 1, 'événement(s)'),
+      achievementEntry('🎬', 'Grand reporter', 'Partager un lien photos/vidéos pour 3 événements.', mediaLinksAdded, 3, 'événements'),
       achievementEntry('🤝', 'Parrain', 'Faire signer un premier filleul avec ton lien de parrainage.', filleuls, 1, 'filleul(s)'),
       achievementEntry('👨‍👩‍👧', 'Grand parrain', 'Faire signer 5 filleuls avec ton lien de parrainage.', filleuls, 5, 'filleuls')
     ].concat(socialTeamAchievements(profile.name));
@@ -1651,7 +1661,7 @@
     html += '<div class="rider-stat-summaries">';
     var outingsDetail = '';
     if (stats.lastSession) {
-      outingsDetail += infoRow('Dernière sortie', escapeHtml(stats.lastSession.circuit) + ' — ' + escapeHtml(formatDate(stats.lastSession.date)) + ' (' + formatTime(stats.lastSession.time) + ')');
+      outingsDetail += infoRow('Dernier événement', escapeHtml(stats.lastSession.circuit) + ' — ' + escapeHtml(formatDate(stats.lastSession.date)) + ' (' + formatTime(stats.lastSession.time) + ')');
     }
     if (stats.outingsList.length) {
       outingsDetail += '<ul class="stat-detail-list">' + stats.outingsList.map(function (o) {
@@ -1659,7 +1669,7 @@
         return '<li>' + escapeHtml(o.circuit) + ' — ' + range + '</li>';
       }).join('') + '</ul>';
     }
-    html += renderStatSummaryCategory('outings-' + riderName, 'Sorties', stats.outingsCount, outingsDetail);
+    html += renderStatSummaryCategory('outings-' + riderName, 'Événements', stats.outingsCount, outingsDetail);
     html += renderStatSummaryCategory('circuits-' + riderName, 'Circuits visités', stats.circuitsVisited,
       !stats.circuitsList.length ? '' : '<ul class="stat-detail-list">' + stats.circuitsList.map(function (c) {
         return '<li>' + escapeHtml(c) + '</li>';
@@ -1677,7 +1687,7 @@
             ? '<span class="daily-recap-better">−' + Math.abs(b.progression).toFixed(3) + '</span>'
             : (b.progression > 0 ? '<span class="daily-recap-worse">+' + b.progression.toFixed(3) + '</span>' : '=');
         }
-        bestsDetail += '<div class="best-time-row"><span class="best-time-circuit">' + escapeHtml(b.circuit) + ' <span class="help-text" style="display:inline;">(' + b.outings + ' sortie' + (b.outings > 1 ? 's' : '') + ')</span></span>' +
+        bestsDetail += '<div class="best-time-row"><span class="best-time-circuit">' + escapeHtml(b.circuit) + ' <span class="help-text" style="display:inline;">(' + b.outings + ' événement' + (b.outings > 1 ? 's' : '') + ')</span></span>' +
           '<span><span class="best-time-value">' + formatTime(b.time) + '</span>' +
           (progressionHtml ? ' ' + progressionHtml : '') +
           '<span class="best-time-date">' + formatDate(b.date) + '</span></span></div>';
@@ -1785,19 +1795,19 @@
     pilote: {
       title: 'Espace pilote',
       items: [
-        'Enregistrer tes chronos sortie par sortie et suivre tes meilleurs temps par circuit',
+        'Enregistrer tes chronos événement par événement et suivre tes meilleurs temps par circuit',
         'Faire certifier tes chronos par un Team Leader ("Chrono vérifié")',
-        'Retrouver les horaires, groupes et infos pratiques de chaque sortie dans EN PISTE',
+        'Retrouver les horaires, groupes et infos pratiques de chaque événement dans EN PISTE',
         'Partager tes infos de voyage (hôtel, vols) avec tes amis, et voir les leurs',
         'Suivre tes amis, réagir sur leur mur et sur celui de ton Team',
-        'Rejoindre un Team (amateur ou PRO) et participer à ses sorties'
+        'Rejoindre un Team (amateur ou PRO) et participer à ses événements'
       ]
     },
     accompagnant: {
       title: 'Espace accompagnant',
       items: [
         'Suivre des pilotes et être notifié quand leur groupe va partir rouler',
-        'Consulter les horaires, groupes et infos pratiques de la sortie en cours, sans y rouler toi-même',
+        'Consulter les horaires, groupes et infos pratiques de l\'événement en cours, sans y rouler toi-même',
         'Voir les chronos et la progression des pilotes que tu suis',
         'Voir les infos de voyage des pilotes suivis, si elles sont partagées',
         'Suivre des Teams, réagir sur leur mur, et publier sur ton propre mur'
@@ -1806,9 +1816,9 @@
     organisateur: {
       title: 'Espace organisateur',
       items: [
-        'Créer et gérer une sortie : dates, horaires par groupe, infos pratiques, baptêmes/coaching',
+        'Créer et gérer un événement : dates, horaires par groupe, infos pratiques, baptêmes/coaching',
         'Tenir à jour la fiche d\'un circuit (plan, distance, virages, horaires par défaut)',
-        'Partager un lien photos/vidéos après la sortie',
+        'Partager un lien photos/vidéos après l\'événement',
         'Suivre des pilotes et être notifié de leurs départs, comme un accompagnant',
         'Si tu es aussi Team Leader d\'un Team : gérer ses membres, son fil d\'actualité, ses événements et certifier les chronos de tes pilotes'
       ]
@@ -1831,6 +1841,12 @@
   // or a save actually goes through, so it's never left unlocked across
   // an unrelated visit to Mon profil.
   var pseudoEditUnlocked = false;
+  // Click-to-arm/click-to-confirm for the actual rename on submit (replaces
+  // a window.confirm()) -- first Enregistrer with a changed pseudo just
+  // arms it and shows a message instead of saving, second Enregistrer goes
+  // through. Reset whenever the pseudo field itself changes again, so an
+  // armed confirm never silently applies to a different name.
+  var pseudoRenameConfirmPending = false;
 
   function renderProfileProfilTab(p) {
     // "Accompagnant" and "Organisateur" both mean "doesn't ride" for the
@@ -1934,7 +1950,7 @@
     html += '<label class="checklist-item" style="margin-top:0.6rem;"><input type="checkbox" id="profile-notify"' + (p.notifyBeforeSession ? ' checked' : '') + '> <span id="profile-notify-label">' + (isNonRider ? 'Un pilote suivi va partir rouler' : 'Mon groupe va partir rouler') + '</span></label>';
     html += '<label class="checklist-item" style="margin-top:0.4rem;"><input type="checkbox" id="profile-notify-invites"' + (p.notifyInvites !== false ? ' checked' : '') + '> J\'ai reçu une invitation</label>';
     html += '<label class="checklist-item" style="margin-top:0.4rem;"><input type="checkbox" id="profile-notify-team-news"' + (p.notifyTeamNews !== false ? ' checked' : '') + '> Actu de mon Team</label>';
-    html += '<label class="checklist-item" style="margin-top:0.4rem;"><input type="checkbox" id="profile-notify-pro-outings"' + (p.notifyProOutings !== false ? ' checked' : '') + '> Nouvelle sortie organisée par un Team PRO que je suis ou dont je suis adhérent</label>';
+    html += '<label class="checklist-item" style="margin-top:0.4rem;"><input type="checkbox" id="profile-notify-pro-outings"' + (p.notifyProOutings !== false ? ' checked' : '') + '> Nouvel événement organisé par un Team PRO que je suis ou dont je suis adhérent</label>';
     html += '<label class="checklist-item" style="margin-top:0.4rem;"><input type="checkbox" id="profile-notify-coach-messages"' + (p.notifyCoachMessages !== false ? ' checked' : '') + '> Nouveau message dans l\'espace coaching</label>';
     html += '<label class="checklist-item" style="margin-top:0.4rem;"><input type="checkbox" id="profile-notify-event-announcements"' + (p.notifyEventAnnouncements !== false ? ' checked' : '') + '> Annonce du Team Leader sur un événement</label>';
     html += '<label class="checklist-item" style="margin-top:0.4rem;"><input type="checkbox" id="profile-notify-event-ended"' + (p.notifyEventEndedReaction !== false ? ' checked' : '') + '> Un event auquel j\'ai participé vient de se terminer</label>';
@@ -1952,7 +1968,7 @@
     html += '<div style="margin-top:1.2rem; border-top:1px solid var(--border); padding-top:0.9rem;">';
     html += '<div class="section-title" style="font-size:0.95rem;">Réglages social</div>';
     html += '<div class="help-text">Ce que tes amis voient quand ils ouvrent ta fiche depuis Social.</div>';
-    html += '<label class="checklist-item" style="margin-top:0.6rem;"><input type="checkbox" id="profile-share-sorties"' + (p.shareSorties !== false ? ' checked' : '') + '> Partager mes sorties/chronos</label>';
+    html += '<label class="checklist-item" style="margin-top:0.6rem;"><input type="checkbox" id="profile-share-sorties"' + (p.shareSorties !== false ? ' checked' : '') + '> Partager mes événements/chronos</label>';
     html += '<label class="checklist-item" style="margin-top:0.4rem;"><input type="checkbox" id="profile-share-trophees"' + (p.shareTrophees !== false ? ' checked' : '') + '> Partager mes trophées</label>';
     html += '<label class="checklist-item" style="margin-top:0.4rem;"><input type="checkbox" id="profile-share-travel-info"' + (p.shareTravelInfo !== false ? ' checked' : '') + '> Partager mes infos de voyage (avec les amis qui te suivent)</label>';
     html += '</div>';
@@ -2017,7 +2033,7 @@
     html += '</div>';
     html += '<div style="margin-top:1.2rem; border-top:1px solid var(--border); padding-top:0.9rem;">';
     html += '<div class="section-title" style="font-size:0.95rem;">À propos</div>';
-    html += '<div class="help-text">Carnet de Piste centralise le planning des sorties, les groupes/horaires, tes chronos et ta progression entre pilotes et accompagnants — le tout à jour en temps réel pour tout le monde.</div>';
+    html += '<div class="help-text">Carnet de Piste centralise le planning des événements, les groupes/horaires, tes chronos et ta progression entre pilotes et accompagnants — le tout à jour en temps réel pour tout le monde.</div>';
     html += '</div>';
     return html;
   }
@@ -2701,7 +2717,7 @@
     var hasSessions = STATE.sessions.some(function (s) { return s.rider === name; });
     var hasEvents = eventsList().some(function (ev) { return (ev.riders || []).indexOf(name) !== -1; });
     if (hasSessions || hasEvents) {
-      riderManagerError = 'Ce pilote a des chronos ou des sorties enregistrés — supprimez-les ou renommez plutôt le pilote.';
+      riderManagerError = 'Ce pilote a des chronos ou des événements enregistrés — supprimez-les ou renommez plutôt le pilote.';
       pendingDeleteRider = null;
       renderRoot();
       return;
@@ -2787,7 +2803,7 @@
       // n'apparaît donc jamais dans allKnownRiders() garde tout de même
       // sa propre carte Trophées.
       if (isNonRider) html += renderAchievementsCard(nonRiderAch, 'achievements-profile-' + me.name);
-      return html || '<div class="card"><div class="empty-state">Aucun pilote pour l\'instant — ajoutez une sortie ou un chrono pour commencer.</div></div>';
+      return html || '<div class="card"><div class="empty-state">' + (coreDataLoading() ? 'Chargement...' : 'Aucun pilote pour l\'instant — ajoutez un événement ou un chrono pour commencer.') + '</div></div>';
     }
     var rider = (selectedRiders && selectedRiders.size === 1) ? Array.from(selectedRiders)[0] : null;
     // Chronos vérifiés -> Records (repliés dans la même carte, voir
@@ -3344,7 +3360,8 @@
   function certifyControl(session) {
     var manageable = canManageCertification(session);
     if (session.certifiedBy) {
-      var pill = '<span class="verified-pill" title="Vérifié par ' + escapeHtml(session.certifiedBy) + '">✓ Vérifié</span>';
+      var verifiedDesc = 'Chrono vérifié par ' + escapeHtml(session.certifiedBy);
+      var pill = '<span class="verified-pill" title="' + verifiedDesc + '" data-badge-info="' + verifiedDesc + '">✓ Vérifié</span>';
       if (!manageable) return pill;
       return pill + '<button type="button" class="ghost icon-btn" data-action="uncertify-session" data-id="' + session.id + '" aria-label="Retirer la vérification" title="Retirer la vérification">×</button>';
     }
@@ -3482,7 +3499,7 @@
   function renderCircuitTab() {
     var circuits = allCircuits();
     if (!circuits.length) {
-      return '<div class="card"><div class="empty-state">Aucun circuit pour l\'instant — ajoutez une sortie dans le Calendrier ou un chrono pour commencer.</div></div>';
+      return '<div class="card"><div class="empty-state">' + (coreDataLoading() ? 'Chargement...' : 'Aucun circuit pour l\'instant — ajoutez un événement dans le Calendrier ou un chrono pour commencer.') + '</div></div>';
     }
     var html = '<div class="card"><label for="f-filter-circuit">Circuit</label><select id="f-filter-circuit">';
     circuits.forEach(function (c) {
@@ -5540,7 +5557,7 @@
     // this sortie (see saveEventRiderBikeNumber) -- separate from, and
     // never touching, "Ma moto" on the rider's own profile.
     var eventNumber = (ev.riderBikeNumbers || {})[me.name];
-    if (eventNumber) row += infoRow('N° pour cette sortie', '#' + escapeHtml(eventNumber));
+    if (eventNumber) row += infoRow('N° pour cet événement', '#' + escapeHtml(eventNumber));
     return collapsibleSection('my-group-' + ev.id, 'Mon groupe', row, true);
   }
 
@@ -5899,7 +5916,7 @@
       html += collapsibleCard('event-join-requests-in', 'Demandes pour participer (' + incomingEventRequests.length + ')', incomingBody, true);
     }
     if (!all.length) {
-      html += '<div class="card"><div class="empty-state">Aucun événement enregistré — ajoutez-en un ci-dessous.</div></div>';
+      html += '<div class="card"><div class="empty-state">' + (coreDataLoading() ? 'Chargement...' : 'Aucun événement enregistré — ajoutez-en un ci-dessous.') + '</div></div>';
     } else {
       if (ongoing.length) html += renderEventGroupCard('En cours', ongoing, { collapseKey: 'events-ongoing', defaultOpen: true });
       // Upcoming defaults open only when nothing's ongoing -- whichever of
@@ -6176,7 +6193,7 @@
   function renderPlanningTab() {
     var target = targetPlanningEvent();
     if (!target) {
-      return '<div class="card"><div class="empty-state">Aucun événement en cours ou à venir — planifiez-en un dans l\'onglet Événements.</div></div>';
+      return '<div class="card"><div class="empty-state">' + (coreDataLoading() ? 'Chargement...' : 'Aucun événement en cours ou à venir — planifiez-en un dans l\'onglet Événements.') + '</div></div>';
     }
     var ev = target.ev, isOngoing = target.mode === 'ongoing';
     // Read by updateLiveClock() so it knows whether "now" actually falls
@@ -7089,17 +7106,25 @@
   // (field, icon, label, and the CSS class it renders with), read by both
   // badgesHtml() (anywhere a name shows up) and the admin's own
   // self-badges toggle in Mon profil.
+  // desc is the fuller, tap-friendly explanation (see data-badge-info
+  // below) -- label stays the short one already used elsewhere (admin's
+  // self-badges checkboxes).
   var PROFILE_BADGES = [
-    { field: 'certified', icon: '✓', label: 'Certifié', cssClass: 'certified-badge', check: isCertified },
-    { field: 'personality', icon: '★', label: 'Personnalité', cssClass: 'personality-badge', check: isPersonality },
-    { field: 'pro', icon: '🏅', label: 'Pilote PRO', cssClass: 'pro-badge', check: isPro },
-    { field: 'organizer', icon: '🧭', label: 'Organisateur vérifié', cssClass: 'organizer-badge', check: isOrganizerBadge },
-    { field: 'coach', icon: '🎓', label: 'Coach', cssClass: 'coach-badge', check: isCoachBadge }
+    { field: 'certified', icon: '✓', label: 'Certifié', desc: 'Certifié — compte vérifié par l\'administrateur.', cssClass: 'certified-badge', check: isCertified },
+    { field: 'personality', icon: '★', label: 'Personnalité', desc: 'Personnalité — pilote mis en avant par l\'administrateur.', cssClass: 'personality-badge', check: isPersonality },
+    { field: 'pro', icon: '🏅', label: 'Pilote PRO', desc: 'Pilote PRO — statut de pilote professionnel.', cssClass: 'pro-badge', check: isPro },
+    { field: 'organizer', icon: '🧭', label: 'Organisateur vérifié', desc: 'Organisateur vérifié par l\'administrateur.', cssClass: 'organizer-badge', check: isOrganizerBadge },
+    { field: 'coach', icon: '🎓', label: 'Coach', desc: 'Coach — reconnu par l\'administrateur pour donner du coaching.', cssClass: 'coach-badge', check: isCoachBadge }
   ];
 
+  // Badges are icon-only, so their meaning normally only shows on hover
+  // (title=...) -- useless on mobile, no cursor to hover with. Every badge
+  // also carries data-badge-info with the same text: tapping it shows a
+  // toast (see the delegated click handler in attachHandlers), which works
+  // identically on touch and desktop.
   function badgesHtml(u) {
     return PROFILE_BADGES.map(function (b) {
-      return b.check(u) ? ' <span class="' + b.cssClass + '" title="' + escapeHtml(b.label) + '">' + b.icon + '</span>' : '';
+      return b.check(u) ? ' <span class="' + b.cssClass + '" title="' + escapeHtml(b.desc) + '" data-badge-info="' + escapeHtml(b.desc) + '">' + b.icon + '</span>' : '';
     }).join('');
   }
 
@@ -7108,7 +7133,7 @@
   // only (see toggle-team-pro in attachHandlers), to stand apart from an
   // amateur "Team entre amis".
   function teamBadgesHtml(team) {
-    return team && team.teamPro ? ' <span class="team-pro-badge" title="Team PRO certifié">TEAM PRO ✓</span>' : '';
+    return team && team.teamPro ? ' <span class="team-pro-badge" title="Team PRO certifié par l\'administrateur." data-badge-info="Team PRO certifié par l\'administrateur.">TEAM PRO ✓</span>' : '';
   }
 
   // Which friend's fiche (see renderFriendFiche) is expanded inline in the
@@ -7154,11 +7179,11 @@
     if (isPilote) {
       if (shareSorties) {
         var stats = riderStats(name);
-        html += infoRow('Sorties', String(stats.outingsCount));
+        html += infoRow('Événements', String(stats.outingsCount));
         html += infoRow('Circuits visités', String(stats.circuitsVisited));
         html += infoRow('Jours sur piste', String(stats.trackDays));
         if (stats.lastSession) {
-          html += infoRow('Dernière sortie', escapeHtml(stats.lastSession.circuit) + ' — ' + escapeHtml(formatDate(stats.lastSession.date)) + ' (' + formatTime(stats.lastSession.time) + ')');
+          html += infoRow('Dernier événement', escapeHtml(stats.lastSession.circuit) + ' — ' + escapeHtml(formatDate(stats.lastSession.date)) + ' (' + formatTime(stats.lastSession.time) + ')');
         }
         var verifiedSessions = STATE.sessions.filter(function (s) { return s.rider === name && s.certifiedBy; })
           .sort(function (a, b) { return a.date < b.date ? 1 : a.date > b.date ? -1 : 0; });
@@ -7177,7 +7202,7 @@
           html += collapsibleSection('fiche-history-' + name, 'Historique', historyRows);
         }
       } else {
-        html += '<div class="help-text">' + escapeHtml(name) + ' n\'a pas choisi de partager ses sorties/chronos.</div>';
+        html += '<div class="help-text">' + escapeHtml(name) + ' n\'a pas choisi de partager ses événements/chronos.</div>';
       }
       if (shareTrophees) {
         html += renderAchievementsCard(riderAchievements(name, riderStats(name)), 'fiche-achievements-' + name);
@@ -7342,7 +7367,7 @@
     var html = '<div class="card" style="margin-top:1rem;"><h2 class="section-title">Publier un message sur mon Mur</h2>';
     html += '<div class="help-text">Ce que tu publies sera visible par tes amis (ou followers, selon ce que tu choisis ci-dessous).</div>';
     html += '<form id="wall-post-form">';
-    html += '<label for="wall-post-text">Un mot, une sortie, une photo...</label><textarea id="wall-post-text" rows="2"></textarea>';
+    html += '<label for="wall-post-text">Un mot, un événement, une photo...</label><textarea id="wall-post-text" rows="2"></textarea>';
     html += '<label for="wall-post-link" style="margin-top:0.6rem;">Lien (optionnel)</label><input type="url" id="wall-post-link" placeholder="https://...">';
     html += '<div style="margin-top:0.6rem;">';
     if (wallPostDraftPhotoURL) {
@@ -7624,7 +7649,12 @@
   // overlapping people twice with different controls -- folded into one.
   function renderTeamMembersSection(team, members, teamFollowers, me, isLeader) {
     function pill(name, key, label, on) {
-      return '<button type="button" class="team-status-pill' + (on ? ' active' : '') + '" data-action="team-status-toggle" data-team="' + team.id + '" data-name="' + escapeHtml(name) + '" data-status="' + key + '" data-on="' + (on ? '0' : '1') + '">' + label + '</button>';
+      // Granting/revoking Team Leader is the one pill worth a pause for --
+      // click-to-arm/click-to-confirm (same pattern as every other
+      // destructive action here) instead of a native window.confirm().
+      var armed = key === 'leader' && pendingLeaderToggle && pendingLeaderToggle.team === team.id && pendingLeaderToggle.name === name;
+      var shownLabel = armed ? 'Confirmer ?' : label;
+      return '<button type="button" class="team-status-pill' + (on ? ' active' : '') + (armed ? ' confirm' : '') + '" data-action="team-status-toggle" data-team="' + team.id + '" data-name="' + escapeHtml(name) + '" data-status="' + key + '" data-on="' + (on ? '0' : '1') + '">' + shownLabel + '</button>';
     }
     var byName = {};
     members.forEach(function (m) { (byName[m.name] = byName[m.name] || {}).member = m; });
@@ -8768,11 +8798,19 @@
   var riderManagerOpen = false; // pure UI state, not persisted
   var editingRiderName = null; // rider currently shown as an inline rename form, or null
   var pendingDeleteRider = null; // rider armed for delete (click-to-confirm, like session delete)
+  var pendingLeaderToggle = null; // { team, name, on } -- click-to-arm/click-to-confirm for granting/revoking Team Leader, replaces a window.confirm()
   var riderManagerError = ''; // validation/blocking message shown in the panel
 
   function attachHandlers() {
     var logoutBtn = document.getElementById('logout-btn');
     if (logoutBtn) logoutBtn.addEventListener('click', function () { auth.signOut(); });
+    // Badges (compte certifié, Team PRO, chrono vérifié...) are icon-only,
+    // so their explanation normally only shows on hover (title=...) -- no
+    // way to hover on mobile. Tapping one shows the same text as a toast,
+    // which works identically on touch and desktop.
+    document.querySelectorAll('[data-badge-info]').forEach(function (el) {
+      el.addEventListener('click', function () { showToast(el.getAttribute('data-badge-info')); });
+    });
     document.querySelectorAll('[data-action="copy-location"]').forEach(function (btn) {
       btn.addEventListener('click', function () {
         var text = btn.getAttribute('data-text') || '';
@@ -8947,19 +8985,27 @@
         profilePanelOpen = false;
         profileDeleteConfirmOpen = false;
         pseudoEditUnlocked = false;
+        pseudoRenameConfirmPending = false;
         renderRoot();
       });
     }
     var pseudoEditUnlock = document.getElementById('pseudo-edit-unlock');
     if (pseudoEditUnlock) {
       pseudoEditUnlock.addEventListener('click', function () {
-        if (!window.confirm('Changer de pseudo va renommer ton identité partout dans l\'app (chronos, événements, teams, coaching, amis...). Tu ne pourras le refaire qu\'une fois par mois. Continuer ?')) return;
+        // No native confirm() here -- unlocking the field already reveals
+        // the same warning inline right below it (see renderProfileProfilTab's
+        // "⚠ Renommer va changer..." text), and the actual rename still
+        // needs its own click-to-confirm on submit below.
         pseudoEditUnlocked = true;
         renderRoot();
       });
     }
     var profileForm = document.getElementById('profile-form');
     if (profileForm) {
+      var profileNameEl = document.getElementById('profile-name');
+      if (profileNameEl) {
+        profileNameEl.addEventListener('input', function () { pseudoRenameConfirmPending = false; });
+      }
       profileForm.addEventListener('submit', function (evt) {
         evt.preventDefault();
         var role = profileForm.querySelector('input[name="profile-role"]:checked').value;
@@ -8987,13 +9033,15 @@
         var firstName = firstNameEl ? firstNameEl.value.trim() : '';
         var lastNameEl = document.getElementById('profile-lastname');
         var lastName = lastNameEl ? lastNameEl.value.trim() : '';
-        if (pseudoEditUnlocked && newName && newName !== currentUserProfile.name) {
-          if (!window.confirm('Confirmer le changement de pseudo de "' + currentUserProfile.name + '" vers "' + newName + '" ? Cette action est immédiate et tu ne pourras pas en refaire un avant un mois.')) {
-            return;
-          }
+        if (pseudoEditUnlocked && newName && newName !== currentUserProfile.name && !pseudoRenameConfirmPending) {
+          pseudoRenameConfirmPending = true;
+          profileSaveMessage = 'Confirme le changement de pseudo de "' + currentUserProfile.name + '" vers "' + newName + '" en cliquant à nouveau sur Enregistrer. Action immédiate, un seul changement par mois.';
+          renderRoot();
+          return;
         }
         saveProfile(role, notify, followedRiders, bike, bikeNumber, newName, firstName, lastName);
         pseudoEditUnlocked = false;
+        pseudoRenameConfirmPending = false;
       });
       var notifyLabel = document.getElementById('profile-notify-label');
       profileForm.querySelectorAll('input[name="profile-role"]').forEach(function (radio) {
@@ -9368,11 +9416,17 @@
         // Granting or revoking Team Leader is the one pill worth a pause
         // for -- it's full control over the Team (members, événements,
         // suppression), not a lightweight tag like Suivi/Membre/Adhérent.
+        // First click arms it (see pill()'s "Confirmer ?" state), second
+        // click on the same pill actually performs it -- clicking anything
+        // else re-renders with a different armed target, which disarms it.
         if (status === 'leader') {
-          var msg = turningOn
-            ? 'Faire de ' + name + ' un Team Leader ? Il aura le contrôle complet du Team.'
-            : 'Retirer le rôle de Team Leader à ' + name + ' ?';
-          if (!window.confirm(msg)) return;
+          var alreadyArmed = pendingLeaderToggle && pendingLeaderToggle.team === teamId && pendingLeaderToggle.name === name;
+          if (!alreadyArmed) {
+            pendingLeaderToggle = { team: teamId, name: name, on: turningOn };
+            renderRoot();
+            return;
+          }
+          pendingLeaderToggle = null;
         }
         var memberDoc = ((STATE.teamMembersByTeam || {})[teamId] || []).filter(function (m) { return m.name === name; })[0] || null;
         var followDoc = ((STATE.teamFollowersByTeam || {})[teamId] || []).filter(function (f) { return f.follower === name; })[0] || null;
@@ -10469,13 +10523,16 @@
   }
 
   function startSync() {
+    coreSyncPending = new Set(CORE_SYNC_KEYS);
     unsubscribers.push(db.collection('sessions').onSnapshot(function (snap) {
       STATE.sessions = snap.docs.map(function (d) { return d.data(); });
+      markCoreSynced('sessions');
       renderRoot();
     }, handleSyncError));
     unsubscribers.push(db.collection('events').onSnapshot(function (snap) {
       STATE.events = snap.docs.map(function (d) { return d.data(); });
       maybeNotifyEndedEvents();
+      markCoreSynced('events');
       renderRoot();
     }, handleSyncError));
     unsubscribers.push(db.collection('circuits').onSnapshot(function (snap) {
@@ -10485,11 +10542,13 @@
         map[data.name] = data;
       });
       STATE.circuits = map;
+      markCoreSynced('circuits');
       renderRoot();
     }, handleSyncError));
     unsubscribers.push(db.collection('riders').onSnapshot(function (snap) {
       STATE.riders = snap.docs.map(function (d) { return d.data().name; })
         .sort(function (a, b) { return a.localeCompare(b); });
+      markCoreSynced('riders');
       renderRoot();
     }, handleSyncError));
     unsubscribers.push(db.collection('settings').doc('checklist').onSnapshot(function (doc) {
@@ -10513,6 +10572,7 @@
       });
       riderBikeMap = bikeMap;
       STATE.usersByName = usersByName;
+      markCoreSynced('users');
       renderRoot();
     }, handleSyncError));
     // Social/amis: two live queries (Firestore can't OR across fields in
@@ -10889,6 +10949,7 @@
   }
 
   function stopSync() {
+    coreSyncPending = null;
     unsubscribers.forEach(function (unsub) { unsub(); });
     unsubscribers = [];
     if (myTeamMembershipsUnsub) { myTeamMembershipsUnsub(); myTeamMembershipsUnsub = null; }

@@ -700,6 +700,11 @@
     flex-direction: column;
     gap: 0.3rem;
   }
+  /* Tappable on mobile (no hover for the title= explanation there) --
+     see data-badge-info/attachHandlers, which pops the same text as a
+     toast on click/tap. */
+  .certified-badge, .personality-badge, .pro-badge, .organizer-badge,
+  .coach-badge, .team-pro-badge, .verified-pill { cursor: pointer; }
   .certified-badge {
     display: inline-flex;
     align-items: center;
@@ -920,6 +925,7 @@
     cursor: pointer;
   }
   .team-status-pill.active { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+  .team-status-pill.confirm { background: var(--danger-bg); border-color: var(--danger); color: var(--danger); }
   .team-manage-pending {
     margin-top: 0.4rem;
     font-size: 0.8rem;
