@@ -5692,7 +5692,13 @@
     // En cours / À venir / Ajouter / Calendrier / Sorties de la période /
     // Passés -- Passés moved last since it's the least time-sensitive of
     // the six, the one you're least likely to open on a given visit.
-    html += renderEventForm();
+    // Only the "+ Ajouter" prompt (or its own open form, editingEventId
+    // 'new') lives in this standing slot -- editing an EXISTING event
+    // (editingEventId set to a real id, from "Modifier" inside its own
+    // row's accordion below) must never also open the form again here:
+    // that duplicated the whole edit card and jumped the page's scroll
+    // to this spot, above whatever event the click was actually on.
+    html += (editingEventId === null || editingEventId === 'new') ? renderEventForm() : addEventTeaserCard();
     html += renderCalendarSection();
     html += renderPastEventsCard(past);
     html += renderProEventDiscovery(me);
@@ -6404,10 +6410,14 @@
     });
   }
 
+  function addEventTeaserCard() {
+    return '<div class="card add-event-card"><h2 class="section-title">Ajouter un événement</h2><button type="button" class="primary" id="add-event-btn">+ Ajouter un événement</button></div>';
+  }
+
   function renderEventForm() {
     if (editingEventId === null) {
       eventFormDraftGroupsFor = null;
-      return '<div class="card add-event-card"><h2 class="section-title">Ajouter un événement</h2><button type="button" class="primary" id="add-event-btn">+ Ajouter un événement</button></div>';
+      return addEventTeaserCard();
     }
     var isNew = editingEventId === 'new';
     var ev = isNew ? { circuit: prefillEventCircuit || '' } : (eventsList().filter(function (e) { return e.id === editingEventId; })[0] || {});
@@ -7504,46 +7514,6 @@
     return collapsibleCard('team-events-' + team.id, 'Gestion des événements' + (all.length ? ' (' + all.length + ')' : ''), body, false, addBtn);
   }
 
-  // Distincte de "Gestion des événements" (réservée aux sorties que ce
-  // Team possède, ev.teamId === team.id) -- cette section liste toute
-  // sortie, passée ou à venir, où au moins un membre du Team a participé
-  // (ev.riders), peu importe qui l'a organisée. Visible par tout le monde
-  // sur la fiche du Team (pas juste le Team Leader). Chaque ligne réutilise
-  // exactement le même accordéon cliquable que l'onglet Événements
-  // personnel (renderEventRow/renderEventSummaryCard) -- ouvrir une sortie
-  // donne accès à son "Modifier" comme partout ailleurs, passée ou non
-  // (rien ne bloquait déjà l'édition d'une sortie passée server-side --
-  // c'est cette section qui n'offrait tout simplement aucun moyen d'ouvrir
-  // une sortie avant).
-  function renderTeamHistorique(team, members) {
-    var todayKey = dateKey(new Date());
-    var memberNames = members.map(function (m) { return m.name; });
-    var all = (STATE.events || []).filter(function (ev) {
-      return (ev.riders || []).some(function (r) { return memberNames.indexOf(r) !== -1; });
-    });
-    var ongoing = [], upcoming = [], past = [];
-    all.forEach(function (ev) {
-      var status = eventTemporalStatus(ev, todayKey);
-      if (status === 'ongoing') ongoing.push(ev);
-      else if (status === 'upcoming') upcoming.push(ev);
-      else past.push(ev);
-    });
-    ongoing.sort(function (a, b) { return a.dateStart < b.dateStart ? -1 : 1; });
-    upcoming.sort(function (a, b) { return a.dateStart < b.dateStart ? -1 : 1; });
-    past.sort(function (a, b) { return a.dateStart < b.dateStart ? 1 : -1; });
-    if (!all.length) return '';
-    var body = '';
-    body += collapsibleSection('team-historique-ongoing-' + team.id, 'En cours (' + ongoing.length + ')',
-      ongoing.length ? ongoing.map(function (ev) { return renderEventRow(ev, { hideGroups: true }); }).join('') : '<div class="help-text">Rien en ce moment.</div>', !!ongoing.length);
-    body += collapsibleSection('team-historique-upcoming-' + team.id, 'À venir (' + upcoming.length + ')',
-      upcoming.length ? upcoming.map(function (ev) { return renderEventRow(ev, { hideGroups: true }); }).join('') : '<div class="help-text">Rien de prévu.</div>', false);
-    // Passé : pas de liste de pilotes sur la ligne -- juste circuit + dates,
-    // épuré, le détail complet reste un clic (Modifier) plus loin.
-    body += collapsibleSection('team-historique-past-' + team.id, 'Passés (' + past.length + ')',
-      past.length ? past.map(function (ev) { return renderEventRow(ev, { hideGroups: true, hideRiders: true }); }).join('') : '<div class="help-text">Aucun événement passé.</div>', false);
-    return collapsibleCard('team-historique-' + team.id, 'Événements (' + all.length + ')', body, false);
-  }
-
   // The dedicated per-event management screen (see managingEventId) --
   // résumé, annonces, participants + demandes, and l'attribution des
   // groupes, each its own flat section instead of nested collapsibles.
@@ -7599,6 +7569,11 @@
         '<button type="submit" class="ghost">Ajouter</button></form>';
     }
     html += collapsibleSection('event-manage-riders-' + ev.id, 'Participants (' + riders.length + ')', riderRows, true);
+    // Easy per-rider chrono check right here, next to the roster --
+    // renderEventCertificationSection already lets the leader verify (✓)
+    // or un-verify a rider's best chrono for this sortie whenever they
+    // want, not just right after the event.
+    html += renderEventCertificationSection(ev);
     if (reqs.length) {
       var reqRows = reqs.map(function (r) {
         var u = (STATE.usersByName || {})[r.from] || {};
@@ -7646,7 +7621,6 @@
     // this screen, not something to scroll past Fil d'actualité/Membres
     // to reach.
     if (isLeader) html += renderTeamEventsManagement(team);
-    html += renderTeamHistorique(team, members);
 
     var feedBody = !feed.length
       ? '<div class="empty-state">Rien pour l\'instant.</div>'
