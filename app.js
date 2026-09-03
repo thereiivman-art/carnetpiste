@@ -9571,6 +9571,7 @@
     document.querySelectorAll('[data-view]').forEach(function (btn) {
       btn.addEventListener('click', function () {
         activeView = btn.getAttribute('data-view');
+        profilePanelOpen = false;
         editingEventId = null;
         prefillEventCircuit = null;
         prefillEventTeamId = null;
