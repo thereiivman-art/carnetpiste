@@ -690,10 +690,8 @@
   // fat-fingered the way a second click can.
   // Which team's full detail is open below the tile grid (see
   // renderTeamTile/renderTeamTab) -- one at a time, so the tab stays
-  // uncluttered. manageTeamsOpen is the small "which of my Teams am I a
-  // leader of" picker behind the "Gestion des Teams" button.
+  // uncluttered.
   var expandedTeamId = null;
-  var manageTeamsOpen = false;
   var pendingDeleteTeamId = null;
   var teamDeleteMessage = '';
   // Which event, if any, is open in its own dedicated management screen
@@ -8004,18 +8002,6 @@
           var tag = '<span class="friend-role-badge">' + (isLeaderOfTeam(t.id) ? 'Team Leader' : 'Membre') + '</span>';
           return renderTeamTile(t, tag, true);
         }).join('') + '</div>';
-
-        var ledTeams = myTeams.filter(function (t) { return isLeaderOfTeam(t.id); });
-        if (ledTeams.length) {
-          html += '<button type="button" class="ghost" id="team-manage-toggle" style="margin-top:0.8rem;">⚙ Gestion des Teams</button>';
-          if (manageTeamsOpen) {
-            var manageBody = ledTeams.map(function (t) {
-              return '<div class="friend-row"><div class="friend-row-main">' + avatarHtml(t, t.name) + '<span class="friend-name-plain">' + escapeHtml(t.name) + '</span>' + teamBadgesHtml(t) + '</div>' +
-                '<div class="friend-row-actions"><button type="button" class="ghost" data-action="team-tile-open" data-team="' + t.id + '">Gérer</button></div></div>';
-            }).join('');
-            html += '<div class="card" style="margin-top:0.6rem;">' + manageBody + '</div>';
-          }
-        }
       }
 
       var expandedTeam = expandedTeamId ? myTeams.filter(function (t) { return t.id === expandedTeamId; })[0] : null;
@@ -9244,7 +9230,6 @@
     document.querySelectorAll('[data-action="team-tile-open"]').forEach(function (btn) {
       btn.addEventListener('click', function () {
         expandedTeamId = btn.getAttribute('data-team');
-        manageTeamsOpen = false;
         managingEventId = null;
         renderRoot();
         window.scrollTo(0, 0);
@@ -9268,10 +9253,6 @@
         renderRoot();
       });
     });
-    var teamManageToggle = document.getElementById('team-manage-toggle');
-    if (teamManageToggle) {
-      teamManageToggle.addEventListener('click', function () { manageTeamsOpen = !manageTeamsOpen; renderRoot(); });
-    }
     document.querySelectorAll('[data-action="toggle-team-pro"]').forEach(function (btn) {
       btn.addEventListener('click', function () { toggleTeamPro(btn.getAttribute('data-team')); });
     });
