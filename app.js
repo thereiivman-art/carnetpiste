@@ -85,7 +85,7 @@
       return (r.from === me.name && r.to === toName) || (r.from === toName && r.to === me.name);
     });
     if (already) return;
-    db.collection('friendRequests').add({ from: me.name, to: toName, status: 'pending' }).then(function () {
+    db.collection('friendRequests').add({ from: me.name, to: toName, status: 'pending', fromUid: myUid(), toUid: uidOf(toName) }).then(function () {
       showToast('Demande envoyée à ' + toName + '.', 'success');
     }).catch(function (err) {
       showToast('Erreur : ' + (err && err.message ? err.message : err));
@@ -117,7 +117,7 @@
   function followName(name) {
     var me = currentUserProfile;
     if (!me || !name || name === me.name || (STATE.myFollows || []).indexOf(name) !== -1) return;
-    db.collection('follows').add({ follower: me.name, followee: name }).catch(function (err) {
+    db.collection('follows').add({ follower: me.name, followee: name, followerUid: myUid(), followeeUid: uidOf(name) }).catch(function (err) {
       showToast('Erreur : ' + (err && err.message ? err.message : err));
     });
   }
@@ -136,7 +136,7 @@
   function followTeam(teamId) {
     var me = currentUserProfile;
     if (!me || !teamId || (STATE.myFollowedTeams || []).indexOf(teamId) !== -1) return;
-    db.collection('follows').add({ follower: me.name, followee: teamId, followeeType: 'team' }).catch(function (err) {
+    db.collection('follows').add({ follower: me.name, followee: teamId, followeeType: 'team', followerUid: myUid() }).catch(function (err) {
       showToast('Erreur : ' + (err && err.message ? err.message : err));
     });
   }
@@ -172,7 +172,7 @@
       return (r.from === me.name && r.to === toName) || (r.from === toName && r.to === me.name);
     });
     if (already) return;
-    db.collection('coachRequests').add({ from: me.name, to: toName, status: 'pending', plan: '' }).then(function () {
+    db.collection('coachRequests').add({ from: me.name, to: toName, status: 'pending', plan: '', fromUid: myUid(), toUid: uidOf(toName) }).then(function () {
       showToast('Demande de coaching envoyée à ' + toName + '.', 'success');
     }).catch(function (err) {
       showToast('Erreur : ' + (err && err.message ? err.message : err));
@@ -205,7 +205,7 @@
     var me = currentUserProfile;
     text = (text || '').trim();
     if (!me || !text) return;
-    db.collection('coachMessages').add({ requestId: requestId, from: me.name, text: text, createdAt: Date.now() }).catch(function (err) {
+    db.collection('coachMessages').add({ requestId: requestId, from: me.name, text: text, createdAt: Date.now(), uid: myUid() }).catch(function (err) {
       showToast('Erreur : ' + (err && err.message ? err.message : err));
     });
   }
@@ -229,6 +229,14 @@
   // lookup instead of a query it can't express.
   function teamMemberDocId(teamId, name) { return teamId + '_' + (name || '').replace(/\//g, '_'); }
   function teamInviteDocId(teamId, name) { return teamMemberDocId(teamId, name); }
+
+  // Unforgeable owner id for every name-bearing doc this account creates --
+  // stored alongside the self-reported name field so a later rename can
+  // prove ownership via uid (request.auth.uid in the rules, never the
+  // name itself) instead of the name matching, which breaks the instant
+  // the name changes. See migrateNameEverywhere.
+  function myUid() { return auth.currentUser && auth.currentUser.uid; }
+  function uidOf(name) { return (STATE.usersByName && STATE.usersByName[name] && STATE.usersByName[name].uid) || null; }
 
   function myRoleInTeam(teamId) {
     var found = (STATE.myTeamMemberships || []).filter(function (m) { return m.teamId === teamId; })[0];
@@ -276,7 +284,8 @@
     var team = teamById(teamId);
     if (!me || !team || !toName) return;
     db.collection('teamInvites').doc(teamInviteDocId(teamId, toName)).set({
-      teamId: teamId, teamName: team.name, from: me.name, to: toName, status: 'pending'
+      teamId: teamId, teamName: team.name, from: me.name, to: toName, status: 'pending',
+      fromUid: myUid(), toUid: uidOf(toName)
     }).then(function () {
       showToast('Invitation envoyée à ' + toName + '.', 'success');
     }).catch(function (err) {
@@ -426,7 +435,7 @@
     var team = teamById(teamId);
     if (!me || !team) return;
     db.collection('teamJoinRequests').doc(teamMemberDocId(teamId, me.name)).set({
-      teamId: teamId, teamName: team.name, from: me.name, kind: 'member', status: 'pending'
+      teamId: teamId, teamName: team.name, from: me.name, kind: 'member', status: 'pending', uid: myUid()
     }).then(function () {
       showToast('Demande envoyée à ' + team.name + '.', 'success');
     }).catch(function (err) {
@@ -462,7 +471,7 @@
     var already = (STATE.teamLikes || []).some(function (l) { return l.teamId === teamId && l.name === me.name; });
     var op = already
       ? db.collection('teamLikes').doc(id).delete()
-      : db.collection('teamLikes').doc(id).set({ teamId: teamId, name: me.name });
+      : db.collection('teamLikes').doc(id).set({ teamId: teamId, name: me.name, uid: myUid() });
     op.catch(function (err) {
       showToast('Erreur : ' + (err && err.message ? err.message : err));
     });
@@ -477,7 +486,7 @@
     linkUrl = (linkUrl || '').trim();
     if (!me) return;
     if (!text && !linkUrl && !photoURL) return;
-    var post = { id: genId(), teamId: teamId, author: me.name, createdAt: Date.now() };
+    var post = { id: genId(), teamId: teamId, author: me.name, authorUid: myUid(), createdAt: Date.now() };
     if (text) post.text = text;
     if (linkUrl) post.linkUrl = linkUrl;
     if (photoURL) post.photoURL = photoURL;
@@ -495,7 +504,7 @@
       showToast('Une question et au moins 2 options sont nécessaires pour un sondage.');
       return;
     }
-    var post = { id: genId(), teamId: teamId, author: me.name, type: 'poll', question: question, options: options, votes: {}, createdAt: Date.now() };
+    var post = { id: genId(), teamId: teamId, author: me.name, authorUid: myUid(), type: 'poll', question: question, options: options, votes: {}, createdAt: Date.now() };
     if (audience === 'adherents') post.audience = 'adherents';
     db.collection('teamFeed').doc(post.id).set(post).catch(function (err) {
       showToast('Erreur : ' + (err && err.message ? err.message : err));
@@ -1776,6 +1785,13 @@
     return html;
   }
 
+  // Locked by default -- clicking "Modifier" (see pseudo-edit-unlock's
+  // handler) shows the first warning and, only if accepted, flips this so
+  // the field becomes editable; reset every time the profile panel closes
+  // or a save actually goes through, so it's never left unlocked across
+  // an unrelated visit to Mon profil.
+  var pseudoEditUnlocked = false;
+
   function renderProfileProfilTab(p) {
     // "Accompagnant" and "Organisateur" both mean "doesn't ride" for the
     // rest of the form (no moto, no name-number, follows riders instead of
@@ -1785,7 +1801,18 @@
     var followed = p.followedRiders || [];
     var html = '<form id="profile-form">';
     html += renderProfileAvatar(p);
-    html += '<label for="profile-name">Pseudo</label><input type="text" id="profile-name" value="' + escapeHtml(p.name) + '" required>';
+    html += '<label for="profile-name">Pseudo</label>';
+    var renameBlockedUntil = renameAllowedAt(p);
+    if (renameBlockedUntil) {
+      html += '<input type="text" id="profile-name" value="' + escapeHtml(p.name) + '" disabled>' +
+        '<div class="help-text">1 changement de pseudo par mois -- possible à nouveau le ' + escapeHtml(renameBlockedUntil.toLocaleDateString('fr-FR')) + '.</div>';
+    } else if (pseudoEditUnlocked) {
+      html += '<input type="text" id="profile-name" value="' + escapeHtml(p.name) + '" required>' +
+        '<div class="help-text" style="color:var(--danger, #b23);">⚠ Renommer va changer ton identité partout dans l\'app (chronos, événements, teams, coaching, amis...).</div>';
+    } else {
+      html += '<input type="text" id="profile-name" value="' + escapeHtml(p.name) + '" disabled>' +
+        '<button type="button" class="ghost" id="pseudo-edit-unlock" style="margin-top:0.4rem;">Modifier le pseudo</button>';
+    }
     html += '<div id="profile-name-number-wrap" style="display:' + (isNonRider ? 'none' : 'block') + '; margin-top:0.5rem;">' +
       '<label for="profile-name-number">N° (optionnel, même sans homonyme)</label>' +
       '<input type="text" id="profile-name-number" placeholder="Ex. 12" value="' + escapeHtml(riderNumberSuffix(p.name)) + '"></div>';
@@ -2164,6 +2191,137 @@
     });
   }
 
+  // Rate limit for a pseudo change -- 1 per 30 days, enforced both here
+  // (immediate, friendly message) and server-side in firestore.rules
+  // (users update: request.time > lastNameChangeAt + duration.value(30,'d'),
+  // stamped with request.time so it can't be spoofed by a client-supplied
+  // value). Returns null if allowed, or the date the next change becomes
+  // possible.
+  var RENAME_COOLDOWN_DAYS = 30;
+  function renameAllowedAt(p) {
+    var last = p && p.lastNameChangeAt;
+    if (!last) return null;
+    var lastMs = typeof last.toMillis === 'function' ? last.toMillis() : (last.seconds ? last.seconds * 1000 : null);
+    if (!lastMs) return null;
+    var nextMs = lastMs + RENAME_COOLDOWN_DAYS * 24 * 60 * 60 * 1000;
+    return nextMs > Date.now() ? new Date(nextMs) : null;
+  }
+
+  // Every collection carrying a plain (auto-id) name-bearing field this
+  // account might own -- see firestore.rules' canRenameField/
+  // canBackfillUid. Doc-id-embedded-name collections (teamMembers,
+  // teamLikes, teamJoinRequests, teamInvites' "to" side, eventTravelInfo)
+  // are migrated separately below since renaming them in place would
+  // leave their id pointing at the old name forever (see
+  // migrateGroupBForRename).
+  function groupARenameSpecs() {
+    return [
+      { coll: 'friendRequests', field: 'from', uidField: 'fromUid' },
+      { coll: 'friendRequests', field: 'to', uidField: 'toUid' },
+      { coll: 'coachRequests', field: 'from', uidField: 'fromUid' },
+      { coll: 'coachRequests', field: 'to', uidField: 'toUid' },
+      { coll: 'coachMessages', field: 'from', uidField: 'uid' },
+      { coll: 'follows', field: 'follower', uidField: 'followerUid' },
+      { coll: 'follows', field: 'followee', uidField: 'followeeUid', skip: function (d) { return d.followeeType === 'team'; } },
+      { coll: 'teamInvites', field: 'from', uidField: 'fromUid' },
+      { coll: 'teamFeed', field: 'author', uidField: 'authorUid' },
+      { coll: 'wallPosts', field: 'author', uidField: 'authorUid' },
+      { coll: 'eventAnnouncements', field: 'from', uidField: 'fromUid' }
+    ];
+  }
+  // Queried once, up front, while this account's own name (per
+  // firestore.rules' myName()) still resolves to oldName -- both the
+  // pre-rename uid backfill and the query itself depend on that.
+  function fetchGroupARenameTargets(oldName) {
+    return Promise.all(groupARenameSpecs().map(function (spec) {
+      return db.collection(spec.coll).where(spec.field, '==', oldName).get().then(function (snap) {
+        var docs = [];
+        snap.forEach(function (doc) {
+          var d = doc.data();
+          if (spec.skip && spec.skip(d)) return;
+          docs.push({ ref: doc.ref, data: d });
+        });
+        return { spec: spec, docs: docs };
+      }).catch(function () { return { spec: spec, docs: [] }; });
+    }));
+  }
+  function backfillGroupAUids(results, myUidVal) {
+    var batch = db.batch(), n = 0;
+    results.forEach(function (r) {
+      r.docs.forEach(function (d) {
+        if (d.data[r.spec.uidField] == null) {
+          var patch = {}; patch[r.spec.uidField] = myUidVal;
+          batch.update(d.ref, patch);
+          n++;
+        }
+      });
+    });
+    return n ? batch.commit() : Promise.resolve();
+  }
+  function applyGroupARenames(results, newName) {
+    var batch = db.batch(), n = 0;
+    results.forEach(function (r) {
+      r.docs.forEach(function (d) {
+        var patch = {}; patch[r.spec.field] = newName;
+        batch.update(d.ref, patch);
+        n++;
+      });
+    });
+    return n ? batch.commit() : Promise.resolve();
+  }
+  // The doc-id-embedded-name collections -- recreate under the new id
+  // (migratedFromId + uid, same shape as migrateTeamMembershipsForRename)
+  // and delete the old one, run only after the users doc rename has
+  // landed (myName() now resolves to newName, which each create rule
+  // checks the new doc against).
+  function migrateGroupBForRename(oldName, newName, myUidVal) {
+    var jobs = [];
+    jobs.push(db.collection('teamLikes').where('name', '==', oldName).get().then(function (snap) {
+      var ops = [];
+      snap.forEach(function (doc) {
+        var d = doc.data();
+        ops.push(db.collection('teamLikes').doc(teamMemberDocId(d.teamId, newName)).set({
+          teamId: d.teamId, name: newName, uid: myUidVal, migratedFromId: doc.id
+        }).then(function () { return db.collection('teamLikes').doc(doc.id).delete(); }));
+      });
+      return Promise.all(ops);
+    }));
+    jobs.push(db.collection('teamJoinRequests').where('from', '==', oldName).get().then(function (snap) {
+      var ops = [];
+      snap.forEach(function (doc) {
+        var d = doc.data();
+        ops.push(db.collection('teamJoinRequests').doc(teamMemberDocId(d.teamId, newName)).set({
+          teamId: d.teamId, teamName: d.teamName, from: newName, kind: d.kind, status: d.status,
+          uid: myUidVal, migratedFromId: doc.id
+        }).then(function () { return db.collection('teamJoinRequests').doc(doc.id).delete(); }));
+      });
+      return Promise.all(ops);
+    }));
+    jobs.push(db.collection('teamInvites').where('to', '==', oldName).get().then(function (snap) {
+      var ops = [];
+      snap.forEach(function (doc) {
+        var d = doc.data();
+        ops.push(db.collection('teamInvites').doc(teamInviteDocId(d.teamId, newName)).set({
+          teamId: d.teamId, teamName: d.teamName, from: d.from, fromUid: d.fromUid || null,
+          to: newName, toUid: myUidVal, status: d.status, migratedFromId: doc.id
+        }).then(function () { return db.collection('teamInvites').doc(doc.id).delete(); }));
+      });
+      return Promise.all(ops);
+    }));
+    jobs.push(db.collection('eventTravelInfo').where('rider', '==', oldName).get().then(function (snap) {
+      var ops = [];
+      snap.forEach(function (doc) {
+        var d = doc.data();
+        var eventId = doc.id.slice(0, doc.id.length - ('_' + oldName).length);
+        var newData = Object.assign({}, d, { rider: newName, uid: myUidVal, migratedFromId: doc.id });
+        ops.push(db.collection('eventTravelInfo').doc(eventId + '_' + newName).set(newData)
+          .then(function () { return db.collection('eventTravelInfo').doc(doc.id).delete(); }));
+      });
+      return Promise.all(ops);
+    }));
+    return Promise.all(jobs);
+  }
+
   function saveProfile(role, notifyBeforeSession, followedRiders, bike, bikeNumber, newRawName, nameNumber, firstName, lastName) {
     var uid = auth.currentUser && auth.currentUser.uid;
     if (!uid || !currentUserProfile) return;
@@ -2191,6 +2349,12 @@
         return;
       }
       if (result.name !== oldName) {
+        var blockedUntil = renameAllowedAt(currentUserProfile);
+        if (blockedUntil) {
+          profileSaveMessage = 'Un seul changement de pseudo par mois -- possible à nouveau le ' + blockedUntil.toLocaleDateString('fr-FR') + '.';
+          renderRoot();
+          return;
+        }
         nameChanged = true;
         finalName = result.name;
         var isKnownRider = allKnownRiders().indexOf(oldName) !== -1;
@@ -2200,7 +2364,23 @@
     var writes = { role: role, notifyBeforeSession: notifyBeforeSession, followedRiders: followedRiders, bike: bike || null, bikeNumber: bikeNumber || null,
       firstName: firstName || null, lastName: lastName || null };
     if (nameChanged) writes.name = finalName;
-    db.collection('users').doc(uid).set(writes, { merge: true }).then(function () {
+    // When the pseudo changes, every other collection that carries it has
+    // to be found and backfilled with its owner's uid *before* this write
+    // lands (see fetchGroupARenameTargets/backfillGroupAUids -- both rely
+    // on myName() still resolving to oldName), then the write itself
+    // stamps lastNameChangeAt (server time, for the 30-day rate limit),
+    // and only then can each found doc actually be renamed (myName() now
+    // resolves to finalName, which canRenameField checks the new value
+    // against) alongside the doc-id-embedded-name collections (Group B)
+    // and the pre-existing teamMembers/rider/session/event cascades.
+    var groupATargets = null;
+    (nameChanged ? fetchGroupARenameTargets(oldName).then(function (results) {
+      groupATargets = results;
+      return backfillGroupAUids(results, uid);
+    }) : Promise.resolve()).then(function () {
+      if (nameChanged) writes.lastNameChangeAt = firebase.firestore.FieldValue.serverTimestamp();
+      return db.collection('users').doc(uid).set(writes, { merge: true });
+    }).then(function () {
       // Covers switching to Pilote (or renaming while already one) without
       // ever having gone through onSignupSubmit's own rider-doc creation.
       if (role === 'pilote') {
@@ -2221,6 +2401,12 @@
       if (nameChanged) {
         migrateTeamMembershipsForRename(oldName, finalName, teamMembershipsBeforeRename);
         refreshMyTeamMembershipsSync();
+        if (groupATargets) applyGroupARenames(groupATargets, finalName).catch(function (err) {
+          showToast('Migration partielle : ' + (err && err.message ? err.message : err));
+        });
+        migrateGroupBForRename(oldName, finalName, uid).catch(function (err) {
+          showToast('Migration partielle : ' + (err && err.message ? err.message : err));
+        });
       }
     }).catch(function (err) {
       profileSaveMessage = 'Erreur : ' + (err && err.message ? err.message : err);
@@ -4479,7 +4665,7 @@
     var me = currentUserProfile;
     text = (text || '').trim();
     if (!me || !text) return;
-    db.collection('eventAnnouncements').add({ eventId: eventId, teamId: teamId, from: me.name, text: text, createdAt: Date.now() }).catch(function (err) {
+    db.collection('eventAnnouncements').add({ eventId: eventId, teamId: teamId, from: me.name, fromUid: myUid(), text: text, createdAt: Date.now() }).catch(function (err) {
       showToast('Erreur : ' + (err && err.message ? err.message : err));
     });
   }
@@ -5310,6 +5496,7 @@
     if (!me) return;
     var data = {
       rider: me.name,
+      uid: myUid(),
       hotelName: (document.getElementById('travel-hotel-name').value || '').trim() || null,
       hotelAddress: (document.getElementById('travel-hotel-address').value || '').trim() || null,
       flightOutDep: (document.getElementById('travel-flight-out-dep').value || '').trim() || null,
@@ -6965,7 +7152,7 @@
       renderRoot();
       return;
     }
-    var post = { id: genId(), author: me.name, audience: audience, createdAt: Date.now() };
+    var post = { id: genId(), author: me.name, authorUid: myUid(), audience: audience, createdAt: Date.now() };
     if (text) post.text = text;
     if (linkUrl) post.linkUrl = linkUrl;
     if (photoURL) post.photoURL = photoURL;
@@ -8408,6 +8595,15 @@
       profileCancel.addEventListener('click', function () {
         profilePanelOpen = false;
         profileDeleteConfirmOpen = false;
+        pseudoEditUnlocked = false;
+        renderRoot();
+      });
+    }
+    var pseudoEditUnlock = document.getElementById('pseudo-edit-unlock');
+    if (pseudoEditUnlock) {
+      pseudoEditUnlock.addEventListener('click', function () {
+        if (!window.confirm('Changer de pseudo va renommer ton identité partout dans l\'app (chronos, événements, teams, coaching, amis...). Tu ne pourras le refaire qu\'une fois par mois. Continuer ?')) return;
+        pseudoEditUnlocked = true;
         renderRoot();
       });
     }
@@ -8442,7 +8638,13 @@
         var firstName = firstNameEl ? firstNameEl.value.trim() : '';
         var lastNameEl = document.getElementById('profile-lastname');
         var lastName = lastNameEl ? lastNameEl.value.trim() : '';
+        if (pseudoEditUnlocked && newName && newName !== currentUserProfile.name) {
+          if (!window.confirm('Confirmer le changement de pseudo de "' + currentUserProfile.name + '" vers "' + newName + '" ? Cette action est immédiate et tu ne pourras pas en refaire un avant un mois.')) {
+            return;
+          }
+        }
         saveProfile(role, notify, followedRiders, bike, bikeNumber, newName, nameNumber, firstName, lastName);
+        pseudoEditUnlocked = false;
       });
       var notifyLabel = document.getElementById('profile-notify-label');
       profileForm.querySelectorAll('input[name="profile-role"]').forEach(function (radio) {

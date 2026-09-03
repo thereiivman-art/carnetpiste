@@ -40,6 +40,28 @@ service cloud.firestore {
     function onlyOwnKeyChanged(beforeMap, afterMap) {
       return afterMap.diff(beforeMap).affectedKeys().hasOnly([myName()]);
     }
+    // Generic self-rename support for every plain-id collection that
+    // carries a name-bearing field (friendRequests.from/to, follows.
+    // follower/followee, teamFeed.author, ...): the field can only be
+    // rewritten by the doc's proven owner (its matching <field>Uid,
+    // unforgeable, stored at creation) to their own current name, never
+    // to an arbitrary value -- prevents both "stuck under the old name
+    // after a rename" and "rename someone else's field to spoof them".
+    // canBackfillUid separately lets a still-not-yet-renamed owner add
+    // their own uid to a doc that predates uid tracking (proven simply by
+    // the field still matching their current name), so a *future* rename
+    // has something to migrate from -- same two-step shape as
+    // teamMembers' own uid backfill/migration below.
+    function canRenameField(res, field, uidField) {
+      return res.data.get(uidField, null) == request.auth.uid
+        && request.resource.data.diff(res.data).affectedKeys().hasOnly([field])
+        && request.resource.data[field] == myName();
+    }
+    function canBackfillUid(res, nameField, uidField) {
+      return res.data[nameField] == myName()
+        && request.resource.data.diff(res.data).affectedKeys().hasOnly([uidField])
+        && !res.data.keys().hasAny([uidField]);
+    }
     function hasAcceptedTeamInvite(teamId) {
       return exists(/databases/$(database)/documents/teamInvites/$(teamId + '_' + myName()))
         && get(/databases/$(database)/documents/teamInvites/$(teamId + '_' + myName())).data.status == 'accepted';
@@ -90,6 +112,11 @@ service cloud.firestore {
         && request.resource.data.get('pro', false) == false
         && request.resource.data.get('organizer', false) == false
         && request.resource.data.get('coach', false) == false;
+      // A pseudo change is capped to once every 30 days server-side (not
+      // just a client-side warning) -- lastNameChangeAt is stamped with
+      // request.time on every actual rename (see saveProfile), never
+      // client-supplied, so this can't be bypassed by lying about the
+      // previous value.
       allow update: if request.auth != null && (
         isAdmin() ||
         (request.auth.uid == userId
@@ -97,7 +124,9 @@ service cloud.firestore {
           && request.resource.data.get('personality', false) == resource.data.get('personality', false)
           && request.resource.data.get('pro', false) == resource.data.get('pro', false)
           && request.resource.data.get('organizer', false) == resource.data.get('organizer', false)
-          && request.resource.data.get('coach', false) == resource.data.get('coach', false))
+          && request.resource.data.get('coach', false) == resource.data.get('coach', false)
+          && (request.resource.data.name == resource.data.name
+              || request.time > resource.data.get('lastNameChangeAt', timestamp.date(1970, 1, 1)) + duration.value(30, 'd')))
       );
       allow delete: if request.auth != null && (request.auth.uid == userId || isAdmin());
     }
@@ -195,12 +224,15 @@ service cloud.firestore {
         && request.resource.data.from == myName()
         && request.resource.data.to != myName()
         && request.resource.data.status == 'pending';
-      allow update: if verified()
-        && resource.data.to == myName()
-        && resource.data.status == 'pending'
-        && request.resource.data.status == 'accepted'
-        && request.resource.data.from == resource.data.from
-        && request.resource.data.to == resource.data.to;
+      allow update: if verified() && (
+        (resource.data.to == myName()
+          && resource.data.status == 'pending'
+          && request.resource.data.status == 'accepted'
+          && request.resource.data.from == resource.data.from
+          && request.resource.data.to == resource.data.to)
+        || canRenameField(resource, 'from', 'fromUid') || canBackfillUid(resource, 'from', 'fromUid')
+        || canRenameField(resource, 'to', 'toUid') || canBackfillUid(resource, 'to', 'toUid')
+      );
       allow delete: if verified() && (isAdmin() || resource.data.from == myName() || resource.data.to == myName());
     }
     // Coaching -- a Pilote or Organisateur (from) requests coaching from a
@@ -217,16 +249,21 @@ service cloud.firestore {
         && request.resource.data.from == myName()
         && request.resource.data.to != myName()
         && request.resource.data.status == 'pending';
-      allow update: if verified() && resource.data.to == myName() && (
-        (resource.data.status == 'pending' && request.resource.data.status == 'accepted'
-          && request.resource.data.from == resource.data.from && request.resource.data.to == resource.data.to)
-        || request.resource.data.diff(resource.data).affectedKeys().hasOnly(['plan'])
+      allow update: if verified() && (
+        (resource.data.to == myName() && (
+          (resource.data.status == 'pending' && request.resource.data.status == 'accepted'
+            && request.resource.data.from == resource.data.from && request.resource.data.to == resource.data.to)
+          || request.resource.data.diff(resource.data).affectedKeys().hasOnly(['plan'])
+        ))
+        || canRenameField(resource, 'from', 'fromUid') || canBackfillUid(resource, 'from', 'fromUid')
+        || canRenameField(resource, 'to', 'toUid') || canBackfillUid(resource, 'to', 'toUid')
       );
       allow delete: if verified() && (isAdmin() || resource.data.from == myName() || resource.data.to == myName());
     }
     // Coach <-> coaché messaging, append-only (see sendCoachMessage) --
     // only the two parties to that accepted coachRequests can read or
-    // post into it; nothing is ever edited client-side. Delete is
+    // post into it; the only edit ever allowed is the sender's own name
+    // on a rename (see canRenameField/canBackfillUid). Delete is
     // otherwise unreachable (no client-side action for it) except by
     // the admin, for cleanup of stale/orphaned data (see e.g. a renamed
     // account's old-name messages left behind by a rename bug).
@@ -237,6 +274,7 @@ service cloud.firestore {
       allow read: if verified() && (isAdmin() || isPartyToCoachRequest(resource.data.requestId));
       allow create: if verified() && request.resource.data.from == myName()
         && isPartyToCoachRequest(request.resource.data.requestId);
+      allow update: if verified() && (canRenameField(resource, 'from', 'uid') || canBackfillUid(resource, 'from', 'uid'));
       allow delete: if verified() && isAdmin();
     }
     // Social feed -- append-only activity log (a new friendship, a new
@@ -280,12 +318,19 @@ service cloud.firestore {
       // tier; the leader is the only one who can act on it (accept: tier
       // 'adherent' + adherentRequested false in one write; decline: just
       // clears the flag), from the unified member-management panel.
-      allow update: if verified() && resource.data.followeeType == 'team' && (
-        (isTeamLeader(resource.data.followee)
-          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['tier', 'adherentRequested'])
-          && (request.resource.data.tier == 'adherent' || request.resource.data.tier == 'follower'))
-        || (resource.data.follower == myName()
-            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['adherentRequested']))
+      allow update: if verified() && (
+        (resource.data.followeeType == 'team' && (
+          (isTeamLeader(resource.data.followee)
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['tier', 'adherentRequested'])
+            && (request.resource.data.tier == 'adherent' || request.resource.data.tier == 'follower'))
+          || (resource.data.follower == myName()
+              && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['adherentRequested']))
+        ))
+        || canRenameField(resource, 'follower', 'followerUid') || canBackfillUid(resource, 'follower', 'followerUid')
+        // followee is a teamId (not a name) for a team-type follow -- only
+        // ever rewritten for the person-followed-a-person shape.
+        || (resource.data.get('followeeType', 'user') != 'team'
+            && (canRenameField(resource, 'followee', 'followeeUid') || canBackfillUid(resource, 'followee', 'followeeUid')))
       );
       allow delete: if verified() && (
         isAdmin()
@@ -376,18 +421,41 @@ service cloud.firestore {
     // deleting the request.
     match /teamJoinRequests/{id} {
       allow read: if request.auth != null;
-      allow create: if verified() && request.resource.data.from == myName()
-        && (request.resource.data.kind == 'member' || request.resource.data.kind == 'adherent')
-        && request.resource.data.status == 'pending';
-      allow delete: if verified() && (isAdmin() || resource.data.from == myName() || isTeamLeader(resource.data.teamId));
+      allow create: if verified() && (
+        (request.resource.data.from == myName()
+          && (request.resource.data.kind == 'member' || request.resource.data.kind == 'adherent')
+          && request.resource.data.status == 'pending')
+        // Id = teamId_from, so a rename needs a new id -- same
+        // migratedFromId+uid recreate shape as teamMembers.
+        || (request.resource.data.get('uid', null) == request.auth.uid
+            && request.resource.data.get('migratedFromId', '') != ''
+            && exists(/databases/$(database)/documents/teamJoinRequests/$(request.resource.data.migratedFromId))
+            && get(/databases/$(database)/documents/teamJoinRequests/$(request.resource.data.migratedFromId)).data.uid == request.auth.uid
+            && get(/databases/$(database)/documents/teamJoinRequests/$(request.resource.data.migratedFromId)).data.teamId == request.resource.data.teamId)
+      );
+      allow update: if verified() && canBackfillUid(resource, 'from', 'uid');
+      allow delete: if verified() && (
+        isAdmin() || resource.data.from == myName() || isTeamLeader(resource.data.teamId)
+        || resource.data.get('uid', null) == request.auth.uid
+      );
     }
     // A plain, no-strings like -- id = teamId_name, one per (team, person),
     // self-service create/delete only, like followTeam's own follows rows
     // but without any tier or request semantics.
     match /teamLikes/{id} {
       allow read: if request.auth != null;
-      allow create: if verified() && request.resource.data.name == myName();
-      allow delete: if verified() && (isAdmin() || resource.data.name == myName());
+      allow create: if verified() && (
+        request.resource.data.name == myName()
+        // Id = teamId_name, so a rename needs a new id -- same
+        // migratedFromId+uid recreate shape as teamMembers.
+        || (request.resource.data.get('uid', null) == request.auth.uid
+            && request.resource.data.get('migratedFromId', '') != ''
+            && exists(/databases/$(database)/documents/teamLikes/$(request.resource.data.migratedFromId))
+            && get(/databases/$(database)/documents/teamLikes/$(request.resource.data.migratedFromId)).data.uid == request.auth.uid
+            && get(/databases/$(database)/documents/teamLikes/$(request.resource.data.migratedFromId)).data.teamId == request.resource.data.teamId)
+      );
+      allow update: if verified() && canBackfillUid(resource, 'name', 'uid');
+      allow delete: if verified() && (isAdmin() || resource.data.name == myName() || resource.data.get('uid', null) == request.auth.uid);
     }
     // Id = teamId_to, so a leader can only ever have one pending/accepted
     // invite outstanding per person per team (a second create would just
@@ -395,18 +463,36 @@ service cloud.firestore {
     // friendRequests.
     match /teamInvites/{id} {
       allow read: if request.auth != null;
-      allow create: if verified()
-        && request.resource.data.from == myName()
-        && isTeamLeader(request.resource.data.teamId)
-        && request.resource.data.status == 'pending';
-      allow update: if verified()
-        && resource.data.to == myName()
-        && resource.data.status == 'pending'
-        && request.resource.data.status == 'accepted'
-        && request.resource.data.teamId == resource.data.teamId
-        && request.resource.data.from == resource.data.from
-        && request.resource.data.to == resource.data.to;
-      allow delete: if verified() && (isAdmin() || resource.data.from == myName() || resource.data.to == myName() || isTeamLeader(resource.data.teamId));
+      allow create: if verified() && (
+        (request.resource.data.from == myName()
+          && isTeamLeader(request.resource.data.teamId)
+          && request.resource.data.status == 'pending')
+        // Rename self-heal for the recipient side -- id = teamId_to, so a
+        // renamed "to" needs a new id, same migratedFromId+uid shape as
+        // teamMembers (see below): proven by toUid, never by the
+        // self-reported name.
+        || (request.resource.data.get('toUid', null) == request.auth.uid
+            && request.resource.data.get('migratedFromId', '') != ''
+            && exists(/databases/$(database)/documents/teamInvites/$(request.resource.data.migratedFromId))
+            && get(/databases/$(database)/documents/teamInvites/$(request.resource.data.migratedFromId)).data.toUid == request.auth.uid
+            && get(/databases/$(database)/documents/teamInvites/$(request.resource.data.migratedFromId)).data.teamId == request.resource.data.teamId
+            && get(/databases/$(database)/documents/teamInvites/$(request.resource.data.migratedFromId)).data.from == request.resource.data.from
+            && get(/databases/$(database)/documents/teamInvites/$(request.resource.data.migratedFromId)).data.status == request.resource.data.status)
+      );
+      allow update: if verified() && (
+        (resource.data.to == myName()
+          && resource.data.status == 'pending'
+          && request.resource.data.status == 'accepted'
+          && request.resource.data.teamId == resource.data.teamId
+          && request.resource.data.from == resource.data.from
+          && request.resource.data.to == resource.data.to)
+        || canRenameField(resource, 'from', 'fromUid') || canBackfillUid(resource, 'from', 'fromUid')
+        || canBackfillUid(resource, 'to', 'toUid')
+      );
+      allow delete: if verified() && (
+        isAdmin() || resource.data.from == myName() || resource.data.to == myName()
+        || resource.data.get('toUid', null) == request.auth.uid || isTeamLeader(resource.data.teamId)
+      );
     }
     // Team feed -- announcements, leader-only per the brief ("écrire dans
     // le feed du team" is listed as one of the admin/leader powers).
@@ -422,13 +508,19 @@ service cloud.firestore {
       // only. The post's own author may separately edit its text/link
       // (never a poll's question/options -- votes would no longer match
       // what was asked).
-      allow update: if verified() && isTeamMember(resource.data.teamId) && (
-        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['votes'])
-          && onlyOwnKeyChanged(resource.data.get('votes', {}), request.resource.data.votes))
-        || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reactions'])
-          && onlyOwnKeyChanged(resource.data.get('reactions', {}), request.resource.data.reactions))
-        || (resource.data.author == myName()
-            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['text', 'linkUrl', 'editedAt']))
+      allow update: if verified() && (
+        (isTeamMember(resource.data.teamId) && (
+          (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['votes'])
+            && onlyOwnKeyChanged(resource.data.get('votes', {}), request.resource.data.votes))
+          || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reactions'])
+            && onlyOwnKeyChanged(resource.data.get('reactions', {}), request.resource.data.reactions))
+          || (resource.data.author == myName()
+              && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['text', 'linkUrl', 'editedAt']))
+        ))
+        // Rename self-heal, independent of current membership -- an
+        // author who's since left the team can still fix their own old
+        // posts' byline (proven by authorUid, not by name or membership).
+        || canRenameField(resource, 'author', 'authorUid') || canBackfillUid(resource, 'author', 'authorUid')
       );
       allow delete: if verified() && (isAdmin() || resource.data.author == myName() || isTeamLeader(resource.data.teamId));
     }
@@ -441,6 +533,7 @@ service cloud.firestore {
     match /wallPosts/{id} {
       allow read: if request.auth != null;
       allow create: if verified() && request.resource.data.author == myName();
+      allow update: if verified() && (canRenameField(resource, 'author', 'authorUid') || canBackfillUid(resource, 'author', 'authorUid'));
       allow delete: if verified() && (resource.data.author == myName() || isAdmin());
     }
     // Free-text broadcasts a Team Leader sends to an event's pilotes
@@ -453,8 +546,11 @@ service cloud.firestore {
       allow read: if request.auth != null;
       allow create: if verified() && request.resource.data.from == myName()
         && isTeamLeader(request.resource.data.teamId);
-      allow update: if verified() && isTeamLeader(resource.data.teamId)
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['text', 'editedAt']);
+      allow update: if verified() && (
+        (isTeamLeader(resource.data.teamId)
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['text', 'editedAt']))
+        || canRenameField(resource, 'from', 'fromUid') || canBackfillUid(resource, 'from', 'fromUid')
+      );
       allow delete: if verified() && (isAdmin() || isTeamLeader(resource.data.teamId));
     }
     // Hôtel/avion/aéroport, personal per (event, account) -- unlike every
@@ -464,8 +560,17 @@ service cloud.firestore {
     // read or write one doc.
     match /eventTravelInfo/{id} {
       allow read: if verified() && (isAdmin() || resource.data.rider == myName());
-      allow create: if verified() && request.resource.data.rider == myName();
-      allow update, delete: if verified() && (isAdmin() || resource.data.rider == myName());
+      allow create: if verified() && (
+        request.resource.data.rider == myName()
+        // Id = eventId_rider, so a rename needs a new id -- same
+        // migratedFromId+uid recreate shape as teamMembers.
+        || (request.resource.data.get('uid', null) == request.auth.uid
+            && request.resource.data.get('migratedFromId', '') != ''
+            && exists(/databases/$(database)/documents/eventTravelInfo/$(request.resource.data.migratedFromId))
+            && get(/databases/$(database)/documents/eventTravelInfo/$(request.resource.data.migratedFromId)).data.uid == request.auth.uid)
+      );
+      allow update: if verified() && (isAdmin() || resource.data.rider == myName() || canBackfillUid(resource, 'rider', 'uid'));
+      allow delete: if verified() && (isAdmin() || resource.data.rider == myName() || resource.data.get('uid', null) == request.auth.uid);
     }
   }
 }
