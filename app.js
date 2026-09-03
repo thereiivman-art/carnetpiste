@@ -301,7 +301,7 @@
         teamId: invite.teamId, name: me.name, role: 'member', joinedAt: Date.now(), uid: (auth.currentUser && auth.currentUser.uid)
       });
     }).then(function () {
-      showToast('Bienvenue dans "' + invite.teamName + '".', 'success');
+      showToast('Bienvenue dans "' + ((teamById(invite.teamId) || {}).name || invite.teamName) + '".', 'success');
       bumpTeamMemberCount(invite.teamId, 1);
     }).catch(function (err) {
       showToast('Erreur : ' + (err && err.message ? err.message : err));
@@ -449,7 +449,7 @@
     }, { merge: true }).then(function () {
       return db.collection('teamJoinRequests').doc(req.id).delete();
     }).then(function () {
-      showToast(req.from + ' a rejoint ' + req.teamName + '.', 'success');
+      showToast(req.from + ' a rejoint ' + ((teamById(req.teamId) || {}).name || req.teamName) + '.', 'success');
       bumpTeamMemberCount(req.teamId, 1);
     }).catch(function (err) {
       showToast('Erreur : ' + (err && err.message ? err.message : err));
@@ -2043,7 +2043,7 @@
         '<div class="help-text" style="margin:-0.3rem 0 0.6rem;">Demande d\'ami</div>';
     });
     teamInvs.forEach(function (r) {
-      rows += '<div class="friend-row"><div class="friend-row-main"><span class="friend-name-plain">' + escapeHtml(r.teamName) + '</span>' +
+      rows += '<div class="friend-row"><div class="friend-row-main"><span class="friend-name-plain">' + escapeHtml((teamById(r.teamId) || {}).name || r.teamName) + '</span>' +
         '<span class="help-text">invité par ' + escapeHtml(r.from) + '</span></div><div class="friend-row-actions">' +
         '<button type="button" class="primary" data-action="team-invite-accept" data-id="' + r.id + '">Accepter</button>' +
         '<button type="button" class="ghost" data-action="team-invite-remove" data-id="' + r.id + '">Refuser</button>' +
@@ -6320,7 +6320,8 @@
       if (seenTeamInviteIds[id]) return;
       seenTeamInviteIds[id] = true;
       if (notifCategoryAllowed('notifyInvites')) {
-        new Notification('Carnet de Piste', { body: 'Tu as reçu une invitation' + (byId[id].teamName ? ' à rejoindre ' + byId[id].teamName : '') + ' !' });
+        var invTeamName = (teamById(byId[id].teamId) || {}).name || byId[id].teamName;
+        new Notification('Carnet de Piste', { body: 'Tu as reçu une invitation' + (invTeamName ? ' à rejoindre ' + invTeamName : '') + ' !' });
       }
     });
   }
@@ -7974,7 +7975,7 @@
     var html = '';
     if (incoming.length) {
       var incomingBody = incoming.map(function (r) {
-        return '<div class="friend-row"><div class="friend-row-main"><span class="friend-name-plain">' + escapeHtml(r.teamName) + '</span> <span class="help-text">invité par ' + escapeHtml(r.from) + '</span></div>' +
+        return '<div class="friend-row"><div class="friend-row-main"><span class="friend-name-plain">' + escapeHtml((teamById(r.teamId) || {}).name || r.teamName) + '</span> <span class="help-text">invité par ' + escapeHtml(r.from) + '</span></div>' +
           '<div class="friend-row-actions">' +
           '<button type="button" class="primary" data-action="team-invite-accept" data-id="' + r.id + '">Accepter</button>' +
           '<button type="button" class="ghost" data-action="team-invite-remove" data-id="' + r.id + '">Refuser</button>' +
@@ -8047,13 +8048,12 @@
   // actually in -- a discoverable team it isn't in has no such data.
   function renderTeamTile(t, innerActionsHtml, clickable) {
     var likeCount = (STATE.teamLikes || []).filter(function (l) { return l.teamId === t.id; }).length;
-    // t.memberCount was never actually written anywhere (no denormalized
-    // counter maintained on the team doc), so it was always 0/undefined --
-    // teamMembersByTeam is the real roster, already synced for every team
-    // this account is in (see refreshTeamDetailSync), which covers every
-    // tile in "Mes Teams" (team-tile-grid). Discovery tiles for teams
-    // this account isn't in still fall back to the (currently unused)
-    // field, since their roster was never fetched.
+    // teamMembersByTeam (the real roster) is only ever synced for teams
+    // this account is actually in (see refreshTeamDetailSync), which
+    // covers every tile in "Mes Teams" (team-tile-grid) -- but a
+    // discoverable team it isn't in has no such data, so those tiles
+    // fall back to t.memberCount, a denormalized counter kept in sync via
+    // atomic increments/decrements (see bumpTeamMemberCount).
     var memberCount = ((STATE.teamMembersByTeam || {})[t.id] || []).length || t.memberCount || 0;
     var desc = t.description ? '<div class="team-tile-desc">' + escapeHtml(t.description) + '</div>' : '';
     var mainInner = avatarHtml(t, t.name) +
