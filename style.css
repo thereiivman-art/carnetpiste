@@ -1428,6 +1428,56 @@
     .bottom-nav-icon { font-size: 1.15rem; }
     .bottom-nav-label { font-size: 0.6rem; }
   }
+
+  /* Desktop layout -- everything up to here was built and tested on
+     mobile only, so a wide viewport just got the same narrow centered
+     column with huge empty margins either side, and the tab bar sat
+     oddly pinned to the bottom of an otherwise tall window. Past this
+     breakpoint, .bottom-nav becomes a persistent left sidebar (own DOM,
+     just repositioned/relaid-out -- renderBottomNav() itself doesn't
+     change) and the content column gets real breathing room. Below the
+     breakpoint every rule above still applies unchanged. */
+  :root { --sidebar-w: 220px; }
+  @media (min-width: 960px) {
+    .wrap {
+      max-width: 1100px;
+      margin: 0 0 0 var(--sidebar-w);
+      padding: calc(var(--header-h) + 1.5rem) 2.2rem 2.5rem;
+    }
+    body.has-bottom-nav .wrap {
+      /* No bottom-nav down there any more to reserve space for. */
+      padding-bottom: 2.5rem;
+    }
+    header.page-head { left: var(--sidebar-w); }
+    .page-head-inner { max-width: 1100px; margin: 0; padding: 1rem 2.2rem 0.8rem; }
+    .bottom-nav {
+      top: 0;
+      bottom: 0;
+      left: 0;
+      right: auto;
+      width: var(--sidebar-w);
+      flex-direction: column;
+      align-items: stretch;
+      justify-content: flex-start;
+      gap: 0.3rem;
+      padding: calc(var(--header-h) + 1.2rem) 0.7rem 1rem;
+      border-top: none;
+      border-right: 1px solid var(--border);
+      box-shadow: none;
+    }
+    .bottom-nav-btn {
+      flex-direction: row;
+      justify-content: flex-start;
+      gap: 0.7rem;
+      padding: 0.6rem 0.8rem;
+      font-size: 0.92rem;
+    }
+    .bottom-nav-btn.active { background: var(--surface-alt); }
+    .bottom-nav-icon { font-size: 1.15rem; }
+    .bottom-nav-label { font-size: 0.86rem; overflow: visible; }
+    .toast-stack { bottom: 1.2rem; }
+  }
+
   .horaires-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
