@@ -2110,7 +2110,8 @@
 
   function renderAccountManagerPanel() {
     if (!accountManagerOpen) return '';
-    var html = '<div class="card account-manager-panel">';
+    var html = '<button type="button" class="ghost" id="account-manager-back" style="margin-bottom:0.6rem;">← Retour à Mon profil</button>';
+    html += '<div class="card account-manager-panel">';
     html += '<div class="section-title" style="display:flex; align-items:center; justify-content:space-between;">Gestion des comptes' +
       '<button type="button" class="ghost icon-btn" id="rider-manager-toggle" aria-label="Gérer les pilotes (roster)" title="Gérer les pilotes (roster)">⚙</button></div>';
     if (manageableAccounts === null) {
@@ -4599,20 +4600,35 @@
   // outings to rebuild my history" working for a brand-new account no
   // matter who organized them. A Team Event's visibility depends on the
   // owning Team: the leader/admin always sees it; a member of that Team
-  // (any role) or anyone explicitly on ev.invitedNames always sees it;
-  // beyond that, a Team PRO's own eventVisibility opens it further
-  // ('public'/'ouvert' to everyone, 'adherent' to that Team's adherents)
-  // -- an amateur Team's events never go past members/invited. Display-
-  // layer only (see firestore.rules' events match), same convention as
-  // every other audience filter in this app.
+  // (any role) always sees it; so does anyone who's themselves riding it,
+  // OR whose own team (any team they belong to, not just this event's
+  // organizing one) has at least one member riding it -- e.g. an
+  // accompagnant member of an amateur Team can see a Team PRO's event
+  // that a teammate is actually participating in, without being a member
+  // or adherent of that Team PRO themselves. Beyond that, a Team PRO's
+  // own eventVisibility opens it further ('public'/'ouvert' to everyone,
+  // 'adherent' to that Team's adherents) -- an amateur Team's events
+  // never go past members/riders/teammates. Display-layer only (see
+  // firestore.rules' events match), same convention as every other
+  // audience filter in this app.
   function canSeeEvent(ev) {
     if (!ev.teamId) return true;
     var me = currentUserProfile;
     if (!me) return false;
     if (isAdmin() || isLeaderOfTeam(ev.teamId)) return true;
-    var isMember = (STATE.myTeamMemberships || []).some(function (m) { return m.teamId === ev.teamId; });
-    if (isMember) return true;
+    var myTeamIds = (STATE.myTeamMemberships || []).map(function (m) { return m.teamId; });
+    if (myTeamIds.indexOf(ev.teamId) !== -1) return true;
     if ((ev.riders || []).indexOf(me.name) !== -1) return true;
+    // A teammate riding this event, even on a Team that organized it and
+    // that I'm not myself a member of, opens it to me too -- e.g. an
+    // accompagnant in Motop (amateur) can see a Mototeam95 event her own
+    // Motop teammate is actually participating in, without being a
+    // Mototeam95 member/adherent herself.
+    var teammateRiding = myTeamIds.some(function (tid) {
+      var roster = membersOfTeam(tid).map(function (m) { return m.name; });
+      return (ev.riders || []).some(function (r) { return roster.indexOf(r) !== -1; });
+    });
+    if (teammateRiding) return true;
     var team = teamById(ev.teamId);
     if (team && team.teamPro) {
       var vis = ev.eventVisibility || 'membre';
@@ -7112,19 +7128,27 @@
   // friendSuggestions() feeds both "Tes amis" (renderSocialTab) and the
   // quick-add chip row inside it -- a few candidates worth nudging, not
   // the exhaustive picker (that's the "Ajouter un ami" select).
+  // "Mode profil" -- a small avatar/name/role card per suggestion instead
+  // of a bare text chip, scrolling left-to-right in one row so several
+  // fit without stacking vertically.
   function friendSuggestionChips(candidates) {
-    var suggestions = candidates.slice(0, 5);
+    var suggestions = candidates.slice(0, 8);
     if (!suggestions.length) return '';
-    return '<div class="social-suggestions-row"><span class="social-suggestions-label">Suggestions</span>' +
-      suggestions.map(function (n) {
-        return '<span class="suggestion-chip">' + escapeHtml(n) + ' <button type="button" class="ghost icon-btn" data-action="quick-add-friend" data-name="' + escapeHtml(n) + '" aria-label="Ajouter" title="Ajouter">+</button></span>';
+    return '<div class="social-suggestions-label" style="margin-top:0.8rem;">Suggestions</div>' +
+      '<div class="suggestion-profile-row">' + suggestions.map(function (n) {
+        var u = (STATE.usersByName || {})[n] || {};
+        return '<div class="suggestion-profile-card">' + avatarHtml(u, n) +
+          '<span class="suggestion-profile-name">' + escapeHtml(n) + '</span>' +
+          '<span class="friend-role-badge">' + roleLabel(u.role) + '</span>' +
+          '<button type="button" class="ghost icon-btn" data-action="quick-add-friend" data-name="' + escapeHtml(n) + '" aria-label="Ajouter" title="Ajouter">+</button>' +
+          '</div>';
       }).join('') + '</div>';
   }
 
-  // Second rubrique of Social (see renderSocialTab) -- always its own
-  // section, followed personalities plus a nudge toward ones not yet
+  // Sub-rubrique of Connexions (see renderSocialTab), same shape as "Mes
+  // amis" -- followed personalities plus a nudge toward ones not yet
   // followed, rather than only showing up once you follow someone.
-  function renderPersonalitiesCard(me) {
+  function renderPersonalitiesSection(me) {
     var followed = (STATE.myFollows || []).slice().sort(function (a, b) { return a.localeCompare(b); });
     var suggestions = allKnownUserNames().filter(function (n) {
       return n !== me.name && isPersonality(STATE.usersByName[n]) && followed.indexOf(n) === -1;
@@ -7140,7 +7164,7 @@
           return '<span class="suggestion-chip">' + escapeHtml(n) + ' <button type="button" class="ghost icon-btn" data-action="quick-follow" data-name="' + escapeHtml(n) + '" aria-label="Suivre" title="Suivre">★</button></span>';
         }).join('') + '</div>';
     }
-    return collapsibleCard('social-personnalites', 'Suivi des personnalités (' + followed.length + ')', body, false);
+    return collapsibleSection('social-personnalites', 'Suivi des personnalités (' + followed.length + ')', body, false);
   }
 
   // ---- Mur (wall) ----
@@ -7275,7 +7299,7 @@
         var t = teamById(it.teamId);
         return renderTeamFeedEntry(it.data, me, t ? t.name : null);
       }).join('');
-    return collapsibleCard('social-mur', 'Mon Mur (' + items.length + ')', body, false);
+    return collapsibleCard('social-mur', 'Mon Mur (' + items.length + ')', body, true);
   }
 
   function postToWall(text, linkUrl, photoURL, audience) {
@@ -7356,19 +7380,25 @@
     if (!addFriendOpen) {
       amisHtml += '<button type="button" class="primary add-chrono-btn" id="add-friend-toggle" style="margin-top:0.8rem;">+ Ajouter un ami</button>';
     } else {
+      // Recherche par pseudo (datalist) plutôt qu'un long menu déroulant --
+      // le # (numéro de moto) est affiché à côté de chaque suggestion pour
+      // lever le doute entre deux homonymes.
       var addFriendBody = !candidates.length
         ? '<div class="empty-state">Personne d’autre à ajouter pour l’instant.</div>'
-        : '<form id="add-friend-form"><label for="add-friend-select">Pilote, accompagnant ou organisateur</label>' +
-          '<select id="add-friend-select">' + candidates.map(function (n) {
-            return '<option value="' + escapeHtml(n) + '">' + escapeHtml(n) + ' — ' + roleLabel((STATE.usersByName[n] || {}).role) + '</option>';
-          }).join('') + '</select>' +
+        : '<form id="add-friend-form"><label for="add-friend-input">Rechercher par pseudo</label>' +
+          '<input type="text" id="add-friend-input" list="add-friend-list" placeholder="Pseudo" autocomplete="off" required>' +
+          '<datalist id="add-friend-list">' + candidates.map(function (n) {
+            var u = (STATE.usersByName || {})[n] || {};
+            var label = n + ' — ' + roleLabel(u.role) + (u.bikeNumber ? ' — #' + u.bikeNumber : '');
+            return '<option value="' + escapeHtml(n) + '">' + escapeHtml(label) + '</option>';
+          }).join('') + '</datalist>' +
           '<button type="submit" class="primary" style="margin-top:0.7rem;">Envoyer une demande</button></form>' +
           friendSuggestionChips(candidates);
       amisHtml += '<div style="margin-top:0.8rem;">' + addFriendBody + '</div>';
     }
+    amisHtml += renderPersonalitiesSection(me);
 
-    var html = collapsibleCard('social-amis', 'Tes amis (' + friends.length + ')', amisHtml, true);
-    html += renderPersonalitiesCard(me);
+    var html = collapsibleCard('social-amis', 'Connexions', amisHtml, true);
     html += renderWallFeed(me);
     html += renderWallComposer();
     return html;
@@ -7875,10 +7905,11 @@
 
   function renderCreateTeamCard() {
     return '<div class="card"><h2 class="section-title">Créer un Team</h2>' +
-      '<form id="create-team-form">' +
+      '<div class="help-text">Un Team créé ici est un <strong>Team amateur</strong> (entre amis) -- ouvert tout de suite, tu en es le premier Team Leader. Un <strong>Team PRO</strong> (badge 🏆, club validé) ne se crée pas directement : ' +
+      'contacte l\'administrateur une fois ton Team amateur créé pour le faire valider et passer PRO.</div>' +
+      '<form id="create-team-form" style="margin-top:0.7rem;">' +
       '<label for="new-team-name">Nom du team</label>' +
       '<input type="text" id="new-team-name" placeholder="Ex. Mototeam95" required>' +
-      '<div class="help-text">Tu en deviens automatiquement le premier Team Leader.</div>' +
       '<button type="submit" class="primary" style="margin-top:0.7rem;">Créer</button>' +
       '</form></div>';
   }
@@ -8050,6 +8081,7 @@
       // screen, not something to keep scrolling past once you're already
       // deep in a specific Team/Event.
       if (!expandedTeamId) {
+        html += '<h2 class="section-title">Mes Teams</h2>';
         html += '<div class="team-tile-grid">' + myTeams.map(function (t) {
           var tag = '<span class="friend-role-badge">' + (isLeaderOfTeam(t.id) ? 'Team Leader' : 'Membre') + '</span>';
           return renderTeamTile(t, tag, true);
@@ -8227,8 +8259,17 @@
       focusedId = activeEl.id;
       if (typeof activeEl.selectionStart === 'number') focusedSelection = [activeEl.selectionStart, activeEl.selectionEnd];
     }
+    // Mon profil (and its own Gestion des comptes sub-page) and
+    // Notifications each now take over the whole content area as their
+    // own page -- replacing the current tab's content instead of
+    // stacking above it, which used to pile both on screen at once and
+    // read as one long undifferentiated block.
     var body;
-    if (activeView === 'circuit') body = renderCircuitTab();
+    if (profilePanelOpen) {
+      body = accountManagerOpen ? renderAccountManagerPanel() : renderProfilePanel();
+    } else if (notificationsPanelOpen) {
+      body = renderNotificationsPanel();
+    } else if (activeView === 'circuit') body = renderCircuitTab();
     else if (activeView === 'stats') body = renderStatsTab();
     else if (activeView === 'planning') body = renderPlanningTab();
     else if (activeView === 'social') body = renderSocialTab();
@@ -8253,9 +8294,6 @@
           '<div class="banner" id="status-banner"></div>' +
         '</div>' +
       '</header>' +
-      renderNotificationsPanel() +
-      renderProfilePanel() +
-      renderAccountManagerPanel() +
       body +
       renderBottomNav() +
       renderCropModal();
@@ -8339,6 +8377,11 @@
     if (code === 'auth/email-already-in-use') return 'Cet email est déjà utilisé — connecte-toi plutôt.';
     if (code === 'auth/invalid-email') return 'Email invalide.';
     if (code === 'auth/weak-password') return 'Mot de passe trop court (6 caractères minimum).';
+    // Kept distinct from "mot de passe incorrect" below -- this one means
+    // the pseudo→email lookup itself found nothing, which otherwise
+    // surfaced as a misleading "wrong password" even when the password
+    // typed was actually correct (see resolveLoginIdentifier).
+    if (code === 'custom/pseudo-not-found') return err.message;
     if (code === 'auth/wrong-password' || code === 'auth/user-not-found' || code === 'auth/invalid-credential') return 'Email ou mot de passe incorrect.';
     if (code === 'auth/too-many-requests') return 'Trop de tentatives — attends quelques minutes avant de renvoyer l\'email.';
     return 'Erreur : ' + ((err && err.message) || err);
@@ -8365,13 +8408,18 @@
       return db.collection('users').get().then(function (allSnap) {
         var match = null;
         allSnap.forEach(function (doc) {
-          var n = doc.data().name;
+          var n = (doc.data().name || '').trim();
           if (n && n.toLowerCase() === identifier.toLowerCase()) match = doc.data();
         });
         return match && match.email;
       });
     }).then(function (email) {
-      if (!email) return Promise.reject({ code: 'auth/user-not-found' });
+      if (!email) {
+        // Distinct from a genuine wrong-password rejection (see
+        // translateAuthError) -- this means no account's pseudo matched
+        // at all, so blaming the password would be misleading.
+        return Promise.reject({ code: 'custom/pseudo-not-found', message: 'Aucun compte avec le pseudo "' + identifier + '" -- vérifie l\'orthographe exacte, ou connecte-toi avec ton email.' });
+      }
       return email;
     });
   }
@@ -8579,6 +8627,7 @@
       profileToggle.addEventListener('click', function () {
         profilePanelOpen = !profilePanelOpen;
         notificationsPanelOpen = false;
+        if (!profilePanelOpen) accountManagerOpen = false;
         profileSaveMessage = '';
         renderRoot();
       });
@@ -8663,6 +8712,13 @@
       accountManagerToggle.addEventListener('click', function () {
         accountManagerOpen = !accountManagerOpen;
         if (accountManagerOpen && manageableAccounts === null) loadManageableAccounts();
+        renderRoot();
+      });
+    }
+    var accountManagerBack = document.getElementById('account-manager-back');
+    if (accountManagerBack) {
+      accountManagerBack.addEventListener('click', function () {
+        accountManagerOpen = false;
         renderRoot();
       });
     }
@@ -8952,8 +9008,14 @@
     if (addFriendForm) {
       addFriendForm.addEventListener('submit', function (evt) {
         evt.preventDefault();
-        var select = document.getElementById('add-friend-select');
-        if (select && select.value) sendFriendRequest(select.value);
+        var input = document.getElementById('add-friend-input');
+        var name = input ? input.value.trim() : '';
+        if (!name) return;
+        if (!(STATE.usersByName || {})[name]) {
+          showToast('Choisis un pseudo dans la liste proposée.');
+          return;
+        }
+        sendFriendRequest(name);
         addFriendOpen = false;
         renderRoot();
       });
