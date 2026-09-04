@@ -775,8 +775,17 @@
     var vp = cropViewportSize();
     var img = new Image();
     img.onload = function () {
-      var OUT_W = kind === 'logo' ? 1280 : 400;
-      var OUT_H = kind === 'logo' ? Math.round(OUT_W * vp.h / vp.w) : 400;
+      // The wide logo output used to be a 1280px PNG -- fine for a flat
+      // graphic, but a photographic logo pushed the whole teams/{id} doc
+      // past Firestore's 1MB field limit. JPEG compresses that kind of
+      // content far better, so logo uses it (filling any zoomed-out
+      // margin with a neutral background first, since JPEG can't stay
+      // transparent there); the round badge/avatar stays PNG+transparent
+      // since it's small either way and needs to show the surface
+      // through when zoomed out.
+      var isLogo = kind === 'logo';
+      var OUT_W = isLogo ? 1000 : 400;
+      var OUT_H = isLogo ? Math.round(OUT_W * vp.h / vp.w) : 400;
       var k = OUT_W / vp.w;
       var size = cropDisplaySize();
       var outW = size.w * k, outH = size.h * k;
@@ -786,11 +795,16 @@
       canvas.width = OUT_W;
       canvas.height = OUT_H;
       var ctx = canvas.getContext('2d');
-      // PNG (transparent), not JPEG -- zoomed out, the image no longer
-      // fills the whole frame, and the badge/logo's own background
-      // should show through instead of a hard-coded fill color.
+      if (isLogo) {
+        ctx.fillStyle = '#f2f2f2';
+        ctx.fillRect(0, 0, OUT_W, OUT_H);
+      }
       ctx.drawImage(img, 0, 0, img.naturalWidth, img.naturalHeight, outX, outY, outW, outH);
-      var dataUrl = canvas.toDataURL('image/png');
+      var dataUrl = isLogo ? canvas.toDataURL('image/jpeg', 0.85) : canvas.toDataURL('image/png');
+      if (dataUrl.length > 700000) {
+        showToast('Cette image reste trop volumineuse même compressée -- réessaie avec une image moins chargée en détails.');
+        return;
+      }
       if (kind === 'team') saveTeamPhoto(teamId, dataUrl);
       else if (kind === 'logo') saveTeamLogo(teamId, dataUrl);
       else savePhoto(dataUrl);
