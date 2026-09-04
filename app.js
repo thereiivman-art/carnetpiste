@@ -11174,7 +11174,6 @@
     teamJoinRequestsIn = [];
     myEventJoinRequestsOut = [];
     eventJoinRequestsIn = [];
-    seenTeamInviteIds = null;
   }
 
   function handleSyncError() {
