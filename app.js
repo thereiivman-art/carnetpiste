@@ -3618,8 +3618,10 @@
       turnsHtml = (info.turnsRight != null ? info.turnsRight + ' D' : '—') + ' / ' + (info.turnsLeft != null ? info.turnsLeft + ' G' : '—');
     }
 
+    // Pas de titre "circuit-name" redondant ici -- le <select> juste
+    // au-dessus (voir renderCircuitTab) sert déjà de titre pour ce
+    // circuit, pas la peine de répéter son nom.
     var html = '<div class="card circuit-info-card">';
-    html += '<div class="circuit-name">' + escapeHtml(selectedCircuit) + '</div>';
     html += '<div class="circuit-info-map-full">' + renderCircuitVisual(info) + '</div>';
     html += '<div class="circuit-info-list">';
     html += infoRow('Distance', info.km != null ? (escapeHtml(String(info.km)) + ' km') : '—');

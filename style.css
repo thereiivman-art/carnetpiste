@@ -1528,6 +1528,24 @@
        Team, #moto) / N° pour l'event / retirer, columns lined up across
        every row instead of a long stack of wrapped, differently-sized
        rows. Much faster to scan for an organiser checking 20-30 pilotes. */
+    /* .circuit-visual-btn is a fixed 1:1 square (aspect-ratio: 1) sized
+       off .circuit-visual-frame's width -- fine on mobile where that
+       width tops out around 350-400px, but .circuit-info-map-full forces
+       width:100%, and once the card itself can be 1500px+ wide (see
+       .wrap above) that square grew taller than the viewport, cutting
+       the bottom of the track plan off the screen. Size off viewport
+       height instead of card width here, still capped so a narrower
+       desktop window doesn't overflow sideways either. */
+    .circuit-info-map-full .circuit-visual-frame {
+      width: auto;
+      max-width: 100%;
+      margin: 0 auto;
+    }
+    .circuit-info-map-full .circuit-visual-btn {
+      width: auto;
+      height: min(72vh, 900px);
+      max-width: 100%;
+    }
     .participants-list .friend-row {
       display: grid;
       grid-template-columns: 2fr 1fr auto;
