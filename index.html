@@ -3,6 +3,14 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<!-- GitHub Pages has no way to configure real Cache-Control headers, and
+     this HTML document itself (unlike app.js/style.css below) can't be
+     query-string versioned since it's the page's own URL -- these are a
+     best-effort ask for a mobile browser to actually revalidate it
+     instead of serving a stale copy from a previous deploy indefinitely. -->
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <title>Carnet de Piste</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
