@@ -176,15 +176,22 @@
   // friendRequests, kept as its own collection since it means something
   // different (see renderCoachTab) and carries its own field (plan, the
   // coach's training notes for that pilote, writable only once accepted).
-  function sendCoachRequest(toName) {
+  // type: 'coaching' (default -- a pilote/organisateur asking a Coach, or
+  // a Coach proposing regular coaching) or 'bapteme' -- a Coach offering a
+  // baptême piste (ride-along/taster lap) instead, which unlike coaching
+  // can target an accompagnant too, not just a pilote (see
+  // renderCoachTab's propose form). No separate badge for it -- it's just
+  // another thing an existing Coach can propose.
+  function sendCoachRequest(toName, type) {
     var me = currentUserProfile;
     if (!me || !toName || toName === me.name) return;
     var already = (STATE.coachRequests || []).some(function (r) {
       return (r.from === me.name && r.to === toName) || (r.from === toName && r.to === me.name);
     });
     if (already) return;
-    db.collection('coachRequests').add({ from: me.name, to: toName, status: 'pending', plan: '', fromUid: myUid(), toUid: uidOf(toName) }).then(function () {
-      showToast('Demande de coaching envoyée à ' + toName + '.', 'success');
+    var isBapteme = type === 'bapteme';
+    db.collection('coachRequests').add({ from: me.name, to: toName, status: 'pending', plan: '', type: isBapteme ? 'bapteme' : 'coaching', fromUid: myUid(), toUid: uidOf(toName) }).then(function () {
+      showToast((isBapteme ? 'Proposition de baptême piste envoyée à ' : 'Demande de coaching envoyée à ') + toName + '.', 'success');
     }).catch(function (err) {
       showToast('Erreur : ' + (err && err.message ? err.message : err));
     });
@@ -8583,10 +8590,15 @@
     return { coach: fromIsCoach ? r.from : r.to, pilote: fromIsCoach ? r.to : r.from };
   }
 
+  // Which type a Coach's propose form is currently set to -- pure UI
+  // state (not persisted), read by both the form's own render (candidate
+  // list/roles differ) and its submit handler.
+  var coachProposeType = 'coaching';
   function renderCoachTab() {
     var me = currentUserProfile;
     if (!me) return '';
-    var html = '';
+    var html = '<div class="section-title" style="font-size:0.95rem;">Coaching &amp; baptêmes piste</div>' +
+      '<div class="help-text" style="margin-bottom:0.8rem;">Un Coach peut proposer un suivi de coaching (pilotes) ou un baptême piste, un tour passager (pilotes et accompagnants).</div>';
     var iAmCoach = isCoachBadge(me);
     var myRequests = (STATE.coachRequests || []).filter(function (r) { return r.from === me.name || r.to === me.name; });
 
@@ -8597,13 +8609,14 @@
     if (incoming.length) {
       var incomingBody = incoming.map(function (r) {
         var u = (STATE.usersByName || {})[r.from] || {};
-        return '<div class="friend-row"><div class="friend-row-main">' + avatarHtml(u, r.from) + personNameHtml(r.from) + badgesHtml(u) + '</div>' +
+        return '<div class="friend-row"><div class="friend-row-main">' + avatarHtml(u, r.from) + personNameHtml(r.from) + badgesHtml(u) +
+          (r.type === 'bapteme' ? ' <span class="friend-role-badge">Baptême piste</span>' : '') + '</div>' +
           '<div class="friend-row-actions">' +
           '<button type="button" class="primary" data-action="coach-request-accept" data-id="' + r.id + '">Accepter</button>' +
           '<button type="button" class="ghost" data-action="coach-request-remove" data-id="' + r.id + '">Refuser</button>' +
           '</div></div>';
       }).join('');
-      html += collapsibleCard('coach-requests-in', 'Demandes de coaching reçues (' + incoming.length + ')', incomingBody, true);
+      html += collapsibleCard('coach-requests-in', 'Demandes reçues (' + incoming.length + ')', incomingBody, true);
     }
 
     if (iAmCoach) {
@@ -8613,34 +8626,50 @@
         : myPilotes.map(function (r) {
           var piloteName = coachSideOf(r).pilote;
           var u = (STATE.usersByName || {})[piloteName] || {};
+          var isBapteme = r.type === 'bapteme';
           return '<div class="coach-pilote-row">' +
-            '<div class="friend-row-main">' + avatarHtml(u, piloteName) + personNameHtml(piloteName) + badgesHtml(u) + '</div>' +
-            '<label for="coach-plan-' + r.id + '" style="margin-top:0.5rem;">Planning / notes de coaching</label>' +
-            '<textarea id="coach-plan-' + r.id + '" rows="3" data-coach-plan="' + r.id + '">' + escapeHtml(r.plan || '') + '</textarea>' +
-            '<div style="margin-top:0.5rem; display:flex; gap:0.6rem;">' +
-            '<button type="button" class="ghost" data-action="coach-plan-save" data-id="' + r.id + '">Enregistrer</button>' +
-            '<button type="button" class="ghost danger" data-action="coach-request-remove" data-id="' + r.id + '">Retirer ce pilote</button>' +
-            '</div>' + renderCoachMessageThread(r.id) + '</div>';
+            '<div class="friend-row-main">' + avatarHtml(u, piloteName) + personNameHtml(piloteName) + badgesHtml(u) +
+            (isBapteme ? ' <span class="friend-role-badge">Baptême piste</span>' : '') + '</div>' +
+            (isBapteme ? '' :
+              '<label for="coach-plan-' + r.id + '" style="margin-top:0.5rem;">Planning / notes de coaching</label>' +
+              '<textarea id="coach-plan-' + r.id + '" rows="3" data-coach-plan="' + r.id + '">' + escapeHtml(r.plan || '') + '</textarea>' +
+              '<div style="margin-top:0.5rem; display:flex; gap:0.6rem;">' +
+              '<button type="button" class="ghost" data-action="coach-plan-save" data-id="' + r.id + '">Enregistrer</button>' +
+              '<button type="button" class="ghost danger" data-action="coach-request-remove" data-id="' + r.id + '">Retirer ce pilote</button>' +
+              '</div>') +
+            (isBapteme ? '<div style="margin-top:0.5rem;"><button type="button" class="ghost danger" data-action="coach-request-remove" data-id="' + r.id + '">Retirer</button></div>' : '') +
+            renderCoachMessageThread(r.id) + '</div>';
         }).join('');
-      html += collapsibleCard('coach-roster', 'Mes pilotes coachés (' + myPilotes.length + ')', rosterBody, true);
+      html += collapsibleCard('coach-roster', 'Mes pilotes coachés / baptisés (' + myPilotes.length + ')', rosterBody, true);
 
-      // Proposer un coaching à n'importe quel pilote -- pas besoin d'être
-      // amis ou de se suivre, juste un champ de recherche (datalist) sur
-      // tous les comptes Pilote, moins ceux déjà liés (demande en cours
-      // ou déjà coachés).
+      // Proposer un coaching (pilotes seulement) ou un baptême piste
+      // (pilote OU accompagnant, un baptême étant un tour passager --
+      // pas de badge séparé, juste une deuxième chose qu'un Coach peut
+      // proposer) à n'importe quel compte -- pas besoin d'être amis ou de
+      // se suivre, juste un champ de recherche (datalist), moins ceux
+      // déjà liés (demande en cours ou déjà coachés/baptisés).
       var linkedPilotes = myRequests.map(function (r) { return coachSideOf(r).pilote; });
+      var proposeRoles = coachProposeType === 'bapteme' ? ['pilote', 'accompagnant'] : ['pilote'];
       var proposeCandidates = allKnownUserNames().filter(function (n) {
         var u = (STATE.usersByName || {})[n] || {};
-        return n !== me.name && u.role === 'pilote' && linkedPilotes.indexOf(n) === -1;
+        return n !== me.name && proposeRoles.indexOf(u.role || 'pilote') !== -1 && linkedPilotes.indexOf(n) === -1;
       });
-      if (proposeCandidates.length) {
-        var proposeBody = '<form id="coach-propose-form">' +
-          '<label for="coach-propose-input">Rechercher un pilote</label>' +
-          '<input type="text" id="coach-propose-input" list="coach-propose-list" placeholder="Nom du pilote" autocomplete="off">' +
+      var proposeBody = '<label for="coach-propose-type">Type</label>' +
+        '<select id="coach-propose-type">' +
+        '<option value="coaching"' + (coachProposeType === 'coaching' ? ' selected' : '') + '>Coaching</option>' +
+        '<option value="bapteme"' + (coachProposeType === 'bapteme' ? ' selected' : '') + '>Baptême piste</option>' +
+        '</select>';
+      if (!proposeCandidates.length) {
+        proposeBody += '<div class="help-text" style="margin-top:0.5rem;">' +
+          (coachProposeType === 'bapteme' ? 'Aucun pilote ou accompagnant disponible pour l\'instant.' : 'Aucun pilote disponible pour l\'instant.') + '</div>';
+      } else {
+        proposeBody += '<form id="coach-propose-form" style="margin-top:0.6rem;">' +
+          '<label for="coach-propose-input">' + (coachProposeType === 'bapteme' ? 'Rechercher un pilote ou un accompagnant' : 'Rechercher un pilote') + '</label>' +
+          '<input type="text" id="coach-propose-input" list="coach-propose-list" placeholder="Nom" autocomplete="off">' +
           '<datalist id="coach-propose-list">' + proposeCandidates.map(function (n) { return '<option value="' + escapeHtml(n) + '">'; }).join('') + '</datalist>' +
-          '<button type="submit" class="primary" style="margin-top:0.7rem;">Proposer le coaching</button></form>';
-        html += collapsibleCard('coach-propose', 'Proposer un coaching', proposeBody, false);
+          '<button type="submit" class="primary" style="margin-top:0.7rem;">' + (coachProposeType === 'bapteme' ? 'Proposer le baptême piste' : 'Proposer le coaching') + '</button></form>';
       }
+      html += collapsibleCard('coach-propose', 'Proposer un coaching ou un baptême piste', proposeBody, false);
     }
 
     // My own side as a pilote -- an active/pending relationship I'm part
@@ -8654,13 +8683,16 @@
     if (mine) {
       var coachName = coachSideOf(mine).coach;
       var coachU = (STATE.usersByName || {})[coachName] || {};
+      var mineIsBapteme = mine.type === 'bapteme';
       mineBody = '<div class="friend-row"><div class="friend-row-main">' + avatarHtml(coachU, coachName) + personNameHtml(coachName) + badgesHtml(coachU) +
-        '<span class="friend-role-badge">' + (mine.status === 'accepted' ? 'Coach actif' : 'Demande envoyée') + '</span></div>' +
+        '<span class="friend-role-badge">' + (mine.status === 'accepted' ? (mineIsBapteme ? 'Baptême piste' : 'Coach actif') : (mineIsBapteme ? 'Baptême proposé' : 'Demande envoyée')) + '</span></div>' +
         '<div class="friend-row-actions"><button type="button" class="ghost" data-action="coach-request-remove" data-id="' + mine.id + '">' +
-        (mine.status === 'accepted' ? 'Arrêter le coaching' : 'Annuler la demande') + '</button></div></div>';
-      if (mine.status === 'accepted') {
+        (mine.status === 'accepted' ? (mineIsBapteme ? 'Retirer' : 'Arrêter le coaching') : (mine.from === me.name ? 'Annuler la demande' : 'Refuser')) + '</button></div></div>';
+      if (mine.status === 'accepted' && !mineIsBapteme) {
         mineBody += '<div style="margin-top:0.7rem;"><div class="section-title" style="font-size:0.9rem;">Planning de ' + escapeHtml(coachName) + '</div>' +
           (mine.plan ? '<p class="help-text" style="white-space:pre-wrap;">' + escapeHtml(mine.plan) + '</p>' : '<div class="help-text">Rien pour l\'instant.</div>') + '</div>';
+        mineBody += renderCoachMessageThread(mine.id);
+      } else if (mine.status === 'accepted' && mineIsBapteme) {
         mineBody += renderCoachMessageThread(mine.id);
       }
     } else {
@@ -10270,6 +10302,13 @@
         if (select && select.value) sendCoachRequest(select.value);
       });
     }
+    var coachProposeTypeEl = document.getElementById('coach-propose-type');
+    if (coachProposeTypeEl) {
+      coachProposeTypeEl.addEventListener('change', function () {
+        coachProposeType = coachProposeTypeEl.value;
+        renderRoot();
+      });
+    }
     var coachProposeForm = document.getElementById('coach-propose-form');
     if (coachProposeForm) {
       coachProposeForm.addEventListener('submit', function (evt) {
@@ -10278,11 +10317,12 @@
         var name = input ? input.value.trim() : '';
         if (!name) return;
         var u = (STATE.usersByName || {})[name];
-        if (!u || u.role !== 'pilote') {
-          showToast('Choisis un pilote dans la liste proposée.');
+        var allowedRoles = coachProposeType === 'bapteme' ? ['pilote', 'accompagnant'] : ['pilote'];
+        if (!u || allowedRoles.indexOf(u.role || 'pilote') === -1) {
+          showToast(coachProposeType === 'bapteme' ? 'Choisis un pilote ou un accompagnant dans la liste proposée.' : 'Choisis un pilote dans la liste proposée.');
           return;
         }
-        sendCoachRequest(name);
+        sendCoachRequest(name, coachProposeType);
         input.value = '';
       });
     }
