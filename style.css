@@ -846,6 +846,12 @@
     cursor: pointer;
   }
   .friend-name-link:hover { text-decoration-color: var(--accent); color: var(--accent); }
+  /* A Team PRO's own Team Leader's pseudo, wherever it shows up (see
+     personNameHtml/nameLinkHtml/renderRiderLink in app.js) -- bold accent
+     regardless of which element/color it's layered onto (a plain span, a
+     clickable name button, the admin's account list...), hence
+     !important rather than fighting each one's own specificity. */
+  .pro-leader-name { color: var(--accent) !important; font-weight: 700; }
   .friend-fiche {
     margin: 0.4rem 0 0.8rem;
     padding: 0.7rem 0.8rem;
@@ -1626,7 +1632,6 @@
      panel rather than just another card with a tinted edge. */
   .today-schedule-card {
     border: 3px solid var(--accent);
-    background: color-mix(in srgb, var(--accent) 8%, var(--surface));
     margin-bottom: 1rem;
   }
   .today-schedule-head {

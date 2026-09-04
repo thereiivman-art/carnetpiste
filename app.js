@@ -14,7 +14,8 @@
   var STATE = {
     sessions: [], events: [], circuits: {}, riders: [], usersByName: {}, friendRequests: [], feedEvents: [], myFollows: [], myFollowedTeams: [],
     myFollowedTeamTiers: {}, myTeamFollowDocs: {}, teams: [], myTeamMemberships: [], teamInvites: [], teamMembersByTeam: {}, teamFeed: [], teamFollowersByTeam: {},
-    followedTeamFeed: [], wallPosts: [], coachRequests: [], teamJoinRequests: [], teamLikes: [], eventJoinRequests: [], coachMessages: [], eventAnnouncements: []
+    followedTeamFeed: [], wallPosts: [], coachRequests: [], teamJoinRequests: [], teamLikes: [], eventJoinRequests: [], coachMessages: [], eventAnnouncements: [],
+    allTeamLeaders: []
   };
   var canPersist = false;
   var unsubscribers = [];
@@ -255,6 +256,27 @@
   function isLeaderOfTeam(teamId) { return myRoleInTeam(teamId) === 'leader'; }
   function membersOfTeam(teamId) { return (STATE.teamMembersByTeam || {})[teamId] || []; }
   function teamById(teamId) { return (STATE.teams || []).filter(function (t) { return t.id === teamId; })[0] || null; }
+
+  // Every teamMembers doc with role 'leader', across every Team in the
+  // app (not just this account's own -- see the global sync in
+  // startSync()) -- crossed with STATE.teams (already globally synced
+  // too, for Team discovery) to know which of those leaderships are of
+  // a Team PRO specifically. Powers isProTeamLeaderName()/personNameHtml
+  // below: a Team PRO's Team Leader stands out wherever their pseudo
+  // shows up -- listings, wall posts, team feed, announcements.
+  function isProTeamLeaderName(name) {
+    return (STATE.allTeamLeaders || []).some(function (m) {
+      return m.name === name && (teamById(m.teamId) || {}).teamPro;
+    });
+  }
+  // Wraps a bare pseudo (not a clickable link -- see nameLinkHtml for
+  // that) in the same bold-accent treatment when it belongs to a Team
+  // PRO's own Team Leader. Every '<span class="friend-name-plain">' +
+  // escapeHtml(personName) + '</span>' showing an actual person's name
+  // (not a Team's) should go through this instead.
+  function personNameHtml(name) {
+    return '<span class="friend-name-plain' + (isProTeamLeaderName(name) ? ' pro-leader-name' : '') + '">' + escapeHtml(name) + '</span>';
+  }
 
   // Every pilote (a real rider, per allKnownRiders()) in a team this
   // account leads -- name -> the id of the team that grants access to
@@ -2267,7 +2289,7 @@
         var isPilote = !a.role || a.role === 'pilote';
         var detail = isPilote ? escapeHtml(a.bike || '—') : escapeHtml((a.followedRiders || []).join(', ') || '—');
         return '<li class="rider-manager-row account-manager-row">' +
-          '<div><span class="rider-manager-name">' + escapeHtml(a.name || a.email) + '</span>' + badgesHtml(a) + ' <span class="friend-role-badge">' + roleLabel(a.role) + '</span>' +
+          '<div><span class="rider-manager-name' + (isProTeamLeaderName(a.name) ? ' pro-leader-name' : '') + '">' + escapeHtml(a.name || a.email) + '</span>' + badgesHtml(a) + ' <span class="friend-role-badge">' + roleLabel(a.role) + '</span>' +
           '<div class="help-text">' + escapeHtml(a.email || '') + ' · ' + (isPilote ? 'moto : ' : 'suit : ') + detail + '</div></div>' +
           (isPilote ? '' : '<button type="button" class="ghost icon-btn" data-action="demote-account" data-uid="' + a.uid + '" aria-label="Repasser en pilote" title="Repasser en pilote">↺</button>') +
           PROFILE_BADGES.map(function (b) {
@@ -3618,7 +3640,7 @@
   // name (see normalizeSelection), so a click here would have nowhere to
   // go; checking on a teammate goes through Social (fiche d'ami) instead.
   function renderRiderLink(name) {
-    return escapeHtml(name);
+    return isProTeamLeaderName(name) ? '<span class="pro-leader-name">' + escapeHtml(name) + '</span>' : escapeHtml(name);
   }
 
   // Turns any name into the same clickable "open fiche" link Social's Mes
@@ -3627,7 +3649,7 @@
   // shared chronos, chronos vérifiés, trophées...) is one click away, not
   // just from Social.
   function nameLinkHtml(name) {
-    return '<button type="button" class="friend-name-link" data-action="toggle-friend-fiche" data-name="' + escapeHtml(name) + '">' + escapeHtml(name) + '</button>';
+    return '<button type="button" class="friend-name-link' + (isProTeamLeaderName(name) ? ' pro-leader-name' : '') + '" data-action="toggle-friend-fiche" data-name="' + escapeHtml(name) + '">' + escapeHtml(name) + '</button>';
   }
   function maybeFicheHtml(name) {
     return expandedFriend === name ? renderFriendFiche(name) : '';
@@ -4985,7 +5007,7 @@
           ? '<button type="button" class="ghost icon-btn" data-action="event-announcement-edit" data-id="' + a.id + '" aria-label="Modifier" title="Modifier">✎</button>' +
             '<button type="button" class="ghost icon-btn" data-action="event-announcement-delete" data-id="' + a.id + '" aria-label="Supprimer" title="Supprimer">×</button>'
           : '';
-        return '<div class="coach-message"><div class="coach-message-head"><span class="friend-name-plain">' + escapeHtml(a.from) + '</span>' +
+        return '<div class="coach-message"><div class="coach-message-head">' + personNameHtml(a.from) +
           '<span class="feed-entry-time">' + escapeHtml(relativeTime(a.editedAt || a.createdAt)) + (a.editedAt ? ' (modifié)' : '') + '</span>' + actions + '</div>' +
           '<div class="coach-message-text">' + escapeHtml(a.text) + '</div></div>';
       }).join('');
@@ -6090,7 +6112,7 @@
     if (incomingEventRequests.length) {
       var incomingBody = incomingEventRequests.map(function (r) {
         var u = (STATE.usersByName || {})[r.from] || {};
-        return '<div class="friend-row"><div class="friend-row-main">' + avatarHtml(u, r.from) + '<span class="friend-name-plain">' + escapeHtml(r.from) + '</span>' + badgesHtml(u) +
+        return '<div class="friend-row"><div class="friend-row-main">' + avatarHtml(u, r.from) + personNameHtml(r.from) + badgesHtml(u) +
           '<span class="help-text">' + escapeHtml(r.circuit || '') + '</span></div>' +
           '<div class="friend-row-actions">' +
           '<button type="button" class="primary" data-action="event-join-request-accept" data-id="' + r.id + '">Accepter</button>' +
@@ -7384,9 +7406,7 @@
 
   function renderFriendRow(name, actionsHtml, expandable) {
     var u = (STATE.usersByName || {})[name] || {};
-    var nameHtml = expandable
-      ? '<button type="button" class="friend-name-link" data-action="toggle-friend-fiche" data-name="' + escapeHtml(name) + '">' + escapeHtml(name) + '</button>'
-      : '<span class="friend-name-plain">' + escapeHtml(name) + '</span>';
+    var nameHtml = expandable ? nameLinkHtml(name) : personNameHtml(name);
     var html = '<div class="friend-row">' +
       '<div class="friend-row-main">' + avatarHtml(u, name) + nameHtml + badgesHtml(u) + '<span class="friend-role-badge">' + roleLabel(u.role) + '</span></div>' +
       '<div class="friend-row-actions">' + actionsHtml + '</div>' +
@@ -7634,7 +7654,7 @@
     }
     var html = '<div class="wall-post">';
     html += '<div class="wall-post-head">' + avatarHtml(u, p.author) +
-      '<span class="friend-name-plain">' + escapeHtml(p.author) + '</span>' + badgesHtml(u) +
+      personNameHtml(p.author) + badgesHtml(u) +
       '<span class="friend-role-badge">' + escapeHtml(audienceLabel) + '</span>' +
       '<span class="feed-entry-time">' + escapeHtml(relativeTime(p.editedAt || p.createdAt)) + (p.editedAt ? ' (modifié)' : '') + '</span></div>';
     if (p.text) html += '<div class="wall-post-text">' + escapeHtml(p.text) + '</div>';
@@ -7832,7 +7852,7 @@
     var total = counts.reduce(function (a, b) { return a + b; }, 0);
     var myVote = votes[me.name];
     var html = '<div class="wall-post">';
-    html += '<div class="wall-post-head"><span class="friend-name-plain">' + escapeHtml(f.author) + '</span>' +
+    html += '<div class="wall-post-head">' + personNameHtml(f.author) +
       (teamName ? '<span class="friend-role-badge">' + escapeHtml(teamName) + '</span>' : '') +
       (f.audience === 'adherents' ? '<span class="friend-role-badge adherent-badge">Adhérents</span>' : '') +
       '<span class="feed-entry-time">' + escapeHtml(relativeTime(f.createdAt)) + '</span></div>';
@@ -7865,7 +7885,7 @@
         '<button type="button" class="ghost" data-action="team-post-edit-cancel">Annuler</button></div></form></div>';
     }
     var html = '<div class="wall-post">';
-    html += '<div class="wall-post-head"><span class="friend-name-plain">' + escapeHtml(f.author) + '</span>' +
+    html += '<div class="wall-post-head">' + personNameHtml(f.author) +
       (teamName ? '<span class="friend-role-badge">' + escapeHtml(teamName) + '</span>' : '') +
       (f.audience === 'adherents' ? '<span class="friend-role-badge adherent-badge">Adhérents</span>' : '') +
       '<span class="feed-entry-time">' + escapeHtml(relativeTime(f.editedAt || f.createdAt)) + (f.editedAt ? ' (modifié)' : '') + '</span>' +
@@ -8241,7 +8261,7 @@
     if (canEdit && reqs.length) {
       var reqRows = reqs.map(function (r) {
         var u = (STATE.usersByName || {})[r.from] || {};
-        return '<div class="friend-row"><div class="friend-row-main">' + avatarHtml(u, r.from) + '<span class="friend-name-plain">' + escapeHtml(r.from) + '</span>' + badgesHtml(u) + '</div>' +
+        return '<div class="friend-row"><div class="friend-row-main">' + avatarHtml(u, r.from) + personNameHtml(r.from) + badgesHtml(u) + '</div>' +
           '<div class="friend-row-actions">' +
           '<button type="button" class="primary" data-action="event-join-request-accept" data-id="' + r.id + '">Accepter</button>' +
           '<button type="button" class="ghost" data-action="event-join-request-remove" data-id="' + r.id + '">Refuser</button>' +
@@ -8369,7 +8389,7 @@
           '<button type="submit" class="ghost">Inviter</button></form>';
       if (outgoingInvites.length) {
         var outgoingBody = outgoingInvites.map(function (r) {
-          return '<div class="friend-row"><div class="friend-row-main"><span class="friend-name-plain">' + escapeHtml(r.to) + '</span></div>' +
+          return '<div class="friend-row"><div class="friend-row-main">' + personNameHtml(r.to) + '</div>' +
             '<div class="friend-row-actions"><button type="button" class="ghost" data-action="team-invite-remove" data-id="' + r.id + '">Annuler</button></div></div>';
         }).join('');
         inviteBody += collapsibleSection('team-invites-out-' + team.id, 'Invitations envoyées (' + outgoingInvites.length + ')', outgoingBody);
@@ -8382,7 +8402,7 @@
       if (joinRequests.length) {
         var joinReqBody = joinRequests.map(function (r) {
           var u = (STATE.usersByName || {})[r.from] || {};
-          return '<div class="friend-row"><div class="friend-row-main">' + avatarHtml(u, r.from) + '<span class="friend-name-plain">' + escapeHtml(r.from) + '</span>' + badgesHtml(u) +
+          return '<div class="friend-row"><div class="friend-row-main">' + avatarHtml(u, r.from) + personNameHtml(r.from) + badgesHtml(u) +
             '<span class="friend-role-badge">' + (r.kind === 'adherent' ? 'Adhérent' : 'Membre') + '</span></div>' +
             '<div class="friend-row-actions">' +
             '<button type="button" class="primary" data-action="team-join-request-accept" data-id="' + r.id + '">Accepter</button>' +
@@ -8439,7 +8459,7 @@
       ? '<div class="empty-state">Aucun message pour l\'instant.</div>'
       : messages.map(function (m) {
         return '<div class="coach-message' + (me && m.from === me.name ? ' mine' : '') + '">' +
-          '<div class="coach-message-head"><span class="friend-name-plain">' + escapeHtml(m.from) + '</span>' +
+          '<div class="coach-message-head">' + personNameHtml(m.from) +
           '<span class="feed-entry-time">' + escapeHtml(relativeTime(m.createdAt)) + '</span></div>' +
           '<div class="coach-message-text">' + escapeHtml(m.text) + '</div></div>';
       }).join('');
@@ -8474,7 +8494,7 @@
     if (incoming.length) {
       var incomingBody = incoming.map(function (r) {
         var u = (STATE.usersByName || {})[r.from] || {};
-        return '<div class="friend-row"><div class="friend-row-main">' + avatarHtml(u, r.from) + '<span class="friend-name-plain">' + escapeHtml(r.from) + '</span>' + badgesHtml(u) + '</div>' +
+        return '<div class="friend-row"><div class="friend-row-main">' + avatarHtml(u, r.from) + personNameHtml(r.from) + badgesHtml(u) + '</div>' +
           '<div class="friend-row-actions">' +
           '<button type="button" class="primary" data-action="coach-request-accept" data-id="' + r.id + '">Accepter</button>' +
           '<button type="button" class="ghost" data-action="coach-request-remove" data-id="' + r.id + '">Refuser</button>' +
@@ -8491,7 +8511,7 @@
           var piloteName = coachSideOf(r).pilote;
           var u = (STATE.usersByName || {})[piloteName] || {};
           return '<div class="coach-pilote-row">' +
-            '<div class="friend-row-main">' + avatarHtml(u, piloteName) + '<span class="friend-name-plain">' + escapeHtml(piloteName) + '</span>' + badgesHtml(u) + '</div>' +
+            '<div class="friend-row-main">' + avatarHtml(u, piloteName) + personNameHtml(piloteName) + badgesHtml(u) + '</div>' +
             '<label for="coach-plan-' + r.id + '" style="margin-top:0.5rem;">Planning / notes de coaching</label>' +
             '<textarea id="coach-plan-' + r.id + '" rows="3" data-coach-plan="' + r.id + '">' + escapeHtml(r.plan || '') + '</textarea>' +
             '<div style="margin-top:0.5rem; display:flex; gap:0.6rem;">' +
@@ -8531,7 +8551,7 @@
     if (mine) {
       var coachName = coachSideOf(mine).coach;
       var coachU = (STATE.usersByName || {})[coachName] || {};
-      mineBody = '<div class="friend-row"><div class="friend-row-main">' + avatarHtml(coachU, coachName) + '<span class="friend-name-plain">' + escapeHtml(coachName) + '</span>' + badgesHtml(coachU) +
+      mineBody = '<div class="friend-row"><div class="friend-row-main">' + avatarHtml(coachU, coachName) + personNameHtml(coachName) + badgesHtml(coachU) +
         '<span class="friend-role-badge">' + (mine.status === 'accepted' ? 'Coach actif' : 'Demande envoyée') + '</span></div>' +
         '<div class="friend-row-actions"><button type="button" class="ghost" data-action="coach-request-remove" data-id="' + mine.id + '">' +
         (mine.status === 'accepted' ? 'Arrêter le coaching' : 'Annuler la demande') + '</button></div></div>';
@@ -11044,6 +11064,15 @@
     // changes) rather than syncing every team's roster for everyone.
     unsubscribers.push(db.collection('teams').onSnapshot(function (snap) {
       STATE.teams = snap.docs.map(function (d) { return d.data(); });
+      renderRoot();
+    }, handleSyncError));
+    // Every Team Leader in the app, not just this account's own Teams --
+    // cheap to sync in full like teams/teamLikes above (one small doc per
+    // leadership, not per member), needed so isProTeamLeaderName() can
+    // recognize a Team PRO's Team Leader anywhere their pseudo shows up,
+    // even in a Team this account isn't itself a part of.
+    unsubscribers.push(db.collection('teamMembers').where('role', '==', 'leader').onSnapshot(function (snap) {
+      STATE.allTeamLeaders = snap.docs.map(function (d) { return d.data(); });
       renderRoot();
     }, handleSyncError));
     // Likes: cheap to sync in full, like teams itself -- a flat {teamId,
