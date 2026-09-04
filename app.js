@@ -621,28 +621,35 @@
     });
   }
 
-  // ---- Recadrage de photo (badge rond) ----
+  // ---- Recadrage de photo (badge rond / logo large) ----
   //
   // A round badge (mini-avatar) otherwise always crops to dead-center,
   // fine for a portrait but chops the sides off a wide team photo/logo
   // (or hides "95" off the edge of "Mototeam95"). This lets whoever's
   // uploading pick the framing: zoom (down to well below "fits the
-  // circle", so the whole image can float small inside it with empty
+  // frame", so the whole image can float small inside it with empty
   // space around, or in a lot) and pan, both in real pixels against a
-  // known viewport size (CROP_VIEWPORT) rather than CSS object-fit, since
-  // object-fit:cover can never zoom out past "fill the frame". Shared by
-  // both the Team photo and the account's own profile photo (kind
-  // 'team'|'user').
-  var CROP_VIEWPORT = 220; // must match .crop-modal-viewport's CSS width/height
+  // known viewport size rather than CSS object-fit, since object-fit:
+  // cover can never zoom out past "fill the frame". Shared by the Team
+  // photo (badge), the account's own profile photo, and the Team's wide
+  // logo (kind 'team'|'user'|'logo') -- 'logo' just uses a wide
+  // rectangular viewport/output instead of a square one, matching how
+  // .team-logo-img is displayed full-width with a capped height.
+  var CROP_VIEWPORT = 220; // round crop (user/team badge), square
+  var CROP_LOGO_W = 320; // wide crop (team logo), rectangular
+  var CROP_LOGO_H = 90;
   var cropModalOpen = false;
-  var cropModalKind = null; // 'team' | 'user'
-  var cropModalTeamId = null; // only used for kind 'team'
+  var cropModalKind = null; // 'team' | 'user' | 'logo'
+  var cropModalTeamId = null; // only used for kind 'team'/'logo'
   var cropModalSrc = null; // full-res data URL of the just-picked file
   var cropNaturalW = 0;
   var cropNaturalH = 0;
-  var cropZoom = 100; // % of "contain" (whole image just fits the circle) -- 20..400
+  var cropZoom = 100; // % of "contain" (whole image just fits the frame) -- 20..400
   var cropOffsetXPx = 0;
   var cropOffsetYPx = 0;
+  function cropViewportSize() {
+    return cropModalKind === 'logo' ? { w: CROP_LOGO_W, h: CROP_LOGO_H } : { w: CROP_VIEWPORT, h: CROP_VIEWPORT };
+  }
 
   // Quick onboarding tour, one step per main onglet -- opens once by
   // itself the first time a freshly signed-in account's own profile
@@ -732,7 +739,8 @@
   // The image's on-screen size at the current zoom -- "contain" (whole
   // image visible) at zoom=100, smaller below that, larger above.
   function cropDisplaySize() {
-    var s = Math.min(CROP_VIEWPORT / cropNaturalW, CROP_VIEWPORT / cropNaturalH) * (cropZoom / 100);
+    var vp = cropViewportSize();
+    var s = Math.min(vp.w / cropNaturalW, vp.h / cropNaturalH) * (cropZoom / 100);
     return { w: cropNaturalW * s, h: cropNaturalH * s };
   }
   function cropImgTransform() {
@@ -742,11 +750,17 @@
   }
   function renderCropModal() {
     if (!cropModalOpen || !cropModalSrc) return '';
+    var isLogo = cropModalKind === 'logo';
+    var vp = cropViewportSize();
+    var helpText = isLogo
+      ? 'Comme il apparaîtra en pleine largeur -- fais glisser l\'image (doigt ou souris), pince ou utilise la molette pour zoomer, ou passe par les curseurs.'
+      : 'Comme elle apparaîtra en badge rond -- fais glisser l\'image (doigt ou souris), pince ou utilise la molette pour zoomer, ou passe par les curseurs. Dézoome autant que tu veux, l\'image peut rester petite dans le cercle.';
     return '<div class="crop-modal-overlay">' +
       '<div class="crop-modal">' +
-      '<h2 class="section-title">Recadrer la photo</h2>' +
-      '<div class="help-text">Comme elle apparaîtra en badge rond -- dézoome autant que tu veux, l\'image peut rester petite dans le cercle.</div>' +
-      '<div class="crop-modal-viewport"><img id="crop-modal-img" src="' + escapeHtml(cropModalSrc) + '" style="' + cropImgTransform() + '"></div>' +
+      '<h2 class="section-title">' + (isLogo ? 'Recadrer le logo' : 'Recadrer la photo') + '</h2>' +
+      '<div class="help-text">' + helpText + '</div>' +
+      '<div class="crop-modal-viewport' + (isLogo ? ' crop-modal-viewport-rect' : '') + '" id="crop-modal-viewport" style="width:' + vp.w + 'px; height:' + vp.h + 'px;">' +
+      '<img id="crop-modal-img" src="' + escapeHtml(cropModalSrc) + '" style="' + cropImgTransform() + '"></div>' +
       '<label style="margin-top:0.8rem; display:block;">Zoom<input type="range" id="crop-zoom" min="20" max="400" step="5" value="' + cropZoom + '"></label>' +
       '<label style="margin-top:0.5rem; display:block;">Horizontal<input type="range" id="crop-offset-x" min="-400" max="400" value="' + cropOffsetXPx + '"></label>' +
       '<label style="margin-top:0.5rem; display:block;">Vertical<input type="range" id="crop-offset-y" min="-400" max="400" value="' + cropOffsetYPx + '"></label>' +
@@ -758,24 +772,27 @@
   function saveCroppedPhoto() {
     if (!cropModalKind || !cropModalSrc) return;
     var kind = cropModalKind, teamId = cropModalTeamId;
+    var vp = cropViewportSize();
     var img = new Image();
     img.onload = function () {
-      var OUT = 400;
-      var k = OUT / CROP_VIEWPORT;
+      var OUT_W = kind === 'logo' ? 1280 : 400;
+      var OUT_H = kind === 'logo' ? Math.round(OUT_W * vp.h / vp.w) : 400;
+      var k = OUT_W / vp.w;
       var size = cropDisplaySize();
       var outW = size.w * k, outH = size.h * k;
-      var outX = (CROP_VIEWPORT / 2 + cropOffsetXPx - size.w / 2) * k;
-      var outY = (CROP_VIEWPORT / 2 + cropOffsetYPx - size.h / 2) * k;
+      var outX = (vp.w / 2 + cropOffsetXPx - size.w / 2) * k;
+      var outY = (vp.h / 2 + cropOffsetYPx - size.h / 2) * k;
       var canvas = document.createElement('canvas');
-      canvas.width = OUT;
-      canvas.height = OUT;
+      canvas.width = OUT_W;
+      canvas.height = OUT_H;
       var ctx = canvas.getContext('2d');
       // PNG (transparent), not JPEG -- zoomed out, the image no longer
-      // fills the whole square, and the round badge's own background
+      // fills the whole frame, and the badge/logo's own background
       // should show through instead of a hard-coded fill color.
       ctx.drawImage(img, 0, 0, img.naturalWidth, img.naturalHeight, outX, outY, outW, outH);
       var dataUrl = canvas.toDataURL('image/png');
       if (kind === 'team') saveTeamPhoto(teamId, dataUrl);
+      else if (kind === 'logo') saveTeamLogo(teamId, dataUrl);
       else savePhoto(dataUrl);
       closeCropModal();
     };
@@ -9869,11 +9886,11 @@
         var file = teamLogoInput.files && teamLogoInput.files[0];
         if (!file || !teamPhotoUploadTeamId) return;
         if (!/^image\//.test(file.type)) { showToast('Choisis un fichier image.'); return; }
-        // No crop step here -- the whole point of the logo field is to
-        // show a wide mark (e.g. "Mototeam95") uncropped, full-width.
-        resizeImageToDataUrl(file, 1000, 0.85, function (dataUrl) {
+        // Kept larger than the final 1280px-wide output so there's still
+        // real detail left to pan/zoom into in the crop modal.
+        resizeImageToDataUrl(file, 1400, 0.85, function (dataUrl) {
           if (!dataUrl) { showToast('Impossible de lire cette image.'); return; }
-          saveTeamLogo(teamPhotoUploadTeamId, dataUrl);
+          openCropModal('logo', teamPhotoUploadTeamId, dataUrl);
         });
       });
     }
@@ -9887,19 +9904,25 @@
         saveTeamLinks(form.getAttribute('data-team'), textarea ? textarea.value : '');
       });
     });
+    var cropViewportEl = document.getElementById('crop-modal-viewport');
     var cropModalImgEl = document.getElementById('crop-modal-img');
     var cropZoomEl = document.getElementById('crop-zoom');
     var cropOffsetXEl = document.getElementById('crop-offset-x');
     var cropOffsetYEl = document.getElementById('crop-offset-y');
     // Live preview via direct style writes (no renderRoot()) so dragging
-    // a slider stays smooth -- the module vars are kept in sync too, so
-    // whatever the preview shows is exactly what saveCroppedPhoto() crops.
+    // stays smooth -- the module vars are kept in sync too, so whatever
+    // the preview shows is exactly what saveCroppedPhoto() crops. Also
+    // keeps the sliders' own displayed value in sync when a drag/pinch/
+    // wheel gesture (below) is what actually changed zoom/offset.
     var applyCropTransform = function () {
       if (!cropModalImgEl) return;
       var size = cropDisplaySize();
       cropModalImgEl.style.width = size.w + 'px';
       cropModalImgEl.style.height = size.h + 'px';
       cropModalImgEl.style.transform = 'translate(calc(-50% + ' + cropOffsetXPx + 'px), calc(-50% + ' + cropOffsetYPx + 'px))';
+      if (cropZoomEl) cropZoomEl.value = cropZoom;
+      if (cropOffsetXEl) cropOffsetXEl.value = cropOffsetXPx;
+      if (cropOffsetYEl) cropOffsetYEl.value = cropOffsetYPx;
     };
     if (cropModalImgEl && cropZoomEl) {
       cropZoomEl.addEventListener('input', function () {
@@ -9915,6 +9938,66 @@
       };
       cropOffsetXEl.addEventListener('input', updateCropOffset);
       cropOffsetYEl.addEventListener('input', updateCropOffset);
+    }
+    // Direct finger/mouse drag-to-pan and pinch/wheel-to-zoom on the
+    // viewport itself -- the sliders above stay as a fallback, but
+    // dragging the image directly (pinching to zoom on a touch screen,
+    // or scrolling the wheel on a mouse) is the natural gesture. Pointer
+    // Events unify mouse/touch/pen so one set of handlers covers both
+    // single-finger pan and two-finger pinch.
+    if (cropViewportEl && cropModalImgEl) {
+      var cropPointers = {}; // pointerId -> {x, y}
+      var cropDragStart = null; // {x, y, offsetX, offsetY}
+      var cropPinchStart = null; // {dist, zoom}
+      var cropPointerDist = function () {
+        var pts = Object.keys(cropPointers).map(function (id) { return cropPointers[id]; });
+        if (pts.length < 2) return 0;
+        return Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+      };
+      cropViewportEl.addEventListener('pointerdown', function (evt) {
+        evt.preventDefault();
+        try { cropViewportEl.setPointerCapture(evt.pointerId); } catch (e) {}
+        cropPointers[evt.pointerId] = { x: evt.clientX, y: evt.clientY };
+        var ids = Object.keys(cropPointers);
+        if (ids.length === 2) {
+          cropDragStart = null;
+          cropPinchStart = { dist: cropPointerDist(), zoom: cropZoom };
+        } else {
+          cropPinchStart = null;
+          cropDragStart = { x: evt.clientX, y: evt.clientY, offsetX: cropOffsetXPx, offsetY: cropOffsetYPx };
+        }
+      });
+      cropViewportEl.addEventListener('pointermove', function (evt) {
+        if (!cropPointers[evt.pointerId]) return;
+        cropPointers[evt.pointerId] = { x: evt.clientX, y: evt.clientY };
+        var ids = Object.keys(cropPointers);
+        if (ids.length >= 2 && cropPinchStart) {
+          var dist = cropPointerDist();
+          if (cropPinchStart.dist > 0) {
+            cropZoom = Math.max(20, Math.min(400, Math.round(cropPinchStart.zoom * (dist / cropPinchStart.dist))));
+            applyCropTransform();
+          }
+        } else if (ids.length === 1 && cropDragStart) {
+          cropOffsetXPx = Math.max(-400, Math.min(400, cropDragStart.offsetX + (evt.clientX - cropDragStart.x)));
+          cropOffsetYPx = Math.max(-400, Math.min(400, cropDragStart.offsetY + (evt.clientY - cropDragStart.y)));
+          applyCropTransform();
+        }
+      });
+      var cropPointerEnd = function (evt) {
+        delete cropPointers[evt.pointerId];
+        var ids = Object.keys(cropPointers);
+        cropPinchStart = null;
+        cropDragStart = ids.length === 1
+          ? { x: cropPointers[ids[0]].x, y: cropPointers[ids[0]].y, offsetX: cropOffsetXPx, offsetY: cropOffsetYPx }
+          : null;
+      };
+      cropViewportEl.addEventListener('pointerup', cropPointerEnd);
+      cropViewportEl.addEventListener('pointercancel', cropPointerEnd);
+      cropViewportEl.addEventListener('wheel', function (evt) {
+        evt.preventDefault();
+        cropZoom = Math.max(20, Math.min(400, cropZoom - Math.sign(evt.deltaY) * 10));
+        applyCropTransform();
+      }, { passive: false });
     }
     var cropSaveBtn = document.getElementById('crop-save-btn');
     if (cropSaveBtn) cropSaveBtn.addEventListener('click', saveCroppedPhoto);

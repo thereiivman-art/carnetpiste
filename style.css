@@ -629,8 +629,8 @@
     font-size: 0.82rem;
     color: var(--text-muted);
   }
-  .team-logo-frame { margin-top: 0.8rem; text-align: center; }
-  .team-logo-img { max-width: 100%; max-height: 5.5rem; width: auto; height: auto; }
+  .team-logo-frame { margin-top: 0.8rem; }
+  .team-logo-img { display: block; width: 100%; height: 5.5rem; max-height: 5.5rem; object-fit: cover; border-radius: 8px; }
   .team-links-row { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.6rem; }
   .team-link-chip {
     display: inline-block;
@@ -655,15 +655,17 @@
   }
   .crop-modal { background: var(--surface); border-radius: 12px; padding: 1.2rem; max-width: 360px; width: 100%; }
   .crop-modal-viewport {
-    width: 220px;
-    height: 220px;
     margin: 0.8rem auto 0;
     border-radius: 50%;
     overflow: hidden;
     background: var(--surface-alt);
     border: 1px solid var(--border);
     position: relative;
+    touch-action: none;
+    cursor: grab;
+    max-width: 100%;
   }
+  .crop-modal-viewport-rect { border-radius: 8px; }
   .crop-modal-viewport img { position: absolute; top: 50%; left: 50%; max-width: none; }
   .tutorial-modal { max-width: 400px; text-align: center; }
   .tutorial-icon { font-size: 2.4rem; line-height: 1; margin-bottom: 0.4rem; }
