@@ -1185,6 +1185,15 @@
   // known-riders roster ("Tous les pilotes"); it now conditions Calendrier
   // too (events/sessions on the grid, and the period's sorties list).
   var selectedCircuit = _savedUiState.selectedCircuit || null;
+  // Whether this sign-in's session has already applied normalizeSelection's
+  // en cours/à venir/passé-récent default once -- selectedCircuit is
+  // otherwise sticky (persisted, see saveUiState), which used to mean a
+  // circuit picked weeks ago for some other event silently kept winning
+  // forever, since normalizeSelection only ever recomputes it when it's
+  // empty/invalid. Reset on every fresh sign-in (see init()) so a new
+  // session re-derives "the right circuit for right now" once, while a
+  // manual pick made *during* that same session still sticks afterward.
+  var circuitDefaultApplied = false;
   var selectedRiders = _savedUiState.selectedRidersAll ? new Set(allKnownRiders()) : (_savedUiState.selectedRider ? new Set([_savedUiState.selectedRider]) : null); // Set — 1 rider, or the full roster when "Tous" is active
   var ZOOM_LEVELS = ['year', '6month', '3month', '2month', 'month', 'week', 'day'];
   // The checklist is a shared, editable template (STATE.checklistTemplate,
@@ -1388,7 +1397,8 @@
     var circuits = allCircuits();
     if (!circuits.length) {
       selectedCircuit = null;
-    } else if (!selectedCircuit || circuits.indexOf(selectedCircuit) === -1) {
+    } else if (!selectedCircuit || circuits.indexOf(selectedCircuit) === -1 || !circuitDefaultApplied) {
+      circuitDefaultApplied = true;
       // Default to the circuit of the ongoing or next sortie (what a rider
       // is about to ride or is currently riding); if there's neither,
       // fall back to the circuit of their own most recent past event, and
@@ -11715,6 +11725,7 @@
             tutorialOpen = true;
             tutorialStep = 0;
           }
+          circuitDefaultApplied = false;
           startSync();
           renderRoot();
           selfHealStaleNames(user.uid, currentUserProfile.name);
