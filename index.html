@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Titillium+Web:wght@400;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="style.css?v=2026090401">
 <script>
 // Applied before the stylesheet paints, so a saved Light/Dark choice never
 // flashes the system theme first. "system" (no saved choice) leaves the
@@ -37,6 +37,12 @@
 <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore-compat.js"></script>
 <script src="firebase-config.js"></script>
-<script src="app.js"></script>
+<!-- ?v= is bumped by hand on every deploy that touches app.js/style.css --
+     GitHub Pages serves these with long-lived caching, and a plain
+     <script src="app.js"> with no cache-busting meant a returning
+     browser could keep running yesterday's code after a normal reload,
+     only picking up a fix on a hard refresh. Bump this same version on
+     both tags together whenever either file changes. -->
+<script src="app.js?v=2026090401"></script>
 </body>
 </html>

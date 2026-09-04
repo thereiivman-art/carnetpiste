@@ -5711,6 +5711,12 @@
   // every sortie ever logged — past, ongoing, or upcoming — rather than
   // showing only whichever one happens to be selected.
   function eventTemporalStatus(ev, todayKey) {
+    // A malformed/legacy event with no dateStart at all must never fall
+    // through to 'ongoing' (both comparisons below are false against
+    // undefined, which used to default here) -- that would let it jump
+    // the queue ahead of every real ongoing/upcoming sortie in
+    // targetPlanningEvent()'s default-circuit pick.
+    if (!ev.dateStart) return 'past';
     var end = ev.dateEnd || ev.dateStart;
     if (todayKey < ev.dateStart) return 'upcoming';
     if (todayKey > end) return 'past';
