@@ -673,6 +673,30 @@
   .tutorial-dots { display: flex; justify-content: center; gap: 0.35rem; margin-top: 1rem; }
   .tutorial-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--border); }
   .tutorial-dot.active { background: var(--accent); }
+  .feeling-modal { max-width: 360px; text-align: center; }
+  .feeling-options {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 1rem;
+  }
+  .feeling-option-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.3rem;
+    width: 4.4rem;
+    padding: 0.6rem 0.3rem;
+    background: var(--surface-alt);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    cursor: pointer;
+  }
+  .feeling-option-btn:hover { border-color: var(--accent); }
+  .feeling-option-icon { font-size: 1.6rem; line-height: 1; }
+  .feeling-option-label { font-size: 0.72rem; color: var(--text-muted); }
+  .feeling-tag { font-size: 1.05rem; line-height: 1; }
   .mini-avatar {
     display: inline-flex;
     align-items: center;

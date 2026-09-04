@@ -719,6 +719,50 @@
     return html;
   }
 
+  // ---- Ressenti à chaud (opt-in, voir Réglages) ----
+  //
+  // Deliberately not another required field on the chrono form itself --
+  // "peut-être que les users auront la flemme" means this has to cost
+  // literally one tap or nothing at all, offered right after a chrono a
+  // rider just entered for themselves (never for someone else's, see
+  // onSubmit) rather than asked for up front.
+  var FEELING_OPTIONS = [
+    { key: 'top', icon: '🔥', label: 'Top' },
+    { key: 'bien', icon: '😊', label: 'Bien' },
+    { key: 'moyen', icon: '😐', label: 'Moyen' },
+    { key: 'fatigue', icon: '😓', label: 'Fatigué' },
+    { key: 'nul', icon: '👎', label: 'Nul' }
+  ];
+  var feelingModalSessionId = null;
+  function openFeelingModal(sessionId) {
+    feelingModalSessionId = sessionId;
+    renderRoot();
+  }
+  function closeFeelingModal() {
+    feelingModalSessionId = null;
+    renderRoot();
+  }
+  function saveSessionFeeling(sessionId, feeling) {
+    var session = (STATE.sessions || []).filter(function (s) { return s.id === sessionId; })[0];
+    if (session) session.feeling = feeling;
+    closeFeelingModal();
+    db.collection('sessions').doc(sessionId).update({ feeling: feeling }).catch(function (err) {
+      showToast('Erreur : ' + (err && err.message ? err.message : err));
+    });
+  }
+  function renderFeelingModal() {
+    if (!feelingModalSessionId) return '';
+    return '<div class="crop-modal-overlay">' +
+      '<div class="crop-modal feeling-modal">' +
+      '<h2 class="section-title">Comment s\'est passée la session ?</h2>' +
+      '<div class="feeling-options">' + FEELING_OPTIONS.map(function (f) {
+        return '<button type="button" class="feeling-option-btn" data-action="feeling-pick" data-feeling="' + f.key + '">' +
+          '<span class="feeling-option-icon">' + f.icon + '</span><span class="feeling-option-label">' + escapeHtml(f.label) + '</span></button>';
+      }).join('') + '</div>' +
+      '<button type="button" class="ghost" id="feeling-skip-btn" style="margin-top:0.8rem;">Passer</button>' +
+      '</div></div>';
+  }
+
   function openCropModal(kind, teamId, dataUrl) {
     var probe = new Image();
     probe.onload = function () {
@@ -1786,8 +1830,10 @@
         else if (periodLabel) sessionTagParts.push(periodLabel);
         if (s.group) sessionTagParts.push('Groupe ' + s.group);
         var sessionTagHtml = sessionTagParts.length ? '<div class="note-text">' + escapeHtml(sessionTagParts.join(' — ')) + '</div>' : '';
+        var feelingOpt = s.feeling ? FEELING_OPTIONS.filter(function (f) { return f.key === s.feeling; })[0] : null;
+        var feelingHtml = feelingOpt ? ' <span class="feeling-tag" title="Ressenti : ' + escapeHtml(feelingOpt.label) + '">' + feelingOpt.icon + '</span>' : '';
         tableHtml += '<tr data-session-id="' + s.id + '">';
-        tableHtml += '<td>' + formatDate(s.date) + sessionTagHtml + noteHtml + '</td>';
+        tableHtml += '<td>' + formatDate(s.date) + feelingHtml + sessionTagHtml + noteHtml + '</td>';
         if (showRider) tableHtml += '<td class="rider-cell">' + (s.rider ? renderRiderLink(s.rider) : '—') + '</td>';
         tableHtml += '<td class="laps-cell">' + lapsHtml + (isRecord ? '<span class="record-pill">RECORD</span>' : '') + '</td>';
         tableHtml += '<td class="bike-cell">' + (s.bike ? escapeHtml(s.bike) : '—') + '</td>';
@@ -2122,6 +2168,15 @@
     var html = renderNotificationsSettings(p);
     html += '<div style="margin-top:1.1rem;"><label style="margin-bottom:0.4rem; display:block;">Thème</label>' + renderThemeToggle() + '</div>';
     html += '<div style="margin-top:1.1rem;"><button type="button" class="ghost" id="tutorial-open-btn">Aide — revoir le tutoriel</button></div>';
+    // Opt-in, off by default -- a quick "comment c'était ?" prompt after
+    // every chrono enregistré would be nagging for anyone who doesn't
+    // want it, so it only ever appears for an account that's turned this
+    // on itself (see onSubmit's success handler and renderFeelingModal).
+    html += '<div style="margin-top:1.2rem; border-top:1px solid var(--border); padding-top:0.9rem;">';
+    html += '<div class="section-title" style="font-size:0.95rem;">Ressenti après chaque session</div>';
+    html += '<label class="checklist-item"><input type="checkbox" id="profile-feeling-enabled"' + (p.sessionFeelingEnabled === true ? ' checked' : '') + '> Activer le ressenti à ton retour de chaque session</label>';
+    html += '<div class="help-text" style="margin-top:0.3rem;">Une fois activé, un chrono enregistré te proposera de dire en un clic comment s\'est passée la session (forme, fatigue...).</div>';
+    html += '</div>';
     // What a friend can see when they open your fiche from Social (Mes
     // amis) -- both on by default. Purely a display-level courtesy: every
     // signed-in account can already read sessions/events/users directly,
@@ -8594,11 +8649,29 @@
   // state (not persisted), read by both the form's own render (candidate
   // list/roles differ) and its submit handler.
   var coachProposeType = 'coaching';
+  // Same ongoing/upcoming event + horaires-by-group as EN PISTE's own
+  // "today-schedule-card" (see renderPlanningTab/renderHoraireGroups) --
+  // reused as-is here so a Coach can see when to be trackside for a
+  // coaching or baptême without leaving this tab. live:true (same as
+  // there) gets the current/next/past slot highlighting for free, since
+  // updateLiveClock() already queries every [data-slot-start] in the
+  // page, not just the Planning tab's own copy.
+  function renderCoachPlanningSection() {
+    var target = targetPlanningEvent();
+    if (!target) return '';
+    var ev = target.ev;
+    var info = circuitInfo(ev.circuit);
+    var groupsHtml = info.horaires ? renderHoraireGroups(info.horaires, null, ev, info.briefing, true) : '';
+    if (!groupsHtml) return '';
+    var body = '<div class="eyebrow">' + (target.mode === 'ongoing' ? 'En ce moment — ' : 'Prochain événement — ') + escapeHtml(ev.circuit) + '</div>' + groupsHtml;
+    return collapsibleCard('coach-planning', 'Planning (horaires par groupe)', body, true);
+  }
   function renderCoachTab() {
     var me = currentUserProfile;
     if (!me) return '';
     var html = '<div class="section-title" style="font-size:0.95rem;">Coaching &amp; baptêmes piste</div>' +
       '<div class="help-text" style="margin-bottom:0.8rem;">Un Coach peut proposer un suivi de coaching (pilotes) ou un baptême piste, un tour passager (pilotes et accompagnants).</div>';
+    html += renderCoachPlanningSection();
     var iAmCoach = isCoachBadge(me);
     var myRequests = (STATE.coachRequests || []).filter(function (r) { return r.from === me.name || r.to === me.name; });
 
@@ -8962,7 +9035,8 @@
       body +
       renderBottomNav() +
       renderCropModal() +
-      renderTutorialOverlay();
+      renderTutorialOverlay() +
+      renderFeelingModal();
     attachHandlers();
     if (focusedId) {
       var toRefocus = document.getElementById(focusedId);
@@ -9349,6 +9423,10 @@
     var notifyEventEndedEl = document.getElementById('profile-notify-event-ended');
     if (notifyEventEndedEl) {
       notifyEventEndedEl.addEventListener('change', function () { saveOwnBooleanField('notifyEventEndedReaction', notifyEventEndedEl.checked); });
+    }
+    var feelingEnabledEl = document.getElementById('profile-feeling-enabled');
+    if (feelingEnabledEl) {
+      feelingEnabledEl.addEventListener('change', function () { saveOwnBooleanField('sessionFeelingEnabled', feelingEnabledEl.checked); });
     }
     var shareSortiesEl = document.getElementById('profile-share-sorties');
     if (shareSortiesEl) {
@@ -10162,6 +10240,13 @@
     if (tutorialSkipBtn) tutorialSkipBtn.addEventListener('click', closeTutorial);
     var tutorialFinishBtn = document.getElementById('tutorial-finish-btn');
     if (tutorialFinishBtn) tutorialFinishBtn.addEventListener('click', closeTutorial);
+    document.querySelectorAll('[data-action="feeling-pick"]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        if (feelingModalSessionId) saveSessionFeeling(feelingModalSessionId, btn.getAttribute('data-feeling'));
+      });
+    });
+    var feelingSkipBtn = document.getElementById('feeling-skip-btn');
+    if (feelingSkipBtn) feelingSkipBtn.addEventListener('click', closeFeelingModal);
     document.querySelectorAll('[data-action="team-delete-request"]').forEach(function (btn) {
       btn.addEventListener('click', function () {
         pendingDeleteTeamId = btn.getAttribute('data-team');
@@ -11117,6 +11202,12 @@
       if (previousBest !== null) writeFeedEvent('record', { circuit: circuit, time: newBest });
     } else {
       showToast('Chrono enregistré.', 'success');
+    }
+    // Opt-in (see Réglages), and only for a chrono this account entered
+    // for itself -- an organisateur/admin entering one for a teammate has
+    // no feeling of their own to report.
+    if (currentUserProfile && currentUserProfile.sessionFeelingEnabled === true && rider === currentUserProfile.name) {
+      openFeelingModal(session.id);
     }
   }
 
