@@ -21,6 +21,14 @@
 </script>
 </head>
 <body>
+<!-- A regular (non-PWA) tab can't reliably force portrait via the Screen
+     Orientation API -- most browsers only grant lock() in fullscreen/
+     installed-app mode. This overlay is the actual, always-working fix:
+     covers the screen and blocks interaction whenever a narrow (mobile)
+     viewport is held in landscape, see .landscape-lock-overlay in
+     style.css. init() in app.js also makes a best-effort lock() attempt
+     for whoever does have the app installed to their home screen. -->
+<div class="landscape-lock-overlay">🔄 Tourne ton téléphone en mode portrait pour utiliser Carnet de Piste.</div>
 <div class="wrap"><div id="root"></div></div>
 <div class="toast-stack" id="toast-stack"></div>
 <div class="annot-overlay" id="annot-overlay"></div>

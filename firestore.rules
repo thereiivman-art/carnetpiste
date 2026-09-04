@@ -633,5 +633,14 @@ service cloud.firestore {
       allow update: if verified() && (isAdmin() || resource.data.rider == myName() || canBackfillUid(resource, 'rider', 'uid'));
       allow delete: if verified() && (isAdmin() || resource.data.rider == myName() || resource.data.get('uid', null) == request.auth.uid);
     }
+    // Retour d'expérience libre envoyé depuis Profil -> Suggestion --
+    // write-only for whoever sends it (no edit/delete of one's own once
+    // sent), read-only for the admin who reviews them like a shared inbox.
+    match /feedback/{id} {
+      allow read: if isAdmin();
+      allow create: if verified() && request.resource.data.authorUid == request.auth.uid
+        && request.resource.data.author == myName();
+      allow update, delete: if isAdmin();
+    }
   }
 }

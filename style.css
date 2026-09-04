@@ -1287,6 +1287,31 @@
     color: var(--text-muted);
   }
   .referral-milestone.reached { color: var(--accent); font-weight: 600; }
+  .feedback-row {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0.6rem 0.75rem;
+    margin-top: 0.6rem;
+  }
+  .feedback-row-meta { font-size: 0.78rem; color: var(--text-muted); margin-bottom: 0.3rem; }
+  .feedback-row-text { font-size: 0.9rem; white-space: pre-wrap; }
+  .landscape-lock-overlay { display: none; }
+  @media (max-width: 900px) and (orientation: landscape) {
+    .landscape-lock-overlay {
+      display: flex;
+      position: fixed;
+      inset: 0;
+      z-index: 999;
+      background: var(--bg);
+      color: var(--text);
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 2rem;
+      font-size: 1.15rem;
+      font-weight: 600;
+    }
+  }
   .best-time-row {
     display: flex;
     align-items: baseline;

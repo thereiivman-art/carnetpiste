@@ -15,7 +15,7 @@
     sessions: [], events: [], circuits: {}, riders: [], usersByName: {}, friendRequests: [], feedEvents: [], myFollows: [], myFollowedTeams: [],
     myFollowedTeamTiers: {}, myTeamFollowDocs: {}, teams: [], myTeamMemberships: [], teamInvites: [], teamMembersByTeam: {}, teamFeed: [], teamFollowersByTeam: {},
     followedTeamFeed: [], wallPosts: [], coachRequests: [], teamJoinRequests: [], teamLikes: [], eventJoinRequests: [], coachMessages: [], eventAnnouncements: [],
-    allTeamLeaders: []
+    allTeamLeaders: [], feedback: []
   };
   var canPersist = false;
   var unsubscribers = [];
@@ -1894,7 +1894,7 @@
   // signup (see resolveUniquePseudo) if the new pseudo collides with
   // someone else's.
   function renderProfileTabBar() {
-    var tabs = [['profil', 'Profil'], ['reglages', 'Réglages'], ['aide', 'Aide']];
+    var tabs = [['profil', 'Profil'], ['reglages', 'Réglages'], ['aide', 'Aide'], ['suggestion', 'Suggestion']];
     return '<div class="profile-tabs" role="tablist">' + tabs.map(function (t) {
       return '<button type="button" class="profile-tab-btn' + (profileSubTab === t[0] ? ' active' : '') + '" role="tab" aria-selected="' + (profileSubTab === t[0]) + '" data-profile-tab="' + t[0] + '">' + t[1] + '</button>';
     }).join('') + '</div>';
@@ -1906,6 +1906,7 @@
       '<div class="profile-avatar">' + (p.photoURL ? '<img src="' + escapeHtml(p.photoURL) + '" alt="Photo de profil">' : '<span class="profile-avatar-placeholder">' + initial + '</span>') + '</div>' +
       '<div class="profile-avatar-actions">' +
         '<button type="button" class="ghost" id="profile-photo-btn">' + (p.photoURL ? 'Changer la photo' : 'Ajouter une photo') + '</button>' +
+        (p.photoURL ? '<button type="button" class="ghost" id="profile-photo-recrop-btn">Modifier le cadrage</button>' : '') +
         (p.photoURL ? '<button type="button" class="ghost" id="profile-photo-remove-btn">Retirer</button>' : '') +
         '<input type="file" id="profile-photo-input" accept="image/*" style="display:none;">' +
         (profilePhotoMessage ? '<div class="help-text">' + escapeHtml(profilePhotoMessage) + '</div>' : '') +
@@ -2167,6 +2168,39 @@
     return html;
   }
 
+  // Retour d'expérience libre vers l'équipe de dev -- pas de backend/mail
+  // possible ici (app 100% client + Firestore), donc au plus simple : un
+  // formulaire qui écrit dans la collection feedback (lisible seulement
+  // par l'admin, voir firestore.rules), et l'admin qui ouvre ce même
+  // onglet voit la liste de tout ce qui a été envoyé, comme un document
+  // partagé.
+  function renderProfileSuggestionTab(p) {
+    var html = '<div class="section-title" style="font-size:0.95rem;">Une remarque, une idée ?</div>';
+    html += '<div class="help-text">Dis-nous ce qui manque, ce qui bloque ou ce que tu aimerais voir -- ça part directement à l\'équipe de développement.</div>';
+    html += '<form id="feedback-form">' +
+      '<textarea id="feedback-text" rows="4" placeholder="Ton retour d\'expérience..." required></textarea>' +
+      '<button type="submit" class="primary" style="margin-top:0.6rem;">Envoyer</button>' +
+      (feedbackMessage ? '<div class="help-text">' + escapeHtml(feedbackMessage) + '</div>' : '') +
+      '</form>';
+    if (isAdmin()) {
+      var items = STATE.feedback || [];
+      html += '<div style="margin-top:1.2rem; border-top:1px solid var(--border); padding-top:0.9rem;">';
+      html += '<div class="section-title" style="font-size:0.95rem;">Suggestions reçues (' + items.length + ')</div>';
+      if (!items.length) {
+        html += '<div class="help-text">Rien pour l\'instant.</div>';
+      } else {
+        html += items.map(function (f) {
+          return '<div class="feedback-row">' +
+            '<div class="feedback-row-meta">' + escapeHtml(f.author || '?') + ' · ' + (f.createdAt ? new Date(f.createdAt).toLocaleString('fr-FR') : '') + '</div>' +
+            '<div class="feedback-row-text">' + escapeHtml(f.text || '') + '</div>' +
+            '</div>';
+        }).join('');
+      }
+      html += '</div>';
+    }
+    return html;
+  }
+
   // Everything that used to live in the header's own account-bar (identity,
   // badges, role, Mon profil/Gestion des comptes/Se déconnecter) now shows
   // up here instead, right when the header's profile-badge avatar is
@@ -2188,6 +2222,7 @@
     html += '<div class="profile-tab-body">';
     if (profileSubTab === 'reglages') html += renderProfileReglagesTab(p);
     else if (profileSubTab === 'aide') html += renderProfileAideTab(p);
+    else if (profileSubTab === 'suggestion') html += renderProfileSuggestionTab(p);
     else html += renderProfileProfilTab(p);
     html += '</div>';
     html += '</div>';
@@ -2684,6 +2719,25 @@
       renderRoot();
     }).catch(function (err) {
       profilePhotoMessage = 'Erreur : ' + (err && err.message ? err.message : err);
+      renderRoot();
+    });
+  }
+
+  // Retour d'expérience -- voir renderProfileSuggestionTab. Append-only,
+  // pas de mail (pas de backend), lu par l'admin directement dans l'app.
+  var feedbackMessage = '';
+  function sendFeedback(text) {
+    text = (text || '').trim();
+    if (!text || !currentUserProfile) return;
+    var uid = auth.currentUser && auth.currentUser.uid;
+    if (!uid) return;
+    db.collection('feedback').add({
+      text: text, author: currentUserProfile.name, authorUid: uid, createdAt: Date.now()
+    }).then(function () {
+      feedbackMessage = 'Merci, ton retour a bien été envoyé !';
+      renderRoot();
+    }).catch(function (err) {
+      feedbackMessage = 'Erreur : ' + (err && err.message ? err.message : err);
       renderRoot();
     });
   }
@@ -8017,6 +8071,7 @@
       '<div style="margin-top:0.5rem; display:flex; align-items:center; gap:0.6rem;">' +
       '<button type="button" class="ghost" data-action="team-description-save" data-team="' + team.id + '">Enregistrer la présentation</button>' +
       '<button type="button" class="ghost" data-action="team-photo-btn" data-team="' + team.id + '">' + (team.photoURL ? 'Changer la photo (badge)' : 'Ajouter une photo (badge)') + '</button>' +
+      (team.photoURL ? '<button type="button" class="ghost" data-action="team-photo-recrop" data-team="' + team.id + '">Modifier le cadrage</button>' : '') +
       (team.photoURL ? '<button type="button" class="ghost" data-action="team-photo-remove" data-team="' + team.id + '">Retirer</button>' : '') +
       '</div>' +
       '<div class="help-text" style="margin-top:0.3rem;">S\'affiche partout en rond (fil d\'actu, membres, invitations...) -- le prochain écran te laisse choisir le cadrage.</div>' +
@@ -8024,6 +8079,7 @@
     html += '<div style="margin-top:0.9rem;"><label>Logo (affiché en largeur sur la fiche du Team)</label>' +
       '<div style="margin-top:0.3rem; display:flex; align-items:center; gap:0.6rem;">' +
       '<button type="button" class="ghost" data-action="team-logo-btn" data-team="' + team.id + '">' + (team.logoURL ? 'Changer le logo' : 'Ajouter un logo') + '</button>' +
+      (team.logoURL ? '<button type="button" class="ghost" data-action="team-logo-recrop" data-team="' + team.id + '">Modifier le cadrage</button>' : '') +
       (team.logoURL ? '<button type="button" class="ghost" data-action="team-logo-remove" data-team="' + team.id + '">Retirer</button>' : '') +
       '</div>' +
       '<div class="help-text" style="margin-top:0.3rem;">Utile pour un logo large (ex. "Mototeam95") que le badge rond couperait.</div>' +
@@ -9435,6 +9491,12 @@
         });
       });
     }
+    var profilePhotoRecropBtn = document.getElementById('profile-photo-recrop-btn');
+    if (profilePhotoRecropBtn) {
+      profilePhotoRecropBtn.addEventListener('click', function () {
+        if (currentUserProfile && currentUserProfile.photoURL) openCropModal('user', null, currentUserProfile.photoURL);
+      });
+    }
     var profilePhotoRemoveBtn = document.getElementById('profile-photo-remove-btn');
     if (profilePhotoRemoveBtn) {
       profilePhotoRemoveBtn.addEventListener('click', function () { savePhoto(null); });
@@ -9874,6 +9936,13 @@
     document.querySelectorAll('[data-action="team-photo-remove"]').forEach(function (btn) {
       btn.addEventListener('click', function () { saveTeamPhoto(btn.getAttribute('data-team'), null); });
     });
+    document.querySelectorAll('[data-action="team-photo-recrop"]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var teamId = btn.getAttribute('data-team');
+        var team = teamById(teamId);
+        if (team && team.photoURL) openCropModal('team', teamId, team.photoURL);
+      });
+    });
     var teamLogoInput = document.getElementById('team-logo-input');
     document.querySelectorAll('[data-action="team-logo-btn"]').forEach(function (btn) {
       btn.addEventListener('click', function () {
@@ -9896,6 +9965,13 @@
     }
     document.querySelectorAll('[data-action="team-logo-remove"]').forEach(function (btn) {
       btn.addEventListener('click', function () { saveTeamLogo(btn.getAttribute('data-team'), null); });
+    });
+    document.querySelectorAll('[data-action="team-logo-recrop"]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var teamId = btn.getAttribute('data-team');
+        var team = teamById(teamId);
+        if (team && team.logoURL) openCropModal('logo', teamId, team.logoURL);
+      });
     });
     document.querySelectorAll('[data-action="team-links-form"]').forEach(function (form) {
       form.addEventListener('submit', function (evt) {
@@ -10003,6 +10079,15 @@
     if (cropSaveBtn) cropSaveBtn.addEventListener('click', saveCroppedPhoto);
     var cropCancelBtn = document.getElementById('crop-cancel-btn');
     if (cropCancelBtn) cropCancelBtn.addEventListener('click', closeCropModal);
+    var feedbackForm = document.getElementById('feedback-form');
+    if (feedbackForm) {
+      feedbackForm.addEventListener('submit', function (evt) {
+        evt.preventDefault();
+        var textEl = document.getElementById('feedback-text');
+        sendFeedback(textEl ? textEl.value : '');
+        if (textEl) textEl.value = '';
+      });
+    }
     var tutorialOpenBtn = document.getElementById('tutorial-open-btn');
     if (tutorialOpenBtn) tutorialOpenBtn.addEventListener('click', openTutorial);
     var tutorialNextBtn = document.getElementById('tutorial-next-btn');
@@ -11158,6 +11243,15 @@
       STATE.allTeamLeaders = snap.docs.map(function (d) { return d.data(); });
       renderRoot();
     }, handleSyncError));
+    // Retours d'expérience (Profil -> Suggestion) -- read is admin-only
+    // per firestore.rules, so this listener is only ever attached for the
+    // admin account to avoid a permission-denied on every other account.
+    if (isAdmin()) {
+      unsubscribers.push(db.collection('feedback').orderBy('createdAt', 'desc').onSnapshot(function (snap) {
+        STATE.feedback = snap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); });
+        renderRoot();
+      }, handleSyncError));
+    }
     // Likes: cheap to sync in full, like teams itself -- a flat {teamId,
     // name} row per like, small enough at this app's scale that a plain
     // count/lookup client-side beats scoping it like teamMembers is.
@@ -11520,6 +11614,14 @@
   function init() {
     renderRoot();
     setInterval(updateLiveClock, 15000);
+    // Best-effort only -- a plain browser tab almost never grants this
+    // (Screen Orientation API's lock() mostly requires fullscreen or an
+    // installed/home-screen PWA), so the real fix on mobile is the CSS
+    // .landscape-lock-overlay in style.css, which always works.
+    if (window.matchMedia && window.matchMedia('(max-width: 900px)').matches
+        && screen.orientation && screen.orientation.lock) {
+      screen.orientation.lock('portrait').catch(function () {});
+    }
     document.addEventListener('pointerdown', onCalendarPointerDown);
     document.addEventListener('pointermove', onCalendarPointerMove);
     document.addEventListener('pointerup', onCalendarPointerUp);
