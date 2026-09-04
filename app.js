@@ -2302,7 +2302,7 @@
       var row = '<li class="rider-manager-row account-manager-row">' +
         '<div><span class="rider-manager-name">' + escapeHtml(t.name) + '</span>' + teamBadgesHtml(t) +
         '<div class="help-text">créé par ' + escapeHtml(t.createdBy) + '</div></div>' +
-        '<button type="button" class="ghost icon-btn' + (t.teamPro ? ' confirm' : '') + '" data-action="toggle-team-pro" data-team="' + t.id + '" aria-label="' + (t.teamPro ? 'Retirer Team PRO' : 'Marquer Team PRO') + '" title="' + (t.teamPro ? 'Retirer Team PRO' : 'Marquer Team PRO') + '">🏆</button>' +
+        '<button type="button" class="ghost icon-btn' + (t.teamPro ? ' confirm' : '') + '" data-action="toggle-team-pro" data-team="' + t.id + '" aria-label="' + (t.teamPro ? 'Retirer Team PRO' : 'Marquer Team PRO') + '" title="' + (t.teamPro ? 'Retirer Team PRO' : 'Marquer Team PRO') + '">✓</button>' +
         deleteControl +
         '</li>';
       // Same password-confirmation dance as a Team Leader deleting their
@@ -6401,7 +6401,7 @@
     html += '<div class="today-schedule-head">';
     html += '<div class="eyebrow">' + (isOngoing ? 'En ce moment — ' : 'Prochain événement — ') + escapeHtml(ev.circuit) + '</div>';
     html += '<div class="today-schedule-head-right">';
-    if (orgTeam) html += '<span class="event-team-badge">' + escapeHtml(orgTeam.name) + (orgTeam.teamPro ? ' 🏆' : '') + '</span>';
+    if (orgTeam) html += '<span class="event-team-badge">' + escapeHtml(orgTeam.name) + teamBadgesHtml(orgTeam) + '</span>';
     if (isOngoing) html += '<div class="planning-big-clock" id="planning-big-clock">--h--</div>';
     html += '</div>';
     html += '</div>';
@@ -7240,12 +7240,23 @@
   // prefers-color-scheme media query keeps deciding, matching the
   // pre-toggle behavior exactly.
   var THEME_KEY = 'carnet-de-piste-theme';
+  // "piste" (default, no localStorage entry) is the warm parchment/
+  // asphalt palette -- "classic" opts back into the original cool
+  // blue-grey neutral for whoever preferred it (see style.css'
+  // [data-palette="classic"] blocks). Independent of light/dark/system.
+  var PALETTE_KEY = 'carnet-de-piste-palette';
 
   function getThemePref() {
     try {
       var t = localStorage.getItem(THEME_KEY);
       return (t === 'light' || t === 'dark') ? t : 'system';
     } catch (e) { return 'system'; }
+  }
+
+  function getPalettePref() {
+    try {
+      return localStorage.getItem(PALETTE_KEY) === 'classic' ? 'classic' : 'piste';
+    } catch (e) { return 'piste'; }
   }
 
   function applyTheme(pref) {
@@ -7256,14 +7267,29 @@
     }
   }
 
+  function applyPalette(pref) {
+    if (pref === 'classic') {
+      document.documentElement.dataset.palette = 'classic';
+    } else {
+      delete document.documentElement.dataset.palette;
+    }
+  }
+
   function setThemePref(pref) {
     try { localStorage.setItem(THEME_KEY, pref); } catch (e) {}
     applyTheme(pref);
     renderRoot();
   }
 
+  function setPalettePref(pref) {
+    try { localStorage.setItem(PALETTE_KEY, pref); } catch (e) {}
+    applyPalette(pref);
+    renderRoot();
+  }
+
   function renderThemeToggle() {
     var pref = getThemePref();
+    var palettePref = getPalettePref();
     function btn(value, label, icon) {
       return '<button type="button" class="theme-toggle-btn' + (pref === value ? ' active' : '') + '" data-theme-choice="' + value + '" aria-label="Thème ' + label + '" title="Thème ' + label + '">' + icon + '</button>';
     }
@@ -7271,7 +7297,8 @@
       btn('light', 'clair', '☀️') +
       btn('dark', 'sombre', '🌙') +
       btn('system', 'système', '🖥️') +
-      '</div>';
+      '</div>' +
+      '<label class="checklist-item" style="margin-top:0.6rem;"><input type="checkbox" id="palette-classic-toggle"' + (palettePref === 'classic' ? ' checked' : '') + '> Palette classique (bleu-gris, au lieu du parchemin/asphalte par défaut)</label>';
   }
 
   // A render bug used to mean a silent blank page -- an exception thrown
@@ -8404,15 +8431,15 @@
     var html = '<div class="card"><h2 class="section-title">Créer un Team</h2>' +
       '<div class="help-text">Un Team créé ici est un <strong>Team amateur</strong> (entre amis) -- ouvert tout de suite, tu en es le premier Team Leader.';
     if (isOrganisateur) {
-      html += ' En tant qu\'Organisateur, tu peux directement le créer en <strong>Team PRO</strong> (badge 🏆, club validé) ci-dessous.</div>';
+      html += ' En tant qu\'Organisateur, tu peux directement le créer en <strong>Team PRO</strong> (coche bleue, club validé) ci-dessous.</div>';
     } else {
-      html += ' Un <strong>Team PRO</strong> (badge 🏆, club validé) ne se crée pas directement : contacte l\'administrateur une fois ton Team amateur créé pour le faire valider et passer PRO, ou passe ton profil en Organisateur pour pouvoir le créer directement PRO.</div>';
+      html += ' Un <strong>Team PRO</strong> (coche bleue, club validé) ne se crée pas directement : contacte l\'administrateur une fois ton Team amateur créé pour le faire valider et passer PRO, ou passe ton profil en Organisateur pour pouvoir le créer directement PRO.</div>';
     }
     html += '<form id="create-team-form" style="margin-top:0.7rem;">' +
       '<label for="new-team-name">Nom du team</label>' +
       '<input type="text" id="new-team-name" placeholder="Ex. Mototeam95" required>';
     if (isOrganisateur) {
-      html += '<label class="checklist-item" style="margin-top:0.6rem;"><input type="checkbox" id="new-team-pro"> Créer directement comme Team PRO 🏆</label>';
+      html += '<label class="checklist-item" style="margin-top:0.6rem;"><input type="checkbox" id="new-team-pro"> Créer directement comme Team PRO ✓</label>';
     }
     html += '<button type="submit" class="primary" style="margin-top:0.7rem;">Créer</button>' +
       '</form></div>';
@@ -10208,6 +10235,12 @@
         setThemePref(btn.getAttribute('data-theme-choice'));
       });
     });
+    var paletteToggle = document.getElementById('palette-classic-toggle');
+    if (paletteToggle) {
+      paletteToggle.addEventListener('change', function () {
+        setPalettePref(paletteToggle.checked ? 'classic' : 'piste');
+      });
+    }
     var form = document.getElementById('session-form');
     if (form) form.addEventListener('submit', onSubmit);
     var fDateEl = document.getElementById('f-date');
