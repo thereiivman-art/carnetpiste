@@ -295,8 +295,16 @@ service cloud.firestore {
           && (resource.data.from == myName() || resource.data.to == myName())
           && resource.data.get('awaiting', 'to') == (resource.data.from == myName() ? 'from' : 'to')
           && (
+            // Accept the slot currently set as-is (the default option, or
+            // whatever a prior counter-proposal landed on).
             (request.resource.data.status == 'accepted'
               && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']))
+            // Or accept one of up to 3 alternative slots the other side
+            // originally offered (see slotOptions, a plain array of
+            // labels -- sendCoachRequest) instead of the default one.
+            || (request.resource.data.status == 'accepted'
+                && request.resource.data.slotLabel in resource.data.get('slotOptions', [])
+                && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'slotLabel', 'slotStart', 'slotEnd']))
             || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['slotStart', 'slotEnd', 'slotLabel', 'awaiting'])
                 && request.resource.data.awaiting == (resource.data.from == myName() ? 'to' : 'from'))
           ))

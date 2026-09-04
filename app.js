@@ -15,7 +15,7 @@
     sessions: [], events: [], circuits: {}, riders: [], usersByName: {}, friendRequests: [], feedEvents: [], myFollows: [], myFollowedTeams: [],
     myFollowedTeamTiers: {}, myTeamFollowDocs: {}, teams: [], myTeamMemberships: [], teamInvites: [], teamMembersByTeam: {}, teamFeed: [], teamFollowersByTeam: {},
     followedTeamFeed: [], wallPosts: [], coachRequests: [], teamJoinRequests: [], teamLikes: [], eventJoinRequests: [], coachMessages: [], eventAnnouncements: [],
-    allTeamLeaders: [], feedback: []
+    allTeamLeaders: [], feedback: [], partners: []
   };
   var canPersist = false;
   var unsubscribers = [];
@@ -182,27 +182,38 @@
   // can target an accompagnant too, not just a pilote (see
   // renderCoachTab's propose form). No separate badge for it -- it's just
   // another thing an existing Coach can propose. slotInfo (optional):
-  // {eventId, circuit, slotStart, slotEnd, slotLabel} when this was
-  // raised by clicking a specific session in the Coach tab's planning
-  // (see openCoachSlotModal) instead of the general search form.
+  // {eventId, circuit, slotStart, slotEnd, slotLabel} for a single slot,
+  // or {eventId, circuit, options: [{start,end,label}, ...]} (1-3 of
+  // them) when a pilote/accompagnant is proposing several candidate
+  // times at once (see renderCoachSlotModal) for the Coach to pick from
+  // -- slotOptions (plain label strings) records every one offered, so
+  // the recipient can later accept any of them, not just the default
+  // (see firestore.rules' update rule).
   // 'awaiting' always starts on 'to' -- whoever receives a request or
   // proposal always has to act on it first, see the update rule in
   // firestore.rules for the back-and-forth this then allows.
   function sendCoachRequest(toName, type, slotInfo) {
     var me = currentUserProfile;
     if (!me || !toName || toName === me.name) return;
-    var already = (STATE.coachRequests || []).some(function (r) {
-      return (r.from === me.name && r.to === toName) || (r.from === toName && r.to === me.name);
-    });
-    if (already) { showToast('Une demande existe déjà avec ce compte.'); return; }
     var isBapteme = type === 'bapteme';
+    // Scoped by type, not just by pair -- an account can have both an
+    // active/pending coaching *and* a baptême piste with the same Coach
+    // at once, just never two of the same type together.
+    var already = (STATE.coachRequests || []).some(function (r) {
+      return ((r.from === me.name && r.to === toName) || (r.from === toName && r.to === me.name))
+        && (r.type || 'coaching') === (isBapteme ? 'bapteme' : 'coaching');
+    });
+    if (already) { showToast('Une demande de ce type existe déjà avec ce compte.'); return; }
     var doc = { from: me.name, to: toName, status: 'pending', plan: '', type: isBapteme ? 'bapteme' : 'coaching', awaiting: 'to', fromUid: myUid(), toUid: uidOf(toName) };
     if (slotInfo) {
       doc.eventId = slotInfo.eventId || null;
       doc.circuit = slotInfo.circuit || null;
-      doc.slotStart = slotInfo.slotStart != null ? slotInfo.slotStart : null;
-      doc.slotEnd = slotInfo.slotEnd != null ? slotInfo.slotEnd : null;
-      doc.slotLabel = slotInfo.slotLabel || null;
+      var options = slotInfo.options && slotInfo.options.length ? slotInfo.options : [{ start: slotInfo.slotStart, end: slotInfo.slotEnd, label: slotInfo.slotLabel }];
+      var first = options[0];
+      doc.slotStart = first.start != null ? first.start : null;
+      doc.slotEnd = first.end != null ? first.end : null;
+      doc.slotLabel = first.label || null;
+      doc.slotOptions = options.map(function (o) { return o.label; }).filter(Boolean);
     }
     db.collection('coachRequests').add(doc).then(function () {
       showToast((isBapteme ? 'Proposition de baptême piste envoyée à ' : 'Demande de coaching envoyée à ') + toName + '.', 'success');
@@ -212,6 +223,24 @@
   }
   function acceptCoachRequest(id) {
     db.collection('coachRequests').doc(id).update({ status: 'accepted' }).then(function () {
+      showToast('Demande acceptée.', 'success');
+    }).catch(function (err) {
+      showToast('Erreur : ' + (err && err.message ? err.message : err));
+    });
+  }
+  // Accept one of up to 3 alternative slots offered at creation (see
+  // sendCoachRequest's slotOptions) instead of the default one -- only
+  // valid when slotLabel is genuinely one of those originally offered
+  // (see firestore.rules).
+  function acceptCoachRequestSlot(id, chosenLabel) {
+    var r = (STATE.coachRequests || []).filter(function (x) { return x.id === id; })[0];
+    if (!r) return;
+    var options = allEventSlots(eventsList().filter(function (e) { return e.id === r.eventId; })[0] || {});
+    var chosen = options.filter(function (s) { return s.label === chosenLabel; })[0];
+    if (!chosen) { showToast('Créneau invalide.'); return; }
+    db.collection('coachRequests').doc(id).update({
+      status: 'accepted', slotLabel: chosen.label, slotStart: chosen.start, slotEnd: chosen.end
+    }).then(function () {
       showToast('Demande acceptée.', 'success');
     }).catch(function (err) {
       showToast('Erreur : ' + (err && err.message ? err.message : err));
@@ -685,6 +714,44 @@
   // "Nom | URL", parsed into {label, url} objects. A free-form textarea
   // rather than an add/remove-row widget, consistent with how riders/
   // horaires are typed elsewhere in this app.
+  // Espace partenaires -- one shared doc (settings/partners), same free-
+  // text "Nom | URL" convention as a Team's own links (see saveTeamLinks),
+  // url optional here since a partner might not have a site to link.
+  function savePartners(raw) {
+    var list = (raw || '').split('\n').map(function (line) { return line.trim(); }).filter(Boolean).map(function (line) {
+      var parts = line.split('|');
+      var url = parts.length > 1 ? parts.slice(1).join('|').trim() : '';
+      var name = parts.length > 1 ? parts[0].trim() : parts[0].trim();
+      return { name: name, url: url };
+    }).filter(function (p) { return p.name; });
+    db.collection('settings').doc('partners').set({ list: list }, { merge: true }).then(function () {
+      showToast('Partenaires enregistrés.', 'success');
+    }).catch(function (err) {
+      showToast('Erreur : ' + (err && err.message ? err.message : err));
+    });
+  }
+  function renderPartnersSection() {
+    var partners = STATE.partners || [];
+    var body;
+    if (!partners.length && !isAdmin()) return '';
+    if (!partners.length) {
+      body = '<div class="empty-state">Aucun partenaire pour l\'instant.</div>';
+    } else {
+      body = '<div class="team-links-row">' + partners.map(function (p) {
+        return p.url
+          ? '<a class="team-link-chip" href="' + escapeHtml(p.url) + '" target="_blank" rel="noopener">' + escapeHtml(p.name) + '</a>'
+          : '<span class="team-link-chip">' + escapeHtml(p.name) + '</span>';
+      }).join('') + '</div>';
+    }
+    if (isAdmin()) {
+      body += '<form id="partners-form" style="margin-top:0.8rem;">' +
+        '<label for="partners-input">Un par ligne : Nom | URL (URL optionnelle)</label>' +
+        '<textarea id="partners-input" rows="3" placeholder="Mototeam95 | https://...\nAccimoto\nDepamoto | https://...">' +
+        escapeHtml(partners.map(function (p) { return p.url ? p.name + ' | ' + p.url : p.name; }).join('\n')) + '</textarea>' +
+        '<button type="submit" class="primary" style="margin-top:0.6rem;">Enregistrer</button></form>';
+    }
+    return collapsibleCard('espace-partenaires', 'Espace partenaires', body, false);
+  }
   function saveTeamLinks(teamId, raw) {
     var links = (raw || '').split('\n').map(function (line) { return line.trim(); }).filter(Boolean).map(function (line) {
       var parts = line.split('|');
@@ -2040,7 +2107,7 @@
   // signup (see resolveUniquePseudo) if the new pseudo collides with
   // someone else's.
   function renderProfileTabBar() {
-    var tabs = [['profil', 'Profil'], ['reglages', 'Réglages'], ['aide', 'Aide'], ['suggestion', 'Suggestion']];
+    var tabs = [['profil', 'Profil'], ['parrainage', 'Parrainage'], ['reglages', 'Réglages'], ['aide', 'Aide'], ['suggestion', 'Suggestion']];
     return '<div class="profile-tabs" role="tablist">' + tabs.map(function (t) {
       return '<button type="button" class="profile-tab-btn' + (profileSubTab === t[0] ? ' active' : '') + '" role="tab" aria-selected="' + (profileSubTab === t[0]) + '" data-profile-tab="' + t[0] + '">' + t[1] + '</button>';
     }).join('') + '</div>';
@@ -2236,7 +2303,6 @@
   function renderProfileReglagesTab(p) {
     var html = renderNotificationsSettings(p);
     html += '<div style="margin-top:1.1rem;"><label style="margin-bottom:0.4rem; display:block;">Thème</label>' + renderThemeToggle() + '</div>';
-    html += '<div style="margin-top:1.1rem;"><button type="button" class="ghost" id="tutorial-open-btn">Aide — revoir le tutoriel</button></div>';
     // Opt-in, off by default -- a quick "comment c'était ?" prompt after
     // every chrono enregistré would be nagging for anyone who doesn't
     // want it, so it only ever appears for an account that's turned this
@@ -2289,11 +2355,11 @@
     return html;
   }
 
-  function renderProfileAideTab(p) {
-    // Parrainage: sharing this link and someone signing up through it
-    // makes p the parrain -- see pendingReferrer/onSignupSubmit. The count
-    // below is a live Firestore query (users/{}.referredBy == p.name), not
-    // anything synced, hence the "..." while loadFilleulCount resolves it.
+  // Sharing this link and someone signing up through it makes p the
+  // parrain -- see pendingReferrer/onSignupSubmit. The count below is a
+  // live Firestore query (users/{}.referredBy == p.name), not anything
+  // synced, hence the "..." while loadFilleulCount resolves it.
+  function renderProfileParrainageTab(p) {
     loadFilleulCount(p.name);
     var filleulCount = filleulCounts[p.name];
     var referralLink = referralLinkFor(p.name);
@@ -2316,10 +2382,12 @@
         (reached ? '✓' : m[0]) + ' — ' + m[0] + ' filleul' + (m[0] > 1 ? 's' : '') + ' — badge ' + escapeHtml(m[1]) + '</div>';
     });
     html += '</div>';
-    html += '<div style="margin-top:1.2rem; border-top:1px solid var(--border); padding-top:0.9rem;">';
-    html += '<div class="section-title" style="font-size:0.95rem;">À propos</div>';
+    return html;
+  }
+  function renderProfileAideTab(p) {
+    var html = '<div class="section-title" style="font-size:0.95rem;">À propos</div>';
     html += '<div class="help-text">Carnet de Piste centralise le planning des événements, les groupes/horaires, tes chronos et ta progression entre pilotes et accompagnants — le tout à jour en temps réel pour tout le monde.</div>';
-    html += '</div>';
+    html += '<div style="margin-top:1.1rem;"><button type="button" class="ghost" id="tutorial-open-btn">Revoir le tutoriel</button></div>';
     return html;
   }
 
@@ -2375,7 +2443,8 @@
     html += '<div class="section-title">Mon profil</div>';
     html += renderProfileTabBar();
     html += '<div class="profile-tab-body">';
-    if (profileSubTab === 'reglages') html += renderProfileReglagesTab(p);
+    if (profileSubTab === 'parrainage') html += renderProfileParrainageTab(p);
+    else if (profileSubTab === 'reglages') html += renderProfileReglagesTab(p);
     else if (profileSubTab === 'aide') html += renderProfileAideTab(p);
     else if (profileSubTab === 'suggestion') html += renderProfileSuggestionTab(p);
     else html += renderProfileProfilTab(p);
@@ -5252,6 +5321,8 @@
   // provided, not personal info.
   var editingPracticalInfoFor = null;
   var editingSpecialActivitiesFor = null;
+  var editingRentalMotosFor = null;
+  var editingRentalEquipementFor = null;
   function savePracticalInfo(eventId, text) {
     db.collection('events').doc(eventId).update({ practicalInfo: (text || '').trim() || null }).then(function () {
       editingPracticalInfoFor = null;
@@ -5263,6 +5334,22 @@
   function saveSpecialActivities(eventId, text) {
     db.collection('events').doc(eventId).update({ specialActivities: (text || '').trim() || null }).then(function () {
       editingSpecialActivitiesFor = null;
+      renderRoot();
+    }).catch(function (err) {
+      showToast('Erreur : ' + (err && err.message ? err.message : err));
+    });
+  }
+  function saveRentalMotos(eventId, text) {
+    db.collection('events').doc(eventId).update({ rentalMotos: (text || '').trim() || null }).then(function () {
+      editingRentalMotosFor = null;
+      renderRoot();
+    }).catch(function (err) {
+      showToast('Erreur : ' + (err && err.message ? err.message : err));
+    });
+  }
+  function saveRentalEquipement(eventId, text) {
+    db.collection('events').doc(eventId).update({ rentalEquipement: (text || '').trim() || null }).then(function () {
+      editingRentalEquipementFor = null;
       renderRoot();
     }).catch(function (err) {
       showToast('Erreur : ' + (err && err.message ? err.message : err));
@@ -5298,6 +5385,28 @@
       inputId: 'special-activities-input', placeholder: 'Ex. Baptêmes de piste 12h-14h, coaching sur inscription...',
       editingId: function () { return editingSpecialActivitiesFor; },
       saveAction: 'save-special-activities', cancelAction: 'cancel-special-activities', editAction: 'edit-special-activities'
+    });
+  }
+  // Espace location -- ce que l'organisateur peut fournir sur place, pour
+  // ses pilotes comme pour les baptêmes piste. Même famille que Infos
+  // pratiques/Baptêmes-coaching ci-dessus (texte libre, pas un système de
+  // réservation avec quotas/stock -- l'organisateur décrit ce qu'il a, les
+  // intéressés le contactent), deux champs séparés puisque moto et
+  // équipement sont des besoins différents.
+  function renderRentalMotosSection(ev, isLeader) {
+    return renderEventLeaderTextSection(ev, isLeader, {
+      field: 'rentalMotos', key: 'rental-motos', label: 'Location — Motos',
+      inputId: 'rental-motos-input', placeholder: 'Ex. 2 CBR600 dispo pour les baptêmes, 1 pour un pilote -- contacter Marc',
+      editingId: function () { return editingRentalMotosFor; },
+      saveAction: 'save-rental-motos', cancelAction: 'cancel-rental-motos', editAction: 'edit-rental-motos'
+    });
+  }
+  function renderRentalEquipementSection(ev, isLeader) {
+    return renderEventLeaderTextSection(ev, isLeader, {
+      field: 'rentalEquipement', key: 'rental-equipement', label: 'Location — Équipement',
+      inputId: 'rental-equipement-input', placeholder: 'Ex. Combinaisons et casques toutes tailles, pilotes et baptêmes',
+      editingId: function () { return editingRentalEquipementFor; },
+      saveAction: 'save-rental-equipement', cancelAction: 'cancel-rental-equipement', editAction: 'edit-rental-equipement'
     });
   }
 
@@ -6723,6 +6832,8 @@
     }
     if (ev.teamId) html += renderEventAnnouncements(ev, false);
     html += renderSpecialActivitiesSection(ev, isLeader);
+    html += renderRentalMotosSection(ev, isLeader);
+    html += renderRentalEquipementSection(ev, isLeader);
     // Briefing lives with Horaires (above the group filter) now, not up
     // here -- it's schedule information, same family as the slot times.
     var briefingLine = info.briefing ? '<div class="help-text" style="margin-bottom:0.6rem; color:var(--accent); font-weight:600;">Briefing ' + escapeHtml(info.briefing) + '</div>' : '';
@@ -7893,6 +8004,7 @@
   }
 
   var wallComposerOpen = false; // whether the "Publier un message" form is expanded, or just its collapsed teaser button
+  var wallFeedVisibleCount = 5; // how many of Mon Journal's items are rendered -- +5 each time the scroll sentinel is reached (see attachHandlers)
 
   function renderWallComposer() {
     if (!wallComposerOpen) {
@@ -7989,14 +8101,18 @@
       items.push({ kind: 'team', data: f, teamId: f.teamId, createdAt: f.createdAt });
     });
     items.sort(function (a, b) { return (b.createdAt || 0) - (a.createdAt || 0); });
+    // 5 at a time -- a scroll sentinel (see attachHandlers) loads 5 more
+    // once it comes into view, rather than the whole history rendering
+    // (and every reaction/edit re-diffing it) up front.
+    var visible = items.slice(0, wallFeedVisibleCount);
     var body = !items.length
       ? '<div class="empty-state">' + (coreDataLoading() ? 'Chargement...' : 'Rien pour l\'instant.') + '</div>'
-      : items.map(function (it) {
+      : visible.map(function (it) {
         if (it.kind === 'wall') return renderWallPost(it.data);
         if (it.kind === 'activity') return renderFeedEntry(it.data);
         var t = teamById(it.teamId);
         return renderTeamFeedEntry(it.data, me, t ? t.name : null);
-      }).join('');
+      }).join('') + (items.length > visible.length ? '<div id="wall-feed-sentinel" class="empty-inline">Chargement...</div>' : '');
     return collapsibleCard('social-mur', 'Mon Journal (' + items.length + ')', body, true);
   }
 
@@ -8708,11 +8824,12 @@
     var me = currentUserProfile;
     var isOrganisateur = !!(me && me.role === 'organisateur');
     var html = '<div class="card"><h2 class="section-title">Créer un Team</h2>' +
-      '<div class="help-text">Un Team créé ici est un <strong>Team amateur</strong> (entre amis) -- ouvert tout de suite, tu en es le premier Team Leader.';
+      '<div class="help-text"><strong>Team amateur</strong> : entre amis, ouvert tout de suite, tu en es le premier Team Leader -- membres, fil d\'actualité et événements, sans plus.<br>' +
+      '<strong>Team PRO</strong> (coche bleue ✓) : club officiel validé -- en plus de l\'amateur, gère des adhérents, peut attribuer les badges Coach et Photographe officiel, proposer coaching/baptêmes piste, et choisir la visibilité de ses événements (public, adhérents, sur demande...).';
     if (isOrganisateur) {
-      html += ' En tant qu\'Organisateur, tu peux directement le créer en <strong>Team PRO</strong> (coche bleue, club validé) ci-dessous.</div>';
+      html += ' En tant qu\'Organisateur, tu peux directement le créer en Team PRO ci-dessous.</div>';
     } else {
-      html += ' Un <strong>Team PRO</strong> (coche bleue, club validé) ne se crée pas directement : contacte l\'administrateur une fois ton Team amateur créé pour le faire valider et passer PRO, ou passe ton profil en Organisateur pour pouvoir le créer directement PRO.</div>';
+      html += ' Un Team PRO ne se crée pas directement : contacte l\'administrateur une fois ton Team amateur créé pour le faire valider et passer PRO, ou passe ton profil en Organisateur pour pouvoir le créer directement PRO.</div>';
     }
     html += '<form id="create-team-form" style="margin-top:0.7rem;">' +
       '<label for="new-team-name">Nom du team</label>' +
@@ -8864,16 +8981,16 @@
   // attachHandlers) opens this instead of going through the general
   // search form -- the slot/event/circuit are already known, only "qui"
   // and "coaching ou baptême" are left to pick.
-  var coachSlotModal = null; // {eventId, circuit, slotStart, slotEnd, slotLabel} or null
+  var coachSlotModal = null; // {eventId, circuit, slotLabel} (the clicked/anchor slot) or null
   var coachSlotModalType = 'coaching';
+  // Up to 3 slot labels the user is currently offering -- starts as just
+  // the clicked slot, can be widened via the checklist below so a Coach
+  // has room to pick whichever of several times actually suits them.
+  var coachSlotModalSelected = [];
   function openCoachSlotModal(eventId, circuit, slotStart, slotEnd, slotLabel) {
-    coachSlotModal = {
-      eventId: eventId, circuit: circuit,
-      slotStart: slotStart !== '' ? parseInt(slotStart, 10) : null,
-      slotEnd: slotEnd !== '' ? parseInt(slotEnd, 10) : null,
-      slotLabel: slotLabel
-    };
+    coachSlotModal = { eventId: eventId, circuit: circuit, slotLabel: slotLabel };
     coachSlotModalType = 'coaching';
+    coachSlotModalSelected = [slotLabel];
     renderRoot();
   }
   function closeCoachSlotModal() {
@@ -8884,17 +9001,20 @@
     if (!coachSlotModal) return '';
     var me = currentUserProfile;
     var proposeRoles = coachSlotModalType === 'bapteme' ? ['pilote', 'accompagnant'] : ['pilote'];
-    var linkedNames = (STATE.coachRequests || []).filter(function (r) { return me && (r.from === me.name || r.to === me.name); })
+    var linkedNames = (STATE.coachRequests || []).filter(function (r) { return me && (r.from === me.name || r.to === me.name) && (r.type || 'coaching') === coachSlotModalType; })
       .map(function (r) { return r.from === me.name ? r.to : r.from; });
-    // Hard filter -- a request can only ever be raised for this exact
-    // slot against a Coach who's actually declared themselves free for
-    // it (for this type: coaching and baptême availability are separate
-    // sets, see saveCoachAvailability), never "anyone with the badge".
+    var ev = eventsList().filter(function (e) { return e.id === coachSlotModal.eventId; })[0];
+    var allSlots = ev ? allEventSlots(ev) : [];
+    // Hard filter -- a request can only ever be raised against a Coach
+    // who's actually declared themselves free (for this type: coaching
+    // and baptême availability are separate sets, see
+    // saveCoachAvailability) for at least one of the offered slots,
+    // never "anyone with the badge".
     var coachCandidates = allKnownUserNames().filter(function (n) {
       if (me && n === me.name) return false;
       if (linkedNames.indexOf(n) !== -1) return false;
       var av = coachAvailabilityFor(n, coachSlotModal.eventId, coachSlotModalType);
-      return !!(av && av.indexOf(coachSlotModal.slotLabel) !== -1);
+      return !!(av && coachSlotModalSelected.some(function (l) { return av.indexOf(l) !== -1; }));
     });
     var html = '<div class="crop-modal-overlay"><div class="crop-modal">' +
       '<h2 class="section-title">Demander pour ' + escapeHtml(coachSlotModal.slotLabel) + '</h2>';
@@ -8906,8 +9026,17 @@
       '<option value="coaching"' + (coachSlotModalType === 'coaching' ? ' selected' : '') + '>Coaching</option>' +
       '<option value="bapteme"' + (coachSlotModalType === 'bapteme' ? ' selected' : '') + '>Baptême piste</option>' +
       '</select>';
+    if (allSlots.length > 1) {
+      html += '<label style="margin-top:0.6rem; display:block;">Créneaux proposés (3 maximum)</label>' +
+        '<div class="coach-slot-modal-options">' + allSlots.map(function (s) {
+          var checked = coachSlotModalSelected.indexOf(s.label) !== -1;
+          var disabled = !checked && coachSlotModalSelected.length >= 3;
+          return '<label class="checklist-item"><input type="checkbox" data-action="coach-slot-modal-option" value="' + escapeHtml(s.label) + '"' +
+            (checked ? ' checked' : '') + (disabled ? ' disabled' : '') + '> ' + escapeHtml(s.label) + '</label>';
+        }).join('') + '</div>';
+    }
     if (!coachCandidates.length) {
-      html += '<div class="help-text" style="margin-top:0.6rem;">Aucun Coach disponible sur ce créneau pour ce type -- essaie un autre créneau ou l\'autre type.</div>';
+      html += '<div class="help-text" style="margin-top:0.6rem;">Aucun Coach disponible sur ' + (coachSlotModalSelected.length > 1 ? 'ces créneaux' : 'ce créneau') + ' pour ce type -- essaie d\'autres créneaux ou l\'autre type.</div>';
     } else {
       html += '<form id="coach-slot-request-form" style="margin-top:0.6rem;">' +
         '<label for="coach-slot-coach">Coach</label>' +
@@ -8929,7 +9058,16 @@
   }
   function coachRequestSlotHtml(r) {
     if (!r.slotLabel) return '';
-    return '<div class="help-text" style="margin-top:0.2rem;">Créneau : ' + escapeHtml(r.slotLabel) + (r.circuit ? ' — ' + escapeHtml(r.circuit) : '') + '</div>';
+    var suffix = r.circuit ? ' — ' + escapeHtml(r.circuit) : '';
+    // More than one option still means "take your pick", not "here's
+    // what's booked" -- shown as a full list only while still pending
+    // with several options actually open (see renderCoachActionRow for
+    // the matching per-option Accepter buttons); once accepted or down
+    // to a single slot, the plain "Créneau : X" line says it all.
+    if (r.status === 'pending' && r.slotOptions && r.slotOptions.length > 1) {
+      return '<div class="help-text" style="margin-top:0.2rem;">Créneaux proposés : ' + r.slotOptions.map(escapeHtml).join(', ') + suffix + '</div>';
+    }
+    return '<div class="help-text" style="margin-top:0.2rem;">Créneau : ' + escapeHtml(r.slotLabel) + suffix + '</div>';
   }
   // A request/proposal that's on me to answer right now -- whichever
   // side of the doc that makes me, and whether it just arrived or is a
@@ -8943,7 +9081,7 @@
     var u = (STATE.usersByName || {})[otherName] || {};
     var isBapteme = r.type === 'bapteme';
     var html = '<div class="coach-request-row"><div class="friend-row-main">' + avatarHtml(u, otherName) + personNameHtml(otherName) + badgesHtml(u) +
-      (isBapteme ? ' <span class="friend-role-badge">Baptême piste</span>' : '') + '</div>' +
+      ' <span class="friend-role-badge">' + (isBapteme ? 'Baptême piste' : 'Coaching') + '</span></div>' +
       coachRequestSlotHtml(r);
     if (counterProposeRequestId === r.id) {
       var slotOptions = coachRequestSlotOptions(r, me.name);
@@ -8957,6 +9095,18 @@
         html += '<div class="help-text">Aucun créneau disponible à proposer' + (isCoachBadge(me) ? ' -- vérifie tes disponibilités ci-dessus.' : '.') + '</div>';
       }
       html += '<button type="button" class="ghost" data-action="coach-slot-propose-cancel">Annuler</button></form>';
+    } else if (r.slotOptions && r.slotOptions.length > 1) {
+      // Several candidate slots still open -- one Accepter per option
+      // rather than a single generic one, since accepting *means*
+      // picking which of them (see acceptCoachRequestSlot).
+      html += '<div class="friend-row-actions" style="margin-top:0.5rem; flex-direction:column; align-items:stretch;">' +
+        r.slotOptions.map(function (label) {
+          return '<button type="button" class="primary" data-action="coach-request-accept-slot" data-id="' + r.id + '" data-label="' + escapeHtml(label) + '">Accepter ' + escapeHtml(label) + '</button>';
+        }).join('') +
+        '<div style="display:flex; gap:0.5rem; flex-wrap:wrap;">' +
+        (r.eventId ? '<button type="button" class="ghost" data-action="coach-slot-propose-open" data-id="' + r.id + '">Proposer un autre horaire</button>' : '') +
+        '<button type="button" class="ghost" data-action="coach-request-remove" data-id="' + r.id + '">Refuser</button>' +
+        '</div></div>';
     } else {
       html += '<div class="friend-row-actions" style="margin-top:0.5rem;">' +
         '<button type="button" class="primary" data-action="coach-request-accept" data-id="' + r.id + '">Accepter</button>' +
@@ -8972,7 +9122,7 @@
     var u = (STATE.usersByName || {})[otherName] || {};
     var isBapteme = r.type === 'bapteme';
     return '<div class="coach-request-row"><div class="friend-row-main">' + avatarHtml(u, otherName) + personNameHtml(otherName) + badgesHtml(u) +
-      (isBapteme ? ' <span class="friend-role-badge">Baptême piste</span>' : '') + '</div>' +
+      ' <span class="friend-role-badge">' + (isBapteme ? 'Baptême piste' : 'Coaching') + '</span></div>' +
       coachRequestSlotHtml(r) +
       '<div class="help-text" style="margin-top:0.3rem;">En attente de la réponse de ' + escapeHtml(otherName) + '.</div>' +
       '<div class="friend-row-actions" style="margin-top:0.4rem;"><button type="button" class="ghost" data-action="coach-request-remove" data-id="' + r.id + '">Annuler</button></div></div>';
@@ -9040,7 +9190,8 @@
       // propres disponibilités déclarées du Coach pour ce type (voir
       // "Définir mes disponibilités" plus haut) -- jamais "à définir plus
       // tard", comme la demande depuis un créneau du planning.
-      var linkedNames = myRequests.map(function (r) { return r.from === me.name ? r.to : r.from; });
+      var linkedNames = myRequests.filter(function (r) { return (r.type || 'coaching') === coachProposeType; })
+        .map(function (r) { return r.from === me.name ? r.to : r.from; });
       var proposeRoles = coachProposeType === 'bapteme' ? ['pilote', 'accompagnant'] : ['pilote'];
       var proposeCandidates = allKnownUserNames().filter(function (n) {
         var u = (STATE.usersByName || {})[n] || {};
@@ -9096,7 +9247,7 @@
     var myTeams = (STATE.myTeamMemberships || []).map(function (m) { return teamById(m.teamId); }).filter(Boolean)
       .sort(function (a, b) { return a.name.localeCompare(b.name); });
 
-    var html = '';
+    var html = renderPartnersSection();
     if (incoming.length) {
       var incomingBody = incoming.map(function (r) {
         return '<div class="friend-row"><div class="friend-row-main"><span class="friend-name-plain">' + escapeHtml((teamById(r.teamId) || {}).name || r.teamName) + '</span> <span class="help-text">invité par ' + escapeHtml(r.from) + '</span></div>' +
@@ -10000,6 +10151,17 @@
         renderRoot();
       });
     });
+    var wallFeedSentinel = document.getElementById('wall-feed-sentinel');
+    if (wallFeedSentinel && window.IntersectionObserver) {
+      var wallFeedObserver = new IntersectionObserver(function (entries) {
+        if (entries[0].isIntersecting) {
+          wallFeedObserver.disconnect();
+          wallFeedVisibleCount += 5;
+          renderRoot();
+        }
+      });
+      wallFeedObserver.observe(wallFeedSentinel);
+    }
     var wallComposerToggle = document.getElementById('wall-composer-toggle');
     if (wallComposerToggle) {
       wallComposerToggle.addEventListener('click', function () {
@@ -10432,6 +10594,14 @@
         saveTeamLinks(form.getAttribute('data-team'), textarea ? textarea.value : '');
       });
     });
+    var partnersForm = document.getElementById('partners-form');
+    if (partnersForm) {
+      partnersForm.addEventListener('submit', function (evt) {
+        evt.preventDefault();
+        var textarea = document.getElementById('partners-input');
+        savePartners(textarea ? textarea.value : '');
+      });
+    }
     var cropViewportEl = document.getElementById('crop-modal-viewport');
     var cropModalImgEl = document.getElementById('crop-modal-img');
     var cropZoomEl = document.getElementById('crop-zoom');
@@ -10678,6 +10848,9 @@
     document.querySelectorAll('[data-action="coach-request-accept"]').forEach(function (btn) {
       btn.addEventListener('click', function () { acceptCoachRequest(btn.getAttribute('data-id')); });
     });
+    document.querySelectorAll('[data-action="coach-request-accept-slot"]').forEach(function (btn) {
+      btn.addEventListener('click', function () { acceptCoachRequestSlot(btn.getAttribute('data-id'), btn.getAttribute('data-label')); });
+    });
     document.querySelectorAll('[data-action="coach-request-remove"]').forEach(function (btn) {
       btn.addEventListener('click', function () { removeCoachRequest(btn.getAttribute('data-id')); });
     });
@@ -10831,6 +11004,18 @@
         renderRoot();
       });
     }
+    document.querySelectorAll('[data-action="coach-slot-modal-option"]').forEach(function (cb) {
+      cb.addEventListener('change', function () {
+        var label = cb.value;
+        if (cb.checked) {
+          if (coachSlotModalSelected.length >= 3) { cb.checked = false; return; }
+          coachSlotModalSelected.push(label);
+        } else {
+          coachSlotModalSelected = coachSlotModalSelected.filter(function (l) { return l !== label; });
+        }
+        renderRoot();
+      });
+    });
     var coachSlotCancelBtn = document.getElementById('coach-slot-cancel-btn');
     if (coachSlotCancelBtn) coachSlotCancelBtn.addEventListener('click', closeCoachSlotModal);
     var coachSlotRequestForm = document.getElementById('coach-slot-request-form');
@@ -10838,8 +11023,15 @@
       coachSlotRequestForm.addEventListener('submit', function (evt) {
         evt.preventDefault();
         var select = document.getElementById('coach-slot-coach');
-        if (select && select.value && coachSlotModal) {
-          sendCoachRequest(select.value, coachSlotModalType, coachSlotModal);
+        if (select && select.value && coachSlotModal && coachSlotModalSelected.length) {
+          var ev = eventsList().filter(function (e) { return e.id === coachSlotModal.eventId; })[0];
+          var allSlots = ev ? allEventSlots(ev) : [];
+          var options = coachSlotModalSelected.map(function (label) {
+            return allSlots.filter(function (s) { return s.label === label; })[0];
+          }).filter(Boolean);
+          if (options.length) {
+            sendCoachRequest(select.value, coachSlotModalType, { eventId: coachSlotModal.eventId, circuit: coachSlotModal.circuit, options: options });
+          }
         }
         closeCoachSlotModal();
       });
@@ -10887,6 +11079,30 @@
       btn.addEventListener('click', function () {
         var input = document.getElementById('special-activities-input');
         saveSpecialActivities(btn.getAttribute('data-id'), input ? input.value : '');
+      });
+    });
+    document.querySelectorAll('[data-action="edit-rental-motos"]').forEach(function (btn) {
+      btn.addEventListener('click', function () { editingRentalMotosFor = btn.getAttribute('data-id'); renderRoot(); });
+    });
+    document.querySelectorAll('[data-action="cancel-rental-motos"]').forEach(function (btn) {
+      btn.addEventListener('click', function () { editingRentalMotosFor = null; renderRoot(); });
+    });
+    document.querySelectorAll('[data-action="save-rental-motos"]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var input = document.getElementById('rental-motos-input');
+        saveRentalMotos(btn.getAttribute('data-id'), input ? input.value : '');
+      });
+    });
+    document.querySelectorAll('[data-action="edit-rental-equipement"]').forEach(function (btn) {
+      btn.addEventListener('click', function () { editingRentalEquipementFor = btn.getAttribute('data-id'); renderRoot(); });
+    });
+    document.querySelectorAll('[data-action="cancel-rental-equipement"]').forEach(function (btn) {
+      btn.addEventListener('click', function () { editingRentalEquipementFor = null; renderRoot(); });
+    });
+    document.querySelectorAll('[data-action="save-rental-equipement"]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var input = document.getElementById('rental-equipement-input');
+        saveRentalEquipement(btn.getAttribute('data-id'), input ? input.value : '');
       });
     });
     document.querySelectorAll('[data-action="event-announcement-delete"]').forEach(function (btn) {
@@ -11724,6 +11940,10 @@
     }, handleSyncError));
     unsubscribers.push(db.collection('settings').doc('checklist').onSnapshot(function (doc) {
       STATE.checklistTemplate = doc.exists ? doc.data() : null;
+      renderRoot();
+    }, handleSyncError));
+    unsubscribers.push(db.collection('settings').doc('partners').onSnapshot(function (doc) {
+      STATE.partners = doc.exists ? (doc.data().list || []) : [];
       renderRoot();
     }, handleSyncError));
     // Powers the chrono form's bike auto-suggest (see refreshChronoFormAux):

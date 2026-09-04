@@ -666,6 +666,7 @@
      click-to-request one right next to it. */
   .coach-availability-painting { user-select: none; -webkit-user-select: none; touch-action: none; }
   .coach-availability-painting .schedule-slot[data-slot-start] { cursor: pointer; }
+  .coach-slot-modal-options { max-height: 9rem; overflow-y: auto; margin-top: 0.3rem; border: 1px solid var(--border); border-radius: 8px; padding: 0.3rem 0.6rem; }
   .crop-modal-overlay {
     position: fixed;
     inset: 0;
