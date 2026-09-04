@@ -643,6 +643,23 @@
     padding: 0.3rem 0.75rem;
     text-decoration: none;
   }
+  .coach-availability-slots { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.6rem; }
+  .coach-availability-slot {
+    font-family: var(--font-mono);
+    font-size: 0.82rem;
+    color: var(--text-muted);
+    background: var(--surface-alt);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 0.3rem 0.7rem;
+    cursor: pointer;
+  }
+  .coach-availability-slot.active {
+    color: #1d7fd6;
+    background: color-mix(in srgb, #1d7fd6 14%, var(--surface));
+    border-color: #1d7fd6;
+    font-weight: 600;
+  }
   .crop-modal-overlay {
     position: fixed;
     inset: 0;
