@@ -325,7 +325,12 @@ service cloud.firestore {
     }
     // Social feed -- append-only activity log (a new friendship, a new
     // personal record...). Whoever the entry is about writes it themselves
-    // (actor == myName()); nothing is ever edited or removed client-side.
+    // (actor == myName()), and it's otherwise never edited or removed
+    // client-side -- except a 'record' entry tied to a chrono (sessionId,
+    // see writeFeedEvent's caller in onSubmit) that its owner later
+    // deletes: removeSession() cleans up the matching feedEvents doc too,
+    // so a deleted chrono doesn't leave a permanent "battu son record" in
+    // everyone's Journal.
     match /feedEvents/{id} {
       allow read: if request.auth != null;
       allow create: if verified() && request.resource.data.actor == myName();
@@ -334,6 +339,7 @@ service cloud.firestore {
       allow update: if verified()
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reactions'])
         && onlyOwnKeyChanged(resource.data.get('reactions', {}), request.resource.data.reactions);
+      allow delete: if verified() && (isAdmin() || resource.data.actor == myName());
     }
     // One-way follow (for Personnalités, and now Teams too) -- unlike
     // friendRequests, no acceptance needed: the follower alone creates and

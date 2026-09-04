@@ -11624,7 +11624,7 @@
     var newBest = sessionBest(session);
     if (previousBest === null || newBest < previousBest) {
       showToast('Nouveau record personnel sur ' + circuit + ' : ' + formatTime(newBest) + ' !', 'success');
-      if (previousBest !== null) writeFeedEvent('record', { circuit: circuit, time: newBest });
+      if (previousBest !== null) writeFeedEvent('record', { circuit: circuit, time: newBest, sessionId: session.id });
     } else {
       showToast('Chrono enregistré.', 'success');
     }
@@ -11641,6 +11641,14 @@
     STATE.sessions = STATE.sessions.filter(function (s) { return s.id !== id; });
     renderRoot();
     persist(prevState);
+    // A deleted chrono's own "a battu son record" Journal entry (see
+    // writeFeedEvent's caller in onSubmit) would otherwise live on
+    // forever, pointing at a record that no longer exists.
+    db.collection('feedEvents').where('sessionId', '==', id).get().then(function (snap) {
+      var batch = db.batch();
+      snap.forEach(function (d) { batch.delete(d.ref); });
+      return snap.size ? batch.commit() : null;
+    }).catch(function () {});
   }
 
   // header.page-head is position:fixed (see style.css) so it stays put
