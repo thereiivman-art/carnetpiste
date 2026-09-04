@@ -415,7 +415,11 @@
   }
   button.primary:hover { background: var(--accent-strong); }
   button.primary:disabled { opacity: 0.6; cursor: default; }
-  .add-chrono-btn { width: 100%; padding: 0.8rem; font-size: 0.95rem; font-weight: 600; }
+  /* Not full-width -- a button stretched edge-to-edge (especially once
+     the page itself got wider on desktop) reads as an oversized banner
+     rather than a button. Auto-sized to its label, like every other
+     button in the app. */
+  .add-chrono-btn { padding: 0.8rem 1.4rem; font-size: 0.95rem; font-weight: 600; }
   button.ghost {
     background: transparent;
     border-color: var(--border);
@@ -790,16 +794,21 @@
   .coach-message-text { font-size: 0.86rem; margin-top: 0.15rem; white-space: pre-wrap; word-break: break-word; }
   .coach-message-form { display: flex; gap: 0.5rem; margin-top: 0.6rem; }
   .coach-message-form input { flex: 1; }
+  /* Blue check, like a verified badge on a social app -- was a gold
+     "TEAM PRO ✓" pill, mismatched with the certified-badge/personality-
+     badge/etc. family's small round icon shape right next to it. */
   .team-pro-badge {
     display: inline-flex;
     align-items: center;
-    background: linear-gradient(135deg, #b8860b, #d4a017);
+    justify-content: center;
+    width: 1.1em;
+    height: 1.1em;
+    border-radius: 50%;
+    background: #1d7fd6;
     color: #fff;
-    font-size: 0.68rem;
+    font-size: 0.7em;
     font-weight: 700;
-    letter-spacing: 0.03em;
-    border-radius: 999px;
-    padding: 0.15rem 0.55rem;
+    vertical-align: middle;
     margin-left: 0.4rem;
   }
   .team-settings-disabled { opacity: 0.6; }
@@ -1574,8 +1583,10 @@
   }
   /* Team badge, top-right of the orange card -- what distinguishes
      organizer-provided info from this account's own, in the grey card
-     right below it (see .personal-info-card). */
-  .team-pro-badge {
+     right below it (see .personal-info-card). Named separately from
+     .team-pro-badge (the small blue-check trust badge, see above) --
+     this one shows the organizing Team's own name, not "Team PRO". */
+  .event-team-badge {
     font-size: 0.72rem;
     font-weight: 700;
     color: var(--accent);

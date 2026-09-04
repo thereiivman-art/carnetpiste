@@ -1248,16 +1248,39 @@
     return (ev && ev.riderGroups && ev.riderGroups[rider] && ev.riderGroups[rider][date] && ev.riderGroups[rider][date][slot]) || '';
   }
 
+  // The circuit of this account's own most recent past event (by date,
+  // not by whichever circuit last got a chrono typed in) -- the third
+  // rung of normalizeSelection's default: en cours > à venir > passé le
+  // plus récent.
+  function mostRecentPastEventCircuit() {
+    var me = currentUserProfile;
+    if (!me) return null;
+    var todayKey = dateKey(new Date());
+    var past = eventsList().filter(function (ev) {
+      return (ev.riders || []).indexOf(me.name) !== -1 && (ev.dateEnd || ev.dateStart) < todayKey;
+    }).sort(function (a, b) {
+      var ae = a.dateEnd || a.dateStart, be = b.dateEnd || b.dateStart;
+      return ae < be ? 1 : (ae > be ? -1 : 0);
+    });
+    return past.length ? past[0].circuit : null;
+  }
+
   function normalizeSelection() {
     var circuits = allCircuits();
     if (!circuits.length) {
       selectedCircuit = null;
     } else if (!selectedCircuit || circuits.indexOf(selectedCircuit) === -1) {
       // Default to the circuit of the ongoing or next sortie (what a rider
-      // is about to ride or is currently riding), not just whichever
-      // circuit last has a chrono logged against it.
+      // is about to ride or is currently riding); if there's neither,
+      // fall back to the circuit of their own most recent past event, and
+      // only then to whichever circuit last has a chrono logged against
+      // it (covers a role/account with no ev.riders entries of its own).
       var target = targetPlanningEvent();
       var targetCircuit = target && target.ev && circuits.indexOf(target.ev.circuit) !== -1 ? target.ev.circuit : null;
+      if (!targetCircuit) {
+        var recentPast = mostRecentPastEventCircuit();
+        if (recentPast && circuits.indexOf(recentPast) !== -1) targetCircuit = recentPast;
+      }
       selectedCircuit = targetCircuit || mostRecentCircuit(circuits) || circuits[0];
     }
     // Circuit/Chronos/Statistiques show only the connected account's own
@@ -1741,7 +1764,7 @@
       return '<li class="rider-manager-row">' +
         '<span class="rider-manager-name">' + escapeHtml(r) + '</span>' +
         '<button type="button" class="ghost icon-btn" data-action="rename-rider-request" data-rider="' + escapeHtml(r) + '" aria-label="Renommer ' + escapeHtml(r) + '" title="Renommer">✎</button>' +
-        '<button type="button" class="ghost icon-btn' + (isPendingDelete ? ' confirm' : '') + '" data-action="delete-rider-request" data-rider="' + escapeHtml(r) + '" aria-label="Supprimer ' + escapeHtml(r) + '" title="Supprimer">' + (isPendingDelete ? '✓' : '×') + '</button>' +
+        '<button type="button" class="ghost icon-btn' + (isPendingDelete ? ' confirm' : ' danger') + '" data-action="delete-rider-request" data-rider="' + escapeHtml(r) + '" aria-label="Supprimer ' + escapeHtml(r) + '" title="Supprimer">' + (isPendingDelete ? '✓' : '×') + '</button>' +
         '</li>';
     }).join('');
     var html = '<div class="rider-manager">';
@@ -2185,7 +2208,7 @@
             var title = (on ? 'Retirer ' : 'Marquer ') + b.label;
             return '<button type="button" class="ghost icon-btn' + (on ? ' confirm' : '') + '" data-action="toggle-account-badge" data-uid="' + a.uid + '" data-field="' + b.field + '" aria-label="' + escapeHtml(title) + '" title="' + escapeHtml(title) + '">' + b.icon + '</button>';
           }).join('') +
-          '<button type="button" class="ghost icon-btn' + (isPendingDelete ? ' confirm' : '') + '" data-action="delete-account-request" data-uid="' + a.uid + '" aria-label="Supprimer ce compte" title="Retirer l\'accès">' + (isPendingDelete ? '✓' : '×') + '</button>' +
+          '<button type="button" class="ghost icon-btn' + (isPendingDelete ? ' confirm' : ' danger') + '" data-action="delete-account-request" data-uid="' + a.uid + '" aria-label="Supprimer ce compte" title="Retirer l\'accès">' + (isPendingDelete ? '✓' : '×') + '</button>' +
           '</li>';
       }).join('') + '</ul>';
       }
@@ -2207,7 +2230,7 @@
     var html = '<div class="section-title" style="font-size:0.95rem; margin-top:1.2rem; border-top:1px solid var(--border); padding-top:0.9rem;">Gestion des Teams</div>';
     html += '<ul class="rider-manager-list">' + teams.map(function (t) {
       var deleteControl = pendingDeleteTeamId !== t.id
-        ? '<button type="button" class="ghost icon-btn danger" data-action="admin-team-delete-request" data-team="' + t.id + '" aria-label="Supprimer ce Team" title="Supprimer ce Team">🗑</button>'
+        ? '<button type="button" class="ghost icon-btn danger" data-action="admin-team-delete-request" data-team="' + t.id + '" aria-label="Supprimer ce Team" title="Supprimer ce Team">×</button>'
         : '';
       var row = '<li class="rider-manager-row account-manager-row">' +
         '<div><span class="rider-manager-name">' + escapeHtml(t.name) + '</span>' + teamBadgesHtml(t) +
@@ -6309,7 +6332,7 @@
     html += '<div class="today-schedule-head">';
     html += '<div class="eyebrow">' + (isOngoing ? 'En ce moment — ' : 'Prochain événement — ') + escapeHtml(ev.circuit) + '</div>';
     html += '<div class="today-schedule-head-right">';
-    if (orgTeam) html += '<span class="team-pro-badge">' + escapeHtml(orgTeam.name) + (orgTeam.teamPro ? ' 🏆' : '') + '</span>';
+    if (orgTeam) html += '<span class="event-team-badge">' + escapeHtml(orgTeam.name) + (orgTeam.teamPro ? ' 🏆' : '') + '</span>';
     if (isOngoing) html += '<div class="planning-big-clock" id="planning-big-clock">--h--</div>';
     html += '</div>';
     html += '</div>';
@@ -6549,42 +6572,79 @@
   // react with an emoji (see toggleReaction('events', ...)/renderReactionBar)
   // -- deliberately not an invitation to write a comment or upload a
   // photo, which would cost far more to store and moderate for what's
-  // meant to be a lightweight "on a kiffé" gauge. notifiedEventEndedIds
-  // is session-local (re-checked, harmlessly, on every reload) since
-  // there's no server-side "already notified" flag to persist.
-  var notifiedEventEndedIds = {};
+  // meant to be a lightweight "on a kiffé" gauge. Narrow, date-windowed
+  // stream (only ever events that ended exactly yesterday), so unlike
+  // notifyOnNewIds' streams there's no "backlog" to baseline away --
+  // still persisted (not a plain in-memory var) so a page reload the same
+  // day doesn't re-fire it.
   function maybeNotifyEndedEvents() {
-    var me = currentUserProfile;
-    if (!me || !notifCategoryAllowed('notifyEventEndedReaction')) return;
+    var me = currentUserProfile, uid = myUid();
+    if (!me || !uid || !notifCategoryAllowed('notifyEventEndedReaction')) return;
+    var storageKey = 'carnet-de-piste-seen-event-ended-' + uid;
+    var notifiedEventEndedIds;
+    try {
+      var raw = localStorage.getItem(storageKey);
+      notifiedEventEndedIds = raw ? JSON.parse(raw) : {};
+    } catch (e) { notifiedEventEndedIds = {}; }
+    var changed = false;
     var yesterdayKey = dateKey(new Date(Date.now() - 86400000));
     (STATE.events || []).forEach(function (ev) {
       if (!ev.riders || ev.riders.indexOf(me.name) === -1) return;
       if ((ev.dateEnd || ev.dateStart) !== yesterdayKey) return;
       if (notifiedEventEndedIds[ev.id]) return;
       notifiedEventEndedIds[ev.id] = true;
+      changed = true;
       if ((ev.reactions || {})[me.name]) return;
       new Notification('Carnet de Piste', { body: 'Comment s\'est passé ' + ev.circuit + ' ? Réagis avec un emoji !' });
     });
+    if (changed) {
+      try { localStorage.setItem(storageKey, JSON.stringify(notifiedEventEndedIds)); } catch (e) {}
+    }
   }
 
-  // null until the first snapshot of this session's pending invites has
-  // been seen -- that first batch is the baseline (never notified, they
-  // could predate this login), only invites that show up *after* it fire.
-  var seenTeamInviteIds = null;
-  function maybeNotifyNewTeamInvites(byId) {
-    var pendingIds = Object.keys(byId).filter(function (id) { return byId[id].status === 'pending'; });
-    if (seenTeamInviteIds === null) {
-      seenTeamInviteIds = {};
-      pendingIds.forEach(function (id) { seenTeamInviteIds[id] = true; });
-      return;
+  // Every "notify once for each new X" stream (team invites, Actu de
+  // Team, annonces d'event, messages de coaching...) used to track its
+  // baseline in a plain JS variable, reset to null on every single page
+  // load -- so its very first snapshot after a refresh always re-ran the
+  // "baseline, don't notify" branch, which itself is harmless, but a
+  // second snapshot arriving moments later (Firestore delivers one from
+  // local cache, then one confirmed by the server -- routine, not a bug)
+  // could see a slightly different doc set and treat some as newly seen,
+  // firing a real Notification() for a post from days ago. Persisting the
+  // seen-id set in localStorage (per account, since the browser can be
+  // shared) instead of memory makes "seen" durable across reloads, so a
+  // post only ever notifies once, full stop, matching every other
+  // "seenXxxIds" call site below (they all now go through this).
+  function notifyOnNewIds(streamKey, items, idFn, onNew) {
+    var uid = myUid();
+    if (!uid) return;
+    var storageKey = 'carnet-de-piste-seen-' + streamKey + '-' + uid;
+    var seen = null;
+    try {
+      var raw = localStorage.getItem(storageKey);
+      seen = raw ? JSON.parse(raw) : null;
+    } catch (e) { seen = null; }
+    var isFirstEver = seen === null;
+    seen = seen || {};
+    var changed = false;
+    items.forEach(function (item) {
+      var id = idFn(item);
+      if (seen[id]) return;
+      seen[id] = true;
+      changed = true;
+      if (!isFirstEver) onNew(item);
+    });
+    if (changed) {
+      try { localStorage.setItem(storageKey, JSON.stringify(seen)); } catch (e) {}
     }
-    pendingIds.forEach(function (id) {
-      if (seenTeamInviteIds[id]) return;
-      seenTeamInviteIds[id] = true;
-      if (notifCategoryAllowed('notifyInvites')) {
-        var invTeamName = (teamById(byId[id].teamId) || {}).name || byId[id].teamName;
-        new Notification('Carnet de Piste', { body: 'Tu as reçu une invitation' + (invTeamName ? ' à rejoindre ' + invTeamName : '') + ' !' });
-      }
+  }
+
+  function maybeNotifyNewTeamInvites(byId) {
+    var pending = Object.keys(byId).filter(function (id) { return byId[id].status === 'pending'; }).map(function (id) { return byId[id]; });
+    notifyOnNewIds('team-invites', pending, function (inv) { return inv.id; }, function (inv) {
+      if (!notifCategoryAllowed('notifyInvites')) return;
+      var invTeamName = (teamById(inv.teamId) || {}).name || inv.teamName;
+      new Notification('Carnet de Piste', { body: 'Tu as reçu une invitation' + (invTeamName ? ' à rejoindre ' + invTeamName : '') + ' !' });
     });
   }
 
@@ -7205,7 +7265,7 @@
     { field: 'certified', icon: '✓', label: 'Certifié', desc: 'Certifié — compte vérifié par l\'administrateur.', cssClass: 'certified-badge', check: isCertified },
     { field: 'personality', icon: '★', label: 'Personnalité', desc: 'Personnalité — pilote mis en avant par l\'administrateur.', cssClass: 'personality-badge', check: isPersonality },
     { field: 'pro', icon: '🏅', label: 'Pilote PRO', desc: 'Pilote PRO — statut de pilote professionnel.', cssClass: 'pro-badge', check: isPro },
-    { field: 'organizer', icon: '🧭', label: 'Organisateur vérifié', desc: 'Organisateur vérifié par l\'administrateur.', cssClass: 'organizer-badge', check: isOrganizerBadge },
+    { field: 'organizer', icon: '👤', label: 'Organisateur vérifié', desc: 'Organisateur vérifié par l\'administrateur.', cssClass: 'organizer-badge', check: isOrganizerBadge },
     { field: 'coach', icon: '🎓', label: 'Coach', desc: 'Coach — reconnu par l\'administrateur pour donner du coaching.', cssClass: 'coach-badge', check: isCoachBadge }
   ];
 
@@ -7225,7 +7285,7 @@
   // only (see toggle-team-pro in attachHandlers), to stand apart from an
   // amateur "Team entre amis".
   function teamBadgesHtml(team) {
-    return team && team.teamPro ? ' <span class="team-pro-badge" title="Team PRO certifié par l\'administrateur." data-badge-info="Team PRO certifié par l\'administrateur.">TEAM PRO ✓</span>' : '';
+    return team && team.teamPro ? ' <span class="team-pro-badge" title="Team PRO certifié par l\'administrateur." data-badge-info="Team PRO certifié par l\'administrateur.">✓</span>' : '';
   }
 
   // Which friend's fiche (see renderFriendFiche) is expanded inline in the
@@ -10977,29 +11037,21 @@
     // Sorted client-side rather than orderBy('createdAt') server-side --
     // combined with where('teamId','in',...) that would need a composite
     // index configured in the Firebase console before it'd work at all.
-    // seenTeamFeedIds is local to this one subscription (re-baselined every
-    // time refreshTeamDetailSync re-subscribes, e.g. joining a new team) so
-    // switching teams never floods notifications for posts that predate it.
-    var seenTeamFeedIds = null;
+    // "Seen" is persisted (notifyOnNewIds), not just this subscription's
+    // own memory -- switching teams/reloading the page never re-notifies
+    // for a post already seen.
     teamDetailUnsubs.push(db.collection('teamFeed').where('teamId', 'in', teamIds).limit(200).onSnapshot(function (snap) {
       var posts = snap.docs.map(function (d) { return d.data(); })
         .sort(function (a, b) { return (b.createdAt || 0) - (a.createdAt || 0); })
         .slice(0, 50);
-      if (seenTeamFeedIds === null) {
-        seenTeamFeedIds = {};
-        posts.forEach(function (f) { seenTeamFeedIds[f.id] = true; });
-      } else {
-        posts.forEach(function (f) {
-          if (seenTeamFeedIds[f.id]) return;
-          seenTeamFeedIds[f.id] = true;
-          if (currentUserProfile && f.author === currentUserProfile.name) return;
-          if (notifCategoryAllowed('notifyTeamNews')) {
-            var t = teamById(f.teamId);
-            var body = f.text || f.question || (f.linkUrl ? 'Nouveau lien partagé' : (f.photoURL ? 'Nouvelle photo partagée' : 'Nouvelle publication'));
-            new Notification('Carnet de Piste', { body: 'Actu' + (t ? ' de ' + t.name : ' de ton Team') + ' : ' + body.slice(0, 100) });
-          }
-        });
-      }
+      notifyOnNewIds('team-feed', posts, function (f) { return f.id; }, function (f) {
+        if (currentUserProfile && f.author === currentUserProfile.name) return;
+        if (notifCategoryAllowed('notifyTeamNews')) {
+          var t = teamById(f.teamId);
+          var body = f.text || f.question || (f.linkUrl ? 'Nouveau lien partagé' : (f.photoURL ? 'Nouvelle photo partagée' : 'Nouvelle publication'));
+          new Notification('Carnet de Piste', { body: 'Actu' + (t ? ' de ' + t.name : ' de ton Team') + ' : ' + body.slice(0, 100) });
+        }
+      });
       STATE.teamFeed = posts;
       renderRoot();
     }, handleSyncError));
@@ -11034,26 +11086,18 @@
       mergeEventJoinRequests();
     }, handleSyncError));
     // Team Leader broadcasts to an event's pilotes ("BRIEFING DEMAIN A
-    // 8H15"...) -- same seen-id notification pattern as teamFeed above,
-    // scoped to this account's own teams the same way.
-    var seenEventAnnouncementIds = null;
+    // 8H15"...) -- same notifyOnNewIds pattern as teamFeed above, scoped
+    // to this account's own teams the same way.
     teamDetailUnsubs.push(db.collection('eventAnnouncements').where('teamId', 'in', teamIds).limit(200).onSnapshot(function (snap) {
       var posts = snap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); })
         .sort(function (a, b) { return (b.createdAt || 0) - (a.createdAt || 0); });
-      if (seenEventAnnouncementIds === null) {
-        seenEventAnnouncementIds = {};
-        posts.forEach(function (a) { seenEventAnnouncementIds[a.id] = true; });
-      } else {
-        posts.forEach(function (a) {
-          if (seenEventAnnouncementIds[a.id]) return;
-          seenEventAnnouncementIds[a.id] = true;
-          if (currentUserProfile && a.from === currentUserProfile.name) return;
-          if (notifCategoryAllowed('notifyEventAnnouncements')) {
-            var ev = (STATE.events || []).filter(function (e) { return e.id === a.eventId; })[0];
-            new Notification('Carnet de Piste', { body: (ev ? ev.circuit + ' — ' : '') + (a.text || '').slice(0, 150) });
-          }
-        });
-      }
+      notifyOnNewIds('event-announcements', posts, function (a) { return a.id; }, function (a) {
+        if (currentUserProfile && a.from === currentUserProfile.name) return;
+        if (notifCategoryAllowed('notifyEventAnnouncements')) {
+          var ev = (STATE.events || []).filter(function (e) { return e.id === a.eventId; })[0];
+          new Notification('Carnet de Piste', { body: (ev ? ev.circuit + ' — ' : '') + (a.text || '').slice(0, 150) });
+        }
+      });
       STATE.eventAnnouncements = posts;
       renderRoot();
     }, handleSyncError));
@@ -11087,10 +11131,10 @@
   // Re-subscribed whenever STATE.coachRequests changes (see
   // mergeCoachRequests above) -- every message across every accepted
   // coaching relationship this account is a party to, whichever side
-  // (see renderCoachMessageThread). seenCoachMessageIds is local to this
-  // one subscription, re-baselined on every re-subscribe, same reasoning
-  // as seenTeamFeedIds: a relationship's own history shouldn't flood
-  // notifications the moment it's (re)synced.
+  // (see renderCoachMessageThread). Same persisted notifyOnNewIds as the
+  // other streams above: a relationship's own history shouldn't flood
+  // notifications the moment it's (re)synced, and a message already
+  // notified once shouldn't fire again on a page reload either.
   var coachMessagesUnsubs = [];
   function refreshCoachMessagesSync() {
     coachMessagesUnsubs.forEach(function (unsub) { unsub(); });
@@ -11100,22 +11144,14 @@
       STATE.coachMessages = [];
       return;
     }
-    var seenCoachMessageIds = null;
     coachMessagesUnsubs.push(db.collection('coachMessages').where('requestId', 'in', requestIds).onSnapshot(function (snap) {
       var messages = snap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); });
-      if (seenCoachMessageIds === null) {
-        seenCoachMessageIds = {};
-        messages.forEach(function (m) { seenCoachMessageIds[m.id] = true; });
-      } else {
-        messages.forEach(function (m) {
-          if (seenCoachMessageIds[m.id]) return;
-          seenCoachMessageIds[m.id] = true;
-          if (currentUserProfile && m.from === currentUserProfile.name) return;
-          if (notifCategoryAllowed('notifyCoachMessages')) {
-            new Notification('Carnet de Piste', { body: 'Message de ' + m.from + ' (coaching) : ' + (m.text || '').slice(0, 100) });
-          }
-        });
-      }
+      notifyOnNewIds('coach-messages', messages, function (m) { return m.id; }, function (m) {
+        if (currentUserProfile && m.from === currentUserProfile.name) return;
+        if (notifCategoryAllowed('notifyCoachMessages')) {
+          new Notification('Carnet de Piste', { body: 'Message de ' + m.from + ' (coaching) : ' + (m.text || '').slice(0, 100) });
+        }
+      });
       STATE.coachMessages = messages.sort(function (a, b) { return (a.createdAt || 0) - (b.createdAt || 0); });
       renderRoot();
     }, handleSyncError));
