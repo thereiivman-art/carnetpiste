@@ -275,11 +275,14 @@
   // users update). Narrows coachRequestSlotOptions() for that Coach, and
   // (softly, see renderCoachSlotModal) who gets suggested for a given
   // slot in the first place.
-  function saveCoachAvailability(eventId, slotLabels) {
+  // byType: { coaching: [slotLabel, ...], bapteme: [slotLabel, ...] } for
+  // this one event -- coaching and baptême get separate slot sets since a
+  // Coach isn't necessarily free for both at the same times.
+  function saveCoachAvailability(eventId, byType) {
     var uid = auth.currentUser && auth.currentUser.uid;
     if (!uid || !currentUserProfile) return;
     var av = Object.assign({}, currentUserProfile.coachAvailability || {});
-    av[eventId] = slotLabels;
+    av[eventId] = byType;
     db.collection('users').doc(uid).set({ coachAvailability: av }, { merge: true }).then(function () {
       currentUserProfile.coachAvailability = av;
       renderRoot();
@@ -2391,7 +2394,7 @@
     var n = 0;
     n += (STATE.friendRequests || []).filter(function (r) { return r.status === 'pending' && r.to === me.name; }).length;
     n += (STATE.teamInvites || []).filter(function (r) { return r.status === 'pending' && r.to === me.name; }).length;
-    n += (STATE.coachRequests || []).filter(function (r) { return r.status === 'pending' && r.to === me.name; }).length;
+    n += (STATE.coachRequests || []).filter(function (r) { return r.status === 'pending' && (r.from === me.name || r.to === me.name) && coachRequestAwaitingMe(r, me); }).length;
     return n;
   }
 
@@ -2408,7 +2411,7 @@
     if (!me) { html += '</div>'; return html; }
     var friendReqs = (STATE.friendRequests || []).filter(function (r) { return r.status === 'pending' && r.to === me.name; });
     var teamInvs = (STATE.teamInvites || []).filter(function (r) { return r.status === 'pending' && r.to === me.name; });
-    var coachReqs = (STATE.coachRequests || []).filter(function (r) { return r.status === 'pending' && r.to === me.name; });
+    var coachReqs = (STATE.coachRequests || []).filter(function (r) { return r.status === 'pending' && (r.from === me.name || r.to === me.name) && coachRequestAwaitingMe(r, me); });
     var rows = '';
     friendReqs.forEach(function (r) {
       rows += renderFriendRow(r.from, '<button type="button" class="primary" data-action="accept-friend" data-id="' + r.id + '">Accepter</button>' +
@@ -2423,9 +2426,7 @@
         '</div></div>';
     });
     coachReqs.forEach(function (r) {
-      rows += renderFriendRow(r.from, '<button type="button" class="primary" data-action="coach-request-accept" data-id="' + r.id + '">Accepter</button>' +
-        '<button type="button" class="ghost" data-action="coach-request-remove" data-id="' + r.id + '">Refuser</button>') +
-        '<div class="help-text" style="margin:-0.3rem 0 0.6rem;">Demande de coaching</div>';
+      rows += renderCoachActionRow(r, r.from === me.name ? r.to : r.from);
     });
     html += rows || '<div class="empty-state">Rien de nouveau.</div>';
     html += '</div>';
@@ -6431,18 +6432,29 @@
     out.sort(function (a, b) { return a.start - b.start; });
     return out;
   }
+  // A Coach's own declared slot labels for one event and one type
+  // (coaching vs baptême get separate sets, see saveCoachAvailability) --
+  // null when nothing's been declared for that (event, type) at all, as
+  // opposed to [] (declared, but currently nothing checked).
+  function coachAvailabilityFor(name, eventId, type) {
+    var u = (STATE.usersByName || {})[name] || {};
+    if (!isCoachBadge(u)) return null;
+    var byType = (u.coachAvailability || {})[eventId];
+    return (byType && byType[type]) || null;
+  }
   // The valid slots a given account may currently propose for this
-  // request -- every real slot of the linked event, narrowed to that
-  // account's own declared coachAvailability for it when they're a Coach
-  // who's actually declared any (an empty/undeclared availability isn't
-  // treated as "available for nothing", it just means no filter yet).
+  // request -- their own declared coachAvailability for the request's
+  // type when they're a Coach who's actually declared any for it,
+  // otherwise every real slot of the linked event (an empty/undeclared
+  // availability isn't treated as "available for nothing", it just means
+  // no filter yet -- this fallback keeps counter-proposing usable before
+  // a Coach has gotten around to setting availability up).
   function coachRequestSlotOptions(r, actorName) {
     if (!r.eventId) return [];
     var ev = eventsList().filter(function (e) { return e.id === r.eventId; })[0];
     if (!ev) return [];
     var slots = allEventSlots(ev);
-    var u = (STATE.usersByName || {})[actorName] || {};
-    var av = isCoachBadge(u) && (u.coachAvailability || {})[r.eventId];
+    var av = coachAvailabilityFor(actorName, r.eventId, r.type || 'coaching');
     return (av && av.length) ? slots.filter(function (s) { return av.indexOf(s.label) !== -1; }) : slots;
   }
 
@@ -6472,7 +6484,11 @@
   // which calendar date they're for, so the Calendrier day view (any date,
   // not just today) passes false to render a plain, unhighlighted list
   // instead of misleadingly marking a past/future day's slots as current.
-  function renderHoraireGroups(horaires, allowedKeys, ev, briefing, live) {
+  // slotClassFn(label), optional: extra CSS class(es) to append to a real
+  // timed slot's span -- used by the Coach tab to mark availability
+  // (see renderCoachPlanningSection) without this function needing to
+  // know anything about coaching/baptême itself.
+  function renderHoraireGroups(horaires, allowedKeys, ev, briefing, live, slotClassFn) {
     if (live == null) live = true;
     var groups = HORAIRES_GROUPS.filter(function (g) {
       return horaires[g.key] && (!allowedKeys || allowedKeys.indexOf(g.key) !== -1);
@@ -6501,7 +6517,8 @@
           html += '<span class="schedule-slot schedule-slot-label">' + escapeHtml(slot.label) + '</span>';
         } else {
           var attrs = live ? ' data-slot-start="' + slot.start + '" data-slot-end="' + slot.end + '"' : '';
-          html += '<span class="schedule-slot"' + attrs + '>' + escapeHtml(slot.label) + '</span>';
+          var extraCls = slotClassFn ? slotClassFn(slot.label) : '';
+          html += '<span class="schedule-slot' + (extraCls || '') + '"' + attrs + '>' + escapeHtml(slot.label) + '</span>';
         }
       });
       html += '</div></div>';
@@ -8742,6 +8759,59 @@
   // state (not persisted), read by both the form's own render (candidate
   // list/roles differ) and its submit handler.
   var coachProposeType = 'coaching';
+  // Whether the planning grid below is currently in "paint my
+  // availability" mode (Coach only, see renderCoachPlanningSection) and,
+  // while it is, which type new paint strokes mark -- pure UI state.
+  var coachAvailabilityEditOpen = false;
+  var coachAvailabilityEditType = 'coaching';
+  // Drag-paint state for the availability editor (see attachHandlers'
+  // .coach-availability-painting wiring) -- module-level since the
+  // document-level pointermove/up/cancel listeners are attached exactly
+  // once, ever (paintListenersOn), and need to read whatever the latest
+  // render bound paintEventId to.
+  var painting = false;
+  var paintValue = null;
+  var paintTouched = {};
+  var paintEventId = null;
+  var paintListenersOn = false;
+  function paintApplySlot(el) {
+    var label = el.textContent.trim();
+    if (paintTouched[label]) return;
+    paintTouched[label] = true;
+    var current = coachAvailabilityFor(currentUserProfile.name, paintEventId, coachAvailabilityEditType) || [];
+    var has = current.indexOf(label) !== -1;
+    if (paintValue === has) return;
+    el.classList.toggle('slot-avail-' + coachAvailabilityEditType, paintValue);
+    var byType = Object.assign({}, (currentUserProfile.coachAvailability || {})[paintEventId] || {});
+    var arr = (byType[coachAvailabilityEditType] || []).slice();
+    var idx = arr.indexOf(label);
+    if (paintValue && idx === -1) arr.push(label);
+    else if (!paintValue && idx !== -1) arr.splice(idx, 1);
+    byType[coachAvailabilityEditType] = arr;
+    currentUserProfile.coachAvailability = Object.assign({}, currentUserProfile.coachAvailability || {});
+    currentUserProfile.coachAvailability[paintEventId] = byType;
+  }
+  // Every Coach's declared availability for this event, aggregated for
+  // display (view mode only -- edit mode shows just the current Coach's
+  // own picks, see renderCoachPlanningSection) -- blue dot = someone's
+  // free for coaching then, orange = baptême, purple = both.
+  function coachAvailabilitySlotClass(ev, me) {
+    if (coachAvailabilityEditOpen && isCoachBadge(me)) {
+      var mine = coachAvailabilityFor(me.name, ev.id, coachAvailabilityEditType) || [];
+      return function (label) { return mine.indexOf(label) !== -1 ? ' slot-avail-' + coachAvailabilityEditType : ''; };
+    }
+    var coachingLabels = {}, baptemeLabels = {};
+    Object.keys(STATE.usersByName || {}).forEach(function (name) {
+      var byType = (STATE.usersByName[name].coachAvailability || {})[ev.id];
+      if (!byType || !isCoachBadge(STATE.usersByName[name])) return;
+      (byType.coaching || []).forEach(function (l) { coachingLabels[l] = true; });
+      (byType.bapteme || []).forEach(function (l) { baptemeLabels[l] = true; });
+    });
+    return function (label) {
+      var c = !!coachingLabels[label], b = !!baptemeLabels[label];
+      return c && b ? ' slot-avail-both' : c ? ' slot-avail-coaching' : b ? ' slot-avail-bapteme' : '';
+    };
+  }
   // Same ongoing/upcoming event + horaires-by-group as EN PISTE's own
   // "today-schedule-card" (see renderPlanningTab/renderHoraireGroups) --
   // reused as-is here so a Coach can see when to be trackside for a
@@ -8749,35 +8819,43 @@
   // there) gets the current/next/past slot highlighting for free, since
   // updateLiveClock() already queries every [data-slot-start] in the
   // page, not just the Planning tab's own copy.
-  function renderCoachPlanningSection() {
+  //
+  // Doubles as the Coach's own availability editor: toggling "Définir mes
+  // disponibilités" swaps the grid from "click a slot to ask for it" into
+  // "click or drag across slots to mark them" for whichever type
+  // (Coaching/Baptême) is currently selected -- one continuous pointer
+  // gesture across several slots (see attachHandlers' coach-availability-*
+  // handlers) rather than one tap per slot, since a whole day's worth one
+  // at a time was tedious.
+  function renderCoachPlanningSection(me) {
     var target = targetPlanningEvent();
     if (!target) return '';
     var ev = target.ev;
     var info = circuitInfo(ev.circuit);
-    var groupsHtml = info.horaires ? renderHoraireGroups(info.horaires, null, ev, info.briefing, true) : '';
+    var iAmCoach = isCoachBadge(me);
+    var editing = coachAvailabilityEditOpen && iAmCoach;
+    var groupsHtml = info.horaires ? renderHoraireGroups(info.horaires, null, ev, info.briefing, true, coachAvailabilitySlotClass(ev, me)) : '';
     if (!groupsHtml) return '';
-    var body = '<div class="eyebrow">' + (target.mode === 'ongoing' ? 'En ce moment — ' : 'Prochain événement — ') + escapeHtml(ev.circuit) + '</div>' +
-      '<div class="coach-planning-clickable" data-event-id="' + ev.id + '" data-circuit="' + escapeHtml(ev.circuit) + '">' + groupsHtml + '</div>';
+    var body = '<div class="eyebrow">' + (target.mode === 'ongoing' ? 'En ce moment — ' : 'Prochain événement — ') + escapeHtml(ev.circuit) + '</div>';
+    if (iAmCoach) {
+      body += '<div style="display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap; margin:0.4rem 0;">' +
+        '<button type="button" class="ghost" data-action="coach-availability-edit-toggle">' + (editing ? 'Terminé' : '✎ Définir mes disponibilités') + '</button>';
+      if (editing) {
+        body += '<div class="coach-availability-type-switch">' +
+          '<button type="button" class="coach-availability-type-btn' + (coachAvailabilityEditType === 'coaching' ? ' active' : '') + '" data-action="coach-availability-type" data-type="coaching">Coaching</button>' +
+          '<button type="button" class="coach-availability-type-btn' + (coachAvailabilityEditType === 'bapteme' ? ' active' : '') + '" data-action="coach-availability-type" data-type="bapteme">Baptême piste</button>' +
+          '</div>';
+      }
+      body += '</div>';
+      if (editing) {
+        body += '<div class="help-text" style="margin-bottom:0.4rem;">Clique ou fais glisser (doigt ou souris) sur les créneaux pour les marquer disponibles.</div>';
+      } else {
+        body += '<div class="help-text" style="margin-bottom:0.4rem;">🔵 disponible pour du coaching · 🟠 pour un baptême piste · 🟣 les deux.</div>';
+      }
+    }
+    var wrapClass = editing ? 'coach-availability-painting' : 'coach-planning-clickable';
+    body += '<div class="' + wrapClass + '" data-event-id="' + ev.id + '" data-circuit="' + escapeHtml(ev.circuit) + '">' + groupsHtml + '</div>';
     return collapsibleCard('coach-planning', 'Planning (horaires par groupe)', body, true);
-  }
-  // A Coach marks which of this same event's real slots they're actually
-  // free for -- narrows both their own counter-propose options (see
-  // coachRequestSlotOptions) and, softly, who gets suggested first when a
-  // pilote/accompagnant clicks a slot to ask (see renderCoachSlotModal).
-  function renderCoachAvailabilitySection(me) {
-    if (!isCoachBadge(me)) return '';
-    var target = targetPlanningEvent();
-    if (!target) return '';
-    var ev = target.ev;
-    var slots = allEventSlots(ev);
-    if (!slots.length) return '';
-    var mine = (me.coachAvailability || {})[ev.id] || [];
-    var body = '<div class="help-text">Coche les créneaux où tu es disponible à ' + escapeHtml(ev.circuit) + ' -- utilisé pour la contre-proposition d\'horaire et pour te suggérer aux demandes sur ces créneaux.</div>';
-    body += '<div class="coach-availability-slots">' + slots.map(function (s) {
-      var on = mine.indexOf(s.label) !== -1;
-      return '<button type="button" class="coach-availability-slot' + (on ? ' active' : '') + '" data-action="coach-availability-toggle" data-event-id="' + ev.id + '" data-label="' + escapeHtml(s.label) + '">' + escapeHtml(s.label) + '</button>';
-    }).join('') + '</div>';
-    return collapsibleCard('coach-availability', 'Mes disponibilités (' + mine.length + ')', body, false);
   }
 
   // ---- Demander depuis un créneau du planning (voir renderCoachPlanningSection) ----
@@ -8808,20 +8886,16 @@
     var proposeRoles = coachSlotModalType === 'bapteme' ? ['pilote', 'accompagnant'] : ['pilote'];
     var linkedNames = (STATE.coachRequests || []).filter(function (r) { return me && (r.from === me.name || r.to === me.name); })
       .map(function (r) { return r.from === me.name ? r.to : r.from; });
+    // Hard filter -- a request can only ever be raised for this exact
+    // slot against a Coach who's actually declared themselves free for
+    // it (for this type: coaching and baptême availability are separate
+    // sets, see saveCoachAvailability), never "anyone with the badge".
     var coachCandidates = allKnownUserNames().filter(function (n) {
-      var u = (STATE.usersByName || {})[n] || {};
-      return isCoachBadge(u) && (!me || n !== me.name) && linkedNames.indexOf(n) === -1;
+      if (me && n === me.name) return false;
+      if (linkedNames.indexOf(n) !== -1) return false;
+      var av = coachAvailabilityFor(n, coachSlotModal.eventId, coachSlotModalType);
+      return !!(av && av.indexOf(coachSlotModal.slotLabel) !== -1);
     });
-    // Soft preference, not a hard filter -- a Coach who hasn't gotten
-    // around to declaring availability yet shouldn't just disappear from
-    // every request. Narrow the list only when at least one candidate
-    // actually declared themselves free for this exact slot.
-    var availableForSlot = coachCandidates.filter(function (n) {
-      var av = ((STATE.usersByName || {})[n] || {}).coachAvailability || {};
-      var slots = av[coachSlotModal.eventId];
-      return slots && slots.indexOf(coachSlotModal.slotLabel) !== -1;
-    });
-    if (availableForSlot.length) coachCandidates = availableForSlot;
     var html = '<div class="crop-modal-overlay"><div class="crop-modal">' +
       '<h2 class="section-title">Demander pour ' + escapeHtml(coachSlotModal.slotLabel) + '</h2>';
     if (me && proposeRoles.indexOf(me.role || 'pilote') === -1) {
@@ -8833,7 +8907,7 @@
       '<option value="bapteme"' + (coachSlotModalType === 'bapteme' ? ' selected' : '') + '>Baptême piste</option>' +
       '</select>';
     if (!coachCandidates.length) {
-      html += '<div class="help-text" style="margin-top:0.6rem;">Aucun Coach disponible pour ce type pour l\'instant.</div>';
+      html += '<div class="help-text" style="margin-top:0.6rem;">Aucun Coach disponible sur ce créneau pour ce type -- essaie un autre créneau ou l\'autre type.</div>';
     } else {
       html += '<form id="coach-slot-request-form" style="margin-top:0.6rem;">' +
         '<label for="coach-slot-coach">Coach</label>' +
@@ -8927,8 +9001,7 @@
     if (!me) return '';
     var html = '<div class="section-title" style="font-size:0.95rem;">Coaching &amp; baptêmes piste</div>' +
       '<div class="help-text" style="margin-bottom:0.8rem;">Un Coach peut proposer un suivi de coaching (pilotes) ou un baptême piste, un tour passager (pilotes et accompagnants) -- clique un créneau du planning ci-dessous pour lui demander directement dessus.</div>';
-    html += renderCoachPlanningSection();
-    html += renderCoachAvailabilitySection(me);
+    html += renderCoachPlanningSection(me);
     var iAmCoach = isCoachBadge(me);
     var myRequests = (STATE.coachRequests || []).filter(function (r) { return r.from === me.name || r.to === me.name; });
 
@@ -8960,32 +9033,44 @@
       // Proposer un coaching (pilotes seulement) ou un baptême piste
       // (pilote OU accompagnant, un baptême étant un tour passager --
       // pas de badge séparé, juste une deuxième chose qu'un Coach peut
-      // proposer) à n'importe quel compte, sans passer par un créneau
-      // précis du planning -- pas besoin d'être amis ou de se suivre,
-      // juste un champ de recherche (datalist), moins ceux déjà liés
-      // (demande en cours ou déjà coachés/baptisés).
+      // proposer) à n'importe quel compte -- pas besoin d'être amis ou de
+      // se suivre, juste un champ de recherche (datalist), moins ceux
+      // déjà liés (demande en cours ou déjà coachés/baptisés). Toujours
+      // sur un créneau réel de l'événement en cours/à venir, tiré des
+      // propres disponibilités déclarées du Coach pour ce type (voir
+      // "Définir mes disponibilités" plus haut) -- jamais "à définir plus
+      // tard", comme la demande depuis un créneau du planning.
       var linkedNames = myRequests.map(function (r) { return r.from === me.name ? r.to : r.from; });
       var proposeRoles = coachProposeType === 'bapteme' ? ['pilote', 'accompagnant'] : ['pilote'];
       var proposeCandidates = allKnownUserNames().filter(function (n) {
         var u = (STATE.usersByName || {})[n] || {};
         return n !== me.name && proposeRoles.indexOf(u.role || 'pilote') !== -1 && linkedNames.indexOf(n) === -1;
       });
+      var proposeTarget = targetPlanningEvent();
+      var proposeSlots = proposeTarget ? (coachAvailabilityFor(me.name, proposeTarget.ev.id, coachProposeType) || []) : [];
+      var proposeSlotObjs = proposeTarget ? allEventSlots(proposeTarget.ev).filter(function (s) { return proposeSlots.indexOf(s.label) !== -1; }) : [];
       var proposeBody = '<label for="coach-propose-type">Type</label>' +
         '<select id="coach-propose-type">' +
         '<option value="coaching"' + (coachProposeType === 'coaching' ? ' selected' : '') + '>Coaching</option>' +
         '<option value="bapteme"' + (coachProposeType === 'bapteme' ? ' selected' : '') + '>Baptême piste</option>' +
         '</select>';
-      if (!proposeCandidates.length) {
+      if (!proposeTarget) {
+        proposeBody += '<div class="help-text" style="margin-top:0.5rem;">Aucun événement en cours ou à venir.</div>';
+      } else if (!proposeSlotObjs.length) {
+        proposeBody += '<div class="help-text" style="margin-top:0.5rem;">Déclare d\'abord tes disponibilités (' + (coachProposeType === 'bapteme' ? 'baptême piste' : 'coaching') + ') sur le planning ci-dessus avant de proposer.</div>';
+      } else if (!proposeCandidates.length) {
         proposeBody += '<div class="help-text" style="margin-top:0.5rem;">' +
           (coachProposeType === 'bapteme' ? 'Aucun pilote ou accompagnant disponible pour l\'instant.' : 'Aucun pilote disponible pour l\'instant.') + '</div>';
       } else {
         proposeBody += '<form id="coach-propose-form" style="margin-top:0.6rem;">' +
-          '<label for="coach-propose-input">' + (coachProposeType === 'bapteme' ? 'Rechercher un pilote ou un accompagnant' : 'Rechercher un pilote') + '</label>' +
+          '<label for="coach-propose-slot">Créneau</label>' +
+          '<select id="coach-propose-slot">' + proposeSlotObjs.map(function (s) { return '<option value="' + escapeHtml(s.label) + '">' + escapeHtml(s.label) + '</option>'; }).join('') + '</select>' +
+          '<label for="coach-propose-input" style="margin-top:0.6rem;">' + (coachProposeType === 'bapteme' ? 'Rechercher un pilote ou un accompagnant' : 'Rechercher un pilote') + '</label>' +
           '<input type="text" id="coach-propose-input" list="coach-propose-list" placeholder="Nom" autocomplete="off">' +
           '<datalist id="coach-propose-list">' + proposeCandidates.map(function (n) { return '<option value="' + escapeHtml(n) + '">'; }).join('') + '</datalist>' +
           '<button type="submit" class="primary" style="margin-top:0.7rem;">' + (coachProposeType === 'bapteme' ? 'Proposer le baptême piste' : 'Proposer le coaching') + '</button></form>';
       }
-      html += collapsibleCard('coach-propose', 'Proposer un coaching ou un baptême piste (sans créneau précis)', proposeBody, false);
+      html += collapsibleCard('coach-propose', 'Proposer un coaching ou un baptême piste', proposeBody, false);
     }
 
     // Self-service: ask any Coach for regular coaching, with no relation
@@ -10624,15 +10709,22 @@
       coachProposeForm.addEventListener('submit', function (evt) {
         evt.preventDefault();
         var input = document.getElementById('coach-propose-input');
+        var slotSelect = document.getElementById('coach-propose-slot');
         var name = input ? input.value.trim() : '';
-        if (!name) return;
+        if (!name || !slotSelect || !slotSelect.value) return;
         var u = (STATE.usersByName || {})[name];
         var allowedRoles = coachProposeType === 'bapteme' ? ['pilote', 'accompagnant'] : ['pilote'];
         if (!u || allowedRoles.indexOf(u.role || 'pilote') === -1) {
           showToast(coachProposeType === 'bapteme' ? 'Choisis un pilote ou un accompagnant dans la liste proposée.' : 'Choisis un pilote dans la liste proposée.');
           return;
         }
-        sendCoachRequest(name, coachProposeType);
+        var target = targetPlanningEvent();
+        var chosen = target ? allEventSlots(target.ev).filter(function (s) { return s.label === slotSelect.value; })[0] : null;
+        if (!target || !chosen) { showToast('Choisis un créneau valide.'); return; }
+        sendCoachRequest(name, coachProposeType, {
+          eventId: target.ev.id, circuit: target.ev.circuit,
+          slotStart: chosen.start, slotEnd: chosen.end, slotLabel: chosen.label
+        });
         input.value = '';
       });
     }
@@ -10644,15 +10736,62 @@
         if (input) input.value = '';
       });
     });
-    document.querySelectorAll('[data-action="coach-availability-toggle"]').forEach(function (btn) {
+    var coachAvailabilityEditToggleBtn = document.querySelector('[data-action="coach-availability-edit-toggle"]');
+    if (coachAvailabilityEditToggleBtn) {
+      coachAvailabilityEditToggleBtn.addEventListener('click', function () {
+        coachAvailabilityEditOpen = !coachAvailabilityEditOpen;
+        renderRoot();
+      });
+    }
+    document.querySelectorAll('[data-action="coach-availability-type"]').forEach(function (btn) {
       btn.addEventListener('click', function () {
-        var eventId = btn.getAttribute('data-event-id');
-        var label = btn.getAttribute('data-label');
-        var current = (currentUserProfile.coachAvailability || {})[eventId] || [];
-        var next = current.indexOf(label) !== -1 ? current.filter(function (l) { return l !== label; }) : current.concat([label]);
-        saveCoachAvailability(eventId, next);
+        coachAvailabilityEditType = btn.getAttribute('data-type');
+        renderRoot();
       });
     });
+    // Click-or-drag "paint" over the planning grid while in availability-
+    // editing mode (see renderCoachPlanningSection) -- one continuous
+    // pointer gesture can mark several slots at once instead of one tap
+    // each. The DOM is updated directly during the drag (no renderRoot,
+    // so it stays perfectly smooth) and every touched slot is written to
+    // Firestore in one shot on release. Only pointerdown is bound to the
+    // grid element itself (freely re-bound every render, the old element
+    // and its listener are discarded along with it); pointermove/up/
+    // cancel are bound to `document` exactly once, ever (paintListenersOn
+    // guards that) -- attachHandlers() re-runs on every render, and
+    // re-adding a document-level listener each time would otherwise pile
+    // up duplicates forever instead of ever being cleaned up.
+    var paintWrap = document.querySelector('.coach-availability-painting');
+    if (paintWrap) {
+      paintEventId = paintWrap.getAttribute('data-event-id');
+      paintWrap.addEventListener('pointerdown', function (evt) {
+        var el = evt.target.closest('.schedule-slot[data-slot-start]');
+        if (!el) return;
+        evt.preventDefault();
+        painting = true;
+        paintTouched = {};
+        var label = el.textContent.trim();
+        var current = coachAvailabilityFor(currentUserProfile.name, paintEventId, coachAvailabilityEditType) || [];
+        paintValue = current.indexOf(label) === -1;
+        paintApplySlot(el);
+      });
+    }
+    if (!paintListenersOn) {
+      paintListenersOn = true;
+      document.addEventListener('pointermove', function (evt) {
+        if (!painting) return;
+        var el = document.elementFromPoint(evt.clientX, evt.clientY);
+        el = el && el.closest ? el.closest('.coach-availability-painting .schedule-slot[data-slot-start]') : null;
+        if (el) paintApplySlot(el);
+      });
+      var paintEnd = function () {
+        if (!painting) return;
+        painting = false;
+        saveCoachAvailability(paintEventId, (currentUserProfile.coachAvailability || {})[paintEventId] || {});
+      };
+      document.addEventListener('pointerup', paintEnd);
+      document.addEventListener('pointercancel', paintEnd);
+    }
     document.querySelectorAll('[data-action="coach-slot-propose-open"]').forEach(function (btn) {
       btn.addEventListener('click', function () { counterProposeRequestId = btn.getAttribute('data-id'); renderRoot(); });
     });

@@ -643,9 +643,8 @@
     padding: 0.3rem 0.75rem;
     text-decoration: none;
   }
-  .coach-availability-slots { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.6rem; }
-  .coach-availability-slot {
-    font-family: var(--font-mono);
+  .coach-availability-type-switch { display: inline-flex; gap: 0.3rem; }
+  .coach-availability-type-btn {
     font-size: 0.82rem;
     color: var(--text-muted);
     background: var(--surface-alt);
@@ -654,12 +653,19 @@
     padding: 0.3rem 0.7rem;
     cursor: pointer;
   }
-  .coach-availability-slot.active {
-    color: #1d7fd6;
-    background: color-mix(in srgb, #1d7fd6 14%, var(--surface));
-    border-color: #1d7fd6;
-    font-weight: 600;
-  }
+  .coach-availability-type-btn.active { color: var(--accent-ink); background: var(--accent); border-color: var(--accent); font-weight: 600; }
+  /* Same blue/orange language as .coach-name/.pro-leader-name -- a slot
+     available for coaching reads blue, for baptême piste orange, both at
+     once gets its own purple rather than mixing the two. */
+  .schedule-slot.slot-avail-coaching { background: color-mix(in srgb, #1d7fd6 22%, var(--surface-alt)); box-shadow: inset 0 0 0 1px #1d7fd6; }
+  .schedule-slot.slot-avail-bapteme { background: color-mix(in srgb, var(--accent) 22%, var(--surface-alt)); box-shadow: inset 0 0 0 1px var(--accent); }
+  .schedule-slot.slot-avail-both { background: color-mix(in srgb, var(--series-3) 22%, var(--surface-alt)); box-shadow: inset 0 0 0 1px var(--series-3); }
+  /* The drag-paint surface (see attachHandlers) -- no text selection
+     while dragging across the slot labels, and a crosshair-ish cursor as
+     a hint that this grid behaves differently than the normal
+     click-to-request one right next to it. */
+  .coach-availability-painting { user-select: none; -webkit-user-select: none; touch-action: none; }
+  .coach-availability-painting .schedule-slot[data-slot-start] { cursor: pointer; }
   .crop-modal-overlay {
     position: fixed;
     inset: 0;
@@ -1810,10 +1816,11 @@
   .schedule-slot {
     font-family: var(--font-mono);
     font-size: 0.85rem;
+    font-weight: 600;
     padding: 0.2rem 0.5rem;
     border-radius: 6px;
     background: var(--surface-alt);
-    color: var(--text-muted);
+    color: var(--text);
   }
   .schedule-slot-label {
     font-family: var(--font-body);
