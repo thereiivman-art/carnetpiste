@@ -661,6 +661,12 @@
     position: relative;
   }
   .crop-modal-viewport img { position: absolute; top: 50%; left: 50%; max-width: none; }
+  .tutorial-modal { max-width: 400px; text-align: center; }
+  .tutorial-icon { font-size: 2.4rem; line-height: 1; margin-bottom: 0.4rem; }
+  .tutorial-modal .help-text { font-size: 0.9rem; margin-top: 0.4rem; }
+  .tutorial-dots { display: flex; justify-content: center; gap: 0.35rem; margin-top: 1rem; }
+  .tutorial-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--border); }
+  .tutorial-dot.active { background: var(--accent); }
   .mini-avatar {
     display: inline-flex;
     align-items: center;
@@ -1536,6 +1542,17 @@
        the bottom of the track plan off the screen. Size off viewport
        height instead of card width here, still capped so a narrower
        desktop window doesn't overflow sideways either. */
+    /* Circuit + Chronos: le plan et la liste d'infos (distance, virages,
+       dernier/prochain event, record) côte à côte au lieu de l'un sous
+       l'autre -- il y a la place sur desktop, pas la peine de scroller
+       pour lire la liste sous un grand plan. */
+    .circuit-info-card {
+      display: flex;
+      gap: 1.8rem;
+      align-items: flex-start;
+    }
+    .circuit-info-card .circuit-info-map-full { flex: 1 1 55%; margin: 0; min-width: 0; }
+    .circuit-info-card .circuit-info-list { flex: 1 1 38%; min-width: 260px; }
     .circuit-info-map-full .circuit-visual-frame {
       width: auto;
       max-width: 100%;

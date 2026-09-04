@@ -617,6 +617,68 @@
   var cropZoom = 100; // % of "contain" (whole image just fits the circle) -- 20..400
   var cropOffsetXPx = 0;
   var cropOffsetYPx = 0;
+
+  // Quick onboarding tour, one step per main onglet -- opens once by
+  // itself the first time a freshly signed-in account's own profile
+  // hasn't got tutorialSeen set (persisted server-side, see
+  // closeTutorial, so it's "seen once" across every device, not just
+  // this browser), and any time after that from the Aide button in
+  // Profil -> Réglages (see renderProfileReglagesTab).
+  var tutorialOpen = false;
+  var tutorialStep = 0;
+  var TUTORIAL_STEPS = [
+    { icon: '🏍️', title: 'Bienvenue sur Carnet de Piste', body: 'Un tour rapide de ce que chaque onglet t\'apporte -- tu peux le refaire à tout moment depuis Profil → Réglages → Aide.' },
+    { icon: '📅', title: 'Événements', body: 'Le calendrier de tes sorties : crée-en une, consulte les prochaines/passées, rejoins un event partagé par un Team.' },
+    { icon: '⏱️', title: 'Chronos', body: 'Choisis un circuit, enregistre tes temps au tour sortie par sortie, suis ton meilleur temps et ta progression.' },
+    { icon: '🏍️', title: 'EN PISTE', body: 'Le jour J : horaires par groupe, ton groupe du jour, infos pratiques et annonces du Team organisateur, ta checklist d\'équipement, tes infos de voyage.' },
+    { icon: '👥', title: 'Social', body: 'Suis tes amis, réagis à leur mur et à celui des Teams que tu suis, retrouve ton propre Mur.' },
+    { icon: '🤝', title: 'Team', body: 'Rejoins ou gère un Team (amateur ou PRO) : membres, fil d\'actualité, gestion des événements.' },
+    { icon: '📊', title: 'Stats & 🔔 Notifications', body: 'En haut à droite : tes statistiques et trophées (📊), et tes demandes en attente (🔔) -- amis, invitations Team, coaching.' }
+  ];
+  function openTutorial() {
+    tutorialOpen = true;
+    tutorialStep = 0;
+    renderRoot();
+  }
+  // markSeen: false when just dismissed mid-way (e.g. clicking outside
+  // isn't offered, only the explicit Passer/Fermer) -- both Passer and
+  // finishing the last step count as "seen", same outcome either way,
+  // it's the account's own choice not to see it that matters here, not
+  // whether they read every single step.
+  function closeTutorial() {
+    tutorialOpen = false;
+    if (currentUserProfile && !currentUserProfile.tutorialSeen) {
+      currentUserProfile.tutorialSeen = true;
+      var uid = myUid();
+      if (uid) db.collection('users').doc(uid).set({ tutorialSeen: true }, { merge: true }).catch(function () {});
+    }
+    renderRoot();
+  }
+  function tutorialGo(delta) {
+    tutorialStep = Math.max(0, Math.min(TUTORIAL_STEPS.length - 1, tutorialStep + delta));
+    renderRoot();
+  }
+  function renderTutorialOverlay() {
+    if (!tutorialOpen) return '';
+    var step = TUTORIAL_STEPS[tutorialStep];
+    var isLast = tutorialStep === TUTORIAL_STEPS.length - 1;
+    var html = '<div class="crop-modal-overlay">' +
+      '<div class="crop-modal tutorial-modal">' +
+      '<div class="tutorial-icon">' + step.icon + '</div>' +
+      '<h2 class="section-title">' + escapeHtml(step.title) + '</h2>' +
+      '<div class="help-text">' + escapeHtml(step.body) + '</div>' +
+      '<div class="tutorial-dots">' + TUTORIAL_STEPS.map(function (_, i) {
+        return '<span class="tutorial-dot' + (i === tutorialStep ? ' active' : '') + '"></span>';
+      }).join('') + '</div>' +
+      '<div style="margin-top:0.9rem; display:flex; gap:0.6rem; justify-content:space-between;">' +
+      '<button type="button" class="ghost" id="tutorial-skip-btn">' + (isLast ? 'Fermer' : 'Passer') + '</button>' +
+      '<div style="display:flex; gap:0.6rem;">' +
+      (tutorialStep > 0 ? '<button type="button" class="ghost" id="tutorial-prev-btn">← Précédent</button>' : '') +
+      (isLast ? '<button type="button" class="primary" id="tutorial-finish-btn">Terminé</button>' : '<button type="button" class="primary" id="tutorial-next-btn">Suivant →</button>') +
+      '</div></div></div></div>';
+    return html;
+  }
+
   function openCropModal(kind, teamId, dataUrl) {
     var probe = new Image();
     probe.onload = function () {
@@ -1984,6 +2046,7 @@
   function renderProfileReglagesTab(p) {
     var html = renderNotificationsSettings(p);
     html += '<div style="margin-top:1.1rem;"><label style="margin-bottom:0.4rem; display:block;">Thème</label>' + renderThemeToggle() + '</div>';
+    html += '<div style="margin-top:1.1rem;"><button type="button" class="ghost" id="tutorial-open-btn">Aide — revoir le tutoriel</button></div>';
     // What a friend can see when they open your fiche from Social (Mes
     // amis) -- both on by default. Purely a display-level courtesy: every
     // signed-in account can already read sessions/events/users directly,
@@ -8700,7 +8763,8 @@
       '</header>' +
       body +
       renderBottomNav() +
-      renderCropModal();
+      renderCropModal() +
+      renderTutorialOverlay();
     attachHandlers();
     if (focusedId) {
       var toRefocus = document.getElementById(focusedId);
@@ -9770,6 +9834,16 @@
     if (cropSaveBtn) cropSaveBtn.addEventListener('click', saveCroppedPhoto);
     var cropCancelBtn = document.getElementById('crop-cancel-btn');
     if (cropCancelBtn) cropCancelBtn.addEventListener('click', closeCropModal);
+    var tutorialOpenBtn = document.getElementById('tutorial-open-btn');
+    if (tutorialOpenBtn) tutorialOpenBtn.addEventListener('click', openTutorial);
+    var tutorialNextBtn = document.getElementById('tutorial-next-btn');
+    if (tutorialNextBtn) tutorialNextBtn.addEventListener('click', function () { tutorialGo(1); });
+    var tutorialPrevBtn = document.getElementById('tutorial-prev-btn');
+    if (tutorialPrevBtn) tutorialPrevBtn.addEventListener('click', function () { tutorialGo(-1); });
+    var tutorialSkipBtn = document.getElementById('tutorial-skip-btn');
+    if (tutorialSkipBtn) tutorialSkipBtn.addEventListener('click', closeTutorial);
+    var tutorialFinishBtn = document.getElementById('tutorial-finish-btn');
+    if (tutorialFinishBtn) tutorialFinishBtn.addEventListener('click', closeTutorial);
     document.querySelectorAll('[data-action="team-delete-request"]').forEach(function (btn) {
       btn.addEventListener('click', function () {
         pendingDeleteTeamId = btn.getAttribute('data-team');
@@ -11320,6 +11394,15 @@
             activeView = 'planning';
             profilePanelOpen = false;
             justAuthenticated = false;
+          }
+          // Auto-opens once, ever, per account -- tutorialSeen is set on
+          // the profile doc itself (see closeTutorial), not per-device,
+          // so it stays "seen" across every browser/phone that account
+          // ever signs into. Always still reachable afterward via Aide
+          // in Profil -> Réglages.
+          if (!currentUserProfile.tutorialSeen) {
+            tutorialOpen = true;
+            tutorialStep = 0;
           }
           startSync();
           renderRoot();
