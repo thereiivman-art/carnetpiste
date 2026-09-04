@@ -11002,6 +11002,18 @@
       errEl.classList.add('visible');
       return;
     }
+    // A chrono is necessarily logged after the fact -- a future date can
+    // only ever be a typo (day/month swapped, wrong year...), and one
+    // slipping through used to actively break things: normalizeSelection's
+    // last-resort default-circuit fallback picks whichever circuit has the
+    // single most recent session date across *every* account, so one
+    // mistyped future date silently hijacked the default circuit shown to
+    // everyone, indefinitely, until manually found and fixed.
+    if (date && date > dateKey(new Date())) {
+      errEl.textContent = 'Cette date est dans le futur — vérifie le jour/mois/année (' + dateEl.value + ').';
+      errEl.classList.add('visible');
+      return;
+    }
     if (!rider || !date || !circuit || !laps.length) {
       errEl.textContent = 'Renseignez un pilote, une date et au moins un chrono valide.';
       errEl.classList.add('visible');
