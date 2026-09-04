@@ -30,7 +30,7 @@
   // payloads land, which reads as broken rather than loading. Reset to the
   // full set at the top of startSync(), each key removed the first time
   // its own listener actually fires (see startSync()).
-  var CORE_SYNC_KEYS = ['sessions', 'events', 'circuits', 'riders', 'users'];
+  var CORE_SYNC_KEYS = ['sessions', 'events', 'circuits', 'riders', 'users', 'feedEvents', 'wallPosts'];
   var coreSyncPending = null;
   function markCoreSynced(key) { if (coreSyncPending) coreSyncPending.delete(key); }
   function coreDataLoading() { return !!(coreSyncPending && coreSyncPending.size); }
@@ -664,7 +664,7 @@
     { icon: '📅', title: 'Événements', body: 'Le calendrier de tes sorties : crée-en une, consulte les prochaines/passées, rejoins un event partagé par un Team.' },
     { icon: '⏱️', title: 'Chronos', body: 'Choisis un circuit, enregistre tes temps au tour sortie par sortie, suis ton meilleur temps et ta progression.' },
     { icon: '🏍️', title: 'EN PISTE', body: 'Le jour J : horaires par groupe, ton groupe du jour, infos pratiques et annonces du Team organisateur, ta checklist d\'équipement, tes infos de voyage.' },
-    { icon: '👥', title: 'Social', body: 'Suis tes amis, réagis à leur mur et à celui des Teams que tu suis, retrouve ton propre Mur.' },
+    { icon: '👥', title: 'Social', body: 'Suis tes amis, réagis à leur Journal et au fil d\'actualité des Teams que tu suis, retrouve ton propre Journal.' },
     { icon: '🤝', title: 'Team', body: 'Rejoins ou gère un Team (amateur ou PRO) : membres, fil d\'actualité, gestion des événements.' },
     { icon: '📊', title: 'Stats & 🔔 Notifications', body: 'En haut à droite : tes statistiques et trophées (📊), et tes demandes en attente (🔔) -- amis, invitations Team, coaching.' }
   ];
@@ -1526,8 +1526,8 @@
       achievementEntry('👥', 'Cercle fidèle', 'Avoir 5 amis acceptés ou plus.', friendsCount, 5, 'amis'),
       achievementEntry('🏍️', 'Fondateur', 'Créer un Team.', teamsFounded, 1, 'team(s)'),
       achievementEntry('🏆', 'Team PRO', 'Fonder un Team certifié PRO.', proTeamsFounded, 1, 'team(s)'),
-      achievementEntry('📣', 'Voix du mur', 'Publier un premier message sur le mur.', wallPostCount, 1, 'message(s)'),
-      achievementEntry('📰', 'Chroniqueur', 'Publier 5 messages sur le mur.', wallPostCount, 5, 'messages')
+      achievementEntry('📣', 'Voix du Journal', 'Publier un premier message sur ton Journal.', wallPostCount, 1, 'message(s)'),
+      achievementEntry('📰', 'Chroniqueur', 'Publier 5 messages sur ton Journal.', wallPostCount, 5, 'messages')
     ];
   }
 
@@ -1942,7 +1942,7 @@
         'Faire certifier tes chronos par un Team Leader ("Chrono vérifié")',
         'Retrouver les horaires, groupes et infos pratiques de chaque événement dans EN PISTE',
         'Partager tes infos de voyage (hôtel, vols) avec tes amis, et voir les leurs',
-        'Suivre tes amis, réagir sur leur mur et sur celui de ton Team',
+        'Suivre tes amis, réagir sur leur Journal et sur le fil d\'actualité de ton Team',
         'Rejoindre un Team (amateur ou PRO) et participer à ses événements'
       ]
     },
@@ -1953,7 +1953,7 @@
         'Consulter les horaires, groupes et infos pratiques de l\'événement en cours, sans y rouler toi-même',
         'Voir les chronos et la progression des pilotes que tu suis',
         'Voir les infos de voyage des pilotes suivis, si elles sont partagées',
-        'Suivre des Teams, réagir sur leur mur, et publier sur ton propre mur'
+        'Suivre des Teams, réagir sur leur fil d\'actualité, et publier sur ton propre Journal'
       ]
     },
     organisateur: {
@@ -2873,7 +2873,7 @@
     var name = (rawName || '').trim();
     if (!name) return { ok: false, error: 'Indique un pseudo.' };
     if (known.some(function (r) { return r !== excludeName && r.toLowerCase() === name.toLowerCase(); })) {
-      return { ok: false, error: 'Ce pseudo est déjà utilisé -- essaie une variante (ex. "Julien" / "Julien P.").' };
+      return { ok: false, error: 'Ce pseudo est déjà utilisé -- ajoute par exemple ton numéro de course (ex. "Julien #12").' };
     }
     return { ok: true, name: name };
   }
@@ -7697,9 +7697,9 @@
 
   function renderWallComposer() {
     if (!wallComposerOpen) {
-      return '<button type="button" class="primary add-chrono-btn" id="wall-composer-toggle" style="margin-top:1rem;">Publier un message sur mon Mur</button>';
+      return '<button type="button" class="primary add-chrono-btn" id="wall-composer-toggle" style="margin-top:1rem;">Publier un message sur mon Journal</button>';
     }
-    var html = '<div class="card" style="margin-top:1rem;"><h2 class="section-title">Publier un message sur mon Mur</h2>';
+    var html = '<div class="card" style="margin-top:1rem;"><h2 class="section-title">Publier un message sur mon Journal</h2>';
     html += '<div class="help-text">Ce que tu publies sera visible par tes amis (ou followers, selon ce que tu choisis ci-dessous).</div>';
     html += '<form id="wall-post-form">';
     html += '<label for="wall-post-text">Un mot, un événement, une photo...</label><textarea id="wall-post-text" rows="2"></textarea>';
@@ -7791,14 +7791,14 @@
     });
     items.sort(function (a, b) { return (b.createdAt || 0) - (a.createdAt || 0); });
     var body = !items.length
-      ? '<div class="empty-state">Rien pour l\'instant.</div>'
+      ? '<div class="empty-state">' + (coreDataLoading() ? 'Chargement...' : 'Rien pour l\'instant.') + '</div>'
       : items.map(function (it) {
         if (it.kind === 'wall') return renderWallPost(it.data);
         if (it.kind === 'activity') return renderFeedEntry(it.data);
         var t = teamById(it.teamId);
         return renderTeamFeedEntry(it.data, me, t ? t.name : null);
       }).join('');
-    return collapsibleCard('social-mur', 'Mon Mur (' + items.length + ')', body, true);
+    return collapsibleCard('social-mur', 'Mon Journal (' + items.length + ')', body, true);
   }
 
   function postToWall(text, linkUrl, photoURL, audience) {
@@ -8395,7 +8395,7 @@
     if (isLeader && team.teamPro) html += renderTeamProBadgeGrantSection(team);
 
     var feedBody = !feed.length
-      ? '<div class="empty-state">Rien pour l\'instant.</div>'
+      ? '<div class="empty-state">' + (teamFeedSynced ? 'Rien pour l\'instant.' : 'Chargement...') + '</div>'
       : feed.map(function (f) { return renderTeamFeedEntry(f, me); }).join('');
     if (canPost) {
       // The Adhérents-only audience option only makes sense for a Team PRO
@@ -8963,7 +8963,8 @@
     if (authMode === 'signup') {
       html += '<h2 class="section-title">Créer un compte</h2>';
       html += '<form id="signup-form" novalidate>';
-      html += '<label for="au-name">Pseudo</label><input type="text" id="au-name" name="name" autocomplete="username" placeholder="Ex. Xavier" required>';
+      html += '<label for="au-name">Pseudo</label><input type="text" id="au-name" name="name" autocomplete="username" placeholder="Ex. Julien #12" required>';
+      html += '<div class="help-text" style="margin-top:0.2rem;">C\'est ce pseudo qu\'il faudra retaper pour se connecter -- en cas de doublon, ajoute ton numéro de course (ex. "Julien #12").</div>';
       html += '<label style="margin-top:0.7rem;">Je suis</label><div class="auth-role-choice">' +
         '<label><input type="radio" name="au-role" value="pilote" checked> Pilote</label>' +
         '<label><input type="radio" name="au-role" value="accompagnant"> Accompagnant</label>' +
@@ -8978,6 +8979,7 @@
       html += '<h2 class="section-title">Connexion</h2>';
       html += '<form id="login-form" novalidate>';
       html += '<label for="au-email">Email ou pseudo</label><input type="text" id="au-email" name="email" autocomplete="username" required>';
+      html += '<div class="help-text" style="margin-top:0.2rem;">Avec le pseudo, retape-le exactement comme à l\'inscription, numéro de course compris (ex. "Julien #12").</div>';
       html += '<label for="au-password" style="margin-top:0.7rem;">Mot de passe</label><input type="password" id="au-password" name="password" autocomplete="current-password" required>';
       html += '<label class="checklist-item" style="margin-top:0.6rem;"><input type="checkbox" id="au-remember" checked> Se souvenir de moi</label>';
       html += '<div class="field-error' + (authError ? ' visible' : '') + '" id="auth-error">' + escapeHtml(authError) + '</div>';
@@ -11202,6 +11204,7 @@
     // activity log, not something that needs full history loaded.
     unsubscribers.push(db.collection('feedEvents').orderBy('createdAt', 'desc').limit(40).onSnapshot(function (snap) {
       STATE.feedEvents = snap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); });
+      markCoreSynced('feedEvents');
       renderRoot();
     }, handleSyncError));
     // Wall posts -- same cap-and-sync-all approach as the feed above;
@@ -11209,6 +11212,7 @@
     // friends/follows relationships actually allow it to see.
     unsubscribers.push(db.collection('wallPosts').orderBy('createdAt', 'desc').limit(200).onSnapshot(function (snap) {
       STATE.wallPosts = snap.docs.map(function (d) { return d.data(); });
+      markCoreSynced('wallPosts');
       renderRoot();
     }, handleSyncError));
     // Who this pilote follows (Personnalités and Teams) -- one-way, no
@@ -11371,6 +11375,16 @@
   // without needing a full page reload. Firestore's 'in' operator caps at
   // 10 values, plenty for a hobby app's worth of teams per person.
   var teamDetailUnsubs = [];
+  // Independent of CORE_SYNC_KEYS/coreDataLoading() -- teamFeed only ever
+  // starts syncing once myTeamMemberships has resolved to a non-empty
+  // teamIds list, which an account with zero teams never reaches, so
+  // folding it into that single shared pending-set would leave every
+  // *other* tab's spinner stuck on "Chargement..." forever for such an
+  // account. This flag instead just tracks this one feed's own state,
+  // and is set true either way (real first snapshot, or "no team at all
+  // to sync") so its own empty-state (see renderTeamDetail) can tell
+  // "still loading" from "genuinely nothing yet".
+  var teamFeedSynced = false;
   function refreshTeamDetailSync() {
     teamDetailUnsubs.forEach(function (unsub) { unsub(); });
     teamDetailUnsubs = [];
@@ -11384,6 +11398,7 @@
       eventJoinRequestsIn = [];
       mergeEventJoinRequests();
       STATE.eventAnnouncements = [];
+      teamFeedSynced = true;
       return;
     }
     teamDetailUnsubs.push(db.collection('teamMembers').where('teamId', 'in', teamIds).onSnapshot(function (snap) {
@@ -11415,6 +11430,7 @@
         }
       });
       STATE.teamFeed = posts;
+      teamFeedSynced = true;
       renderRoot();
     }, handleSyncError));
     // Followers (and adherents -- see requestTeamAdherent/setTeamMemberStatus) of every team
@@ -11526,6 +11542,7 @@
     if (myTeamMembershipsUnsub) { myTeamMembershipsUnsub(); myTeamMembershipsUnsub = null; }
     teamDetailUnsubs.forEach(function (unsub) { unsub(); });
     teamDetailUnsubs = [];
+    teamFeedSynced = false;
     followedTeamFeedUnsubs.forEach(function (unsub) { unsub(); });
     followedTeamFeedUnsubs = [];
     coachMessagesUnsubs.forEach(function (unsub) { unsub(); });

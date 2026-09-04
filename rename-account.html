@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Renommer un compte (admin) — Carnet de Piste</title>
+<style>
+  body { font: 15px -apple-system, sans-serif; max-width: 780px; margin: 3rem auto; padding: 0 1rem; color: #16212c; }
+  label { display: block; margin-top: 1rem; font-weight: 600; }
+  input { font-size: 1rem; padding: 0.5rem; width: 100%; box-sizing: border-box; margin-top: 0.3rem; }
+  button { font-size: 0.95rem; padding: 0.5rem 1rem; cursor: pointer; margin-top: 0.6rem; }
+  #log { white-space: pre-wrap; background: #f2f2f2; padding: 1rem; margin-top: 1.2rem; font-family: monospace; font-size: 0.82rem; max-height: 420px; overflow: auto; }
+  .help { font-size: 0.82rem; color: #666; font-weight: 400; margin-top: 0.2rem; }
+  #step2 { display: none; }
+</style>
+</head>
+<body>
+<h1>Renommer un compte (admin)</h1>
+<p>Rebaptise un pseudo partout où c'est possible en tant qu'admin (compte, chronos, événements, membres de Team), en contournant la limite d'un changement par mois. Le fil d'actu, le mur, les messages de coaching et les annonces d'événement ne peuvent être corrigés que par le compte lui-même (règles de sécurité) -- ça se fait automatiquement, sans action, la prochaine fois que ce compte ouvre l'appli.</p>
+
+<div id="step1">
+  <label for="login-email">Email (compte admin)</label>
+  <input type="email" id="login-email" autocomplete="username">
+  <label for="login-password">Mot de passe</label>
+  <input type="password" id="login-password" autocomplete="current-password">
+  <button id="login-btn">Se connecter</button>
+</div>
+
+<div id="step2">
+  <label for="old-name">Pseudo actuel</label>
+  <input type="text" id="old-name" placeholder="Ex. Will">
+  <label for="new-name">Nouveau pseudo</label>
+  <input type="text" id="new-name" placeholder="Ex. William">
+  <button id="rename-btn">Renommer</button>
+</div>
+
+<div id="log"></div>
+
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore-compat.js"></script>
+<script src="firebase-config.js"></script>
+<script>
+  var logEl = document.getElementById('log');
+  function log(msg) { logEl.textContent += msg + '\n'; logEl.scrollTop = logEl.scrollHeight; }
+
+  var db, auth;
+
+  document.getElementById('login-btn').addEventListener('click', function () {
+    db = firebase.firestore();
+    auth = firebase.auth();
+    var email = document.getElementById('login-email').value.trim();
+    var password = document.getElementById('login-password').value;
+    log('Connexion...');
+    auth.signInWithEmailAndPassword(email, password).then(function () {
+      log('Connecté.');
+      document.getElementById('step1').style.display = 'none';
+      document.getElementById('step2').style.display = 'block';
+    }).catch(function (err) {
+      log('ERREUR : ' + (err && err.message ? err.message : err));
+    });
+  });
+
+  function safeDocId(name) {
+    return encodeURIComponent(name).slice(0, 300) || '_';
+  }
+
+  document.getElementById('rename-btn').addEventListener('click', function () {
+    var btn = document.getElementById('rename-btn');
+    var oldName = document.getElementById('old-name').value.trim();
+    var newName = document.getElementById('new-name').value.trim();
+    if (!oldName || !newName || oldName === newName) {
+      log('Indique un pseudo actuel et un nouveau pseudo différents.');
+      return;
+    }
+    if (!window.confirm('Renommer "' + oldName + '" en "' + newName + '" partout où c\'est possible ?')) return;
+    btn.disabled = true;
+    log('--- Renommage "' + oldName + '" -> "' + newName + '" ---');
+
+    db.collection('users').where('name', '==', oldName).get().then(function (userSnap) {
+      if (userSnap.empty) {
+        log('Aucun compte trouvé avec le pseudo "' + oldName + '". Rien fait.');
+        btn.disabled = false;
+        return Promise.reject('stop');
+      }
+      if (userSnap.size > 1) {
+        log('ATTENTION : plusieurs comptes ont ce pseudo, arrêt par sécurité.');
+        btn.disabled = false;
+        return Promise.reject('stop');
+      }
+      var userDoc = userSnap.docs[0];
+      var uid = userDoc.id;
+      log('Compte trouvé : ' + (userDoc.data().email || uid) + '. Renommage du profil...');
+      return userDoc.ref.update({ name: newName }).then(function () {
+        log('OK : users/' + uid + '.name = "' + newName + '"');
+
+        // Chronos -- toute session enregistrée sous l'ancien pseudo.
+        return db.collection('sessions').where('rider', '==', oldName).get();
+      }).then(function (snap) {
+        return Promise.all(snap.docs.map(function (d) { return d.ref.update({ rider: newName }); })).then(function () {
+          log('OK : ' + snap.size + ' chrono(s) renommé(s) (sessions.rider).');
+        });
+      }).then(function () {
+        // Roster partagé (Chronos > liste des pilotes) -- recrée sous le
+        // nouveau nom puis supprime l'ancien, même principe que le rename
+        // pilote déjà utilisé par l'app elle-même.
+        return db.collection('riders').doc(safeDocId(oldName)).get();
+      }).then(function (riderDoc) {
+        if (!riderDoc.exists) { log('(pas de fiche pilote séparée à renommer)'); return; }
+        return db.collection('riders').doc(safeDocId(newName)).set({ name: newName }).then(function () {
+          return db.collection('riders').doc(safeDocId(oldName)).delete();
+        }).then(function () { log('OK : fiche pilote renommée.'); });
+      }).then(function () {
+        // Événements -- riders[] et riderGroups{} de chaque sortie.
+        return db.collection('events').get();
+      }).then(function (evSnap) {
+        var ops = [];
+        evSnap.forEach(function (doc) {
+          var ev = doc.data();
+          var patch = {};
+          var changed = false;
+          if (ev.riders && ev.riders.indexOf(oldName) !== -1) {
+            patch.riders = ev.riders.map(function (r) { return r === oldName ? newName : r; });
+            var seen = {};
+            patch.riders = patch.riders.filter(function (r) { return seen[r] ? false : (seen[r] = true); });
+            changed = true;
+          }
+          if (ev.riderGroups && Object.prototype.hasOwnProperty.call(ev.riderGroups, oldName)) {
+            var riderGroups = Object.assign({}, ev.riderGroups);
+            riderGroups[newName] = riderGroups[oldName];
+            delete riderGroups[oldName];
+            patch.riderGroups = riderGroups;
+            changed = true;
+          }
+          if (changed) {
+            ops.push(doc.ref.update(patch).then(function () { return { ok: true }; }).catch(function (err) {
+              return { ok: false, id: doc.id, err: err };
+            }));
+          }
+        });
+        return Promise.all(ops).then(function (results) {
+          var okCount = results.filter(function (r) { return r.ok; }).length;
+          var failed = results.filter(function (r) { return !r.ok; });
+          log('OK : ' + okCount + ' événement(s) mis à jour.');
+          failed.forEach(function (f) {
+            log('  -- events/' + f.id + ' non modifié (' + (f.err && f.err.message ? f.err.message : f.err) + ') -- probablement un event d\'un Team dont ce compte n\'est pas le Leader ; à corriger à la main si besoin.');
+          });
+        });
+      }).then(function () {
+        // Membres de Team.
+        return db.collection('teamMembers').where('name', '==', oldName).get();
+      }).then(function (tmSnap) {
+        return Promise.all(tmSnap.docs.map(function (d) { return d.ref.update({ name: newName }); })).then(function () {
+          log('OK : ' + tmSnap.size + ' fiche(s) de membre de Team renommée(s).');
+        });
+      }).then(function () {
+        log('--- Terminé. ---');
+        log('Le mur, le fil d\'actu des Teams, les messages de coaching et les annonces d\'événement gardent encore l\'ancien pseudo pour l\'instant : ils se corrigent tout seuls, automatiquement, la prochaine fois que ce compte ouvre (ou recharge) Carnet de Piste -- rien à faire.');
+        btn.disabled = false;
+      });
+    }).catch(function (err) {
+      if (err === 'stop') return;
+      log('ERREUR : ' + (err && err.message ? err.message : err));
+      btn.disabled = false;
+    });
+  });
+</script>
+</body>
+</html>
