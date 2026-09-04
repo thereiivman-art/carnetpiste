@@ -2534,7 +2534,14 @@
      wins the cascade over every unconditional .bottom-nav/.wrap/
      .toast-stack rule earlier, all at equal specificity. */
   @media (orientation: landscape) and (max-width: 959px) and (max-height: 500px) {
-    :root { --landscape-rail-w: 54px; }
+    /* env(safe-area-inset-left) is the iPhone's notch/Dynamic Island (or
+       front camera cutout) whenever it ends up on the left edge in
+       landscape -- without it, the rail's own icons sat right under
+       that cutout, invisible and unclickable. Folded into the rail's
+       total width so .wrap/.page-head shift over by the same amount,
+       then applied again as the rail's own left padding so its buttons
+       sit clear of the cutout rather than just the rail's background. */
+    :root { --landscape-rail-w: calc(54px + env(safe-area-inset-left)); }
     header.page-head { left: var(--landscape-rail-w); }
     .page-head-inner { padding: 0.4rem 1rem 0.35rem; }
     .wrap {
@@ -2552,7 +2559,7 @@
       align-items: stretch;
       justify-content: flex-start;
       gap: 0.15rem;
-      padding: calc(var(--header-h) + 0.4rem) 0.2rem 0.4rem;
+      padding: calc(var(--header-h) + 0.4rem) 0.2rem 0.4rem calc(0.2rem + env(safe-area-inset-left));
       border-top: none;
       border-right: 1px solid var(--border);
       box-shadow: none;
