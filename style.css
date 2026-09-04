@@ -1295,23 +1295,6 @@
   }
   .feedback-row-meta { font-size: 0.78rem; color: var(--text-muted); margin-bottom: 0.3rem; }
   .feedback-row-text { font-size: 0.9rem; white-space: pre-wrap; }
-  .landscape-lock-overlay { display: none; }
-  @media (max-width: 900px) and (orientation: landscape) {
-    .landscape-lock-overlay {
-      display: flex;
-      position: fixed;
-      inset: 0;
-      z-index: 999;
-      background: var(--bg);
-      color: var(--text);
-      align-items: center;
-      justify-content: center;
-      text-align: center;
-      padding: 2rem;
-      font-size: 1.15rem;
-      font-weight: 600;
-    }
-  }
   .best-time-row {
     display: flex;
     align-items: baseline;
@@ -2539,3 +2522,44 @@
   .progression-legend { display: flex; flex-wrap: wrap; justify-content: center; gap: 0.4rem 1rem; margin-top: 0.7rem; }
   .progression-legend-item { display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.82rem; color: var(--text-muted); }
   .progression-legend-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
+
+  /* A phone held in landscape has plenty of width but very little height
+     (typically 320-430px) -- the mobile bottom tab bar was eating a
+     meaningful slice of that, so here it becomes a slim icon-only rail
+     down the left instead, the same idea as the desktop sidebar above but
+     narrow enough to still leave the width to the content. Height alone
+     (not width) is what marks "phone in landscape" here: a tablet/desktop
+     in landscape is wide enough (>=960px) to already get the real desktop
+     layout above regardless of height. Placed last in the file so it
+     wins the cascade over every unconditional .bottom-nav/.wrap/
+     .toast-stack rule earlier, all at equal specificity. */
+  @media (orientation: landscape) and (max-width: 959px) and (max-height: 500px) {
+    :root { --landscape-rail-w: 54px; }
+    header.page-head { left: var(--landscape-rail-w); }
+    .page-head-inner { padding: 0.4rem 1rem 0.35rem; }
+    .wrap {
+      margin: 0 0 0 var(--landscape-rail-w);
+      padding: calc(var(--header-h) + 0.6rem) 1rem 1rem;
+    }
+    body.has-bottom-nav .wrap { padding-bottom: 1rem; }
+    .bottom-nav {
+      top: 0;
+      bottom: 0;
+      left: 0;
+      right: auto;
+      width: var(--landscape-rail-w);
+      flex-direction: column;
+      align-items: stretch;
+      justify-content: flex-start;
+      gap: 0.15rem;
+      padding: calc(var(--header-h) + 0.4rem) 0.2rem 0.4rem;
+      border-top: none;
+      border-right: 1px solid var(--border);
+      box-shadow: none;
+      overflow-y: auto;
+    }
+    .bottom-nav-btn { padding: 0.35rem 0.1rem; }
+    .bottom-nav-label { display: none; }
+    .bottom-nav-icon { font-size: 1.15rem; }
+    .toast-stack { bottom: 0.8rem; }
+  }

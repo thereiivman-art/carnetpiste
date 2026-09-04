@@ -11673,14 +11673,6 @@
   function init() {
     renderRoot();
     setInterval(updateLiveClock, 15000);
-    // Best-effort only -- a plain browser tab almost never grants this
-    // (Screen Orientation API's lock() mostly requires fullscreen or an
-    // installed/home-screen PWA), so the real fix on mobile is the CSS
-    // .landscape-lock-overlay in style.css, which always works.
-    if (window.matchMedia && window.matchMedia('(max-width: 900px)').matches
-        && screen.orientation && screen.orientation.lock) {
-      screen.orientation.lock('portrait').catch(function () {});
-    }
     document.addEventListener('pointerdown', onCalendarPointerDown);
     document.addEventListener('pointermove', onCalendarPointerMove);
     document.addEventListener('pointerup', onCalendarPointerUp);

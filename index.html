@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Titillium+Web:wght@400;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=2026090402">
+<link rel="stylesheet" href="style.css?v=2026090403">
 <script>
 // Applied before the stylesheet paints, so a saved Light/Dark choice never
 // flashes the system theme first. "system" (no saved choice) leaves the
@@ -21,14 +21,6 @@
 </script>
 </head>
 <body>
-<!-- A regular (non-PWA) tab can't reliably force portrait via the Screen
-     Orientation API -- most browsers only grant lock() in fullscreen/
-     installed-app mode. This overlay is the actual, always-working fix:
-     covers the screen and blocks interaction whenever a narrow (mobile)
-     viewport is held in landscape, see .landscape-lock-overlay in
-     style.css. init() in app.js also makes a best-effort lock() attempt
-     for whoever does have the app installed to their home screen. -->
-<div class="landscape-lock-overlay">🔄 Tourne ton téléphone en mode portrait pour utiliser Carnet de Piste.</div>
 <div class="wrap"><div id="root"></div></div>
 <div class="toast-stack" id="toast-stack"></div>
 <div class="annot-overlay" id="annot-overlay"></div>
@@ -43,6 +35,6 @@
      browser could keep running yesterday's code after a normal reload,
      only picking up a fix on a hard refresh. Bump this same version on
      both tags together whenever either file changes. -->
-<script src="app.js?v=2026090402"></script>
+<script src="app.js?v=2026090403"></script>
 </body>
 </html>
