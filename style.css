@@ -821,12 +821,12 @@
     font-size: 0.72em;
     vertical-align: middle;
   }
-  .coach-pilote-row {
+  .coach-request-row {
     padding: 0.6rem 0;
     border-bottom: 1px solid var(--border);
   }
-  .coach-pilote-row:last-child { border-bottom: none; }
-  .coach-pilote-row textarea { margin-top: 0.3rem; }
+  .coach-request-row:last-child { border-bottom: none; }
+  .coach-request-row textarea { margin-top: 0.3rem; }
   .coach-message {
     background: var(--surface-alt);
     border-radius: 8px;
@@ -1814,6 +1814,13 @@
     background: var(--accent);
     color: var(--accent-ink);
     font-weight: 700;
+  }
+  .coach-planning-clickable .schedule-slot[data-slot-start] {
+    cursor: pointer;
+    border: 1px solid transparent;
+  }
+  .coach-planning-clickable .schedule-slot[data-slot-start]:hover {
+    border-color: var(--accent);
   }
 
   .calendar-view-switcher {

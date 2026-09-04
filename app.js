@@ -181,16 +181,30 @@
   // baptême piste (ride-along/taster lap) instead, which unlike coaching
   // can target an accompagnant too, not just a pilote (see
   // renderCoachTab's propose form). No separate badge for it -- it's just
-  // another thing an existing Coach can propose.
-  function sendCoachRequest(toName, type) {
+  // another thing an existing Coach can propose. slotInfo (optional):
+  // {eventId, circuit, slotStart, slotEnd, slotLabel} when this was
+  // raised by clicking a specific session in the Coach tab's planning
+  // (see openCoachSlotModal) instead of the general search form.
+  // 'awaiting' always starts on 'to' -- whoever receives a request or
+  // proposal always has to act on it first, see the update rule in
+  // firestore.rules for the back-and-forth this then allows.
+  function sendCoachRequest(toName, type, slotInfo) {
     var me = currentUserProfile;
     if (!me || !toName || toName === me.name) return;
     var already = (STATE.coachRequests || []).some(function (r) {
       return (r.from === me.name && r.to === toName) || (r.from === toName && r.to === me.name);
     });
-    if (already) return;
+    if (already) { showToast('Une demande existe déjà avec ce compte.'); return; }
     var isBapteme = type === 'bapteme';
-    db.collection('coachRequests').add({ from: me.name, to: toName, status: 'pending', plan: '', type: isBapteme ? 'bapteme' : 'coaching', fromUid: myUid(), toUid: uidOf(toName) }).then(function () {
+    var doc = { from: me.name, to: toName, status: 'pending', plan: '', type: isBapteme ? 'bapteme' : 'coaching', awaiting: 'to', fromUid: myUid(), toUid: uidOf(toName) };
+    if (slotInfo) {
+      doc.eventId = slotInfo.eventId || null;
+      doc.circuit = slotInfo.circuit || null;
+      doc.slotStart = slotInfo.slotStart != null ? slotInfo.slotStart : null;
+      doc.slotEnd = slotInfo.slotEnd != null ? slotInfo.slotEnd : null;
+      doc.slotLabel = slotInfo.slotLabel || null;
+    }
+    db.collection('coachRequests').add(doc).then(function () {
       showToast((isBapteme ? 'Proposition de baptême piste envoyée à ' : 'Demande de coaching envoyée à ') + toName + '.', 'success');
     }).catch(function (err) {
       showToast('Erreur : ' + (err && err.message ? err.message : err));
@@ -198,7 +212,7 @@
   }
   function acceptCoachRequest(id) {
     db.collection('coachRequests').doc(id).update({ status: 'accepted' }).then(function () {
-      showToast('Demande de coaching acceptée.', 'success');
+      showToast('Demande acceptée.', 'success');
     }).catch(function (err) {
       showToast('Erreur : ' + (err && err.message ? err.message : err));
     });
@@ -212,6 +226,35 @@
   }
   function saveCoachPlan(id, plan) {
     db.collection('coachRequests').doc(id).update({ plan: plan || '' }).catch(function (err) {
+      showToast('Erreur : ' + (err && err.message ? err.message : err));
+    });
+  }
+  // Counter-propose a different time on a still-pending request/
+  // proposal -- only the side currently being awaited may call this (see
+  // firestore.rules), and it flips 'awaiting' to the other side so
+  // there's only ever one open proposal in flight. rawLabel is free text
+  // (e.g. "10h40") -- parsed into real minutes when it matches the usual
+  // horaire shape (see parseHoraireToken) so the slot still lights up
+  // live like the planning card's own slots do, but any text at all is
+  // accepted (label-only, no live highlighting) since a counter-proposal
+  // isn't necessarily one of this event's own recorded horaires.
+  function proposeCoachSlot(id, rawLabel) {
+    var me = currentUserProfile;
+    var r = (STATE.coachRequests || []).filter(function (x) { return x.id === id; })[0];
+    if (!me || !r) return;
+    var label = (rawLabel || '').trim();
+    if (!label) return;
+    var mySide = r.from === me.name ? 'from' : 'to';
+    var otherSide = mySide === 'from' ? 'to' : 'from';
+    var parsed = parseHoraireToken(label);
+    db.collection('coachRequests').doc(id).update({
+      slotLabel: label,
+      slotStart: parsed ? parsed.start : null,
+      slotEnd: parsed ? parsed.end : null,
+      awaiting: otherSide
+    }).then(function () {
+      showToast('Nouvel horaire proposé.', 'success');
+    }).catch(function (err) {
       showToast('Erreur : ' + (err && err.message ? err.message : err));
     });
   }
@@ -8641,17 +8684,6 @@
     return collapsibleSection('coach-messages-' + requestId, 'Messages', body);
   }
 
-  // A coachRequests doc no longer implies "from = the pilote asking, to =
-  // the coach" -- a coach can now also initiate one directly to any
-  // pilote (see the search field below), which necessarily makes the
-  // coach the "from" (firestore.rules requires the creator to be from).
-  // So which side is the coach is read off the coach badge, never off
-  // from/to order.
-  function coachSideOf(r) {
-    var fromIsCoach = isCoachBadge((STATE.usersByName || {})[r.from]);
-    return { coach: fromIsCoach ? r.from : r.to, pilote: fromIsCoach ? r.to : r.from };
-  }
-
   // Which type a Coach's propose form is currently set to -- pure UI
   // state (not persisted), read by both the form's own render (candidate
   // list/roles differ) and its submit handler.
@@ -8670,69 +8702,182 @@
     var info = circuitInfo(ev.circuit);
     var groupsHtml = info.horaires ? renderHoraireGroups(info.horaires, null, ev, info.briefing, true) : '';
     if (!groupsHtml) return '';
-    var body = '<div class="eyebrow">' + (target.mode === 'ongoing' ? 'En ce moment — ' : 'Prochain événement — ') + escapeHtml(ev.circuit) + '</div>' + groupsHtml;
+    var body = '<div class="eyebrow">' + (target.mode === 'ongoing' ? 'En ce moment — ' : 'Prochain événement — ') + escapeHtml(ev.circuit) + '</div>' +
+      '<div class="coach-planning-clickable" data-event-id="' + ev.id + '" data-circuit="' + escapeHtml(ev.circuit) + '">' + groupsHtml + '</div>';
     return collapsibleCard('coach-planning', 'Planning (horaires par groupe)', body, true);
+  }
+
+  // ---- Demander depuis un créneau du planning (voir renderCoachPlanningSection) ----
+  //
+  // Clicking a schedule-slot span there (delegated click handler, see
+  // attachHandlers) opens this instead of going through the general
+  // search form -- the slot/event/circuit are already known, only "qui"
+  // and "coaching ou baptême" are left to pick.
+  var coachSlotModal = null; // {eventId, circuit, slotStart, slotEnd, slotLabel} or null
+  var coachSlotModalType = 'coaching';
+  function openCoachSlotModal(eventId, circuit, slotStart, slotEnd, slotLabel) {
+    coachSlotModal = {
+      eventId: eventId, circuit: circuit,
+      slotStart: slotStart !== '' ? parseInt(slotStart, 10) : null,
+      slotEnd: slotEnd !== '' ? parseInt(slotEnd, 10) : null,
+      slotLabel: slotLabel
+    };
+    coachSlotModalType = 'coaching';
+    renderRoot();
+  }
+  function closeCoachSlotModal() {
+    coachSlotModal = null;
+    renderRoot();
+  }
+  function renderCoachSlotModal() {
+    if (!coachSlotModal) return '';
+    var me = currentUserProfile;
+    var proposeRoles = coachSlotModalType === 'bapteme' ? ['pilote', 'accompagnant'] : ['pilote'];
+    var linkedNames = (STATE.coachRequests || []).filter(function (r) { return me && (r.from === me.name || r.to === me.name); })
+      .map(function (r) { return r.from === me.name ? r.to : r.from; });
+    var coachCandidates = allKnownUserNames().filter(function (n) {
+      var u = (STATE.usersByName || {})[n] || {};
+      return isCoachBadge(u) && (!me || n !== me.name) && linkedNames.indexOf(n) === -1;
+    });
+    var html = '<div class="crop-modal-overlay"><div class="crop-modal">' +
+      '<h2 class="section-title">Demander pour ' + escapeHtml(coachSlotModal.slotLabel) + '</h2>';
+    if (me && proposeRoles.indexOf(me.role || 'pilote') === -1) {
+      html += '<div class="help-text">Le coaching est réservé aux pilotes -- choisis "Baptême piste" ci-dessous.</div>';
+    }
+    html += '<label for="coach-slot-type" style="margin-top:0.6rem;">Type</label>' +
+      '<select id="coach-slot-type">' +
+      '<option value="coaching"' + (coachSlotModalType === 'coaching' ? ' selected' : '') + '>Coaching</option>' +
+      '<option value="bapteme"' + (coachSlotModalType === 'bapteme' ? ' selected' : '') + '>Baptême piste</option>' +
+      '</select>';
+    if (!coachCandidates.length) {
+      html += '<div class="help-text" style="margin-top:0.6rem;">Aucun Coach disponible pour ce type pour l\'instant.</div>';
+    } else {
+      html += '<form id="coach-slot-request-form" style="margin-top:0.6rem;">' +
+        '<label for="coach-slot-coach">Coach</label>' +
+        '<select id="coach-slot-coach">' + coachCandidates.map(function (n) { return '<option value="' + escapeHtml(n) + '">' + escapeHtml(n) + '</option>'; }).join('') + '</select>' +
+        '<button type="submit" class="primary" style="margin-top:0.7rem;">Envoyer la demande</button></form>';
+    }
+    html += '<button type="button" class="ghost" id="coach-slot-cancel-btn" style="margin-top:0.6rem;">Annuler</button>';
+    return html + '</div></div>';
+  }
+  // Which request currently shows its inline "proposer un autre horaire"
+  // text form instead of the usual Accepter/Proposer/Refuser buttons --
+  // pure UI state, not persisted.
+  var counterProposeRequestId = null;
+  // 'awaiting' defaults to 'to' for a doc that predates this field (the
+  // original accept-only flow always needed the recipient's action) --
+  // matches firestore.rules' own resource.data.get('awaiting', 'to').
+  function coachRequestAwaitingMe(r, me) {
+    return (r.awaiting || 'to') === (r.from === me.name ? 'from' : 'to');
+  }
+  function coachRequestSlotHtml(r) {
+    if (!r.slotLabel) return '';
+    return '<div class="help-text" style="margin-top:0.2rem;">Créneau : ' + escapeHtml(r.slotLabel) + (r.circuit ? ' — ' + escapeHtml(r.circuit) : '') + '</div>';
+  }
+  // A request/proposal that's on me to answer right now -- whichever
+  // side of the doc that makes me, and whether it just arrived or is a
+  // counter-proposal bounced back. Accepter locks in the slot currently
+  // on the doc; Proposer un autre horaire (only offered when there's an
+  // actual slot to negotiate) swaps it out and passes the turn back;
+  // Refuser always just deletes the doc outright, from either side, at
+  // any point -- the one action that never needs it to be "my turn".
+  function renderCoachActionRow(r, otherName) {
+    var u = (STATE.usersByName || {})[otherName] || {};
+    var isBapteme = r.type === 'bapteme';
+    var html = '<div class="coach-request-row"><div class="friend-row-main">' + avatarHtml(u, otherName) + personNameHtml(otherName) + badgesHtml(u) +
+      (isBapteme ? ' <span class="friend-role-badge">Baptême piste</span>' : '') + '</div>' +
+      coachRequestSlotHtml(r);
+    if (counterProposeRequestId === r.id) {
+      html += '<form class="coach-slot-propose-form" data-action="coach-slot-propose-form" data-id="' + r.id + '" style="margin-top:0.5rem; display:flex; gap:0.5rem; flex-wrap:wrap; align-items:center;">' +
+        '<input type="text" placeholder="Ex. 10h40" data-coach-slot-propose-input style="flex:1 1 140px;">' +
+        '<button type="submit" class="primary">Envoyer</button>' +
+        '<button type="button" class="ghost" data-action="coach-slot-propose-cancel">Annuler</button>' +
+        '</form>';
+    } else {
+      html += '<div class="friend-row-actions" style="margin-top:0.5rem;">' +
+        '<button type="button" class="primary" data-action="coach-request-accept" data-id="' + r.id + '">Accepter</button>' +
+        (r.slotLabel ? '<button type="button" class="ghost" data-action="coach-slot-propose-open" data-id="' + r.id + '">Proposer un autre horaire</button>' : '') +
+        '<button type="button" class="ghost" data-action="coach-request-remove" data-id="' + r.id + '">Refuser</button>' +
+        '</div>';
+    }
+    return html + '</div>';
+  }
+  // Pending, but the *other* side has to answer -- nothing to do here
+  // except cancel outright.
+  function renderCoachWaitingRow(r, otherName) {
+    var u = (STATE.usersByName || {})[otherName] || {};
+    var isBapteme = r.type === 'bapteme';
+    return '<div class="coach-request-row"><div class="friend-row-main">' + avatarHtml(u, otherName) + personNameHtml(otherName) + badgesHtml(u) +
+      (isBapteme ? ' <span class="friend-role-badge">Baptême piste</span>' : '') + '</div>' +
+      coachRequestSlotHtml(r) +
+      '<div class="help-text" style="margin-top:0.3rem;">En attente de la réponse de ' + escapeHtml(otherName) + '.</div>' +
+      '<div class="friend-row-actions" style="margin-top:0.4rem;"><button type="button" class="ghost" data-action="coach-request-remove" data-id="' + r.id + '">Annuler</button></div></div>';
+  }
+  // Accepted -- coaching gets the plan/notes field, baptême doesn't (no
+  // ongoing training to track for a single ride-along); both get the
+  // shared message thread.
+  function renderCoachActiveRow(r, otherName) {
+    var u = (STATE.usersByName || {})[otherName] || {};
+    var isBapteme = r.type === 'bapteme';
+    var html = '<div class="coach-request-row"><div class="friend-row-main">' + avatarHtml(u, otherName) + personNameHtml(otherName) + badgesHtml(u) +
+      '<span class="friend-role-badge">' + (isBapteme ? 'Baptême piste' : 'Coaching') + '</span></div>' +
+      coachRequestSlotHtml(r);
+    if (!isBapteme) {
+      html += '<label for="coach-plan-' + r.id + '" style="margin-top:0.5rem;">Planning / notes de coaching</label>' +
+        '<textarea id="coach-plan-' + r.id + '" rows="3" data-coach-plan="' + r.id + '">' + escapeHtml(r.plan || '') + '</textarea>' +
+        '<div style="margin-top:0.5rem;"><button type="button" class="ghost" data-action="coach-plan-save" data-id="' + r.id + '">Enregistrer</button></div>';
+    }
+    html += '<div style="margin-top:0.5rem;"><button type="button" class="ghost danger" data-action="coach-request-remove" data-id="' + r.id + '">' +
+      (isBapteme ? 'Retirer' : 'Arrêter le coaching') + '</button></div>';
+    html += renderCoachMessageThread(r.id);
+    return html + '</div>';
   }
   function renderCoachTab() {
     var me = currentUserProfile;
     if (!me) return '';
     var html = '<div class="section-title" style="font-size:0.95rem;">Coaching &amp; baptêmes piste</div>' +
-      '<div class="help-text" style="margin-bottom:0.8rem;">Un Coach peut proposer un suivi de coaching (pilotes) ou un baptême piste, un tour passager (pilotes et accompagnants).</div>';
+      '<div class="help-text" style="margin-bottom:0.8rem;">Un Coach peut proposer un suivi de coaching (pilotes) ou un baptême piste, un tour passager (pilotes et accompagnants) -- clique un créneau du planning ci-dessous pour lui demander directement dessus.</div>';
     html += renderCoachPlanningSection();
     var iAmCoach = isCoachBadge(me);
     var myRequests = (STATE.coachRequests || []).filter(function (r) { return r.from === me.name || r.to === me.name; });
 
-    // Any pending request where I'm the recipient needs my accept/refuse,
-    // whichever direction created it -- a pilote asking a coach, or (new)
-    // a coach proposing directly to a pilote.
-    var incoming = myRequests.filter(function (r) { return r.status === 'pending' && r.to === me.name; });
-    if (incoming.length) {
-      var incomingBody = incoming.map(function (r) {
-        var u = (STATE.usersByName || {})[r.from] || {};
-        return '<div class="friend-row"><div class="friend-row-main">' + avatarHtml(u, r.from) + personNameHtml(r.from) + badgesHtml(u) +
-          (r.type === 'bapteme' ? ' <span class="friend-role-badge">Baptême piste</span>' : '') + '</div>' +
-          '<div class="friend-row-actions">' +
-          '<button type="button" class="primary" data-action="coach-request-accept" data-id="' + r.id + '">Accepter</button>' +
-          '<button type="button" class="ghost" data-action="coach-request-remove" data-id="' + r.id + '">Refuser</button>' +
-          '</div></div>';
+    var needsAction = myRequests.filter(function (r) { return r.status === 'pending' && coachRequestAwaitingMe(r, me); });
+    if (needsAction.length) {
+      var needsActionBody = needsAction.map(function (r) {
+        return renderCoachActionRow(r, r.from === me.name ? r.to : r.from);
       }).join('');
-      html += collapsibleCard('coach-requests-in', 'Demandes reçues (' + incoming.length + ')', incomingBody, true);
+      html += collapsibleCard('coach-requests-in', 'Demandes à traiter (' + needsAction.length + ')', needsActionBody, true);
+    }
+
+    var waiting = myRequests.filter(function (r) { return r.status === 'pending' && !coachRequestAwaitingMe(r, me); });
+    if (waiting.length) {
+      var waitingBody = waiting.map(function (r) {
+        return renderCoachWaitingRow(r, r.from === me.name ? r.to : r.from);
+      }).join('');
+      html += collapsibleCard('coach-requests-waiting', 'En attente de réponse (' + waiting.length + ')', waitingBody, true);
+    }
+
+    var active = myRequests.filter(function (r) { return r.status === 'accepted'; });
+    if (active.length) {
+      var activeBody = active.map(function (r) {
+        return renderCoachActiveRow(r, r.from === me.name ? r.to : r.from);
+      }).join('');
+      html += collapsibleCard('coach-active', (iAmCoach ? 'Mes pilotes coachés / baptisés' : 'Mon coaching / baptême') + ' (' + active.length + ')', activeBody, true);
     }
 
     if (iAmCoach) {
-      var myPilotes = myRequests.filter(function (r) { return r.status === 'accepted'; });
-      var rosterBody = !myPilotes.length
-        ? '<div class="empty-state">Personne pour l\'instant.</div>'
-        : myPilotes.map(function (r) {
-          var piloteName = coachSideOf(r).pilote;
-          var u = (STATE.usersByName || {})[piloteName] || {};
-          var isBapteme = r.type === 'bapteme';
-          return '<div class="coach-pilote-row">' +
-            '<div class="friend-row-main">' + avatarHtml(u, piloteName) + personNameHtml(piloteName) + badgesHtml(u) +
-            (isBapteme ? ' <span class="friend-role-badge">Baptême piste</span>' : '') + '</div>' +
-            (isBapteme ? '' :
-              '<label for="coach-plan-' + r.id + '" style="margin-top:0.5rem;">Planning / notes de coaching</label>' +
-              '<textarea id="coach-plan-' + r.id + '" rows="3" data-coach-plan="' + r.id + '">' + escapeHtml(r.plan || '') + '</textarea>' +
-              '<div style="margin-top:0.5rem; display:flex; gap:0.6rem;">' +
-              '<button type="button" class="ghost" data-action="coach-plan-save" data-id="' + r.id + '">Enregistrer</button>' +
-              '<button type="button" class="ghost danger" data-action="coach-request-remove" data-id="' + r.id + '">Retirer ce pilote</button>' +
-              '</div>') +
-            (isBapteme ? '<div style="margin-top:0.5rem;"><button type="button" class="ghost danger" data-action="coach-request-remove" data-id="' + r.id + '">Retirer</button></div>' : '') +
-            renderCoachMessageThread(r.id) + '</div>';
-        }).join('');
-      html += collapsibleCard('coach-roster', 'Mes pilotes coachés / baptisés (' + myPilotes.length + ')', rosterBody, true);
-
       // Proposer un coaching (pilotes seulement) ou un baptême piste
       // (pilote OU accompagnant, un baptême étant un tour passager --
       // pas de badge séparé, juste une deuxième chose qu'un Coach peut
-      // proposer) à n'importe quel compte -- pas besoin d'être amis ou de
-      // se suivre, juste un champ de recherche (datalist), moins ceux
-      // déjà liés (demande en cours ou déjà coachés/baptisés).
-      var linkedPilotes = myRequests.map(function (r) { return coachSideOf(r).pilote; });
+      // proposer) à n'importe quel compte, sans passer par un créneau
+      // précis du planning -- pas besoin d'être amis ou de se suivre,
+      // juste un champ de recherche (datalist), moins ceux déjà liés
+      // (demande en cours ou déjà coachés/baptisés).
+      var linkedNames = myRequests.map(function (r) { return r.from === me.name ? r.to : r.from; });
       var proposeRoles = coachProposeType === 'bapteme' ? ['pilote', 'accompagnant'] : ['pilote'];
       var proposeCandidates = allKnownUserNames().filter(function (n) {
         var u = (STATE.usersByName || {})[n] || {};
-        return n !== me.name && proposeRoles.indexOf(u.role || 'pilote') !== -1 && linkedPilotes.indexOf(n) === -1;
+        return n !== me.name && proposeRoles.indexOf(u.role || 'pilote') !== -1 && linkedNames.indexOf(n) === -1;
       });
       var proposeBody = '<label for="coach-propose-type">Type</label>' +
         '<select id="coach-propose-type">' +
@@ -8749,41 +8894,22 @@
           '<datalist id="coach-propose-list">' + proposeCandidates.map(function (n) { return '<option value="' + escapeHtml(n) + '">'; }).join('') + '</datalist>' +
           '<button type="submit" class="primary" style="margin-top:0.7rem;">' + (coachProposeType === 'bapteme' ? 'Proposer le baptême piste' : 'Proposer le coaching') + '</button></form>';
       }
-      html += collapsibleCard('coach-propose', 'Proposer un coaching ou un baptême piste', proposeBody, false);
+      html += collapsibleCard('coach-propose', 'Proposer un coaching ou un baptême piste (sans créneau précis)', proposeBody, false);
     }
 
-    // My own side as a pilote -- an active/pending relationship I'm part
-    // of where I'm not the coach (whether I asked for it, or a coach
-    // proposed it to me and I already accepted it above). A still-pending
-    // one I received sits in "Demandes reçues" above, not duplicated here.
-    var mine = myRequests.filter(function (r) {
-      return coachSideOf(r).pilote === me.name && (r.status === 'accepted' || r.from === me.name);
-    })[0];
-    var mineBody;
-    if (mine) {
-      var coachName = coachSideOf(mine).coach;
-      var coachU = (STATE.usersByName || {})[coachName] || {};
-      var mineIsBapteme = mine.type === 'bapteme';
-      mineBody = '<div class="friend-row"><div class="friend-row-main">' + avatarHtml(coachU, coachName) + personNameHtml(coachName) + badgesHtml(coachU) +
-        '<span class="friend-role-badge">' + (mine.status === 'accepted' ? (mineIsBapteme ? 'Baptême piste' : 'Coach actif') : (mineIsBapteme ? 'Baptême proposé' : 'Demande envoyée')) + '</span></div>' +
-        '<div class="friend-row-actions"><button type="button" class="ghost" data-action="coach-request-remove" data-id="' + mine.id + '">' +
-        (mine.status === 'accepted' ? (mineIsBapteme ? 'Retirer' : 'Arrêter le coaching') : (mine.from === me.name ? 'Annuler la demande' : 'Refuser')) + '</button></div></div>';
-      if (mine.status === 'accepted' && !mineIsBapteme) {
-        mineBody += '<div style="margin-top:0.7rem;"><div class="section-title" style="font-size:0.9rem;">Planning de ' + escapeHtml(coachName) + '</div>' +
-          (mine.plan ? '<p class="help-text" style="white-space:pre-wrap;">' + escapeHtml(mine.plan) + '</p>' : '<div class="help-text">Rien pour l\'instant.</div>') + '</div>';
-        mineBody += renderCoachMessageThread(mine.id);
-      } else if (mine.status === 'accepted' && mineIsBapteme) {
-        mineBody += renderCoachMessageThread(mine.id);
-      }
-    } else {
+    // Self-service: ask any Coach for regular coaching, with no relation
+    // at all yet -- only offered once (a second request would just hit
+    // the "already" guard in sendCoachRequest), and not the baptême
+    // side, which stays Coach-initiated only per the brief.
+    if (!myRequests.length) {
       var coachNames = allKnownUserNames().filter(function (n) { return n !== me.name && isCoachBadge((STATE.usersByName || {})[n]); });
-      mineBody = !coachNames.length
-        ? '<div class="empty-state">Aucun compte Coach pour l\'instant.</div>'
-        : '<form id="coach-request-form"><label for="coach-request-select">Demander à être coaché par</label>' +
+      if (coachNames.length) {
+        var selfRequestBody = '<form id="coach-request-form"><label for="coach-request-select">Demander à être coaché par</label>' +
           '<select id="coach-request-select">' + coachNames.map(function (n) { return '<option value="' + escapeHtml(n) + '">' + escapeHtml(n) + '</option>'; }).join('') + '</select>' +
           '<button type="submit" class="primary" style="margin-top:0.7rem;">Envoyer la demande</button></form>';
+        html += collapsibleCard('coach-self-request', 'Demander un coaching', selfRequestBody, false);
+      }
     }
-    html += collapsibleCard('coach-mine', 'Mon coaching', mineBody, true);
     return html;
   }
 
@@ -9043,7 +9169,8 @@
       renderBottomNav() +
       renderCropModal() +
       renderTutorialOverlay() +
-      renderFeelingModal();
+      renderFeelingModal() +
+      renderCoachSlotModal();
     attachHandlers();
     if (focusedId) {
       var toRefocus = document.getElementById(focusedId);
@@ -10426,6 +10553,58 @@
         if (input) input.value = '';
       });
     });
+    document.querySelectorAll('[data-action="coach-slot-propose-open"]').forEach(function (btn) {
+      btn.addEventListener('click', function () { counterProposeRequestId = btn.getAttribute('data-id'); renderRoot(); });
+    });
+    document.querySelectorAll('[data-action="coach-slot-propose-cancel"]').forEach(function (btn) {
+      btn.addEventListener('click', function () { counterProposeRequestId = null; renderRoot(); });
+    });
+    document.querySelectorAll('[data-action="coach-slot-propose-form"]').forEach(function (form) {
+      form.addEventListener('submit', function (evt) {
+        evt.preventDefault();
+        var input = form.querySelector('[data-coach-slot-propose-input]');
+        if (input && input.value.trim()) proposeCoachSlot(form.getAttribute('data-id'), input.value);
+        counterProposeRequestId = null;
+      });
+    });
+    // Clicking an actual timed slot (not a label-only line -- see
+    // renderHoraireGroups) in the Coach tab's planning card opens the
+    // "who do you want to ask about this session" modal (see
+    // openCoachSlotModal); this is the only place these spans are
+    // interactive -- the same markup on the main Planning tab isn't
+    // wrapped in .coach-planning-clickable, so it stays inert there.
+    document.querySelectorAll('.coach-planning-clickable .schedule-slot[data-slot-start]').forEach(function (el) {
+      el.addEventListener('click', function () {
+        var wrap = el.closest('.coach-planning-clickable');
+        openCoachSlotModal(
+          wrap ? wrap.getAttribute('data-event-id') : null,
+          wrap ? wrap.getAttribute('data-circuit') : null,
+          el.getAttribute('data-slot-start'),
+          el.getAttribute('data-slot-end'),
+          el.textContent.trim()
+        );
+      });
+    });
+    var coachSlotTypeEl = document.getElementById('coach-slot-type');
+    if (coachSlotTypeEl) {
+      coachSlotTypeEl.addEventListener('change', function () {
+        coachSlotModalType = coachSlotTypeEl.value;
+        renderRoot();
+      });
+    }
+    var coachSlotCancelBtn = document.getElementById('coach-slot-cancel-btn');
+    if (coachSlotCancelBtn) coachSlotCancelBtn.addEventListener('click', closeCoachSlotModal);
+    var coachSlotRequestForm = document.getElementById('coach-slot-request-form');
+    if (coachSlotRequestForm) {
+      coachSlotRequestForm.addEventListener('submit', function (evt) {
+        evt.preventDefault();
+        var select = document.getElementById('coach-slot-coach');
+        if (select && select.value && coachSlotModal) {
+          sendCoachRequest(select.value, coachSlotModalType, coachSlotModal);
+        }
+        closeCoachSlotModal();
+      });
+    }
     document.querySelectorAll('[data-action="event-announcement-form"]').forEach(function (form) {
       form.addEventListener('submit', function (evt) {
         evt.preventDefault();

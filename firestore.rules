@@ -284,12 +284,23 @@ service cloud.firestore {
         && request.resource.data.from == myName()
         && request.resource.data.to != myName()
         && request.resource.data.status == 'pending';
+      // 'awaiting' ('from'|'to', defaults to 'to' for a doc predating this
+      // field -- the original accept-only flow always needed the
+      // recipient's action) says whose turn it is: only that side may
+      // accept the currently proposed slot, or counter-propose a
+      // different one (which flips 'awaiting' to the other side, one
+      // open proposal at a time rather than two crossing in flight).
       allow update: if verified() && (
-        (resource.data.to == myName() && (
-          (resource.data.status == 'pending' && request.resource.data.status == 'accepted'
-            && request.resource.data.from == resource.data.from && request.resource.data.to == resource.data.to)
-          || request.resource.data.diff(resource.data).affectedKeys().hasOnly(['plan'])
-        ))
+        (resource.data.status == 'pending'
+          && (resource.data.from == myName() || resource.data.to == myName())
+          && resource.data.get('awaiting', 'to') == (resource.data.from == myName() ? 'from' : 'to')
+          && (
+            (request.resource.data.status == 'accepted'
+              && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']))
+            || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['slotStart', 'slotEnd', 'slotLabel', 'awaiting'])
+                && request.resource.data.awaiting == (resource.data.from == myName() ? 'to' : 'from'))
+          ))
+        || (resource.data.to == myName() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['plan']))
         || canRenameField(resource, 'from', 'fromUid') || canBackfillUid(resource, 'from', 'fromUid')
         || canRenameField(resource, 'to', 'toUid') || canBackfillUid(resource, 'to', 'toUid')
       );
