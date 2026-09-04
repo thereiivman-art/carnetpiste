@@ -1,83 +1,4 @@
-  /* "Piste" is the default palette -- warm parchment/asphalt tones (a
-     paper carnet, a race track) instead of the cool blue-grey neutral
-     that came before, which read as generic dashboard rather than
-     "moto piste". The old palette survives as an opt-in alternative
-     (see [data-palette="classic"] further down and renderThemeToggle's
-     "Palette classique" checkbox) -- nobody loses what they already had.
-  */
   :root {
-    --bg: #f2e9d8;
-    --surface: #fffbf3;
-    --surface-alt: #ece0c8;
-    --border: #d9c7a1;
-    --text: #2b2318;
-    --text-muted: #7c6f57;
-    --accent: #d9691b;
-    --accent-strong: #b8540f;
-    --accent-ink: #fffbf3;
-    --best: #2f7d4f;
-    --best-bg: #e2efdf;
-    --danger: #b23a2e;
-    --danger-bg: #f7e5df;
-    --series-2: #2f6fed;
-    --series-3: #8b3fd9;
-    --series-4: #0e8f8f;
-    --shadow: 0 1px 2px rgba(43,35,24,0.08), 0 6px 16px rgba(43,35,24,0.07);
-    --radius: 10px;
-    --font-display: 'Titillium Web', 'Segoe UI', sans-serif;
-    --font-body: 'IBM Plex Sans', 'Segoe UI', sans-serif;
-    --font-mono: 'IBM Plex Mono', 'SFMono-Regular', Consolas, monospace;
-    /* --header-h is a fallback for the first paint only -- app.js measures
-       the real header and overwrites this via updateFixedHeaderOffset()
-       on every render, since the header's height isn't constant (it wraps
-       differently per view, and the status banner adds a row). */
-    --header-h: 64px;
-    --bottom-nav-h: 60px;
-  }
-  @media (prefers-color-scheme: dark) {
-    :root:not([data-theme="light"]):not([data-palette="classic"]) {
-      --bg: #191410;
-      --surface: #241d16;
-      --surface-alt: #2d2419;
-      --border: #453a29;
-      --text: #f3e9d8;
-      --text-muted: #b6a688;
-      --accent: #ef8b3a;
-      --accent-strong: #ffa456;
-      --accent-ink: #1c1712;
-      --best: #4bcf8e;
-      --best-bg: rgba(75,207,142,0.14);
-      --danger: #ef7a6a;
-      --danger-bg: rgba(239,122,106,0.14);
-      --series-2: #6ea8ff;
-      --series-3: #c49bf5;
-      --series-4: #35d0d0;
-      --shadow: 0 1px 2px rgba(0,0,0,0.4), 0 8px 20px rgba(0,0,0,0.35);
-    }
-  }
-  :root[data-theme="dark"]:not([data-palette="classic"]) {
-    --bg: #191410;
-    --surface: #241d16;
-    --surface-alt: #2d2419;
-    --border: #453a29;
-    --text: #f3e9d8;
-    --text-muted: #b6a688;
-    --accent: #ef8b3a;
-    --accent-strong: #ffa456;
-    --accent-ink: #1c1712;
-    --best: #4bcf8e;
-    --best-bg: rgba(75,207,142,0.14);
-    --danger: #ef7a6a;
-    --danger-bg: rgba(239,122,106,0.14);
-    --series-2: #6ea8ff;
-    --series-3: #c49bf5;
-    --series-4: #35d0d0;
-    --shadow: 0 1px 2px rgba(0,0,0,0.4), 0 8px 20px rgba(0,0,0,0.35);
-  }
-
-  /* Palette classique -- l'ancien bleu-gris neutre, gardé disponible en
-     option (Réglages) pour qui préférait ce rendu plus sobre. */
-  :root[data-palette="classic"] {
     --bg: #eef1f4;
     --surface: #ffffff;
     --surface-alt: #e4e9ee;
@@ -91,10 +12,23 @@
     --best-bg: #e3f5ec;
     --danger: #c23b3b;
     --danger-bg: #fbe9e8;
+    --series-2: #2f6fed;
+    --series-3: #8b3fd9;
+    --series-4: #0e8f8f;
     --shadow: 0 1px 2px rgba(22,33,44,0.07), 0 6px 16px rgba(22,33,44,0.06);
+    --radius: 10px;
+    --font-display: 'Titillium Web', 'Segoe UI', sans-serif;
+    --font-body: 'IBM Plex Sans', 'Segoe UI', sans-serif;
+    --font-mono: 'IBM Plex Mono', 'SFMono-Regular', Consolas, monospace;
+    /* --header-h is a fallback for the first paint only -- app.js measures
+       the real header and overwrites this via updateFixedHeaderOffset()
+       on every render, since the header's height isn't constant (it wraps
+       differently per view, and the status banner adds a row). */
+    --header-h: 64px;
+    --bottom-nav-h: 60px;
   }
   @media (prefers-color-scheme: dark) {
-    :root[data-palette="classic"]:not([data-theme="light"]) {
+    :root:not([data-theme="light"]) {
       --bg: #10151b;
       --surface: #1a2129;
       --surface-alt: #212a33;
@@ -114,7 +48,7 @@
       --shadow: 0 1px 2px rgba(0,0,0,0.4), 0 8px 20px rgba(0,0,0,0.35);
     }
   }
-  :root[data-palette="classic"][data-theme="dark"] {
+  :root[data-theme="dark"] {
     --bg: #10151b;
     --surface: #1a2129;
     --surface-alt: #212a33;
@@ -1692,7 +1626,7 @@
      panel rather than just another card with a tinted edge. */
   .today-schedule-card {
     border: 3px solid var(--accent);
-    background: linear-gradient(165deg, color-mix(in srgb, var(--accent) 10%, var(--surface)), var(--surface) 55%);
+    background: color-mix(in srgb, var(--accent) 8%, var(--surface));
     margin-bottom: 1rem;
   }
   .today-schedule-head {

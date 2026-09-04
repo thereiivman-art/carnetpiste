@@ -9,15 +9,13 @@
 <link href="https://fonts.googleapis.com/css2?family=Titillium+Web:wght@400;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
 <script>
-// Applied before the stylesheet paints, so a saved Light/Dark choice (or
-// the classic palette opt-out) never flashes the default first.
-// "system"/"piste" (no saved choice) leave the attribute unset, letting
-// the CSS decide as before.
+// Applied before the stylesheet paints, so a saved Light/Dark choice never
+// flashes the system theme first. "system" (no saved choice) leaves the
+// attribute unset, letting the CSS media query decide as before.
 (function () {
   try {
     var t = localStorage.getItem('carnet-de-piste-theme');
     if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t;
-    if (localStorage.getItem('carnet-de-piste-palette') === 'classic') document.documentElement.dataset.palette = 'classic';
   } catch (e) {}
 })();
 </script>

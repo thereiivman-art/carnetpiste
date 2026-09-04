@@ -7240,23 +7240,12 @@
   // prefers-color-scheme media query keeps deciding, matching the
   // pre-toggle behavior exactly.
   var THEME_KEY = 'carnet-de-piste-theme';
-  // "piste" (default, no localStorage entry) is the warm parchment/
-  // asphalt palette -- "classic" opts back into the original cool
-  // blue-grey neutral for whoever preferred it (see style.css'
-  // [data-palette="classic"] blocks). Independent of light/dark/system.
-  var PALETTE_KEY = 'carnet-de-piste-palette';
 
   function getThemePref() {
     try {
       var t = localStorage.getItem(THEME_KEY);
       return (t === 'light' || t === 'dark') ? t : 'system';
     } catch (e) { return 'system'; }
-  }
-
-  function getPalettePref() {
-    try {
-      return localStorage.getItem(PALETTE_KEY) === 'classic' ? 'classic' : 'piste';
-    } catch (e) { return 'piste'; }
   }
 
   function applyTheme(pref) {
@@ -7267,29 +7256,14 @@
     }
   }
 
-  function applyPalette(pref) {
-    if (pref === 'classic') {
-      document.documentElement.dataset.palette = 'classic';
-    } else {
-      delete document.documentElement.dataset.palette;
-    }
-  }
-
   function setThemePref(pref) {
     try { localStorage.setItem(THEME_KEY, pref); } catch (e) {}
     applyTheme(pref);
     renderRoot();
   }
 
-  function setPalettePref(pref) {
-    try { localStorage.setItem(PALETTE_KEY, pref); } catch (e) {}
-    applyPalette(pref);
-    renderRoot();
-  }
-
   function renderThemeToggle() {
     var pref = getThemePref();
-    var palettePref = getPalettePref();
     function btn(value, label, icon) {
       return '<button type="button" class="theme-toggle-btn' + (pref === value ? ' active' : '') + '" data-theme-choice="' + value + '" aria-label="Thème ' + label + '" title="Thème ' + label + '">' + icon + '</button>';
     }
@@ -7297,8 +7271,7 @@
       btn('light', 'clair', '☀️') +
       btn('dark', 'sombre', '🌙') +
       btn('system', 'système', '🖥️') +
-      '</div>' +
-      '<label class="checklist-item" style="margin-top:0.6rem;"><input type="checkbox" id="palette-classic-toggle"' + (palettePref === 'classic' ? ' checked' : '') + '> Palette classique (bleu-gris, au lieu du parchemin/asphalte par défaut)</label>';
+      '</div>';
   }
 
   // A render bug used to mean a silent blank page -- an exception thrown
@@ -10235,12 +10208,6 @@
         setThemePref(btn.getAttribute('data-theme-choice'));
       });
     });
-    var paletteToggle = document.getElementById('palette-classic-toggle');
-    if (paletteToggle) {
-      paletteToggle.addEventListener('change', function () {
-        setPalettePref(paletteToggle.checked ? 'classic' : 'piste');
-      });
-    }
     var form = document.getElementById('session-form');
     if (form) form.addEventListener('submit', onSubmit);
     var fDateEl = document.getElementById('f-date');
