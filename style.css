@@ -2569,4 +2569,32 @@
     .bottom-nav-label { display: none; }
     .bottom-nav-icon { font-size: 1.15rem; }
     .toast-stack { bottom: 0.8rem; }
+
+    /* Cards were sized/spaced for a tall portrait phone -- in landscape
+       the viewport is barely 350-400px tall, so the same paddings ate a
+       disproportionate share of it. Tightened across the board rather
+       than tab by tab. */
+    .card { padding: 0.8rem 0.9rem 0.9rem; }
+    .section-title { margin-bottom: 0.5rem; }
+
+    /* The circuit plan (see .circuit-visual-btn) is a perfect square
+       sized off its container's *width* -- on a tall portrait phone
+       that's a modest ~340px square, but .circuit-info-map-full forces
+       that frame to the card's full width, which in landscape is nearly
+       the whole screen. The square followed suit and blew straight past
+       the bottom of the viewport. Driven by height instead here, so it
+       shrinks to whatever room is actually left and stays fully visible,
+       centered rather than stretched edge to edge. */
+    .circuit-info-card { margin-bottom: 0.8rem; }
+    .circuit-info-map-full { margin: 0.4rem 0 0.6rem; }
+    .circuit-info-map-full .circuit-visual-frame {
+      width: 100%;
+      display: flex;
+      justify-content: center;
+    }
+    .circuit-info-map-full .circuit-visual-btn {
+      width: auto;
+      height: min(58vh, 260px);
+      max-width: 100%;
+    }
   }
