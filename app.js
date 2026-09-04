@@ -227,14 +227,12 @@
       showToast('Erreur : ' + (err && err.message ? err.message : err));
     });
   }
-  // Gates the header's 🎓 icon (see renderRootUnsafe) -- shown to an
-  // actual Coach (so they can reach their roster) and to anyone with a
-  // coaching request in flight either direction (so a pilote can watch
-  // their own request's status/plan even before it's accepted).
+  // Gates the header's 🎓 icon (see renderRootUnsafe) -- open to any
+  // signed-in account, not just an actual Coach or someone already in a
+  // coaching/baptême relationship, so a pilote/accompagnant can see the
+  // event's planning and ask for coaching without needing one first.
   function canAccessCoachSpace() {
-    if (!currentUserProfile) return false;
-    if (isCoachBadge(currentUserProfile)) return true;
-    return (STATE.coachRequests || []).length > 0;
+    return !!currentUserProfile;
   }
 
   // ---- Teams ----
@@ -281,8 +279,16 @@
   // PRO's own Team Leader. Every '<span class="friend-name-plain">' +
   // escapeHtml(personName) + '</span>' showing an actual person's name
   // (not a Team's) should go through this instead.
+  // Orange takes priority over blue when someone happens to be both (a
+  // Team PRO Team Leader who's also a Coach) -- one color per name keeps
+  // this readable at a glance, two would just be noise.
+  function nameColorClass(name) {
+    if (isProTeamLeaderName(name)) return ' pro-leader-name';
+    if (isCoachBadge((STATE.usersByName || {})[name])) return ' coach-name';
+    return '';
+  }
   function personNameHtml(name) {
-    return '<span class="friend-name-plain' + (isProTeamLeaderName(name) ? ' pro-leader-name' : '') + '">' + escapeHtml(name) + '</span>';
+    return '<span class="friend-name-plain' + nameColorClass(name) + '">' + escapeHtml(name) + '</span>';
   }
 
   // Every pilote (a real rider, per allKnownRiders()) in a team this
@@ -2427,7 +2433,7 @@
         var isPilote = !a.role || a.role === 'pilote';
         var detail = isPilote ? escapeHtml(a.bike || '—') : escapeHtml((a.followedRiders || []).join(', ') || '—');
         return '<li class="rider-manager-row account-manager-row">' +
-          '<div><span class="rider-manager-name' + (isProTeamLeaderName(a.name) ? ' pro-leader-name' : '') + '">' + escapeHtml(a.name || a.email) + '</span>' + badgesHtml(a) + ' <span class="friend-role-badge">' + roleLabel(a.role) + '</span>' +
+          '<div><span class="rider-manager-name' + nameColorClass(a.name) + '">' + escapeHtml(a.name || a.email) + '</span>' + badgesHtml(a) + ' <span class="friend-role-badge">' + roleLabel(a.role) + '</span>' +
           '<div class="help-text">' + escapeHtml(a.email || '') + ' · ' + (isPilote ? 'moto : ' : 'suit : ') + detail + '</div></div>' +
           (isPilote ? '' : '<button type="button" class="ghost icon-btn" data-action="demote-account" data-uid="' + a.uid + '" aria-label="Repasser en pilote" title="Repasser en pilote">↺</button>') +
           PROFILE_BADGES.map(function (b) {
@@ -3797,7 +3803,8 @@
   // name (see normalizeSelection), so a click here would have nowhere to
   // go; checking on a teammate goes through Social (fiche d'ami) instead.
   function renderRiderLink(name) {
-    return isProTeamLeaderName(name) ? '<span class="pro-leader-name">' + escapeHtml(name) + '</span>' : escapeHtml(name);
+    var cls = nameColorClass(name);
+    return cls ? '<span class="' + cls.trim() + '">' + escapeHtml(name) + '</span>' : escapeHtml(name);
   }
 
   // Turns any name into the same clickable "open fiche" link Social's Mes
@@ -3806,7 +3813,7 @@
   // shared chronos, chronos vérifiés, trophées...) is one click away, not
   // just from Social.
   function nameLinkHtml(name) {
-    return '<button type="button" class="friend-name-link' + (isProTeamLeaderName(name) ? ' pro-leader-name' : '') + '" data-action="toggle-friend-fiche" data-name="' + escapeHtml(name) + '">' + escapeHtml(name) + '</button>';
+    return '<button type="button" class="friend-name-link' + nameColorClass(name) + '" data-action="toggle-friend-fiche" data-name="' + escapeHtml(name) + '">' + escapeHtml(name) + '</button>';
   }
   function maybeFicheHtml(name) {
     return expandedFriend === name ? renderFriendFiche(name) : '';

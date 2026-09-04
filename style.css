@@ -878,6 +878,9 @@
      clickable name button, the admin's account list...), hence
      !important rather than fighting each one's own specificity. */
   .pro-leader-name { color: var(--accent) !important; font-weight: 700; }
+  /* Same blue as .team-pro-badge's coche, reused here so "blue = an
+     official trust marker" reads consistently across the app. */
+  .coach-name { color: #1d7fd6 !important; font-weight: 700; }
   .friend-fiche {
     margin: 0.4rem 0 0.8rem;
     padding: 0.7rem 0.8rem;
