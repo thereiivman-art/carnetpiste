@@ -115,7 +115,8 @@ service cloud.firestore {
         && request.resource.data.get('personality', false) == false
         && request.resource.data.get('pro', false) == false
         && request.resource.data.get('organizer', false) == false
-        && request.resource.data.get('coach', false) == false;
+        && request.resource.data.get('coach', false) == false
+        && request.resource.data.get('photographer', false) == false;
       // A pseudo change is capped to once every 30 days server-side (not
       // just a client-side warning) -- lastNameChangeAt is stamped with
       // request.time on every actual rename (see saveProfile), never
@@ -129,8 +130,22 @@ service cloud.firestore {
           && request.resource.data.get('pro', false) == resource.data.get('pro', false)
           && request.resource.data.get('organizer', false) == resource.data.get('organizer', false)
           && request.resource.data.get('coach', false) == resource.data.get('coach', false)
+          && request.resource.data.get('photographer', false) == resource.data.get('photographer', false)
           && (request.resource.data.name == resource.data.name
               || request.time > resource.data.get('lastNameChangeAt', timestamp.date(1970, 1, 1)) + duration.value(30, 'd')))
+        // Coach/Photographe officiel peuvent aussi être attribués/retirés
+        // par le Team Leader d'un Team PRO, à n'importe quel compte --
+        // pas seulement l'admin. <field>TeamId nomme le Team PRO qui
+        // vouche pour ce badge, vérifié ici même (isTeamLeader + teamPro),
+        // pas un champ qu'on peut mentir dessus.
+        || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['coach', 'coachTeamId'])
+            && request.resource.data.get('coachTeamId', null) != null
+            && isTeamLeader(request.resource.data.coachTeamId)
+            && get(/databases/$(database)/documents/teams/$(request.resource.data.coachTeamId)).data.get('teamPro', false) == true)
+        || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['photographer', 'photographerTeamId'])
+            && request.resource.data.get('photographerTeamId', null) != null
+            && isTeamLeader(request.resource.data.photographerTeamId)
+            && get(/databases/$(database)/documents/teams/$(request.resource.data.photographerTeamId)).data.get('teamPro', false) == true)
       );
       allow delete: if request.auth != null && (request.auth.uid == userId || isAdmin());
     }
@@ -367,8 +382,14 @@ service cloud.firestore {
       // integrity guarantee as certified/personality/pro on users/{}: a
       // leader can change every other field (name, visibility,
       // postPolicy...) but never this one themselves.
+      // Créer directement en Team PRO est réservé au rôle de profil
+      // Organisateur (voir "Je suis" dans Mon profil) -- tout le monde
+      // continue de pouvoir créer un Team amateur, seul un Organisateur
+      // voit la case Team PRO à la création (voir renderCreateTeamCard).
+      // Un Pilote/Accompagnant passe toujours par l'admin après coup.
       allow create: if verified() && request.resource.data.createdBy == myName()
-        && request.resource.data.get('teamPro', false) == false;
+        && (request.resource.data.get('teamPro', false) == false
+            || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('role', 'pilote') == 'organisateur');
       // memberCount is a display-only counter (member tiles/discovery, see
       // renderTeamTile) nudged by whoever's own join/leave changed it --
       // not a security-sensitive field, so any verified account may bump

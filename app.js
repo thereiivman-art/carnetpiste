@@ -274,13 +274,17 @@
     return choices;
   }
 
-  function createTeam(name) {
+  function createTeam(name, teamPro) {
     var me = currentUserProfile;
     name = (name || '').trim();
     if (!me || !name) return;
     var teamId = genId();
     var uid = auth.currentUser && auth.currentUser.uid;
-    db.collection('teams').doc(teamId).set({ id: teamId, name: name, createdBy: me.name, createdAt: Date.now(), memberCount: 1 }).then(function () {
+    var doc = { id: teamId, name: name, createdBy: me.name, createdAt: Date.now(), memberCount: 1 };
+    // Only actually takes effect for an Organisateur (see firestore.rules'
+    // teams create rule) -- the checkbox itself is hidden for anyone else.
+    if (teamPro && me.role === 'organisateur') doc.teamPro = true;
+    db.collection('teams').doc(teamId).set(doc).then(function () {
       return db.collection('teamMembers').doc(teamMemberDocId(teamId, me.name)).set({ teamId: teamId, name: me.name, role: 'leader', joinedAt: Date.now(), uid: uid });
     }).then(function () {
       showToast('Team "' + name + '" créée.', 'success');
@@ -7318,6 +7322,14 @@
   function isCoachBadge(u) {
     return !!(u && u.coach);
   }
+  // Same trust-badge shape as Coach, but granted by a Team PRO's Team
+  // Leader rather than the admin (see renderTeamProBadgeGrantSection) --
+  // an official photographer covering the Team's events. coachTeamId/
+  // photographerTeamId (set alongside) name which Team PRO vouches for
+  // it, checked server-side by firestore.rules on every grant/revoke.
+  function isPhotographerBadge(u) {
+    return !!(u && u.photographer);
+  }
 
   // Every badge a profile can carry -- one place to add a future one
   // (field, icon, label, and the CSS class it renders with), read by both
@@ -7331,7 +7343,8 @@
     { field: 'personality', icon: '★', label: 'Personnalité', desc: 'Personnalité — pilote mis en avant par l\'administrateur.', cssClass: 'personality-badge', check: isPersonality },
     { field: 'pro', icon: '🏅', label: 'Pilote PRO', desc: 'Pilote PRO — statut de pilote professionnel.', cssClass: 'pro-badge', check: isPro },
     { field: 'organizer', icon: '👤', label: 'Organisateur vérifié', desc: 'Organisateur vérifié par l\'administrateur.', cssClass: 'organizer-badge', check: isOrganizerBadge },
-    { field: 'coach', icon: '🎓', label: 'Coach', desc: 'Coach — reconnu par l\'administrateur pour donner du coaching.', cssClass: 'coach-badge', check: isCoachBadge }
+    { field: 'coach', icon: '🎓', label: 'Coach', desc: 'Coach — reconnu par l\'administrateur ou le Team Leader d\'un Team PRO pour donner du coaching.', cssClass: 'coach-badge', check: isCoachBadge },
+    { field: 'photographer', icon: '📷', label: 'Photographe officiel', desc: 'Photographe officiel — reconnu par l\'administrateur ou le Team Leader d\'un Team PRO.', cssClass: 'photographer-badge', check: isPhotographerBadge }
   ];
 
   // Badges are icon-only, so their meaning normally only shows on hover
@@ -8013,6 +8026,25 @@
     return html;
   }
 
+  // A Team PRO's own Team Leader can attribute Coach/Photographe officiel
+  // to any account in the app (not just this Team's own members -- a
+  // photographer covering the event may never follow/join the Team) --
+  // the admin keeps the same power independently (see the users update
+  // rule), this just delegates it too, scoped to this one Team PRO's
+  // vouching (coachTeamId/photographerTeamId, verified server-side).
+  function renderTeamProBadgeGrantSection(team) {
+    var names = allKnownUserNames();
+    var options = names.map(function (n) { return '<option value="' + escapeHtml(n) + '">' + escapeHtml(n) + '</option>'; }).join('');
+    var body = '<div class="help-text">En tant que Team Leader d\'un Team PRO, attribue ou retire ces badges à n\'importe quel compte (pas seulement les membres du Team).</div>' +
+      '<input type="text" list="team-pro-badge-names-' + team.id + '" placeholder="Rechercher un pilote, accompagnant, organisateur..." data-team-pro-badge-name style="margin-top:0.5rem;">' +
+      '<datalist id="team-pro-badge-names-' + team.id + '">' + options + '</datalist>' +
+      '<div style="display:flex; gap:0.6rem; margin-top:0.6rem; flex-wrap:wrap;">' +
+      '<button type="button" class="ghost" data-action="team-pro-badge-toggle" data-team="' + team.id + '" data-field="coach">🎓 Coach : attribuer/retirer</button>' +
+      '<button type="button" class="ghost" data-action="team-pro-badge-toggle" data-team="' + team.id + '" data-field="photographer">📷 Photographe : attribuer/retirer</button>' +
+      '</div>';
+    return collapsibleSection('team-pro-badges-' + team.id, 'Attribuer Coach / Photographe officiel', body);
+  }
+
   // A Team Leader's own "Gestion des événements" -- create/modify a
   // sortie owned by this Team and manage its roster (participants +
   // pending "demander à participer" requests) without leaving the Team's
@@ -8253,6 +8285,7 @@
     // this screen, not something to scroll past Fil d'actualité/Membres
     // to reach.
     if (isLeader) html += renderTeamEventsManagement(team);
+    if (isLeader && team.teamPro) html += renderTeamProBadgeGrantSection(team);
 
     var feedBody = !feed.length
       ? '<div class="empty-state">Rien pour l\'instant.</div>'
@@ -8366,14 +8399,24 @@
   }
 
   function renderCreateTeamCard() {
-    return '<div class="card"><h2 class="section-title">Créer un Team</h2>' +
-      '<div class="help-text">Un Team créé ici est un <strong>Team amateur</strong> (entre amis) -- ouvert tout de suite, tu en es le premier Team Leader. Un <strong>Team PRO</strong> (badge 🏆, club validé) ne se crée pas directement : ' +
-      'contacte l\'administrateur une fois ton Team amateur créé pour le faire valider et passer PRO.</div>' +
-      '<form id="create-team-form" style="margin-top:0.7rem;">' +
+    var me = currentUserProfile;
+    var isOrganisateur = !!(me && me.role === 'organisateur');
+    var html = '<div class="card"><h2 class="section-title">Créer un Team</h2>' +
+      '<div class="help-text">Un Team créé ici est un <strong>Team amateur</strong> (entre amis) -- ouvert tout de suite, tu en es le premier Team Leader.';
+    if (isOrganisateur) {
+      html += ' En tant qu\'Organisateur, tu peux directement le créer en <strong>Team PRO</strong> (badge 🏆, club validé) ci-dessous.</div>';
+    } else {
+      html += ' Un <strong>Team PRO</strong> (badge 🏆, club validé) ne se crée pas directement : contacte l\'administrateur une fois ton Team amateur créé pour le faire valider et passer PRO, ou passe ton profil en Organisateur pour pouvoir le créer directement PRO.</div>';
+    }
+    html += '<form id="create-team-form" style="margin-top:0.7rem;">' +
       '<label for="new-team-name">Nom du team</label>' +
-      '<input type="text" id="new-team-name" placeholder="Ex. Mototeam95" required>' +
-      '<button type="submit" class="primary" style="margin-top:0.7rem;">Créer</button>' +
+      '<input type="text" id="new-team-name" placeholder="Ex. Mototeam95" required>';
+    if (isOrganisateur) {
+      html += '<label class="checklist-item" style="margin-top:0.6rem;"><input type="checkbox" id="new-team-pro"> Créer directement comme Team PRO 🏆</label>';
+    }
+    html += '<button type="submit" class="primary" style="margin-top:0.7rem;">Créer</button>' +
       '</form></div>';
+    return html;
   }
 
   // ---- Coach ----
@@ -9577,12 +9620,35 @@
     document.querySelectorAll('[data-action="unfollow-team"]').forEach(function (btn) {
       btn.addEventListener('click', function () { unfollowTeam(btn.getAttribute('data-team')); });
     });
+    document.querySelectorAll('[data-action="team-pro-badge-toggle"]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var teamId = btn.getAttribute('data-team');
+        var field = btn.getAttribute('data-field');
+        var scope = btn.closest('.planning-section-body') || document;
+        var input = scope.querySelector('[data-team-pro-badge-name]');
+        var name = input ? input.value.trim() : '';
+        if (!name) { showToast('Indique un compte.'); return; }
+        var target = (STATE.usersByName || {})[name];
+        if (!target || !target.uid) { showToast('Compte introuvable : "' + name + '".'); return; }
+        var next = !target[field];
+        var writes = {};
+        writes[field] = next;
+        writes[field + 'TeamId'] = next ? teamId : null;
+        db.collection('users').doc(target.uid).set(writes, { merge: true }).then(function () {
+          showToast((next ? (name + ' est maintenant ') : (name + ' n\'est plus ')) + (field === 'coach' ? 'Coach' : 'Photographe officiel') + '.', 'success');
+          if (input) input.value = '';
+        }).catch(function (err) {
+          showToast('Erreur : ' + (err && err.message ? err.message : err));
+        });
+      });
+    });
     var createTeamForm = document.getElementById('create-team-form');
     if (createTeamForm) {
       createTeamForm.addEventListener('submit', function (evt) {
         evt.preventDefault();
         var input = document.getElementById('new-team-name');
-        createTeam(input.value);
+        var proEl = document.getElementById('new-team-pro');
+        createTeam(input.value, proEl ? proEl.checked : false);
         input.value = '';
       });
     }

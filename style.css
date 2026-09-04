@@ -717,7 +717,7 @@
      see data-badge-info/attachHandlers, which pops the same text as a
      toast on click/tap. */
   .certified-badge, .personality-badge, .pro-badge, .organizer-badge,
-  .coach-badge, .team-pro-badge, .verified-pill { cursor: pointer; }
+  .coach-badge, .photographer-badge, .team-pro-badge, .verified-pill { cursor: pointer; }
   .certified-badge {
     display: inline-flex;
     align-items: center;
@@ -775,6 +775,18 @@
     height: 1.1em;
     border-radius: 4px;
     background: #1c8f5a;
+    color: #fff;
+    font-size: 0.72em;
+    vertical-align: middle;
+  }
+  .photographer-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.4em;
+    height: 1.1em;
+    border-radius: 4px;
+    background: #b8420f;
     color: #fff;
     font-size: 0.72em;
     vertical-align: middle;
