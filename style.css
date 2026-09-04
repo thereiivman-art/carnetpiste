@@ -1506,6 +1506,10 @@
      breakpoint every rule above still applies unchanged. */
   :root { --sidebar-w: 220px; }
   @media (min-width: 960px) {
+    /* 5.5rem reads fine on a phone-width card but looks like a thin
+       strip once the card itself is desktop-wide -- 2.2x taller keeps
+       the same look, scaled to the room available. */
+    .team-logo-img { height: 12.1rem; max-height: 12.1rem; }
     .wrap {
       /* Fluid, not a fixed 1100px -- on a genuinely wide monitor a flat
          cap left a dead strip of empty page down the right side (worse
