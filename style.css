@@ -403,6 +403,15 @@
     display: none;
   }
   .field-error.visible { display: block; }
+  /* Softer than .field-error -- a nudge to double-check, not a blocking
+     validation failure (the form still submits fine either way). */
+  .field-warning {
+    font-size: 0.8rem;
+    color: var(--accent);
+    margin-top: 0.35rem;
+    display: none;
+  }
+  .field-warning.visible { display: block; }
 
   button {
     font-family: var(--font-body);

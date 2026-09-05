@@ -4224,8 +4224,31 @@
         '<input type="text" id="ci-horaires-' + g.key + '" placeholder="Ex. 9h, 10h40, 14h, 15h20, 16h40" value="' + escapeHtml(horairesVal[g.key] || '') + '"></div>';
     });
     html += '</div></div>';
+    // Same free upload as everywhere else in the app (photo/logo/horaires
+    // photo) -- no in-app path existed at all before to set info.mapImage,
+    // it could only ever be seeded by hand -- so "Aucun plan importé pour
+    // ce circuit" (renderCircuitVisual) had no way to actually get fixed
+    // from here.
+    html += '<div style="margin-top:0.9rem;"><label>Plan du circuit</label>' +
+      '<div style="display:flex; gap:0.5rem; margin-top:0.3rem; flex-wrap:wrap;">' +
+      '<button type="button" class="ghost" id="circuit-map-upload-btn">' + (info.mapImage ? 'Remplacer le plan' : 'Importer un plan') + '</button>' +
+      (info.mapImage ? '<button type="button" class="ghost" id="circuit-map-remove-btn">Retirer</button>' : '') +
+      '</div>' +
+      '<input type="file" id="circuit-map-input" accept="image/*" style="display:none;">' +
+      (circuitMapMessage ? '<div class="help-text" style="margin-top:0.4rem;">' + escapeHtml(circuitMapMessage) + '</div>' : '') +
+      '</div>';
     html += '<div class="info-edit-actions"><button type="button" class="primary" id="save-circuit-info-btn">Enregistrer</button><button type="button" class="ghost" id="cancel-circuit-info-btn">Annuler</button></div>';
     return html;
+  }
+  var circuitMapMessage = '';
+  function saveCircuitMapImage(circuitName, dataUrl) {
+    var prevState = JSON.parse(JSON.stringify(STATE));
+    STATE.circuits = STATE.circuits || {};
+    var entry = STATE.circuits[circuitName] || {};
+    entry.mapImage = dataUrl || null;
+    STATE.circuits[circuitName] = entry;
+    renderRoot();
+    persist(prevState);
   }
 
   // eventId (optional): when the visual is shown from a sortie's own card
@@ -5748,7 +5771,7 @@
         ? '<button type="button" class="primary" data-action="event-join-ouvert" data-id="' + ev.id + '">Rejoindre</button>'
         : (myRequest
           ? '<span class="help-text">Demande envoyée</span>'
-          : '<button type="button" class="ghost" data-action="event-join-request" data-id="' + ev.id + '" title="Envoie une demande sur Carnet de Piste, à valider par le Team -- ne réserve/paie rien.">Rejoindre sur Carnet de Piste (à valider)</button>');
+          : '<button type="button" class="ghost" data-action="event-join-request" data-id="' + ev.id + '" title="Envoie une demande sur Carnet de Piste, à valider par le Team -- ne réserve/paie rien.">Rejoindre</button>');
       // A separate external action -- the actual paid reservation/
       // inscription, if the Team Leader set one, never Carnet de Piste's
       // own roster/join flow above.
@@ -7690,9 +7713,20 @@
     html += '<h2 class="section-title">' + (isNew ? 'Ajouter un événement' : 'Modifier l\'événement') + '</h2>';
     html += '<form id="event-form" novalidate>';
     html += '<div class="field-row">';
+    // A plain text input with a <datalist> already lets someone pick an
+    // existing circuit OR type a brand-new one -- but nothing stopped
+    // "Circuit de Catalunya" from quietly becoming a second, disconnected
+    // entry for what's already known as "Barcelone" (own plan/horaires/
+    // history lost). #ev-circuit-warning (populated live, see
+    // attachHandlers) flags an exact-match miss so a near-duplicate name
+    // gets noticed before saving, without forcing a rigid dropdown that
+    // could never cover an actually-new circuit.
+    var knownCircuitsForWarning = allCircuits();
+    var circuitMismatch = !!(ev.circuit && knownCircuitsForWarning.indexOf(ev.circuit) === -1);
     html += '<div><label for="ev-circuit">Circuit</label>' +
       '<input type="text" id="ev-circuit" list="circuit-options-ev" placeholder="Ex. Jerez" value="' + escapeHtml(ev.circuit || '') + '" required>' +
-      '<datalist id="circuit-options-ev">' + circuitDatalist() + '</datalist></div>';
+      '<datalist id="circuit-options-ev">' + circuitDatalist() + '</datalist>' +
+      '<div class="field-warning' + (circuitMismatch ? ' visible' : '') + '" id="ev-circuit-warning">Nouveau circuit -- vérifie qu\'il n\'existe pas déjà sous un autre nom dans la liste (sinon son plan/historique resteront séparés).</div></div>';
     html += '<div><label for="ev-date-start">Date de début</label><input type="text" id="ev-date-start" inputmode="numeric" placeholder="JJ/MM/AAAA" value="' + isoToFrDate(ev.dateStart) + '" required></div>';
     html += '<div><label for="ev-date-end">Date de fin (optionnel)</label><input type="text" id="ev-date-end" inputmode="numeric" placeholder="JJ/MM/AAAA" value="' + isoToFrDate(ev.dateEnd) + '"></div>';
     html += '</div>';
@@ -10554,6 +10588,46 @@
         });
       });
     }
+    var circuitMapUploadBtn = document.getElementById('circuit-map-upload-btn');
+    if (circuitMapUploadBtn) {
+      circuitMapUploadBtn.addEventListener('click', function () {
+        var input = document.getElementById('circuit-map-input');
+        if (input) input.click();
+      });
+    }
+    var circuitMapRemoveBtn = document.getElementById('circuit-map-remove-btn');
+    if (circuitMapRemoveBtn) {
+      circuitMapRemoveBtn.addEventListener('click', function () {
+        circuitMapMessage = '';
+        saveCircuitMapImage(selectedCircuit, null);
+      });
+    }
+    var circuitMapInput = document.getElementById('circuit-map-input');
+    if (circuitMapInput) {
+      circuitMapInput.addEventListener('change', function () {
+        var file = circuitMapInput.files && circuitMapInput.files[0];
+        if (!file) return;
+        if (!/^image\//.test(file.type)) {
+          circuitMapMessage = 'Choisis un fichier image.';
+          renderRoot();
+          return;
+        }
+        resizeImageToDataUrl(file, 1400, 0.7, function (dataUrl) {
+          if (!dataUrl) {
+            circuitMapMessage = 'Impossible de lire cette image.';
+            renderRoot();
+            return;
+          }
+          if (dataUrl.length > 700000) {
+            circuitMapMessage = 'Ce plan est trop volumineux même après compression — recadre-le ou prends-en une capture d\'écran partielle.';
+            renderRoot();
+            return;
+          }
+          circuitMapMessage = '';
+          saveCircuitMapImage(selectedCircuit, dataUrl);
+        });
+      });
+    }
     document.querySelectorAll('[data-action="horaires-photo-add"]').forEach(function (btn) {
       btn.addEventListener('click', function () {
         var input = document.getElementById('horaires-photo-input');
@@ -12073,6 +12147,17 @@
           if (hasOption) { teamEl.value = defaults.organizerTeamId; teamEl.dispatchEvent(new Event('change')); }
         }
       });
+    }
+    if (evCircuitEl) {
+      var evCircuitWarningEl = document.getElementById('ev-circuit-warning');
+      if (evCircuitWarningEl) {
+        var updateCircuitWarning = function () {
+          var typed = evCircuitEl.value.trim();
+          var known = typed && allCircuits().indexOf(typed) === -1;
+          evCircuitWarningEl.classList.toggle('visible', known);
+        };
+        evCircuitEl.addEventListener('input', updateCircuitWarning);
+      }
     }
     var evTeamEl = document.getElementById('ev-team');
     if (evTeamEl) {
