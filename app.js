@@ -2464,13 +2464,15 @@
   // resulting status right here rather than a fixed "Membre" outcome.
   function renderTeamJoinRequestRow(r) {
     var u = (STATE.usersByName || {})[r.from] || {};
-    return '<div class="friend-row"><div class="friend-row-main">' + avatarHtml(u, r.from) + personNameHtml(r.from) + badgesHtml(u) +
-      '<span class="help-text">' + escapeHtml((teamById(r.teamId) || {}).name || r.teamName) + '</span></div>' +
-      '<div class="friend-row-actions">' +
-      '<button type="button" class="primary" data-action="team-join-request-accept" data-id="' + r.id + '" data-role="member">Membre</button>' +
-      '<button type="button" class="ghost" data-action="team-join-request-accept" data-id="' + r.id + '" data-role="adherent">Adhérent</button>' +
-      '<button type="button" class="ghost" data-action="team-join-request-accept" data-id="' + r.id + '" data-role="leader">Team Leader</button>' +
-      '<button type="button" class="ghost" data-action="team-join-request-remove" data-id="' + r.id + '">Refuser</button>' +
+    var teamName = (teamById(r.teamId) || {}).name || r.teamName;
+    return '<div class="team-join-request-row">' +
+      '<div class="friend-row-main">' + avatarHtml(u, r.from) + personNameHtml(r.from) + badgesHtml(u) + '</div>' +
+      '<div class="help-text">souhaite rejoindre <strong>' + escapeHtml(teamName) + '</strong></div>' +
+      '<div class="team-join-request-actions">' +
+      '<button type="button" class="primary" data-action="team-join-request-accept" data-id="' + r.id + '" data-role="member">Accepter comme membre</button>' +
+      '<button type="button" class="ghost" data-action="team-join-request-accept" data-id="' + r.id + '" data-role="adherent">comme adhérent</button>' +
+      '<button type="button" class="ghost" data-action="team-join-request-accept" data-id="' + r.id + '" data-role="leader">comme Team Leader</button>' +
+      '<button type="button" class="ghost danger" data-action="team-join-request-remove" data-id="' + r.id + '">Refuser</button>' +
       '</div></div>';
   }
 
@@ -2522,7 +2524,7 @@
       rows += renderCoachActionRow(r, r.from === me.name ? r.to : r.from);
     });
     teamJoinReqs.forEach(function (r) {
-      rows += renderTeamJoinRequestRow(r) + '<div class="help-text" style="margin:-0.3rem 0 0.6rem;">Demande pour rejoindre le Team</div>';
+      rows += renderTeamJoinRequestRow(r);
     });
     html += rows || '<div class="empty-state">Rien de nouveau.</div>';
     html += '</div>';

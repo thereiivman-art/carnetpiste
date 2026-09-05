@@ -621,6 +621,11 @@
   }
   .friend-row:last-child { border-bottom: none; }
   .friend-row-main { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+  /* Stacked, not the usual left/right friend-row split -- three role
+     buttons plus Refuser never fit on one line next to a name. */
+  .team-join-request-row { display: flex; flex-direction: column; gap: 0.35rem; padding: 0.6rem 0; border-bottom: 1px solid var(--border); }
+  .team-join-request-row:last-child { border-bottom: none; }
+  .team-join-request-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.2rem; }
   .team-description { flex-basis: 100%; margin-top: 0.5rem; }
   .team-stats-row {
     display: flex;
