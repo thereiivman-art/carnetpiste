@@ -5748,7 +5748,7 @@
         ? '<button type="button" class="primary" data-action="event-join-ouvert" data-id="' + ev.id + '">Rejoindre</button>'
         : (myRequest
           ? '<span class="help-text">Demande envoyée</span>'
-          : '<button type="button" class="ghost" data-action="event-join-request" data-id="' + ev.id + '">Demander à participer</button>');
+          : '<button type="button" class="ghost" data-action="event-join-request" data-id="' + ev.id + '" title="Envoie une demande sur Carnet de Piste, à valider par le Team -- ne réserve/paie rien.">Rejoindre sur Carnet de Piste (à valider)</button>');
       // A separate external action -- the actual paid reservation/
       // inscription, if the Team Leader set one, never Carnet de Piste's
       // own roster/join flow above.
@@ -5762,7 +5762,8 @@
         ' · ' + (visTags[vis] || '') + '</span></div>' +
         '<div class="friend-row-actions">' + actionHtml + '</div></div>';
     }
-    var toggle = '<div style="display:flex; flex-wrap:wrap; gap:0.5rem; margin-bottom:0.7rem;">' +
+    var legend = '<div class="help-text" style="margin-bottom:0.7rem;">"Rejoindre sur Carnet de Piste" envoie juste une demande au Team, à valider -- ça ne réserve ni ne paie rien. "Réserver" ouvre le site de billetterie du Team pour l\'inscription/le paiement.</div>';
+    var toggle = legend + '<div style="display:flex; flex-wrap:wrap; gap:0.5rem; margin-bottom:0.7rem;">' +
       '<button type="button" class="calendar-view-btn' + (discoveryViewMode === 'list' ? ' active' : '') + '" data-action="discovery-view-mode" data-mode="list">Liste</button>' +
       '<button type="button" class="calendar-view-btn' + (discoveryViewMode === 'month' ? ' active' : '') + '" data-action="discovery-view-mode" data-mode="month">Mois</button>' +
       '<button type="button" class="calendar-view-btn' + (discoveryViewMode === 'year' ? ' active' : '') + '" data-action="discovery-view-mode" data-mode="year">Année</button>' +

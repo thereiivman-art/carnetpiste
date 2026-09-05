@@ -618,6 +618,7 @@
     gap: 0.6rem;
     padding: 0.55rem 0;
     border-bottom: 1px solid var(--border);
+    flex-wrap: wrap;
   }
   .friend-row:last-child { border-bottom: none; }
   .friend-row-main { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
@@ -771,7 +772,7 @@
     color: #7a5b00;
     background: #f5d78e;
   }
-  .friend-row-actions { display: flex; gap: 0.5rem; flex-shrink: 0; }
+  .friend-row-actions { display: flex; gap: 0.5rem; flex-shrink: 0; flex-wrap: wrap; }
   /* Column labels for .participants-list on desktop -- meaningless on
      mobile's stacked rows, hidden there. */
   .participants-list-head { display: none; }
