@@ -6426,6 +6426,8 @@
       var visLabels = { public: 'Public', adherent: 'Adhérent only', membre: 'Membre only', follower: 'Followers only', ouvert: 'Ouvert' };
       html += infoRow('Team', (evTeam ? escapeHtml(evTeam.name) + teamBadgesHtml(evTeam) : '—') +
         (evTeam && evTeam.teamPro ? ' <span class="friend-role-badge">' + (visLabels[ev.eventVisibility] || 'Membre only') + '</span>' : ''));
+    } else if (ev.organizerNote) {
+      html += infoRow('Organisateur', escapeHtml(ev.organizerNote));
     }
     html += infoRow('Circuit', escapeHtml(ev.circuit));
     html += infoRow('Dates', escapeHtml(formatEventRange(ev, true)));
@@ -7657,6 +7659,13 @@
     // riders field for a personal (non-Team) event, which has no Team
     // Leader to manage a roster from anywhere else.
     if (!ev.teamId) {
+      // A personal sortie's actual organizer is often a real Team PRO that
+      // just isn't on the app (per the brief: a new rider logging past
+      // events should never be blocked on "their club must exist here
+      // first") -- free text, purely descriptive, no link to any real
+      // Team doc.
+      html += '<div style="margin-top:0.9rem;"><label for="ev-organizer-note">Organisateur (si absent de l\'app)</label>' +
+        '<input type="text" id="ev-organizer-note" placeholder="Ex. Circuit Paul Ricard, club non inscrit..." value="' + escapeHtml(ev.organizerNote || '') + '"></div>';
       // Search-and-add instead of a comma-typed list -- pick a name from
       // the datalist (friends + teammates, see riderDatalistForEventForm)
       // and it becomes a removable chip; #ev-riders stays a hidden field
@@ -7706,6 +7715,8 @@
     var dateStart = frDateToIso(dateStartRaw);
     var ridersEl = document.getElementById('ev-riders');
     var note = document.getElementById('ev-note').value.trim();
+    var organizerNoteEl = document.getElementById('ev-organizer-note');
+    var organizerNote = organizerNoteEl ? organizerNoteEl.value.trim() : '';
     var errEl = document.getElementById('event-form-error');
     errEl.textContent = '';
     errEl.classList.remove('visible');
@@ -7776,6 +7787,7 @@
     if (editingEventId === 'new') {
       var newEvent = { id: genId(), circuit: circuit, dateStart: dateStart, dateEnd: dateEnd, riders: riders, note: note };
       if (teamId) newEvent.teamId = teamId;
+      else if (organizerNote) newEvent.organizerNote = organizerNote;
       if (eventVisibility) newEvent.eventVisibility = eventVisibility;
       if (riderGroups) newEvent.riderGroups = riderGroups;
       STATE.events.push(newEvent);
@@ -7789,6 +7801,7 @@
         existing.riders = riders;
         existing.note = note;
         existing.teamId = teamId || null;
+        existing.organizerNote = (!teamId && organizerNote) ? organizerNote : null;
         existing.eventVisibility = eventVisibility || null;
         existing.autoCreated = false; // a manual edit means it's no longer just a byproduct of a chrono
         // checklist isn't touched here -- it's checked off in Planning, not the sortie form.
