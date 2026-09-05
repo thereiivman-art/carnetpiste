@@ -8402,15 +8402,16 @@
     });
   }
 
-  // One unified "Membres" list, not two -- a plain member listing for
-  // everyone, and for the Team Leader the same rows also carry the four
-  // status toggle pills (Suivi / Membre / Adhérent / Team Leader, see
-  // setTeamMemberStatus) and a free-form "rôle" field, plus the list
-  // widens to include followers who aren't (yet) members. This used to be
-  // two separate sections ("Membres" and "Gestion des membres") showing
-  // overlapping people twice with different controls -- folded into one.
-  function renderTeamMembersSection(team, members, teamFollowers, me, isLeader) {
-    function pill(name, key, label, on) {
+  // One row renderer shared by the "Membres" and "Followers" sections
+  // below -- a plain listing for everyone, and for the Team Leader the
+  // same row also carries the four status toggle pills (Suivi / Membre /
+  // Adhérent / Team Leader, see setTeamMemberStatus) and a free-form
+  // "rôle" field for members. Used to be one merged list showing members
+  // and followers together under "Membres" -- split back into two so a
+  // plain follower like Geoff (no teamMembers doc yet) isn't counted or
+  // shown as a member.
+  function renderTeamPersonRow(team, name, memberDoc, followDoc, me, isLeader) {
+    function pill(key, label, on) {
       // Granting/revoking Team Leader is the one pill worth a pause for --
       // click-to-arm/click-to-confirm (same pattern as every other
       // destructive action here) instead of a native window.confirm().
@@ -8418,62 +8419,81 @@
       var shownLabel = armed ? 'Confirmer ?' : label;
       return '<button type="button" class="team-status-pill' + (on ? ' active' : '') + (armed ? ' confirm' : '') + '" data-action="team-status-toggle" data-team="' + team.id + '" data-name="' + escapeHtml(name) + '" data-status="' + key + '" data-on="' + (on ? '0' : '1') + '">' + shownLabel + '</button>';
     }
-    var byName = {};
-    members.forEach(function (m) { (byName[m.name] = byName[m.name] || {}).member = m; });
-    if (isLeader) teamFollowers.forEach(function (f) { (byName[f.follower] = byName[f.follower] || {}).follow = f; });
-    var names = Object.keys(byName).sort(function (a, b) { return a.localeCompare(b); });
+    var u = (STATE.usersByName || {})[name] || {};
+    var isAdherent = !!(followDoc && followDoc.tier === 'adherent');
+    var accountRoleLabel = u.role === 'accompagnant' ? 'Accompagnant' : (u.role === 'organisateur' ? 'Organisateur' : '');
+    var actions = '';
+    if (name === me.name && memberDoc) {
+      if (!isAdherent) {
+        actions += (followDoc && followDoc.adherentRequested)
+          ? '<span class="help-text">Demande envoyée</span>'
+          : '<button type="button" class="ghost" data-action="team-request-adherent" data-team="' + team.id + '">Devenir adhérent</button>';
+      }
+      actions += '<button type="button" class="ghost" data-action="team-leave" data-team="' + team.id + '">Quitter</button>';
+    }
+    var row = '<div style="display:flex; align-items:center; justify-content:space-between; gap:0.6rem;">' +
+      '<div class="friend-row-main">' + avatarHtml(u, name) + nameLinkHtml(name) + badgesHtml(u) +
+      (accountRoleLabel ? '<span class="account-role-tag">' + accountRoleLabel + '</span>' : '') +
+      (memberDoc && memberDoc.teamRole ? '<span class="account-role-tag">' + escapeHtml(memberDoc.teamRole) + '</span>' : '') +
+      (isAdherent ? '<span class="friend-role-badge adherent-badge">Adhérent</span>' : '') +
+      (memberDoc ? '<span class="friend-role-badge">' + (memberDoc.role === 'leader' ? 'Team Leader' : 'Membre') + '</span>' : '<span class="friend-role-badge">Follower</span>') +
+      '</div><div class="friend-row-actions">' + actions + '</div></div>';
+    if (isLeader) {
+      var isTeamLeaderRole = !!(memberDoc && memberDoc.role === 'leader');
+      var pills = pill('follow', 'Suivi', !!followDoc) + pill('member', 'Membre', !!memberDoc) +
+        pill('adherent', 'Adhérent', isAdherent) + pill('leader', 'Team Leader', isTeamLeaderRole);
+      // Explicit Annuler once the Team Leader pill is armed -- same
+      // reasoning as deleteEventControl: otherwise the only way out is
+      // to guess that clicking elsewhere resets it.
+      if (pendingLeaderToggle && pendingLeaderToggle.team === team.id && pendingLeaderToggle.name === name) {
+        pills += '<button type="button" class="ghost" data-action="team-leader-toggle-cancel">Annuler</button>';
+      }
+      // A pending "je veux être adhérent" request (see
+      // requestTeamAdherent) surfaces here rather than in a separate
+      // list -- toggling the Adhérent pill above already clears it
+      // either way, this just makes sure the leader notices one's waiting.
+      var pendingNote = (followDoc && followDoc.adherentRequested && !isAdherent)
+        ? '<div class="team-manage-pending">Demande d\'adhésion en attente' +
+          ' <button type="button" class="ghost" data-action="team-adherent-accept" data-follow-id="' + followDoc.id + '">Accepter</button>' +
+          ' <button type="button" class="ghost" data-action="team-adherent-decline" data-follow-id="' + followDoc.id + '">Refuser</button></div>'
+        : '';
+      var roleField = memberDoc
+        ? '<div class="team-role-field"><input type="text" placeholder="Rôle (mécano, assistant...)" value="' + escapeHtml(memberDoc.teamRole || '') + '" data-team-role-input list="team-role-suggestions">' +
+          '<button type="button" class="ghost icon-btn" data-action="team-role-save" data-team="' + team.id + '" data-name="' + escapeHtml(name) + '" aria-label="Enregistrer le rôle" title="Enregistrer">✓</button></div>'
+        : '';
+      row += '<div class="team-status-pills">' + pills + '</div>' + pendingNote + roleField;
+    }
+    return '<div class="team-manage-row">' + row + '</div>' + maybeFicheHtml(name);
+  }
+
+  function renderTeamMembersSection(team, members, teamFollowers, me, isLeader) {
+    var followByName = {};
+    teamFollowers.forEach(function (f) { followByName[f.follower] = f; });
+    var names = members.map(function (m) { return m.name; }).sort(function (a, b) { return a.localeCompare(b); });
     var body = !names.length
       ? '<div class="help-text">Personne pour l\'instant.</div>'
       : names.map(function (name) {
-        var entry = byName[name];
-        var memberDoc = entry.member, followDoc = entry.follow;
-        var u = (STATE.usersByName || {})[name] || {};
-        var isAdherent = !!(followDoc && followDoc.tier === 'adherent');
-        var accountRoleLabel = u.role === 'accompagnant' ? 'Accompagnant' : (u.role === 'organisateur' ? 'Organisateur' : '');
-        var actions = '';
-        if (name === me.name && memberDoc) {
-          if (!isAdherent) {
-            actions += (followDoc && followDoc.adherentRequested)
-              ? '<span class="help-text">Demande envoyée</span>'
-              : '<button type="button" class="ghost" data-action="team-request-adherent" data-team="' + team.id + '">Devenir adhérent</button>';
-          }
-          actions += '<button type="button" class="ghost" data-action="team-leave" data-team="' + team.id + '">Quitter</button>';
-        }
-        var row = '<div style="display:flex; align-items:center; justify-content:space-between; gap:0.6rem;">' +
-          '<div class="friend-row-main">' + avatarHtml(u, name) + nameLinkHtml(name) + badgesHtml(u) +
-          (accountRoleLabel ? '<span class="account-role-tag">' + accountRoleLabel + '</span>' : '') +
-          (memberDoc && memberDoc.teamRole ? '<span class="account-role-tag">' + escapeHtml(memberDoc.teamRole) + '</span>' : '') +
-          (isAdherent ? '<span class="friend-role-badge adherent-badge">Adhérent</span>' : '') +
-          (memberDoc ? '<span class="friend-role-badge">' + (memberDoc.role === 'leader' ? 'Team Leader' : 'Membre') + '</span>' : '') +
-          '</div><div class="friend-row-actions">' + actions + '</div></div>';
-        if (isLeader) {
-          var isTeamLeaderRole = !!(memberDoc && memberDoc.role === 'leader');
-          var pills = pill(name, 'follow', 'Suivi', !!followDoc) + pill(name, 'member', 'Membre', !!memberDoc) +
-            pill(name, 'adherent', 'Adhérent', isAdherent) + pill(name, 'leader', 'Team Leader', isTeamLeaderRole);
-          // Explicit Annuler once the Team Leader pill is armed -- same
-          // reasoning as deleteEventControl: otherwise the only way out is
-          // to guess that clicking elsewhere resets it.
-          if (pendingLeaderToggle && pendingLeaderToggle.team === team.id && pendingLeaderToggle.name === name) {
-            pills += '<button type="button" class="ghost" data-action="team-leader-toggle-cancel">Annuler</button>';
-          }
-          // A pending "je veux être adhérent" request (see
-          // requestTeamAdherent) surfaces here rather than in a separate
-          // list -- toggling the Adhérent pill above already clears it
-          // either way, this just makes sure the leader notices one's waiting.
-          var pendingNote = (followDoc && followDoc.adherentRequested && !isAdherent)
-            ? '<div class="team-manage-pending">Demande d\'adhésion en attente' +
-              ' <button type="button" class="ghost" data-action="team-adherent-accept" data-follow-id="' + followDoc.id + '">Accepter</button>' +
-              ' <button type="button" class="ghost" data-action="team-adherent-decline" data-follow-id="' + followDoc.id + '">Refuser</button></div>'
-            : '';
-          var roleField = memberDoc
-            ? '<div class="team-role-field"><input type="text" placeholder="Rôle (mécano, assistant...)" value="' + escapeHtml(memberDoc.teamRole || '') + '" data-team-role-input list="team-role-suggestions">' +
-              '<button type="button" class="ghost icon-btn" data-action="team-role-save" data-team="' + team.id + '" data-name="' + escapeHtml(name) + '" aria-label="Enregistrer le rôle" title="Enregistrer">✓</button></div>'
-            : '';
-          row += '<div class="team-status-pills">' + pills + '</div>' + pendingNote + roleField;
-        }
-        return '<div class="team-manage-row">' + row + '</div>' + maybeFicheHtml(name);
+        var memberDoc = members.filter(function (m) { return m.name === name; })[0];
+        return renderTeamPersonRow(team, name, memberDoc, followByName[name] || null, me, isLeader);
       }).join('') + (isLeader ? '<datalist id="team-role-suggestions"><option value="Mécano"><option value="Assistant"><option value="Photographe"><option value="Logistique"></datalist>' : '');
     return collapsibleSection('team-members-' + team.id, 'Membres (' + members.length + ')', body);
+  }
+
+  // Follows the Team without (yet) being a member of its roster -- Geoff,
+  // say, before a Team Leader accepts his join request as a member. Kept
+  // as its own section (per le brief's "distingo entre les membres et
+  // les followers") rather than merged into "Membres" like it used to be.
+  function renderTeamFollowersSection(team, members, teamFollowers, me, isLeader) {
+    var memberNames = members.map(function (m) { return m.name; });
+    var followersOnly = teamFollowers.filter(function (f) { return memberNames.indexOf(f.follower) === -1; });
+    var names = followersOnly.map(function (f) { return f.follower; }).sort(function (a, b) { return a.localeCompare(b); });
+    var body = !names.length
+      ? '<div class="help-text">Personne pour l\'instant.</div>'
+      : names.map(function (name) {
+        var followDoc = followersOnly.filter(function (f) { return f.follower === name; })[0];
+        return renderTeamPersonRow(team, name, null, followDoc, me, isLeader);
+      }).join('');
+    return collapsibleSection('team-followers-' + team.id, 'Followers (' + names.length + ')', body);
   }
 
   function renderTeamSettings(team, isLeader) {
@@ -8848,6 +8868,7 @@
 
     var teamFollowers = (STATE.teamFollowersByTeam || {})[team.id] || [];
     html += renderTeamMembersSection(team, members, teamFollowers, me, isLeader);
+    html += renderTeamFollowersSection(team, members, teamFollowers, me, isLeader);
 
     if (isLeader) {
       var memberNames = members.map(function (m) { return m.name; });
@@ -8893,12 +8914,6 @@
       }
     }
 
-    // Le distingo demandé entre membres et followers -- "Membres" ci-dessus
-    // reste la liste unifiée (voir sa note), ce rappel juste avant Réglages
-    // resitue vite les deux notions : un membre a rejoint le Team (roster),
-    // un follower le suit juste sans forcément en être membre.
-    html += '<div class="help-text" style="margin-top:0.6rem;">👥 ' + members.length + ' membre' + (members.length > 1 ? 's' : '') +
-      ' · 🔔 ' + teamFollowers.length + ' follower' + (teamFollowers.length > 1 ? 's' : '') + '</div>';
     html += collapsibleSection('team-settings-' + team.id, '⚙ Réglages', renderTeamSettings(team, isLeader));
     html += '</div>';
     return html;
