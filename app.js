@@ -583,18 +583,18 @@
       showToast('Erreur : ' + (err && err.message ? err.message : err));
     });
   }
-  function acceptTeamJoinRequest(req) {
-    var reqUid = (STATE.usersByName && STATE.usersByName[req.from] && STATE.usersByName[req.from].uid) || null;
-    db.collection('teamMembers').doc(teamMemberDocId(req.teamId, req.from)).set({
-      teamId: req.teamId, name: req.from, role: 'member', joinedAt: Date.now(), uid: reqUid
-    }, { merge: true }).then(function () {
-      return db.collection('teamJoinRequests').doc(req.id).delete();
-    }).then(function () {
+  // The leader chooses the resulting status right on accept -- 'member',
+  // 'adherent' or 'leader' -- reusing the same unified setTeamMemberStatus
+  // entry point the member-management panel's pills use, so the same
+  // firestore.rules permissions (isTeamLeader can create/promote
+  // teamMembers and follows docs for anyone) already cover it.
+  function acceptTeamJoinRequestAs(req, statusKey) {
+    var memberDoc = ((STATE.teamMembersByTeam || {})[req.teamId] || []).filter(function (m) { return m.name === req.from; })[0] || null;
+    var followDoc = ((STATE.teamFollowersByTeam || {})[req.teamId] || []).filter(function (f) { return f.follower === req.from; })[0] || null;
+    setTeamMemberStatus(req.teamId, followDoc, memberDoc, req.from, statusKey, true);
+    db.collection('teamJoinRequests').doc(req.id).delete().then(function () {
       showToast(req.from + ' a rejoint ' + ((teamById(req.teamId) || {}).name || req.teamName) + '.', 'success');
-      bumpTeamMemberCount(req.teamId, 1);
-    }).catch(function (err) {
-      showToast('Erreur : ' + (err && err.message ? err.message : err));
-    });
+    }).catch(teamOpError);
   }
   // Same delete either way -- declining a request received or cancelling
   // one sent.
@@ -2459,10 +2459,26 @@
     return html;
   }
 
+  // Shared by the Team detail card's own "Demandes pour rejoindre" section
+  // and the header's notifications panel -- the Team Leader picks the
+  // resulting status right here rather than a fixed "Membre" outcome.
+  function renderTeamJoinRequestRow(r) {
+    var u = (STATE.usersByName || {})[r.from] || {};
+    return '<div class="friend-row"><div class="friend-row-main">' + avatarHtml(u, r.from) + personNameHtml(r.from) + badgesHtml(u) +
+      '<span class="help-text">' + escapeHtml((teamById(r.teamId) || {}).name || r.teamName) + '</span></div>' +
+      '<div class="friend-row-actions">' +
+      '<button type="button" class="primary" data-action="team-join-request-accept" data-id="' + r.id + '" data-role="member">Membre</button>' +
+      '<button type="button" class="ghost" data-action="team-join-request-accept" data-id="' + r.id + '" data-role="adherent">Adhérent</button>' +
+      '<button type="button" class="ghost" data-action="team-join-request-accept" data-id="' + r.id + '" data-role="leader">Team Leader</button>' +
+      '<button type="button" class="ghost" data-action="team-join-request-remove" data-id="' + r.id + '">Refuser</button>' +
+      '</div></div>';
+  }
+
   // How many items the header's 🔔 notification icon badges up -- every
-  // pending thing addressed to this account across the app's three
-  // request/accept flows (friends, Teams, coaching), so the count means
-  // "things waiting on you", not an activity-log tally.
+  // pending thing addressed to this account across the app's request/
+  // accept flows (friends, Teams, coaching, Team join requests this
+  // account leads), so the count means "things waiting on you", not an
+  // activity-log tally.
   function pendingNotificationCount() {
     var me = currentUserProfile;
     if (!me) return 0;
@@ -2470,6 +2486,7 @@
     n += (STATE.friendRequests || []).filter(function (r) { return r.status === 'pending' && r.to === me.name; }).length;
     n += (STATE.teamInvites || []).filter(function (r) { return r.status === 'pending' && r.to === me.name; }).length;
     n += (STATE.coachRequests || []).filter(function (r) { return r.status === 'pending' && (r.from === me.name || r.to === me.name) && coachRequestAwaitingMe(r, me); }).length;
+    n += (STATE.teamJoinRequests || []).filter(function (r) { return r.status === 'pending' && isLeaderOfTeam(r.teamId); }).length;
     return n;
   }
 
@@ -2487,6 +2504,7 @@
     var friendReqs = (STATE.friendRequests || []).filter(function (r) { return r.status === 'pending' && r.to === me.name; });
     var teamInvs = (STATE.teamInvites || []).filter(function (r) { return r.status === 'pending' && r.to === me.name; });
     var coachReqs = (STATE.coachRequests || []).filter(function (r) { return r.status === 'pending' && (r.from === me.name || r.to === me.name) && coachRequestAwaitingMe(r, me); });
+    var teamJoinReqs = (STATE.teamJoinRequests || []).filter(function (r) { return r.status === 'pending' && isLeaderOfTeam(r.teamId); });
     var rows = '';
     friendReqs.forEach(function (r) {
       rows += renderFriendRow(r.from, '<button type="button" class="primary" data-action="accept-friend" data-id="' + r.id + '">Accepter</button>' +
@@ -2502,6 +2520,9 @@
     });
     coachReqs.forEach(function (r) {
       rows += renderCoachActionRow(r, r.from === me.name ? r.to : r.from);
+    });
+    teamJoinReqs.forEach(function (r) {
+      rows += renderTeamJoinRequestRow(r) + '<div class="help-text" style="margin:-0.3rem 0 0.6rem;">Demande pour rejoindre le Team</div>';
     });
     html += rows || '<div class="empty-state">Rien de nouveau.</div>';
     html += '</div>';
@@ -8865,19 +8886,17 @@
     if (isLeader) {
       var joinRequests = (STATE.teamJoinRequests || []).filter(function (r) { return r.teamId === team.id && r.status === 'pending'; });
       if (joinRequests.length) {
-        var joinReqBody = joinRequests.map(function (r) {
-          var u = (STATE.usersByName || {})[r.from] || {};
-          return '<div class="friend-row"><div class="friend-row-main">' + avatarHtml(u, r.from) + personNameHtml(r.from) + badgesHtml(u) +
-            '<span class="friend-role-badge">' + (r.kind === 'adherent' ? 'Adhérent' : 'Membre') + '</span></div>' +
-            '<div class="friend-row-actions">' +
-            '<button type="button" class="primary" data-action="team-join-request-accept" data-id="' + r.id + '">Accepter</button>' +
-            '<button type="button" class="ghost" data-action="team-join-request-remove" data-id="' + r.id + '">Refuser</button>' +
-            '</div></div>';
-        }).join('');
-        html += collapsibleSection('team-join-requests-' + team.id, 'Demandes pour rejoindre (' + joinRequests.length + ')', joinReqBody);
+        var joinReqBody = joinRequests.map(renderTeamJoinRequestRow).join('');
+        html += collapsibleSection('team-join-requests-' + team.id, 'Demandes pour rejoindre (' + joinRequests.length + ')', joinReqBody, true);
       }
     }
 
+    // Le distingo demandé entre membres et followers -- "Membres" ci-dessus
+    // reste la liste unifiée (voir sa note), ce rappel juste avant Réglages
+    // resitue vite les deux notions : un membre a rejoint le Team (roster),
+    // un follower le suit juste sans forcément en être membre.
+    html += '<div class="help-text" style="margin-top:0.6rem;">👥 ' + members.length + ' membre' + (members.length > 1 ? 's' : '') +
+      ' · 🔔 ' + teamFollowers.length + ' follower' + (teamFollowers.length > 1 ? 's' : '') + '</div>';
     html += collapsibleSection('team-settings-' + team.id, '⚙ Réglages', renderTeamSettings(team, isLeader));
     html += '</div>';
     return html;
@@ -11209,7 +11228,7 @@
     document.querySelectorAll('[data-action="team-join-request-accept"]').forEach(function (btn) {
       btn.addEventListener('click', function () {
         var req = (STATE.teamJoinRequests || []).filter(function (r) { return r.id === btn.getAttribute('data-id'); })[0];
-        if (req) acceptTeamJoinRequest(req);
+        if (req) acceptTeamJoinRequestAs(req, btn.getAttribute('data-role'));
       });
     });
     document.querySelectorAll('[data-action="team-join-request-remove"]').forEach(function (btn) {
