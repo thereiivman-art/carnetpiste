@@ -3163,6 +3163,16 @@
   function saveOwnBooleanField(field, value) {
     var uid = auth.currentUser && auth.currentUser.uid;
     if (!uid || !currentUserProfile) return;
+    // Only saveProfile's own notifyBeforeSession checkbox used to trigger
+    // the browser's native permission prompt -- every other "notify..."
+    // category added since (notifyInvites, notifyAdherentRequests, etc.)
+    // just checked Notification.permission without ever asking for it, so
+    // checking ONLY one of those and never notifyBeforeSession meant
+    // nothing would ever actually fire, silently. Any notify* category
+    // being turned on now asks, same as notifyBeforeSession always has.
+    if (value && field.indexOf('notify') === 0 && window.Notification && Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
     var writes = {};
     writes[field] = value;
     db.collection('users').doc(uid).set(writes, { merge: true }).then(function () {
