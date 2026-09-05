@@ -878,11 +878,12 @@
     feelingModalSessionId = null;
     renderRoot();
   }
-  function saveSessionFeeling(sessionId, feeling) {
+  function saveSessionFeeling(sessionId, feeling, comment) {
+    comment = (comment || '').trim();
     var session = (STATE.sessions || []).filter(function (s) { return s.id === sessionId; })[0];
-    if (session) session.feeling = feeling;
+    if (session) { session.feeling = feeling; session.feelingComment = comment || null; }
     closeFeelingModal();
-    db.collection('sessions').doc(sessionId).update({ feeling: feeling }).catch(function (err) {
+    db.collection('sessions').doc(sessionId).update({ feeling: feeling, feelingComment: comment || null }).catch(function (err) {
       showToast('Erreur : ' + (err && err.message ? err.message : err));
     });
   }
@@ -895,6 +896,8 @@
         return '<button type="button" class="feeling-option-btn" data-action="feeling-pick" data-feeling="' + f.key + '">' +
           '<span class="feeling-option-icon">' + f.icon + '</span><span class="feeling-option-label">' + escapeHtml(f.label) + '</span></button>';
       }).join('') + '</div>' +
+      '<label for="feeling-comment-input" style="margin-top:0.7rem; display:block;">Commentaire (optionnel)</label>' +
+      '<input type="text" id="feeling-comment-input" placeholder="Ex. bonnes sensations en freinage">' +
       '<button type="button" class="ghost" id="feeling-skip-btn" style="margin-top:0.8rem;">Passer</button>' +
       '</div></div>';
   }
@@ -1357,6 +1360,8 @@
   // leaks a stale draft into the next one.
   var eventFormDraftGroups = {}; // { [rider]: { [date]: { am, pm } } }
   var eventFormDraftGroupsFor = null; // editingEventId the draft above belongs to
+  var eventFormRidersDraft = []; // rider names picked so far in the "Pilotes" search widget below
+  var eventFormRidersDraftFor = null; // editingEventId the draft above belongs to
   var editingSessionId = null; // id of the chrono row being edited inline in the Circuit history table, or null
   var addChronoOpen = false; // whether renderForm() shows the actual "Entrer un nouveau chrono" form, or just its collapsed teaser button
   var selectedSessionDate = _savedUiState.selectedSessionDate || null; // 'YYYY-MM-DD' — shows the "chronos of that day" card
@@ -1967,7 +1972,8 @@
         if (s.group) sessionTagParts.push('Groupe ' + s.group);
         var sessionTagHtml = sessionTagParts.length ? '<div class="note-text">' + escapeHtml(sessionTagParts.join(' — ')) + '</div>' : '';
         var feelingOpt = s.feeling ? FEELING_OPTIONS.filter(function (f) { return f.key === s.feeling; })[0] : null;
-        var feelingHtml = feelingOpt ? ' <span class="feeling-tag" title="Ressenti : ' + escapeHtml(feelingOpt.label) + '">' + feelingOpt.icon + '</span>' : '';
+        var feelingTitle = feelingOpt ? 'Ressenti : ' + feelingOpt.label + (s.feelingComment ? ' — ' + s.feelingComment : '') : '';
+        var feelingHtml = feelingOpt ? ' <span class="feeling-tag" title="' + escapeHtml(feelingTitle) + '">' + feelingOpt.icon + '</span>' : '';
         tableHtml += '<tr data-session-id="' + s.id + '">';
         tableHtml += '<td>' + formatDate(s.date) + feelingHtml + sessionTagHtml + noteHtml + '</td>';
         if (showRider) tableHtml += '<td class="rider-cell">' + (s.rider ? renderRiderLink(s.rider) : '—') + '</td>';
@@ -3977,6 +3983,7 @@
     });
     html += '</select></div>';
     html += renderCircuitInfoCard();
+    html += renderChronoGoalsCard();
     // Chronos used to be its own tab; it's really always been about
     // "the currently active circuit", so it lives here now, right after
     // the circuit's own info.
@@ -3985,6 +3992,47 @@
     return html;
   }
 
+  // Personal, per-circuit -- users/{uid}.chronoGoals[circuit] = free text,
+  // same "just a map field, freely self-writable" shape as coachAvailability.
+  // Paired with a read-only reminder of how the rider felt last time out
+  // (any circuit -- "la dernière session", not specifically this one) so
+  // setting a goal for next time has that context right above it.
+  function mostRecentSessionForRider(riderName) {
+    var mine = (STATE.sessions || []).filter(function (s) { return s.rider === riderName; });
+    mine.sort(function (a, b) { return (b.date || '').localeCompare(a.date || ''); });
+    return mine[0] || null;
+  }
+  var chronoGoalsMessage = '';
+  function saveChronoGoals(circuit, text) {
+    var uid = auth.currentUser && auth.currentUser.uid;
+    if (!uid || !currentUserProfile) return;
+    var goals = Object.assign({}, currentUserProfile.chronoGoals || {});
+    goals[circuit] = (text || '').trim();
+    db.collection('users').doc(uid).set({ chronoGoals: goals }, { merge: true }).then(function () {
+      currentUserProfile.chronoGoals = goals;
+      chronoGoalsMessage = 'Objectifs enregistrés.';
+      renderRoot();
+    }).catch(function (err) {
+      chronoGoalsMessage = 'Erreur : ' + (err && err.message ? err.message : err);
+      renderRoot();
+    });
+  }
+  function renderChronoGoalsCard() {
+    var me = currentUserProfile;
+    if (!me || !selectedCircuit) return '';
+    var goals = (me.chronoGoals || {})[selectedCircuit] || '';
+    var last = mostRecentSessionForRider(me.name);
+    var feelingOpt = last && last.feeling ? FEELING_OPTIONS.filter(function (f) { return f.key === last.feeling; })[0] : null;
+    var html = '<div class="card" style="margin-top:1rem;"><h2 class="section-title">Objectifs pour la prochaine session</h2>';
+    html += feelingOpt
+      ? '<div class="help-text">Ressenti à ta dernière session : ' + feelingOpt.icon + ' ' + escapeHtml(feelingOpt.label) + (last.feelingComment ? ' — ' + escapeHtml(last.feelingComment) : '') + '</div>'
+      : '<div class="help-text">Pas encore de ressenti enregistré (voir Réglages pour l\'activer).</div>';
+    html += '<textarea id="chrono-goals-input" rows="4" style="margin-top:0.6rem;" placeholder="Ex. Travailler le point de corde en 3, être plus fluide au freinage...">' + escapeHtml(goals) + '</textarea>';
+    html += '<button type="button" class="ghost" id="chrono-goals-save-btn" style="margin-top:0.5rem;">Enregistrer</button>';
+    if (chronoGoalsMessage) html += '<div class="help-text" style="margin-top:0.4rem;">' + escapeHtml(chronoGoalsMessage) + '</div>';
+    html += '</div>';
+    return html;
+  }
   function renderCircuitInfoCard() {
     var info = circuitInfo(selectedCircuit);
     var sessions = circuitSessionsDesc(selectedCircuit, true);
@@ -6265,7 +6313,7 @@
     if (!currentUserProfile) return '';
     ensureMyTravelInfoLoaded(ev.id);
     var info = travelInfoByEvent[ev.id] || {};
-    var body = '<div class="help-text">Visible par toi et par tes accompagnants (comptes Accompagnant qui te suivent).</div>';
+    var body = '<div class="help-text">Visible par toi et par les comptes Accompagnant qui te suivent.</div>';
     body += '<div class="field-row" style="margin-top:0.6rem;">';
     body += '<div><label for="travel-hotel-name">Hôtel — nom</label><input type="text" id="travel-hotel-name" placeholder="Ex. Ibis Le Mans" value="' + escapeHtml(info.hotelName || '') + '"></div>';
     body += '<div><label for="travel-hotel-address">Hôtel — adresse</label><input type="text" id="travel-hotel-address" placeholder="Ex. 12 rue de la Sarthe, 72100 Le Mans" value="' + escapeHtml(info.hotelAddress || '') + '"></div>';
@@ -7314,6 +7362,7 @@
   function renderEventForm() {
     if (editingEventId === null) {
       eventFormDraftGroupsFor = null;
+      eventFormRidersDraftFor = null;
       return addEventTeaserCard();
     }
     var isNew = editingEventId === 'new';
@@ -7402,12 +7451,26 @@
     // riders field for a personal (non-Team) event, which has no Team
     // Leader to manage a roster from anywhere else.
     if (!ev.teamId) {
-      html += '<label for="ev-riders" style="margin-top:0.9rem; display:block;">Pilotes (séparés par une virgule)</label>' +
-        '<input type="text" id="ev-riders" list="rider-options-ev" placeholder="Ex. Marc, Xavier" value="' + escapeHtml((ev.riders || []).join(', ')) + '">' +
-        '<div class="help-text">Suggestions limitées à tes amis et aux membres de tes Teams.</div>' +
-        '<datalist id="rider-options-ev">' + riderDatalistForEventForm(ev.riders) + '</datalist>';
+      // Search-and-add instead of a comma-typed list -- pick a name from
+      // the datalist (friends + teammates, see riderDatalistForEventForm)
+      // and it becomes a removable chip; #ev-riders stays a hidden field
+      // holding the same comma-joined value it always did, so
+      // onEventSubmit/refreshEventFormGroups need no changes at all.
+      if (eventFormRidersDraftFor !== editingEventId) {
+        eventFormRidersDraft = (ev.riders || []).slice();
+        eventFormRidersDraftFor = editingEventId;
+      }
+      html += '<label for="ev-riders-search" style="margin-top:0.9rem; display:block;">Pilotes</label>' +
+        '<input type="text" id="ev-riders-search" list="rider-options-ev" placeholder="Rechercher un nom..." autocomplete="off">' +
+        '<div class="help-text">Suggestions limitées à tes amis et aux membres de tes Teams -- choisis un nom dans la liste pour l\'ajouter.</div>' +
+        '<datalist id="rider-options-ev">' + riderDatalistForEventForm(eventFormRidersDraft) + '</datalist>';
+      html += '<div class="chip-row" style="margin-top:0.5rem;">' + eventFormRidersDraft.map(function (r) {
+        return '<span class="team-link-chip" style="display:inline-flex; align-items:center; gap:0.4rem;">' + escapeHtml(r) +
+          '<button type="button" class="ghost icon-btn" data-action="ev-rider-remove" data-name="' + escapeHtml(r) + '" aria-label="Retirer" style="padding:0;">×</button></span>';
+      }).join('') + '</div>';
+      html += '<input type="hidden" id="ev-riders" value="' + escapeHtml(eventFormRidersDraft.join(',')) + '">';
       html += '<div class="event-checklist" style="margin-top:0.9rem;"><div class="event-checklist-title">Groupe de départ</div><div id="ev-groups-grid">' +
-        renderEventFormGroupsGrid(ev.riders || []) + '</div></div>';
+        renderEventFormGroupsGrid(eventFormRidersDraft) + '</div></div>';
     } else {
       html += '<div class="help-text" style="margin-top:0.9rem;">Participants et groupes se gèrent depuis la Gestion des événements du Team.</div>';
     }
@@ -10722,11 +10785,20 @@
     if (tutorialFinishBtn) tutorialFinishBtn.addEventListener('click', closeTutorial);
     document.querySelectorAll('[data-action="feeling-pick"]').forEach(function (btn) {
       btn.addEventListener('click', function () {
-        if (feelingModalSessionId) saveSessionFeeling(feelingModalSessionId, btn.getAttribute('data-feeling'));
+        if (!feelingModalSessionId) return;
+        var commentEl = document.getElementById('feeling-comment-input');
+        saveSessionFeeling(feelingModalSessionId, btn.getAttribute('data-feeling'), commentEl ? commentEl.value : '');
       });
     });
     var feelingSkipBtn = document.getElementById('feeling-skip-btn');
     if (feelingSkipBtn) feelingSkipBtn.addEventListener('click', closeFeelingModal);
+    var chronoGoalsSaveBtn = document.getElementById('chrono-goals-save-btn');
+    if (chronoGoalsSaveBtn) {
+      chronoGoalsSaveBtn.addEventListener('click', function () {
+        var input = document.getElementById('chrono-goals-input');
+        saveChronoGoals(selectedCircuit, input ? input.value : '');
+      });
+    }
     document.querySelectorAll('[data-action="team-delete-request"]').forEach(function (btn) {
       btn.addEventListener('click', function () {
         pendingDeleteTeamId = btn.getAttribute('data-team');
@@ -11507,6 +11579,34 @@
     // grid live, without touching the rest of the form.
     var evRidersEl = document.getElementById('ev-riders');
     if (evRidersEl) evRidersEl.addEventListener('input', refreshEventFormGroups);
+    // Search-and-add Pilotes widget (see renderEventForm) -- a datalist
+    // has no "onselect", so matching the typed value against a known
+    // candidate on every keystroke is the usual trick for detecting a
+    // pick. Adding updates the hidden #ev-riders field directly (instead
+    // of a full renderRoot) so refreshEventFormGroups can pick it straight
+    // up, then still re-renders once to show the new chip.
+    var evRidersSearchEl = document.getElementById('ev-riders-search');
+    if (evRidersSearchEl) {
+      evRidersSearchEl.addEventListener('input', function () {
+        var typed = evRidersSearchEl.value.trim();
+        if (!typed || eventFormRidersDraft.indexOf(typed) !== -1) return;
+        var known = allKnownRiders().indexOf(typed) !== -1 || isAdmin();
+        if (!known) return;
+        eventFormRidersDraft.push(typed);
+        if (evRidersEl) evRidersEl.value = eventFormRidersDraft.join(',');
+        refreshEventFormGroups();
+        renderRoot();
+      });
+    }
+    document.querySelectorAll('[data-action="ev-rider-remove"]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var name = btn.getAttribute('data-name');
+        eventFormRidersDraft = eventFormRidersDraft.filter(function (r) { return r !== name; });
+        if (evRidersEl) evRidersEl.value = eventFormRidersDraft.join(',');
+        refreshEventFormGroups();
+        renderRoot();
+      });
+    });
     var evCircuitEl = document.getElementById('ev-circuit');
     if (evCircuitEl && editingEventId === 'new') {
       evCircuitEl.addEventListener('change', function () {
