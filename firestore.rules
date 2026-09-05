@@ -223,9 +223,26 @@ service cloud.firestore {
         || isTeamLeader(get(/databases/$(database)/documents/events/$(resource.data.eventId)).data.get('teamId', ''))
       );
     }
+    // Shared reference data (plan/km/virages/organisateur/horaires
+    // habituels) is admin-only to write now -- was open to any verified
+    // account, which meant literally anyone could overwrite another
+    // circuit's imported plan image, not just tweak a number. Carved out:
+    // "drawing"/"accompagnantDrawing" (the annotation layer any pilote/
+    // accompagnant can doodle on top of the shared plan, see
+    // saveAnnotation) stay open -- that's deliberately collaborative,
+    // unrelated to the reference data itself. Every circuit write is a
+    // full-document .set() of the client's whole in-memory entry (see
+    // diffCircuits), never a partial update, so affectedKeys() only ever
+    // lists fields whose *value* actually changed against the stored doc.
     match /circuits/{id} {
       allow read: if request.auth != null;
-      allow write: if verified();
+      allow create: if isAdmin() || (verified() && (
+        request.resource.data.keys().hasOnly(['drawing', 'name'])
+        || request.resource.data.keys().hasOnly(['accompagnantDrawing', 'name'])
+      ));
+      allow update: if isAdmin() || (verified()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['drawing', 'accompagnantDrawing']));
+      allow delete: if isAdmin();
     }
     // A shared roster, not privately owned data -- create/update were
     // already open to any verified account (so a new account can rebuild

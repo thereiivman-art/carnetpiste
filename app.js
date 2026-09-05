@@ -4212,10 +4212,15 @@
     html += infoRow('Prochain événement', upcoming
       ? '<button type="button" class="link-btn" id="next-outing-link" data-event-id="' + upcoming.id + '">' + escapeHtml(formatEventRange(upcoming, true)) + '</button>'
       : '<button type="button" class="link-btn" id="plan-outing-link">Non planifiée — planifier</button>');
-    if (editingCircuitInfo) {
-      html += renderCircuitInfoEditForm(info);
-    } else {
-      html += '<button type="button" class="ghost" id="edit-circuit-info-btn" style="margin-top:0.6rem;">Modifier les infos</button>';
+    // Admin-only now (see firestore.rules' circuits match) -- this used to
+    // be open to any pilote, which meant literally anyone could overwrite
+    // another circuit's imported plan image, not just tweak a km figure.
+    if (isAdmin()) {
+      if (editingCircuitInfo) {
+        html += renderCircuitInfoEditForm(info);
+      } else {
+        html += '<button type="button" class="ghost" id="edit-circuit-info-btn" style="margin-top:0.6rem;">Modifier les infos</button>';
+      }
     }
     html += '</div>';
     html += '</div>';
@@ -4265,6 +4270,7 @@
   }
   var circuitMapMessage = '';
   function saveCircuitMapImage(circuitName, dataUrl) {
+    if (!isAdmin()) return;
     var prevState = JSON.parse(JSON.stringify(STATE));
     STATE.circuits = STATE.circuits || {};
     var entry = STATE.circuits[circuitName] || {};
@@ -4299,6 +4305,7 @@
   }
 
   function saveCircuitInfo() {
+    if (!isAdmin()) return;
     var kmRaw = document.getElementById('ci-km').value.trim().replace(',', '.');
     var rightRaw = document.getElementById('ci-right').value.trim();
     var leftRaw = document.getElementById('ci-left').value.trim();
@@ -7798,18 +7805,22 @@
       (eventFormMoreOptionsOpen ? '− Moins d\'options' : '+ Plus d\'options (horaires, pilotes, organisateur...)') + '</button>';
     html += '<div id="ev-more-options" style="display:' + (eventFormMoreOptionsOpen ? 'block' : 'none') + ';">';
     // Horaires live on the circuit (shared across every sortie there, see
-    // renderCircuitInfoEditForm), but any pilote creating a sortie can set
-    // them here too instead of having to detour through l'onglet Circuit --
-    // handy the first time a circuit is used, or when the organiser
-    // announces new créneaux.
-    var evHorairesVal = (ev.circuit && circuitInfo(ev.circuit).horaires) || {};
-    html += '<div style="margin-top:0.9rem;"><label>Horaires par groupe</label><div class="horaires-grid">';
-    HORAIRES_GROUPS.forEach(function (g) {
-      if (g.key === 'groupR' && ev.circuit !== 'Mugello' && !evHorairesVal.groupR) return;
-      html += '<div><label for="ev-horaires-' + g.key + '" class="horaires-sublabel">' + escapeHtml(g.label) + '</label>' +
-        '<input type="text" id="ev-horaires-' + g.key + '" placeholder="Ex. 9h, 10h40, 14h, 15h20, 16h40" value="' + escapeHtml(evHorairesVal[g.key] || '') + '"></div>';
-    });
-    html += '</div></div>';
+    // renderCircuitInfoEditForm) -- admin-only to write now (firestore.rules'
+    // circuits match), same as every other circuit field, so this inline
+    // shortcut only renders for admin too; a non-admin's event-form batch
+    // must never include a circuits write, or the whole batch (event
+    // included) would be rejected atomically by persist()'s single
+    // db.batch().
+    if (isAdmin()) {
+      var evHorairesVal = (ev.circuit && circuitInfo(ev.circuit).horaires) || {};
+      html += '<div style="margin-top:0.9rem;"><label>Horaires par groupe</label><div class="horaires-grid">';
+      HORAIRES_GROUPS.forEach(function (g) {
+        if (g.key === 'groupR' && ev.circuit !== 'Mugello' && !evHorairesVal.groupR) return;
+        html += '<div><label for="ev-horaires-' + g.key + '" class="horaires-sublabel">' + escapeHtml(g.label) + '</label>' +
+          '<input type="text" id="ev-horaires-' + g.key + '" placeholder="Ex. 9h, 10h40, 14h, 15h20, 16h40" value="' + escapeHtml(evHorairesVal[g.key] || '') + '"></div>';
+      });
+      html += '</div></div>';
+    }
     // Pilotes/groupes for a Team event now live entirely in the Team's own
     // "Gestion des événements" (search-to-add, chronos vérifiés as
     // reference for group moves) -- this form only still carries the
