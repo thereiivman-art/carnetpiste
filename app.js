@@ -7041,10 +7041,13 @@
   // change -- without this a <details> would snap shut the moment you
   // ticked a checkbox inside it.
   var planningSectionsOpen = {};
-  function collapsibleSection(key, title, innerHtml, defaultOpen) {
+  // titleActionsHtml (optional, e.g. "+ Ajouter un événement" next to
+  // "Gestion des événements" -- see collapsibleCard's own titleActionsHtml
+  // for the same convention/caveat about preventDefault()).
+  function collapsibleSection(key, title, innerHtml, defaultOpen, titleActionsHtml) {
     if (!innerHtml) return '';
     var isOpen = planningSectionsOpen.hasOwnProperty(key) ? !!planningSectionsOpen[key] : !!defaultOpen;
-    return '<details class="planning-section" data-planning-section="' + key + '"' + (isOpen ? ' open' : '') + '><summary>' + escapeHtml(title) + '</summary><div class="planning-section-body">' + innerHtml + '</div></details>';
+    return '<details class="planning-section" data-planning-section="' + key + '"' + (isOpen ? ' open' : '') + '><summary>' + escapeHtml(title) + (titleActionsHtml || '') + '</summary><div class="planning-section-body">' + innerHtml + '</div></details>';
   }
 
   // Same open/closed tracking as collapsibleSection above, but styled as a
@@ -8951,17 +8954,18 @@
         past.length ? past.map(eventRow).join('') : '<div class="help-text">Aucun événement passé.</div>', false);
     }
     if (editingEventId === 'new' && prefillEventTeamId === team.id) body += renderEventForm();
-    // Its own full card, not just another collapsibleSection folded in
-    // among Fil d'actualité/Membres/Inviter -- a separate, self-contained
-    // menu since this is where a Team Leader creates/manages an event,
-    // not something to stumble into between unrelated controls. The
-    // "+ Ajouter" lives right next to the title (see collapsibleCard's
-    // titleActionsHtml) instead of buried at the bottom of a long list.
+    // Same collapsibleSection style as every other sub-section of this
+    // Team's own fiche (Fil d'actualité/Membres/Followers/Inviter/
+    // Réglages) -- used to be its own full collapsibleCard, which looked
+    // like a heavier, disconnected block sitting inside the Team card.
+    // The "+ Ajouter" still lives right next to the title (collapsibleSection
+    // now takes the same titleActionsHtml collapsibleCard does) instead
+    // of buried at the bottom of a long list.
     var addBtn = '<button type="button" class="ghost" data-action="team-event-add" data-team="' + team.id + '">+ Ajouter un événement</button>';
     // The card title's count is own.length, not all.length -- "Gestion"
     // in the title is about what's actually manageable here; the
     // cross-team, read-only events mixed into the buckets below aren't.
-    return collapsibleCard('team-events-' + team.id, 'Gestion des événements' + (own.length ? ' (' + own.length + ')' : ''), body, false, addBtn);
+    return collapsibleSection('team-events-' + team.id, 'Gestion des événements' + (own.length ? ' (' + own.length + ')' : ''), body, false, addBtn);
   }
 
   // The dedicated per-event management screen (see managingEventId) --
@@ -9206,7 +9210,7 @@
         }).join('');
         inviteBody += collapsibleSection('team-invites-out-' + team.id, 'Invitations envoyées (' + outgoingInvites.length + ')', outgoingBody);
       }
-      html += collapsibleSection('team-invite-' + team.id, team.teamPro ? 'Inviter' : 'Inviter un ami', inviteBody);
+      html += collapsibleSection('team-invite-' + team.id, 'Inviter', inviteBody);
     }
 
     if (isLeader) {
@@ -9217,7 +9221,7 @@
       }
     }
 
-    html += collapsibleSection('team-settings-' + team.id, '⚙ Réglages', renderTeamSettings(team, isLeader));
+    html += collapsibleSection('team-settings-' + team.id, 'Réglages', renderTeamSettings(team, isLeader));
     html += '</div>';
     return html;
   }

@@ -1762,6 +1762,11 @@
     font-weight: 600;
     font-size: 0.92rem;
     list-style: none;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.6rem;
+    flex-wrap: wrap;
   }
   .planning-section summary::-webkit-details-marker { display: none; }
   .planning-section summary::before {
