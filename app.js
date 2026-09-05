@@ -5236,6 +5236,7 @@
       var vis = ev.eventVisibility || 'membre';
       if (vis === 'public' || vis === 'ouvert') return true;
       if (vis === 'adherent') return (STATE.myFollowedTeamTiers || {})[ev.teamId] === 'adherent';
+      if (vis === 'follower') return (STATE.myFollowedTeams || []).indexOf(ev.teamId) !== -1;
     }
     return false;
   }
@@ -5482,10 +5483,12 @@
   }
 
   // "Découvrir les Événements PRO" -- every Team PRO event this account
-  // can't already see in its own Événements list (not a member of the
-  // owning team, not already registered), open enough to browse
-  // ('public' or 'ouvert'). Amateur Team Events never show up here --
-  // per the brief, only invited members/friends ever see those at all.
+  // isn't already riding, open enough for it to request/self-join given
+  // its own relationship to the owning Team ('adherent'/'follower' need
+  // the matching tier, 'public'/'ouvert' are open to everyone). 'membre'
+  // stays leader-curated only -- no self-request path, same as before.
+  // Amateur Team Events never show up here -- per the brief, only
+  // invited members/friends ever see those at all.
   function renderProEventDiscovery(me) {
     if (!me) return '';
     var myTeamIds = (STATE.myTeamMemberships || []).map(function (m) { return m.teamId; });
@@ -5493,22 +5496,26 @@
       if (!ev.teamId || myTeamIds.indexOf(ev.teamId) !== -1) return false;
       var team = teamById(ev.teamId);
       if (!team || !team.teamPro) return false;
+      if ((ev.riders || []).indexOf(me.name) !== -1) return false;
       var vis = ev.eventVisibility || 'membre';
-      if (vis !== 'public' && vis !== 'ouvert') return false;
-      return (ev.riders || []).indexOf(me.name) === -1;
+      if (vis === 'adherent') return (STATE.myFollowedTeamTiers || {})[ev.teamId] === 'adherent';
+      if (vis === 'follower') return (STATE.myFollowedTeams || []).indexOf(ev.teamId) !== -1;
+      return vis === 'public' || vis === 'ouvert';
     }).sort(function (a, b) { return a.dateStart < b.dateStart ? -1 : a.dateStart > b.dateStart ? 1 : 0; });
     if (!candidates.length) return '';
+    var visTags = { ouvert: 'Ouvert', public: 'Public', adherent: 'Adhérent', follower: 'Followers' };
     var body = candidates.map(function (ev) {
       var team = teamById(ev.teamId);
+      var vis = ev.eventVisibility || 'membre';
       var myRequest = (STATE.eventJoinRequests || []).filter(function (r) { return r.eventId === ev.id && r.from === me.name; })[0];
-      var actionHtml = ev.eventVisibility === 'ouvert'
+      var actionHtml = vis === 'ouvert'
         ? '<button type="button" class="primary" data-action="event-join-ouvert" data-id="' + ev.id + '">Rejoindre</button>'
         : (myRequest
           ? '<span class="help-text">Demande envoyée</span>'
           : '<button type="button" class="ghost" data-action="event-join-request" data-id="' + ev.id + '">Demander à participer</button>');
       return '<div class="friend-row"><div class="friend-row-main"><span class="friend-name-plain">' + escapeHtml(ev.circuit) + '</span>' +
         '<span class="help-text">' + escapeHtml(formatEventRange(ev, true)) + ' — ' + escapeHtml(team ? team.name : '') +
-        (ev.eventVisibility === 'ouvert' ? ' · Ouvert' : ' · Public') + '</span></div>' +
+        ' · ' + (visTags[vis] || '') + '</span></div>' +
         '<div class="friend-row-actions">' + actionHtml + '</div></div>';
     }).join('');
     return collapsibleCard('event-discovery-pro', 'Découvrir les Événements PRO', body, false);
@@ -6230,7 +6237,7 @@
     html += '<div class="event-detail-header"><h3>' + escapeHtml(ev.circuit) + '</h3><button type="button" class="ghost icon-btn" id="close-event-detail" aria-label="Fermer">×</button></div>';
     if (ev.teamId) {
       var evTeam = teamById(ev.teamId);
-      var visLabels = { public: 'Public', adherent: 'Adhérent only', membre: 'Membre only', ouvert: 'Ouvert' };
+      var visLabels = { public: 'Public', adherent: 'Adhérent only', membre: 'Membre only', follower: 'Followers only', ouvert: 'Ouvert' };
       html += infoRow('Team', (evTeam ? escapeHtml(evTeam.name) + teamBadgesHtml(evTeam) : '—') +
         (evTeam && evTeam.teamPro ? ' <span class="friend-role-badge">' + (visLabels[ev.eventVisibility] || 'Membre only') + '</span>' : ''));
     }
@@ -7450,6 +7457,7 @@
         '<select id="ev-visibility">' +
         '<option value="membre"' + (ev.eventVisibility === 'membre' ? ' selected' : '') + '>Membre only</option>' +
         '<option value="adherent"' + (ev.eventVisibility === 'adherent' ? ' selected' : '') + '>Adhérent only</option>' +
+        '<option value="follower"' + (ev.eventVisibility === 'follower' ? ' selected' : '') + '>Followers only</option>' +
         '<option value="public"' + (ev.eventVisibility === 'public' ? ' selected' : '') + '>Public (visible par tous, invitation requise)</option>' +
         '<option value="ouvert"' + (ev.eventVisibility === 'ouvert' ? ' selected' : '') + '>Ouvert (inscription libre)</option>' +
         '</select>' +
@@ -8701,7 +8709,7 @@
     }
     // Résumé -- no dates here, already in the title above.
     if (ev.note) html += infoRow('Note', escapeHtml(ev.note));
-    var evTeamVis = { public: 'Public', adherent: 'Adhérent only', membre: 'Membre only', ouvert: 'Ouvert' };
+    var evTeamVis = { public: 'Public', adherent: 'Adhérent only', membre: 'Membre only', follower: 'Followers only', ouvert: 'Ouvert' };
     if (orgTeam.teamPro) html += infoRow('Visibilité', evTeamVis[ev.eventVisibility] || 'Membre only');
     html += renderEventAnnouncements(ev, canEdit);
     // Badges + rôle Team (Membre/Adhérent/Team Leader/Suivi) right on each

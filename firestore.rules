@@ -182,7 +182,7 @@ service cloud.firestore {
     // sortie (no teamId) stays exactly as permissive as before (any
     // verified account, so a new account can rebuild years of history
     // under whatever organizer name it actually rode under). Visibility
-    // (public/adherent/membre/ouvert) is a display-layer filter only
+    // (public/adherent/membre/follower/ouvert) is a display-layer filter only
     // (see eventsList()), same convention as every other audience field
     // in this app -- read stays open to any signed-in account.
     match /events/{id} {
