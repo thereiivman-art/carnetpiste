@@ -277,7 +277,16 @@ service cloud.firestore {
     }
     match /settings/{id} {
       allow read: if request.auth != null;
-      allow write: if verified();
+      // "Nos partenaires" (Profil -> Aide -> A propos, see savePartners)
+      // is admin-only content -- was open to any verified account like
+      // every other settings doc, which meant literally anyone could
+      // deface the club's own partners list. The shared equipment
+      // checklist template (settings/checklist) stays open to any
+      // verified account: adding an item/category from Planning is
+      // deliberately collaborative (see renderPlanningChecklist) --
+      // removing one is only gated admin-only client-side, a much
+      // lower-stakes gap than partners since it's trivially recoverable.
+      allow write: if verified() && (id != 'partners' || isAdmin());
     }
     // Friendship is name-keyed, like everything else in this app, and
     // reduced to one collection instead of a `friends` array on each
