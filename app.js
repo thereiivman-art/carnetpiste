@@ -2377,6 +2377,7 @@
     html += '<label class="checklist-item" style="margin-top:0.6rem;"><input type="checkbox" id="profile-notify"' + (p.notifyBeforeSession ? ' checked' : '') + '> <span id="profile-notify-label">' + (isNonRider ? 'Un pilote suivi va partir rouler' : 'Mon groupe va partir rouler') + '</span></label>';
     html += '<label class="checklist-item" style="margin-top:0.4rem;"><input type="checkbox" id="profile-notify-invites"' + (p.notifyInvites !== false ? ' checked' : '') + '> J\'ai reçu une invitation</label>';
     html += '<label class="checklist-item" style="margin-top:0.4rem;"><input type="checkbox" id="profile-notify-team-news"' + (p.notifyTeamNews !== false ? ' checked' : '') + '> Actu de mon Team</label>';
+    html += '<label class="checklist-item" style="margin-top:0.4rem;"><input type="checkbox" id="profile-notify-adherent-requests"' + (p.notifyAdherentRequests !== false ? ' checked' : '') + '> Demande d\'adhésion sur un Team que je dirige</label>';
     html += '<label class="checklist-item" style="margin-top:0.4rem;"><input type="checkbox" id="profile-notify-pro-outings"' + (p.notifyProOutings !== false ? ' checked' : '') + '> Nouvel événement organisé par un Team PRO que je suis ou dont je suis adhérent</label>';
     html += '<label class="checklist-item" style="margin-top:0.4rem;"><input type="checkbox" id="profile-notify-coach-messages"' + (p.notifyCoachMessages !== false ? ' checked' : '') + '> Nouveau message dans l\'espace coaching</label>';
     html += '<label class="checklist-item" style="margin-top:0.4rem;"><input type="checkbox" id="profile-notify-event-announcements"' + (p.notifyEventAnnouncements !== false ? ' checked' : '') + '> Annonce du Team Leader sur un événement</label>';
@@ -4083,6 +4084,17 @@
   function circuitInfo(name) {
     STATE.circuits = STATE.circuits || {};
     return STATE.circuits[name] || {};
+  }
+
+  // The horaires actually in effect for a given sortie: its own override
+  // (ev.horairesOverride, set from the event form -- see onEventSubmit)
+  // when set, else the circuit's shared "horaires habituels" (admin-only,
+  // see renderCircuitInfoEditForm). Lets a Team Leader fix an unusual
+  // schedule for their own sortie without needing write access to the
+  // circuit's own reference data.
+  function eventHoraires(ev) {
+    if (ev && ev.horairesOverride && Object.keys(ev.horairesOverride).length) return ev.horairesOverride;
+    return ev ? circuitInfo(ev.circuit).horaires : null;
   }
 
   // The circuit card's "Prochaine sortie" is derived straight from the
@@ -6350,10 +6362,11 @@
     html += '<div class="eyebrow">' + escapeHtml(ev.circuit) + '</div>';
     var calOrganizerTeam = info.organizerTeamId ? teamById(info.organizerTeamId) : null;
     if (calOrganizerTeam) html += '<div class="help-text">Organisateur ' + escapeHtml(calOrganizerTeam.name) + '</div>';
-    if (!info.horaires) {
+    var dayHoraires = eventHoraires(ev);
+    if (!dayHoraires) {
       html += '<div class="help-text">Aucun horaire enregistré pour ' + escapeHtml(ev.circuit) + '.</div>';
     } else {
-      html += renderHoraireGroups(info.horaires, null, ev, info.briefing, calendarAnchor === dateKey(new Date()));
+      html += renderHoraireGroups(dayHoraires, null, ev, info.briefing, calendarAnchor === dateKey(new Date()));
     }
     html += '</div>';
     return html;
@@ -6707,8 +6720,9 @@
     // créneau "en cours" qui n'aurait plus de sens pour une date passée.
     if (eventTemporalStatus(ev, dateKey(new Date())) === 'past') {
       var pastInfo = circuitInfo(ev.circuit);
-      if (pastInfo.horaires) {
-        var pastGroups = renderHoraireGroups(pastInfo.horaires, null, ev, pastInfo.briefing, false);
+      var pastHoraires = eventHoraires(ev);
+      if (pastHoraires) {
+        var pastGroups = renderHoraireGroups(pastHoraires, null, ev, pastInfo.briefing, false);
         if (pastGroups) html += collapsibleSection('event-past-horaires-' + ev.id, 'Groupes & horaires de cette sortie', pastGroups, false);
       }
     }
@@ -7031,8 +7045,7 @@
   // proposal and a Coach's own availability both only ever reference a
   // slot that genuinely exists in this event's horaires, never free text.
   function allEventSlots(ev) {
-    var info = ev && circuitInfo(ev.circuit);
-    var horaires = info && info.horaires;
+    var horaires = ev && eventHoraires(ev);
     if (!horaires) return [];
     var seen = {}, out = [];
     HORAIRES_GROUPS.forEach(function (g) {
@@ -7317,7 +7330,7 @@
     planningEventDateStart = ev.dateStart;
     planningEventId = ev.id;
     var info = circuitInfo(ev.circuit);
-    var horaires = info.horaires;
+    var horaires = eventHoraires(ev);
 
     // Orange card: everything the organizing Team PRO/Team provides --
     // schedule, announcements, and the two leader-editable blocks below.
@@ -7362,7 +7375,7 @@
     var availableGroups = horaires ? HORAIRES_GROUPS.filter(function (g) { return horaires[g.key]; }) : [];
     if (!availableGroups.length) {
       html += briefingLine;
-      html += '<div class="help-text">Aucun horaire enregistré pour ' + escapeHtml(ev.circuit) + ' — ajoutez-les depuis l\'onglet Circuit (Modifier les infos).</div>';
+      html += '<div class="help-text">Aucun horaire enregistré pour ' + escapeHtml(ev.circuit) + ' — un admin peut les ajouter depuis l\'onglet Circuit (Modifier les infos), ou le Team Leader depuis "Modifier l\'événement" pour cette sortie seulement.</div>';
       html += renderHorairesPhotoSection(ev);
     } else {
       var activeKeys = (planningGroupFilter && planningGroupFilter.length)
@@ -7927,23 +7940,24 @@
     html += '<button type="button" class="ghost" id="ev-more-options-toggle" style="margin-top:0.9rem;">' +
       (eventFormMoreOptionsOpen ? '− Moins d\'options' : '+ Plus d\'options (horaires, pilotes, organisateur...)') + '</button>';
     html += '<div id="ev-more-options" style="display:' + (eventFormMoreOptionsOpen ? 'block' : 'none') + ';">';
-    // Horaires live on the circuit (shared across every sortie there, see
-    // renderCircuitInfoEditForm) -- admin-only to write now (firestore.rules'
-    // circuits match), same as every other circuit field, so this inline
-    // shortcut only renders for admin too; a non-admin's event-form batch
-    // must never include a circuits write, or the whole batch (event
-    // included) would be rejected atomically by persist()'s single
-    // db.batch().
-    if (isAdmin()) {
-      var evHorairesVal = (ev.circuit && circuitInfo(ev.circuit).horaires) || {};
-      html += '<div style="margin-top:0.9rem;"><label>Horaires par groupe</label><div class="horaires-grid">';
-      HORAIRES_GROUPS.forEach(function (g) {
-        if (g.key === 'groupR' && ev.circuit !== 'Mugello' && !evHorairesVal.groupR) return;
-        html += '<div><label for="ev-horaires-' + g.key + '" class="horaires-sublabel">' + escapeHtml(g.label) + '</label>' +
-          '<input type="text" id="ev-horaires-' + g.key + '" placeholder="Ex. 9h, 10h40, 14h, 15h20, 16h40" value="' + escapeHtml(evHorairesVal[g.key] || '') + '"></div>';
-      });
-      html += '</div></div>';
-    }
+    // Per-event override, stored on the event itself (ev.horairesOverride),
+    // NOT on the circuit's shared "horaires habituels" (admin-only, see
+    // renderCircuitInfoEditForm) -- this form is only ever reachable by
+    // whoever can already edit this event (admin, or that Team's Leader,
+    // see edit-event-btn/team-event-edit gating), so no isAdmin() check
+    // needed here, and it's a plain events-collection write like the rest
+    // of this form, never touching the admin-gated circuits collection.
+    // Falls back to the circuit's own habitual horaires when blank (see
+    // the renderHoraireGroups call sites), so this is purely an
+    // exception for a specific sortie's unusual schedule.
+    var evHorairesVal = ev.horairesOverride || {};
+    html += '<div style="margin-top:0.9rem;"><label>Horaires par groupe (cette sortie -- laisser vide pour utiliser les horaires habituels du circuit)</label><div class="horaires-grid">';
+    HORAIRES_GROUPS.forEach(function (g) {
+      if (g.key === 'groupR' && ev.circuit !== 'Mugello' && !evHorairesVal.groupR) return;
+      html += '<div><label for="ev-horaires-' + g.key + '" class="horaires-sublabel">' + escapeHtml(g.label) + '</label>' +
+        '<input type="text" id="ev-horaires-' + g.key + '" placeholder="Ex. 9h, 10h40, 14h, 15h20, 16h40" value="' + escapeHtml(evHorairesVal[g.key] || '') + '"></div>';
+    });
+    html += '</div></div>';
     // Pilotes/groupes for a Team event now live entirely in the Team's own
     // "Gestion des événements" (search-to-add, chronos vérifiés as
     // reference for group moves) -- this form only still carries the
@@ -8085,6 +8099,7 @@
       if (eventVisibility) newEvent.eventVisibility = eventVisibility;
       if (bookingUrl) newEvent.bookingUrl = bookingUrl;
       if (riderGroups) newEvent.riderGroups = riderGroups;
+      if (anyHoraireFromForm) newEvent.horairesOverride = horairesFromForm;
       STATE.events.push(newEvent);
       selectedEventId = newEvent.id;
     } else {
@@ -8102,14 +8117,9 @@
         existing.autoCreated = false; // a manual edit means it's no longer just a byproduct of a chrono
         // checklist isn't touched here -- it's checked off in Planning, not the sortie form.
         existing.riderGroups = riderGroups || null; // never `undefined` -- Firestore rejects that as a field value
+        existing.horairesOverride = anyHoraireFromForm ? horairesFromForm : null;
         selectedEventId = existing.id;
       }
-    }
-    if (anyHoraireFromForm) {
-      STATE.circuits = STATE.circuits || {};
-      var circuitEntry = STATE.circuits[circuit] || {};
-      circuitEntry.horaires = Object.assign({}, circuitEntry.horaires || {}, horairesFromForm);
-      STATE.circuits[circuit] = circuitEntry;
     }
     selectedCircuit = circuit;
     calendarAnchor = dateStart;
@@ -9555,7 +9565,8 @@
     var info = circuitInfo(ev.circuit);
     var iAmCoach = isCoachBadge(me);
     var editing = coachAvailabilityEditOpen && iAmCoach;
-    var groupsHtml = info.horaires ? renderHoraireGroups(info.horaires, null, ev, info.briefing, true, coachAvailabilitySlotClass(ev, me)) : '';
+    var coachHoraires = eventHoraires(ev);
+    var groupsHtml = coachHoraires ? renderHoraireGroups(coachHoraires, null, ev, info.briefing, true, coachAvailabilitySlotClass(ev, me)) : '';
     if (!groupsHtml) return '';
     var body = '<div class="eyebrow">' + (target.mode === 'ongoing' ? 'En ce moment — ' : 'Prochain événement — ') + escapeHtml(ev.circuit) + '</div>';
     if (iAmCoach) {
@@ -10482,6 +10493,10 @@
     var notifyTeamNewsEl = document.getElementById('profile-notify-team-news');
     if (notifyTeamNewsEl) {
       notifyTeamNewsEl.addEventListener('change', function () { saveOwnBooleanField('notifyTeamNews', notifyTeamNewsEl.checked); });
+    }
+    var notifyAdherentRequestsEl = document.getElementById('profile-notify-adherent-requests');
+    if (notifyAdherentRequestsEl) {
+      notifyAdherentRequestsEl.addEventListener('change', function () { saveOwnBooleanField('notifyAdherentRequests', notifyAdherentRequestsEl.checked); });
     }
     var notifyProOutingsEl = document.getElementById('profile-notify-pro-outings');
     if (notifyProOutingsEl) {
@@ -13071,6 +13086,24 @@
         byTeam[f.followee].push(f);
       });
       STATE.teamFollowersByTeam = byTeam;
+      // A pending "devenir adhérent" request now also surfaces in the 🔔
+      // badge (see pendingAdherentRequests), but that's passive -- nothing
+      // alerted the leader it had arrived, unlike every other request type
+      // here (teamInvites, teamFeed...). Same notifyOnNewIds pattern:
+      // skipped entirely on first-ever sync so old/backlog requests never
+      // fire, only a request that shows up after that baseline.
+      var myAdherentReqs = [];
+      Object.keys(byTeam).forEach(function (teamId) {
+        if (!isLeaderOfTeam(teamId)) return;
+        byTeam[teamId].forEach(function (f) {
+          if (f.adherentRequested && f.tier !== 'adherent') myAdherentReqs.push(f);
+        });
+      });
+      notifyOnNewIds('team-adherent-requests', myAdherentReqs, function (f) { return f.id; }, function (f) {
+        if (!notifCategoryAllowed('notifyAdherentRequests')) return;
+        var t = teamById(f.followee);
+        new Notification('Carnet de Piste', { body: f.follower + ' souhaite devenir adhérent' + (t ? ' de ' + t.name : '') + '.' });
+      });
       renderRoot();
     }, handleSyncError));
     // Incoming join requests (see teamJoinRequests above) for every team
