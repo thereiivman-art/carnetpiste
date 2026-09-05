@@ -169,6 +169,15 @@
     });
   }
 
+  // Same delete as removeFriendRequest, but only ever wired to MY OWN
+  // "Annuler" button on a request I sent (see the "Demandes envoyées"
+  // list) -- distinguished from a decline so maybeNotifyFriendDecline
+  // never mistakes my own cancel for the recipient having refused me.
+  function cancelMyFriendRequest(id) {
+    myFriendRequestCancellations[id] = true;
+    removeFriendRequest(id);
+  }
+
   // ---- Coaching ----
   //
   // A Pilote or Organisateur asks a Coach (a badge, see isCoachBadge, not
@@ -7728,12 +7737,18 @@
   // distinction and no signal to the sender either way. Only a decline of
   // a still-pending SENT request should ever notify -- unfriending an
   // old, already-accepted one must stay silent, so this only fires when
-  // the doc's last known status (before it vanished) was 'pending'.
+  // the doc's last known status (before it vanished) was 'pending'. A
+  // request I cancel MYSELF (see cancelMyFriendRequest) also vanishes
+  // while still 'pending', so myFriendRequestCancellations marks those
+  // ids to skip -- otherwise cancelling my own request would wrongly
+  // notify me that it was refused.
   var myFriendRequestsSeen = {};
+  var myFriendRequestCancellations = {};
   function maybeNotifyFriendDecline(byId) {
     var prev = myFriendRequestsSeen;
     Object.keys(prev).forEach(function (id) {
       if (byId[id]) return;
+      if (myFriendRequestCancellations[id]) { delete myFriendRequestCancellations[id]; return; }
       if (prev[id].status !== 'pending') return;
       if (!notifCategoryAllowed('notifyRequestDecisions')) return;
       new Notification('Carnet de Piste', { body: 'Ta demande d\'ami' + (prev[id].to ? ' à ' + prev[id].to : '') + ' a été refusée.' });
@@ -8936,7 +8951,7 @@
     }
     if (outgoing.length) {
       var outgoingBody = outgoing.map(function (r) {
-        return renderFriendRow(r.to, '<button type="button" class="ghost" data-action="remove-friend" data-id="' + r.id + '">Annuler</button>');
+        return renderFriendRow(r.to, '<button type="button" class="ghost" data-action="cancel-friend-request" data-id="' + r.id + '">Annuler</button>');
       }).join('');
       amisHtml += collapsibleSection('social-demandes-envoyees', 'Demandes envoyées (' + outgoing.length + ')', outgoingBody);
     }
@@ -11114,6 +11129,9 @@
     document.querySelectorAll('[data-action="remove-friend"]').forEach(function (btn) {
       btn.addEventListener('click', function () { removeFriendRequest(btn.getAttribute('data-id')); });
     });
+    document.querySelectorAll('[data-action="cancel-friend-request"]').forEach(function (btn) {
+      btn.addEventListener('click', function () { cancelMyFriendRequest(btn.getAttribute('data-id')); });
+    });
     document.querySelectorAll('[data-action="remove-friend-request"]').forEach(function (btn) {
       btn.addEventListener('click', function () {
         pendingRemoveFriendId = btn.getAttribute('data-id');
@@ -13258,15 +13276,10 @@
       // alerted the leader it had arrived, unlike every other request type
       // here (teamInvites, teamFeed...). Same notifyOnNewIds pattern:
       // skipped entirely on first-ever sync so old/backlog requests never
-      // fire, only a request that shows up after that baseline.
-      var myAdherentReqs = [];
-      Object.keys(byTeam).forEach(function (teamId) {
-        if (!isLeaderOfTeam(teamId)) return;
-        byTeam[teamId].forEach(function (f) {
-          if (f.adherentRequested && f.tier !== 'adherent') myAdherentReqs.push(f);
-        });
-      });
-      notifyOnNewIds('team-adherent-requests', myAdherentReqs, function (f) { return f.id; }, function (f) {
+      // fire, only a request that shows up after that baseline. Reuses
+      // pendingAdherentRequests() rather than re-filtering byTeam here, so
+      // the badge count and this notifier can never drift apart.
+      notifyOnNewIds('team-adherent-requests', pendingAdherentRequests(), function (f) { return f.id; }, function (f) {
         if (!notifCategoryAllowed('notifyAdherentRequests')) return;
         var t = teamById(f.followee);
         new Notification('Carnet de Piste', { body: f.follower + ' souhaite devenir adhérent' + (t ? ' de ' + t.name : '') + '.' });
