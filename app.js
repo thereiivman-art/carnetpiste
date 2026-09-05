@@ -5511,6 +5511,66 @@
   // stays leader-curated only -- no self-request path, same as before.
   // Amateur Team Events never show up here -- per the brief, only
   // invited members/friends ever see those at all.
+  var discoveryViewMode = 'list'; // 'list' | 'calendar' -- Découvrir des Événements PRO
+  var discoveryCalendarAnchor = dateKey(new Date());
+  var discoverySelectedDate = null; // a date clicked in the calendar view, or null
+
+  // One dateKey -> [eventId,...] map over just the candidates passed in --
+  // its own tiny version of eventDateInfoAll() (which scans eventsList(),
+  // a different set: everything this account can already see, not what
+  // it's discovering) since a discoverable event is deliberately outside
+  // that list.
+  function discoveryEventInfo(candidates) {
+    var map = {};
+    candidates.forEach(function (ev) {
+      var start = parseLocalDate(ev.dateStart);
+      var end = parseLocalDate(ev.dateEnd || ev.dateStart);
+      var cur = new Date(start.getTime());
+      var guard = 0;
+      while (cur.getTime() <= end.getTime() && guard < 400) {
+        guard++;
+        var key = dateKey(cur);
+        (map[key] = map[key] || []).push(ev.id);
+        cur.setDate(cur.getDate() + 1);
+      }
+    });
+    return map;
+  }
+
+  // Its own small month grid (not renderMonthGrid) -- that one is tied to
+  // the personal calendar's own anchor/selectedEventId and eventsList(),
+  // neither of which apply here.
+  function renderDiscoveryCalendar(candidates) {
+    var info = discoveryEventInfo(candidates);
+    var anchor = parseLocalDate(discoveryCalendarAnchor);
+    var year = anchor.getFullYear(), month = anchor.getMonth();
+    var firstDow = (new Date(year, month, 1).getDay() + 6) % 7;
+    var daysInMonth = new Date(year, month + 1, 0).getDate();
+    var todayKey = dateKey(new Date());
+    var html = '<div class="calendar-nav-card" style="margin-bottom:0.6rem;">' +
+      '<button type="button" class="ghost icon-btn" id="discovery-cal-prev" aria-label="Mois précédent">‹</button>' +
+      '<div class="calendar-year-label">' + MONTH_NAMES_FR[month] + ' ' + year + '</div>' +
+      '<button type="button" class="ghost icon-btn" id="discovery-cal-next" aria-label="Mois suivant">›</button>' +
+      '</div>';
+    html += '<div class="cal-month cal-month-large">';
+    html += '<div class="cal-weekdays">' + WEEKDAY_LETTERS_FR.map(function (w) { return '<span>' + w + '</span>'; }).join('') + '</div>';
+    html += '<div class="cal-days cal-days-large">';
+    for (var i = 0; i < firstDow; i++) html += '<span class="cal-day cal-day-large empty"></span>';
+    for (var d = 1; d <= daysInMonth; d++) {
+      var key = year + '-' + pad2(month + 1) + '-' + pad2(d);
+      var ids = info[key];
+      var classes = 'cal-day cal-day-large';
+      if (ids && ids.length) classes += ' has-event';
+      if (key === todayKey) classes += ' today';
+      if (key === discoverySelectedDate) classes += ' selected';
+      html += (ids && ids.length)
+        ? '<button type="button" class="calendar-cell ' + classes + '" data-discovery-date="' + key + '">' + d + '</button>'
+        : '<span class="' + classes + '">' + d + '</span>';
+    }
+    html += '</div></div>';
+    return html;
+  }
+
   function renderProEventDiscovery(me) {
     if (!me) return '';
     var myTeamIds = (STATE.myTeamMemberships || []).map(function (m) { return m.teamId; });
@@ -5526,7 +5586,7 @@
     }).sort(function (a, b) { return a.dateStart < b.dateStart ? -1 : a.dateStart > b.dateStart ? 1 : 0; });
     if (!candidates.length) return '';
     var visTags = { ouvert: 'Ouvert', public: 'Public', adherent: 'Adhérent', follower: 'Followers' };
-    var body = candidates.map(function (ev) {
+    function rowHtml(ev) {
       var team = teamById(ev.teamId);
       var vis = ev.eventVisibility || 'membre';
       var myRequest = (STATE.eventJoinRequests || []).filter(function (r) { return r.eventId === ev.id && r.from === me.name; })[0];
@@ -5543,7 +5603,25 @@
         '<span class="help-text">' + escapeHtml(ev.circuit) + ' — ' + escapeHtml(formatEventRange(ev, true)) +
         ' · ' + (visTags[vis] || '') + '</span></div>' +
         '<div class="friend-row-actions">' + actionHtml + '</div></div>';
-    }).join('');
+    }
+    var toggle = '<div style="display:flex; gap:0.5rem; margin-bottom:0.7rem;">' +
+      '<button type="button" class="calendar-view-btn' + (discoveryViewMode === 'list' ? ' active' : '') + '" data-action="discovery-view-mode" data-mode="list">Liste</button>' +
+      '<button type="button" class="calendar-view-btn' + (discoveryViewMode === 'calendar' ? ' active' : '') + '" data-action="discovery-view-mode" data-mode="calendar">Calendrier</button>' +
+      '</div>';
+    var body;
+    if (discoveryViewMode === 'calendar') {
+      body = toggle + renderDiscoveryCalendar(candidates);
+      if (discoverySelectedDate) {
+        var dayEvents = candidates.filter(function (ev) {
+          return ev.dateStart <= discoverySelectedDate && (ev.dateEnd || ev.dateStart) >= discoverySelectedDate;
+        });
+        body += '<div style="margin-top:0.8rem;">' + (dayEvents.length
+          ? dayEvents.map(rowHtml).join('')
+          : '<div class="help-text">Rien ce jour-là.</div>') + '</div>';
+      }
+    } else {
+      body = toggle + candidates.map(rowHtml).join('');
+    }
     return collapsibleCard('event-discovery-pro', 'Découvrir les Événements PRO', body, false);
   }
 
@@ -11263,6 +11341,37 @@
     });
     document.querySelectorAll('[data-action="event-join-request"]').forEach(function (btn) {
       btn.addEventListener('click', function () { requestJoinEvent(btn.getAttribute('data-id')); });
+    });
+    document.querySelectorAll('[data-action="discovery-view-mode"]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        discoveryViewMode = btn.getAttribute('data-mode');
+        renderRoot();
+      });
+    });
+    var discoveryCalPrev = document.getElementById('discovery-cal-prev');
+    if (discoveryCalPrev) {
+      discoveryCalPrev.addEventListener('click', function () {
+        var d = parseLocalDate(discoveryCalendarAnchor);
+        d.setMonth(d.getMonth() - 1);
+        discoveryCalendarAnchor = dateKey(d);
+        renderRoot();
+      });
+    }
+    var discoveryCalNext = document.getElementById('discovery-cal-next');
+    if (discoveryCalNext) {
+      discoveryCalNext.addEventListener('click', function () {
+        var d = parseLocalDate(discoveryCalendarAnchor);
+        d.setMonth(d.getMonth() + 1);
+        discoveryCalendarAnchor = dateKey(d);
+        renderRoot();
+      });
+    }
+    document.querySelectorAll('[data-discovery-date]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var date = btn.getAttribute('data-discovery-date');
+        discoverySelectedDate = discoverySelectedDate === date ? null : date;
+        renderRoot();
+      });
     });
     document.querySelectorAll('[data-action="event-join-request-accept"]').forEach(function (btn) {
       btn.addEventListener('click', function () {
