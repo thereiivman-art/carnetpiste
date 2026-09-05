@@ -1356,7 +1356,7 @@
   }
 
   var editingCircuitInfo = false; // local UI state, not persisted
-  var annot = { open: false, circuit: null, eventId: null, sessionId: null, tool: 'brush', color: '#e63946', size: 4, fontSize: 22, drawing: false, lastX: 0, lastY: 0 };
+  var annot = { open: false, circuit: null, eventId: null, sessionId: null, tool: 'brush', color: '#e63946', size: 4, fontSize: 22, drawing: false, lastX: 0, lastY: 0, viewOnly: false, viewOnlyName: null };
 
   // ---- Calendrier (sorties planifiées + sessions déjà roulées) ----
   //
@@ -2592,6 +2592,39 @@
       '</div></div>';
   }
 
+  // Shared by pendingNotificationCount and renderNotificationsPanel --
+  // pending "je veux être adhérent" requests (see requestTeamAdherent)
+  // across every team this account leads. STATE.teamFollowersByTeam is
+  // already synced for every team the account is in or leads (see
+  // refreshTeamDetailSync), so this needs no extra listener of its own.
+  function pendingAdherentRequests() {
+    var out = [];
+    var byTeam = STATE.teamFollowersByTeam || {};
+    Object.keys(byTeam).forEach(function (teamId) {
+      if (!isLeaderOfTeam(teamId)) return;
+      (byTeam[teamId] || []).forEach(function (f) {
+        if (f.adherentRequested && f.tier !== 'adherent') out.push(f);
+      });
+    });
+    return out;
+  }
+
+  // Shared by the notifications panel -- a pending "devenir adhérent"
+  // request for a team this account leads, previously only visible by
+  // opening that team's own "Gérer les membres" screen (renderTeamPersonRow's
+  // pendingNote), same "invisible until you open the right screen" gap
+  // eventJoinRequests had before it joined the 🔔 badge.
+  function renderTeamAdherentRequestRow(f) {
+    var u = (STATE.usersByName || {})[f.follower] || {};
+    var team = teamById(f.followee);
+    return '<div class="friend-row"><div class="friend-row-main">' + avatarHtml(u, f.follower) + personNameHtml(f.follower) + badgesHtml(u) +
+      '<span class="help-text">souhaite devenir adhérent de ' + escapeHtml(team ? team.name : '') + '</span></div>' +
+      '<div class="friend-row-actions">' +
+      '<button type="button" class="primary" data-action="team-adherent-accept" data-follow-id="' + f.id + '">Accepter</button>' +
+      '<button type="button" class="ghost" data-action="team-adherent-decline" data-follow-id="' + f.id + '">Refuser</button>' +
+      '</div></div>';
+  }
+
   // How many items the header's 🔔 notification icon badges up -- every
   // pending thing addressed to this account across the app's request/
   // accept flows (friends, Teams, coaching, Team join requests this
@@ -2606,6 +2639,7 @@
     n += (STATE.coachRequests || []).filter(function (r) { return r.status === 'pending' && (r.from === me.name || r.to === me.name) && coachRequestAwaitingMe(r, me); }).length;
     n += (STATE.teamJoinRequests || []).filter(function (r) { return r.status === 'pending' && isLeaderOfTeam(r.teamId); }).length;
     n += (STATE.eventJoinRequests || []).filter(function (r) { return r.status === 'pending' && teamById(r.teamId) && isLeaderOfTeam(r.teamId); }).length;
+    n += pendingAdherentRequests().length;
     return n;
   }
 
@@ -2625,6 +2659,7 @@
     var coachReqs = (STATE.coachRequests || []).filter(function (r) { return r.status === 'pending' && (r.from === me.name || r.to === me.name) && coachRequestAwaitingMe(r, me); });
     var teamJoinReqs = (STATE.teamJoinRequests || []).filter(function (r) { return r.status === 'pending' && isLeaderOfTeam(r.teamId); });
     var eventJoinReqs = (STATE.eventJoinRequests || []).filter(function (r) { return r.status === 'pending' && teamById(r.teamId) && isLeaderOfTeam(r.teamId); });
+    var adherentReqs = pendingAdherentRequests();
     var rows = '';
     friendReqs.forEach(function (r) {
       rows += renderFriendRow(r.from, '<button type="button" class="primary" data-action="accept-friend" data-id="' + r.id + '">Accepter</button>' +
@@ -2646,6 +2681,9 @@
     });
     eventJoinReqs.forEach(function (r) {
       rows += renderEventJoinRequestRow(r);
+    });
+    adherentReqs.forEach(function (f) {
+      rows += renderTeamAdherentRequestRow(f);
     });
     html += rows || '<div class="empty-state">Rien de nouveau.</div>';
     html += '</div>';
@@ -4388,6 +4426,21 @@
   // doc as STATE.circuits[circuit].accompagnantDrawings[riderName].
   var ANNOT_ACCOMPAGNANT_LEVEL = '__accompagnant__';
 
+  // Read-only view of another account's own circuit-level/accompagnant
+  // plan (see the annot.viewOnly branches in renderAnnotationOverlay/
+  // saveAnnotation) -- lets a coach show a pupil their own line, or an
+  // accompagnant check what a teammate already marked, without either
+  // account's layer ever overwriting the other's (see the per-user
+  // drawings/accompagnantDrawings maps above).
+  var ANNOT_VIEW_PREFIX = 'viewer:';
+  function viewLevelSessionId(level, name) { return ANNOT_VIEW_PREFIX + level + ':' + name; }
+  function isViewLevelId(sessionId) { return typeof sessionId === 'string' && sessionId.indexOf(ANNOT_VIEW_PREFIX) === 0; }
+  function parseViewLevelId(sessionId) {
+    var rest = sessionId.slice(ANNOT_VIEW_PREFIX.length);
+    var sep = rest.indexOf(':');
+    return { level: rest.slice(0, sep), name: rest.slice(sep + 1) };
+  }
+
   function openAnnotation(circuit, eventId) {
     var sessions = circuitSessionsDesc(circuit);
     annot.open = true;
@@ -4401,12 +4454,16 @@
       annot.sessionId = sessions.length ? sessions[0].id : ANNOT_CIRCUIT_LEVEL;
     }
     annot.tool = 'brush';
+    annot.viewOnly = false;
+    annot.viewOnlyName = null;
     renderAnnotationOverlay();
   }
 
   function closeAnnotation() {
     annot.open = false;
     annot.eventId = null;
+    annot.viewOnly = false;
+    annot.viewOnlyName = null;
     var overlay = document.getElementById('annot-overlay');
     if (overlay) {
       overlay.classList.remove('open');
@@ -4510,8 +4567,18 @@
     var myAnnotName = currentUserProfile && currentUserProfile.name;
     options += '<option value="' + ANNOT_CIRCUIT_LEVEL + '"' + (annot.sessionId === ANNOT_CIRCUIT_LEVEL ? ' selected' : '') + '>' +
       'Plan général' + (myAnnotName && info.drawings && info.drawings[myAnnotName] ? ' ✎' : '') + '</option>';
+    Object.keys(info.drawings || {}).filter(function (name) { return name !== myAnnotName; }).sort().forEach(function (name) {
+      var vId = viewLevelSessionId('circuit', name);
+      options += '<option value="' + vId + '"' + (annot.sessionId === vId ? ' selected' : '') + '>' +
+        '👁 Plan général de ' + escapeHtml(name) + '</option>';
+    });
     options += '<option value="' + ANNOT_ACCOMPAGNANT_LEVEL + '"' + (annot.sessionId === ANNOT_ACCOMPAGNANT_LEVEL ? ' selected' : '') + '>' +
       'Plan accompagnant' + (myAnnotName && info.accompagnantDrawings && info.accompagnantDrawings[myAnnotName] ? ' ✎' : '') + '</option>';
+    Object.keys(info.accompagnantDrawings || {}).filter(function (name) { return name !== myAnnotName; }).sort().forEach(function (name) {
+      var vId2 = viewLevelSessionId('accompagnant', name);
+      options += '<option value="' + vId2 + '"' + (annot.sessionId === vId2 ? ' selected' : '') + '>' +
+        '👁 Plan accompagnant de ' + escapeHtml(name) + '</option>';
+    });
     options += sessions.map(function (s) {
       var label = formatDate(s.date) + ' — ' + formatTime(sessionBest(s)) + (showRiderInOption ? ' — ' + s.rider : '') + (s.drawing ? ' ✎' : '');
       return '<option value="' + s.id + '"' + (s.id === annot.sessionId ? ' selected' : '') + '>' + escapeHtml(label) + '</option>';
@@ -4535,30 +4602,39 @@
     var svgClear = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg>';
     var svgUndo = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7v6h6"/><path d="M3.5 13a8.5 8.5 0 1 0 2.3-7"/></svg>';
     var svgExport = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M7 8l5-5 5 5"/><path d="M4 17v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></svg>';
-    html += '<button type="button" class="annot-tool-btn" data-tool="brush" aria-label="Pinceau" title="Pinceau">' + svgBrush + '</button>';
-    html += '<button type="button" class="annot-tool-btn" data-tool="eraser" aria-label="Gomme" title="Gomme">' + svgEraser + '</button>';
-    html += '<button type="button" class="annot-tool-btn" data-tool="text" aria-label="Texte" title="Texte">T</button>';
-    html += '<button type="button" class="annot-tool-btn" data-tool="move" aria-label="Déplacer" title="Déplacer un trait ou un texte">' + svgMove + '</button>';
-    html += '<input type="color" id="annot-color" class="annot-color-input" value="' + annot.color + '" aria-label="Couleur" title="Couleur">';
-    var SIZE_PRESETS = [2, 4, 8];
-    var SIZE_LABELS = { 2: 'Fin', 4: 'Moyen', 8: 'Épais' };
-    html += '<div class="annot-size-group" role="group" aria-label="Épaisseur du trait">';
-    SIZE_PRESETS.forEach(function (s) {
-      var dotPx = 3 + s;
-      html += '<button type="button" class="annot-size-btn' + (annot.size === s ? ' active' : '') + '" data-size="' + s + '" aria-label="' + SIZE_LABELS[s] + '" title="' + SIZE_LABELS[s] + '">' +
-        '<span class="annot-size-dot" style="width:' + dotPx + 'px;height:' + dotPx + 'px;"></span></button>';
-    });
-    html += '</div>';
+    // Read-only mode (see openAnnotationView) shows someone else's own
+    // per-account plan -- no drawing tools, no save, just look/zoom/export,
+    // since editing it would edit THEIR layer, not the viewer's.
+    if (annot.viewOnly) {
+      html += '<span class="help-text annot-viewonly-badge">👁 Plan de ' + escapeHtml(annot.viewOnlyName || '') + ' (lecture seule)</span>';
+    } else {
+      html += '<button type="button" class="annot-tool-btn" data-tool="brush" aria-label="Pinceau" title="Pinceau">' + svgBrush + '</button>';
+      html += '<button type="button" class="annot-tool-btn" data-tool="eraser" aria-label="Gomme" title="Gomme">' + svgEraser + '</button>';
+      html += '<button type="button" class="annot-tool-btn" data-tool="text" aria-label="Texte" title="Texte">T</button>';
+      html += '<button type="button" class="annot-tool-btn" data-tool="move" aria-label="Déplacer" title="Déplacer un trait ou un texte">' + svgMove + '</button>';
+      html += '<input type="color" id="annot-color" class="annot-color-input" value="' + annot.color + '" aria-label="Couleur" title="Couleur">';
+      var SIZE_PRESETS = [2, 4, 8];
+      var SIZE_LABELS = { 2: 'Fin', 4: 'Moyen', 8: 'Épais' };
+      html += '<div class="annot-size-group" role="group" aria-label="Épaisseur du trait">';
+      SIZE_PRESETS.forEach(function (s) {
+        var dotPx = 3 + s;
+        html += '<button type="button" class="annot-size-btn' + (annot.size === s ? ' active' : '') + '" data-size="' + s + '" aria-label="' + SIZE_LABELS[s] + '" title="' + SIZE_LABELS[s] + '">' +
+          '<span class="annot-size-dot" style="width:' + dotPx + 'px;height:' + dotPx + 'px;"></span></button>';
+      });
+      html += '</div>';
+    }
     html += '<div class="annot-zoom-group" role="group" aria-label="Zoom">';
     html += '<span class="annot-zoom-label">Zoom</span>';
     html += '<button type="button" class="annot-zoom-btn" id="annot-zoom-out" aria-label="Zoom arrière" title="Zoom arrière">−</button>';
     html += '<button type="button" class="ghost annot-zoom-value" id="annot-zoom-value" aria-label="Réinitialiser le zoom" title="Revenir à 100%">' + Math.round(annotView.scale * 100) + '%</button>';
     html += '<button type="button" class="annot-zoom-btn" id="annot-zoom-in" aria-label="Zoom avant" title="Zoom avant">+</button>';
     html += '</div>';
-    html += '<button type="button" class="ghost icon-btn" id="annot-undo" aria-label="Annuler" title="Annuler la dernière action (Ctrl+Z)">' + svgUndo + '</button>';
     html += '<button type="button" class="ghost icon-btn" id="annot-export" aria-label="Exporter en image" title="Afficher le tracé annoté en grand pour l\'enregistrer">' + svgExport + '</button>';
-    html += '<button type="button" class="ghost icon-btn" id="annot-clear" aria-label="Tout effacer" title="Tout effacer">' + svgClear + '</button>';
-    html += '<button type="button" class="primary annot-save-btn" id="annot-save">Enregistrer</button>';
+    if (!annot.viewOnly) {
+      html += '<button type="button" class="ghost icon-btn" id="annot-undo" aria-label="Annuler" title="Annuler la dernière action (Ctrl+Z)">' + svgUndo + '</button>';
+      html += '<button type="button" class="ghost icon-btn" id="annot-clear" aria-label="Tout effacer" title="Tout effacer">' + svgClear + '</button>';
+      html += '<button type="button" class="primary annot-save-btn" id="annot-save">Enregistrer</button>';
+    }
     html += '</div>';
     html += '<div class="annot-canvas-wrap' + (info.mapImage ? ' has-basemap' : '') + '" id="annot-canvas-wrap">';
     html += '<div class="annot-canvas-inner" id="annot-canvas-inner">';
@@ -4612,9 +4688,15 @@
       ? (currentUserProfile && (circuitInfo(annot.circuit).drawings || {})[currentUserProfile.name])
       : annot.sessionId === ANNOT_ACCOMPAGNANT_LEVEL
         ? (currentUserProfile && (circuitInfo(annot.circuit).accompagnantDrawings || {})[currentUserProfile.name])
-        : isEventLevelId(annot.sessionId)
-          ? (eventsList().filter(function (e) { return e.id === eventIdFromLevelId(annot.sessionId); })[0] || {}).drawing
-          : (STATE.sessions.filter(function (s) { return s.id === annot.sessionId; })[0] || {}).drawing;
+        : isViewLevelId(annot.sessionId)
+          ? (function () {
+              var parsed = parseViewLevelId(annot.sessionId);
+              var map = parsed.level === 'accompagnant' ? circuitInfo(annot.circuit).accompagnantDrawings : circuitInfo(annot.circuit).drawings;
+              return (map || {})[parsed.name];
+            })()
+          : isEventLevelId(annot.sessionId)
+            ? (eventsList().filter(function (e) { return e.id === eventIdFromLevelId(annot.sessionId); })[0] || {}).drawing
+            : (STATE.sessions.filter(function (s) { return s.id === annot.sessionId; })[0] || {}).drawing;
     if (existingDrawing) {
       var img = new Image();
       img.onload = function () {
@@ -4897,7 +4979,12 @@
     var wrap = e.currentTarget;
     annotPointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
     if (annotPointers.size === 1) {
-      if (annot.tool === 'text') {
+      if (annot.viewOnly) {
+        // Read-only view of someone else's plan (see openAnnotationView) --
+        // one-finger pan still works via the 'move' tool's else-branch
+        // below being skipped entirely, so just let the tap through as a
+        // no-op instead of drawing/erasing/dropping text on their layer.
+      } else if (annot.tool === 'text') {
         e.preventDefault();
         // Text input/labels are children of the wrap (not the pan/zoomed
         // inner div), so they only need the rotation undone, not pan/zoom.
@@ -5185,7 +5272,7 @@
   }
 
   function saveAnnotation() {
-    if (!annotCanvasEl) return;
+    if (!annotCanvasEl || annot.viewOnly) return;
     // any text label still pending gets baked in automatically on save
     var pendingConfirm = document.querySelector('.annot-text-confirm');
     if (pendingConfirm) pendingConfirm.click();
@@ -5278,6 +5365,14 @@
     if (sessionSelect) {
       sessionSelect.addEventListener('change', function () {
         annot.sessionId = sessionSelect.value;
+        if (isViewLevelId(annot.sessionId)) {
+          var parsed = parseViewLevelId(annot.sessionId);
+          annot.viewOnly = true;
+          annot.viewOnlyName = parsed.name;
+        } else {
+          annot.viewOnly = false;
+          annot.viewOnlyName = null;
+        }
         renderAnnotationOverlay();
       });
     }
@@ -5945,9 +6040,13 @@
   // picker (above the main tabs) — an event with riders specified is hidden
   // unless at least one of them is selected; an event with no riders yet
   // always shows.
+  // Filtered by isMyEventForList, not just canSeeEvent, to match En cours/
+  // À venir/Passés (see renderEventTab) -- otherwise a Team PRO event a
+  // plain member never joined could still mark a day here while being
+  // absent from every list, which read as a bug rather than "not yours yet".
   function eventDateInfoAll() {
     var map = {};
-    eventsList().forEach(function (ev) {
+    eventsList().filter(isMyEventForList).forEach(function (ev) {
       if (selectedRiders && ev.riders && ev.riders.length) {
         var matches = ev.riders.some(function (r) { return selectedRiders.has(r); });
         if (!matches) return;
