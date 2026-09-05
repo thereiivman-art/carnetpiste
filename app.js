@@ -11623,12 +11623,19 @@
         // Sits inside the "Gestion des événements" card's <summary> now
         // (see collapsibleCard's titleActionsHtml) -- without this, the
         // click would also toggle the card open/closed, since that's the
-        // default action of clicking anywhere in a <summary>.
+        // default action of clicking anywhere in a <summary>. But
+        // preventDefault() alone left a Team with zero events (the card
+        // defaults to closed, see renderTeamEventsManagement) stuck: the
+        // form below rendered inside a still-collapsed <details>, so
+        // clicking "+ Ajouter" appeared to do nothing at all. Force this
+        // card open explicitly instead of relying on the native toggle.
         evt.preventDefault();
+        var teamId = btn.getAttribute('data-team');
+        planningSectionsOpen['team-events-' + teamId] = true;
         editingEventId = 'new';
         selectedEventId = null;
         prefillEventCircuit = null;
-        prefillEventTeamId = btn.getAttribute('data-team');
+        prefillEventTeamId = teamId;
         pendingDeleteEvent = null;
         renderRoot();
       });
