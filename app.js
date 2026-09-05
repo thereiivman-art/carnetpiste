@@ -735,9 +735,11 @@
   // "Nom | URL", parsed into {label, url} objects. A free-form textarea
   // rather than an add/remove-row widget, consistent with how riders/
   // horaires are typed elsewhere in this app.
-  // Espace partenaires -- one shared doc (settings/partners), same free-
-  // text "Nom | URL" convention as a Team's own links (see saveTeamLinks),
-  // url optional here since a partner might not have a site to link.
+  // "Nos partenaires de Carnet de Piste" -- one shared doc
+  // (settings/partners), admin-only (Xavier), shown in Profil > Aide >
+  // À propos. Not to be confused with a Team's own Partenaires (see
+  // renderTeamPartnersSection below) -- that one's per-Team, set by that
+  // Team's own Leader, a completely separate list.
   function savePartners(raw) {
     var list = (raw || '').split('\n').map(function (line) { return line.trim(); }).filter(Boolean).map(function (line) {
       var parts = line.split('|');
@@ -771,11 +773,51 @@
         escapeHtml(partners.map(function (p) { return p.url ? p.name + ' | ' + p.url : p.name; }).join('\n')) + '</textarea>' +
         '<button type="submit" class="primary" style="margin-top:0.6rem;">Enregistrer</button></form>';
     }
-    // Same collapsibleSection style as "Followers" right above it (see
-    // renderTeamCard) rather than its own full collapsibleCard -- moved
-    // into each Team's own fiche per the brief, even though the list
-    // itself stays global (one shared settings/partners doc), not per-Team.
-    return collapsibleSection('espace-partenaires', 'Partenaires', body, false);
+    return '<div style="margin-top:1.2rem; border-top:1px solid var(--border); padding-top:0.9rem;">' +
+      '<div class="section-title" style="font-size:0.95rem;">Nos partenaires de Carnet de Piste</div>' + body + '</div>';
+  }
+
+  // A Team's OWN partenaires -- set by that Team's Leader (garage,
+  // concessionnaire, sponsor...), own list per Team on the team doc
+  // itself (a Team Leader can already write any field there but teamPro,
+  // see firestore.rules' teams update) -- unrelated to the app-wide list
+  // above. Same collapsibleSection style as "Followers" right above it in
+  // renderTeamCard, and the same "Nom | URL" free-text convention as
+  // saveTeamLinks/savePartners.
+  function saveTeamPartners(teamId, raw) {
+    var list = (raw || '').split('\n').map(function (line) { return line.trim(); }).filter(Boolean).map(function (line) {
+      var parts = line.split('|');
+      var url = parts.length > 1 ? parts.slice(1).join('|').trim() : '';
+      var name = parts[0].trim();
+      return { name: name, url: url };
+    }).filter(function (p) { return p.name; });
+    db.collection('teams').doc(teamId).set({ partners: list }, { merge: true }).then(function () {
+      showToast('Partenaires enregistrés.', 'success');
+    }).catch(function (err) {
+      showToast('Erreur : ' + (err && err.message ? err.message : err));
+    });
+  }
+  function renderTeamPartnersSection(team, isLeader) {
+    var partners = team.partners || [];
+    var body;
+    if (!partners.length && !isLeader) return '';
+    if (!partners.length) {
+      body = '<div class="empty-state">Aucun partenaire pour l\'instant.</div>';
+    } else {
+      body = '<div class="team-links-row">' + partners.map(function (p) {
+        return p.url
+          ? '<a class="team-link-chip" href="' + escapeHtml(p.url) + '" target="_blank" rel="noopener">' + escapeHtml(p.name) + '</a>'
+          : '<span class="team-link-chip">' + escapeHtml(p.name) + '</span>';
+      }).join('') + '</div>';
+    }
+    if (isLeader) {
+      body += '<form data-action="team-partners-form" data-team="' + team.id + '" style="margin-top:0.8rem;">' +
+        '<label for="team-partners-' + team.id + '">Un par ligne : Nom | URL (URL optionnelle)</label>' +
+        '<textarea id="team-partners-' + team.id + '" data-team-partners-input rows="3" placeholder="Concession Motos X | https://...\nGarage Y">' +
+        escapeHtml(partners.map(function (p) { return p.url ? p.name + ' | ' + p.url : p.name; }).join('\n')) + '</textarea>' +
+        '<button type="submit" class="primary" style="margin-top:0.6rem;">Enregistrer</button></form>';
+    }
+    return collapsibleSection('team-partners-' + team.id, 'Partenaires', body, false);
   }
   function saveTeamLinks(teamId, raw) {
     var links = (raw || '').split('\n').map(function (line) { return line.trim(); }).filter(Boolean).map(function (line) {
@@ -2420,6 +2462,7 @@
     var html = '<div class="section-title" style="font-size:0.95rem;">À propos</div>';
     html += '<div class="help-text">Carnet de Piste centralise le planning des événements, les groupes/horaires, tes chronos et ta progression entre pilotes et accompagnants — le tout à jour en temps réel pour tout le monde.</div>';
     html += '<div style="margin-top:1.1rem;"><button type="button" class="ghost" id="tutorial-open-btn">Revoir le tutoriel</button></div>';
+    html += renderPartnersSection();
     return html;
   }
 
@@ -9015,7 +9058,7 @@
     var teamFollowers = (STATE.teamFollowersByTeam || {})[team.id] || [];
     html += renderTeamMembersSection(team, members, teamFollowers, me, isLeader);
     html += renderTeamFollowersSection(team, members, teamFollowers, me, isLeader);
-    html += renderPartnersSection();
+    html += renderTeamPartnersSection(team, isLeader);
 
     if (isLeader) {
       var memberNames = members.map(function (m) { return m.name; });
@@ -10858,6 +10901,13 @@
         savePartners(textarea ? textarea.value : '');
       });
     }
+    document.querySelectorAll('[data-action="team-partners-form"]').forEach(function (form) {
+      form.addEventListener('submit', function (evt) {
+        evt.preventDefault();
+        var textarea = form.querySelector('[data-team-partners-input]');
+        saveTeamPartners(form.getAttribute('data-team'), textarea ? textarea.value : '');
+      });
+    });
     var cropViewportEl = document.getElementById('crop-modal-viewport');
     var cropModalImgEl = document.getElementById('crop-modal-img');
     var cropZoomEl = document.getElementById('crop-zoom');
