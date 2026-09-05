@@ -1383,6 +1383,7 @@
   var eventFormDraftGroupsFor = null; // editingEventId the draft above belongs to
   var eventFormRidersDraft = []; // rider names picked so far in the "Pilotes" search widget below
   var eventFormRidersDraftFor = null; // editingEventId the draft above belongs to
+  var draggedGroupRider = null; // rider name mid-drag in renderGroupsSection's drag-and-drop, or null
   var editingSessionId = null; // id of the chrono row being edited inline in the Circuit history table, or null
   var addChronoOpen = false; // whether renderForm() shows the actual "Entrer un nouveau chrono" form, or just its collapsed teaser button
   var selectedSessionDate = _savedUiState.selectedSessionDate || null; // 'YYYY-MM-DD' — shows the "chronos of that day" card
@@ -5534,8 +5535,12 @@
         : (myRequest
           ? '<span class="help-text">Demande envoyée</span>'
           : '<button type="button" class="ghost" data-action="event-join-request" data-id="' + ev.id + '">Demander à participer</button>');
-      return '<div class="friend-row"><div class="friend-row-main"><span class="friend-name-plain">' + escapeHtml(ev.circuit) + '</span>' +
-        '<span class="help-text">' + escapeHtml(formatEventRange(ev, true)) + ' — ' + escapeHtml(team ? team.name : '') +
+      // The Team leads here (avatar, name, ✓ badge) rather than a bare
+      // name in the help-text -- the whole point of this card is "which
+      // Team PRO is proposing this", not just "which circuit".
+      return '<div class="friend-row"><div class="friend-row-main">' + avatarHtml(team || {}, team ? team.name : '') +
+        '<span class="friend-name-plain">' + escapeHtml(team ? team.name : '') + '</span>' + teamBadgesHtml(team) +
+        '<span class="help-text">' + escapeHtml(ev.circuit) + ' — ' + escapeHtml(formatEventRange(ev, true)) +
         ' · ' + (visTags[vis] || '') + '</span></div>' +
         '<div class="friend-row-actions">' + actionHtml + '</div></div>';
     }).join('');
@@ -5714,7 +5719,7 @@
     else if (calendarViewMode === '2month') html += renderMultiMonthGrid(2, eventInfo, sessionsMap);
     else html += renderYearGrid(eventInfo, sessionsMap);
     if (selectedSessionDate) html += renderSessionDayCard(selectedSessionDate);
-    return collapsibleCard('events-calendar', 'Calendrier', html, false) + renderPeriodEventsCard();
+    return collapsibleCard('events-calendar', 'Calendrier', html, false);
   }
 
   var ZOOM_LEVEL_LABELS = { year: 'Année', '6month': '6 mois', '3month': '3 mois', '2month': '2 mois', month: 'Mois', week: 'Semaine', day: 'Jour' };
@@ -5743,30 +5748,6 @@
     if (mode === '3month') return 3;
     if (mode === '2month') return 2;
     return 1; // 'month'
-  }
-
-  // The exact date range currently on screen, mirroring the grid-building
-  // logic above — lets the sorties summary below the calendar track
-  // whatever period the rider has zoomed/navigated to (a week, a month, a
-  // year…) instead of always being pinned to the whole year.
-  function visiblePeriodRange() {
-    var d = parseLocalDate(calendarAnchor);
-    if (calendarViewMode === 'day') {
-      return { start: calendarAnchor, end: calendarAnchor };
-    }
-    if (calendarViewMode === 'year') {
-      return { start: dateKey(new Date(d.getFullYear(), 0, 1)), end: dateKey(new Date(d.getFullYear(), 11, 31)) };
-    }
-    if (calendarViewMode === 'week') {
-      var monday = mondayOf(d);
-      var sunday = new Date(monday.getTime());
-      sunday.setDate(sunday.getDate() + 6);
-      return { start: dateKey(monday), end: dateKey(sunday) };
-    }
-    var count = monthsCountForMode(calendarViewMode);
-    var start = new Date(d.getFullYear(), d.getMonth(), 1);
-    var end = new Date(d.getFullYear(), d.getMonth() + count, 0); // last day of the count-th month
-    return { start: dateKey(start), end: dateKey(end) };
   }
 
   function calendarNavLabel() {
@@ -6014,25 +5995,6 @@
     return html;
   }
 
-  // Reuses the exact same accordion component as the Événement tab
-  // (renderEventGroupCard) — clicking a sortie here expands its résumé in
-  // place, right where it was clicked, instead of navigating away.
-  function renderPeriodEventsCard() {
-    var range = visiblePeriodRange();
-    var events = eventsList().filter(function (ev) {
-      var end = ev.dateEnd || ev.dateStart;
-      if (ev.dateStart > range.end || end < range.start) return false;
-      // Respect the global rider picker — an event with riders specified is
-      // hidden unless at least one of them is currently selected; an event
-      // with no riders assigned yet always shows.
-      if (selectedRiders && ev.riders && ev.riders.length) {
-        return ev.riders.some(function (r) { return selectedRiders.has(r); });
-      }
-      return true;
-    }).sort(function (a, b) { return a.dateStart < b.dateStart ? -1 : a.dateStart > b.dateStart ? 1 : 0; });
-    return renderEventGroupCard('Événements de la période sélectionnée · ' + calendarNavLabel(), events, { hideGroups: true, collapseKey: 'events-period', defaultOpen: false });
-  }
-
   // Selecting a sortie is a "picking" action — it also syncs selectedCircuit
   // so the Circuit/Chronos/Statistiques tabs stay contextually consistent
   // with whichever sortie is currently active. Closing/clearing sites keep
@@ -6128,7 +6090,11 @@
       var t = riderVerifiedBest(ev, name);
       var timeHtml = t != null ? ' <span class="verified-pill">' + formatTime(t) + '</span>' : '';
       var removeBtn = (removable && canEdit) ? '<button type="button" class="ghost icon-btn" data-action="event-group-remove" data-id="' + ev.id + '" data-rider="' + escapeHtml(name) + '" aria-label="Retirer du groupe" title="Retirer du groupe">×</button>' : '';
-      return '<div class="friend-row"><div class="friend-row-main">' + nameLinkHtml(name) + badgesHtml(u) + timeHtml + '</div><div class="friend-row-actions">' + removeBtn + '</div></div>' + maybeFicheHtml(name);
+      // Drag-and-drop between groups, desktop mainly (touch browsers mostly
+      // don't fire native HTML5 drag events) -- the search-to-add form and
+      // the × button above still cover mobile either way.
+      var dragAttrs = canEdit ? ' draggable="true" data-drag-rider="' + escapeHtml(name) + '"' : '';
+      return '<div class="friend-row"' + dragAttrs + '><div class="friend-row-main">' + nameLinkHtml(name) + badgesHtml(u) + timeHtml + '</div><div class="friend-row-actions">' + removeBtn + '</div></div>' + maybeFicheHtml(name);
     }
     var assignedCount = riders.length - unassigned.length;
     var html = '<div class="section-title" style="margin-top:1rem;">Groupes (' + assignedCount + ')</div>';
@@ -6139,15 +6105,22 @@
     // with a wide screen; each column stays its own <details> underneath
     // so mobile keeps the accordion behaviour unchanged, and a column can
     // still be collapsed individually to free up horizontal room.
+    // canEdit-only drop zones -- data-drop-group="" is "Non attribués"
+    // (removeRiderFromGroup), a letter is assignRiderToGroup (see the
+    // dragstart/dragover/drop wiring in attachHandlers).
     html += '<div class="groups-board">';
     if (unassigned.length) {
-      html += collapsibleSection('event-group-unassigned-' + ev.id, 'Non attribués (' + unassigned.length + ')', unassigned.map(function (r) { return riderRow(r, false); }).join(''), true);
+      var unassignedBody = canEdit
+        ? '<div class="group-drop-zone" data-drop-group="" data-event-id="' + ev.id + '">' + unassigned.map(function (r) { return riderRow(r, false); }).join('') + '</div>'
+        : unassigned.map(function (r) { return riderRow(r, false); }).join('');
+      html += collapsibleSection('event-group-unassigned-' + ev.id, 'Non attribués (' + unassigned.length + ')', unassignedBody, true);
     }
     ROSTER_GROUP_LETTERS.forEach(function (g) {
       var members = byGroup[g];
       var times = members.map(function (r) { return riderVerifiedBest(ev, r); }).filter(function (t) { return t != null; });
       var avg = times.length ? times.reduce(function (a, b) { return a + b; }, 0) / times.length : null;
-      var body = members.length ? members.map(function (r) { return riderRow(r, true); }).join('') : '<div class="help-text">Personne pour l\'instant.</div>';
+      var membersHtml = members.length ? members.map(function (r) { return riderRow(r, true); }).join('') : '<div class="help-text">Personne pour l\'instant.</div>';
+      var body = canEdit ? '<div class="group-drop-zone" data-drop-group="' + g + '" data-event-id="' + ev.id + '">' + membersHtml + '</div>' : membersHtml;
       var candidates = riders.filter(function (r) { return members.indexOf(r) === -1; }).sort(function (a, b) {
         var ta = riderVerifiedBest(ev, a), tb = riderVerifiedBest(ev, b);
         if (avg != null) {
@@ -6526,40 +6499,32 @@
   }
 
   // Événements merges the former separate Calendrier tab in: (1) "En cours"
-  // first, only when a sortie's date range actually covers today — no point
-  // in a permanent empty section for the common case of nothing running
-  // right now; (2) "À venir" then "Passés" (the latter banded by year); (3)
-  // "Ajouter un événement", a standing section rather than something you
-  // have to leave the tab to reach; (4) the Calendrier grid itself, kept
-  // last since it's for browsing dates rather than the day-to-day view.
+  // first, only when a sortie's date range actually covers today AND this
+  // account is actually riding it -- no point in a permanent empty section
+  // for the common case of nothing running right now, and no point showing
+  // someone else's ongoing sortie as "En cours" for an account that isn't
+  // part of it; (2) "À venir", still every visible event (not just ones
+  // already joined, so there's something to actually discover/join); (3)
+  // "Découvrir des Événements PRO", right after -- the natural next step
+  // once "À venir" runs out of your own sorties; (4) the Calendrier grid,
+  // for browsing dates rather than the day-to-day view; (5) "Ajouter un
+  // événement"; (6) "Passés" last, the least time-sensitive of the lot.
   function renderEventTab() {
     var all = eventsList();
     var todayKey = dateKey(new Date());
+    var me = currentUserProfile;
     var ongoing = [], upcoming = [], past = [];
     all.forEach(function (ev) {
       var status = eventTemporalStatus(ev, todayKey);
-      if (status === 'ongoing') ongoing.push(ev);
-      else if (status === 'upcoming') upcoming.push(ev);
+      if (status === 'ongoing') {
+        if (me && (ev.riders || []).indexOf(me.name) !== -1) ongoing.push(ev);
+      } else if (status === 'upcoming') upcoming.push(ev);
       else past.push(ev);
     });
     ongoing.sort(function (a, b) { return a.dateStart < b.dateStart ? -1 : a.dateStart > b.dateStart ? 1 : 0; });
     upcoming.sort(function (a, b) { return a.dateStart < b.dateStart ? -1 : a.dateStart > b.dateStart ? 1 : 0; });
     past.sort(function (a, b) { return a.dateStart < b.dateStart ? 1 : a.dateStart > b.dateStart ? -1 : 0; });
-    var me = currentUserProfile;
-    var incomingEventRequests = (STATE.eventJoinRequests || []).filter(function (r) { return r.status === 'pending' && teamById(r.teamId) && isLeaderOfTeam(r.teamId); });
     var html = '';
-    if (incomingEventRequests.length) {
-      var incomingBody = incomingEventRequests.map(function (r) {
-        var u = (STATE.usersByName || {})[r.from] || {};
-        return '<div class="friend-row"><div class="friend-row-main">' + avatarHtml(u, r.from) + personNameHtml(r.from) + badgesHtml(u) +
-          '<span class="help-text">' + escapeHtml(r.circuit || '') + '</span></div>' +
-          '<div class="friend-row-actions">' +
-          '<button type="button" class="primary" data-action="event-join-request-accept" data-id="' + r.id + '">Accepter</button>' +
-          '<button type="button" class="ghost" data-action="event-join-request-remove" data-id="' + r.id + '">Refuser</button>' +
-          '</div></div>';
-      }).join('');
-      html += collapsibleCard('event-join-requests-in', 'Demandes pour participer (' + incomingEventRequests.length + ')', incomingBody, true);
-    }
     if (!all.length) {
       html += '<div class="card"><div class="empty-state">' + (coreDataLoading() ? 'Chargement...' : 'Aucun événement enregistré — ajoutez-en un ci-dessous.') + '</div></div>';
     } else {
@@ -6569,9 +6534,8 @@
       // that shouldn't need an extra click.
       html += renderEventGroupCard('À venir', upcoming, { collapseKey: 'events-upcoming', defaultOpen: !ongoing.length });
     }
-    // En cours / À venir / Ajouter / Calendrier / Sorties de la période /
-    // Passés -- Passés moved last since it's the least time-sensitive of
-    // the six, the one you're least likely to open on a given visit.
+    html += renderProEventDiscovery(me);
+    html += renderCalendarSection();
     // Only the "+ Ajouter" prompt (or its own open form, editingEventId
     // 'new') lives in this standing slot -- editing an EXISTING event
     // (editingEventId set to a real id, from "Modifier" inside its own
@@ -6579,9 +6543,7 @@
     // that duplicated the whole edit card and jumped the page's scroll
     // to this spot, above whatever event the click was actually on.
     html += (editingEventId === null || editingEventId === 'new') ? renderEventForm() : addEventTeaserCard();
-    html += renderCalendarSection();
     html += renderPastEventsCard(past);
-    html += renderProEventDiscovery(me);
     return html;
   }
 
@@ -11569,6 +11531,38 @@
     });
     document.querySelectorAll('[data-action="event-group-remove"]').forEach(function (btn) {
       btn.addEventListener('click', function () { removeRiderFromGroup(btn.getAttribute('data-id'), btn.getAttribute('data-rider')); });
+    });
+    // Drag a rider's row (see riderRow's draggable attribute) onto another
+    // group's drop zone to move them there in one gesture -- mainly a
+    // desktop convenience (touch browsers mostly don't fire native HTML5
+    // drag events), the search-to-add form and × button above still cover
+    // mobile either way.
+    document.querySelectorAll('[data-drag-rider]').forEach(function (el) {
+      el.addEventListener('dragstart', function (evt) {
+        draggedGroupRider = el.getAttribute('data-drag-rider');
+        if (evt.dataTransfer) {
+          evt.dataTransfer.effectAllowed = 'move';
+          evt.dataTransfer.setData('text/plain', draggedGroupRider);
+        }
+      });
+      el.addEventListener('dragend', function () { draggedGroupRider = null; });
+    });
+    document.querySelectorAll('[data-drop-group]').forEach(function (zone) {
+      zone.addEventListener('dragover', function (evt) {
+        evt.preventDefault();
+        zone.classList.add('group-drop-zone-hover');
+      });
+      zone.addEventListener('dragleave', function () { zone.classList.remove('group-drop-zone-hover'); });
+      zone.addEventListener('drop', function (evt) {
+        evt.preventDefault();
+        zone.classList.remove('group-drop-zone-hover');
+        if (!draggedGroupRider) return;
+        var group = zone.getAttribute('data-drop-group');
+        var eventId = zone.getAttribute('data-event-id');
+        if (group) assignRiderToGroup(eventId, draggedGroupRider, group);
+        else removeRiderFromGroup(eventId, draggedGroupRider);
+        draggedGroupRider = null;
+      });
     });
     var editEventBtn = document.getElementById('edit-event-btn');
     if (editEventBtn) {

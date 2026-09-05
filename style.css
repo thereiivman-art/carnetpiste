@@ -626,6 +626,11 @@
   .team-join-request-row { display: flex; flex-direction: column; gap: 0.35rem; padding: 0.6rem 0; border-bottom: 1px solid var(--border); }
   .team-join-request-row:last-child { border-bottom: none; }
   .team-join-request-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.2rem; }
+  /* Drag-and-drop a rider between groups (renderGroupsSection), mainly a
+     desktop convenience -- the grab cursor and drop-target highlight. */
+  [data-drag-rider] { cursor: grab; }
+  .group-drop-zone { min-height: 1.5rem; border-radius: 8px; transition: background-color 0.12s ease; }
+  .group-drop-zone-hover { background-color: color-mix(in srgb, var(--accent) 12%, transparent); }
   .team-description { flex-basis: 100%; margin-top: 0.5rem; }
   .team-stats-row {
     display: flex;
