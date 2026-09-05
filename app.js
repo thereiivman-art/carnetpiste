@@ -771,7 +771,11 @@
         escapeHtml(partners.map(function (p) { return p.url ? p.name + ' | ' + p.url : p.name; }).join('\n')) + '</textarea>' +
         '<button type="submit" class="primary" style="margin-top:0.6rem;">Enregistrer</button></form>';
     }
-    return collapsibleCard('espace-partenaires', 'Espace partenaires', body, false);
+    // Same collapsibleSection style as "Followers" right above it (see
+    // renderTeamCard) rather than its own full collapsibleCard -- moved
+    // into each Team's own fiche per the brief, even though the list
+    // itself stays global (one shared settings/partners doc), not per-Team.
+    return collapsibleSection('espace-partenaires', 'Partenaires', body, false);
   }
   function saveTeamLinks(teamId, raw) {
     var links = (raw || '').split('\n').map(function (line) { return line.trim(); }).filter(Boolean).map(function (line) {
@@ -5511,9 +5515,10 @@
   // stays leader-curated only -- no self-request path, same as before.
   // Amateur Team Events never show up here -- per the brief, only
   // invited members/friends ever see those at all.
-  var discoveryViewMode = 'list'; // 'list' | 'calendar' -- Découvrir des Événements PRO
+  var discoveryViewMode = 'list'; // 'list' | 'month' | 'year' -- Découvrir des Événements PRO
+  var discoverySortMode = 'date'; // 'date' | 'team' -- list view only
   var discoveryCalendarAnchor = dateKey(new Date());
-  var discoverySelectedDate = null; // a date clicked in the calendar view, or null
+  var discoverySelectedDate = null; // a date clicked in the month/year view, or null
 
   // One dateKey -> [eventId,...] map over just the candidates passed in --
   // its own tiny version of eventDateInfoAll() (which scans eventsList(),
@@ -5571,6 +5576,47 @@
     return html;
   }
 
+  // The compact per-month tile used by the year view (12 of these) -- its
+  // own version of renderMonthMini using data-discovery-date instead of
+  // data-date, so its cells never get picked up by the personal
+  // calendar's own click wiring (see the .calendar-cell[data-date]
+  // handler in attachHandlers).
+  function renderDiscoveryMonthMini(year, month, info) {
+    var firstDow = (new Date(year, month, 1).getDay() + 6) % 7;
+    var daysInMonth = new Date(year, month + 1, 0).getDate();
+    var todayKey = dateKey(new Date());
+    var html = '<div class="cal-month"><div class="cal-month-title">' + MONTH_NAMES_FR[month] + '</div>';
+    html += '<div class="cal-weekdays">' + WEEKDAY_LETTERS_FR.map(function (w) { return '<span>' + w + '</span>'; }).join('') + '</div>';
+    html += '<div class="cal-days">';
+    for (var i = 0; i < firstDow; i++) html += '<span class="cal-day empty"></span>';
+    for (var d = 1; d <= daysInMonth; d++) {
+      var key = year + '-' + pad2(month + 1) + '-' + pad2(d);
+      var ids = info[key];
+      var classes = 'cal-day';
+      if (ids && ids.length) classes += ' has-event';
+      if (key === todayKey) classes += ' today';
+      if (key === discoverySelectedDate) classes += ' selected';
+      html += (ids && ids.length)
+        ? '<button type="button" class="calendar-cell ' + classes + '" data-discovery-date="' + key + '">' + d + '</button>'
+        : '<span class="' + classes + '">' + d + '</span>';
+    }
+    html += '</div></div>';
+    return html;
+  }
+
+  function renderDiscoveryYearGrid(candidates) {
+    var info = discoveryEventInfo(candidates);
+    var year = parseLocalDate(discoveryCalendarAnchor).getFullYear();
+    var html = '<div class="calendar-nav-card" style="margin-bottom:0.6rem;">' +
+      '<button type="button" class="ghost icon-btn" id="discovery-cal-prev" aria-label="Année précédente">‹</button>' +
+      '<div class="calendar-year-label">' + year + '</div>' +
+      '<button type="button" class="ghost icon-btn" id="discovery-cal-next" aria-label="Année suivante">›</button>' +
+      '</div><div class="calendar-year-grid">';
+    for (var m = 0; m < 12; m++) html += renderDiscoveryMonthMini(year, m, info);
+    html += '</div>';
+    return html;
+  }
+
   function renderProEventDiscovery(me) {
     if (!me) return '';
     var myTeamIds = (STATE.myTeamMemberships || []).map(function (m) { return m.teamId; });
@@ -5604,13 +5650,14 @@
         ' · ' + (visTags[vis] || '') + '</span></div>' +
         '<div class="friend-row-actions">' + actionHtml + '</div></div>';
     }
-    var toggle = '<div style="display:flex; gap:0.5rem; margin-bottom:0.7rem;">' +
+    var toggle = '<div style="display:flex; flex-wrap:wrap; gap:0.5rem; margin-bottom:0.7rem;">' +
       '<button type="button" class="calendar-view-btn' + (discoveryViewMode === 'list' ? ' active' : '') + '" data-action="discovery-view-mode" data-mode="list">Liste</button>' +
-      '<button type="button" class="calendar-view-btn' + (discoveryViewMode === 'calendar' ? ' active' : '') + '" data-action="discovery-view-mode" data-mode="calendar">Calendrier</button>' +
+      '<button type="button" class="calendar-view-btn' + (discoveryViewMode === 'month' ? ' active' : '') + '" data-action="discovery-view-mode" data-mode="month">Mois</button>' +
+      '<button type="button" class="calendar-view-btn' + (discoveryViewMode === 'year' ? ' active' : '') + '" data-action="discovery-view-mode" data-mode="year">Année</button>' +
       '</div>';
     var body;
-    if (discoveryViewMode === 'calendar') {
-      body = toggle + renderDiscoveryCalendar(candidates);
+    if (discoveryViewMode === 'month' || discoveryViewMode === 'year') {
+      body = toggle + (discoveryViewMode === 'year' ? renderDiscoveryYearGrid(candidates) : renderDiscoveryCalendar(candidates));
       if (discoverySelectedDate) {
         var dayEvents = candidates.filter(function (ev) {
           return ev.dateStart <= discoverySelectedDate && (ev.dateEnd || ev.dateStart) >= discoverySelectedDate;
@@ -5620,7 +5667,31 @@
           : '<div class="help-text">Rien ce jour-là.</div>') + '</div>';
       }
     } else {
-      body = toggle + candidates.map(rowHtml).join('');
+      // Tri par Team -- one subheading per Team (name, badge), sorted
+      // alphabetically, its own events kept in the usual date order
+      // underneath, instead of one flat date-ordered list.
+      var sortToggle = '<div style="display:flex; gap:0.5rem; margin-bottom:0.6rem;">' +
+        '<button type="button" class="calendar-view-btn' + (discoverySortMode === 'date' ? ' active' : '') + '" data-action="discovery-sort-mode" data-mode="date">Trier par date</button>' +
+        '<button type="button" class="calendar-view-btn' + (discoverySortMode === 'team' ? ' active' : '') + '" data-action="discovery-sort-mode" data-mode="team">Trier par Team</button>' +
+        '</div>';
+      if (discoverySortMode === 'team') {
+        var byTeam = {};
+        candidates.forEach(function (ev) {
+          (byTeam[ev.teamId] = byTeam[ev.teamId] || []).push(ev);
+        });
+        var teamIds = Object.keys(byTeam).sort(function (a, b) {
+          var ta = teamById(a), tb = teamById(b);
+          return (ta ? ta.name : '').localeCompare(tb ? tb.name : '');
+        });
+        body = toggle + sortToggle + teamIds.map(function (tid) {
+          var t = teamById(tid);
+          return '<div class="section-title" style="font-size:0.95rem; margin-top:0.8rem;">' + avatarHtml(t || {}, t ? t.name : '') +
+            ' ' + escapeHtml(t ? t.name : '') + teamBadgesHtml(t) + '</div>' +
+            byTeam[tid].map(rowHtml).join('');
+        }).join('');
+      } else {
+        body = toggle + sortToggle + candidates.map(rowHtml).join('');
+      }
     }
     return collapsibleCard('event-discovery-pro', 'Découvrir les Événements PRO', body, false);
   }
@@ -5797,7 +5868,7 @@
     else if (calendarViewMode === '2month') html += renderMultiMonthGrid(2, eventInfo, sessionsMap);
     else html += renderYearGrid(eventInfo, sessionsMap);
     if (selectedSessionDate) html += renderSessionDayCard(selectedSessionDate);
-    return collapsibleCard('events-calendar', 'Calendrier', html, false);
+    return collapsibleCard('events-calendar', 'Mon calendrier', html, false);
   }
 
   var ZOOM_LEVEL_LABELS = { year: 'Année', '6month': '6 mois', '3month': '3 mois', '2month': '2 mois', month: 'Mois', week: 'Semaine', day: 'Jour' };
@@ -8944,6 +9015,7 @@
     var teamFollowers = (STATE.teamFollowersByTeam || {})[team.id] || [];
     html += renderTeamMembersSection(team, members, teamFollowers, me, isLeader);
     html += renderTeamFollowersSection(team, members, teamFollowers, me, isLeader);
+    html += renderPartnersSection();
 
     if (isLeader) {
       var memberNames = members.map(function (m) { return m.name; });
@@ -9427,7 +9499,7 @@
     var myTeams = memberTeamIds.concat(followedOnlyIds).map(teamById).filter(Boolean)
       .sort(function (a, b) { return a.name.localeCompare(b.name); });
 
-    var html = renderPartnersSection();
+    var html = '';
     if (incoming.length) {
       var incomingBody = incoming.map(function (r) {
         return '<div class="friend-row"><div class="friend-row-main"><span class="friend-name-plain">' + escapeHtml((teamById(r.teamId) || {}).name || r.teamName) + '</span> <span class="help-text">invité par ' + escapeHtml(r.from) + '</span></div>' +
@@ -11348,11 +11420,18 @@
         renderRoot();
       });
     });
+    document.querySelectorAll('[data-action="discovery-sort-mode"]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        discoverySortMode = btn.getAttribute('data-mode');
+        renderRoot();
+      });
+    });
     var discoveryCalPrev = document.getElementById('discovery-cal-prev');
     if (discoveryCalPrev) {
       discoveryCalPrev.addEventListener('click', function () {
         var d = parseLocalDate(discoveryCalendarAnchor);
-        d.setMonth(d.getMonth() - 1);
+        if (discoveryViewMode === 'year') d.setFullYear(d.getFullYear() - 1);
+        else d.setMonth(d.getMonth() - 1);
         discoveryCalendarAnchor = dateKey(d);
         renderRoot();
       });
@@ -11361,7 +11440,8 @@
     if (discoveryCalNext) {
       discoveryCalNext.addEventListener('click', function () {
         var d = parseLocalDate(discoveryCalendarAnchor);
-        d.setMonth(d.getMonth() + 1);
+        if (discoveryViewMode === 'year') d.setFullYear(d.getFullYear() + 1);
+        else d.setMonth(d.getMonth() + 1);
         discoveryCalendarAnchor = dateKey(d);
         renderRoot();
       });
