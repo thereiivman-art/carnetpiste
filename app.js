@@ -462,9 +462,26 @@
     db.collection('teams').doc(teamId).update({ memberCount: firebase.firestore.FieldValue.increment(delta) }).catch(function () {});
   }
 
+  // A Team PRO (or any Team) left with zero Team Leaders is stuck -- no
+  // one left with the isTeamLeader() rights to manage it, fix it, or hand
+  // leadership back to anyone. UI-only guard (client-side, not enforced
+  // in firestore.rules -- a leader count isn't something a security rule
+  // can check without a denormalized counter), same spirit as this app's
+  // other click-to-confirm safety rails.
+  function wouldRemoveLastLeader(teamId, name) {
+    var members = membersOfTeam(teamId);
+    var target = members.filter(function (m) { return m.name === name; })[0];
+    if (!target || target.role !== 'leader') return false;
+    return members.filter(function (m) { return m.role === 'leader'; }).length <= 1;
+  }
+
   // Same doc either way, whether a leader removes someone else or a
   // member removes themselves (leaving the team) -- see firestore.rules.
   function removeTeamMember(teamId, name) {
+    if (wouldRemoveLastLeader(teamId, name)) {
+      showToast('Impossible : ce Team doit toujours garder au moins un Team Leader.');
+      return;
+    }
     bumpTeamMemberCount(teamId, -1);
     db.collection('teamMembers').doc(teamMemberDocId(teamId, name)).delete().catch(function (err) {
       showToast('Erreur : ' + (err && err.message ? err.message : err));
@@ -472,6 +489,10 @@
   }
 
   function setTeamMemberRole(teamId, name, role) {
+    if (role !== 'leader' && wouldRemoveLastLeader(teamId, name)) {
+      showToast('Impossible : ce Team doit toujours garder au moins un Team Leader.');
+      return;
+    }
     db.collection('teamMembers').doc(teamMemberDocId(teamId, name)).set({ role: role }, { merge: true }).catch(function (err) {
       showToast('Erreur : ' + (err && err.message ? err.message : err));
     });
