@@ -2309,13 +2309,13 @@
   function renderProfileReglagesTab(p) {
     var html = renderNotificationsSettings(p);
     html += '<div style="margin-top:1.1rem;"><label style="margin-bottom:0.4rem; display:block;">Thème</label>' + renderThemeToggle() + '</div>';
-    // Opt-in, off by default -- a quick "comment c'était ?" prompt after
-    // every chrono enregistré would be nagging for anyone who doesn't
-    // want it, so it only ever appears for an account that's turned this
-    // on itself (see onSubmit's success handler and renderFeelingModal).
+    // Opt-out, on by default -- a quick "comment c'était ?" prompt after
+    // every chrono enregistré, until an account explicitly turns it off
+    // (see onSubmit's success handler and renderFeelingModal, both gated
+    // on !== false rather than === true).
     html += '<div style="margin-top:1.2rem; border-top:1px solid var(--border); padding-top:0.9rem;">';
     html += '<div class="section-title" style="font-size:0.95rem;">Ressenti après chaque session</div>';
-    html += '<label class="checklist-item"><input type="checkbox" id="profile-feeling-enabled"' + (p.sessionFeelingEnabled === true ? ' checked' : '') + '> Activer le ressenti à ton retour de chaque session</label>';
+    html += '<label class="checklist-item"><input type="checkbox" id="profile-feeling-enabled"' + (p.sessionFeelingEnabled !== false ? ' checked' : '') + '> Activer le ressenti à ton retour de chaque session</label>';
     html += '<div class="help-text" style="margin-top:0.3rem;">Une fois activé, un chrono enregistré te proposera de dire en un clic comment s\'est passée la session (forme, fatigue...).</div>';
     html += '</div>';
     // What a friend can see when they open your fiche from Social (Mes
@@ -11996,10 +11996,10 @@
     } else {
       showToast('Chrono enregistré.', 'success');
     }
-    // Opt-in (see Réglages), and only for a chrono this account entered
-    // for itself -- an organisateur/admin entering one for a teammate has
-    // no feeling of their own to report.
-    if (currentUserProfile && currentUserProfile.sessionFeelingEnabled === true && rider === currentUserProfile.name) {
+    // On by default, opt-out (see Réglages), and only for a chrono this
+    // account entered for itself -- an organisateur/admin entering one
+    // for a teammate has no feeling of their own to report.
+    if (currentUserProfile && currentUserProfile.sessionFeelingEnabled !== false && rider === currentUserProfile.name) {
       openFeelingModal(session.id);
     }
   }
