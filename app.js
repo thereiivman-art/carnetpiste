@@ -2380,6 +2380,7 @@
     html += '<label class="checklist-item" style="margin-top:0.4rem;"><input type="checkbox" id="profile-notify-adherent-requests"' + (p.notifyAdherentRequests !== false ? ' checked' : '') + '> Demande d\'adhésion sur un Team que je dirige</label>';
     html += '<label class="checklist-item" style="margin-top:0.4rem;"><input type="checkbox" id="profile-notify-request-decisions"' + (p.notifyRequestDecisions !== false ? ' checked' : '') + '> Réponse à une demande que j\'ai envoyée (ami, rejoindre un Team, devenir adhérent)</label>';
     html += '<label class="checklist-item" style="margin-top:0.4rem;"><input type="checkbox" id="profile-notify-chrono-certified"' + (p.notifyChronoCertified !== false ? ' checked' : '') + '> Un de mes chronos a été vérifié</label>';
+    html += '<label class="checklist-item" style="margin-top:0.4rem;"><input type="checkbox" id="profile-notify-reactions"' + (p.notifyReactions !== false ? ' checked' : '') + '> Quelqu\'un a réagi à un de mes posts</label>';
     html += '<label class="checklist-item" style="margin-top:0.4rem;"><input type="checkbox" id="profile-notify-pro-outings"' + (p.notifyProOutings !== false ? ' checked' : '') + '> Nouvel événement organisé par un Team PRO que je suis ou dont je suis adhérent</label>';
     html += '<label class="checklist-item" style="margin-top:0.4rem;"><input type="checkbox" id="profile-notify-coach-messages"' + (p.notifyCoachMessages !== false ? ' checked' : '') + '> Nouveau message dans l\'espace coaching</label>';
     html += '<label class="checklist-item" style="margin-top:0.4rem;"><input type="checkbox" id="profile-notify-event-announcements"' + (p.notifyEventAnnouncements !== false ? ' checked' : '') + '> Annonce du Team Leader sur un événement</label>';
@@ -7766,6 +7767,39 @@
     myChronoCertifiedState = next;
   }
 
+  // toggleReaction (Mur/Team feed emoji reactions) writes straight to
+  // reactions.<name> with no signal at all to the post's own author --
+  // the last of tonight's silent-write gaps. Watches a post stream for a
+  // new key appearing in ITS OWN post's reactions map (never for a
+  // reaction the author added themselves). isFirstEver-style baseline per
+  // stream instance, same reasoning as maybeNotifyChronoCertified -- and
+  // since teamFeed's stream is torn down and rebuilt on every
+  // refreshTeamDetailSync (team list change), each rebuild only means one
+  // skipped baseline snapshot, never a stale one.
+  function makeReactionNotifier(authorField, describe) {
+    var seen = null;
+    return function (posts) {
+      var isFirstEver = seen === null;
+      var next = {};
+      var me = currentUserProfile;
+      (posts || []).forEach(function (p) {
+        var prevReactions = (seen && seen[p.id]) || {};
+        next[p.id] = p.reactions || {};
+        if (isFirstEver || !me || p[authorField] !== me.name || !notifCategoryAllowed('notifyReactions')) return;
+        Object.keys(p.reactions || {}).forEach(function (name) {
+          if (name === me.name || prevReactions[name]) return;
+          new Notification('Carnet de Piste', { body: name + ' a réagi ' + p.reactions[name] + ' à ' + describe(p) });
+        });
+      });
+      seen = next;
+    };
+  }
+  var maybeNotifyWallPostReaction = makeReactionNotifier('author', function () { return 'ton post sur le Mur'; });
+  var maybeNotifyTeamFeedReaction = makeReactionNotifier('author', function (f) {
+    var t = teamById(f.teamId);
+    return 'ta publication' + (t ? ' sur ' + t.name : '');
+  });
+
   function maybeNotifyNewTeamInvites(byId) {
     var pending = Object.keys(byId).filter(function (id) { return byId[id].status === 'pending'; }).map(function (id) { return byId[id]; });
     notifyOnNewIds('team-invites', pending, function (inv) { return inv.id; }, function (inv) {
@@ -10620,6 +10654,10 @@
     if (notifyChronoCertifiedEl) {
       notifyChronoCertifiedEl.addEventListener('change', function () { saveOwnBooleanField('notifyChronoCertified', notifyChronoCertifiedEl.checked); });
     }
+    var notifyReactionsEl = document.getElementById('profile-notify-reactions');
+    if (notifyReactionsEl) {
+      notifyReactionsEl.addEventListener('change', function () { saveOwnBooleanField('notifyReactions', notifyReactionsEl.checked); });
+    }
     var notifyProOutingsEl = document.getElementById('profile-notify-pro-outings');
     if (notifyProOutingsEl) {
       notifyProOutingsEl.addEventListener('change', function () { saveOwnBooleanField('notifyProOutings', notifyProOutingsEl.checked); });
@@ -12967,6 +13005,7 @@
     // friends/follows relationships actually allow it to see.
     unsubscribers.push(db.collection('wallPosts').orderBy('createdAt', 'desc').limit(200).onSnapshot(function (snap) {
       STATE.wallPosts = snap.docs.map(function (d) { return d.data(); });
+      maybeNotifyWallPostReaction(STATE.wallPosts);
       markCoreSynced('wallPosts');
       renderRoot();
     }, handleSyncError));
@@ -13195,6 +13234,7 @@
           new Notification('Carnet de Piste', { body: 'Actu' + (t ? ' de ' + t.name : ' de ton Team') + ' : ' + body.slice(0, 100) });
         }
       });
+      maybeNotifyTeamFeedReaction(posts);
       STATE.teamFeed = posts;
       teamFeedSynced = true;
       renderRoot();
