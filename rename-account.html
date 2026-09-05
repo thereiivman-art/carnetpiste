@@ -33,6 +33,12 @@
   <button id="rename-btn">Renommer</button>
 </div>
 
+<div id="step3" style="display:none; margin-top:2rem; padding-top:1.5rem; border-top:1px solid #ccc;">
+  <h2>Réparer les ids de Team désynchronisés</h2>
+  <p class="help">Chaque fiche teamMembers doit avoir un id "teamId_nom" qui correspond à son propre champ nom -- c'est ce que isTeamLeader()/isTeamMember() vérifient côté serveur. Un renommage fait avant que ce bouton existe a pu laisser des fiches avec un nom à jour mais un id resté sous l'ancien pseudo : la personne apparaît Team Leader dans l'appli, mais toute action réservée aux Team Leaders (accepter une demande, attribuer un rôle...) lui est alors refusée sans message clair. Ce bouton scanne toutes les fiches et corrige celles qui ne correspondent plus.</p>
+  <button id="repair-btn">Scanner et réparer</button>
+</div>
+
 <div id="log"></div>
 
 <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
@@ -55,6 +61,7 @@
       log('Connecté.');
       document.getElementById('step1').style.display = 'none';
       document.getElementById('step2').style.display = 'block';
+      document.getElementById('step3').style.display = 'block';
     }).catch(function (err) {
       log('ERREUR : ' + (err && err.message ? err.message : err));
     });
@@ -146,11 +153,25 @@
           });
         });
       }).then(function () {
-        // Membres de Team.
+        // Membres de Team -- l'id de chaque fiche doit rester "teamId_nom"
+        // (voir teamMemberDocId côté appli) car isTeamLeader()/isTeamMember()
+        // ne font qu'un lookup par id, jamais une requête sur le champ nom.
+        // Un simple update() du champ nom laisserait l'id sous l'ancien
+        // pseudo : la personne resterait Team Leader dans l'appli (son
+        // rôle est bien "leader") mais toute action réservée aux Team
+        // Leaders lui serait refusée côté serveur, sans message clair. On
+        // recrée donc la fiche sous le nouvel id puis on supprime l'ancien.
         return db.collection('teamMembers').where('name', '==', oldName).get();
       }).then(function (tmSnap) {
-        return Promise.all(tmSnap.docs.map(function (d) { return d.ref.update({ name: newName }); })).then(function () {
-          log('OK : ' + tmSnap.size + ' fiche(s) de membre de Team renommée(s).');
+        var ops = tmSnap.docs.map(function (d) {
+          var data = d.data();
+          var newId = data.teamId + '_' + newName.replace(/\//g, '_');
+          return db.collection('teamMembers').doc(newId).set(Object.assign({}, data, { name: newName })).then(function () {
+            return d.ref.delete();
+          });
+        });
+        return Promise.all(ops).then(function () {
+          log('OK : ' + tmSnap.size + ' fiche(s) de membre de Team renommée(s) (id ré-aligné).');
         });
       }).then(function () {
         log('--- Terminé. ---');
@@ -159,6 +180,37 @@
       });
     }).catch(function (err) {
       if (err === 'stop') return;
+      log('ERREUR : ' + (err && err.message ? err.message : err));
+      btn.disabled = false;
+    });
+  });
+
+  document.getElementById('repair-btn').addEventListener('click', function () {
+    var btn = document.getElementById('repair-btn');
+    btn.disabled = true;
+    log('--- Scan des fiches teamMembers désynchronisées ---');
+    db.collection('teamMembers').get().then(function (snap) {
+      var ops = [];
+      snap.forEach(function (doc) {
+        var data = doc.data();
+        var expectedId = data.teamId + '_' + (data.name || '').replace(/\//g, '_');
+        if (expectedId !== doc.id) {
+          log('Désynchronisée : ' + doc.id + ' (nom actuel "' + data.name + '") -> ' + expectedId);
+          ops.push(db.collection('teamMembers').doc(expectedId).set(data).then(function () {
+            return doc.ref.delete();
+          }));
+        }
+      });
+      if (!ops.length) {
+        log('Aucune fiche désynchronisée trouvée.');
+        btn.disabled = false;
+        return;
+      }
+      return Promise.all(ops).then(function () {
+        log('OK : ' + ops.length + ' fiche(s) réparée(s).');
+        btn.disabled = false;
+      });
+    }).catch(function (err) {
       log('ERREUR : ' + (err && err.message ? err.message : err));
       btn.disabled = false;
     });
