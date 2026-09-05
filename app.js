@@ -2574,11 +2574,29 @@
       '</div></div>';
   }
 
+  // Shared by the notifications panel -- a pending "demander à participer"
+  // to an Event this account leads the organizing Team of. Was previously
+  // only ever visible by opening that exact Event's own management
+  // screen (renderEventManagementScreen's "Demandes à accepter") -- easy
+  // to miss entirely now that a plain "Membre only" Event (the default)
+  // routes even a Team member through this same request flow instead of
+  // adding them outright.
+  function renderEventJoinRequestRow(r) {
+    var u = (STATE.usersByName || {})[r.from] || {};
+    var team = teamById(r.teamId);
+    return '<div class="friend-row"><div class="friend-row-main">' + avatarHtml(u, r.from) + personNameHtml(r.from) + badgesHtml(u) +
+      '<span class="help-text">souhaite participer à ' + escapeHtml(r.circuit || '') + (team ? ' (' + escapeHtml(team.name) + ')' : '') + '</span></div>' +
+      '<div class="friend-row-actions">' +
+      '<button type="button" class="primary" data-action="event-join-request-accept" data-id="' + r.id + '">Accepter</button>' +
+      '<button type="button" class="ghost" data-action="event-join-request-remove" data-id="' + r.id + '">Refuser</button>' +
+      '</div></div>';
+  }
+
   // How many items the header's 🔔 notification icon badges up -- every
   // pending thing addressed to this account across the app's request/
   // accept flows (friends, Teams, coaching, Team join requests this
-  // account leads), so the count means "things waiting on you", not an
-  // activity-log tally.
+  // account leads, Event join requests for Events it organizes), so the
+  // count means "things waiting on you", not an activity-log tally.
   function pendingNotificationCount() {
     var me = currentUserProfile;
     if (!me) return 0;
@@ -2587,6 +2605,7 @@
     n += (STATE.teamInvites || []).filter(function (r) { return r.status === 'pending' && r.to === me.name; }).length;
     n += (STATE.coachRequests || []).filter(function (r) { return r.status === 'pending' && (r.from === me.name || r.to === me.name) && coachRequestAwaitingMe(r, me); }).length;
     n += (STATE.teamJoinRequests || []).filter(function (r) { return r.status === 'pending' && isLeaderOfTeam(r.teamId); }).length;
+    n += (STATE.eventJoinRequests || []).filter(function (r) { return r.status === 'pending' && teamById(r.teamId) && isLeaderOfTeam(r.teamId); }).length;
     return n;
   }
 
@@ -2605,6 +2624,7 @@
     var teamInvs = (STATE.teamInvites || []).filter(function (r) { return r.status === 'pending' && r.to === me.name; });
     var coachReqs = (STATE.coachRequests || []).filter(function (r) { return r.status === 'pending' && (r.from === me.name || r.to === me.name) && coachRequestAwaitingMe(r, me); });
     var teamJoinReqs = (STATE.teamJoinRequests || []).filter(function (r) { return r.status === 'pending' && isLeaderOfTeam(r.teamId); });
+    var eventJoinReqs = (STATE.eventJoinRequests || []).filter(function (r) { return r.status === 'pending' && teamById(r.teamId) && isLeaderOfTeam(r.teamId); });
     var rows = '';
     friendReqs.forEach(function (r) {
       rows += renderFriendRow(r.from, '<button type="button" class="primary" data-action="accept-friend" data-id="' + r.id + '">Accepter</button>' +
@@ -2623,6 +2643,9 @@
     });
     teamJoinReqs.forEach(function (r) {
       rows += renderTeamJoinRequestRow(r);
+    });
+    eventJoinReqs.forEach(function (r) {
+      rows += renderEventJoinRequestRow(r);
     });
     html += rows || '<div class="empty-state">Rien de nouveau.</div>';
     html += '</div>';
