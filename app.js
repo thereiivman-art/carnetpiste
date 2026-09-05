@@ -2378,6 +2378,7 @@
     html += '<label class="checklist-item" style="margin-top:0.4rem;"><input type="checkbox" id="profile-notify-invites"' + (p.notifyInvites !== false ? ' checked' : '') + '> J\'ai reçu une invitation</label>';
     html += '<label class="checklist-item" style="margin-top:0.4rem;"><input type="checkbox" id="profile-notify-team-news"' + (p.notifyTeamNews !== false ? ' checked' : '') + '> Actu de mon Team</label>';
     html += '<label class="checklist-item" style="margin-top:0.4rem;"><input type="checkbox" id="profile-notify-adherent-requests"' + (p.notifyAdherentRequests !== false ? ' checked' : '') + '> Demande d\'adhésion sur un Team que je dirige</label>';
+    html += '<label class="checklist-item" style="margin-top:0.4rem;"><input type="checkbox" id="profile-notify-request-decisions"' + (p.notifyRequestDecisions !== false ? ' checked' : '') + '> Réponse à une demande que j\'ai envoyée (rejoindre un Team, devenir adhérent)</label>';
     html += '<label class="checklist-item" style="margin-top:0.4rem;"><input type="checkbox" id="profile-notify-pro-outings"' + (p.notifyProOutings !== false ? ' checked' : '') + '> Nouvel événement organisé par un Team PRO que je suis ou dont je suis adhérent</label>';
     html += '<label class="checklist-item" style="margin-top:0.4rem;"><input type="checkbox" id="profile-notify-coach-messages"' + (p.notifyCoachMessages !== false ? ' checked' : '') + '> Nouveau message dans l\'espace coaching</label>';
     html += '<label class="checklist-item" style="margin-top:0.4rem;"><input type="checkbox" id="profile-notify-event-announcements"' + (p.notifyEventAnnouncements !== false ? ' checked' : '') + '> Annonce du Team Leader sur un événement</label>';
@@ -7652,6 +7653,62 @@
     }
   }
 
+  // Neither decideTeamAdherentRequest (accept/decline "devenir adhérent")
+  // nor acceptTeamJoinRequestAs/removeTeamJoinRequest ever told the
+  // requester what happened -- they'd only find out by reopening the
+  // Team's own fiche. Unlike notifyOnNewIds (new id appearing), this
+  // watches for a *transition* on a doc the requester already has open:
+  // adherentRequested flipping from true to false means a decision was
+  // made, tier says which way. Purely in-memory (not persisted to
+  // localStorage like notifyOnNewIds' streams) since it only needs to
+  // catch a decision made while this tab is open, same as every push
+  // notification here ("nécessite que cet onglet reste ouvert").
+  var myAdherentRequestWasPending = {};
+  function maybeNotifyAdherentDecision(teamFollows) {
+    teamFollows.forEach(function (f) {
+      var wasPending = myAdherentRequestWasPending[f.id];
+      if (f.adherentRequested) {
+        myAdherentRequestWasPending[f.id] = true;
+        return;
+      }
+      myAdherentRequestWasPending[f.id] = false;
+      if (!wasPending || !notifCategoryAllowed('notifyRequestDecisions')) return;
+      var t = teamById(f.followee);
+      var body = f.tier === 'adherent'
+        ? 'Ta demande d\'adhésion' + (t ? ' à ' + t.name : '') + ' a été acceptée !'
+        : 'Ta demande d\'adhésion' + (t ? ' à ' + t.name : '') + ' a été refusée.';
+      new Notification('Carnet de Piste', { body: body });
+    });
+  }
+
+  // Same gap as maybeNotifyAdherentDecision, for a plain "demander à
+  // rejoindre" Team request (see acceptTeamJoinRequestAs/
+  // removeTeamJoinRequest): the request doc is simply deleted either way,
+  // so accept vs. decline is told apart by checking whether this account
+  // actually landed in that Team's roster right after -- a one-off get(),
+  // not a live listener, since this only needs to run once per vanished
+  // request.
+  var myTeamJoinRequestIds = {};
+  function maybeNotifyJoinRequestDecision(docs) {
+    var stillPending = {};
+    docs.forEach(function (r) { stillPending[r.id] = r.teamId; });
+    Object.keys(myTeamJoinRequestIds).forEach(function (id) {
+      if (stillPending[id]) return;
+      var teamId = myTeamJoinRequestIds[id];
+      if (notifCategoryAllowed('notifyRequestDecisions')) {
+        var myNameNow = currentUserProfile.name;
+        db.collection('teamMembers').where('teamId', '==', teamId).where('name', '==', myNameNow).limit(1).get().then(function (memSnap) {
+          var t = teamById(teamId);
+          var body = !memSnap.empty
+            ? 'Ta demande pour rejoindre' + (t ? ' ' + t.name : '') + ' a été acceptée !'
+            : 'Ta demande pour rejoindre' + (t ? ' ' + t.name : '') + ' a été refusée.';
+          new Notification('Carnet de Piste', { body: body });
+        }).catch(function () {});
+      }
+    });
+    myTeamJoinRequestIds = stillPending;
+  }
+
   function maybeNotifyNewTeamInvites(byId) {
     var pending = Object.keys(byId).filter(function (id) { return byId[id].status === 'pending'; }).map(function (id) { return byId[id]; });
     notifyOnNewIds('team-invites', pending, function (inv) { return inv.id; }, function (inv) {
@@ -10498,6 +10555,10 @@
     if (notifyAdherentRequestsEl) {
       notifyAdherentRequestsEl.addEventListener('change', function () { saveOwnBooleanField('notifyAdherentRequests', notifyAdherentRequestsEl.checked); });
     }
+    var notifyRequestDecisionsEl = document.getElementById('profile-notify-request-decisions');
+    if (notifyRequestDecisionsEl) {
+      notifyRequestDecisionsEl.addEventListener('change', function () { saveOwnBooleanField('notifyRequestDecisions', notifyRequestDecisionsEl.checked); });
+    }
     var notifyProOutingsEl = document.getElementById('profile-notify-pro-outings');
     if (notifyProOutingsEl) {
       notifyProOutingsEl.addEventListener('change', function () { saveOwnBooleanField('notifyProOutings', notifyProOutingsEl.checked); });
@@ -12860,6 +12921,7 @@
         STATE.myFollows = docs.filter(function (f) { return (f.followeeType || 'user') === 'user'; }).map(function (f) { return f.followee; });
         var teamFollows = docs.filter(function (f) { return f.followeeType === 'team'; });
         STATE.myFollowedTeams = teamFollows.map(function (f) { return f.followee; });
+        maybeNotifyAdherentDecision(teamFollows);
         var tiers = {}, byTeam = {};
         teamFollows.forEach(function (f) {
           tiers[f.followee] = f.tier === 'adherent' ? 'adherent' : 'follower';
@@ -12915,7 +12977,9 @@
       // separately in refreshTeamDetailSync (scoped to teams it's
       // actually in, same as teamFollowersByTeam).
       unsubscribers.push(db.collection('teamJoinRequests').where('from', '==', currentUserProfile.name).onSnapshot(function (snap) {
-        myTeamJoinRequestsOut = snap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); });
+        var docs = snap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); });
+        maybeNotifyJoinRequestDecision(docs);
+        myTeamJoinRequestsOut = docs;
         mergeTeamJoinRequests();
       }, handleSyncError));
       // Same shape as teamJoinRequests -- my own outgoing "demander à
