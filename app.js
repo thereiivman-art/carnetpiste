@@ -2378,7 +2378,8 @@
     html += '<label class="checklist-item" style="margin-top:0.4rem;"><input type="checkbox" id="profile-notify-invites"' + (p.notifyInvites !== false ? ' checked' : '') + '> J\'ai reçu une invitation</label>';
     html += '<label class="checklist-item" style="margin-top:0.4rem;"><input type="checkbox" id="profile-notify-team-news"' + (p.notifyTeamNews !== false ? ' checked' : '') + '> Actu de mon Team</label>';
     html += '<label class="checklist-item" style="margin-top:0.4rem;"><input type="checkbox" id="profile-notify-adherent-requests"' + (p.notifyAdherentRequests !== false ? ' checked' : '') + '> Demande d\'adhésion sur un Team que je dirige</label>';
-    html += '<label class="checklist-item" style="margin-top:0.4rem;"><input type="checkbox" id="profile-notify-request-decisions"' + (p.notifyRequestDecisions !== false ? ' checked' : '') + '> Réponse à une demande que j\'ai envoyée (rejoindre un Team, devenir adhérent)</label>';
+    html += '<label class="checklist-item" style="margin-top:0.4rem;"><input type="checkbox" id="profile-notify-request-decisions"' + (p.notifyRequestDecisions !== false ? ' checked' : '') + '> Réponse à une demande que j\'ai envoyée (ami, rejoindre un Team, devenir adhérent)</label>';
+    html += '<label class="checklist-item" style="margin-top:0.4rem;"><input type="checkbox" id="profile-notify-chrono-certified"' + (p.notifyChronoCertified !== false ? ' checked' : '') + '> Un de mes chronos a été vérifié</label>';
     html += '<label class="checklist-item" style="margin-top:0.4rem;"><input type="checkbox" id="profile-notify-pro-outings"' + (p.notifyProOutings !== false ? ' checked' : '') + '> Nouvel événement organisé par un Team PRO que je suis ou dont je suis adhérent</label>';
     html += '<label class="checklist-item" style="margin-top:0.4rem;"><input type="checkbox" id="profile-notify-coach-messages"' + (p.notifyCoachMessages !== false ? ' checked' : '') + '> Nouveau message dans l\'espace coaching</label>';
     html += '<label class="checklist-item" style="margin-top:0.4rem;"><input type="checkbox" id="profile-notify-event-announcements"' + (p.notifyEventAnnouncements !== false ? ' checked' : '') + '> Annonce du Team Leader sur un événement</label>';
@@ -7709,6 +7710,52 @@
     myTeamJoinRequestIds = stillPending;
   }
 
+  // Same gap again, for a plain friend request: acceptFriendRequest sets
+  // status 'accepted' (writeFeedEvent then surfaces it in the Social
+  // feed), but removeFriendRequest just deletes the doc for a decline, a
+  // cancel, AND an unfriend alike (see friendRequests rules), with no
+  // distinction and no signal to the sender either way. Only a decline of
+  // a still-pending SENT request should ever notify -- unfriending an
+  // old, already-accepted one must stay silent, so this only fires when
+  // the doc's last known status (before it vanished) was 'pending'.
+  var myFriendRequestsSeen = {};
+  function maybeNotifyFriendDecline(byId) {
+    var prev = myFriendRequestsSeen;
+    Object.keys(prev).forEach(function (id) {
+      if (byId[id]) return;
+      if (prev[id].status !== 'pending') return;
+      if (!notifCategoryAllowed('notifyRequestDecisions')) return;
+      new Notification('Carnet de Piste', { body: 'Ta demande d\'ami' + (prev[id].to ? ' à ' + prev[id].to : '') + ' a été refusée.' });
+    });
+    myFriendRequestsSeen = byId;
+  }
+
+  // certifyChrono (see canManageCertification) sets a session's
+  // certifiedBy with no signal at all to the rider it belongs to -- they'd
+  // only notice the ✓ Vérifié badge next time they happened to look at
+  // that chrono. Watches the global sessions sync (every session, not
+  // just this account's own) for a certifiedBy appearing on one of MY
+  // sessions. isFirstEver-style baseline (like notifyOnNewIds) so chronos
+  // already certified before this page load never fire on startup --
+  // only a certification that happens while this tab is open.
+  var myChronoCertifiedState = null;
+  function maybeNotifyChronoCertified(sessions) {
+    var me = currentUserProfile;
+    if (!me) return;
+    var isFirstEver = myChronoCertifiedState === null;
+    var next = {};
+    sessions.forEach(function (s) {
+      if (s.rider !== me.name) return;
+      next[s.id] = s.certifiedBy || null;
+      if (isFirstEver) return;
+      var prev = myChronoCertifiedState[s.id];
+      if (s.certifiedBy && !prev && notifCategoryAllowed('notifyChronoCertified')) {
+        new Notification('Carnet de Piste', { body: 'Ton chrono' + (s.circuit ? ' à ' + s.circuit : '') + ' a été vérifié par ' + s.certifiedBy + ' !' });
+      }
+    });
+    myChronoCertifiedState = next;
+  }
+
   function maybeNotifyNewTeamInvites(byId) {
     var pending = Object.keys(byId).filter(function (id) { return byId[id].status === 'pending'; }).map(function (id) { return byId[id]; });
     notifyOnNewIds('team-invites', pending, function (inv) { return inv.id; }, function (inv) {
@@ -10559,6 +10606,10 @@
     if (notifyRequestDecisionsEl) {
       notifyRequestDecisionsEl.addEventListener('change', function () { saveOwnBooleanField('notifyRequestDecisions', notifyRequestDecisionsEl.checked); });
     }
+    var notifyChronoCertifiedEl = document.getElementById('profile-notify-chrono-certified');
+    if (notifyChronoCertifiedEl) {
+      notifyChronoCertifiedEl.addEventListener('change', function () { saveOwnBooleanField('notifyChronoCertified', notifyChronoCertifiedEl.checked); });
+    }
     var notifyProOutingsEl = document.getElementById('profile-notify-pro-outings');
     if (notifyProOutingsEl) {
       notifyProOutingsEl.addEventListener('change', function () { saveOwnBooleanField('notifyProOutings', notifyProOutingsEl.checked); });
@@ -12793,6 +12844,7 @@
     coreSyncPending = new Set(CORE_SYNC_KEYS);
     unsubscribers.push(db.collection('sessions').onSnapshot(function (snap) {
       STATE.sessions = snap.docs.map(function (d) { return d.data(); });
+      maybeNotifyChronoCertified(STATE.sessions);
       markCoreSynced('sessions');
       renderRoot();
     }, handleSyncError));
@@ -12863,6 +12915,7 @@
       unsubscribers.push(db.collection('friendRequests').where('from', '==', currentUserProfile.name).onSnapshot(function (snap) {
         friendReqFrom = {};
         snap.forEach(function (d) { friendReqFrom[d.id] = Object.assign({ id: d.id }, d.data()); });
+        maybeNotifyFriendDecline(friendReqFrom);
         mergeFriendRequests();
       }, handleSyncError));
       unsubscribers.push(db.collection('friendRequests').where('to', '==', currentUserProfile.name).onSnapshot(function (snap) {
