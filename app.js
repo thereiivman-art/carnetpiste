@@ -5313,6 +5313,22 @@
   // moment an artifact is shared publicly (this one is, so riders can add
   // their own chronos), and unlike a script-triggered download, which the
   // viewer's sandbox blocks outright.
+  // Human label for whichever plan annot.sessionId currently points at --
+  // shared by the export preview's caption (see exportAnnotationPng) so
+  // that, now several accounts can each have their own layer on the same
+  // circuit, the saved/screenshotted image says whose plan it actually is.
+  function annotCurrentLevelLabel() {
+    if (annot.sessionId === ANNOT_CIRCUIT_LEVEL) return 'Plan général (' + ((currentUserProfile && currentUserProfile.name) || 'moi') + ')';
+    if (annot.sessionId === ANNOT_ACCOMPAGNANT_LEVEL) return 'Plan accompagnant (' + ((currentUserProfile && currentUserProfile.name) || 'moi') + ')';
+    if (isViewLevelId(annot.sessionId)) {
+      var parsed = parseViewLevelId(annot.sessionId);
+      return (parsed.level === 'accompagnant' ? 'Plan accompagnant' : 'Plan général') + ' de ' + parsed.name;
+    }
+    if (isEventLevelId(annot.sessionId)) return 'Plan de l\'événement';
+    var session = STATE.sessions.filter(function (s) { return s.id === annot.sessionId; })[0];
+    return session ? (formatDate(session.date) + ' — ' + formatTime(sessionBest(session))) : annot.circuit;
+  }
+
   function exportAnnotationPng() {
     if (!annotCanvasEl) return;
     var pendingConfirm = document.querySelector('.annot-text-confirm');
@@ -5338,10 +5354,10 @@
       octx.restore();
     }
     octx.drawImage(canvas, 0, 0, out.width, out.height);
-    showAnnotImagePreview(out.toDataURL('image/png'));
+    showAnnotImagePreview(out.toDataURL('image/png'), annot.circuit + ' — ' + annotCurrentLevelLabel());
   }
 
-  function showAnnotImagePreview(dataUrl) {
+  function showAnnotImagePreview(dataUrl, caption) {
     var existing = document.getElementById('annot-image-preview');
     if (existing && existing.parentNode) existing.parentNode.removeChild(existing);
     var overlay = document.createElement('div');
@@ -5349,6 +5365,7 @@
     overlay.className = 'annot-image-preview-overlay';
     overlay.innerHTML =
       '<button type="button" class="ghost icon-btn annot-image-preview-close" id="annot-image-preview-close" aria-label="Fermer">✕</button>' +
+      (caption ? '<div class="annot-image-preview-caption">' + escapeHtml(caption) + '</div>' : '') +
       '<img src="' + dataUrl + '" alt="Tracé annoté">' +
       '<div class="annot-image-preview-hint">Appui long sur l’image pour l’enregistrer dans votre galerie photo (ou faites une capture d’écran).</div>';
     document.body.appendChild(overlay);

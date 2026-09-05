@@ -2437,6 +2437,12 @@
     background: #ffffff;
     box-shadow: var(--shadow);
   }
+  .annot-image-preview-caption {
+    color: #f2f5f8;
+    font-size: 0.9rem;
+    font-weight: 600;
+    text-align: center;
+  }
   .annot-image-preview-hint {
     color: #f2f5f8;
     font-size: 0.85rem;
