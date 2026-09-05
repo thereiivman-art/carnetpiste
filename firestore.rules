@@ -192,6 +192,14 @@ service cloud.firestore {
       // themselves (only themselves, only an addition) to riders directly
       // -- true self-registration, "sans validation" per the brief; every
       // other visibility tier and every other field stays leader-only.
+      // Exact-equality check (old riders + [myName()], in that order) --
+      // a size+1-and-myName-present check alone would only prove the net
+      // count and that I'm now in there, not that every existing rider
+      // survived untouched: a malicious verified account could otherwise
+      // swap out anyone else's name in the same write as long as the net
+      // size still moved by +1 and its own name was somewhere in the
+      // result. concat() pins the result to "exactly the old list, plus
+      // me, appended" -- nothing else can move.
       // A rider of the event may also react with one emoji once it's
       // over (reactions.<myName()>, own key only, see onlyOwnKeyChanged)
       // -- the lightweight post-event "likes" ask, deliberately not a
@@ -201,8 +209,7 @@ service cloud.firestore {
         || isTeamLeader(resource.data.teamId)
         || (resource.data.get('eventVisibility', null) == 'ouvert'
             && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['riders'])
-            && request.resource.data.riders.size() == resource.data.get('riders', []).size() + 1
-            && (myName() in request.resource.data.riders))
+            && request.resource.data.riders == resource.data.get('riders', []).concat([myName()]))
         || (myName() in resource.data.get('riders', [])
             && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reactions'])
             && onlyOwnKeyChanged(resource.data.get('reactions', {}), request.resource.data.reactions))
