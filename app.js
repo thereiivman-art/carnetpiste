@@ -1427,6 +1427,14 @@
   // leaks a stale draft into the next one.
   var eventFormDraftGroups = {}; // { [rider]: { [date]: { am, pm } } }
   var eventFormDraftGroupsFor = null; // editingEventId the draft above belongs to
+  // Collapsed by default only for a brand-new personal (non-Team) event --
+  // "ajout rapide" for a new user backfilling old sorties, circuit+date
+  // only, with horaires/pilotes/organisateur tucked behind one click
+  // instead of a wall of fields upfront. An existing event, or a Team
+  // event, always starts expanded since there's already real content in
+  // there worth seeing right away.
+  var eventFormMoreOptionsOpen = false;
+  var eventFormMoreOptionsFor = null; // editingEventId the flag above belongs to
   var eventFormRidersDraft = []; // rider names picked so far in the "Pilotes" search widget below
   var eventFormRidersDraftFor = null; // editingEventId the draft above belongs to
   var draggedGroupRider = null; // rider name mid-drag in renderGroupsSection's drag-and-drop, or null
@@ -2312,7 +2320,10 @@
       '<div class="help-text">Suggérée automatiquement quand tu entres un chrono.</div>' +
       '<label for="profile-bike-number" style="margin-top:0.7rem;">N° de moto</label>' +
       '<input type="text" id="profile-bike-number" inputmode="numeric" pattern="[0-9]{1,3}" maxlength="3" placeholder="Ex. 12" value="' + escapeHtml(p.bikeNumber || '') + '">' +
-      '<div class="help-text">1 à 3 chiffres.</div></div>';
+      '<div class="help-text">1 à 3 chiffres.</div>' +
+      '<label for="profile-chrono-link" style="margin-top:0.7rem;">Lien vers ton appli de chrono (optionnel)</label>' +
+      '<input type="url" id="profile-chrono-link" placeholder="Ex. https://superlaps.fr/..." value="' + escapeHtml(p.chronoLink || '') + '">' +
+      '<div class="help-text">Carnet de Piste reste déclaratif -- ce lien renvoie vers ton appli de chrono officielle (Superlaps ou autre) si tu en utilises une.</div></div>';
     html += '<div id="profile-followed-wrap" style="display:' + (isNonRider ? 'block' : 'none') + '; margin-top:0.9rem;">';
     html += '<label>Pilotes que je suis</label>';
     var riders = allKnownRiders();
@@ -2458,10 +2469,28 @@
     html += '</div>';
     return html;
   }
+  // One legend for every badge/color the app uses -- reuses PROFILE_BADGES
+  // (defined further down) for the account badges themselves rather than
+  // duplicating their icon/label/desc, and adds the Team-side ones
+  // (✓ Team PRO, Team Leader/Coach name colors, Adhérent, Follower) that
+  // have no equivalent entry there.
+  function renderBadgesLegend() {
+    var rows = PROFILE_BADGES.map(function (b) {
+      return '<div class="legend-row"><span class="legend-swatch">' + b.icon + '</span><span>' + escapeHtml(b.desc) + '</span></div>';
+    }).join('');
+    rows += '<div class="legend-row"><span class="legend-swatch team-pro-badge">✓</span><span>Team PRO — club officiel certifié par l\'administrateur.</span></div>';
+    rows += '<div class="legend-row"><span class="legend-swatch pro-leader-name">Nom</span><span>Team Leader d\'un Team PRO.</span></div>';
+    rows += '<div class="legend-row"><span class="legend-swatch coach-name">Nom</span><span>Coach.</span></div>';
+    rows += '<div class="legend-row"><span class="legend-swatch friend-role-badge adherent-badge">Adhérent</span><span>Adhérent d\'un Team PRO — statut accordé par son Team Leader.</span></div>';
+    rows += '<div class="legend-row"><span class="legend-swatch friend-role-badge">Follower</span><span>Suit un Team sans en être membre -- droits limités (voir la fiche du Team).</span></div>';
+    return collapsibleSection('badges-legend', 'Que veulent dire ces badges ?', rows, false);
+  }
+
   function renderProfileAideTab(p) {
     var html = '<div class="section-title" style="font-size:0.95rem;">À propos</div>';
     html += '<div class="help-text">Carnet de Piste centralise le planning des événements, les groupes/horaires, tes chronos et ta progression entre pilotes et accompagnants — le tout à jour en temps réel pour tout le monde.</div>';
     html += '<div style="margin-top:1.1rem;"><button type="button" class="ghost" id="tutorial-open-btn">Revoir le tutoriel</button></div>';
+    html += '<div style="margin-top:0.9rem;">' + renderBadgesLegend() + '</div>';
     html += renderPartnersSection();
     return html;
   }
@@ -2918,7 +2947,7 @@
     return Promise.all(jobs);
   }
 
-  function saveProfile(role, notifyBeforeSession, followedRiders, bike, bikeNumber, newRawName, firstName, lastName) {
+  function saveProfile(role, notifyBeforeSession, followedRiders, bike, bikeNumber, newRawName, firstName, lastName, chronoLink) {
     var uid = auth.currentUser && auth.currentUser.uid;
     if (!uid || !currentUserProfile) return;
     if (notifyBeforeSession && window.Notification && Notification.permission === 'default') {
@@ -2966,7 +2995,7 @@
       }
     }
     var writes = { role: role, notifyBeforeSession: notifyBeforeSession, followedRiders: followedRiders, bike: bike || null, bikeNumber: bikeNumber || null,
-      firstName: firstName || null, lastName: lastName || null };
+      firstName: firstName || null, lastName: lastName || null, chronoLink: chronoLink || null };
     if (nameChanged) writes.name = finalName;
     // When the pseudo changes, every other collection that carries it has
     // to be found and backfilled with its owner's uid *before* this write
@@ -2999,6 +3028,7 @@
       currentUserProfile.bikeNumber = bikeNumber || null;
       currentUserProfile.firstName = firstName || null;
       currentUserProfile.lastName = lastName || null;
+      currentUserProfile.chronoLink = chronoLink || null;
       profileSaveMessage = 'Profil enregistré.';
       renderRoot();
       if (nameChanged) {
@@ -5684,6 +5714,10 @@
         : (myRequest
           ? '<span class="help-text">Demande envoyée</span>'
           : '<button type="button" class="ghost" data-action="event-join-request" data-id="' + ev.id + '">Demander à participer</button>');
+      // A separate external action -- the actual paid reservation/
+      // inscription, if the Team Leader set one, never Carnet de Piste's
+      // own roster/join flow above.
+      if (ev.bookingUrl) actionHtml += ' <button type="button" class="ghost" data-action="open-external-url" data-url="' + escapeHtml(ev.bookingUrl) + '">Réserver ↗</button>';
       // The Team leads here (avatar, name, ✓ badge) rather than a bare
       // name in the help-text -- the whole point of this card is "which
       // Team PRO is proposing this", not just "which circuit".
@@ -6432,6 +6466,10 @@
     html += infoRow('Circuit', escapeHtml(ev.circuit));
     html += infoRow('Dates', escapeHtml(formatEventRange(ev, true)));
     if (ev.note) html += infoRow('Note', escapeHtml(ev.note));
+    // Carnet de Piste ne gère pas les paiements/réservations -- ce lien
+    // renvoie vers l'outil de billetterie du Team (Billetweb ou autre),
+    // jamais une inscription gérée ici.
+    if (ev.bookingUrl) html += '<div style="margin-top:0.6rem;"><button type="button" class="primary" data-action="open-external-url" data-url="' + escapeHtml(ev.bookingUrl) + '">Réserver / S\'inscrire ↗</button></div>';
     // Once the event is over, its own rider can react with an emoji --
     // the lightweight "on a kiffé" ask (see maybeNotifyEndedEvents), never
     // a text/photo comment thread.
@@ -7605,6 +7643,10 @@
       eventFormDraftGroups = seedGroups;
       eventFormDraftGroupsFor = editingEventId;
     }
+    if (eventFormMoreOptionsFor !== editingEventId) {
+      eventFormMoreOptionsOpen = !(isNew && !ev.teamId);
+      eventFormMoreOptionsFor = editingEventId;
+    }
     var html = '<div class="card">';
     html += '<h2 class="section-title">' + (isNew ? 'Ajouter un événement' : 'Modifier l\'événement') + '</h2>';
     html += '<form id="event-form" novalidate>';
@@ -7638,8 +7680,21 @@
         '<option value="public"' + (ev.eventVisibility === 'public' ? ' selected' : '') + '>Public (visible par tous, invitation requise)</option>' +
         '<option value="ouvert"' + (ev.eventVisibility === 'ouvert' ? ' selected' : '') + '>Ouvert (inscription libre)</option>' +
         '</select>' +
-        '<div class="help-text">Réservé aux Teams PRO -- un Team amateur reste visible par ses membres et les pilotes invités.</div></div>';
+        '<div class="help-text">Réservé aux Teams PRO -- un Team amateur reste visible par ses membres et les pilotes invités.</div>' +
+        '<label for="ev-booking-url" style="margin-top:0.7rem;">Lien de réservation (optionnel)</label>' +
+        '<input type="url" id="ev-booking-url" placeholder="Ex. https://www.billetweb.fr/..." value="' + escapeHtml(ev.bookingUrl || '') + '">' +
+        '<div class="help-text">Carnet de Piste ne gère pas les paiements -- ce lien renvoie vers ta billetterie (Billetweb ou autre) pour l\'inscription/le paiement.</div>' +
+        '</div>';
     }
+    // "Ajout rapide" -- horaires/pilotes/organisateur tucked behind one
+    // click for a brand-new personal event (see eventFormMoreOptionsOpen),
+    // so a new user backfilling old sorties only faces circuit+date at
+    // first. Pure DOM toggle in attachHandlers (no renderRoot()), so
+    // whatever's mid-typed in circuit/dates above never gets wiped by
+    // opening this panel.
+    html += '<button type="button" class="ghost" id="ev-more-options-toggle" style="margin-top:0.9rem;">' +
+      (eventFormMoreOptionsOpen ? '− Moins d\'options' : '+ Plus d\'options (horaires, pilotes, organisateur...)') + '</button>';
+    html += '<div id="ev-more-options" style="display:' + (eventFormMoreOptionsOpen ? 'block' : 'none') + ';">';
     // Horaires live on the circuit (shared across every sortie there, see
     // renderCircuitInfoEditForm), but any pilote creating a sortie can set
     // them here too instead of having to detour through l'onglet Circuit --
@@ -7689,6 +7744,7 @@
     } else {
       html += '<div class="help-text" style="margin-top:0.9rem;">Participants et groupes se gèrent depuis la Gestion des événements du Team.</div>';
     }
+    html += '</div>';
     html += '<div style="margin-top:0.9rem;"><label for="ev-note">Note (optionnel)</label><input type="text" id="ev-note" placeholder="Ex. Inscriptions avant le 1er septembre" value="' + escapeHtml(ev.note || '') + '"></div>';
     html += '<div class="field-error" id="event-form-error"></div>';
     html += '<div style="margin-top:0.9rem; display:flex; gap:0.6rem;">' +
@@ -7747,6 +7803,8 @@
     var teamId = teamEl && teamEl.value ? teamEl.value : null;
     var visibilityEl = document.getElementById('ev-visibility');
     var eventVisibility = teamId && visibilityEl ? visibilityEl.value : null;
+    var bookingUrlEl = document.getElementById('ev-booking-url');
+    var bookingUrl = teamId && bookingUrlEl ? bookingUrlEl.value.trim() : '';
     // The live STATE.events entry being edited, or null for a new one --
     // used both to read forward what a Team event's roster/groups already
     // are (see riders/riderGroups below) and, further down, as the actual
@@ -7789,6 +7847,7 @@
       if (teamId) newEvent.teamId = teamId;
       else if (organizerNote) newEvent.organizerNote = organizerNote;
       if (eventVisibility) newEvent.eventVisibility = eventVisibility;
+      if (bookingUrl) newEvent.bookingUrl = bookingUrl;
       if (riderGroups) newEvent.riderGroups = riderGroups;
       STATE.events.push(newEvent);
       selectedEventId = newEvent.id;
@@ -7803,6 +7862,7 @@
         existing.teamId = teamId || null;
         existing.organizerNote = (!teamId && organizerNote) ? organizerNote : null;
         existing.eventVisibility = eventVisibility || null;
+        existing.bookingUrl = bookingUrl || null;
         existing.autoCreated = false; // a manual edit means it's no longer just a byproduct of a chrono
         // checklist isn't touched here -- it's checked off in Planning, not the sortie form.
         existing.riderGroups = riderGroups || null; // never `undefined` -- Firestore rejects that as a field value
@@ -8112,6 +8172,10 @@
         if (stats.lastSession) {
           html += infoRow('Dernier événement', escapeHtml(stats.lastSession.circuit) + ' — ' + escapeHtml(formatDate(stats.lastSession.date)) + ' (' + formatTime(stats.lastSession.time) + ')');
         }
+        // Carnet de Piste reste déclaratif -- ce lien renvoie vers l'appli
+        // de chrono officielle du pilote (Superlaps ou autre) s'il en a
+        // renseigné une dans son profil, jamais une mesure faite ici.
+        if (u.chronoLink) html += '<div style="margin:0.5rem 0;"><button type="button" class="ghost" data-action="open-external-url" data-url="' + escapeHtml(u.chronoLink) + '">Voir ses chronos officiels ↗</button></div>';
         var verifiedSessions = STATE.sessions.filter(function (s) { return s.rider === name && s.certifiedBy; })
           .sort(function (a, b) { return a.date < b.date ? 1 : a.date > b.date ? -1 : 0; });
         if (verifiedSessions.length) {
@@ -8899,6 +8963,7 @@
     if (ev.note) html += infoRow('Note', escapeHtml(ev.note));
     var evTeamVis = { public: 'Public', adherent: 'Adhérent only', membre: 'Membre only', follower: 'Followers only', ouvert: 'Ouvert' };
     if (orgTeam.teamPro) html += infoRow('Visibilité', evTeamVis[ev.eventVisibility] || 'Membre only');
+    if (ev.bookingUrl) html += '<div style="margin:0.6rem 0;"><button type="button" class="ghost" data-action="open-external-url" data-url="' + escapeHtml(ev.bookingUrl) + '">Réserver / S\'inscrire ↗</button></div>';
     html += renderEventAnnouncements(ev, canEdit);
     // Badges + rôle Team (Membre/Adhérent/Team Leader/Suivi) right on each
     // participant row -- a quick read for the Team orga without having to
@@ -10169,7 +10234,7 @@
     if (reglagesNotify && !document.getElementById('profile-form')) {
       reglagesNotify.addEventListener('change', function () {
         var p = currentUserProfile;
-        saveProfile(p.role, reglagesNotify.checked, p.followedRiders || [], p.bike, p.bikeNumber, p.name, p.firstName || '', p.lastName || '');
+        saveProfile(p.role, reglagesNotify.checked, p.followedRiders || [], p.bike, p.bikeNumber, p.name, p.firstName || '', p.lastName || '', p.chronoLink || '');
         showToast(reglagesNotify.checked ? 'Notifications activées.' : 'Notifications désactivées.', 'success');
       });
     }
@@ -10347,13 +10412,15 @@
         var firstName = firstNameEl ? firstNameEl.value.trim() : '';
         var lastNameEl = document.getElementById('profile-lastname');
         var lastName = lastNameEl ? lastNameEl.value.trim() : '';
+        var chronoLinkEl = document.getElementById('profile-chrono-link');
+        var chronoLink = chronoLinkEl ? chronoLinkEl.value.trim() : '';
         if (pseudoEditUnlocked && newName && newName !== currentUserProfile.name && !pseudoRenameConfirmPending) {
           pseudoRenameConfirmPending = true;
           profileSaveMessage = 'Confirme le changement de pseudo de "' + currentUserProfile.name + '" vers "' + newName + '" en cliquant à nouveau sur Enregistrer. Action immédiate, un seul changement par mois.';
           renderRoot();
           return;
         }
-        saveProfile(role, notify, followedRiders, bike, bikeNumber, newName, firstName, lastName);
+        saveProfile(role, notify, followedRiders, bike, bikeNumber, newName, firstName, lastName, chronoLink);
         pseudoEditUnlocked = false;
         pseudoRenameConfirmPending = false;
       });
@@ -11477,6 +11544,12 @@
     document.querySelectorAll('[data-action="event-join-request"]').forEach(function (btn) {
       btn.addEventListener('click', function () { requestJoinEvent(btn.getAttribute('data-id')); });
     });
+    document.querySelectorAll('[data-action="open-external-url"]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var url = btn.getAttribute('data-url');
+        if (url) window.open(url, '_blank', 'noopener');
+      });
+    });
     document.querySelectorAll('[data-action="discovery-view-mode"]').forEach(function (btn) {
       btn.addEventListener('click', function () {
         discoveryViewMode = btn.getAttribute('data-mode');
@@ -11913,6 +11986,15 @@
     // grid live, without touching the rest of the form.
     var evRidersEl = document.getElementById('ev-riders');
     if (evRidersEl) evRidersEl.addEventListener('input', refreshEventFormGroups);
+    var evMoreOptionsToggle = document.getElementById('ev-more-options-toggle');
+    if (evMoreOptionsToggle) {
+      evMoreOptionsToggle.addEventListener('click', function () {
+        eventFormMoreOptionsOpen = !eventFormMoreOptionsOpen;
+        var panel = document.getElementById('ev-more-options');
+        if (panel) panel.style.display = eventFormMoreOptionsOpen ? 'block' : 'none';
+        evMoreOptionsToggle.textContent = eventFormMoreOptionsOpen ? '− Moins d\'options' : '+ Plus d\'options (horaires, pilotes, organisateur...)';
+      });
+    }
     // Search-and-add Pilotes widget (see renderEventForm) -- a datalist
     // has no "onselect", so matching the typed value against a known
     // candidate on every keystroke is the usual trick for detecting a

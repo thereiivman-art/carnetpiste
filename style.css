@@ -631,6 +631,12 @@
   [data-drag-rider] { cursor: grab; }
   .group-drop-zone { min-height: 1.5rem; border-radius: 8px; transition: background-color 0.12s ease; }
   .group-drop-zone-hover { background-color: color-mix(in srgb, var(--accent) 12%, transparent); }
+  /* Badges legend (Profil > Aide > À propos) -- one row per badge/color,
+     the same swatch (icon, or the badge/name class itself) next to its
+     plain-language meaning. */
+  .legend-row { display: flex; align-items: center; gap: 0.6rem; padding: 0.4rem 0; border-bottom: 1px solid var(--border); font-size: 0.88rem; }
+  .legend-row:last-child { border-bottom: none; }
+  .legend-swatch { flex-shrink: 0; min-width: 1.4rem; text-align: center; font-weight: 600; }
   .team-description { flex-basis: 100%; margin-top: 0.5rem; }
   .team-stats-row {
     display: flex;
