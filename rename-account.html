@@ -39,6 +39,16 @@
   <button id="repair-btn">Scanner et réparer</button>
 </div>
 
+<div id="step4" style="display:none; margin-top:2rem; padding-top:1.5rem; border-top:1px solid #ccc;">
+  <h2>Nommer un Team Leader</h2>
+  <p class="help">Pour un Team qui s'est retrouvé sans aucun Team Leader (plus personne n'a les droits de gestion -- l'appli elle-même bloque désormais le dernier retrait, mais ça ne répare pas un Team déjà dans cet état). Écrit directement la fiche teamMembers en tant qu'admin, en contournant le blocage.</p>
+  <label for="leader-team-name">Nom du Team</label>
+  <input type="text" id="leader-team-name" placeholder="Ex. Mototeam95">
+  <label for="leader-person-name">Pseudo du compte à nommer Team Leader</label>
+  <input type="text" id="leader-person-name" placeholder="Ex. Geoff">
+  <button id="leader-btn">Nommer Team Leader</button>
+</div>
+
 <div id="log"></div>
 
 <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
@@ -62,6 +72,7 @@
       document.getElementById('step1').style.display = 'none';
       document.getElementById('step2').style.display = 'block';
       document.getElementById('step3').style.display = 'block';
+      document.getElementById('step4').style.display = 'block';
     }).catch(function (err) {
       log('ERREUR : ' + (err && err.message ? err.message : err));
     });
@@ -211,6 +222,50 @@
         btn.disabled = false;
       });
     }).catch(function (err) {
+      log('ERREUR : ' + (err && err.message ? err.message : err));
+      btn.disabled = false;
+    });
+  });
+
+  document.getElementById('leader-btn').addEventListener('click', function () {
+    var btn = document.getElementById('leader-btn');
+    var teamName = document.getElementById('leader-team-name').value.trim();
+    var personName = document.getElementById('leader-person-name').value.trim();
+    if (!teamName || !personName) {
+      log('Indique le nom du Team et le pseudo du compte.');
+      return;
+    }
+    btn.disabled = true;
+    log('--- Nomination Team Leader : "' + personName + '" sur "' + teamName + '" ---');
+    db.collection('teams').where('name', '==', teamName).get().then(function (teamSnap) {
+      if (teamSnap.empty) {
+        log('Aucun Team trouvé avec le nom "' + teamName + '".');
+        btn.disabled = false;
+        return Promise.reject('stop');
+      }
+      if (teamSnap.size > 1) {
+        log('ATTENTION : plusieurs Teams ont ce nom, arrêt par sécurité.');
+        btn.disabled = false;
+        return Promise.reject('stop');
+      }
+      var teamId = teamSnap.docs[0].id;
+      return db.collection('users').where('name', '==', personName).get().then(function (userSnap) {
+        if (userSnap.empty) {
+          log('ATTENTION : aucun compte avec le pseudo "' + personName + '" -- vérifie l\'orthographe exacte.');
+          btn.disabled = false;
+          return Promise.reject('stop');
+        }
+        var uid = userSnap.docs[0].id;
+        var memberId = teamId + '_' + personName.replace(/\//g, '_');
+        return db.collection('teamMembers').doc(memberId).set({
+          teamId: teamId, name: personName, role: 'leader', joinedAt: Date.now(), uid: uid
+        }, { merge: true });
+      });
+    }).then(function () {
+      log('OK : "' + personName + '" est maintenant Team Leader de "' + teamName + '".');
+      btn.disabled = false;
+    }).catch(function (err) {
+      if (err === 'stop') return;
       log('ERREUR : ' + (err && err.message ? err.message : err));
       btn.disabled = false;
     });
