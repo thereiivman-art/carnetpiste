@@ -8784,16 +8784,22 @@
 
   function renderTeamCard(team, me) {
     var isLeader = isLeaderOfTeam(team.id);
-    var canPost = isLeader || team.postPolicy === 'members';
     var members = membersOfTeam(team.id).slice().sort(function (a, b) {
       if ((a.role === 'leader') !== (b.role === 'leader')) return a.role === 'leader' ? -1 : 1;
       return a.name.localeCompare(b.name);
     });
+    // This fiche now also opens for a plain follower (Geoff on
+    // Mototeam95, say -- see renderTeamTab's myTeams), not just members,
+    // so canPost and the header badge need to actually check membership
+    // instead of assuming every viewer here is at least a member.
+    var isMember = members.some(function (m) { return m.name === me.name; });
+    var canPost = isLeader || (isMember && team.postPolicy === 'members');
     var feed = (STATE.teamFeed || []).filter(function (f) { return f.teamId === team.id; });
     var html = '<div class="card team-card">';
     html += '<div class="section-title" style="display:flex; align-items:center; gap:0.6rem;">' + avatarHtml(team, team.name) +
       '<span style="flex:1;">' + escapeHtml(team.name) + teamBadgesHtml(team) + '</span>' +
-      '<span class="friend-role-badge">' + (isLeader ? 'Team Leader' : 'Membre') + '</span></div>';
+      (!isMember ? '<button type="button" class="ghost icon-btn" data-action="unfollow-team" data-team="' + team.id + '" aria-label="Ne plus suivre" title="Ne plus suivre">×</button>' : '') +
+      '<span class="friend-role-badge">' + (isLeader ? 'Team Leader' : (isMember ? 'Membre' : 'Follower')) + '</span></div>';
     var teamLikeCount = (STATE.teamLikes || []).filter(function (l) { return l.teamId === team.id; }).length;
     var teamFollowCount = ((STATE.teamFollowersByTeam || {})[team.id] || []).length;
     html += '<div class="team-stats-row"><span>❤ ' + teamLikeCount + ' like' + (teamLikeCount > 1 ? 's' : '') + '</span>' +
@@ -9343,7 +9349,13 @@
     var me = currentUserProfile;
     if (!me) return '';
     var incoming = (STATE.teamInvites || []).filter(function (r) { return r.status === 'pending' && r.to === me.name; });
-    var myTeams = (STATE.myTeamMemberships || []).map(function (m) { return teamById(m.teamId); }).filter(Boolean)
+    // "Mes Teams" also lists teams this account merely follows, not just
+    // those it's a member of -- a plain follower still gets the Team's
+    // fiche (renderTeamCard), just with a Team Leader inside gating
+    // member-only actions off (see canPost/isMember there).
+    var memberTeamIds = (STATE.myTeamMemberships || []).map(function (m) { return m.teamId; });
+    var followedOnlyIds = (STATE.myFollowedTeams || []).filter(function (id) { return memberTeamIds.indexOf(id) === -1; });
+    var myTeams = memberTeamIds.concat(followedOnlyIds).map(teamById).filter(Boolean)
       .sort(function (a, b) { return a.name.localeCompare(b.name); });
 
     var html = renderPartnersSection();
@@ -9375,7 +9387,8 @@
       if (!expandedTeamId) {
         html += '<h2 class="section-title">Mes Teams</h2>';
         html += '<div class="team-tile-grid">' + myTeams.map(function (t) {
-          var tag = '<span class="friend-role-badge">' + (isLeaderOfTeam(t.id) ? 'Team Leader' : 'Membre') + '</span>';
+          var label = isLeaderOfTeam(t.id) ? 'Team Leader' : (memberTeamIds.indexOf(t.id) !== -1 ? 'Membre' : 'Follower');
+          var tag = '<span class="friend-role-badge">' + label + '</span>';
           return renderTeamTile(t, tag, true);
         }).join('') + '</div>';
       }
@@ -9478,7 +9491,10 @@
 
   function renderTeamDiscovery(me, myTeams) {
     var myTeamIds = myTeams.map(function (t) { return t.id; });
-    var followedTeamIds = STATE.myFollowedTeams || [];
+    // "Mes Teams" above already lists every team this account follows
+    // (see renderTeamTab), with a real, clickable fiche -- so a followed
+    // team never needs its own smaller "Teams suivis" tile here too.
+    var followedTeamIds = (STATE.myFollowedTeams || []).filter(function (id) { return myTeamIds.indexOf(id) === -1; });
     var discoverable = (STATE.teams || []).filter(function (t) {
       if (myTeamIds.indexOf(t.id) !== -1) return false;
       if (t.visibility === 'all') return true;
@@ -12188,6 +12204,7 @@
         // adherentRequested to know whether it's already pending.
         STATE.myTeamFollowDocs = byTeam;
         refreshFollowedTeamFeedSync();
+        refreshTeamDetailSync();
         renderRoot();
       }, handleSyncError));
     }
@@ -12336,7 +12353,14 @@
   function refreshTeamDetailSync() {
     teamDetailUnsubs.forEach(function (unsub) { unsub(); });
     teamDetailUnsubs = [];
-    var teamIds = (STATE.myTeamMemberships || []).map(function (m) { return m.teamId; });
+    // Union of teams this account is a member of AND teams it merely
+    // follows -- a plain follower (Geoff on Mototeam95, say) still needs
+    // this data synced to see the Team's fiche (renderTeamCard) at all,
+    // just with fewer rights inside it (see canPost/isMember there).
+    var teamIds = (STATE.myTeamMemberships || []).map(function (m) { return m.teamId; })
+      .concat(STATE.myFollowedTeams || [])
+      .filter(function (id, i, arr) { return arr.indexOf(id) === i; })
+      .slice(0, 10);
     if (!teamIds.length) {
       STATE.teamMembersByTeam = {};
       STATE.teamFeed = [];
