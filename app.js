@@ -4363,8 +4363,10 @@
 
   // Sentinel session id meaning "the circuit's own plan, not tied to any
   // particular chrono" -- lets a rider annotate a track (braking markers,
-  // lines) before ever logging a session there. Its drawing is stored on
-  // STATE.circuits[circuit].drawing instead of a STATE.sessions[] entry.
+  // lines) before ever logging a session there. Personal to each account
+  // (one shared base plan, everyone's own marks on top) -- stored on
+  // STATE.circuits[circuit].drawings[riderName] instead of a single
+  // shared field or a STATE.sessions[] entry.
   var ANNOT_CIRCUIT_LEVEL = '__circuit__';
 
   // A third level, one per sortie: opening the map from an event's own
@@ -4381,9 +4383,9 @@
   // A fourth level: one accompagnant-facing plan per circuit, independent
   // of any sortie/session -- toilettes, douches, buvette/restaurant, point
   // de vue, paddock/box, marked once and valid for every future outing at
-  // that circuit rather than redrawn per event. Stored on the circuit doc
-  // (STATE.circuits[circuit].accompagnantDrawing), same place as the
-  // circuit-level plan but a separate field/layer.
+  // that circuit rather than redrawn per event. Also personal per account,
+  // same shape as the circuit-level plan above -- stored on the circuit
+  // doc as STATE.circuits[circuit].accompagnantDrawings[riderName].
   var ANNOT_ACCOMPAGNANT_LEVEL = '__accompagnant__';
 
   function openAnnotation(circuit, eventId) {
@@ -4505,10 +4507,11 @@
       options += '<option value="' + evLevelId + '"' + (annot.sessionId === evLevelId ? ' selected' : '') + '>' +
         'Cet événement (nouveau plan)' + (evDrawing ? ' ✎' : '') + '</option>';
     }
+    var myAnnotName = currentUserProfile && currentUserProfile.name;
     options += '<option value="' + ANNOT_CIRCUIT_LEVEL + '"' + (annot.sessionId === ANNOT_CIRCUIT_LEVEL ? ' selected' : '') + '>' +
-      'Plan général' + (info.drawing ? ' ✎' : '') + '</option>';
+      'Plan général' + (myAnnotName && info.drawings && info.drawings[myAnnotName] ? ' ✎' : '') + '</option>';
     options += '<option value="' + ANNOT_ACCOMPAGNANT_LEVEL + '"' + (annot.sessionId === ANNOT_ACCOMPAGNANT_LEVEL ? ' selected' : '') + '>' +
-      'Plan accompagnant' + (info.accompagnantDrawing ? ' ✎' : '') + '</option>';
+      'Plan accompagnant' + (myAnnotName && info.accompagnantDrawings && info.accompagnantDrawings[myAnnotName] ? ' ✎' : '') + '</option>';
     options += sessions.map(function (s) {
       var label = formatDate(s.date) + ' — ' + formatTime(sessionBest(s)) + (showRiderInOption ? ' — ' + s.rider : '') + (s.drawing ? ' ✎' : '');
       return '<option value="' + s.id + '"' + (s.id === annot.sessionId ? ' selected' : '') + '>' + escapeHtml(label) + '</option>';
@@ -4606,9 +4609,9 @@
     annotBaseImageObj = null;
     annotBaseImageVisible = false;
     var existingDrawing = annot.sessionId === ANNOT_CIRCUIT_LEVEL
-      ? circuitInfo(annot.circuit).drawing
+      ? (currentUserProfile && (circuitInfo(annot.circuit).drawings || {})[currentUserProfile.name])
       : annot.sessionId === ANNOT_ACCOMPAGNANT_LEVEL
-        ? circuitInfo(annot.circuit).accompagnantDrawing
+        ? (currentUserProfile && (circuitInfo(annot.circuit).accompagnantDrawings || {})[currentUserProfile.name])
         : isEventLevelId(annot.sessionId)
           ? (eventsList().filter(function (e) { return e.id === eventIdFromLevelId(annot.sessionId); })[0] || {}).drawing
           : (STATE.sessions.filter(function (s) { return s.id === annot.sessionId; })[0] || {}).drawing;
@@ -5189,14 +5192,18 @@
     var dataUrl = annotCanvasEl.toDataURL('image/png');
     var prevState = JSON.parse(JSON.stringify(STATE));
     if (annot.sessionId === ANNOT_CIRCUIT_LEVEL) {
+      if (!currentUserProfile) return;
       STATE.circuits = STATE.circuits || {};
       var entry = STATE.circuits[annot.circuit] || {};
-      entry.drawing = dataUrl;
+      entry.drawings = Object.assign({}, entry.drawings || {});
+      entry.drawings[currentUserProfile.name] = dataUrl;
       STATE.circuits[annot.circuit] = entry;
     } else if (annot.sessionId === ANNOT_ACCOMPAGNANT_LEVEL) {
+      if (!currentUserProfile) return;
       STATE.circuits = STATE.circuits || {};
       var accEntry = STATE.circuits[annot.circuit] || {};
-      accEntry.accompagnantDrawing = dataUrl;
+      accEntry.accompagnantDrawings = Object.assign({}, accEntry.accompagnantDrawings || {});
+      accEntry.accompagnantDrawings[currentUserProfile.name] = dataUrl;
       STATE.circuits[annot.circuit] = accEntry;
     } else if (isEventLevelId(annot.sessionId)) {
       var evForSave = STATE.events.filter(function (e) { return e.id === eventIdFromLevelId(annot.sessionId); })[0];

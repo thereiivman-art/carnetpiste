@@ -227,21 +227,30 @@ service cloud.firestore {
     // habituels) is admin-only to write now -- was open to any verified
     // account, which meant literally anyone could overwrite another
     // circuit's imported plan image, not just tweak a number. Carved out:
-    // "drawing"/"accompagnantDrawing" (the annotation layer any pilote/
+    // "drawings"/"accompagnantDrawings" (the annotation layer any pilote/
     // accompagnant can doodle on top of the shared plan, see
-    // saveAnnotation) stay open -- that's deliberately collaborative,
-    // unrelated to the reference data itself. Every circuit write is a
-    // full-document .set() of the client's whole in-memory entry (see
-    // diffCircuits), never a partial update, so affectedKeys() only ever
-    // lists fields whose *value* actually changed against the stored doc.
+    // saveAnnotation) stay open -- that's deliberately collaborative, but
+    // personal to each account now (one shared base plan, everyone's own
+    // marks kept apart instead of overwriting each other) -- each is a
+    // map keyed by rider name, own key only, see onlyOwnKeyChanged. Every
+    // circuit write is a full-document .set() of the client's whole
+    // in-memory entry (see diffCircuits), never a partial update, so
+    // affectedKeys() only ever lists fields whose *value* actually
+    // changed against the stored doc.
     match /circuits/{id} {
       allow read: if request.auth != null;
       allow create: if isAdmin() || (verified() && (
-        request.resource.data.keys().hasOnly(['drawing', 'name'])
-        || request.resource.data.keys().hasOnly(['accompagnantDrawing', 'name'])
+        (request.resource.data.keys().hasOnly(['drawings', 'name'])
+          && request.resource.data.get('drawings', {}).keys().hasOnly([myName()]))
+        || (request.resource.data.keys().hasOnly(['accompagnantDrawings', 'name'])
+          && request.resource.data.get('accompagnantDrawings', {}).keys().hasOnly([myName()]))
       ));
-      allow update: if isAdmin() || (verified()
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['drawing', 'accompagnantDrawing']));
+      allow update: if isAdmin() || (verified() && (
+        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['drawings'])
+          && onlyOwnKeyChanged(resource.data.get('drawings', {}), request.resource.data.drawings))
+        || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['accompagnantDrawings'])
+          && onlyOwnKeyChanged(resource.data.get('accompagnantDrawings', {}), request.resource.data.accompagnantDrawings))
+      ));
       allow delete: if isAdmin();
     }
     // A shared roster, not privately owned data -- create/update were
