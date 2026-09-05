@@ -7071,7 +7071,13 @@
   function collapsibleSection(key, title, innerHtml, defaultOpen, titleActionsHtml) {
     if (!innerHtml) return '';
     var isOpen = planningSectionsOpen.hasOwnProperty(key) ? !!planningSectionsOpen[key] : !!defaultOpen;
-    return '<details class="planning-section" data-planning-section="' + key + '"' + (isOpen ? ' open' : '') + '><summary>' + escapeHtml(title) + (titleActionsHtml || '') + '</summary><div class="planning-section-body">' + innerHtml + '</div></details>';
+    // margin-left:auto on just the actions wrapper (not justify-content on
+    // the whole <summary>) -- summary's arrow (::before) and title text are
+    // two separate flex items once display:flex is set, and space-between
+    // would shove them apart from each other too, not just push the
+    // actions to the right.
+    var actionsHtml = titleActionsHtml ? '<span style="margin-left:auto; display:flex; gap:0.5rem;">' + titleActionsHtml + '</span>' : '';
+    return '<details class="planning-section" data-planning-section="' + key + '"' + (isOpen ? ' open' : '') + '><summary>' + escapeHtml(title) + actionsHtml + '</summary><div class="planning-section-body">' + innerHtml + '</div></details>';
   }
 
   // Same open/closed tracking as collapsibleSection above, but styled as a
