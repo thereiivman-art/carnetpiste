@@ -5345,6 +5345,34 @@
     return STATE.events.filter(canSeeEvent);
   }
 
+  // Stricter than canSeeEvent, and only for the "En cours"/"À venir"/
+  // "Passés" bands of the compte's own Événements tab -- being able to
+  // *see* a Team PRO event (canSeeEvent) is not the same as it being
+  // "mine": a plain member of Mototeam95 who never asked to join Barcelone
+  // shouldn't find it sitting in their own upcoming sorties as if they
+  // were already going -- it belongs in Découvrir des Événements instead,
+  // with a join/request action, until they're actually on the roster.
+  // Amateur Teams keep the old behaviour (any member's event is "theirs"
+  // too, no per-event registration for a casual club ride) since that's
+  // never had a request flow to begin with. Personal (no teamId) events
+  // stay exactly as visible as canSeeEvent already makes them.
+  function isMyEventForList(ev) {
+    if (!ev.teamId) return true;
+    var me = currentUserProfile;
+    if (!me) return false;
+    if (isAdmin() || isLeaderOfTeam(ev.teamId)) return true;
+    if ((ev.riders || []).indexOf(me.name) !== -1) return true;
+    var myTeamIds = (STATE.myTeamMemberships || []).map(function (m) { return m.teamId; });
+    var teammateRiding = myTeamIds.some(function (tid) {
+      var roster = membersOfTeam(tid).map(function (m) { return m.name; });
+      return (ev.riders || []).some(function (r) { return roster.indexOf(r) !== -1; });
+    });
+    if (teammateRiding) return true;
+    var team = teamById(ev.teamId);
+    if (team && !team.teamPro && myTeamIds.indexOf(ev.teamId) !== -1) return true;
+    return false;
+  }
+
   // 'ouvert' Team Events self-register straight onto the event (see
   // firestore.rules' events update rule -- any verified account may add
   // *itself* to riders when eventVisibility is 'ouvert', nothing else).
@@ -5693,18 +5721,25 @@
   function renderProEventDiscovery(me) {
     if (!me) return '';
     var myTeamIds = (STATE.myTeamMemberships || []).map(function (m) { return m.teamId; });
+    // Being a Team member no longer excludes an event from here -- a
+    // Mototeam95 member who hasn't asked to join Barcelone yet needs to
+    // find it here just as much as a follower or a stranger would (see
+    // isMyEventForList, which is what now keeps it out of "À venir"
+    // instead). Only actually leading the Team, or already being on the
+    // roster, takes an event off this list.
     var candidates = (STATE.events || []).filter(function (ev) {
-      if (!ev.teamId || myTeamIds.indexOf(ev.teamId) !== -1) return false;
+      if (!ev.teamId || isLeaderOfTeam(ev.teamId)) return false;
       var team = teamById(ev.teamId);
       if (!team || !team.teamPro) return false;
       if ((ev.riders || []).indexOf(me.name) !== -1) return false;
       var vis = ev.eventVisibility || 'membre';
+      if (vis === 'membre') return myTeamIds.indexOf(ev.teamId) !== -1;
       if (vis === 'adherent') return (STATE.myFollowedTeamTiers || {})[ev.teamId] === 'adherent';
       if (vis === 'follower') return (STATE.myFollowedTeams || []).indexOf(ev.teamId) !== -1;
       return vis === 'public' || vis === 'ouvert';
     }).sort(function (a, b) { return a.dateStart < b.dateStart ? -1 : a.dateStart > b.dateStart ? 1 : 0; });
     if (!candidates.length) return '';
-    var visTags = { ouvert: 'Ouvert', public: 'Public', adherent: 'Adhérent', follower: 'Followers' };
+    var visTags = { ouvert: 'Ouvert', public: 'Public', membre: 'Membre', adherent: 'Adhérent', follower: 'Followers' };
     function rowHtml(ev) {
       var team = teamById(ev.teamId);
       var vis = ev.eventVisibility || 'membre';
@@ -5770,7 +5805,7 @@
         body = toggle + sortToggle + candidates.map(rowHtml).join('');
       }
     }
-    return collapsibleCard('event-discovery-pro', 'Découvrir les Événements PRO', body, false);
+    return collapsibleCard('event-discovery-pro', 'Événements de Teams PRO', body, false);
   }
 
   function pad2(n) {
@@ -6730,34 +6765,33 @@
     return collapsibleCard('events-past', 'Passés', body, false);
   }
 
-  // Événements merges the former separate Calendrier tab in: (1) "En cours"
-  // first, only when a sortie's date range actually covers today AND this
-  // account is actually riding it -- no point in a permanent empty section
-  // for the common case of nothing running right now, and no point showing
-  // someone else's ongoing sortie as "En cours" for an account that isn't
-  // part of it; (2) "À venir", still every visible event (not just ones
-  // already joined, so there's something to actually discover/join); (3)
-  // "Découvrir des Événements PRO", right after -- the natural next step
-  // once "À venir" runs out of your own sorties; (4) the Calendrier grid,
-  // for browsing dates rather than the day-to-day view; (5) "Ajouter un
-  // événement"; (6) "Passés" last, the least time-sensitive of the lot.
+  // Two clear categories now: "Mes Événements" (En cours/À venir/Mon
+  // calendrier/Ajouter/Passés -- everything that's actually mine, per
+  // isMyEventForList) then "Découvrir des Événements" (Team PRO events
+  // I'm not on the roster of yet, per their own visibility tier). En
+  // cours/À venir/Passés all use isMyEventForList now, not just
+  // canSeeEvent -- a plain Team PRO member who never joined a sortie
+  // shouldn't find it sitting in their own upcoming events as if they
+  // were already going; it belongs in Découvrir, with a join/request
+  // action, until they're actually on the roster (amateur Team events
+  // and personal sorties are unaffected -- see isMyEventForList).
   function renderEventTab() {
     var all = eventsList();
     var todayKey = dateKey(new Date());
     var me = currentUserProfile;
     var ongoing = [], upcoming = [], past = [];
     all.forEach(function (ev) {
+      if (!isMyEventForList(ev)) return;
       var status = eventTemporalStatus(ev, todayKey);
-      if (status === 'ongoing') {
-        if (me && (ev.riders || []).indexOf(me.name) !== -1) ongoing.push(ev);
-      } else if (status === 'upcoming') upcoming.push(ev);
+      if (status === 'ongoing') ongoing.push(ev);
+      else if (status === 'upcoming') upcoming.push(ev);
       else past.push(ev);
     });
     ongoing.sort(function (a, b) { return a.dateStart < b.dateStart ? -1 : a.dateStart > b.dateStart ? 1 : 0; });
     upcoming.sort(function (a, b) { return a.dateStart < b.dateStart ? -1 : a.dateStart > b.dateStart ? 1 : 0; });
     past.sort(function (a, b) { return a.dateStart < b.dateStart ? 1 : a.dateStart > b.dateStart ? -1 : 0; });
-    var html = '';
-    if (!all.length) {
+    var html = '<h2 class="section-title">Mes Événements</h2>';
+    if (!ongoing.length && !upcoming.length && !past.length) {
       html += '<div class="card"><div class="empty-state">' + (coreDataLoading() ? 'Chargement...' : 'Aucun événement enregistré — ajoutez-en un ci-dessous.') + '</div></div>';
     } else {
       if (ongoing.length) html += renderEventGroupCard('En cours', ongoing, { collapseKey: 'events-ongoing', defaultOpen: true });
@@ -6766,7 +6800,6 @@
       // that shouldn't need an extra click.
       html += renderEventGroupCard('À venir', upcoming, { collapseKey: 'events-upcoming', defaultOpen: !ongoing.length });
     }
-    html += renderProEventDiscovery(me);
     html += renderCalendarSection();
     // Only the "+ Ajouter" prompt (or its own open form, editingEventId
     // 'new') lives in this standing slot -- editing an EXISTING event
@@ -6776,6 +6809,8 @@
     // to this spot, above whatever event the click was actually on.
     html += (editingEventId === null || editingEventId === 'new') ? renderEventForm() : addEventTeaserCard();
     html += renderPastEventsCard(past);
+    var discovery = renderProEventDiscovery(me);
+    if (discovery) html += '<h2 class="section-title" style="margin-top:1.4rem;">Découvrir des Événements</h2>' + discovery;
     return html;
   }
 
