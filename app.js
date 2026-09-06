@@ -2123,7 +2123,7 @@
   }
 
   var editingCircuitInfo = false; // local UI state, not persisted
-  var annot = { open: false, circuit: null, eventId: null, sessionId: null, tool: 'brush', color: '#e63946', size: 4, fontSize: 22, drawing: false, lastX: 0, lastY: 0, viewOnly: false, viewOnlyName: null };
+  var annot = { open: false, circuit: null, sessionId: null, tool: 'brush', color: '#e63946', size: 4, fontSize: 22, drawing: false, lastX: 0, lastY: 0, viewOnly: false, viewOnlyName: null };
 
   // ---- Calendrier (sorties planifiées + sessions déjà roulées) ----
   //
@@ -5120,20 +5120,15 @@
     persist(prevState);
   }
 
-  // eventId (optional): when the visual is shown from a sortie's own card
-  // (Événements) rather than the Circuit tab, annotating it opens that
-  // sortie's own blank layer (see openAnnotation) instead of the circuit's
-  // shared plan -- so the button carries the event id rather than the id
-  // attachHandlers() otherwise wires to the globally-selected circuit.
-  function renderCircuitVisual(info, circuitName, eventId) {
+  function renderCircuitVisual(info, circuitName) {
     circuitName = circuitName || selectedCircuit;
     if (info.mapImage) {
       return (
         '<div class="circuit-visual-frame">' +
-          '<button type="button" class="circuit-visual-btn" id="open-annot-btn" data-circuit="' + escapeHtml(circuitName) + '"' + (eventId ? ' data-event-id="' + eventId + '"' : '') + ' aria-label="' + tr('annotate_circuit_aria') + '">' +
+          '<button type="button" class="circuit-visual-btn" id="open-annot-btn" data-circuit="' + escapeHtml(circuitName) + '" aria-label="' + tr('annotate_circuit_aria') + '">' +
             '<img src="' + info.mapImage + '" alt="Tracé de ' + escapeHtml(circuitName) + '">' +
           '</button>' +
-          '<div class="circuit-visual-caption">' + ((currentUserProfile && currentUserProfile.role === 'accompagnant' && !isAdmin() && !eventId) ? tr('tap_to_view_companion_map') : tr('tap_to_annotate')) + '</div>' +
+          '<div class="circuit-visual-caption">' + ((currentUserProfile && currentUserProfile.role === 'accompagnant' && !isAdmin()) ? tr('tap_to_view_companion_map') : tr('tap_to_annotate')) + '</div>' +
         '</div>'
       );
     }
@@ -5209,18 +5204,7 @@
   // shared field or a STATE.sessions[] entry.
   var ANNOT_CIRCUIT_LEVEL = '__circuit__';
 
-  // A third level, one per sortie: opening the map from an event's own
-  // card (Événements -> "En cours") always starts from a blank layer for
-  // that sortie specifically, rather than the circuit-level plan that
-  // otherwise accumulates every trait ever drawn on that track across
-  // every past outing. Its drawing is stored on the event doc itself
-  // (STATE.events[].drawing), keyed 'event:<eventId>' in annot.sessionId.
-  var ANNOT_EVENT_PREFIX = 'event:';
-  function eventLevelSessionId(eventId) { return ANNOT_EVENT_PREFIX + eventId; }
-  function isEventLevelId(sessionId) { return typeof sessionId === 'string' && sessionId.indexOf(ANNOT_EVENT_PREFIX) === 0; }
-  function eventIdFromLevelId(sessionId) { return sessionId.slice(ANNOT_EVENT_PREFIX.length); }
-
-  // A fourth level: the real track outline (contour du tracé), independent
+  // A second level: the real track outline (contour du tracé), independent
   // of any sortie/session -- a reference shape imported once per circuit
   // (see DEFAULT_TRACK_OUTLINES / circuit-outline-upload-btn) that everyone
   // can mark up (braking points, groups, whatever) without redrawing the
@@ -5241,8 +5225,13 @@
     'barcelone': 'circuit-outlines/Barcelone.png',
     'carole': 'circuit-outlines/Carole.png',
     'jerez': 'circuit-outlines/Jerez.png',
-    'le mans': 'circuit-outlines/Le Mans.png',
-    'magny cours': 'circuit-outlines/Magny Cours.png',
+    // Filenames with a literal space need percent-encoding -- an
+    // unescaped space in an <img src> is technically invalid and some
+    // hosts/browsers fail to fetch it (looks identical to "image just
+    // never loads", which reads as "can't zoom it" since there's nothing
+    // to see move).
+    'le mans': 'circuit-outlines/Le%20Mans.png',
+    'magny cours': 'circuit-outlines/Magny%20Cours.png',
     'misano': 'circuit-outlines/Misano.png',
     'mugello': 'circuit-outlines/Mugello.png',
     'navarra': 'circuit-outlines/Navarra.png'
@@ -5272,18 +5261,12 @@
     return sessionId === ANNOT_OUTLINE_LEVEL || (isViewLevelId(sessionId) && parseViewLevelId(sessionId).level === 'outline');
   }
 
-  function openAnnotation(circuit, eventId) {
-    var sessions = circuitSessionsDesc(circuit);
+  function openAnnotation(circuit) {
     annot.open = true;
     annot.circuit = circuit;
-    annot.eventId = eventId || null;
-    if (eventId) {
-      annot.sessionId = eventLevelSessionId(eventId);
-    } else if (currentUserProfile && currentUserProfile.role === 'accompagnant' && !isAdmin()) {
-      annot.sessionId = ANNOT_OUTLINE_LEVEL;
-    } else {
-      annot.sessionId = sessions.length ? sessions[0].id : ANNOT_CIRCUIT_LEVEL;
-    }
+    annot.sessionId = (currentUserProfile && currentUserProfile.role === 'accompagnant' && !isAdmin())
+      ? ANNOT_OUTLINE_LEVEL
+      : ANNOT_CIRCUIT_LEVEL;
     annot.tool = 'brush';
     annot.viewOnly = false;
     annot.viewOnlyName = null;
@@ -5292,7 +5275,6 @@
 
   function closeAnnotation() {
     annot.open = false;
-    annot.eventId = null;
     annot.viewOnly = false;
     annot.viewOnlyName = null;
     var overlay = document.getElementById('annot-overlay');
@@ -5382,19 +5364,9 @@
       return;
     }
     var info = circuitInfo(annot.circuit);
-    var sessions = circuitSessionsDesc(annot.circuit);
-    var showRiderInOption = selectedRiders && selectedRiders.size !== 1;
-    // A circuit-level entry always leads the list, so the plan can be
-    // annotated (braking markers, lines) before any chrono is logged there
-    // -- alongside one entry per session, each with its own drawing.
+    // A circuit-level entry always leads the list, alongside the outline
+    // (contour du tracé) level -- these are the only two per-person plans.
     var options = '';
-    if (annot.eventId) {
-      var evForAnnot = eventsList().filter(function (e) { return e.id === annot.eventId; })[0];
-      var evDrawing = evForAnnot && evForAnnot.drawing;
-      var evLevelId = eventLevelSessionId(annot.eventId);
-      options += '<option value="' + evLevelId + '"' + (annot.sessionId === evLevelId ? ' selected' : '') + '>' +
-        'Cet événement (nouveau plan)' + (evDrawing ? ' ✎' : '') + '</option>';
-    }
     var myAnnotName = currentUserProfile && currentUserProfile.name;
     options += '<option value="' + ANNOT_CIRCUIT_LEVEL + '"' + (annot.sessionId === ANNOT_CIRCUIT_LEVEL ? ' selected' : '') + '>' +
       'Plan général' + (myAnnotName && info.drawings && info.drawings[myAnnotName] ? ' ✎' : '') + '</option>';
@@ -5410,10 +5382,6 @@
       options += '<option value="' + vId2 + '"' + (annot.sessionId === vId2 ? ' selected' : '') + '>' +
         '👁 Contour du tracé de ' + escapeHtml(name) + '</option>';
     });
-    options += sessions.map(function (s) {
-      var label = formatDate(s.date) + ' — ' + formatTime(sessionBest(s)) + (showRiderInOption ? ' — ' + s.rider : '') + (s.drawing ? ' ✎' : '');
-      return '<option value="' + s.id + '"' + (s.id === annot.sessionId ? ' selected' : '') + '>' + escapeHtml(label) + '</option>';
-    }).join('');
 
     var html = '';
     var svgFullscreen = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M16 3h3a2 2 0 0 1 2 2v3"/><path d="M21 16v3a2 2 0 0 1-2 2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/></svg>';
@@ -5421,7 +5389,7 @@
     html += '<div class="annot-header">';
     html += '<button type="button" class="ghost icon-btn" id="annot-close" aria-label="Fermer">←</button>';
     html += '<div class="annot-title">' + escapeHtml(annot.circuit) + '</div>';
-    html += '<select id="annot-session-select" aria-label="Événement à annoter">' + options + '</select>';
+    html += '<select id="annot-session-select" aria-label="Plan à annoter">' + options + '</select>';
     html += '<button type="button" class="ghost icon-btn annot-fullscreen-btn" id="annot-fullscreen" aria-label="Plein écran paysage" title="Forcer l\'affichage paysage">' + svgFullscreen + '</button>';
     html += '</div>';
     html += '<div class="annot-orientation-hint">Astuce : passez le téléphone en mode paysage (ou utilisez le bouton paysage) pour annoter plus confortablement.</div>';
@@ -5526,9 +5494,7 @@
               var map = parsed.level === 'outline' ? circuitInfo(annot.circuit).outlineDrawings : circuitInfo(annot.circuit).drawings;
               return (map || {})[parsed.name];
             })()
-          : isEventLevelId(annot.sessionId)
-            ? (eventsList().filter(function (e) { return e.id === eventIdFromLevelId(annot.sessionId); })[0] || {}).drawing
-            : (STATE.sessions.filter(function (s) { return s.id === annot.sessionId; })[0] || {}).drawing;
+          : null;
     if (existingDrawing) {
       var img = new Image();
       img.onload = function () {
@@ -6124,12 +6090,8 @@
       outlineEntry.outlineDrawings = Object.assign({}, outlineEntry.outlineDrawings || {});
       outlineEntry.outlineDrawings[currentUserProfile.name] = dataUrl;
       STATE.circuits[annot.circuit] = outlineEntry;
-    } else if (isEventLevelId(annot.sessionId)) {
-      var evForSave = STATE.events.filter(function (e) { return e.id === eventIdFromLevelId(annot.sessionId); })[0];
-      if (evForSave) evForSave.drawing = dataUrl;
     } else {
-      var session = STATE.sessions.filter(function (s) { return s.id === annot.sessionId; })[0];
-      if (session) session.drawing = dataUrl;
+      return;
     }
     persist(prevState);
     showToast(tr('annotation_saved'), 'success');
@@ -6156,9 +6118,7 @@
       var parsed = parseViewLevelId(annot.sessionId);
       return (parsed.level === 'outline' ? 'Contour du tracé' : 'Plan général') + ' de ' + parsed.name;
     }
-    if (isEventLevelId(annot.sessionId)) return 'Plan de l\'événement';
-    var session = STATE.sessions.filter(function (s) { return s.id === annot.sessionId; })[0];
-    return session ? (formatDate(session.date) + ' — ' + formatTime(sessionBest(session))) : annot.circuit;
+    return annot.circuit;
   }
 
   function exportAnnotationPng() {
@@ -7551,7 +7511,7 @@
     html += renderMediaLinkSection(ev);
     // The circuit's own interactive map, so the annotated track is one tap
     // away from the sortie it belongs to, not just reachable from Circuit.
-    html += '<div class="event-circuit-map"><div class="event-checklist-title">' + tr('circuit_map_heading') + '</div>' + renderCircuitVisual(circuitInfo(ev.circuit), ev.circuit, ev.id) + '</div>';
+    html += '<div class="event-circuit-map"><div class="event-checklist-title">' + tr('circuit_map_heading') + '</div>' + renderCircuitVisual(circuitInfo(ev.circuit), ev.circuit) + '</div>';
     // The équipement checklist (with its count) lives entirely in
     // Planning now -- Événements stays simple and informative.
     html += '<div class="event-detail-actions"><button type="button" class="ghost" id="edit-event-btn" data-id="' + ev.id + '">' + tr('modify') + '</button></div>';
@@ -13547,7 +13507,7 @@
     var openAnnotBtn = document.getElementById('open-annot-btn');
     if (openAnnotBtn) {
       openAnnotBtn.addEventListener('click', function () {
-        openAnnotation(openAnnotBtn.getAttribute('data-circuit') || selectedCircuit, openAnnotBtn.getAttribute('data-event-id') || null);
+        openAnnotation(openAnnotBtn.getAttribute('data-circuit') || selectedCircuit);
       });
     }
     var accountManagerSearchEl = document.getElementById('account-manager-search');
