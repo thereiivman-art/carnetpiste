@@ -51,7 +51,9 @@
       ci_distance_km: 'Distance (km)', ci_turns_right: 'Virages à droite', ci_turns_left: 'Virages à gauche',
       ci_organizer: 'Organisateur', ci_briefing: 'Briefing', ci_usual_horaires: 'Horaires habituels par groupe',
       circuit_map_label: 'Plan du circuit', circuit_map_replace: 'Remplacer le plan', circuit_map_import: 'Importer un plan',
-      circuit_map_remove: 'Retirer', tap_to_view_companion_map: 'Toucher pour voir/marquer le plan accompagnant',
+      circuit_map_remove: 'Retirer', tap_to_view_companion_map: 'Toucher pour voir/marquer le contour du tracé',
+      circuit_outline_label: 'Contour du tracé', circuit_outline_replace: 'Remplacer le contour', circuit_outline_import: 'Importer un contour',
+      circuit_outline_remove: 'Retirer',
       tap_to_annotate: 'Toucher pour annoter', no_map_imported: 'Aucun plan importé pour ce circuit',
       annotate_circuit_aria: 'Annoter le tracé du circuit',
       choose_circuit_first: 'Choisissez un circuit dans l\'onglet Circuit avant d\'enregistrer un chrono.',
@@ -416,7 +418,9 @@
       ci_distance_km: 'Distance (km)', ci_turns_right: 'Right-hand turns', ci_turns_left: 'Left-hand turns',
       ci_organizer: 'Organizer', ci_briefing: 'Briefing', ci_usual_horaires: 'Usual schedule per group',
       circuit_map_label: 'Circuit map', circuit_map_replace: 'Replace map', circuit_map_import: 'Import a map',
-      circuit_map_remove: 'Remove', tap_to_view_companion_map: 'Tap to view/mark the companion map',
+      circuit_map_remove: 'Remove', tap_to_view_companion_map: 'Tap to view/mark the track outline',
+      circuit_outline_label: 'Track outline', circuit_outline_replace: 'Replace outline', circuit_outline_import: 'Import an outline',
+      circuit_outline_remove: 'Remove',
       tap_to_annotate: 'Tap to annotate', no_map_imported: 'No map imported for this circuit',
       annotate_circuit_aria: 'Annotate the circuit map',
       choose_circuit_first: 'Choose a circuit in the Circuit tab before logging a lap time.',
@@ -5077,6 +5081,19 @@
       '<input type="file" id="circuit-map-input" accept="image/*" style="display:none;">' +
       (circuitMapMessage ? '<div class="help-text" style="margin-top:0.4rem;">' + escapeHtml(circuitMapMessage) + '</div>' : '') +
       '</div>';
+    // Same pattern as the plan above, for the "Contour du tracé" annotation
+    // level's own reference image (see ANNOT_OUTLINE_LEVEL/outlineImageFor)
+    // -- most circuits already have a built-in default (DEFAULT_TRACK_OUTLINES),
+    // this is only for overriding that default or adding one for a circuit
+    // that doesn't have one yet.
+    html += '<div style="margin-top:0.9rem;"><label>' + tr('circuit_outline_label') + '</label>' +
+      '<div style="display:flex; gap:0.5rem; margin-top:0.3rem; flex-wrap:wrap;">' +
+      '<button type="button" class="ghost" id="circuit-outline-upload-btn">' + (info.outlineImage ? tr('circuit_outline_replace') : tr('circuit_outline_import')) + '</button>' +
+      (info.outlineImage ? '<button type="button" class="ghost" id="circuit-outline-remove-btn">' + tr('circuit_outline_remove') + '</button>' : '') +
+      '</div>' +
+      '<input type="file" id="circuit-outline-input" accept="image/*" style="display:none;">' +
+      (circuitOutlineMessage ? '<div class="help-text" style="margin-top:0.4rem;">' + escapeHtml(circuitOutlineMessage) + '</div>' : '') +
+      '</div>';
     html += '<div class="info-edit-actions"><button type="button" class="primary" id="save-circuit-info-btn">' + tr('save') + '</button><button type="button" class="ghost" id="cancel-circuit-info-btn">' + tr('cancel') + '</button></div>';
     return html;
   }
@@ -5087,6 +5104,17 @@
     STATE.circuits = STATE.circuits || {};
     var entry = STATE.circuits[circuitName] || {};
     entry.mapImage = dataUrl || null;
+    STATE.circuits[circuitName] = entry;
+    renderRoot();
+    persist(prevState);
+  }
+  var circuitOutlineMessage = '';
+  function saveCircuitOutlineImage(circuitName, dataUrl) {
+    if (!isAdmin()) return;
+    var prevState = JSON.parse(JSON.stringify(STATE));
+    STATE.circuits = STATE.circuits || {};
+    var entry = STATE.circuits[circuitName] || {};
+    entry.outlineImage = dataUrl || null;
     STATE.circuits[circuitName] = entry;
     renderRoot();
     persist(prevState);
@@ -5192,20 +5220,43 @@
   function isEventLevelId(sessionId) { return typeof sessionId === 'string' && sessionId.indexOf(ANNOT_EVENT_PREFIX) === 0; }
   function eventIdFromLevelId(sessionId) { return sessionId.slice(ANNOT_EVENT_PREFIX.length); }
 
-  // A fourth level: one accompagnant-facing plan per circuit, independent
-  // of any sortie/session -- toilettes, douches, buvette/restaurant, point
-  // de vue, paddock/box, marked once and valid for every future outing at
-  // that circuit rather than redrawn per event. Also personal per account,
-  // same shape as the circuit-level plan above -- stored on the circuit
-  // doc as STATE.circuits[circuit].accompagnantDrawings[riderName].
-  var ANNOT_ACCOMPAGNANT_LEVEL = '__accompagnant__';
+  // A fourth level: the real track outline (contour du tracé), independent
+  // of any sortie/session -- a reference shape imported once per circuit
+  // (see DEFAULT_TRACK_OUTLINES / circuit-outline-upload-btn) that everyone
+  // can mark up (braking points, groups, whatever) without redrawing the
+  // outline itself every time. Personal per account, same shape as the
+  // circuit-level plan above -- stored on the circuit doc as
+  // STATE.circuits[circuit].outlineDrawings[riderName]. Used to be a blank
+  // "Plan accompagnant" layer (accompagnantDrawings) with no reference
+  // image at all -- replaced outright, not kept alongside it.
+  var ANNOT_OUTLINE_LEVEL = '__outline__';
 
-  // Read-only view of another account's own circuit-level/accompagnant
-  // plan (see the annot.viewOnly branches in renderAnnotationOverlay/
-  // saveAnnotation) -- lets a coach show a pupil their own line, or an
-  // accompagnant check what a teammate already marked, without either
-  // account's layer ever overwriting the other's (see the per-user
-  // drawings/accompagnantDrawings maps above).
+  // Built-in default outline images for circuits the app ships known
+  // tracés for -- an admin can still override any of these (or add one for
+  // a circuit with none) via circuit-outline-upload-btn, which always wins
+  // over this default (see outlineImageFor). Matched case/whitespace-
+  // insensitively against the circuit's own name, same style as
+  // nextOutingForCircuit's own circuit-name comparison.
+  var DEFAULT_TRACK_OUTLINES = {
+    'barcelone': 'circuit-outlines/Barcelone.png',
+    'carole': 'circuit-outlines/Carole.png',
+    'jerez': 'circuit-outlines/Jerez.png',
+    'le mans': 'circuit-outlines/Le Mans.png',
+    'magny cours': 'circuit-outlines/Magny Cours.png',
+    'misano': 'circuit-outlines/Misano.png',
+    'mugello': 'circuit-outlines/Mugello.png',
+    'navarra': 'circuit-outlines/Navarra.png'
+  };
+  function outlineImageFor(info, circuitName) {
+    return info.outlineImage || DEFAULT_TRACK_OUTLINES[(circuitName || '').trim().toLowerCase()] || null;
+  }
+
+  // Read-only view of another account's own circuit-level/outline plan
+  // (see the annot.viewOnly branches in renderAnnotationOverlay/
+  // saveAnnotation) -- lets a coach show a pupil their own line, or anyone
+  // check what a teammate already marked on the track outline, without
+  // either account's layer ever overwriting the other's (see the per-user
+  // drawings/outlineDrawings maps above).
   var ANNOT_VIEW_PREFIX = 'viewer:';
   function viewLevelSessionId(level, name) { return ANNOT_VIEW_PREFIX + level + ':' + name; }
   function isViewLevelId(sessionId) { return typeof sessionId === 'string' && sessionId.indexOf(ANNOT_VIEW_PREFIX) === 0; }
@@ -5213,6 +5264,12 @@
     var rest = sessionId.slice(ANNOT_VIEW_PREFIX.length);
     var sep = rest.indexOf(':');
     return { level: rest.slice(0, sep), name: rest.slice(sep + 1) };
+  }
+  // True for the outline level itself or a read-only view of someone else's
+  // outline layer -- both should show the track outline as their basemap
+  // instead of info.mapImage (see renderAnnotationOverlay).
+  function isOutlineLevelId(sessionId) {
+    return sessionId === ANNOT_OUTLINE_LEVEL || (isViewLevelId(sessionId) && parseViewLevelId(sessionId).level === 'outline');
   }
 
   function openAnnotation(circuit, eventId) {
@@ -5223,7 +5280,7 @@
     if (eventId) {
       annot.sessionId = eventLevelSessionId(eventId);
     } else if (currentUserProfile && currentUserProfile.role === 'accompagnant' && !isAdmin()) {
-      annot.sessionId = ANNOT_ACCOMPAGNANT_LEVEL;
+      annot.sessionId = ANNOT_OUTLINE_LEVEL;
     } else {
       annot.sessionId = sessions.length ? sessions[0].id : ANNOT_CIRCUIT_LEVEL;
     }
@@ -5346,12 +5403,12 @@
       options += '<option value="' + vId + '"' + (annot.sessionId === vId ? ' selected' : '') + '>' +
         '👁 Plan général de ' + escapeHtml(name) + '</option>';
     });
-    options += '<option value="' + ANNOT_ACCOMPAGNANT_LEVEL + '"' + (annot.sessionId === ANNOT_ACCOMPAGNANT_LEVEL ? ' selected' : '') + '>' +
-      'Plan accompagnant' + (myAnnotName && info.accompagnantDrawings && info.accompagnantDrawings[myAnnotName] ? ' ✎' : '') + '</option>';
-    Object.keys(info.accompagnantDrawings || {}).filter(function (name) { return name !== myAnnotName; }).sort().forEach(function (name) {
-      var vId2 = viewLevelSessionId('accompagnant', name);
+    options += '<option value="' + ANNOT_OUTLINE_LEVEL + '"' + (annot.sessionId === ANNOT_OUTLINE_LEVEL ? ' selected' : '') + '>' +
+      'Contour du tracé' + (myAnnotName && info.outlineDrawings && info.outlineDrawings[myAnnotName] ? ' ✎' : '') + '</option>';
+    Object.keys(info.outlineDrawings || {}).filter(function (name) { return name !== myAnnotName; }).sort().forEach(function (name) {
+      var vId2 = viewLevelSessionId('outline', name);
       options += '<option value="' + vId2 + '"' + (annot.sessionId === vId2 ? ' selected' : '') + '>' +
-        '👁 Plan accompagnant de ' + escapeHtml(name) + '</option>';
+        '👁 Contour du tracé de ' + escapeHtml(name) + '</option>';
     });
     options += sessions.map(function (s) {
       var label = formatDate(s.date) + ' — ' + formatTime(sessionBest(s)) + (showRiderInOption ? ' — ' + s.rider : '') + (s.drawing ? ' ✎' : '');
@@ -5410,9 +5467,10 @@
       html += '<button type="button" class="primary annot-save-btn" id="annot-save">Enregistrer</button>';
     }
     html += '</div>';
-    html += '<div class="annot-canvas-wrap' + (info.mapImage ? ' has-basemap' : '') + '" id="annot-canvas-wrap">';
+    var basemapSrc = isOutlineLevelId(annot.sessionId) ? outlineImageFor(info, annot.circuit) : info.mapImage;
+    html += '<div class="annot-canvas-wrap' + (basemapSrc ? ' has-basemap' : '') + '" id="annot-canvas-wrap">';
     html += '<div class="annot-canvas-inner" id="annot-canvas-inner">';
-    if (info.mapImage) html += '<img class="annot-basemap" src="' + info.mapImage + '" alt="">';
+    if (basemapSrc) html += '<img class="annot-basemap" src="' + basemapSrc + '" alt="">';
     html += '<canvas class="annot-canvas" id="annot-canvas"></canvas>';
     html += '</div>';
     html += '</div>';
@@ -5460,12 +5518,12 @@
     annotBaseImageVisible = false;
     var existingDrawing = annot.sessionId === ANNOT_CIRCUIT_LEVEL
       ? (currentUserProfile && (circuitInfo(annot.circuit).drawings || {})[currentUserProfile.name])
-      : annot.sessionId === ANNOT_ACCOMPAGNANT_LEVEL
-        ? (currentUserProfile && (circuitInfo(annot.circuit).accompagnantDrawings || {})[currentUserProfile.name])
+      : annot.sessionId === ANNOT_OUTLINE_LEVEL
+        ? (currentUserProfile && (circuitInfo(annot.circuit).outlineDrawings || {})[currentUserProfile.name])
         : isViewLevelId(annot.sessionId)
           ? (function () {
               var parsed = parseViewLevelId(annot.sessionId);
-              var map = parsed.level === 'accompagnant' ? circuitInfo(annot.circuit).accompagnantDrawings : circuitInfo(annot.circuit).drawings;
+              var map = parsed.level === 'outline' ? circuitInfo(annot.circuit).outlineDrawings : circuitInfo(annot.circuit).drawings;
               return (map || {})[parsed.name];
             })()
           : isEventLevelId(annot.sessionId)
@@ -6059,13 +6117,13 @@
       entry.drawings = Object.assign({}, entry.drawings || {});
       entry.drawings[currentUserProfile.name] = dataUrl;
       STATE.circuits[annot.circuit] = entry;
-    } else if (annot.sessionId === ANNOT_ACCOMPAGNANT_LEVEL) {
+    } else if (annot.sessionId === ANNOT_OUTLINE_LEVEL) {
       if (!currentUserProfile) return;
       STATE.circuits = STATE.circuits || {};
-      var accEntry = STATE.circuits[annot.circuit] || {};
-      accEntry.accompagnantDrawings = Object.assign({}, accEntry.accompagnantDrawings || {});
-      accEntry.accompagnantDrawings[currentUserProfile.name] = dataUrl;
-      STATE.circuits[annot.circuit] = accEntry;
+      var outlineEntry = STATE.circuits[annot.circuit] || {};
+      outlineEntry.outlineDrawings = Object.assign({}, outlineEntry.outlineDrawings || {});
+      outlineEntry.outlineDrawings[currentUserProfile.name] = dataUrl;
+      STATE.circuits[annot.circuit] = outlineEntry;
     } else if (isEventLevelId(annot.sessionId)) {
       var evForSave = STATE.events.filter(function (e) { return e.id === eventIdFromLevelId(annot.sessionId); })[0];
       if (evForSave) evForSave.drawing = dataUrl;
@@ -6093,10 +6151,10 @@
   // circuit, the saved/screenshotted image says whose plan it actually is.
   function annotCurrentLevelLabel() {
     if (annot.sessionId === ANNOT_CIRCUIT_LEVEL) return 'Plan général (' + ((currentUserProfile && currentUserProfile.name) || 'moi') + ')';
-    if (annot.sessionId === ANNOT_ACCOMPAGNANT_LEVEL) return 'Plan accompagnant (' + ((currentUserProfile && currentUserProfile.name) || 'moi') + ')';
+    if (annot.sessionId === ANNOT_OUTLINE_LEVEL) return 'Contour du tracé (' + ((currentUserProfile && currentUserProfile.name) || 'moi') + ')';
     if (isViewLevelId(annot.sessionId)) {
       var parsed = parseViewLevelId(annot.sessionId);
-      return (parsed.level === 'accompagnant' ? 'Plan accompagnant' : 'Plan général') + ' de ' + parsed.name;
+      return (parsed.level === 'outline' ? 'Contour du tracé' : 'Plan général') + ' de ' + parsed.name;
     }
     if (isEventLevelId(annot.sessionId)) return 'Plan de l\'événement';
     var session = STATE.sessions.filter(function (s) { return s.id === annot.sessionId; })[0];
@@ -11741,6 +11799,46 @@
           }
           circuitMapMessage = '';
           saveCircuitMapImage(selectedCircuit, dataUrl);
+        });
+      });
+    }
+    var circuitOutlineUploadBtn = document.getElementById('circuit-outline-upload-btn');
+    if (circuitOutlineUploadBtn) {
+      circuitOutlineUploadBtn.addEventListener('click', function () {
+        var input = document.getElementById('circuit-outline-input');
+        if (input) input.click();
+      });
+    }
+    var circuitOutlineRemoveBtn = document.getElementById('circuit-outline-remove-btn');
+    if (circuitOutlineRemoveBtn) {
+      circuitOutlineRemoveBtn.addEventListener('click', function () {
+        circuitOutlineMessage = '';
+        saveCircuitOutlineImage(selectedCircuit, null);
+      });
+    }
+    var circuitOutlineInput = document.getElementById('circuit-outline-input');
+    if (circuitOutlineInput) {
+      circuitOutlineInput.addEventListener('change', function () {
+        var file = circuitOutlineInput.files && circuitOutlineInput.files[0];
+        if (!file) return;
+        if (!/^image\//.test(file.type)) {
+          circuitOutlineMessage = tr('choose_image_file');
+          renderRoot();
+          return;
+        }
+        resizeImageToDataUrl(file, 1400, 0.7, function (dataUrl) {
+          if (!dataUrl) {
+            circuitOutlineMessage = tr('cannot_read_image');
+            renderRoot();
+            return;
+          }
+          if (dataUrl.length > 700000) {
+            circuitOutlineMessage = tr('map_too_large_recrop');
+            renderRoot();
+            return;
+          }
+          circuitOutlineMessage = '';
+          saveCircuitOutlineImage(selectedCircuit, dataUrl);
         });
       });
     }
