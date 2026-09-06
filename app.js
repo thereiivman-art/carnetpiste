@@ -236,7 +236,19 @@
       role_info_organisateur_3: 'Partager un lien photos/vidéos après l\'événement',
       role_info_organisateur_4: 'Suivre des pilotes et être notifié de leurs départs, comme un accompagnant',
       role_info_organisateur_5: 'Si tu es aussi Team Leader d\'un Team : gérer ses membres, son fil d\'actualité, ses événements et certifier les chronos de tes pilotes',
-      carnet_helps_you: 'Carnet de Piste t\'aide à :'
+      carnet_helps_you: 'Carnet de Piste t\'aide à :',
+      pseudo_label: 'Pseudo', rename_limit_prefix: '1 changement de pseudo par mois -- possible à nouveau le ',
+      rename_warning: '⚠ Renommer va changer ton identité partout dans l\'app (chronos, événements, teams, coaching, amis...).',
+      edit_pseudo_btn: 'Modifier le pseudo', firstname_label: 'Prénom', lastname_label: 'Nom',
+      i_am_label: 'Je suis', pilote_option: 'Pilote', accompagnant_option: 'Accompagnant', organisateur_option: 'Organisateur',
+      my_bike_label: 'Ma moto', bike_suggested_help: 'Suggérée automatiquement quand tu entres un chrono.',
+      bike_number_label: 'N° de moto', bike_number_help: '1 à 3 chiffres.',
+      chrono_app_link_label: 'Lien vers ton appli de chrono (optionnel)',
+      chrono_app_link_help: 'Carnet de Piste reste déclaratif -- ce lien renvoie vers ton appli de chrono officielle (Superlaps ou autre) si tu en utilises une.',
+      followed_riders_label: 'Pilotes que je suis', no_rider_registered: 'Aucun pilote enregistré pour l\'instant.',
+      close_label: 'Fermer',
+      my_badges_admin_heading: 'Mes badges (admin)',
+      my_badges_admin_help: 'Pour tout autre compte, ces badges se gèrent depuis Gestion des comptes.'
     },
     en: {
       nav_events: 'Events', nav_chronos: 'Chronos', nav_planning: 'ON TRACK', nav_social: 'Social', nav_team: 'Team',
@@ -441,7 +453,19 @@
       role_info_organisateur_3: 'Share a photos/videos link after the event',
       role_info_organisateur_4: 'Follow riders and get notified of their departures, like a companion',
       role_info_organisateur_5: 'If you\'re also a Team\'s Leader: manage its members, news feed, events, and certify your riders\' lap times',
-      carnet_helps_you: 'Carnet de Piste helps you:'
+      carnet_helps_you: 'Carnet de Piste helps you:',
+      pseudo_label: 'Username', rename_limit_prefix: '1 username change per month -- possible again on ',
+      rename_warning: '⚠ Renaming will change your identity everywhere in the app (lap times, events, teams, coaching, friends...).',
+      edit_pseudo_btn: 'Edit username', firstname_label: 'First name', lastname_label: 'Last name',
+      i_am_label: 'I am a', pilote_option: 'Rider', accompagnant_option: 'Companion', organisateur_option: 'Organizer',
+      my_bike_label: 'My bike', bike_suggested_help: 'Suggested automatically when you log a lap time.',
+      bike_number_label: 'Bike number', bike_number_help: '1 to 3 digits.',
+      chrono_app_link_label: 'Link to your lap timing app (optional)',
+      chrono_app_link_help: 'Carnet de Piste stays declarative -- this link points to your official lap timing app (Superlaps or other) if you use one.',
+      followed_riders_label: 'Riders I follow', no_rider_registered: 'No rider registered yet.',
+      close_label: 'Close',
+      my_badges_admin_heading: 'My badges (admin)',
+      my_badges_admin_help: 'For every other account, these badges are managed from Account management.'
     }
   };
   function currentLang() {
@@ -2709,30 +2733,30 @@
     var followed = p.followedRiders || [];
     var html = '<form id="profile-form">';
     html += renderProfileAvatar(p);
-    html += '<label for="profile-name">Pseudo</label>';
+    html += '<label for="profile-name">' + tr('pseudo_label') + '</label>';
     var renameBlockedUntil = renameAllowedAt(p);
     if (renameBlockedUntil) {
       html += '<input type="text" id="profile-name" value="' + escapeHtml(p.name) + '" disabled>' +
-        '<div class="help-text">1 changement de pseudo par mois -- possible à nouveau le ' + escapeHtml(renameBlockedUntil.toLocaleDateString('fr-FR')) + '.</div>';
+        '<div class="help-text">' + tr('rename_limit_prefix') + escapeHtml(renameBlockedUntil.toLocaleDateString(currentLang() === 'en' ? 'en-US' : 'fr-FR')) + '.</div>';
     } else if (pseudoEditUnlocked) {
       html += '<input type="text" id="profile-name" value="' + escapeHtml(p.name) + '" required>' +
-        '<div class="help-text" style="color:var(--danger, #b23);">⚠ Renommer va changer ton identité partout dans l\'app (chronos, événements, teams, coaching, amis...).</div>';
+        '<div class="help-text" style="color:var(--danger, #b23);">' + tr('rename_warning') + '</div>';
     } else {
       html += '<input type="text" id="profile-name" value="' + escapeHtml(p.name) + '" disabled>' +
-        '<button type="button" class="ghost" id="pseudo-edit-unlock" style="margin-top:0.4rem;">Modifier le pseudo</button>';
+        '<button type="button" class="ghost" id="pseudo-edit-unlock" style="margin-top:0.4rem;">' + tr('edit_pseudo_btn') + '</button>';
     }
     // Distinct de Pseudo (l'identifiant utilisé partout dans l'app --
     // chronos, riders, connexion) -- Prénom/Nom sont facultatifs, remplis
     // par le user quand il veut, jamais requis, et ne cascadent nulle part.
     html += '<div style="display:flex; gap:0.6rem; margin-top:0.7rem;">' +
-      '<div style="flex:1;"><label for="profile-firstname">Prénom</label><input type="text" id="profile-firstname" value="' + escapeHtml(p.firstName || '') + '"></div>' +
-      '<div style="flex:1;"><label for="profile-lastname">Nom</label><input type="text" id="profile-lastname" value="' + escapeHtml(p.lastName || '') + '"></div>' +
+      '<div style="flex:1;"><label for="profile-firstname">' + tr('firstname_label') + '</label><input type="text" id="profile-firstname" value="' + escapeHtml(p.firstName || '') + '"></div>' +
+      '<div style="flex:1;"><label for="profile-lastname">' + tr('lastname_label') + '</label><input type="text" id="profile-lastname" value="' + escapeHtml(p.lastName || '') + '"></div>' +
       '</div>';
-    html += '<label style="margin-top:0.9rem;">Je suis</label>';
+    html += '<label style="margin-top:0.9rem;">' + tr('i_am_label') + '</label>';
     html += '<div class="auth-role-choice">' +
-      '<label><input type="radio" name="profile-role" value="pilote"' + (p.role !== 'accompagnant' && p.role !== 'organisateur' ? ' checked' : '') + '> Pilote</label>' +
-      '<label><input type="radio" name="profile-role" value="accompagnant"' + (p.role === 'accompagnant' ? ' checked' : '') + '> Accompagnant</label>' +
-      '<label><input type="radio" name="profile-role" value="organisateur"' + (p.role === 'organisateur' ? ' checked' : '') + '> Organisateur</label>' +
+      '<label><input type="radio" name="profile-role" value="pilote"' + (p.role !== 'accompagnant' && p.role !== 'organisateur' ? ' checked' : '') + '> ' + tr('pilote_option') + '</label>' +
+      '<label><input type="radio" name="profile-role" value="accompagnant"' + (p.role === 'accompagnant' ? ' checked' : '') + '> ' + tr('accompagnant_option') + '</label>' +
+      '<label><input type="radio" name="profile-role" value="organisateur"' + (p.role === 'organisateur' ? ' checked' : '') + '> ' + tr('organisateur_option') + '</label>' +
       '</div>';
     // Trophées unifiés dans Stats désormais, quel que soit le rôle (voir
     // renderStatsTab) -- Profil n'en montre plus une copie séparée. Les
@@ -2744,27 +2768,27 @@
     html += renderRoleInfoCard('accompagnant', currentRole);
     html += renderRoleInfoCard('organisateur', currentRole);
     html += '<div id="profile-bike-wrap" style="display:' + (isNonRider ? 'none' : 'block') + '; margin-top:0.9rem;">' +
-      '<label for="profile-bike">Ma moto</label><input type="text" id="profile-bike" placeholder="Ex. ST 765 RS" value="' + escapeHtml(p.bike || '') + '">' +
-      '<div class="help-text">Suggérée automatiquement quand tu entres un chrono.</div>' +
-      '<label for="profile-bike-number" style="margin-top:0.7rem;">N° de moto</label>' +
+      '<label for="profile-bike">' + tr('my_bike_label') + '</label><input type="text" id="profile-bike" placeholder="Ex. ST 765 RS" value="' + escapeHtml(p.bike || '') + '">' +
+      '<div class="help-text">' + tr('bike_suggested_help') + '</div>' +
+      '<label for="profile-bike-number" style="margin-top:0.7rem;">' + tr('bike_number_label') + '</label>' +
       '<input type="text" id="profile-bike-number" inputmode="numeric" pattern="[0-9]{1,3}" maxlength="3" placeholder="Ex. 12" value="' + escapeHtml(p.bikeNumber || '') + '">' +
-      '<div class="help-text">1 à 3 chiffres.</div>' +
-      '<label for="profile-chrono-link" style="margin-top:0.7rem;">Lien vers ton appli de chrono (optionnel)</label>' +
+      '<div class="help-text">' + tr('bike_number_help') + '</div>' +
+      '<label for="profile-chrono-link" style="margin-top:0.7rem;">' + tr('chrono_app_link_label') + '</label>' +
       '<input type="url" id="profile-chrono-link" placeholder="Ex. https://superlaps.fr/..." value="' + escapeHtml(p.chronoLink || '') + '">' +
-      '<div class="help-text">Carnet de Piste reste déclaratif -- ce lien renvoie vers ton appli de chrono officielle (Superlaps ou autre) si tu en utilises une.</div></div>';
+      '<div class="help-text">' + tr('chrono_app_link_help') + '</div></div>';
     html += '<div id="profile-followed-wrap" style="display:' + (isNonRider ? 'block' : 'none') + '; margin-top:0.9rem;">';
-    html += '<label>Pilotes que je suis</label>';
+    html += '<label>' + tr('followed_riders_label') + '</label>';
     var riders = allKnownRiders();
     if (!riders.length) {
-      html += '<div class="help-text">Aucun pilote enregistré pour l\'instant.</div>';
+      html += '<div class="help-text">' + tr('no_rider_registered') + '</div>';
     } else {
       html += '<div class="profile-followed-riders">' + riders.map(function (r) {
         return '<label class="checklist-item"><input type="checkbox" name="profile-follow-rider" value="' + escapeHtml(r) + '"' + (followed.indexOf(r) !== -1 ? ' checked' : '') + '> ' + escapeHtml(r) + '</label>';
       }).join('') + '</div>';
     }
     html += '</div>';
-    html += '<div style="margin-top:1rem; display:flex; gap:0.6rem;"><button type="submit" class="primary">Enregistrer</button>' +
-      '<button type="button" class="ghost" id="profile-cancel">Fermer</button></div>';
+    html += '<div style="margin-top:1rem; display:flex; gap:0.6rem;"><button type="submit" class="primary">' + tr('save') + '</button>' +
+      '<button type="button" class="ghost" id="profile-cancel">' + tr('close_label') + '</button></div>';
     if (profileSaveMessage) html += '<div class="help-text" style="margin-top:0.6rem;">' + escapeHtml(profileSaveMessage) + '</div>';
     html += '</form>';
     return html;
@@ -2777,8 +2801,8 @@
   // so a new badge added there shows up here for free.
   function renderSelfBadges(p) {
     var html = '<div style="margin-top:1.2rem; border-top:1px solid var(--border); padding-top:0.9rem;">';
-    html += '<div class="section-title" style="font-size:0.95rem;">Mes badges (admin)</div>';
-    html += '<div class="help-text">Pour tout autre compte, ces badges se gèrent depuis Gestion des comptes.</div>';
+    html += '<div class="section-title" style="font-size:0.95rem;">' + tr('my_badges_admin_heading') + '</div>';
+    html += '<div class="help-text">' + tr('my_badges_admin_help') + '</div>';
     html += PROFILE_BADGES.map(function (b) {
       return '<label class="checklist-item" style="margin-top:0.5rem;"><input type="checkbox" data-self-badge="' + b.field + '"' + (p[b.field] ? ' checked' : '') + '> ' + b.icon + ' ' + escapeHtml(b.label) + '</label>';
     }).join('');
