@@ -183,7 +183,60 @@
       proposed_slots_max: 'Créneaux proposés (3 maximum)',
       no_coach_available_prefix: 'Aucun Coach disponible sur ', these_slots: 'ces créneaux', this_slot: 'ce créneau',
       no_coach_available_suffix: ' pour ce type -- essaie d\'autres créneaux ou l\'autre type.',
-      coach_label_field: 'Coach'
+      coach_label_field: 'Coach',
+      // Profile tab
+      notifications_heading: 'Notifications',
+      notifications_browser_help: 'Nécessite d\'autoriser les notifications du navigateur, et que cet onglet reste ouvert.',
+      notify_group_departing_rider: 'Un pilote suivi va partir rouler', notify_group_departing_self: 'Mon groupe va partir rouler',
+      notify_received_invite: 'J\'ai reçu une invitation', notify_team_news: 'Actu de mon Team',
+      notify_adherent_request: 'Demande d\'adhésion sur un Team que je dirige',
+      notify_request_decision: 'Réponse à une demande que j\'ai envoyée (ami, rejoindre un Team, devenir adhérent)',
+      notify_chrono_certified: 'Un de mes chronos a été vérifié',
+      notify_reaction: 'Quelqu\'un a réagi à un de mes posts',
+      notify_pro_outing: 'Nouvel événement organisé par un Team PRO que je suis ou dont je suis adhérent',
+      notify_coach_message: 'Nouveau message dans l\'espace coaching',
+      notify_event_announcement: 'Annonce du Team Leader sur un événement',
+      notify_event_ended: 'Un event auquel j\'ai participé vient de se terminer',
+      feeling_after_session_heading: 'Ressenti après chaque session',
+      enable_feeling: 'Activer le ressenti à ton retour de chaque session',
+      feeling_help: 'Une fois activé, un chrono enregistré te proposera de dire en un clic comment s\'est passée la session (forme, fatigue...).',
+      social_settings_heading: 'Réglages social', social_settings_help: 'Ce que tes amis voient quand ils ouvrent ta fiche depuis Social.',
+      share_events_chronos: 'Partager mes événements/chronos', share_trophies: 'Partager mes trophées',
+      share_travel_info: 'Partager mes infos de voyage (avec les amis qui te suivent)',
+      account_heading: 'Compte', current_email_label: 'Email actuel', new_email_label: 'Nouvel email',
+      current_password_label: 'Mot de passe actuel', change_email_btn: 'Changer mon email',
+      delete_account_heading: 'Supprimer mon compte',
+      delete_account_help: 'Supprime définitivement ton compte (accès et profil). Tes chronos déjà enregistrés restent visibles pour le groupe.',
+      delete_account_btn: 'Supprimer mon compte', delete_irreversible_help: 'Cette action est irréversible. Confirme avec ton mot de passe actuel.',
+      confirm_deletion_btn: 'Confirmer la suppression',
+      parrainage_heading: 'Parrainage', parrainage_help: 'Chaque inscription via ton lien ou ton QR code te compte automatiquement comme parrain.',
+      qr_alt: 'QR code du lien de parrainage', share_my_link_btn: 'Partager mon lien', copy_link_aria: 'Copier le lien', copy_label: 'Copier',
+      filleul_singular: ' filleul', filleul_plural: ' filleuls',
+      parrain_badge: 'Parrain', grand_parrain_badge: 'Grand parrain',
+      account_management_label: 'Gestion des comptes', logout_label: 'Se déconnecter',
+      tab_profil: 'Profil', tab_parrainage: 'Parrainage', tab_reglages: 'Réglages', tab_aide: 'Aide', tab_suggestion: 'Suggestion',
+      profile_photo_alt: 'Photo de profil', change_photo: 'Changer la photo', add_photo_plain: 'Ajouter une photo',
+      edit_crop: 'Modifier le cadrage',
+      role_info_pilote_title: 'Espace pilote',
+      role_info_pilote_1: 'Enregistrer tes chronos événement par événement et suivre tes meilleurs temps par circuit',
+      role_info_pilote_2: 'Faire certifier tes chronos par un Team Leader ("Chrono vérifié")',
+      role_info_pilote_3: 'Retrouver les horaires, groupes et infos pratiques de chaque événement dans EN PISTE',
+      role_info_pilote_4: 'Partager tes infos de voyage (hôtel, vols) avec tes amis, et voir les leurs',
+      role_info_pilote_5: 'Suivre tes amis, réagir sur leur Journal et sur le fil d\'actualité de ton Team',
+      role_info_pilote_6: 'Rejoindre un Team (amateur ou PRO) et participer à ses événements',
+      role_info_accompagnant_title: 'Espace accompagnant',
+      role_info_accompagnant_1: 'Suivre des pilotes et être notifié quand leur groupe va partir rouler',
+      role_info_accompagnant_2: 'Consulter les horaires, groupes et infos pratiques de l\'événement en cours, sans y rouler toi-même',
+      role_info_accompagnant_3: 'Voir les chronos et la progression des pilotes que tu suis',
+      role_info_accompagnant_4: 'Voir les infos de voyage des pilotes suivis, si elles sont partagées',
+      role_info_accompagnant_5: 'Suivre des Teams, réagir sur leur fil d\'actualité, et publier sur ton propre Journal',
+      role_info_organisateur_title: 'Espace organisateur',
+      role_info_organisateur_1: 'Créer et gérer un événement : dates, horaires par groupe, infos pratiques, baptêmes/coaching',
+      role_info_organisateur_2: 'Tenir à jour la fiche d\'un circuit (plan, distance, virages, horaires par défaut)',
+      role_info_organisateur_3: 'Partager un lien photos/vidéos après l\'événement',
+      role_info_organisateur_4: 'Suivre des pilotes et être notifié de leurs départs, comme un accompagnant',
+      role_info_organisateur_5: 'Si tu es aussi Team Leader d\'un Team : gérer ses membres, son fil d\'actualité, ses événements et certifier les chronos de tes pilotes',
+      carnet_helps_you: 'Carnet de Piste t\'aide à :'
     },
     en: {
       nav_events: 'Events', nav_chronos: 'Chronos', nav_planning: 'ON TRACK', nav_social: 'Social', nav_team: 'Team',
@@ -335,7 +388,60 @@
       proposed_slots_max: 'Proposed slots (3 max)',
       no_coach_available_prefix: 'No Coach available for ', these_slots: 'these slots', this_slot: 'this slot',
       no_coach_available_suffix: ' for this type -- try other slots or the other type.',
-      coach_label_field: 'Coach'
+      coach_label_field: 'Coach',
+      // Profile tab
+      notifications_heading: 'Notifications',
+      notifications_browser_help: 'Requires allowing browser notifications, and this tab to stay open.',
+      notify_group_departing_rider: 'A followed rider is about to ride', notify_group_departing_self: 'My group is about to ride',
+      notify_received_invite: 'I received an invite', notify_team_news: 'News from my Team',
+      notify_adherent_request: 'Adherent request on a Team I lead',
+      notify_request_decision: 'Reply to a request I sent (friend, join a Team, become an adherent)',
+      notify_chrono_certified: 'One of my lap times was verified',
+      notify_reaction: 'Someone reacted to one of my posts',
+      notify_pro_outing: 'New event organized by a Team PRO I follow or am an adherent of',
+      notify_coach_message: 'New message in the coaching space',
+      notify_event_announcement: 'Team Leader announcement on an event',
+      notify_event_ended: 'An event I took part in just ended',
+      feeling_after_session_heading: 'Feeling after each session',
+      enable_feeling: 'Turn on the feeling check when you get back from each session',
+      feeling_help: 'Once turned on, a saved lap time will offer to say in one click how the session went (shape, fatigue...).',
+      social_settings_heading: 'Social settings', social_settings_help: 'What your friends see when they open your card from Social.',
+      share_events_chronos: 'Share my events/lap times', share_trophies: 'Share my trophies',
+      share_travel_info: 'Share my travel info (with friends who follow you)',
+      account_heading: 'Account', current_email_label: 'Current email', new_email_label: 'New email',
+      current_password_label: 'Current password', change_email_btn: 'Change my email',
+      delete_account_heading: 'Delete my account',
+      delete_account_help: 'Permanently deletes your account (access and profile). Your already-saved lap times stay visible to the group.',
+      delete_account_btn: 'Delete my account', delete_irreversible_help: 'This action is irreversible. Confirm with your current password.',
+      confirm_deletion_btn: 'Confirm deletion',
+      parrainage_heading: 'Referrals', parrainage_help: 'Every signup through your link or QR code automatically counts you as their referrer.',
+      qr_alt: 'Referral link QR code', share_my_link_btn: 'Share my link', copy_link_aria: 'Copy the link', copy_label: 'Copy',
+      filleul_singular: ' referral', filleul_plural: ' referrals',
+      parrain_badge: 'Referrer', grand_parrain_badge: 'Top referrer',
+      account_management_label: 'Account management', logout_label: 'Sign out',
+      tab_profil: 'Profile', tab_parrainage: 'Referrals', tab_reglages: 'Settings', tab_aide: 'Help', tab_suggestion: 'Feedback',
+      profile_photo_alt: 'Profile photo', change_photo: 'Change photo', add_photo_plain: 'Add a photo',
+      edit_crop: 'Edit crop',
+      role_info_pilote_title: 'Rider space',
+      role_info_pilote_1: 'Log your lap times event by event and track your best times per circuit',
+      role_info_pilote_2: 'Get your lap times certified by a Team Leader ("Verified lap time")',
+      role_info_pilote_3: 'Find each event\'s schedule, groups, and practical info in ON TRACK',
+      role_info_pilote_4: 'Share your travel info (hotel, flights) with your friends, and see theirs',
+      role_info_pilote_5: 'Follow your friends, react on their Journal and on your Team\'s news feed',
+      role_info_pilote_6: 'Join a Team (amateur or PRO) and take part in its events',
+      role_info_accompagnant_title: 'Companion space',
+      role_info_accompagnant_1: 'Follow riders and get notified when their group is about to ride',
+      role_info_accompagnant_2: 'Check the schedule, groups, and practical info for the current event, without riding yourself',
+      role_info_accompagnant_3: 'See the lap times and progress of the riders you follow',
+      role_info_accompagnant_4: 'See the travel info of followed riders, if shared',
+      role_info_accompagnant_5: 'Follow Teams, react on their news feed, and post to your own Journal',
+      role_info_organisateur_title: 'Organizer space',
+      role_info_organisateur_1: 'Create and manage an event: dates, schedule per group, practical info, track intros/coaching',
+      role_info_organisateur_2: 'Keep a circuit\'s page up to date (map, distance, turns, default schedule)',
+      role_info_organisateur_3: 'Share a photos/videos link after the event',
+      role_info_organisateur_4: 'Follow riders and get notified of their departures, like a companion',
+      role_info_organisateur_5: 'If you\'re also a Team\'s Leader: manage its members, news feed, events, and certify your riders\' lap times',
+      carnet_helps_you: 'Carnet de Piste helps you:'
     }
   };
   function currentLang() {
@@ -2526,7 +2632,7 @@
   // signup (see resolveUniquePseudo) if the new pseudo collides with
   // someone else's.
   function renderProfileTabBar() {
-    var tabs = [['profil', 'Profil'], ['parrainage', 'Parrainage'], ['reglages', 'Réglages'], ['aide', 'Aide'], ['suggestion', 'Suggestion']];
+    var tabs = [['profil', tr('tab_profil')], ['parrainage', tr('tab_parrainage')], ['reglages', tr('tab_reglages')], ['aide', tr('tab_aide')], ['suggestion', tr('tab_suggestion')]];
     return '<div class="profile-tabs" role="tablist">' + tabs.map(function (t) {
       return '<button type="button" class="profile-tab-btn' + (profileSubTab === t[0] ? ' active' : '') + '" role="tab" aria-selected="' + (profileSubTab === t[0]) + '" data-profile-tab="' + t[0] + '">' + t[1] + '</button>';
     }).join('') + '</div>';
@@ -2535,11 +2641,11 @@
   function renderProfileAvatar(p) {
     var initial = escapeHtml((p.name || '?').trim().charAt(0).toUpperCase() || '?');
     return '<div class="profile-avatar-row">' +
-      '<div class="profile-avatar">' + (p.photoURL ? '<img src="' + escapeHtml(p.photoURL) + '" alt="Photo de profil">' : '<span class="profile-avatar-placeholder">' + initial + '</span>') + '</div>' +
+      '<div class="profile-avatar">' + (p.photoURL ? '<img src="' + escapeHtml(p.photoURL) + '" alt="' + tr('profile_photo_alt') + '">' : '<span class="profile-avatar-placeholder">' + initial + '</span>') + '</div>' +
       '<div class="profile-avatar-actions">' +
-        '<button type="button" class="ghost" id="profile-photo-btn">' + (p.photoURL ? 'Changer la photo' : 'Ajouter une photo') + '</button>' +
-        (p.photoURL ? '<button type="button" class="ghost" id="profile-photo-recrop-btn">Modifier le cadrage</button>' : '') +
-        (p.photoURL ? '<button type="button" class="ghost" id="profile-photo-remove-btn">Retirer</button>' : '') +
+        '<button type="button" class="ghost" id="profile-photo-btn">' + (p.photoURL ? tr('change_photo') : tr('add_photo_plain')) + '</button>' +
+        (p.photoURL ? '<button type="button" class="ghost" id="profile-photo-recrop-btn">' + tr('edit_crop') + '</button>' : '') +
+        (p.photoURL ? '<button type="button" class="ghost" id="profile-photo-remove-btn">' + tr('remove_generic') + '</button>' : '') +
         '<input type="file" id="profile-photo-input" accept="image/*" style="display:none;">' +
         (profilePhotoMessage ? '<div class="help-text">' + escapeHtml(profilePhotoMessage) + '</div>' : '') +
       '</div>' +
@@ -2552,46 +2658,31 @@
   // immediately answers "qu'est-ce que ça m'apporte ?" without a round
   // trip through the server. Deliberately never mentions Trophées/Stats --
   // that's covered on its own tab, this is purely "quels services".
-  var ROLE_INFO = {
-    pilote: {
-      title: 'Espace pilote',
-      items: [
-        'Enregistrer tes chronos événement par événement et suivre tes meilleurs temps par circuit',
-        'Faire certifier tes chronos par un Team Leader ("Chrono vérifié")',
-        'Retrouver les horaires, groupes et infos pratiques de chaque événement dans EN PISTE',
-        'Partager tes infos de voyage (hôtel, vols) avec tes amis, et voir les leurs',
-        'Suivre tes amis, réagir sur leur Journal et sur le fil d\'actualité de ton Team',
-        'Rejoindre un Team (amateur ou PRO) et participer à ses événements'
-      ]
-    },
-    accompagnant: {
-      title: 'Espace accompagnant',
-      items: [
-        'Suivre des pilotes et être notifié quand leur groupe va partir rouler',
-        'Consulter les horaires, groupes et infos pratiques de l\'événement en cours, sans y rouler toi-même',
-        'Voir les chronos et la progression des pilotes que tu suis',
-        'Voir les infos de voyage des pilotes suivis, si elles sont partagées',
-        'Suivre des Teams, réagir sur leur fil d\'actualité, et publier sur ton propre Journal'
-      ]
-    },
-    organisateur: {
-      title: 'Espace organisateur',
-      items: [
-        'Créer et gérer un événement : dates, horaires par groupe, infos pratiques, baptêmes/coaching',
-        'Tenir à jour la fiche d\'un circuit (plan, distance, virages, horaires par défaut)',
-        'Partager un lien photos/vidéos après l\'événement',
-        'Suivre des pilotes et être notifié de leurs départs, comme un accompagnant',
-        'Si tu es aussi Team Leader d\'un Team : gérer ses membres, son fil d\'actualité, ses événements et certifier les chronos de tes pilotes'
-      ]
+  function roleInfo(role) {
+    if (role === 'pilote') {
+      return {
+        titleKey: 'role_info_pilote_title',
+        itemKeys: ['role_info_pilote_1', 'role_info_pilote_2', 'role_info_pilote_3', 'role_info_pilote_4', 'role_info_pilote_5', 'role_info_pilote_6']
+      };
     }
-  };
+    if (role === 'accompagnant') {
+      return {
+        titleKey: 'role_info_accompagnant_title',
+        itemKeys: ['role_info_accompagnant_1', 'role_info_accompagnant_2', 'role_info_accompagnant_3', 'role_info_accompagnant_4', 'role_info_accompagnant_5']
+      };
+    }
+    return {
+      titleKey: 'role_info_organisateur_title',
+      itemKeys: ['role_info_organisateur_1', 'role_info_organisateur_2', 'role_info_organisateur_3', 'role_info_organisateur_4', 'role_info_organisateur_5']
+    };
+  }
   function renderRoleInfoCard(role, currentRole) {
-    var info = ROLE_INFO[role];
+    var info = roleInfo(role);
     var visible = role === currentRole;
     var html = '<div class="card organizer-hub" id="profile-role-info-' + role + '" style="display:' + (visible ? 'block' : 'none') + ';">';
-    html += '<div class="section-title" style="font-size:0.95rem;">' + escapeHtml(info.title) + '</div>';
-    html += '<div class="help-text">Carnet de Piste t\'aide à :</div>';
-    html += '<ul class="organizer-hub-list">' + info.items.map(function (t) { return '<li>' + escapeHtml(t) + '</li>'; }).join('') + '</ul>';
+    html += '<div class="section-title" style="font-size:0.95rem;">' + escapeHtml(tr(info.titleKey)) + '</div>';
+    html += '<div class="help-text">' + tr('carnet_helps_you') + '</div>';
+    html += '<ul class="organizer-hub-list">' + info.itemKeys.map(function (k) { return '<li>' + escapeHtml(tr(k)) + '</li>'; }).join('') + '</ul>';
     html += '</div>';
     return html;
   }
@@ -2709,19 +2800,19 @@
   function renderNotificationsSettings(p) {
     var isNonRider = p.role === 'accompagnant' || p.role === 'organisateur';
     var html = '<div style="margin-top:1.2rem; border-top:1px solid var(--border); padding-top:0.9rem;">';
-    html += '<div class="section-title" style="font-size:0.95rem;">Notifications</div>';
-    html += '<div class="help-text">Nécessite d\'autoriser les notifications du navigateur, et que cet onglet reste ouvert.</div>';
-    html += '<label class="checklist-item" style="margin-top:0.6rem;"><input type="checkbox" id="profile-notify"' + (p.notifyBeforeSession ? ' checked' : '') + '> <span id="profile-notify-label">' + (isNonRider ? 'Un pilote suivi va partir rouler' : 'Mon groupe va partir rouler') + '</span></label>';
-    html += '<label class="checklist-item" style="margin-top:0.4rem;"><input type="checkbox" id="profile-notify-invites"' + (p.notifyInvites !== false ? ' checked' : '') + '> J\'ai reçu une invitation</label>';
-    html += '<label class="checklist-item" style="margin-top:0.4rem;"><input type="checkbox" id="profile-notify-team-news"' + (p.notifyTeamNews !== false ? ' checked' : '') + '> Actu de mon Team</label>';
-    html += '<label class="checklist-item" style="margin-top:0.4rem;"><input type="checkbox" id="profile-notify-adherent-requests"' + (p.notifyAdherentRequests !== false ? ' checked' : '') + '> Demande d\'adhésion sur un Team que je dirige</label>';
-    html += '<label class="checklist-item" style="margin-top:0.4rem;"><input type="checkbox" id="profile-notify-request-decisions"' + (p.notifyRequestDecisions !== false ? ' checked' : '') + '> Réponse à une demande que j\'ai envoyée (ami, rejoindre un Team, devenir adhérent)</label>';
-    html += '<label class="checklist-item" style="margin-top:0.4rem;"><input type="checkbox" id="profile-notify-chrono-certified"' + (p.notifyChronoCertified !== false ? ' checked' : '') + '> Un de mes chronos a été vérifié</label>';
-    html += '<label class="checklist-item" style="margin-top:0.4rem;"><input type="checkbox" id="profile-notify-reactions"' + (p.notifyReactions !== false ? ' checked' : '') + '> Quelqu\'un a réagi à un de mes posts</label>';
-    html += '<label class="checklist-item" style="margin-top:0.4rem;"><input type="checkbox" id="profile-notify-pro-outings"' + (p.notifyProOutings !== false ? ' checked' : '') + '> Nouvel événement organisé par un Team PRO que je suis ou dont je suis adhérent</label>';
-    html += '<label class="checklist-item" style="margin-top:0.4rem;"><input type="checkbox" id="profile-notify-coach-messages"' + (p.notifyCoachMessages !== false ? ' checked' : '') + '> Nouveau message dans l\'espace coaching</label>';
-    html += '<label class="checklist-item" style="margin-top:0.4rem;"><input type="checkbox" id="profile-notify-event-announcements"' + (p.notifyEventAnnouncements !== false ? ' checked' : '') + '> Annonce du Team Leader sur un événement</label>';
-    html += '<label class="checklist-item" style="margin-top:0.4rem;"><input type="checkbox" id="profile-notify-event-ended"' + (p.notifyEventEndedReaction !== false ? ' checked' : '') + '> Un event auquel j\'ai participé vient de se terminer</label>';
+    html += '<div class="section-title" style="font-size:0.95rem;">' + tr('notifications_heading') + '</div>';
+    html += '<div class="help-text">' + tr('notifications_browser_help') + '</div>';
+    html += '<label class="checklist-item" style="margin-top:0.6rem;"><input type="checkbox" id="profile-notify"' + (p.notifyBeforeSession ? ' checked' : '') + '> <span id="profile-notify-label">' + (isNonRider ? tr('notify_group_departing_rider') : tr('notify_group_departing_self')) + '</span></label>';
+    html += '<label class="checklist-item" style="margin-top:0.4rem;"><input type="checkbox" id="profile-notify-invites"' + (p.notifyInvites !== false ? ' checked' : '') + '> ' + tr('notify_received_invite') + '</label>';
+    html += '<label class="checklist-item" style="margin-top:0.4rem;"><input type="checkbox" id="profile-notify-team-news"' + (p.notifyTeamNews !== false ? ' checked' : '') + '> ' + tr('notify_team_news') + '</label>';
+    html += '<label class="checklist-item" style="margin-top:0.4rem;"><input type="checkbox" id="profile-notify-adherent-requests"' + (p.notifyAdherentRequests !== false ? ' checked' : '') + '> ' + tr('notify_adherent_request') + '</label>';
+    html += '<label class="checklist-item" style="margin-top:0.4rem;"><input type="checkbox" id="profile-notify-request-decisions"' + (p.notifyRequestDecisions !== false ? ' checked' : '') + '> ' + tr('notify_request_decision') + '</label>';
+    html += '<label class="checklist-item" style="margin-top:0.4rem;"><input type="checkbox" id="profile-notify-chrono-certified"' + (p.notifyChronoCertified !== false ? ' checked' : '') + '> ' + tr('notify_chrono_certified') + '</label>';
+    html += '<label class="checklist-item" style="margin-top:0.4rem;"><input type="checkbox" id="profile-notify-reactions"' + (p.notifyReactions !== false ? ' checked' : '') + '> ' + tr('notify_reaction') + '</label>';
+    html += '<label class="checklist-item" style="margin-top:0.4rem;"><input type="checkbox" id="profile-notify-pro-outings"' + (p.notifyProOutings !== false ? ' checked' : '') + '> ' + tr('notify_pro_outing') + '</label>';
+    html += '<label class="checklist-item" style="margin-top:0.4rem;"><input type="checkbox" id="profile-notify-coach-messages"' + (p.notifyCoachMessages !== false ? ' checked' : '') + '> ' + tr('notify_coach_message') + '</label>';
+    html += '<label class="checklist-item" style="margin-top:0.4rem;"><input type="checkbox" id="profile-notify-event-announcements"' + (p.notifyEventAnnouncements !== false ? ' checked' : '') + '> ' + tr('notify_event_announcement') + '</label>';
+    html += '<label class="checklist-item" style="margin-top:0.4rem;"><input type="checkbox" id="profile-notify-event-ended"' + (p.notifyEventEndedReaction !== false ? ' checked' : '') + '> ' + tr('notify_event_ended') + '</label>';
     html += '</div>';
     return html;
   }
@@ -2735,46 +2826,46 @@
     // (see onSubmit's success handler and renderFeelingModal, both gated
     // on !== false rather than === true).
     html += '<div style="margin-top:1.2rem; border-top:1px solid var(--border); padding-top:0.9rem;">';
-    html += '<div class="section-title" style="font-size:0.95rem;">Ressenti après chaque session</div>';
-    html += '<label class="checklist-item"><input type="checkbox" id="profile-feeling-enabled"' + (p.sessionFeelingEnabled !== false ? ' checked' : '') + '> Activer le ressenti à ton retour de chaque session</label>';
-    html += '<div class="help-text" style="margin-top:0.3rem;">Une fois activé, un chrono enregistré te proposera de dire en un clic comment s\'est passée la session (forme, fatigue...).</div>';
+    html += '<div class="section-title" style="font-size:0.95rem;">' + tr('feeling_after_session_heading') + '</div>';
+    html += '<label class="checklist-item"><input type="checkbox" id="profile-feeling-enabled"' + (p.sessionFeelingEnabled !== false ? ' checked' : '') + '> ' + tr('enable_feeling') + '</label>';
+    html += '<div class="help-text" style="margin-top:0.3rem;">' + tr('feeling_help') + '</div>';
     html += '</div>';
     // What a friend can see when they open your fiche from Social (Mes
     // amis) -- both on by default. Purely a display-level courtesy: every
     // signed-in account can already read sessions/events/users directly,
     // this only controls what shows up in that one card.
     html += '<div style="margin-top:1.2rem; border-top:1px solid var(--border); padding-top:0.9rem;">';
-    html += '<div class="section-title" style="font-size:0.95rem;">Réglages social</div>';
-    html += '<div class="help-text">Ce que tes amis voient quand ils ouvrent ta fiche depuis Social.</div>';
-    html += '<label class="checklist-item" style="margin-top:0.6rem;"><input type="checkbox" id="profile-share-sorties"' + (p.shareSorties !== false ? ' checked' : '') + '> Partager mes événements/chronos</label>';
-    html += '<label class="checklist-item" style="margin-top:0.4rem;"><input type="checkbox" id="profile-share-trophees"' + (p.shareTrophees !== false ? ' checked' : '') + '> Partager mes trophées</label>';
-    html += '<label class="checklist-item" style="margin-top:0.4rem;"><input type="checkbox" id="profile-share-travel-info"' + (p.shareTravelInfo !== false ? ' checked' : '') + '> Partager mes infos de voyage (avec les amis qui te suivent)</label>';
+    html += '<div class="section-title" style="font-size:0.95rem;">' + tr('social_settings_heading') + '</div>';
+    html += '<div class="help-text">' + tr('social_settings_help') + '</div>';
+    html += '<label class="checklist-item" style="margin-top:0.6rem;"><input type="checkbox" id="profile-share-sorties"' + (p.shareSorties !== false ? ' checked' : '') + '> ' + tr('share_events_chronos') + '</label>';
+    html += '<label class="checklist-item" style="margin-top:0.4rem;"><input type="checkbox" id="profile-share-trophees"' + (p.shareTrophees !== false ? ' checked' : '') + '> ' + tr('share_trophies') + '</label>';
+    html += '<label class="checklist-item" style="margin-top:0.4rem;"><input type="checkbox" id="profile-share-travel-info"' + (p.shareTravelInfo !== false ? ' checked' : '') + '> ' + tr('share_travel_info') + '</label>';
     html += '</div>';
     if (isAdmin()) html += renderSelfBadges(p);
     // Separate form -- changing the sign-in email needs the current
     // password (Firebase requires a recent reauthentication for it), which
     // has nothing to do with the notify/theme settings above.
     html += '<div style="margin-top:1.2rem; border-top:1px solid var(--border); padding-top:0.9rem;">';
-    html += '<div class="section-title" style="font-size:0.95rem;">Compte</div>';
+    html += '<div class="section-title" style="font-size:0.95rem;">' + tr('account_heading') + '</div>';
     html += '<form id="profile-email-form">';
-    html += '<label>Email actuel<input type="text" value="' + escapeHtml(p.email || '') + '" disabled></label>';
-    html += '<label for="profile-new-email" style="margin-top:0.6rem;">Nouvel email</label><input type="email" id="profile-new-email" autocomplete="username">';
-    html += '<label for="profile-current-password" style="margin-top:0.6rem;">Mot de passe actuel</label><input type="password" id="profile-current-password" autocomplete="current-password">';
-    html += '<div style="margin-top:0.7rem;"><button type="submit" class="ghost">Changer mon email</button></div>';
+    html += '<label>' + tr('current_email_label') + '<input type="text" value="' + escapeHtml(p.email || '') + '" disabled></label>';
+    html += '<label for="profile-new-email" style="margin-top:0.6rem;">' + tr('new_email_label') + '</label><input type="email" id="profile-new-email" autocomplete="username">';
+    html += '<label for="profile-current-password" style="margin-top:0.6rem;">' + tr('current_password_label') + '</label><input type="password" id="profile-current-password" autocomplete="current-password">';
+    html += '<div style="margin-top:0.7rem;"><button type="submit" class="ghost">' + tr('change_email_btn') + '</button></div>';
     if (profileEmailMessage) html += '<div class="help-text" style="margin-top:0.6rem;">' + escapeHtml(profileEmailMessage) + '</div>';
     html += '</form>';
     html += '</div>';
     html += '<div class="danger-zone">';
-    html += '<div class="section-title" style="font-size:0.95rem;">Supprimer mon compte</div>';
+    html += '<div class="section-title" style="font-size:0.95rem;">' + tr('delete_account_heading') + '</div>';
     if (!profileDeleteConfirmOpen) {
-      html += '<div class="help-text">Supprime définitivement ton compte (accès et profil). Tes chronos déjà enregistrés restent visibles pour le groupe.</div>';
-      html += '<div style="margin-top:0.7rem;"><button type="button" class="ghost danger" id="delete-account-request-btn">Supprimer mon compte</button></div>';
+      html += '<div class="help-text">' + tr('delete_account_help') + '</div>';
+      html += '<div style="margin-top:0.7rem;"><button type="button" class="ghost danger" id="delete-account-request-btn">' + tr('delete_account_btn') + '</button></div>';
     } else {
       html += '<form id="profile-delete-account-form">';
-      html += '<div class="help-text">Cette action est irréversible. Confirme avec ton mot de passe actuel.</div>';
-      html += '<label for="profile-delete-password" style="margin-top:0.6rem;">Mot de passe actuel</label><input type="password" id="profile-delete-password" autocomplete="current-password">';
-      html += '<div style="margin-top:0.7rem; display:flex; gap:0.6rem;"><button type="submit" class="ghost danger">Confirmer la suppression</button>' +
-        '<button type="button" class="ghost" id="delete-account-cancel-btn">Annuler</button></div>';
+      html += '<div class="help-text">' + tr('delete_irreversible_help') + '</div>';
+      html += '<label for="profile-delete-password" style="margin-top:0.6rem;">' + tr('current_password_label') + '</label><input type="password" id="profile-delete-password" autocomplete="current-password">';
+      html += '<div style="margin-top:0.7rem; display:flex; gap:0.6rem;"><button type="submit" class="ghost danger">' + tr('confirm_deletion_btn') + '</button>' +
+        '<button type="button" class="ghost" id="delete-account-cancel-btn">' + tr('cancel') + '</button></div>';
       if (profileDeleteMessage) html += '<div class="help-text" style="margin-top:0.6rem;">' + escapeHtml(profileDeleteMessage) + '</div>';
       html += '</form>';
     }
@@ -2790,23 +2881,23 @@
     loadFilleulCount(p.name);
     var filleulCount = filleulCounts[p.name];
     var referralLink = referralLinkFor(p.name);
-    var html = '<div class="section-title" style="font-size:0.95rem;">Parrainage</div>';
-    html += '<div class="help-text">Chaque inscription via ton lien ou ton QR code te compte automatiquement comme parrain.</div>';
+    var html = '<div class="section-title" style="font-size:0.95rem;">' + tr('parrainage_heading') + '</div>';
+    html += '<div class="help-text">' + tr('parrainage_help') + '</div>';
     html += '<div class="referral-panel">';
-    html += '<img class="referral-qr" src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=' + encodeURIComponent(referralLink) + '" alt="QR code du lien de parrainage" width="140" height="140">';
+    html += '<img class="referral-qr" src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=' + encodeURIComponent(referralLink) + '" alt="' + tr('qr_alt') + '" width="140" height="140">';
     html += '<div class="referral-actions">';
     html += '<div class="referral-link-text">' + escapeHtml(referralLink) + '</div>';
     html += '<div style="display:flex; gap:0.5rem;">' +
-      '<button type="button" class="primary" id="share-referral-link-btn">Partager mon lien</button>' +
-      '<button type="button" class="ghost icon-btn" id="copy-referral-link-btn" aria-label="Copier le lien" title="Copier">📋</button>' +
+      '<button type="button" class="primary" id="share-referral-link-btn">' + tr('share_my_link_btn') + '</button>' +
+      '<button type="button" class="ghost icon-btn" id="copy-referral-link-btn" aria-label="' + tr('copy_link_aria') + '" title="' + tr('copy_label') + '">📋</button>' +
       '</div>';
-    html += '<div class="help-text" style="margin-top:0.5rem;">' + (filleulCount == null ? '…' : filleulCount) + ' filleul' + (filleulCount === 1 ? '' : 's') + '</div>';
+    html += '<div class="help-text" style="margin-top:0.5rem;">' + (filleulCount == null ? '…' : filleulCount) + (filleulCount === 1 ? tr('filleul_singular') : tr('filleul_plural')) + '</div>';
     html += '</div></div>';
     html += '<div class="referral-milestones">';
-    [[1, 'Parrain'], [5, 'Grand parrain']].forEach(function (m) {
+    [[1, tr('parrain_badge')], [5, tr('grand_parrain_badge')]].forEach(function (m) {
       var reached = filleulCount != null && filleulCount >= m[0];
       html += '<div class="referral-milestone' + (reached ? ' reached' : '') + '">' +
-        (reached ? '✓' : m[0]) + ' — ' + m[0] + ' filleul' + (m[0] > 1 ? 's' : '') + ' — badge ' + escapeHtml(m[1]) + '</div>';
+        (reached ? '✓' : m[0]) + ' — ' + m[0] + (m[0] > 1 ? tr('filleul_plural') : tr('filleul_singular')) + ' — badge ' + escapeHtml(m[1]) + '</div>';
     });
     html += '</div>';
     return html;
@@ -2882,11 +2973,11 @@
     html += '<div class="account-bar">' +
       '<span class="account-bar-identity">' + escapeHtml(p.name) + badgesHtml(p) + ' · ' + roleLabel(p.role) + '</span>' +
       '<span class="account-bar-actions">' +
-        (isAdmin() ? '<button type="button" class="ghost account-bar-btn" id="account-manager-toggle">Gestion des comptes</button>' : '') +
-        '<button type="button" class="ghost account-bar-btn" id="logout-btn">Se déconnecter</button>' +
+        (isAdmin() ? '<button type="button" class="ghost account-bar-btn" id="account-manager-toggle">' + tr('account_management_label') + '</button>' : '') +
+        '<button type="button" class="ghost account-bar-btn" id="logout-btn">' + tr('logout_label') + '</button>' +
       '</span>' +
     '</div>';
-    html += '<div class="section-title">Mon profil</div>';
+    html += '<div class="section-title">' + tr('my_profile_label') + '</div>';
     html += renderProfileTabBar();
     html += '<div class="profile-tab-body">';
     if (profileSubTab === 'parrainage') html += renderProfileParrainageTab(p);
