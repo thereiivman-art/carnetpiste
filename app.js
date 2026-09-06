@@ -37,13 +37,83 @@
       nav_events: 'Événements', nav_chronos: 'Chronos', nav_planning: 'EN PISTE', nav_social: 'Social', nav_team: 'Team',
       coach_label: 'Coach', stats_label: 'Stats', notifications_label: 'Notifications', my_profile_label: 'Mon profil',
       profile_theme: 'Thème', profile_theme_light: 'clair', profile_theme_dark: 'sombre', profile_theme_system: 'système',
-      profile_lang: 'Langue', save: 'Enregistrer', cancel: 'Annuler'
+      profile_lang: 'Langue', save: 'Enregistrer', cancel: 'Annuler',
+      // Circuit / Chronos tab
+      circuit_label: 'Circuit', circuit_none_yet: 'Aucun circuit pour l\'instant — ajoutez un événement dans le Calendrier ou un chrono pour commencer.',
+      loading: 'Chargement...', chronos_heading: 'Chronos',
+      goal_heading: 'Objectifs pour la prochaine session',
+      goal_last_feeling: 'Ressenti à ta dernière session : ',
+      goal_no_feeling: 'Pas encore de ressenti enregistré (voir Réglages pour l\'activer).',
+      goal_placeholder: 'Ex. Travailler le point de corde en 3, être plus fluide au freinage...',
+      distance_label: 'Distance', turns_label: 'Virages (D / G)', last_event_label: 'Dernier événement',
+      circuit_record_label: 'Record circuit', next_event_label: 'Prochain événement',
+      not_planned_plan_it: 'Non planifiée — planifier', edit_info: 'Modifier les infos',
+      ci_distance_km: 'Distance (km)', ci_turns_right: 'Virages à droite', ci_turns_left: 'Virages à gauche',
+      ci_organizer: 'Organisateur', ci_briefing: 'Briefing', ci_usual_horaires: 'Horaires habituels par groupe',
+      circuit_map_label: 'Plan du circuit', circuit_map_replace: 'Remplacer le plan', circuit_map_import: 'Importer un plan',
+      circuit_map_remove: 'Retirer', tap_to_view_companion_map: 'Toucher pour voir/marquer le plan accompagnant',
+      tap_to_annotate: 'Toucher pour annoter', no_map_imported: 'Aucun plan importé pour ce circuit',
+      annotate_circuit_aria: 'Annoter le tracé du circuit',
+      choose_circuit_first: 'Choisissez un circuit dans l\'onglet Circuit avant d\'enregistrer un chrono.',
+      only_riders_can_log: 'Seuls les pilotes (et l\'administrateur) peuvent entrer des chronos',
+      only_riders_can_log_organizer_suffix: ' -- ou un Team Leader, pour un pilote de son team.',
+      add_chrono_btn: '+ Ajouter un chrono', new_chrono_heading: 'Entrer un nouveau chrono',
+      rider_label: 'Pilote', date_label: 'Date', bike_label: 'Moto', group_label: 'Groupe', session_label: 'Session',
+      no_specific_slot: 'Aucun créneau spécifique', chronos_field_label: 'Chronos',
+      chronos_field_help: 'Un chrono par ligne (ou séparés par une virgule) — tape juste les chiffres, les : et . s\'ajoutent automatiquement. Ex. 1 54 104 pour 1:54.104.',
+      note_optional: 'Note (optionnel)', submit_chrono: 'Enregistrer le chrono',
+      granularity_day: 'Jour', granularity_event: 'Événement', granularity_all: 'All time',
+      table_date: 'Date', table_rider: 'Pilote', table_chronos: 'Chronos', table_bike: 'Moto',
+      no_sessions_for_riders: 'Aucune session pour ce circuit avec les pilotes sélectionnés.',
+      history_label: 'Historique',
+      linked_event_label: 'Événement associé', none_option: 'Aucune',
+      group_hint_prefix: 'Groupe suggéré depuis l’événement associé : ',
+      slot_hint: 'Session suggérée selon l\'heure actuelle — modifie si besoin.',
+      note_placeholder: 'Ex. Pluie, pneus neufs, réglages…',
+      record_prefix: 'Record ', period_morning: 'Matin', period_afternoon: 'Après-midi',
+      group_prefix: 'Groupe ', record_pill: 'RECORD', feeling_prefix: 'Ressenti : ',
+      session_edit_laps_help: 'Un chrono par ligne (ou séparés par une virgule) — format 1:23.456 ou 83.456.'
     },
     en: {
       nav_events: 'Events', nav_chronos: 'Chronos', nav_planning: 'ON TRACK', nav_social: 'Social', nav_team: 'Team',
       coach_label: 'Coach', stats_label: 'Stats', notifications_label: 'Notifications', my_profile_label: 'My profile',
       profile_theme: 'Theme', profile_theme_light: 'light', profile_theme_dark: 'dark', profile_theme_system: 'system',
-      profile_lang: 'Language', save: 'Save', cancel: 'Cancel'
+      profile_lang: 'Language', save: 'Save', cancel: 'Cancel',
+      // Circuit / Chronos tab
+      circuit_label: 'Circuit', circuit_none_yet: 'No circuit yet — add an event in the Calendar or a lap time to get started.',
+      loading: 'Loading...', chronos_heading: 'Chronos',
+      goal_heading: 'Goals for the next session',
+      goal_last_feeling: 'Feeling at your last session: ',
+      goal_no_feeling: 'No feeling recorded yet (see Settings to turn it on).',
+      goal_placeholder: 'E.g. Work on the apex in turn 3, smoother braking...',
+      distance_label: 'Distance', turns_label: 'Turns (R / L)', last_event_label: 'Last event',
+      circuit_record_label: 'Circuit record', next_event_label: 'Next event',
+      not_planned_plan_it: 'Not planned — plan it', edit_info: 'Edit info',
+      ci_distance_km: 'Distance (km)', ci_turns_right: 'Right-hand turns', ci_turns_left: 'Left-hand turns',
+      ci_organizer: 'Organizer', ci_briefing: 'Briefing', ci_usual_horaires: 'Usual schedule per group',
+      circuit_map_label: 'Circuit map', circuit_map_replace: 'Replace map', circuit_map_import: 'Import a map',
+      circuit_map_remove: 'Remove', tap_to_view_companion_map: 'Tap to view/mark the companion map',
+      tap_to_annotate: 'Tap to annotate', no_map_imported: 'No map imported for this circuit',
+      annotate_circuit_aria: 'Annotate the circuit map',
+      choose_circuit_first: 'Choose a circuit in the Circuit tab before logging a lap time.',
+      only_riders_can_log: 'Only riders (and the admin) can log lap times',
+      only_riders_can_log_organizer_suffix: ' -- or a Team Leader, for a rider on their team.',
+      add_chrono_btn: '+ Add a lap time', new_chrono_heading: 'Log a new lap time',
+      rider_label: 'Rider', date_label: 'Date', bike_label: 'Bike', group_label: 'Group', session_label: 'Session',
+      no_specific_slot: 'No specific slot', chronos_field_label: 'Lap times',
+      chronos_field_help: 'One lap time per line (or comma-separated) -- just type the digits, the : and . are added automatically. E.g. 1 54 104 for 1:54.104.',
+      note_optional: 'Note (optional)', submit_chrono: 'Save lap time',
+      granularity_day: 'Day', granularity_event: 'Event', granularity_all: 'All time',
+      table_date: 'Date', table_rider: 'Rider', table_chronos: 'Lap times', table_bike: 'Bike',
+      no_sessions_for_riders: 'No sessions for this circuit with the selected riders.',
+      history_label: 'History',
+      linked_event_label: 'Linked event', none_option: 'None',
+      group_hint_prefix: 'Group suggested from the linked event: ',
+      slot_hint: 'Slot suggested from the current time -- change if needed.',
+      note_placeholder: 'E.g. Rain, new tires, setup changes…',
+      record_prefix: 'Record ', period_morning: 'Morning', period_afternoon: 'Afternoon',
+      group_prefix: 'Group ', record_pill: 'RECORD', feeling_prefix: 'Feeling: ',
+      session_edit_laps_help: 'One lap time per line (or comma-separated) -- format 1:23.456 or 83.456.'
     }
   };
   function currentLang() {
@@ -1956,29 +2026,29 @@
     html += '<form id="session-edit-form" novalidate>';
     html += '<div class="field-row">';
     html += isAdmin()
-      ? '<div><label for="se-rider">Pilote</label><input type="text" id="se-rider" list="rider-options-se" value="' + escapeHtml(s.rider || '') + '" required>' +
+      ? '<div><label for="se-rider">' + tr('rider_label') + '</label><input type="text" id="se-rider" list="rider-options-se" value="' + escapeHtml(s.rider || '') + '" required>' +
         '<datalist id="rider-options-se">' + riderDatalist() + '</datalist></div>'
-      : '<div><label>Pilote</label><div class="static-field">' + escapeHtml(s.rider || '') + '</div></div>';
-    html += '<div><label for="se-date">Date</label><input type="text" id="se-date" inputmode="numeric" placeholder="JJ/MM/AAAA" value="' + isoToFrDate(s.date) + '" required></div>';
-    html += '<div><label for="se-bike">Moto</label><input type="text" id="se-bike" list="bike-options-se" value="' + escapeHtml(s.bike || '') + '">' +
+      : '<div><label>' + tr('rider_label') + '</label><div class="static-field">' + escapeHtml(s.rider || '') + '</div></div>';
+    html += '<div><label for="se-date">' + tr('date_label') + '</label><input type="text" id="se-date" inputmode="numeric" placeholder="JJ/MM/AAAA" value="' + isoToFrDate(s.date) + '" required></div>';
+    html += '<div><label for="se-bike">' + tr('bike_label') + '</label><input type="text" id="se-bike" list="bike-options-se" value="' + escapeHtml(s.bike || '') + '">' +
       '<datalist id="bike-options-se">' + bikeDatalist() + '</datalist></div>';
     html += '</div>';
     html += '<div class="field-row">';
-    html += '<div><label for="se-group">Groupe</label><select id="se-group"><option value=""' + (!s.group ? ' selected' : '') + '>—</option>' +
+    html += '<div><label for="se-group">' + tr('group_label') + '</label><select id="se-group"><option value=""' + (!s.group ? ' selected' : '') + '>—</option>' +
       GROUP_LETTERS.map(function (g) { return '<option value="' + g + '"' + (s.group === g ? ' selected' : '') + '>' + g + '</option>'; }).join('') +
       '</select></div>';
     var seSlots = todaysGroupSlots(s.circuit, s.group);
     var seSlotIdx = s.slotStart != null ? seSlots.map(function (sl) { return sl.start; }).indexOf(s.slotStart) : -1;
-    html += '<div><label for="se-slot">Session</label><select id="se-slot">' + renderSlotOptions(seSlots, seSlotIdx) + '</select></div>';
+    html += '<div><label for="se-slot">' + tr('session_label') + '</label><select id="se-slot">' + renderSlotOptions(seSlots, seSlotIdx) + '</select></div>';
     html += '</div>';
-    html += '<label for="se-laps">Chronos</label>' +
+    html += '<label for="se-laps">' + tr('chronos_field_label') + '</label>' +
       '<textarea id="se-laps" required>' + escapeHtml(s.laps.map(function (l) { return formatTime(l); }).join('\n')) + '</textarea>' +
-      '<div class="help-text">Un chrono par ligne (ou séparés par une virgule) — format 1:23.456 ou 83.456.</div>';
-    html += '<div style="margin-top:0.6rem;"><label for="se-note">Note (optionnel)</label><input type="text" id="se-note" value="' + escapeHtml(s.note || '') + '"></div>';
+      '<div class="help-text">' + tr('session_edit_laps_help') + '</div>';
+    html += '<div style="margin-top:0.6rem;"><label for="se-note">' + tr('note_optional') + '</label><input type="text" id="se-note" value="' + escapeHtml(s.note || '') + '"></div>';
     html += '<div class="field-error" id="session-edit-error"></div>';
     html += '<div style="margin-top:0.7rem; display:flex; gap:0.6rem;">' +
-      '<button type="submit" class="primary">Enregistrer</button>' +
-      '<button type="button" class="ghost" id="cancel-session-edit-btn">Annuler</button>' +
+      '<button type="submit" class="primary">' + tr('save') + '</button>' +
+      '<button type="button" class="ghost" id="cancel-session-edit-btn">' + tr('cancel') + '</button>' +
       '</div>';
     html += '</form></td></tr>';
     return html;
@@ -2061,14 +2131,14 @@
       if (!record || b < record.time) record = { time: b, rider: s.rider };
     });
     if (record) {
-      html += '<div class="circuit-best">Record ' + formatTime(record.time) + ' — ' + escapeHtml(record.rider) + '</div>';
+      html += '<div class="circuit-best">' + tr('record_prefix') + formatTime(record.time) + ' — ' + escapeHtml(record.rider) + '</div>';
     }
     html += '</div>';
     if (!sessions.length) {
-      html += '<div class="empty-state">Aucune session pour ce circuit avec les pilotes sélectionnés.</div>';
+      html += '<div class="empty-state">' + tr('no_sessions_for_riders') + '</div>';
     } else {
       var colCount = 4 + (showRider ? 1 : 0);
-      var tableHtml = '<div class="table-scroll"><table class="session-table"><thead><tr><th>Date</th>' + (showRider ? '<th>Pilote</th>' : '') + '<th>Chronos</th><th>Moto</th><th></th></tr></thead><tbody>';
+      var tableHtml = '<div class="table-scroll"><table class="session-table"><thead><tr><th>' + tr('table_date') + '</th>' + (showRider ? '<th>' + tr('table_rider') + '</th>' : '') + '<th>' + tr('table_chronos') + '</th><th>' + tr('table_bike') + '</th><th></th></tr></thead><tbody>';
       sessions.forEach(function (s) {
         if (s.id === editingSessionId) {
           tableHtml += renderSessionEditRow(s, colCount);
@@ -2086,25 +2156,25 @@
           return span;
         }).join(', ');
         var noteHtml = s.note ? '<div class="note-text">' + escapeHtml(s.note) + '</div>' : '';
-        var periodLabel = s.period === 'matin' ? 'Matin' : s.period === 'apres-midi' ? 'Après-midi' : '';
+        var periodLabel = s.period === 'matin' ? tr('period_morning') : s.period === 'apres-midi' ? tr('period_afternoon') : '';
         var sessionTagParts = [];
         if (s.slotLabel) sessionTagParts.push(s.slotLabel);
         else if (periodLabel) sessionTagParts.push(periodLabel);
-        if (s.group) sessionTagParts.push('Groupe ' + s.group);
+        if (s.group) sessionTagParts.push(tr('group_prefix') + s.group);
         var sessionTagHtml = sessionTagParts.length ? '<div class="note-text">' + escapeHtml(sessionTagParts.join(' — ')) + '</div>' : '';
         var feelingOpt = s.feeling ? FEELING_OPTIONS.filter(function (f) { return f.key === s.feeling; })[0] : null;
-        var feelingTitle = feelingOpt ? 'Ressenti : ' + feelingOpt.label + (s.feelingComment ? ' — ' + s.feelingComment : '') : '';
+        var feelingTitle = feelingOpt ? tr('feeling_prefix') + feelingOpt.label + (s.feelingComment ? ' — ' + s.feelingComment : '') : '';
         var feelingHtml = feelingOpt ? ' <span class="feeling-tag" title="' + escapeHtml(feelingTitle) + '">' + feelingOpt.icon + '</span>' : '';
         tableHtml += '<tr data-session-id="' + s.id + '">';
         tableHtml += '<td>' + formatDate(s.date) + feelingHtml + sessionTagHtml + noteHtml + '</td>';
         if (showRider) tableHtml += '<td class="rider-cell">' + (s.rider ? renderRiderLink(s.rider) : '—') + '</td>';
-        tableHtml += '<td class="laps-cell">' + lapsHtml + (isRecord ? '<span class="record-pill">RECORD</span>' : '') + '</td>';
+        tableHtml += '<td class="laps-cell">' + lapsHtml + (isRecord ? '<span class="record-pill">' + tr('record_pill') + '</span>' : '') + '</td>';
         tableHtml += '<td class="bike-cell">' + (s.bike ? escapeHtml(s.bike) : '—') + '</td>';
         tableHtml += '<td class="row-actions">' + certifyControl(s) + editControl(s) + deleteControl(s) + '</td>';
         tableHtml += '</tr>';
       });
       tableHtml += '</tbody></table></div>';
-      html += renderStatSummaryCategory('chronos-history-' + selectedCircuit, 'Historique', sessions.length, tableHtml);
+      html += renderStatSummaryCategory('chronos-history-' + selectedCircuit, tr('history_label'), sessions.length, tableHtml);
     }
     html += '</div>';
     return html;
@@ -3557,13 +3627,13 @@
     var options = candidates.map(function (e) {
       return '<option value="' + e.id + '"' + (e.id === preselect ? ' selected' : '') + '>' + escapeHtml(formatEventRange(e, true)) + '</option>';
     }).join('');
-    return '<div style="margin-top:0.9rem;"><label for="f-linked-event">Événement associé</label>' +
-      '<select id="f-linked-event"><option value="">Aucune</option>' + options + '</select></div>';
+    return '<div style="margin-top:0.9rem;"><label for="f-linked-event">' + tr('linked_event_label') + '</label>' +
+      '<select id="f-linked-event"><option value="">' + tr('none_option') + '</option>' + options + '</select></div>';
   }
 
   function renderForm() {
     if (!selectedCircuit) {
-      return '<div class="card"><div class="empty-state">Choisissez un circuit dans l\'onglet Circuit avant d\'enregistrer un chrono.</div></div>';
+      return '<div class="card"><div class="empty-state">' + tr('choose_circuit_first') + '</div></div>';
     }
     var admin = isAdmin();
     var teamPiloteChoices = myTeamPiloteChoices(); // name -> teamId, for pilotes on a team this account leads
@@ -3574,14 +3644,14 @@
     // ownsChronoViaTeam in firestore.rules) -- otherwise same dead end.
     var isNonRiderRole = currentUserProfile && (currentUserProfile.role === 'accompagnant' || currentUserProfile.role === 'organisateur');
     if (isNonRiderRole && !admin && !teamPiloteNames.length) {
-      return '<div class="card"><div class="empty-state">Seuls les pilotes (et l\'administrateur) peuvent entrer des chronos' +
-        (currentUserProfile.role === 'organisateur' ? ' -- ou un Team Leader, pour un pilote de son team.' : '.') + '</div></div>';
+      return '<div class="card"><div class="empty-state">' + tr('only_riders_can_log') +
+        (currentUserProfile.role === 'organisateur' ? tr('only_riders_can_log_organizer_suffix') : '.') + '</div></div>';
     }
     // Retracté par défaut -- juste un bouton pleine largeur en évidence,
     // le formulaire complet n'apparaît qu'une fois cliqué (et redisparaît
     // au profit du bouton une fois le chrono envoyé, voir onSubmit).
     if (!addChronoOpen) {
-      return '<button type="button" class="primary add-chrono-btn" id="add-chrono-toggle">+ Ajouter un chrono</button>';
+      return '<button type="button" class="primary add-chrono-btn" id="add-chrono-toggle">' + tr('add_chrono_btn') + '</button>';
     }
     var rider = (selectedRiders && selectedRiders.size === 1) ? Array.from(selectedRiders)[0] : null;
     // A pilote can only ever enter their own chronos, or a teammate's if
@@ -3596,31 +3666,31 @@
     var slots = todaysGroupSlots(selectedCircuit, groupHint);
     var suggestedSlotIdx = suggestSlotIndex(slots);
     var html = '<div class="card">';
-    html += '<h2 class="section-title">Entrer un nouveau chrono</h2>';
+    html += '<h2 class="section-title">' + tr('new_chrono_heading') + '</h2>';
     html += '<form id="session-form" novalidate>';
     html += '<div class="field-row">';
     if (admin) {
       // Only the admin can enter a chrono for anyone at all -- everyone
       // else is locked to their own name, or (see above) their team's.
       var knownRiders = allKnownRiders();
-      html += '<div><label for="f-rider">Pilote</label><select id="f-rider" required><option value="">—</option>' +
+      html += '<div><label for="f-rider">' + tr('rider_label') + '</label><select id="f-rider" required><option value="">—</option>' +
         knownRiders.map(function (r) { return '<option value="' + escapeHtml(r) + '"' + (r === rider ? ' selected' : '') + '>' + escapeHtml(r) + '</option>'; }).join('') +
         '</select></div>';
     } else if (teamPiloteNames.length) {
       var ownOption = currentUserProfile.role === 'organisateur' ? [] : [currentUserProfile.name];
       var pickOptions = ownOption.concat(teamPiloteNames);
-      html += '<div><label for="f-rider">Pilote</label><select id="f-rider" required>' +
+      html += '<div><label for="f-rider">' + tr('rider_label') + '</label><select id="f-rider" required>' +
         pickOptions.map(function (r) { return '<option value="' + escapeHtml(r) + '"' + (r === rider ? ' selected' : '') + '>' + escapeHtml(r) + '</option>'; }).join('') +
         '</select></div>';
     } else {
-      html += '<div><label>Pilote</label><div class="static-field">' + escapeHtml(rider || '') + '</div></div>';
+      html += '<div><label>' + tr('rider_label') + '</label><div class="static-field">' + escapeHtml(rider || '') + '</div></div>';
     }
-    html += '<div><label for="f-date">Date</label>' +
+    html += '<div><label for="f-date">' + tr('date_label') + '</label>' +
       '<input type="text" id="f-date" inputmode="numeric" placeholder="JJ/MM/AAAA" value="' + isoToFrDate(todayStr) + '" required></div>';
-    html += '<div><label for="f-circuit">Circuit</label><select id="f-circuit" required>' +
+    html += '<div><label for="f-circuit">' + tr('circuit_label') + '</label><select id="f-circuit" required>' +
       allCircuits().map(function (c) { return '<option value="' + escapeHtml(c) + '"' + (c === selectedCircuit ? ' selected' : '') + '>' + escapeHtml(c) + '</option>'; }).join('') +
       '</select></div>';
-    html += '<div><label for="f-bike">Moto</label>' +
+    html += '<div><label for="f-bike">' + tr('bike_label') + '</label>' +
       '<input type="text" id="f-bike" list="bike-options" placeholder="Ex. ST 765 RS" value="' + escapeHtml((rider && riderBikeMap[rider]) || '') + '">' +
       '<datalist id="bike-options">' + bikeDatalist() + '</datalist></div>';
     html += '</div>';
@@ -3630,22 +3700,22 @@
     // "Chronos" together cover all three, since the Chronos field already
     // accepts one time or a whole list.
     html += '<div class="field-row">';
-    html += '<div><label for="f-group">Groupe</label><select id="f-group"><option value="">—</option>' +
+    html += '<div><label for="f-group">' + tr('group_label') + '</label><select id="f-group"><option value="">—</option>' +
       GROUP_LETTERS.map(function (g) { return '<option value="' + g + '"' + (g === groupHint ? ' selected' : '') + '>' + g + '</option>'; }).join('') +
       '</select></div>';
-    html += '<div><label for="f-slot">Session</label><select id="f-slot">' + renderSlotOptions(slots, suggestedSlotIdx) + '</select></div>';
+    html += '<div><label for="f-slot">' + tr('session_label') + '</label><select id="f-slot">' + renderSlotOptions(slots, suggestedSlotIdx) + '</select></div>';
     html += '</div>';
-    html += '<div class="help-text" id="f-group-hint"' + (groupHint ? '' : ' style="display:none;"') + '>Groupe suggéré depuis l’événement associé : ' + escapeHtml(groupHint) + '.</div>';
-    html += '<div class="help-text" id="f-slot-hint"' + (suggestedSlotIdx !== -1 ? '' : ' style="display:none;"') + '>Session suggérée selon l\'heure actuelle — modifie si besoin.</div>';
-    html += '<label for="f-laps">Chronos</label>' +
+    html += '<div class="help-text" id="f-group-hint"' + (groupHint ? '' : ' style="display:none;"') + '>' + tr('group_hint_prefix') + escapeHtml(groupHint) + '.</div>';
+    html += '<div class="help-text" id="f-slot-hint"' + (suggestedSlotIdx !== -1 ? '' : ' style="display:none;"') + '>' + tr('slot_hint') + '</div>';
+    html += '<label for="f-laps">' + tr('chronos_field_label') + '</label>' +
       '<textarea id="f-laps" placeholder="1:23.456' + String.fromCharCode(10) + '1:22.980' + String.fromCharCode(10) + '1:23.120" required></textarea>' +
-      '<div class="help-text">Un chrono par ligne (ou séparés par une virgule) — tape juste les chiffres, les : et . s\'ajoutent automatiquement. Ex. 1 54 104 pour 1:54.104.</div>';
-    html += '<div style="margin-top:0.9rem;"><label for="f-note">Note (optionnel)</label>' +
-      '<input type="text" id="f-note" placeholder="Ex. Pluie, pneus neufs, réglages…"></div>';
+      '<div class="help-text">' + tr('chronos_field_help') + '</div>';
+    html += '<div style="margin-top:0.9rem;"><label for="f-note">' + tr('note_optional') + '</label>' +
+      '<input type="text" id="f-note" placeholder="' + tr('note_placeholder') + '"></div>';
     html += '<div id="f-linked-event-wrap">' + renderLinkedEventField(selectedCircuit, todayStr) + '</div>';
     html += '<div class="field-error" id="form-error"></div>';
     html += '<div style="margin-top:0.9rem;">' +
-      '<button type="submit" class="primary" id="submit-btn">Enregistrer le chrono</button>' +
+      '<button type="submit" class="primary" id="submit-btn">' + tr('submit_chrono') + '</button>' +
       '</div>';
     html += '</form></div>';
     return html;
@@ -3692,7 +3762,7 @@
   }
 
   function renderSlotOptions(slots, suggestedIdx) {
-    var html = '<option value="">Aucun créneau spécifique</option>';
+    var html = '<option value="">' + tr('no_specific_slot') + '</option>';
     slots.forEach(function (s, i) {
       html += '<option value="' + s.start + '"' + (i === suggestedIdx ? ' selected' : '') + '>' + escapeHtml(s.label) + '</option>';
     });
@@ -3818,12 +3888,12 @@
   function renderProgressionChart(riders, circuit, availableCircuits) {
     var selectorHtml = '';
     if (availableCircuits && availableCircuits.length > 1) {
-      selectorHtml = '<label for="progression-circuit-select" class="help-text" style="display:block; margin-bottom:0.3rem;">Circuit</label>' +
+      selectorHtml = '<label for="progression-circuit-select" class="help-text" style="display:block; margin-bottom:0.3rem;">' + tr('circuit_label') + '</label>' +
         '<select id="progression-circuit-select" style="margin-bottom:0.8rem;">' +
         availableCircuits.map(function (c) { return '<option value="' + escapeHtml(c) + '"' + (c === circuit ? ' selected' : '') + '>' + escapeHtml(c) + '</option>'; }).join('') +
         '</select>';
     }
-    selectorHtml += '<div class="progression-granularity">' + [['day', 'Jour'], ['event', 'Événement'], ['all', 'All time']].map(function (g) {
+    selectorHtml += '<div class="progression-granularity">' + [['day', tr('granularity_day')], ['event', tr('granularity_event')], ['all', tr('granularity_all')]].map(function (g) {
       return '<button type="button" class="ghost' + (progressionGranularity === g[0] ? ' active' : '') + '" data-action="progression-granularity" data-granularity="' + g[0] + '">' + g[1] + '</button>';
     }).join('') + '</div>';
     // The Jour/Événement picker only shows once there's actually a choice
@@ -4229,9 +4299,9 @@
   function renderCircuitTab() {
     var circuits = allCircuits();
     if (!circuits.length) {
-      return '<div class="card"><div class="empty-state">' + (coreDataLoading() ? 'Chargement...' : 'Aucun circuit pour l\'instant — ajoutez un événement dans le Calendrier ou un chrono pour commencer.') + '</div></div>';
+      return '<div class="card"><div class="empty-state">' + (coreDataLoading() ? tr('loading') : tr('circuit_none_yet')) + '</div></div>';
     }
-    var html = '<div class="card"><label for="f-filter-circuit">Circuit</label><select id="f-filter-circuit">';
+    var html = '<div class="card"><label for="f-filter-circuit">' + tr('circuit_label') + '</label><select id="f-filter-circuit">';
     circuits.forEach(function (c) {
       html += '<option value="' + escapeHtml(c) + '"' + (c === selectedCircuit ? ' selected' : '') + '>' + escapeHtml(c) + '</option>';
     });
@@ -4241,7 +4311,7 @@
     // Chronos used to be its own tab; it's really always been about
     // "the currently active circuit", so it lives here now, right after
     // the circuit's own info.
-    html += '<h2 class="section-title" style="margin-top:0.5rem;">Chronos</h2>';
+    html += '<h2 class="section-title" style="margin-top:0.5rem;">' + tr('chronos_heading') + '</h2>';
     html += renderChronosTab();
     return html;
   }
@@ -4277,12 +4347,12 @@
     var goals = (me.chronoGoals || {})[selectedCircuit] || '';
     var last = mostRecentSessionForRider(me.name);
     var feelingOpt = last && last.feeling ? FEELING_OPTIONS.filter(function (f) { return f.key === last.feeling; })[0] : null;
-    var html = '<div class="card" style="margin-top:1rem;"><h2 class="section-title">Objectifs pour la prochaine session</h2>';
+    var html = '<div class="card" style="margin-top:1rem;"><h2 class="section-title">' + tr('goal_heading') + '</h2>';
     html += feelingOpt
-      ? '<div class="help-text">Ressenti à ta dernière session : ' + feelingOpt.icon + ' ' + escapeHtml(feelingOpt.label) + (last.feelingComment ? ' — ' + escapeHtml(last.feelingComment) : '') + '</div>'
-      : '<div class="help-text">Pas encore de ressenti enregistré (voir Réglages pour l\'activer).</div>';
-    html += '<textarea id="chrono-goals-input" rows="4" style="margin-top:0.6rem;" placeholder="Ex. Travailler le point de corde en 3, être plus fluide au freinage...">' + escapeHtml(goals) + '</textarea>';
-    html += '<button type="button" class="ghost" id="chrono-goals-save-btn" style="margin-top:0.5rem;">Enregistrer</button>';
+      ? '<div class="help-text">' + tr('goal_last_feeling') + feelingOpt.icon + ' ' + escapeHtml(feelingOpt.label) + (last.feelingComment ? ' — ' + escapeHtml(last.feelingComment) : '') + '</div>'
+      : '<div class="help-text">' + tr('goal_no_feeling') + '</div>';
+    html += '<textarea id="chrono-goals-input" rows="4" style="margin-top:0.6rem;" placeholder="' + tr('goal_placeholder') + '">' + escapeHtml(goals) + '</textarea>';
+    html += '<button type="button" class="ghost" id="chrono-goals-save-btn" style="margin-top:0.5rem;">' + tr('save') + '</button>';
     if (chronoGoalsMessage) html += '<div class="help-text" style="margin-top:0.4rem;">' + escapeHtml(chronoGoalsMessage) + '</div>';
     html += '</div>';
     return html;
@@ -4309,18 +4379,18 @@
     var html = '<div class="card circuit-info-card">';
     html += '<div class="circuit-info-map-full">' + renderCircuitVisual(info) + '</div>';
     html += '<div class="circuit-info-list">';
-    html += infoRow('Distance', info.km != null ? (escapeHtml(String(info.km)) + ' km') : '—');
-    html += infoRow('Virages (D / G)', turnsHtml);
+    html += infoRow(tr('distance_label'), info.km != null ? (escapeHtml(String(info.km)) + ' km') : '—');
+    html += infoRow(tr('turns_label'), turnsHtml);
     var lastEvent = (lastSession && lastSession.eventId) ? eventsList().filter(function (e) { return e.id === lastSession.eventId; })[0] : null;
     var lastOutingText = lastSession ? (escapeHtml(formatDate(lastSession.date)) + ' — ' + formatTime(sessionBest(lastSession))) : '—';
-    html += infoRow('Dernier événement', lastEvent
+    html += infoRow(tr('last_event_label'), lastEvent
       ? '<button type="button" class="link-btn" id="last-outing-link" data-event-id="' + lastEvent.id + '">' + lastOutingText + '</button>'
       : lastOutingText);
-    html += infoRow('Record circuit', recordSession ? (formatTime(recordTime) + ' (' + escapeHtml(recordSession.rider) + ')') : '—');
+    html += infoRow(tr('circuit_record_label'), recordSession ? (formatTime(recordTime) + ' (' + escapeHtml(recordSession.rider) + ')') : '—');
     var upcoming = nextOutingForCircuit(selectedCircuit);
-    html += infoRow('Prochain événement', upcoming
+    html += infoRow(tr('next_event_label'), upcoming
       ? '<button type="button" class="link-btn" id="next-outing-link" data-event-id="' + upcoming.id + '">' + escapeHtml(formatEventRange(upcoming, true)) + '</button>'
-      : '<button type="button" class="link-btn" id="plan-outing-link">Non planifiée — planifier</button>');
+      : '<button type="button" class="link-btn" id="plan-outing-link">' + tr('not_planned_plan_it') + '</button>');
     // Admin-only now (see firestore.rules' circuits match) -- this used to
     // be open to any pilote, which meant literally anyone could overwrite
     // another circuit's imported plan image, not just tweak a km figure.
@@ -4328,7 +4398,7 @@
       if (editingCircuitInfo) {
         html += renderCircuitInfoEditForm(info);
       } else {
-        html += '<button type="button" class="ghost" id="edit-circuit-info-btn" style="margin-top:0.6rem;">Modifier les infos</button>';
+        html += '<button type="button" class="ghost" id="edit-circuit-info-btn" style="margin-top:0.6rem;">' + tr('edit_info') + '</button>';
       }
     }
     html += '</div>';
@@ -4338,21 +4408,21 @@
 
   function renderCircuitInfoEditForm(info) {
     var html = '<div class="info-edit-form">';
-    html += '<div><label for="ci-km">Distance (km)</label><input type="text" inputmode="decimal" id="ci-km" value="' + (info.km != null ? escapeHtml(String(info.km)) : '') + '" placeholder="Ex. 4.2"></div>';
-    html += '<div><label for="ci-right">Virages à droite</label><input type="text" inputmode="numeric" id="ci-right" value="' + (info.turnsRight != null ? escapeHtml(String(info.turnsRight)) : '') + '" placeholder="Ex. 9"></div>';
-    html += '<div><label for="ci-left">Virages à gauche</label><input type="text" inputmode="numeric" id="ci-left" value="' + (info.turnsLeft != null ? escapeHtml(String(info.turnsLeft)) : '') + '" placeholder="Ex. 5"></div>';
+    html += '<div><label for="ci-km">' + tr('ci_distance_km') + '</label><input type="text" inputmode="decimal" id="ci-km" value="' + (info.km != null ? escapeHtml(String(info.km)) : '') + '" placeholder="Ex. 4.2"></div>';
+    html += '<div><label for="ci-right">' + tr('ci_turns_right') + '</label><input type="text" inputmode="numeric" id="ci-right" value="' + (info.turnsRight != null ? escapeHtml(String(info.turnsRight)) : '') + '" placeholder="Ex. 9"></div>';
+    html += '<div><label for="ci-left">' + tr('ci_turns_left') + '</label><input type="text" inputmode="numeric" id="ci-left" value="' + (info.turnsLeft != null ? escapeHtml(String(info.turnsLeft)) : '') + '" placeholder="Ex. 5"></div>';
     var allTeamsForOrganizer = (STATE.teams || []).slice().sort(function (a, b) { return a.name.localeCompare(b.name); });
-    html += '<div><label for="ci-organizer">Organisateur</label><select id="ci-organizer"><option value="">—</option>' +
+    html += '<div><label for="ci-organizer">' + tr('ci_organizer') + '</label><select id="ci-organizer"><option value="">—</option>' +
       allTeamsForOrganizer.map(function (t) {
         return '<option value="' + t.id + '"' + (t.id === info.organizerTeamId ? ' selected' : '') + '>' + escapeHtml(t.name) + (t.teamPro ? ' (PRO)' : '') + '</option>';
       }).join('') + '</select></div>';
-    html += '<div><label for="ci-briefing">Briefing</label><input type="text" id="ci-briefing" value="' + escapeHtml(info.briefing || '') + '" placeholder="Ex. 8h15"></div>';
+    html += '<div><label for="ci-briefing">' + tr('ci_briefing') + '</label><input type="text" id="ci-briefing" value="' + escapeHtml(info.briefing || '') + '" placeholder="Ex. 8h15"></div>';
     html += '</div>';
     // These usual times pre-remplissent automatiquement une nouvelle sortie
     // créée sur ce circuit (voir renderEventForm) -- utile puisque
     // l'organisateur fixe en général les mêmes créneaux à chaque sortie.
     var horairesVal = (info.horaires && typeof info.horaires === 'object') ? info.horaires : {};
-    html += '<div style="margin-top:0.6rem;"><label>Horaires habituels par groupe</label><div class="horaires-grid">';
+    html += '<div style="margin-top:0.6rem;"><label>' + tr('ci_usual_horaires') + '</label><div class="horaires-grid">';
     HORAIRES_GROUPS.forEach(function (g) {
       // Rookies (groupe R) is Mugello-only for now -- hide the field
       // elsewhere so it doesn't look like every circuit has one.
@@ -4366,15 +4436,15 @@
     // it could only ever be seeded by hand -- so "Aucun plan importé pour
     // ce circuit" (renderCircuitVisual) had no way to actually get fixed
     // from here.
-    html += '<div style="margin-top:0.9rem;"><label>Plan du circuit</label>' +
+    html += '<div style="margin-top:0.9rem;"><label>' + tr('circuit_map_label') + '</label>' +
       '<div style="display:flex; gap:0.5rem; margin-top:0.3rem; flex-wrap:wrap;">' +
-      '<button type="button" class="ghost" id="circuit-map-upload-btn">' + (info.mapImage ? 'Remplacer le plan' : 'Importer un plan') + '</button>' +
-      (info.mapImage ? '<button type="button" class="ghost" id="circuit-map-remove-btn">Retirer</button>' : '') +
+      '<button type="button" class="ghost" id="circuit-map-upload-btn">' + (info.mapImage ? tr('circuit_map_replace') : tr('circuit_map_import')) + '</button>' +
+      (info.mapImage ? '<button type="button" class="ghost" id="circuit-map-remove-btn">' + tr('circuit_map_remove') + '</button>' : '') +
       '</div>' +
       '<input type="file" id="circuit-map-input" accept="image/*" style="display:none;">' +
       (circuitMapMessage ? '<div class="help-text" style="margin-top:0.4rem;">' + escapeHtml(circuitMapMessage) + '</div>' : '') +
       '</div>';
-    html += '<div class="info-edit-actions"><button type="button" class="primary" id="save-circuit-info-btn">Enregistrer</button><button type="button" class="ghost" id="cancel-circuit-info-btn">Annuler</button></div>';
+    html += '<div class="info-edit-actions"><button type="button" class="primary" id="save-circuit-info-btn">' + tr('save') + '</button><button type="button" class="ghost" id="cancel-circuit-info-btn">' + tr('cancel') + '</button></div>';
     return html;
   }
   var circuitMapMessage = '';
@@ -4399,16 +4469,16 @@
     if (info.mapImage) {
       return (
         '<div class="circuit-visual-frame">' +
-          '<button type="button" class="circuit-visual-btn" id="open-annot-btn" data-circuit="' + escapeHtml(circuitName) + '"' + (eventId ? ' data-event-id="' + eventId + '"' : '') + ' aria-label="Annoter le tracé du circuit">' +
+          '<button type="button" class="circuit-visual-btn" id="open-annot-btn" data-circuit="' + escapeHtml(circuitName) + '"' + (eventId ? ' data-event-id="' + eventId + '"' : '') + ' aria-label="' + tr('annotate_circuit_aria') + '">' +
             '<img src="' + info.mapImage + '" alt="Tracé de ' + escapeHtml(circuitName) + '">' +
           '</button>' +
-          '<div class="circuit-visual-caption">' + ((currentUserProfile && currentUserProfile.role === 'accompagnant' && !isAdmin() && !eventId) ? 'Toucher pour voir/marquer le plan accompagnant' : 'Toucher pour annoter') + '</div>' +
+          '<div class="circuit-visual-caption">' + ((currentUserProfile && currentUserProfile.role === 'accompagnant' && !isAdmin() && !eventId) ? tr('tap_to_view_companion_map') : tr('tap_to_annotate')) + '</div>' +
         '</div>'
       );
     }
     return (
       '<div class="circuit-visual-frame">' +
-        '<div class="circuit-visual-btn circuit-visual-placeholder">Aucun plan importé pour ce circuit</div>' +
+        '<div class="circuit-visual-btn circuit-visual-placeholder">' + tr('no_map_imported') + '</div>' +
       '</div>'
     );
   }
