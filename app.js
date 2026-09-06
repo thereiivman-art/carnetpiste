@@ -72,7 +72,37 @@
       note_placeholder: 'Ex. Pluie, pneus neufs, réglages…',
       record_prefix: 'Record ', period_morning: 'Matin', period_afternoon: 'Après-midi',
       group_prefix: 'Groupe ', record_pill: 'RECORD', feeling_prefix: 'Ressenti : ',
-      session_edit_laps_help: 'Un chrono par ligne (ou séparés par une virgule) — format 1:23.456 ou 83.456.'
+      session_edit_laps_help: 'Un chrono par ligne (ou séparés par une virgule) — format 1:23.456 ou 83.456.',
+      // Événements tab
+      my_events_heading: 'Mes Événements', no_event_yet: 'Aucun événement enregistré — ajoutez-en un ci-dessous.',
+      ongoing_label: 'En cours', upcoming_label: 'À venir', past_label: 'Passés', discover_events_heading: 'Découvrir des Événements',
+      no_event: 'Aucun événement.', event_count_suffix: ' événement', events_count_suffix: ' événements',
+      riders_unspecified: 'Pilotes non précisés', close: 'Fermer',
+      team_label: 'Team', organizer_label: 'Organisateur', dates_label: 'Dates', note_label: 'Note',
+      book_register: 'Réserver / S\'inscrire ↗', how_was_it: 'Comment s\'est passé cet event ?',
+      groups_horaires_this_event: 'Groupes & horaires de cette sortie', circuit_map_heading: 'Carte du circuit',
+      modify: 'Modifier',
+      vis_public: 'Public', vis_adherent: 'Adhérent only', vis_membre: 'Membre only', vis_follower: 'Followers only', vis_ouvert: 'Ouvert',
+      months: ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'],
+      weekday_letters: ['L', 'M', 'M', 'J', 'V', 'S', 'D'],
+      weekday_names: ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'],
+      my_calendar_heading: 'Mon calendrier', zoom_hint: 'Astuce : glissez à gauche/droite (ou flèches ← →) pour changer de période, pincez à deux doigts ou Ctrl + molette pour zoomer.',
+      previous: 'Précédent', next: 'Suivant', today: 'Aujourd\'hui',
+      zoom_year: 'Année', zoom_6month: '6 mois', zoom_3month: '3 mois', zoom_2month: '2 mois', zoom_month: 'Mois', zoom_week: 'Semaine', zoom_day: 'Jour',
+      add_event_heading: 'Ajouter un événement', edit_event_heading: 'Modifier l\'événement',
+      new_circuit_warning: 'Nouveau circuit -- vérifie qu\'il n\'existe pas déjà sous un autre nom dans la liste (sinon son plan/historique resteront séparés).',
+      date_start_label: 'Date de début', date_end_label: 'Date de fin (optionnel)',
+      team_organizer_label: 'Team organisateur (optionnel)', none_personal_event: 'Aucun (événement personnel)',
+      visibility_label: 'Visibilité', vis_public_full: 'Public (visible par tous, invitation requise)', vis_ouvert_full: 'Ouvert (inscription libre)',
+      teampro_only_help: 'Réservé aux Teams PRO -- un Team amateur reste visible par ses membres et les pilotes invités.',
+      booking_url_label: 'Lien de réservation (optionnel)',
+      booking_url_help: 'Carnet de Piste ne gère pas les paiements -- ce lien renvoie vers ta billetterie (Billetweb ou autre) pour l\'inscription/le paiement.',
+      more_options_less: '− Moins d\'options', more_options_more: '+ Plus d\'options (horaires, pilotes, organisateur...)',
+      horaires_this_event_label: 'Horaires par groupe (cette sortie -- laisser vide pour utiliser les horaires habituels du circuit)',
+      organizer_note_label: 'Organisateur (si absent de l\'app)', riders_label: 'Pilotes',
+      riders_search_help: 'Suggestions limitées à tes amis et aux membres de tes Teams -- choisis un nom dans la liste pour l\'ajouter.',
+      remove_label: 'Retirer', start_group_label: 'Groupe de départ',
+      managed_from_team: 'Participants et groupes se gèrent depuis la Gestion des événements du Team.'
     },
     en: {
       nav_events: 'Events', nav_chronos: 'Chronos', nav_planning: 'ON TRACK', nav_social: 'Social', nav_team: 'Team',
@@ -113,7 +143,37 @@
       note_placeholder: 'E.g. Rain, new tires, setup changes…',
       record_prefix: 'Record ', period_morning: 'Morning', period_afternoon: 'Afternoon',
       group_prefix: 'Group ', record_pill: 'RECORD', feeling_prefix: 'Feeling: ',
-      session_edit_laps_help: 'One lap time per line (or comma-separated) -- format 1:23.456 or 83.456.'
+      session_edit_laps_help: 'One lap time per line (or comma-separated) -- format 1:23.456 or 83.456.',
+      // Événements tab
+      my_events_heading: 'My Events', no_event_yet: 'No event recorded yet — add one below.',
+      ongoing_label: 'Ongoing', upcoming_label: 'Upcoming', past_label: 'Past', discover_events_heading: 'Discover Events',
+      no_event: 'No event.', event_count_suffix: ' event', events_count_suffix: ' events',
+      riders_unspecified: 'Riders not specified', close: 'Close',
+      team_label: 'Team', organizer_label: 'Organizer', dates_label: 'Dates', note_label: 'Note',
+      book_register: 'Book / Register ↗', how_was_it: 'How did this event go?',
+      groups_horaires_this_event: 'Groups & schedule for this outing', circuit_map_heading: 'Circuit map',
+      modify: 'Edit',
+      vis_public: 'Public', vis_adherent: 'Adherents only', vis_membre: 'Members only', vis_follower: 'Followers only', vis_ouvert: 'Open',
+      months: ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'],
+      weekday_letters: ['M', 'T', 'W', 'T', 'F', 'S', 'S'],
+      weekday_names: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'],
+      my_calendar_heading: 'My calendar', zoom_hint: 'Tip: swipe left/right (or ← → arrows) to change period, pinch with two fingers or Ctrl + wheel to zoom.',
+      previous: 'Previous', next: 'Next', today: 'Today',
+      zoom_year: 'Year', zoom_6month: '6 months', zoom_3month: '3 months', zoom_2month: '2 months', zoom_month: 'Month', zoom_week: 'Week', zoom_day: 'Day',
+      add_event_heading: 'Add an event', edit_event_heading: 'Edit event',
+      new_circuit_warning: 'New circuit -- check it doesn\'t already exist under another name in the list (otherwise its map/history will end up split).',
+      date_start_label: 'Start date', date_end_label: 'End date (optional)',
+      team_organizer_label: 'Organizing Team (optional)', none_personal_event: 'None (personal event)',
+      visibility_label: 'Visibility', vis_public_full: 'Public (visible to everyone, invitation required)', vis_ouvert_full: 'Open (free registration)',
+      teampro_only_help: 'Reserved for Team PRO -- an amateur Team stays visible to its members and invited riders.',
+      booking_url_label: 'Booking link (optional)',
+      booking_url_help: 'Carnet de Piste doesn\'t handle payments -- this link goes to your ticketing site (Billetweb or other) for registration/payment.',
+      more_options_less: '− Fewer options', more_options_more: '+ More options (schedule, riders, organizer...)',
+      horaires_this_event_label: 'Schedule per group (this outing only -- leave blank to use the circuit\'s usual schedule)',
+      organizer_note_label: 'Organizer (if not on the app)', riders_label: 'Riders',
+      riders_search_help: 'Suggestions limited to your friends and your Teams\' members -- pick a name from the list to add it.',
+      remove_label: 'Remove', start_group_label: 'Starting group',
+      managed_from_team: 'Participants and groups are managed from the Team\'s event management screen.'
     }
   };
   function currentLang() {
@@ -5606,8 +5666,8 @@
 
   // ---- Calendrier : sorties planifiées + sessions déjà roulées, en vue année/mois/semaine ----
 
-  var MONTH_NAMES_FR = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
-  var WEEKDAY_LETTERS_FR = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
+  function MONTH_NAMES_FR() { return tr('months'); }
+  function WEEKDAY_LETTERS_FR() { return tr('weekday_letters'); }
 
   // A personal/backfilled sortie (no teamId) is visible to everyone, same
   // as before Team Events existed -- that's what keeps "add my past
@@ -5968,11 +6028,11 @@
     var todayKey = dateKey(new Date());
     var html = '<div class="calendar-nav-card" style="margin-bottom:0.6rem;">' +
       '<button type="button" class="ghost icon-btn" id="discovery-cal-prev" aria-label="Mois précédent">‹</button>' +
-      '<div class="calendar-year-label">' + MONTH_NAMES_FR[month] + ' ' + year + '</div>' +
+      '<div class="calendar-year-label">' + MONTH_NAMES_FR()[month] + ' ' + year + '</div>' +
       '<button type="button" class="ghost icon-btn" id="discovery-cal-next" aria-label="Mois suivant">›</button>' +
       '</div>';
     html += '<div class="cal-month cal-month-large">';
-    html += '<div class="cal-weekdays">' + WEEKDAY_LETTERS_FR.map(function (w) { return '<span>' + w + '</span>'; }).join('') + '</div>';
+    html += '<div class="cal-weekdays">' + WEEKDAY_LETTERS_FR().map(function (w) { return '<span>' + w + '</span>'; }).join('') + '</div>';
     html += '<div class="cal-days cal-days-large">';
     for (var i = 0; i < firstDow; i++) html += '<span class="cal-day cal-day-large empty"></span>';
     for (var d = 1; d <= daysInMonth; d++) {
@@ -5999,8 +6059,8 @@
     var firstDow = (new Date(year, month, 1).getDay() + 6) % 7;
     var daysInMonth = new Date(year, month + 1, 0).getDate();
     var todayKey = dateKey(new Date());
-    var html = '<div class="cal-month"><div class="cal-month-title">' + MONTH_NAMES_FR[month] + '</div>';
-    html += '<div class="cal-weekdays">' + WEEKDAY_LETTERS_FR.map(function (w) { return '<span>' + w + '</span>'; }).join('') + '</div>';
+    var html = '<div class="cal-month"><div class="cal-month-title">' + MONTH_NAMES_FR()[month] + '</div>';
+    html += '<div class="cal-weekdays">' + WEEKDAY_LETTERS_FR().map(function (w) { return '<span>' + w + '</span>'; }).join('') + '</div>';
     html += '<div class="cal-days">';
     for (var i = 0; i < firstDow; i++) html += '<span class="cal-day empty"></span>';
     for (var d = 1; d <= daysInMonth; d++) {
@@ -6134,9 +6194,8 @@
     return new Date(p[0], p[1] - 1, p[2]);
   }
 
-  var WEEKDAY_NAMES_FR = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'];
   function weekdayName(iso) {
-    return WEEKDAY_NAMES_FR[parseLocalDate(iso).getDay()];
+    return tr('weekday_names')[parseLocalDate(iso).getDay()];
   }
 
   function dateKey(date) {
@@ -6175,16 +6234,16 @@
     var e = parseLocalDate(ev.dateEnd || ev.dateStart);
     var yearSuffix = withYear ? ' ' + e.getFullYear() : '';
     if (s.getTime() === e.getTime()) {
-      return s.getDate() + ' ' + MONTH_NAMES_FR[s.getMonth()].toLowerCase() + yearSuffix;
+      return s.getDate() + ' ' + MONTH_NAMES_FR()[s.getMonth()].toLowerCase() + yearSuffix;
     }
     if (s.getMonth() === e.getMonth() && s.getFullYear() === e.getFullYear()) {
-      return s.getDate() + '-' + e.getDate() + ' ' + MONTH_NAMES_FR[e.getMonth()].toLowerCase() + yearSuffix;
+      return s.getDate() + '-' + e.getDate() + ' ' + MONTH_NAMES_FR()[e.getMonth()].toLowerCase() + yearSuffix;
     }
     if (s.getFullYear() === e.getFullYear()) {
-      return s.getDate() + ' ' + MONTH_NAMES_FR[s.getMonth()].toLowerCase() + ' - ' + e.getDate() + ' ' + MONTH_NAMES_FR[e.getMonth()].toLowerCase() + yearSuffix;
+      return s.getDate() + ' ' + MONTH_NAMES_FR()[s.getMonth()].toLowerCase() + ' - ' + e.getDate() + ' ' + MONTH_NAMES_FR()[e.getMonth()].toLowerCase() + yearSuffix;
     }
-    return s.getDate() + ' ' + MONTH_NAMES_FR[s.getMonth()].toLowerCase() + ' ' + s.getFullYear() +
-      ' - ' + e.getDate() + ' ' + MONTH_NAMES_FR[e.getMonth()].toLowerCase() + ' ' + e.getFullYear();
+    return s.getDate() + ' ' + MONTH_NAMES_FR()[s.getMonth()].toLowerCase() + ' ' + s.getFullYear() +
+      ' - ' + e.getDate() + ' ' + MONTH_NAMES_FR()[e.getMonth()].toLowerCase() + ' ' + e.getFullYear();
   }
 
   function eventCircuitById(id) {
@@ -6298,10 +6357,12 @@
     else if (calendarViewMode === '2month') html += renderMultiMonthGrid(2, eventInfo, sessionsMap);
     else html += renderYearGrid(eventInfo, sessionsMap);
     if (selectedSessionDate) html += renderSessionDayCard(selectedSessionDate);
-    return collapsibleCard('events-calendar', 'Mon calendrier', html, false);
+    return collapsibleCard('events-calendar', tr('my_calendar_heading'), html, false);
   }
 
-  var ZOOM_LEVEL_LABELS = { year: 'Année', '6month': '6 mois', '3month': '3 mois', '2month': '2 mois', month: 'Mois', week: 'Semaine', day: 'Jour' };
+  function ZOOM_LEVEL_LABELS() {
+    return { year: tr('zoom_year'), '6month': tr('zoom_6month'), '3month': tr('zoom_3month'), '2month': tr('zoom_2month'), month: tr('zoom_month'), week: tr('zoom_week'), day: tr('zoom_day') };
+  }
 
   // Explicit buttons for picking the calendar's zoom level -- pinch/Ctrl+
   // wheel gestures (see the hint below) still work too, but aren't
@@ -6309,14 +6370,14 @@
   function renderCalendarViewSwitcher() {
     var html = '<div class="calendar-view-switcher">';
     ZOOM_LEVELS.forEach(function (mode) {
-      html += '<button type="button" class="calendar-view-btn' + (calendarViewMode === mode ? ' active' : '') + '" data-calendar-view="' + mode + '">' + ZOOM_LEVEL_LABELS[mode] + '</button>';
+      html += '<button type="button" class="calendar-view-btn' + (calendarViewMode === mode ? ' active' : '') + '" data-calendar-view="' + mode + '">' + ZOOM_LEVEL_LABELS()[mode] + '</button>';
     });
     html += '</div>';
     return html;
   }
 
   function renderCalendarZoomHint() {
-    return '<div class="calendar-zoom-hint">Astuce : glissez à gauche/droite (ou flèches ← →) pour changer de période, pincez à deux doigts ou Ctrl + molette pour zoomer.</div>';
+    return '<div class="calendar-zoom-hint">' + tr('zoom_hint') + '</div>';
   }
 
   // How many consecutive months a given mode shows — 'year' is the one
@@ -6340,12 +6401,12 @@
       return shortDayMonth(monday) + ' – ' + shortDayMonth(sunday) + ' ' + sunday.getFullYear();
     }
     var count = monthsCountForMode(calendarViewMode);
-    if (count === 1) return MONTH_NAMES_FR[d.getMonth()] + ' ' + d.getFullYear();
+    if (count === 1) return MONTH_NAMES_FR()[d.getMonth()] + ' ' + d.getFullYear();
     var end = new Date(d.getFullYear(), d.getMonth() + count - 1, 1);
     if (d.getFullYear() === end.getFullYear()) {
-      return MONTH_NAMES_FR[d.getMonth()] + ' - ' + MONTH_NAMES_FR[end.getMonth()] + ' ' + d.getFullYear();
+      return MONTH_NAMES_FR()[d.getMonth()] + ' - ' + MONTH_NAMES_FR()[end.getMonth()] + ' ' + d.getFullYear();
     }
-    return MONTH_NAMES_FR[d.getMonth()] + ' ' + d.getFullYear() + ' - ' + MONTH_NAMES_FR[end.getMonth()] + ' ' + end.getFullYear();
+    return MONTH_NAMES_FR()[d.getMonth()] + ' ' + d.getFullYear() + ' - ' + MONTH_NAMES_FR()[end.getMonth()] + ' ' + end.getFullYear();
   }
 
   function calendarNavStep(delta) {
@@ -6372,10 +6433,10 @@
   function renderCalendarNav() {
     return (
       '<div class="card calendar-nav-card">' +
-        '<button type="button" class="ghost icon-btn" id="cal-prev" aria-label="Précédent">‹</button>' +
+        '<button type="button" class="ghost icon-btn" id="cal-prev" aria-label="' + tr('previous') + '">‹</button>' +
         '<div class="calendar-year-label">' + calendarNavLabel() + '</div>' +
-        '<button type="button" class="ghost icon-btn" id="cal-next" aria-label="Suivant">›</button>' +
-        '<button type="button" class="ghost" id="cal-today">Aujourd\'hui</button>' +
+        '<button type="button" class="ghost icon-btn" id="cal-next" aria-label="' + tr('next') + '">›</button>' +
+        '<button type="button" class="ghost" id="cal-today">' + tr('today') + '</button>' +
       '</div>'
     );
   }
@@ -6408,8 +6469,8 @@
     var firstDow = (new Date(year, month, 1).getDay() + 6) % 7; // Monday = 0
     var daysInMonth = new Date(year, month + 1, 0).getDate();
     var todayKey = dateKey(new Date());
-    var html = '<div class="cal-month"><div class="cal-month-title">' + MONTH_NAMES_FR[month] + '</div>';
-    html += '<div class="cal-weekdays">' + WEEKDAY_LETTERS_FR.map(function (w) { return '<span>' + w + '</span>'; }).join('') + '</div>';
+    var html = '<div class="cal-month"><div class="cal-month-title">' + MONTH_NAMES_FR()[month] + '</div>';
+    html += '<div class="cal-weekdays">' + WEEKDAY_LETTERS_FR().map(function (w) { return '<span>' + w + '</span>'; }).join('') + '</div>';
     html += '<div class="cal-days">';
     for (var i = 0; i < firstDow; i++) html += '<span class="cal-day empty"></span>';
     for (var d = 1; d <= daysInMonth; d++) {
@@ -6443,7 +6504,7 @@
     var daysInMonth = new Date(year, month + 1, 0).getDate();
     var todayKey = dateKey(new Date());
     var html = '<div class="card calendar-grid-card"><div class="cal-month cal-month-large">';
-    html += '<div class="cal-weekdays">' + WEEKDAY_LETTERS_FR.map(function (w) { return '<span>' + w + '</span>'; }).join('') + '</div>';
+    html += '<div class="cal-weekdays">' + WEEKDAY_LETTERS_FR().map(function (w) { return '<span>' + w + '</span>'; }).join('') + '</div>';
     html += '<div class="cal-days cal-days-large">';
     for (var i = 0; i < firstDow; i++) html += '<span class="cal-day cal-day-large empty"></span>';
     for (var d = 1; d <= daysInMonth; d++) {
@@ -6518,7 +6579,7 @@
       if (key === todayKey) classes += ' today';
       var clickable = !!cell || (sessions && sessions.length);
       html += '<div class="' + (clickable ? 'calendar-cell ' : '') + classes + '"' + (clickable ? ' data-date="' + key + '"' : '') + (cell ? ' data-event-id="' + cell.eventId + '"' : '') + '>';
-      html += '<div class="cal-week-day-head">' + WEEKDAY_LETTERS_FR[i] + ' ' + d.getDate() + '</div>';
+      html += '<div class="cal-week-day-head">' + WEEKDAY_LETTERS_FR()[i] + ' ' + d.getDate() + '</div>';
       if (cell) {
         var ev = eventsList().filter(function (e) { return e.id === cell.eventId; })[0];
         if (ev) {
@@ -6808,28 +6869,28 @@
   function renderEventSummaryCard(ev, opts) {
     opts = opts || {};
     var html = '<div class="card event-detail-card">';
-    html += '<div class="event-detail-header"><h3>' + escapeHtml(ev.circuit) + '</h3><button type="button" class="ghost icon-btn" id="close-event-detail" aria-label="Fermer">×</button></div>';
+    html += '<div class="event-detail-header"><h3>' + escapeHtml(ev.circuit) + '</h3><button type="button" class="ghost icon-btn" id="close-event-detail" aria-label="' + tr('close') + '">×</button></div>';
     if (ev.teamId) {
       var evTeam = teamById(ev.teamId);
-      var visLabels = { public: 'Public', adherent: 'Adhérent only', membre: 'Membre only', follower: 'Followers only', ouvert: 'Ouvert' };
-      html += infoRow('Team', (evTeam ? escapeHtml(evTeam.name) + teamBadgesHtml(evTeam) : '—') +
-        (evTeam && evTeam.teamPro ? ' <span class="friend-role-badge">' + (visLabels[ev.eventVisibility] || 'Membre only') + '</span>' : ''));
+      var visLabels = { public: tr('vis_public'), adherent: tr('vis_adherent'), membre: tr('vis_membre'), follower: tr('vis_follower'), ouvert: tr('vis_ouvert') };
+      html += infoRow(tr('team_label'), (evTeam ? escapeHtml(evTeam.name) + teamBadgesHtml(evTeam) : '—') +
+        (evTeam && evTeam.teamPro ? ' <span class="friend-role-badge">' + (visLabels[ev.eventVisibility] || tr('vis_membre')) + '</span>' : ''));
     } else if (ev.organizerNote) {
-      html += infoRow('Organisateur', escapeHtml(ev.organizerNote));
+      html += infoRow(tr('organizer_label'), escapeHtml(ev.organizerNote));
     }
-    html += infoRow('Circuit', escapeHtml(ev.circuit));
-    html += infoRow('Dates', escapeHtml(formatEventRange(ev, true)));
-    if (ev.note) html += infoRow('Note', escapeHtml(ev.note));
+    html += infoRow(tr('circuit_label'), escapeHtml(ev.circuit));
+    html += infoRow(tr('dates_label'), escapeHtml(formatEventRange(ev, true)));
+    if (ev.note) html += infoRow(tr('note_label'), escapeHtml(ev.note));
     // Carnet de Piste ne gère pas les paiements/réservations -- ce lien
     // renvoie vers l'outil de billetterie du Team (Billetweb ou autre),
     // jamais une inscription gérée ici.
-    if (ev.bookingUrl) html += '<div style="margin-top:0.6rem;"><button type="button" class="primary" data-action="open-external-url" data-url="' + escapeHtml(ev.bookingUrl) + '">Réserver / S\'inscrire ↗</button></div>';
+    if (ev.bookingUrl) html += '<div style="margin-top:0.6rem;"><button type="button" class="primary" data-action="open-external-url" data-url="' + escapeHtml(ev.bookingUrl) + '">' + tr('book_register') + '</button></div>';
     // Once the event is over, its own rider can react with an emoji --
     // the lightweight "on a kiffé" ask (see maybeNotifyEndedEvents), never
     // a text/photo comment thread.
     if (currentUserProfile && (ev.riders || []).indexOf(currentUserProfile.name) !== -1
       && eventTemporalStatus(ev, dateKey(new Date())) === 'past') {
-      html += '<div style="margin-top:0.6rem;"><div class="help-text">Comment s\'est passé cet event ?</div>' + renderReactionBar(ev.reactions, 'react-event', ev.id) + '</div>';
+      html += '<div style="margin-top:0.6rem;"><div class="help-text">' + tr('how_was_it') + '</div>' + renderReactionBar(ev.reactions, 'react-event', ev.id) + '</div>';
     }
     // No full roster/groups here any more -- only what's the connected
     // account's own (+ friends'), per "seuls les renseignements du user +
@@ -6852,17 +6913,17 @@
       var pastHoraires = eventHoraires(ev);
       if (pastHoraires) {
         var pastGroups = renderHoraireGroups(pastHoraires, null, ev, pastInfo.briefing, false);
-        if (pastGroups) html += collapsibleSection('event-past-horaires-' + ev.id, 'Groupes & horaires de cette sortie', pastGroups, false);
+        if (pastGroups) html += collapsibleSection('event-past-horaires-' + ev.id, tr('groups_horaires_this_event'), pastGroups, false);
       }
     }
     html += renderEventCertificationSection(ev);
     html += renderMediaLinkSection(ev);
     // The circuit's own interactive map, so the annotated track is one tap
     // away from the sortie it belongs to, not just reachable from Circuit.
-    html += '<div class="event-circuit-map"><div class="event-checklist-title">Carte du circuit</div>' + renderCircuitVisual(circuitInfo(ev.circuit), ev.circuit, ev.id) + '</div>';
+    html += '<div class="event-circuit-map"><div class="event-checklist-title">' + tr('circuit_map_heading') + '</div>' + renderCircuitVisual(circuitInfo(ev.circuit), ev.circuit, ev.id) + '</div>';
     // The équipement checklist (with its count) lives entirely in
     // Planning now -- Événements stays simple and informative.
-    html += '<div class="event-detail-actions"><button type="button" class="ghost" id="edit-event-btn" data-id="' + ev.id + '">Modifier</button></div>';
+    html += '<div class="event-detail-actions"><button type="button" class="ghost" id="edit-event-btn" data-id="' + ev.id + '">' + tr('modify') + '</button></div>';
     html += '</div>';
     return html;
   }
@@ -7030,7 +7091,7 @@
     // past sortie where it's just a stale "0/43".
     html += '<span class="event-row-dates">' + escapeHtml(formatEventRange(ev)) + '</span></div>';
     if (!opts.hideRiders) {
-      html += '<div class="event-row-riders">' + ((ev.riders && ev.riders.length) ? escapeHtml(ev.riders.join(', ')) : 'Pilotes non précisés') + '</div>';
+      html += '<div class="event-row-riders">' + ((ev.riders && ev.riders.length) ? escapeHtml(ev.riders.join(', ')) : tr('riders_unspecified')) + '</div>';
     }
     html += '</div>';
     if (isOpen) {
@@ -7041,7 +7102,7 @@
 
   function renderEventGroupCard(title, events, opts) {
     opts = opts || {};
-    var body = !events.length ? '<div class="empty-state">Aucun événement.</div>' :
+    var body = !events.length ? '<div class="empty-state">' + tr('no_event') + '</div>' :
       events.map(function (ev) { return renderEventRow(ev, opts); }).join('');
     if (opts.collapseKey) return collapsibleCard(opts.collapseKey, title, body, opts.defaultOpen);
     return '<div class="card events-list-card"><h2 class="section-title">' + escapeHtml(title) + '</h2>' + body + '</div>';
@@ -7057,7 +7118,7 @@
   // first) instead of one long flat list -- opening a year reveals its
   // sorties in place, same accordion row as everywhere else.
   function renderPastEventsCard(past) {
-    if (!past.length) return collapsibleCard('events-past', 'Passés', '<div class="empty-state">Aucun événement.</div>', false);
+    if (!past.length) return collapsibleCard('events-past', tr('past_label'), '<div class="empty-state">' + tr('no_event') + '</div>', false);
     var byYear = {};
     past.forEach(function (ev) {
       var year = (ev.dateStart || '').slice(0, 4) || '—';
@@ -7073,7 +7134,7 @@
       body += '<button type="button" class="past-year-toggle" data-past-year="' + escapeHtml(year) + '" aria-expanded="' + (isExpanded ? 'true' : 'false') + '">' +
         '<span class="past-year-chevron">' + (isExpanded ? '▾' : '▸') + '</span>' +
         '<span class="past-year-label">' + escapeHtml(year) + '</span>' +
-        '<span class="past-year-count">' + yearEvents.length + ' événement' + (yearEvents.length > 1 ? 's' : '') + '</span>' +
+        '<span class="past-year-count">' + yearEvents.length + (yearEvents.length > 1 ? tr('events_count_suffix') : tr('event_count_suffix')) + '</span>' +
         '</button>';
       if (isExpanded) {
         body += '<div class="past-year-body">';
@@ -7082,7 +7143,7 @@
       }
       body += '</div>';
     });
-    return collapsibleCard('events-past', 'Passés', body, false);
+    return collapsibleCard('events-past', tr('past_label'), body, false);
   }
 
   // Two clear categories now: "Mes Événements" (En cours/À venir/Mon
@@ -7110,15 +7171,15 @@
     ongoing.sort(function (a, b) { return a.dateStart < b.dateStart ? -1 : a.dateStart > b.dateStart ? 1 : 0; });
     upcoming.sort(function (a, b) { return a.dateStart < b.dateStart ? -1 : a.dateStart > b.dateStart ? 1 : 0; });
     past.sort(function (a, b) { return a.dateStart < b.dateStart ? 1 : a.dateStart > b.dateStart ? -1 : 0; });
-    var html = '<h2 class="section-title">Mes Événements</h2>';
+    var html = '<h2 class="section-title">' + tr('my_events_heading') + '</h2>';
     if (!ongoing.length && !upcoming.length && !past.length) {
-      html += '<div class="card"><div class="empty-state">' + (coreDataLoading() ? 'Chargement...' : 'Aucun événement enregistré — ajoutez-en un ci-dessous.') + '</div></div>';
+      html += '<div class="card"><div class="empty-state">' + (coreDataLoading() ? tr('loading') : tr('no_event_yet')) + '</div></div>';
     } else {
-      if (ongoing.length) html += renderEventGroupCard('En cours', ongoing, { collapseKey: 'events-ongoing', defaultOpen: true });
+      if (ongoing.length) html += renderEventGroupCard(tr('ongoing_label'), ongoing, { collapseKey: 'events-ongoing', defaultOpen: true });
       // Upcoming defaults open only when nothing's ongoing -- whichever of
       // the two actually has something to show for right now is the one
       // that shouldn't need an extra click.
-      html += renderEventGroupCard('À venir', upcoming, { collapseKey: 'events-upcoming', defaultOpen: !ongoing.length });
+      html += renderEventGroupCard(tr('upcoming_label'), upcoming, { collapseKey: 'events-upcoming', defaultOpen: !ongoing.length });
     }
     html += renderCalendarSection();
     // Only the "+ Ajouter" prompt (or its own open form, editingEventId
@@ -7130,7 +7191,7 @@
     html += (editingEventId === null || editingEventId === 'new') ? renderEventForm() : addEventTeaserCard();
     html += renderPastEventsCard(past);
     var discovery = renderProEventDiscovery(me);
-    if (discovery) html += '<h2 class="section-title" style="margin-top:1.4rem;">Découvrir des Événements</h2>' + discovery;
+    if (discovery) html += '<h2 class="section-title" style="margin-top:1.4rem;">' + tr('discover_events_heading') + '</h2>' + discovery;
     return html;
   }
 
@@ -8152,7 +8213,7 @@
       eventFormMoreOptionsFor = editingEventId;
     }
     var html = '<div class="card">';
-    html += '<h2 class="section-title">' + (isNew ? 'Ajouter un événement' : 'Modifier l\'événement') + '</h2>';
+    html += '<h2 class="section-title">' + (isNew ? tr('add_event_heading') : tr('edit_event_heading')) + '</h2>';
     html += '<form id="event-form" novalidate>';
     html += '<div class="field-row">';
     // A plain text input with a <datalist> already lets someone pick an
@@ -8165,12 +8226,12 @@
     // could never cover an actually-new circuit.
     var knownCircuitsForWarning = allCircuits();
     var circuitMismatch = !!(ev.circuit && knownCircuitsForWarning.indexOf(ev.circuit) === -1);
-    html += '<div><label for="ev-circuit">Circuit</label>' +
+    html += '<div><label for="ev-circuit">' + tr('circuit_label') + '</label>' +
       '<input type="text" id="ev-circuit" list="circuit-options-ev" placeholder="Ex. Jerez" value="' + escapeHtml(ev.circuit || '') + '" required>' +
       '<datalist id="circuit-options-ev">' + circuitDatalist() + '</datalist>' +
-      '<div class="field-warning' + (circuitMismatch ? ' visible' : '') + '" id="ev-circuit-warning">Nouveau circuit -- vérifie qu\'il n\'existe pas déjà sous un autre nom dans la liste (sinon son plan/historique resteront séparés).</div></div>';
-    html += '<div><label for="ev-date-start">Date de début</label><input type="text" id="ev-date-start" inputmode="numeric" placeholder="JJ/MM/AAAA" value="' + isoToFrDate(ev.dateStart) + '" required></div>';
-    html += '<div><label for="ev-date-end">Date de fin (optionnel)</label><input type="text" id="ev-date-end" inputmode="numeric" placeholder="JJ/MM/AAAA" value="' + isoToFrDate(ev.dateEnd) + '"></div>';
+      '<div class="field-warning' + (circuitMismatch ? ' visible' : '') + '" id="ev-circuit-warning">' + tr('new_circuit_warning') + '</div></div>';
+    html += '<div><label for="ev-date-start">' + tr('date_start_label') + '</label><input type="text" id="ev-date-start" inputmode="numeric" placeholder="JJ/MM/AAAA" value="' + isoToFrDate(ev.dateStart) + '" required></div>';
+    html += '<div><label for="ev-date-end">' + tr('date_end_label') + '</label><input type="text" id="ev-date-end" inputmode="numeric" placeholder="JJ/MM/AAAA" value="' + isoToFrDate(ev.dateEnd) + '"></div>';
     html += '</div>';
     // A Team Event is "owned" by whichever Team leads it -- only teams
     // this account actually leads are offered, per "un event doit être
@@ -8180,25 +8241,25 @@
     var ledTeamsForEvent = (STATE.myTeamMemberships || []).filter(function (m) { return m.role === 'leader'; })
       .map(function (m) { return teamById(m.teamId); }).filter(Boolean);
     if (ledTeamsForEvent.length) {
-      html += '<div style="margin-top:0.9rem;"><label for="ev-team">Team organisateur (optionnel)</label>' +
-        '<select id="ev-team"><option value="">Aucun (événement personnel)</option>' +
+      html += '<div style="margin-top:0.9rem;"><label for="ev-team">' + tr('team_organizer_label') + '</label>' +
+        '<select id="ev-team"><option value="">' + tr('none_personal_event') + '</option>' +
         ledTeamsForEvent.map(function (t) {
           return '<option value="' + t.id + '"' + (ev.teamId === t.id ? ' selected' : '') + '>' + escapeHtml(t.name) + (t.teamPro ? ' (PRO)' : '') + '</option>';
         }).join('') + '</select></div>';
       var selectedTeam = ev.teamId ? teamById(ev.teamId) : null;
       html += '<div id="ev-visibility-wrap" style="margin-top:0.9rem; display:' + (selectedTeam && selectedTeam.teamPro ? 'block' : 'none') + ';">' +
-        '<label for="ev-visibility">Visibilité</label>' +
+        '<label for="ev-visibility">' + tr('visibility_label') + '</label>' +
         '<select id="ev-visibility">' +
-        '<option value="membre"' + (ev.eventVisibility === 'membre' ? ' selected' : '') + '>Membre only</option>' +
-        '<option value="adherent"' + (ev.eventVisibility === 'adherent' ? ' selected' : '') + '>Adhérent only</option>' +
-        '<option value="follower"' + (ev.eventVisibility === 'follower' ? ' selected' : '') + '>Followers only</option>' +
-        '<option value="public"' + (ev.eventVisibility === 'public' ? ' selected' : '') + '>Public (visible par tous, invitation requise)</option>' +
-        '<option value="ouvert"' + (ev.eventVisibility === 'ouvert' ? ' selected' : '') + '>Ouvert (inscription libre)</option>' +
+        '<option value="membre"' + (ev.eventVisibility === 'membre' ? ' selected' : '') + '>' + tr('vis_membre') + '</option>' +
+        '<option value="adherent"' + (ev.eventVisibility === 'adherent' ? ' selected' : '') + '>' + tr('vis_adherent') + '</option>' +
+        '<option value="follower"' + (ev.eventVisibility === 'follower' ? ' selected' : '') + '>' + tr('vis_follower') + '</option>' +
+        '<option value="public"' + (ev.eventVisibility === 'public' ? ' selected' : '') + '>' + tr('vis_public_full') + '</option>' +
+        '<option value="ouvert"' + (ev.eventVisibility === 'ouvert' ? ' selected' : '') + '>' + tr('vis_ouvert_full') + '</option>' +
         '</select>' +
-        '<div class="help-text">Réservé aux Teams PRO -- un Team amateur reste visible par ses membres et les pilotes invités.</div>' +
-        '<label for="ev-booking-url" style="margin-top:0.7rem;">Lien de réservation (optionnel)</label>' +
+        '<div class="help-text">' + tr('teampro_only_help') + '</div>' +
+        '<label for="ev-booking-url" style="margin-top:0.7rem;">' + tr('booking_url_label') + '</label>' +
         '<input type="url" id="ev-booking-url" placeholder="Ex. https://www.billetweb.fr/..." value="' + escapeHtml(ev.bookingUrl || '') + '">' +
-        '<div class="help-text">Carnet de Piste ne gère pas les paiements -- ce lien renvoie vers ta billetterie (Billetweb ou autre) pour l\'inscription/le paiement.</div>' +
+        '<div class="help-text">' + tr('booking_url_help') + '</div>' +
         '</div>';
     }
     // "Ajout rapide" -- horaires/pilotes/organisateur tucked behind one
@@ -8208,7 +8269,7 @@
     // whatever's mid-typed in circuit/dates above never gets wiped by
     // opening this panel.
     html += '<button type="button" class="ghost" id="ev-more-options-toggle" style="margin-top:0.9rem;">' +
-      (eventFormMoreOptionsOpen ? '− Moins d\'options' : '+ Plus d\'options (horaires, pilotes, organisateur...)') + '</button>';
+      (eventFormMoreOptionsOpen ? tr('more_options_less') : tr('more_options_more')) + '</button>';
     html += '<div id="ev-more-options" style="display:' + (eventFormMoreOptionsOpen ? 'block' : 'none') + ';">';
     // Per-event override, stored on the event itself (ev.horairesOverride),
     // NOT on the circuit's shared "horaires habituels" (admin-only, see
@@ -8221,7 +8282,7 @@
     // the renderHoraireGroups call sites), so this is purely an
     // exception for a specific sortie's unusual schedule.
     var evHorairesVal = ev.horairesOverride || {};
-    html += '<div style="margin-top:0.9rem;"><label>Horaires par groupe (cette sortie -- laisser vide pour utiliser les horaires habituels du circuit)</label><div class="horaires-grid">';
+    html += '<div style="margin-top:0.9rem;"><label>' + tr('horaires_this_event_label') + '</label><div class="horaires-grid">';
     HORAIRES_GROUPS.forEach(function (g) {
       if (g.key === 'groupR' && ev.circuit !== 'Mugello' && !evHorairesVal.groupR) return;
       html += '<div><label for="ev-horaires-' + g.key + '" class="horaires-sublabel">' + escapeHtml(g.label) + '</label>' +
@@ -8239,7 +8300,7 @@
       // events should never be blocked on "their club must exist here
       // first") -- free text, purely descriptive, no link to any real
       // Team doc.
-      html += '<div style="margin-top:0.9rem;"><label for="ev-organizer-note">Organisateur (si absent de l\'app)</label>' +
+      html += '<div style="margin-top:0.9rem;"><label for="ev-organizer-note">' + tr('organizer_note_label') + '</label>' +
         '<input type="text" id="ev-organizer-note" placeholder="Ex. Circuit Paul Ricard, club non inscrit..." value="' + escapeHtml(ev.organizerNote || '') + '"></div>';
       // Search-and-add instead of a comma-typed list -- pick a name from
       // the datalist (friends + teammates, see riderDatalistForEventForm)
@@ -8250,26 +8311,26 @@
         eventFormRidersDraft = (ev.riders || []).slice();
         eventFormRidersDraftFor = editingEventId;
       }
-      html += '<label for="ev-riders-search" style="margin-top:0.9rem; display:block;">Pilotes</label>' +
+      html += '<label for="ev-riders-search" style="margin-top:0.9rem; display:block;">' + tr('riders_label') + '</label>' +
         '<input type="text" id="ev-riders-search" list="rider-options-ev" placeholder="Rechercher un nom..." autocomplete="off">' +
-        '<div class="help-text">Suggestions limitées à tes amis et aux membres de tes Teams -- choisis un nom dans la liste pour l\'ajouter.</div>' +
+        '<div class="help-text">' + tr('riders_search_help') + '</div>' +
         '<datalist id="rider-options-ev">' + riderDatalistForEventForm(eventFormRidersDraft) + '</datalist>';
       html += '<div class="chip-row" style="margin-top:0.5rem;">' + eventFormRidersDraft.map(function (r) {
         return '<span class="team-link-chip" style="display:inline-flex; align-items:center; gap:0.4rem;">' + escapeHtml(r) +
-          '<button type="button" class="ghost icon-btn" data-action="ev-rider-remove" data-name="' + escapeHtml(r) + '" aria-label="Retirer" style="padding:0;">×</button></span>';
+          '<button type="button" class="ghost icon-btn" data-action="ev-rider-remove" data-name="' + escapeHtml(r) + '" aria-label="' + tr('remove_label') + '" style="padding:0;">×</button></span>';
       }).join('') + '</div>';
       html += '<input type="hidden" id="ev-riders" value="' + escapeHtml(eventFormRidersDraft.join(',')) + '">';
-      html += '<div class="event-checklist" style="margin-top:0.9rem;"><div class="event-checklist-title">Groupe de départ</div><div id="ev-groups-grid">' +
+      html += '<div class="event-checklist" style="margin-top:0.9rem;"><div class="event-checklist-title">' + tr('start_group_label') + '</div><div id="ev-groups-grid">' +
         renderEventFormGroupsGrid(eventFormRidersDraft) + '</div></div>';
     } else {
-      html += '<div class="help-text" style="margin-top:0.9rem;">Participants et groupes se gèrent depuis la Gestion des événements du Team.</div>';
+      html += '<div class="help-text" style="margin-top:0.9rem;">' + tr('managed_from_team') + '</div>';
     }
     html += '</div>';
-    html += '<div style="margin-top:0.9rem;"><label for="ev-note">Note (optionnel)</label><input type="text" id="ev-note" placeholder="Ex. Inscriptions avant le 1er septembre" value="' + escapeHtml(ev.note || '') + '"></div>';
+    html += '<div style="margin-top:0.9rem;"><label for="ev-note">' + tr('note_optional') + '</label><input type="text" id="ev-note" placeholder="Ex. Inscriptions avant le 1er septembre" value="' + escapeHtml(ev.note || '') + '"></div>';
     html += '<div class="field-error" id="event-form-error"></div>';
     html += '<div style="margin-top:0.9rem; display:flex; gap:0.6rem;">' +
-      '<button type="submit" class="primary">Enregistrer</button>' +
-      '<button type="button" class="ghost" id="cancel-event-btn">Annuler</button>' +
+      '<button type="submit" class="primary">' + tr('save') + '</button>' +
+      '<button type="button" class="ghost" id="cancel-event-btn">' + tr('cancel') + '</button>' +
       '</div>';
     html += '</form>';
     // Deleting only lives here now, inside Modifier -- a deliberate two-
