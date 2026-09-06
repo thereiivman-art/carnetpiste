@@ -330,7 +330,73 @@
       delete_account_aria: 'Supprimer ce compte', revoke_access_title: 'Retirer l\'accès',
       team_management_heading: 'Gestion des Teams', created_by_prefix: 'créé par ',
       remove_team_pro: 'Retirer Team PRO', mark_team_pro: 'Marquer Team PRO',
-      delete_team_irreversible_prefix: 'Supprimer "', delete_team_irreversible_suffix: '" est irréversible. Confirme avec ton mot de passe actuel.'
+      delete_team_irreversible_prefix: 'Supprimer "', delete_team_irreversible_suffix: '" est irréversible. Confirme avec ton mot de passe actuel.',
+      error_prefix: 'Erreur : ',
+      request_sent_to_prefix: 'Demande envoyée à ', now_friends: 'Vous êtes maintenant amis.',
+      request_already_exists: 'Une demande de ce type existe déjà avec ce compte.',
+      bapteme_proposal_sent_prefix: 'Proposition de baptême piste envoyée à ', coaching_request_sent_prefix: 'Demande de coaching envoyée à ',
+      request_accepted: 'Demande acceptée.', invalid_slot: 'Créneau invalide.', choose_valid_slot: 'Choisis un créneau valide.',
+      new_time_proposed: 'Nouvel horaire proposé.',
+      team_created_prefix: 'Team "', team_created_suffix: '" créée.',
+      invitation_sent_to_prefix: 'Invitation envoyée à ',
+      welcome_to_prefix: 'Bienvenue dans "', quote_close_period: '".',
+      team_needs_leader: 'Impossible : ce Team doit toujours garder au moins un Team Leader.',
+      adherent_request_sent: 'Demande d\'adhésion envoyée.', joined_suffix: ' a rejoint ',
+      poll_min_requirements: 'Une question et au moins 2 options sont nécessaires pour un sondage.',
+      presentation_saved: 'Présentation enregistrée.', partners_saved: 'Partenaires enregistrés.',
+      cannot_read_image: 'Impossible de lire cette image.',
+      image_too_large_detailed: 'Cette image reste trop volumineuse même compressée -- réessaie avec une image moins chargée en détails.',
+      team_deleted: 'Team supprimé.', chrono_modified: 'Chrono modifié.',
+      team_migration_error_prefix: 'Erreur de migration Team : ', partial_migration_prefix: 'Migration partielle : ',
+      email_updated_verify: 'Email mis à jour — vérifie ta boîte mail pour confirmer la nouvelle adresse.',
+      rider_added: 'Pilote ajouté.', rider_renamed: 'Pilote renommé.', rider_deleted: 'Pilote supprimé.',
+      chrono_verified: 'Chrono vérifié.', already_landscape: 'Déjà en mode paysage.', nothing_to_undo: 'Rien à annuler.',
+      annotation_saved: 'Annotation enregistrée.', you_joined_prefix: 'Tu as rejoint "',
+      request_sent_plain: 'Demande envoyée.', joined_event_suffix: ' a rejoint l\'événement.',
+      travel_info_saved: 'Infos de voyage enregistrées.', message_cannot_be_empty: 'Le message ne peut pas être vide.',
+      account_created_verify: 'Compte créé — vérifie ton email pour continuer.',
+      reset_email_sent_prefix: 'Email de réinitialisation envoyé à ', email_resent_to_prefix: 'Email renvoyé à ',
+      address_copied: 'Adresse copiée.', cannot_copy_manual: 'Impossible de copier — copie-la manuellement.',
+      notifications_enabled: 'Notifications activées.', notifications_disabled: 'Notifications désactivées.',
+      now_rider_suffix: ' est maintenant Pilote.', access_removed: 'Accès retiré.',
+      now_prefix: ' est maintenant ', no_longer_prefix: ' n\'est plus ',
+      choose_pseudo_from_list: 'Choisis un pseudo dans la liste proposée.', indicate_account: 'Indique un compte.',
+      account_not_found_prefix: 'Compte introuvable : "', choose_image_file: 'Choisis un fichier image.',
+      photo_too_large_after_compression: 'Cette photo est trop volumineuse même après compression.',
+      add_text_link_photo: 'Ajoute au moins un texte, un lien ou une photo.',
+      photo_too_large_recrop: 'Cette photo est trop volumineuse même après compression — recadre-la ou prends-en une capture d\'écran partielle.',
+      map_too_large_recrop: 'Ce plan est trop volumineux même après compression — recadre-le ou prends-en une capture d\'écran partielle.',
+      role_saved: 'Rôle enregistré.', number_saved: 'N° enregistré.', planning_saved: 'Planning enregistré.',
+      choose_rider_or_companion_list: 'Choisis un pilote ou un accompagnant dans la liste proposée.',
+      choose_rider_list: 'Choisis un pilote dans la liste proposée.',
+      referral_link_copied: 'Lien de parrainage copié.', cannot_copy_manual_link_prefix: 'Impossible de copier — copie-le manuellement : ',
+      recap_copied: 'Récap copié — colle-le où tu veux.', cannot_copy_recap: 'Impossible de copier le récap.',
+      new_personal_record_prefix: 'Nouveau record personnel sur ', exclaim_suffix: ' !',
+      chrono_saved: 'Chrono enregistré.',
+      db_connection_lost: 'Connexion à la base de données perdue — vérifie ta connexion et recharge la page.',
+      save_failed_retry: 'La sauvegarde a échoué — réessayez.',
+      indicate_current_password_confirm: 'Indique ton mot de passe actuel pour confirmer.',
+      pseudo_rename_once_month_prefix: 'Un seul changement de pseudo par mois -- possible à nouveau le ',
+      profile_saved: 'Profil enregistré.', feedback_thanks: 'Merci, ton retour a bien été envoyé !',
+      indicate_new_email_password: 'Indique le nouvel email et ton mot de passe actuel.',
+      rider_already_exists: 'Ce pilote existe déjà.',
+      rider_has_data_cannot_delete: 'Ce pilote a des chronos ou des événements enregistrés — supprimez-les ou renommez plutôt le pilote.',
+      goals_saved: 'Objectifs enregistrés.', indicate_pseudo: 'Indique ton pseudo.',
+      not_verified_yet: 'Pas encore vérifié — clique sur le lien reçu par email, puis réessaie.',
+      indicate_email_first_forgot_password: 'Indique ton email d\'abord, puis clique à nouveau sur "Mot de passe oublié ?".',
+      bike_number_digits_error: 'Le numéro de moto doit être composé de 1 à 3 chiffres.',
+      confirm_pseudo_change_prefix: 'Confirme le changement de pseudo de "', confirm_pseudo_change_middle: '" vers "',
+      confirm_pseudo_change_suffix: '" en cliquant à nouveau sur Enregistrer. Action immédiate, un seul changement par mois.',
+      invalid_date_format: 'Date invalide — format attendu JJ/MM/AAAA.',
+      fill_rider_date_chrono: 'Renseignez un pilote, une date et au moins un chrono valide.',
+      unreadable_chronos_format: 'Certains chronos sont illisibles — format attendu 1:23.456 ou 83.456.',
+      invalid_start_date_format: 'Date de début invalide — format attendu JJ/MM/AAAA.',
+      invalid_end_date_format: 'Date de fin invalide — format attendu JJ/MM/AAAA.',
+      circuit_start_date_required: 'Le circuit et la date de début sont obligatoires.',
+      end_date_after_start: 'La date de fin doit être après la date de début.',
+      suggested_group_from_event_prefix: 'Groupe suggéré depuis l’événement associé : ',
+      future_date_error_prefix: 'Cette date est dans le futur — vérifie le jour/mois/année (', future_date_error_suffix: ').',
+      save_unavailable_banner: 'Sauvegarde indisponible dans cette vue : vos modifications ne seront pas conservées.'
     },
     en: {
       nav_events: 'Events', nav_chronos: 'Chronos', nav_planning: 'ON TRACK', nav_social: 'Social', nav_team: 'Team',
@@ -629,7 +695,73 @@
       delete_account_aria: 'Delete this account', revoke_access_title: 'Revoke access',
       team_management_heading: 'Team management', created_by_prefix: 'created by ',
       remove_team_pro: 'Remove Team PRO', mark_team_pro: 'Mark as Team PRO',
-      delete_team_irreversible_prefix: 'Deleting "', delete_team_irreversible_suffix: '" is irreversible. Confirm with your current password.'
+      delete_team_irreversible_prefix: 'Deleting "', delete_team_irreversible_suffix: '" is irreversible. Confirm with your current password.',
+      error_prefix: 'Error: ',
+      request_sent_to_prefix: 'Request sent to ', now_friends: 'You are now friends.',
+      request_already_exists: 'A request of this type already exists with this account.',
+      bapteme_proposal_sent_prefix: 'Track day taster offer sent to ', coaching_request_sent_prefix: 'Coaching request sent to ',
+      request_accepted: 'Request accepted.', invalid_slot: 'Invalid slot.', choose_valid_slot: 'Choose a valid slot.',
+      new_time_proposed: 'New time proposed.',
+      team_created_prefix: 'Team "', team_created_suffix: '" created.',
+      invitation_sent_to_prefix: 'Invitation sent to ',
+      welcome_to_prefix: 'Welcome to "', quote_close_period: '".',
+      team_needs_leader: 'Not allowed: this Team must always keep at least one Team Leader.',
+      adherent_request_sent: 'Adherent request sent.', joined_suffix: ' joined ',
+      poll_min_requirements: 'A question and at least 2 options are required for a poll.',
+      presentation_saved: 'Presentation saved.', partners_saved: 'Partners saved.',
+      cannot_read_image: 'Could not read this image.',
+      image_too_large_detailed: 'This image is still too large even compressed -- try an image with less detail.',
+      team_deleted: 'Team deleted.', chrono_modified: 'Lap time updated.',
+      team_migration_error_prefix: 'Team migration error: ', partial_migration_prefix: 'Partial migration: ',
+      email_updated_verify: 'Email updated — check your inbox to confirm the new address.',
+      rider_added: 'Rider added.', rider_renamed: 'Rider renamed.', rider_deleted: 'Rider deleted.',
+      chrono_verified: 'Lap time verified.', already_landscape: 'Already in landscape mode.', nothing_to_undo: 'Nothing to undo.',
+      annotation_saved: 'Annotation saved.', you_joined_prefix: 'You joined "',
+      request_sent_plain: 'Request sent.', joined_event_suffix: ' joined the event.',
+      travel_info_saved: 'Travel info saved.', message_cannot_be_empty: 'The message cannot be empty.',
+      account_created_verify: 'Account created — check your email to continue.',
+      reset_email_sent_prefix: 'Reset email sent to ', email_resent_to_prefix: 'Email resent to ',
+      address_copied: 'Address copied.', cannot_copy_manual: 'Could not copy — copy it manually.',
+      notifications_enabled: 'Notifications enabled.', notifications_disabled: 'Notifications disabled.',
+      now_rider_suffix: ' is now a Rider.', access_removed: 'Access removed.',
+      now_prefix: ' is now ', no_longer_prefix: ' is no longer ',
+      choose_pseudo_from_list: 'Choose a username from the suggested list.', indicate_account: 'Specify an account.',
+      account_not_found_prefix: 'Account not found: "', choose_image_file: 'Choose an image file.',
+      photo_too_large_after_compression: 'This photo is still too large even after compression.',
+      add_text_link_photo: 'Add at least a text, a link or a photo.',
+      photo_too_large_recrop: 'This photo is still too large even after compression — crop it or take a partial screenshot.',
+      map_too_large_recrop: 'This map is still too large even after compression — crop it or take a partial screenshot.',
+      role_saved: 'Role saved.', number_saved: 'Number saved.', planning_saved: 'Schedule saved.',
+      choose_rider_or_companion_list: 'Choose a rider or companion from the suggested list.',
+      choose_rider_list: 'Choose a rider from the suggested list.',
+      referral_link_copied: 'Referral link copied.', cannot_copy_manual_link_prefix: 'Could not copy — copy it manually: ',
+      recap_copied: 'Recap copied — paste it wherever you like.', cannot_copy_recap: 'Could not copy the recap.',
+      new_personal_record_prefix: 'New personal record on ', exclaim_suffix: ' !',
+      chrono_saved: 'Lap time saved.',
+      db_connection_lost: 'Database connection lost — check your connection and reload the page.',
+      save_failed_retry: 'Save failed — please try again.',
+      indicate_current_password_confirm: 'Enter your current password to confirm.',
+      pseudo_rename_once_month_prefix: 'Only one username change per month -- available again on ',
+      profile_saved: 'Profile saved.', feedback_thanks: 'Thanks, your feedback has been sent!',
+      indicate_new_email_password: 'Enter the new email and your current password.',
+      rider_already_exists: 'This rider already exists.',
+      rider_has_data_cannot_delete: 'This rider has recorded lap times or events — delete those first, or rename the rider instead.',
+      goals_saved: 'Goals saved.', indicate_pseudo: 'Enter your username.',
+      not_verified_yet: 'Not verified yet — click the link you received by email, then try again.',
+      indicate_email_first_forgot_password: 'Enter your email first, then click "Forgot password?" again.',
+      bike_number_digits_error: 'The bike number must be 1 to 3 digits.',
+      confirm_pseudo_change_prefix: 'Confirm the username change from "', confirm_pseudo_change_middle: '" to "',
+      confirm_pseudo_change_suffix: '" by clicking Save again. Immediate action, one change per month.',
+      invalid_date_format: 'Invalid date — expected format DD/MM/YYYY.',
+      fill_rider_date_chrono: 'Fill in a rider, a date, and at least one valid lap time.',
+      unreadable_chronos_format: 'Some lap times are unreadable — expected format 1:23.456 or 83.456.',
+      invalid_start_date_format: 'Invalid start date — expected format DD/MM/YYYY.',
+      invalid_end_date_format: 'Invalid end date — expected format DD/MM/YYYY.',
+      circuit_start_date_required: 'The circuit and start date are required.',
+      end_date_after_start: 'The end date must be after the start date.',
+      suggested_group_from_event_prefix: 'Group suggested from the linked event: ',
+      future_date_error_prefix: 'This date is in the future — check the day/month/year (', future_date_error_suffix: ').',
+      save_unavailable_banner: 'Saving is unavailable in this view: your changes will not be kept.'
     }
   };
   function currentLang() {
@@ -719,19 +851,19 @@
     });
     if (already) return;
     db.collection('friendRequests').add({ from: me.name, to: toName, status: 'pending', fromUid: myUid(), toUid: uidOf(toName) }).then(function () {
-      showToast('Demande envoyée à ' + toName + '.', 'success');
+      showToast(tr('request_sent_to_prefix') + toName + '.', 'success');
     }).catch(function (err) {
-      showToast('Erreur : ' + (err && err.message ? err.message : err));
+      showToast(tr('error_prefix') + (err && err.message ? err.message : err));
     });
   }
 
   function acceptFriendRequest(id) {
     var req = (STATE.friendRequests || []).filter(function (r) { return r.id === id; })[0];
     db.collection('friendRequests').doc(id).update({ status: 'accepted' }).then(function () {
-      showToast('Vous êtes maintenant amis.', 'success');
+      showToast(tr('now_friends'), 'success');
       if (req) writeFeedEvent('friend', { target: req.from });
     }).catch(function (err) {
-      showToast('Erreur : ' + (err && err.message ? err.message : err));
+      showToast(tr('error_prefix') + (err && err.message ? err.message : err));
     });
   }
 
@@ -751,7 +883,7 @@
     var me = currentUserProfile;
     if (!me || !name || name === me.name || (STATE.myFollows || []).indexOf(name) !== -1) return;
     db.collection('follows').add({ follower: me.name, followee: name, followerUid: myUid(), followeeUid: uidOf(name) }).catch(function (err) {
-      showToast('Erreur : ' + (err && err.message ? err.message : err));
+      showToast(tr('error_prefix') + (err && err.message ? err.message : err));
     });
   }
   function unfollowName(name) {
@@ -760,7 +892,7 @@
       snap.forEach(function (d) { batch.delete(d.ref); });
       return batch.commit();
     }).catch(function (err) {
-      showToast('Erreur : ' + (err && err.message ? err.message : err));
+      showToast(tr('error_prefix') + (err && err.message ? err.message : err));
     });
   }
   // Same one-way follow, for a Team that has opened itself up to discovery
@@ -770,7 +902,7 @@
     var me = currentUserProfile;
     if (!me || !teamId || (STATE.myFollowedTeams || []).indexOf(teamId) !== -1) return;
     db.collection('follows').add({ follower: me.name, followee: teamId, followeeType: 'team', followerUid: myUid() }).catch(function (err) {
-      showToast('Erreur : ' + (err && err.message ? err.message : err));
+      showToast(tr('error_prefix') + (err && err.message ? err.message : err));
     });
   }
   function unfollowTeam(teamId) {
@@ -779,7 +911,7 @@
       snap.forEach(function (d) { batch.delete(d.ref); });
       return batch.commit();
     }).catch(function (err) {
-      showToast('Erreur : ' + (err && err.message ? err.message : err));
+      showToast(tr('error_prefix') + (err && err.message ? err.message : err));
     });
   }
 
@@ -787,7 +919,7 @@
   // sent, and un-friending an accepted one are all just removing the doc.
   function removeFriendRequest(id) {
     db.collection('friendRequests').doc(id).delete().catch(function (err) {
-      showToast('Erreur : ' + (err && err.message ? err.message : err));
+      showToast(tr('error_prefix') + (err && err.message ? err.message : err));
     });
   }
 
@@ -834,7 +966,7 @@
       return ((r.from === me.name && r.to === toName) || (r.from === toName && r.to === me.name))
         && (r.type || 'coaching') === (isBapteme ? 'bapteme' : 'coaching');
     });
-    if (already) { showToast('Une demande de ce type existe déjà avec ce compte.'); return; }
+    if (already) { showToast(tr('request_already_exists')); return; }
     var doc = { from: me.name, to: toName, status: 'pending', plan: '', type: isBapteme ? 'bapteme' : 'coaching', awaiting: 'to', fromUid: myUid(), toUid: uidOf(toName) };
     if (slotInfo) {
       doc.eventId = slotInfo.eventId || null;
@@ -847,16 +979,16 @@
       doc.slotOptions = options.map(function (o) { return o.label; }).filter(Boolean);
     }
     db.collection('coachRequests').add(doc).then(function () {
-      showToast((isBapteme ? 'Proposition de baptême piste envoyée à ' : 'Demande de coaching envoyée à ') + toName + '.', 'success');
+      showToast((isBapteme ? tr('bapteme_proposal_sent_prefix') : tr('coaching_request_sent_prefix')) + toName + '.', 'success');
     }).catch(function (err) {
-      showToast('Erreur : ' + (err && err.message ? err.message : err));
+      showToast(tr('error_prefix') + (err && err.message ? err.message : err));
     });
   }
   function acceptCoachRequest(id) {
     db.collection('coachRequests').doc(id).update({ status: 'accepted' }).then(function () {
-      showToast('Demande acceptée.', 'success');
+      showToast(tr('request_accepted'), 'success');
     }).catch(function (err) {
-      showToast('Erreur : ' + (err && err.message ? err.message : err));
+      showToast(tr('error_prefix') + (err && err.message ? err.message : err));
     });
   }
   // Accept one of up to 3 alternative slots offered at creation (see
@@ -868,25 +1000,25 @@
     if (!r) return;
     var options = allEventSlots(eventsList().filter(function (e) { return e.id === r.eventId; })[0] || {});
     var chosen = options.filter(function (s) { return s.label === chosenLabel; })[0];
-    if (!chosen) { showToast('Créneau invalide.'); return; }
+    if (!chosen) { showToast(tr('invalid_slot')); return; }
     db.collection('coachRequests').doc(id).update({
       status: 'accepted', slotLabel: chosen.label, slotStart: chosen.start, slotEnd: chosen.end
     }).then(function () {
-      showToast('Demande acceptée.', 'success');
+      showToast(tr('request_accepted'), 'success');
     }).catch(function (err) {
-      showToast('Erreur : ' + (err && err.message ? err.message : err));
+      showToast(tr('error_prefix') + (err && err.message ? err.message : err));
     });
   }
   // Same delete either way -- declining, cancelling, or ending an active
   // coaching relationship are all just removing the doc.
   function removeCoachRequest(id) {
     db.collection('coachRequests').doc(id).delete().catch(function (err) {
-      showToast('Erreur : ' + (err && err.message ? err.message : err));
+      showToast(tr('error_prefix') + (err && err.message ? err.message : err));
     });
   }
   function saveCoachPlan(id, plan) {
     db.collection('coachRequests').doc(id).update({ plan: plan || '' }).catch(function (err) {
-      showToast('Erreur : ' + (err && err.message ? err.message : err));
+      showToast(tr('error_prefix') + (err && err.message ? err.message : err));
     });
   }
   // Counter-propose a different time on a still-pending request/
@@ -903,7 +1035,7 @@
     var r = (STATE.coachRequests || []).filter(function (x) { return x.id === id; })[0];
     if (!me || !r) return;
     var chosen = coachRequestSlotOptions(r, me.name).filter(function (s) { return s.label === slotLabel; })[0];
-    if (!chosen) { showToast('Choisis un créneau valide.'); return; }
+    if (!chosen) { showToast(tr('choose_valid_slot')); return; }
     var mySide = r.from === me.name ? 'from' : 'to';
     var otherSide = mySide === 'from' ? 'to' : 'from';
     db.collection('coachRequests').doc(id).update({
@@ -912,9 +1044,9 @@
       slotEnd: chosen.end,
       awaiting: otherSide
     }).then(function () {
-      showToast('Nouvel horaire proposé.', 'success');
+      showToast(tr('new_time_proposed'), 'success');
     }).catch(function (err) {
-      showToast('Erreur : ' + (err && err.message ? err.message : err));
+      showToast(tr('error_prefix') + (err && err.message ? err.message : err));
     });
   }
   // Coach <-> coaché messaging within one accepted coaching relationship
@@ -926,7 +1058,7 @@
     text = (text || '').trim();
     if (!me || !text) return;
     db.collection('coachMessages').add({ requestId: requestId, from: me.name, text: text, createdAt: Date.now(), uid: myUid() }).catch(function (err) {
-      showToast('Erreur : ' + (err && err.message ? err.message : err));
+      showToast(tr('error_prefix') + (err && err.message ? err.message : err));
     });
   }
   // A Coach's own declared availability, per event -- users/{uid}.
@@ -947,7 +1079,7 @@
       currentUserProfile.coachAvailability = av;
       renderRoot();
     }).catch(function (err) {
-      showToast('Erreur : ' + (err && err.message ? err.message : err));
+      showToast(tr('error_prefix') + (err && err.message ? err.message : err));
     });
   }
   // Gates the header's 🎓 icon (see renderRootUnsafe) -- open to any
@@ -1045,9 +1177,9 @@
     db.collection('teams').doc(teamId).set(doc).then(function () {
       return db.collection('teamMembers').doc(teamMemberDocId(teamId, me.name)).set({ teamId: teamId, name: me.name, role: 'leader', joinedAt: Date.now(), uid: uid });
     }).then(function () {
-      showToast('Team "' + name + '" créée.', 'success');
+      showToast(tr('team_created_prefix') + name + tr('team_created_suffix'), 'success');
     }).catch(function (err) {
-      showToast('Erreur : ' + (err && err.message ? err.message : err));
+      showToast(tr('error_prefix') + (err && err.message ? err.message : err));
     });
   }
 
@@ -1059,9 +1191,9 @@
       teamId: teamId, teamName: team.name, from: me.name, to: toName, status: 'pending',
       fromUid: myUid(), toUid: uidOf(toName)
     }).then(function () {
-      showToast('Invitation envoyée à ' + toName + '.', 'success');
+      showToast(tr('invitation_sent_to_prefix') + toName + '.', 'success');
     }).catch(function (err) {
-      showToast('Erreur : ' + (err && err.message ? err.message : err));
+      showToast(tr('error_prefix') + (err && err.message ? err.message : err));
     });
   }
 
@@ -1073,16 +1205,16 @@
         teamId: invite.teamId, name: me.name, role: 'member', joinedAt: Date.now(), uid: (auth.currentUser && auth.currentUser.uid)
       });
     }).then(function () {
-      showToast('Bienvenue dans "' + ((teamById(invite.teamId) || {}).name || invite.teamName) + '".', 'success');
+      showToast(tr('welcome_to_prefix') + ((teamById(invite.teamId) || {}).name || invite.teamName) + tr('quote_close_period'), 'success');
       bumpTeamMemberCount(invite.teamId, 1);
     }).catch(function (err) {
-      showToast('Erreur : ' + (err && err.message ? err.message : err));
+      showToast(tr('error_prefix') + (err && err.message ? err.message : err));
     });
   }
 
   function removeTeamInvite(id) {
     db.collection('teamInvites').doc(id).delete().catch(function (err) {
-      showToast('Erreur : ' + (err && err.message ? err.message : err));
+      showToast(tr('error_prefix') + (err && err.message ? err.message : err));
     });
   }
 
@@ -1110,27 +1242,27 @@
   // member removes themselves (leaving the team) -- see firestore.rules.
   function removeTeamMember(teamId, name) {
     if (wouldRemoveLastLeader(teamId, name)) {
-      showToast('Impossible : ce Team doit toujours garder au moins un Team Leader.');
+      showToast(tr('team_needs_leader'));
       return;
     }
     bumpTeamMemberCount(teamId, -1);
     db.collection('teamMembers').doc(teamMemberDocId(teamId, name)).delete().catch(function (err) {
-      showToast('Erreur : ' + (err && err.message ? err.message : err));
+      showToast(tr('error_prefix') + (err && err.message ? err.message : err));
     });
   }
 
   function setTeamMemberRole(teamId, name, role) {
     if (role !== 'leader' && wouldRemoveLastLeader(teamId, name)) {
-      showToast('Impossible : ce Team doit toujours garder au moins un Team Leader.');
+      showToast(tr('team_needs_leader'));
       return;
     }
     db.collection('teamMembers').doc(teamMemberDocId(teamId, name)).set({ role: role }, { merge: true }).catch(function (err) {
-      showToast('Erreur : ' + (err && err.message ? err.message : err));
+      showToast(tr('error_prefix') + (err && err.message ? err.message : err));
     });
   }
 
   function teamOpError(err) {
-    showToast('Erreur : ' + (err && err.message ? err.message : err));
+    showToast(tr('error_prefix') + (err && err.message ? err.message : err));
   }
 
   // Adherent status lives entirely on the follows doc (tier), whether or
@@ -1149,7 +1281,7 @@
     db.collection('follows').doc(id).set({
       follower: me.name, followee: teamId, followeeType: 'team', adherentRequested: true
     }, { merge: true }).then(function () {
-      showToast('Demande d\'adhésion envoyée.', 'success');
+      showToast(tr('adherent_request_sent'), 'success');
     }).catch(teamOpError);
   }
   // Leader-only in practice (firestore.rules' follows update rule) --
@@ -1230,9 +1362,9 @@
     db.collection('teamJoinRequests').doc(teamMemberDocId(teamId, me.name)).set({
       teamId: teamId, teamName: team.name, from: me.name, kind: 'member', status: 'pending', uid: myUid()
     }).then(function () {
-      showToast('Demande envoyée à ' + team.name + '.', 'success');
+      showToast(tr('request_sent_to_prefix') + team.name + '.', 'success');
     }).catch(function (err) {
-      showToast('Erreur : ' + (err && err.message ? err.message : err));
+      showToast(tr('error_prefix') + (err && err.message ? err.message : err));
     });
   }
   // The leader chooses the resulting status right on accept -- 'member',
@@ -1245,14 +1377,14 @@
     var followDoc = ((STATE.teamFollowersByTeam || {})[req.teamId] || []).filter(function (f) { return f.follower === req.from; })[0] || null;
     setTeamMemberStatus(req.teamId, followDoc, memberDoc, req.from, statusKey, true);
     db.collection('teamJoinRequests').doc(req.id).delete().then(function () {
-      showToast(req.from + ' a rejoint ' + ((teamById(req.teamId) || {}).name || req.teamName) + '.', 'success');
+      showToast(req.from + tr('joined_suffix') + ((teamById(req.teamId) || {}).name || req.teamName) + '.', 'success');
     }).catch(teamOpError);
   }
   // Same delete either way -- declining a request received or cancelling
   // one sent.
   function removeTeamJoinRequest(id) {
     db.collection('teamJoinRequests').doc(id).delete().catch(function (err) {
-      showToast('Erreur : ' + (err && err.message ? err.message : err));
+      showToast(tr('error_prefix') + (err && err.message ? err.message : err));
     });
   }
 
@@ -1266,7 +1398,7 @@
       ? db.collection('teamLikes').doc(id).delete()
       : db.collection('teamLikes').doc(id).set({ teamId: teamId, name: me.name, uid: myUid() });
     op.catch(function (err) {
-      showToast('Erreur : ' + (err && err.message ? err.message : err));
+      showToast(tr('error_prefix') + (err && err.message ? err.message : err));
     });
   }
 
@@ -1285,7 +1417,7 @@
     if (photoURL) post.photoURL = photoURL;
     if (audience === 'adherents') post.audience = 'adherents';
     db.collection('teamFeed').doc(post.id).set(post).catch(function (err) {
-      showToast('Erreur : ' + (err && err.message ? err.message : err));
+      showToast(tr('error_prefix') + (err && err.message ? err.message : err));
     });
   }
 
@@ -1294,13 +1426,13 @@
     question = (question || '').trim();
     options = (options || []).map(function (o) { return o.trim(); }).filter(Boolean);
     if (!me || !question || options.length < 2) {
-      showToast('Une question et au moins 2 options sont nécessaires pour un sondage.');
+      showToast(tr('poll_min_requirements'));
       return;
     }
     var post = { id: genId(), teamId: teamId, author: me.name, authorUid: myUid(), type: 'poll', question: question, options: options, votes: {}, createdAt: Date.now() };
     if (audience === 'adherents') post.audience = 'adherents';
     db.collection('teamFeed').doc(post.id).set(post).catch(function (err) {
-      showToast('Erreur : ' + (err && err.message ? err.message : err));
+      showToast(tr('error_prefix') + (err && err.message ? err.message : err));
     });
   }
 
@@ -1310,7 +1442,7 @@
     var update = {};
     update['votes.' + me.name] = optionIndex;
     db.collection('teamFeed').doc(postId).update(update).catch(function (err) {
-      showToast('Erreur : ' + (err && err.message ? err.message : err));
+      showToast(tr('error_prefix') + (err && err.message ? err.message : err));
     });
   }
 
@@ -1324,34 +1456,34 @@
     var update = {};
     update['reactions.' + me.name] = already ? firebase.firestore.FieldValue.delete() : emoji;
     db.collection(collectionName).doc(id).update(update).catch(function (err) {
-      showToast('Erreur : ' + (err && err.message ? err.message : err));
+      showToast(tr('error_prefix') + (err && err.message ? err.message : err));
     });
   }
 
   function setTeamPostPolicy(teamId, policy) {
     db.collection('teams').doc(teamId).set({ postPolicy: policy }, { merge: true }).catch(function (err) {
-      showToast('Erreur : ' + (err && err.message ? err.message : err));
+      showToast(tr('error_prefix') + (err && err.message ? err.message : err));
     });
   }
 
   function setTeamVisibility(teamId, visibility) {
     db.collection('teams').doc(teamId).set({ visibility: visibility }, { merge: true }).catch(function (err) {
-      showToast('Erreur : ' + (err && err.message ? err.message : err));
+      showToast(tr('error_prefix') + (err && err.message ? err.message : err));
     });
   }
 
   function saveTeamDescription(teamId, text) {
     db.collection('teams').doc(teamId).set({ description: (text || '').trim() || null }, { merge: true }).then(function () {
-      showToast('Présentation enregistrée.', 'success');
+      showToast(tr('presentation_saved'), 'success');
     }).catch(function (err) {
-      showToast('Erreur : ' + (err && err.message ? err.message : err));
+      showToast(tr('error_prefix') + (err && err.message ? err.message : err));
     });
   }
   // Same base64-data-URL-on-the-doc approach as savePhoto (users) -- no
   // Firebase Storage setup, resized client-side first.
   function saveTeamPhoto(teamId, dataUrl) {
     db.collection('teams').doc(teamId).set({ photoURL: dataUrl || null }, { merge: true }).catch(function (err) {
-      showToast('Erreur : ' + (err && err.message ? err.message : err));
+      showToast(tr('error_prefix') + (err && err.message ? err.message : err));
     });
   }
   // A wide logo (e.g. "Mototeam95" text-and-mark) would get chopped to an
@@ -1359,7 +1491,7 @@
   // shown full-width, uncropped, on the Team's own profile.
   function saveTeamLogo(teamId, dataUrl) {
     db.collection('teams').doc(teamId).set({ logoURL: dataUrl || null }, { merge: true }).catch(function (err) {
-      showToast('Erreur : ' + (err && err.message ? err.message : err));
+      showToast(tr('error_prefix') + (err && err.message ? err.message : err));
     });
   }
   // "Site internet / boutique / photographe..." -- one link per line as
@@ -1379,9 +1511,9 @@
       return { name: name, url: url };
     }).filter(function (p) { return p.name; });
     db.collection('settings').doc('partners').set({ list: list }, { merge: true }).then(function () {
-      showToast('Partenaires enregistrés.', 'success');
+      showToast(tr('partners_saved'), 'success');
     }).catch(function (err) {
-      showToast('Erreur : ' + (err && err.message ? err.message : err));
+      showToast(tr('error_prefix') + (err && err.message ? err.message : err));
     });
   }
   function renderPartnersSection() {
@@ -1423,9 +1555,9 @@
       return { name: name, url: url };
     }).filter(function (p) { return p.name; });
     db.collection('teams').doc(teamId).set({ partners: list }, { merge: true }).then(function () {
-      showToast('Partenaires enregistrés.', 'success');
+      showToast(tr('partners_saved'), 'success');
     }).catch(function (err) {
-      showToast('Erreur : ' + (err && err.message ? err.message : err));
+      showToast(tr('error_prefix') + (err && err.message ? err.message : err));
     });
   }
   function renderTeamPartnersSection(team, isLeader) {
@@ -1458,7 +1590,7 @@
       return { label: label, url: url };
     }).filter(function (l) { return l.url; });
     db.collection('teams').doc(teamId).set({ links: links }, { merge: true }).catch(function (err) {
-      showToast('Erreur : ' + (err && err.message ? err.message : err));
+      showToast(tr('error_prefix') + (err && err.message ? err.message : err));
     });
   }
 
@@ -1582,7 +1714,7 @@
     if (session) { session.feeling = feeling; session.feelingComment = comment || null; }
     closeFeelingModal();
     db.collection('sessions').doc(sessionId).update({ feeling: feeling, feelingComment: comment || null }).catch(function (err) {
-      showToast('Erreur : ' + (err && err.message ? err.message : err));
+      showToast(tr('error_prefix') + (err && err.message ? err.message : err));
     });
   }
   function renderFeelingModal() {
@@ -1614,7 +1746,7 @@
       cropOffsetYPx = 0;
       renderRoot();
     };
-    probe.onerror = function () { showToast('Impossible de lire cette image.'); };
+    probe.onerror = function () { showToast(tr('cannot_read_image')); };
     probe.src = dataUrl;
   }
   function closeCropModal() {
@@ -1690,7 +1822,7 @@
       ctx.drawImage(img, 0, 0, img.naturalWidth, img.naturalHeight, outX, outY, outW, outH);
       var dataUrl = isLogo ? canvas.toDataURL('image/jpeg', 0.85) : canvas.toDataURL('image/png');
       if (dataUrl.length > 700000) {
-        showToast('Cette image reste trop volumineuse même compressée -- réessaie avec une image moins chargée en détails.');
+        showToast(tr('image_too_large_detailed'));
         return;
       }
       if (kind === 'team') saveTeamPhoto(teamId, dataUrl);
@@ -1723,7 +1855,7 @@
     var user = auth.currentUser;
     if (!user) return;
     if (!currentPassword) {
-      teamDeleteMessage = 'Indique ton mot de passe actuel pour confirmer.';
+      teamDeleteMessage = tr('indicate_current_password_confirm');
       renderRoot();
       return;
     }
@@ -1733,7 +1865,7 @@
     }).then(function () {
       pendingDeleteTeamId = null;
       teamDeleteMessage = '';
-      showToast('Team supprimé.', 'success');
+      showToast(tr('team_deleted'), 'success');
       renderRoot();
     }).catch(function (err) {
       teamDeleteMessage = translateAuthError(err);
@@ -1745,7 +1877,7 @@
     var team = teamById(teamId);
     if (!team) return;
     db.collection('teams').doc(teamId).set({ teamPro: !team.teamPro }, { merge: true }).catch(function (err) {
-      showToast('Erreur : ' + (err && err.message ? err.message : err));
+      showToast(tr('error_prefix') + (err && err.message ? err.message : err));
     });
   }
 
@@ -2596,17 +2728,17 @@
     });
 
     if (dateRaw.trim() && !date) {
-      errEl.textContent = 'Date invalide — format attendu JJ/MM/AAAA.';
+      errEl.textContent = tr('invalid_date_format');
       errEl.classList.add('visible');
       return;
     }
     if (!rider || !date || !laps.length) {
-      errEl.textContent = 'Renseignez un pilote, une date et au moins un chrono valide.';
+      errEl.textContent = tr('fill_rider_date_chrono');
       errEl.classList.add('visible');
       return;
     }
     if (invalid) {
-      errEl.textContent = 'Certains chronos sont illisibles — format attendu 1:23.456 ou 83.456.';
+      errEl.textContent = tr('unreadable_chronos_format');
       errEl.classList.add('visible');
       return;
     }
@@ -2633,7 +2765,7 @@
     editingSessionId = null;
     renderRoot();
     persist(prevState);
-    showToast('Chrono modifié.', 'success');
+    showToast(tr('chrono_modified'), 'success');
   }
 
   function renderSessionsCard() {
@@ -3333,7 +3465,7 @@
         .sort(function (a, b) { return (a.name || '').localeCompare(b.name || ''); });
       renderRoot();
     }).catch(function (err) {
-      accountManagerError = 'Erreur : ' + (err && err.message ? err.message : err);
+      accountManagerError = tr('error_prefix') + (err && err.message ? err.message : err);
       renderRoot();
     });
   }
@@ -3455,7 +3587,7 @@
       }).then(function () {
         return db.collection('teamMembers').doc(oldId).delete();
       }).catch(function (err) {
-        showToast('Erreur de migration Team : ' + (err && err.message ? err.message : err));
+        showToast(tr('team_migration_error_prefix') + (err && err.message ? err.message : err));
       });
     }));
   }
@@ -3654,7 +3786,7 @@
       if (result.name !== oldName) {
         var blockedUntil = renameAllowedAt(currentUserProfile);
         if (blockedUntil) {
-          profileSaveMessage = 'Un seul changement de pseudo par mois -- possible à nouveau le ' + blockedUntil.toLocaleDateString('fr-FR') + '.';
+          profileSaveMessage = tr('pseudo_rename_once_month_prefix') + blockedUntil.toLocaleDateString(currentLang() === 'en' ? 'en-US' : 'fr-FR') + '.';
           renderRoot();
           return;
         }
@@ -3711,7 +3843,7 @@
       currentUserProfile.firstName = firstName || null;
       currentUserProfile.lastName = lastName || null;
       currentUserProfile.chronoLink = chronoLink || null;
-      profileSaveMessage = 'Profil enregistré.';
+      profileSaveMessage = tr('profile_saved');
       renderRoot();
       if (nameChanged) {
         // Team memberships first, and awaited -- persist() below may touch
@@ -3725,14 +3857,14 @@
           if (renamePrevState) persist(renamePrevState);
         });
         if (groupATargets) applyGroupARenames(groupATargets, finalName).catch(function (err) {
-          showToast('Migration partielle : ' + (err && err.message ? err.message : err));
+          showToast(tr('partial_migration_prefix') + (err && err.message ? err.message : err));
         });
         migrateGroupBForRename(oldName, finalName, uid).catch(function (err) {
-          showToast('Migration partielle : ' + (err && err.message ? err.message : err));
+          showToast(tr('partial_migration_prefix') + (err && err.message ? err.message : err));
         });
       }
     }).catch(function (err) {
-      profileSaveMessage = 'Erreur : ' + (err && err.message ? err.message : err);
+      profileSaveMessage = tr('error_prefix') + (err && err.message ? err.message : err);
       renderRoot();
     });
   }
@@ -3750,7 +3882,7 @@
       profilePhotoMessage = '';
       renderRoot();
     }).catch(function (err) {
-      profilePhotoMessage = 'Erreur : ' + (err && err.message ? err.message : err);
+      profilePhotoMessage = tr('error_prefix') + (err && err.message ? err.message : err);
       renderRoot();
     });
   }
@@ -3766,10 +3898,10 @@
     db.collection('feedback').add({
       text: text, author: currentUserProfile.name, authorUid: uid, createdAt: Date.now()
     }).then(function () {
-      feedbackMessage = 'Merci, ton retour a bien été envoyé !';
+      feedbackMessage = tr('feedback_thanks');
       renderRoot();
     }).catch(function (err) {
-      feedbackMessage = 'Erreur : ' + (err && err.message ? err.message : err);
+      feedbackMessage = tr('error_prefix') + (err && err.message ? err.message : err);
       renderRoot();
     });
   }
@@ -3797,7 +3929,7 @@
       currentUserProfile[field] = value;
       renderRoot();
     }).catch(function (err) {
-      showToast('Erreur : ' + (err && err.message ? err.message : err));
+      showToast(tr('error_prefix') + (err && err.message ? err.message : err));
     });
   }
 
@@ -3832,7 +3964,7 @@
     var user = auth.currentUser;
     if (!user || !currentUserProfile) return;
     if (!newEmail || !currentPassword) {
-      profileEmailMessage = 'Indique le nouvel email et ton mot de passe actuel.';
+      profileEmailMessage = tr('indicate_new_email_password');
       renderRoot();
       return;
     }
@@ -3852,7 +3984,7 @@
       authState = 'verify-email';
       profilePanelOpen = false;
       renderRoot();
-      showToast('Email mis à jour — vérifie ta boîte mail pour confirmer la nouvelle adresse.', 'success');
+      showToast(tr('email_updated_verify'), 'success');
     }).catch(function (err) {
       profileEmailMessage = translateAuthError(err);
       renderRoot();
@@ -3869,7 +4001,7 @@
     var user = auth.currentUser;
     if (!user || !currentUserProfile) return;
     if (!currentPassword) {
-      profileDeleteMessage = 'Indique ton mot de passe actuel pour confirmer.';
+      profileDeleteMessage = tr('indicate_current_password_confirm');
       renderRoot();
       return;
     }
@@ -3918,7 +4050,7 @@
     STATE.riders = allKnownRiders().concat([result.name]).sort(function (a, b) { return a.localeCompare(b); });
     renderRoot();
     persist(prevState);
-    showToast('Pilote ajouté.', 'success');
+    showToast(tr('rider_added'), 'success');
   }
 
   // Cascades a rider name change through everything keyed off it --
@@ -3955,7 +4087,7 @@
     riderManagerError = '';
     var conflict = allKnownRiders().some(function (r) { return r !== oldName && r.toLowerCase() === newName.toLowerCase(); });
     if (conflict) {
-      riderManagerError = 'Ce pilote existe déjà.';
+      riderManagerError = tr('rider_already_exists');
       editingRiderName = null;
       renderRoot();
       return;
@@ -3964,7 +4096,7 @@
     editingRiderName = null;
     renderRoot();
     persist(prevState);
-    showToast('Pilote renommé.', 'success');
+    showToast(tr('rider_renamed'), 'success');
   }
 
   function deleteRider(name) {
@@ -3972,7 +4104,7 @@
     var hasSessions = STATE.sessions.some(function (s) { return s.rider === name; });
     var hasEvents = eventsList().some(function (ev) { return (ev.riders || []).indexOf(name) !== -1; });
     if (hasSessions || hasEvents) {
-      riderManagerError = 'Ce pilote a des chronos ou des événements enregistrés — supprimez-les ou renommez plutôt le pilote.';
+      riderManagerError = tr('rider_has_data_cannot_delete');
       pendingDeleteRider = null;
       renderRoot();
       return;
@@ -3983,7 +4115,7 @@
     pendingDeleteRider = null;
     renderRoot();
     persist(prevState);
-    showToast('Pilote supprimé.', 'success');
+    showToast(tr('rider_deleted'), 'success');
   }
 
   // Every rider+circuit's personal-best progression, walked in chronological
@@ -4661,14 +4793,14 @@
     var me = currentUserProfile;
     if (!me) return;
     db.collection('sessions').doc(sessionId).update({ certifiedBy: me.name }).then(function () {
-      showToast('Chrono vérifié.', 'success');
+      showToast(tr('chrono_verified'), 'success');
     }).catch(function (err) {
-      showToast('Erreur : ' + (err && err.message ? err.message : err));
+      showToast(tr('error_prefix') + (err && err.message ? err.message : err));
     });
   }
   function uncertifyChrono(sessionId) {
     db.collection('sessions').doc(sessionId).update({ certifiedBy: null }).catch(function (err) {
-      showToast('Erreur : ' + (err && err.message ? err.message : err));
+      showToast(tr('error_prefix') + (err && err.message ? err.message : err));
     });
   }
 
@@ -4683,7 +4815,7 @@
     var patch = {};
     patch['riderBikeNumbers.' + riderName] = (number || '').trim() || firebase.firestore.FieldValue.delete();
     db.collection('events').doc(eventId).update(patch).catch(function (err) {
-      showToast('Erreur : ' + (err && err.message ? err.message : err));
+      showToast(tr('error_prefix') + (err && err.message ? err.message : err));
     });
   }
 
@@ -4835,10 +4967,10 @@
     goals[circuit] = (text || '').trim();
     db.collection('users').doc(uid).set({ chronoGoals: goals }, { merge: true }).then(function () {
       currentUserProfile.chronoGoals = goals;
-      chronoGoalsMessage = 'Objectifs enregistrés.';
+      chronoGoalsMessage = tr('goals_saved');
       renderRoot();
     }).catch(function (err) {
-      chronoGoalsMessage = 'Erreur : ' + (err && err.message ? err.message : err);
+      chronoGoalsMessage = tr('error_prefix') + (err && err.message ? err.message : err);
       renderRoot();
     });
   }
@@ -5149,7 +5281,7 @@
     // trick below is the one mechanism that works consistently everywhere.
     var isPortrait = window.matchMedia && window.matchMedia('(orientation: portrait)').matches;
     if (!isPortrait) {
-      showToast('Déjà en mode paysage.');
+      showToast(tr('already_landscape'));
       return;
     }
     var forced = overlay.classList.toggle('force-landscape');
@@ -5386,7 +5518,7 @@
 
   function annotUndo() {
     if (!annotUndoStack.length) {
-      showToast('Rien à annuler.');
+      showToast(tr('nothing_to_undo'));
       return;
     }
     var prev = annotUndoStack.pop();
@@ -5942,7 +6074,7 @@
       if (session) session.drawing = dataUrl;
     }
     persist(prevState);
-    showToast('Annotation enregistrée.', 'success');
+    showToast(tr('annotation_saved'), 'success');
     renderAnnotationOverlay();
   }
 
@@ -6196,9 +6328,9 @@
     if (!me || !ev || (ev.riders || []).indexOf(me.name) !== -1) return;
     var riders = (ev.riders || []).concat([me.name]);
     db.collection('events').doc(eventId).update({ riders: riders }).then(function () {
-      showToast('Tu as rejoint "' + ev.circuit + '".', 'success');
+      showToast(tr('you_joined_prefix') + ev.circuit + tr('quote_close_period'), 'success');
     }).catch(function (err) {
-      showToast('Erreur : ' + (err && err.message ? err.message : err));
+      showToast(tr('error_prefix') + (err && err.message ? err.message : err));
     });
   }
   // 'public' Team Events need the leader's OK -- id = eventId_from so a
@@ -6212,9 +6344,9 @@
     db.collection('eventJoinRequests').doc(eventId + '_' + me.name).set({
       eventId: eventId, teamId: ev.teamId, circuit: ev.circuit, from: me.name, status: 'pending'
     }).then(function () {
-      showToast('Demande envoyée.', 'success');
+      showToast(tr('request_sent_plain'), 'success');
     }).catch(function (err) {
-      showToast('Erreur : ' + (err && err.message ? err.message : err));
+      showToast(tr('error_prefix') + (err && err.message ? err.message : err));
     });
   }
   function acceptEventJoinRequest(req) {
@@ -6224,16 +6356,16 @@
     db.collection('events').doc(req.eventId).update({ riders: riders }).then(function () {
       return db.collection('eventJoinRequests').doc(req.id).delete();
     }).then(function () {
-      showToast(req.from + ' a rejoint l\'événement.', 'success');
+      showToast(req.from + tr('joined_event_suffix'), 'success');
     }).catch(function (err) {
-      showToast('Erreur : ' + (err && err.message ? err.message : err));
+      showToast(tr('error_prefix') + (err && err.message ? err.message : err));
     });
   }
   // Same delete either way -- declining a request received or cancelling
   // one sent.
   function removeEventJoinRequest(id) {
     db.collection('eventJoinRequests').doc(id).delete().catch(function (err) {
-      showToast('Erreur : ' + (err && err.message ? err.message : err));
+      showToast(tr('error_prefix') + (err && err.message ? err.message : err));
     });
   }
   // Team Leader removing a participant from their own event's roster, from
@@ -6256,7 +6388,7 @@
     var riders = ev.riders || [];
     if (riders.indexOf(rider) !== -1) return;
     db.collection('events').doc(eventId).update({ riders: riders.concat([rider]) }).catch(function (err) {
-      showToast('Erreur : ' + (err && err.message ? err.message : err));
+      showToast(tr('error_prefix') + (err && err.message ? err.message : err));
     });
   }
   function removeRiderFromEvent(eventId, rider) {
@@ -6264,7 +6396,7 @@
     if (!ev) return;
     var riders = (ev.riders || []).filter(function (r) { return r !== rider; });
     db.collection('events').doc(eventId).update({ riders: riders }).catch(function (err) {
-      showToast('Erreur : ' + (err && err.message ? err.message : err));
+      showToast(tr('error_prefix') + (err && err.message ? err.message : err));
     });
   }
   // Free-text broadcast from a Team Leader to an event's pilotes -- "ADMINISTRATION
@@ -6276,7 +6408,7 @@
     text = (text || '').trim();
     if (!me || !text) return;
     db.collection('eventAnnouncements').add({ eventId: eventId, teamId: teamId, from: me.name, fromUid: myUid(), text: text, createdAt: Date.now() }).catch(function (err) {
-      showToast('Erreur : ' + (err && err.message ? err.message : err));
+      showToast(tr('error_prefix') + (err && err.message ? err.message : err));
     });
   }
   function updateEventAnnouncement(id, text) {
@@ -6286,12 +6418,12 @@
       editingAnnouncementId = null;
       renderRoot();
     }).catch(function (err) {
-      showToast('Erreur : ' + (err && err.message ? err.message : err));
+      showToast(tr('error_prefix') + (err && err.message ? err.message : err));
     });
   }
   function deleteEventAnnouncement(id) {
     db.collection('eventAnnouncements').doc(id).delete().catch(function (err) {
-      showToast('Erreur : ' + (err && err.message ? err.message : err));
+      showToast(tr('error_prefix') + (err && err.message ? err.message : err));
     });
   }
   var editingAnnouncementId = null; // id of the one announcement currently shown as an inline edit form, or null
@@ -6341,7 +6473,7 @@
       editingPracticalInfoFor = null;
       renderRoot();
     }).catch(function (err) {
-      showToast('Erreur : ' + (err && err.message ? err.message : err));
+      showToast(tr('error_prefix') + (err && err.message ? err.message : err));
     });
   }
   function saveSpecialActivities(eventId, text) {
@@ -6349,7 +6481,7 @@
       editingSpecialActivitiesFor = null;
       renderRoot();
     }).catch(function (err) {
-      showToast('Erreur : ' + (err && err.message ? err.message : err));
+      showToast(tr('error_prefix') + (err && err.message ? err.message : err));
     });
   }
   function saveRentalMotos(eventId, text) {
@@ -6357,7 +6489,7 @@
       editingRentalMotosFor = null;
       renderRoot();
     }).catch(function (err) {
-      showToast('Erreur : ' + (err && err.message ? err.message : err));
+      showToast(tr('error_prefix') + (err && err.message ? err.message : err));
     });
   }
   function saveRentalEquipement(eventId, text) {
@@ -6365,7 +6497,7 @@
       editingRentalEquipementFor = null;
       renderRoot();
     }).catch(function (err) {
-      showToast('Erreur : ' + (err && err.message ? err.message : err));
+      showToast(tr('error_prefix') + (err && err.message ? err.message : err));
     });
   }
   function renderEventLeaderTextSection(ev, isLeader, opts) {
@@ -7134,7 +7266,7 @@
     dates.forEach(function (date) { entry[date] = { am: group, pm: group }; });
     riderGroups[rider] = entry;
     db.collection('events').doc(eventId).update({ riderGroups: riderGroups }).catch(function (err) {
-      showToast('Erreur : ' + (err && err.message ? err.message : err));
+      showToast(tr('error_prefix') + (err && err.message ? err.message : err));
     });
   }
   function removeRiderFromGroup(eventId, rider) {
@@ -7143,7 +7275,7 @@
     var riderGroups = Object.assign({}, ev.riderGroups || {});
     delete riderGroups[rider];
     db.collection('events').doc(eventId).update({ riderGroups: riderGroups }).catch(function (err) {
-      showToast('Erreur : ' + (err && err.message ? err.message : err));
+      showToast(tr('error_prefix') + (err && err.message ? err.message : err));
     });
   }
   function riderVerifiedBest(ev, rider) {
@@ -7416,10 +7548,10 @@
     };
     db.collection('eventTravelInfo').doc(eventId + '_' + me.name).set(data, { merge: true }).then(function () {
       travelInfoByEvent[eventId] = data;
-      showToast('Infos de voyage enregistrées.', 'success');
+      showToast(tr('travel_info_saved'), 'success');
       renderRoot();
     }).catch(function (err) {
-      showToast('Erreur : ' + (err && err.message ? err.message : err));
+      showToast(tr('error_prefix') + (err && err.message ? err.message : err));
     });
   }
   function renderMyTravelInfoSection(ev) {
@@ -8800,24 +8932,24 @@
     errEl.classList.remove('visible');
 
     if (dateStartRaw.trim() && !dateStart) {
-      errEl.textContent = 'Date de début invalide — format attendu JJ/MM/AAAA.';
+      errEl.textContent = tr('invalid_start_date_format');
       errEl.classList.add('visible');
       return;
     }
     if (dateEndRawInput.trim() && !frDateToIso(dateEndRawInput)) {
-      errEl.textContent = 'Date de fin invalide — format attendu JJ/MM/AAAA.';
+      errEl.textContent = tr('invalid_end_date_format');
       errEl.classList.add('visible');
       return;
     }
     if (!circuit || !dateStart) {
-      errEl.textContent = 'Le circuit et la date de début sont obligatoires.';
+      errEl.textContent = tr('circuit_start_date_required');
       errEl.classList.add('visible');
       return;
     }
     var dateEndRaw = frDateToIso(dateEndRawInput);
     var dateEnd = dateEndRaw || dateStart;
     if (dateEnd < dateStart) {
-      errEl.textContent = 'La date de fin doit être après la date de début.';
+      errEl.textContent = tr('end_date_after_start');
       errEl.classList.add('visible');
       return;
     }
@@ -9509,7 +9641,7 @@
     text = (text || '').trim();
     linkUrl = (linkUrl || '').trim();
     if (!text && !linkUrl && !photoURL) {
-      wallPostMessage = 'Ajoute au moins un texte, un lien ou une photo.';
+      wallPostMessage = tr('add_text_link_photo');
       renderRoot();
       return;
     }
@@ -9523,26 +9655,26 @@
       wallComposerOpen = false;
       renderRoot();
     }).catch(function (err) {
-      wallPostMessage = 'Erreur : ' + (err && err.message ? err.message : err);
+      wallPostMessage = tr('error_prefix') + (err && err.message ? err.message : err);
       renderRoot();
     });
   }
 
   function deleteWallPost(id) {
     db.collection('wallPosts').doc(id).delete().catch(function (err) {
-      showToast('Erreur : ' + (err && err.message ? err.message : err));
+      showToast(tr('error_prefix') + (err && err.message ? err.message : err));
     });
   }
 
   function updateWallPost(id, text, linkUrl) {
     text = (text || '').trim();
     linkUrl = (linkUrl || '').trim();
-    if (!text && !linkUrl) { showToast('Le message ne peut pas être vide.'); return; }
+    if (!text && !linkUrl) { showToast(tr('message_cannot_be_empty')); return; }
     db.collection('wallPosts').doc(id).update({ text: text || null, linkUrl: linkUrl || null, editedAt: Date.now() }).then(function () {
       editingWallPostId = null;
       renderRoot();
     }).catch(function (err) {
-      showToast('Erreur : ' + (err && err.message ? err.message : err));
+      showToast(tr('error_prefix') + (err && err.message ? err.message : err));
     });
   }
 
@@ -9689,17 +9821,17 @@
   function updateTeamFeedPost(id, text, linkUrl) {
     text = (text || '').trim();
     linkUrl = (linkUrl || '').trim();
-    if (!text && !linkUrl) { showToast('Le message ne peut pas être vide.'); return; }
+    if (!text && !linkUrl) { showToast(tr('message_cannot_be_empty')); return; }
     db.collection('teamFeed').doc(id).update({ text: text || null, linkUrl: linkUrl || null, editedAt: Date.now() }).then(function () {
       editingTeamPostId = null;
       renderRoot();
     }).catch(function (err) {
-      showToast('Erreur : ' + (err && err.message ? err.message : err));
+      showToast(tr('error_prefix') + (err && err.message ? err.message : err));
     });
   }
   function deleteTeamFeedPost(id) {
     db.collection('teamFeed').doc(id).delete().catch(function (err) {
-      showToast('Erreur : ' + (err && err.message ? err.message : err));
+      showToast(tr('error_prefix') + (err && err.message ? err.message : err));
     });
   }
 
@@ -11077,7 +11209,7 @@
     var email = document.getElementById('au-email').value.trim();
     var password = document.getElementById('au-password').value;
     if (!rawName) {
-      authError = 'Indique ton pseudo.';
+      authError = tr('indicate_pseudo');
       renderRoot();
       return;
     }
@@ -11126,7 +11258,7 @@
       authState = 'verify-email';
       autoVerifyEmailSent = true; // already sent just above -- don't let onAuthStateChanged send a second one
       renderRoot();
-      showToast('Compte créé — vérifie ton email pour continuer.', 'success');
+      showToast(tr('account_created_verify'), 'success');
     }).catch(function (err) {
       authError = (err && err.code === 'custom/name-collision') ? err.message : translateAuthError(err);
       renderRoot();
@@ -11155,7 +11287,7 @@
           renderRoot();
         });
       }
-      authError = 'Pas encore vérifié — clique sur le lien reçu par email, puis réessaie.';
+      authError = tr('not_verified_yet');
       renderRoot();
     });
   }
@@ -11174,13 +11306,13 @@
       forgotBtn.addEventListener('click', function () {
         var email = document.getElementById('au-email').value.trim();
         if (!email) {
-          authError = 'Indique ton email d\'abord, puis clique à nouveau sur "Mot de passe oublié ?".';
+          authError = tr('indicate_email_first_forgot_password');
           renderRoot();
           return;
         }
         auth.sendPasswordResetEmail(email).then(function () {
           authError = '';
-          showToast('Email de réinitialisation envoyé à ' + email + '.', 'success');
+          showToast(tr('reset_email_sent_prefix') + email + '.', 'success');
         }).catch(function (err) {
           authError = translateAuthError(err);
           renderRoot();
@@ -11194,7 +11326,7 @@
       verifyResendBtn.addEventListener('click', function () {
         if (!auth.currentUser) return;
         auth.currentUser.sendEmailVerification().then(function () {
-          showToast('Email renvoyé à ' + auth.currentUser.email + '.', 'success');
+          showToast(tr('email_resent_to_prefix') + auth.currentUser.email + '.', 'success');
         }).catch(function (err) {
           authError = translateAuthError(err);
           renderRoot();
@@ -11233,9 +11365,9 @@
         var text = btn.getAttribute('data-text') || '';
         if (navigator.clipboard && navigator.clipboard.writeText) {
           navigator.clipboard.writeText(text).then(function () {
-            showToast('Adresse copiée.', 'success');
+            showToast(tr('address_copied'), 'success');
           }).catch(function () {
-            showToast('Impossible de copier — copie-la manuellement.');
+            showToast(tr('cannot_copy_manual'));
           });
         }
       });
@@ -11277,7 +11409,7 @@
       reglagesNotify.addEventListener('change', function () {
         var p = currentUserProfile;
         saveProfile(p.role, reglagesNotify.checked, p.followedRiders || [], p.bike, p.bikeNumber, p.name, p.firstName || '', p.lastName || '', p.chronoLink || '');
-        showToast(reglagesNotify.checked ? 'Notifications activées.' : 'Notifications désactivées.', 'success');
+        showToast(reglagesNotify.checked ? tr('notifications_enabled') : tr('notifications_disabled'), 'success');
       });
     }
     var notifyInvitesEl = document.getElementById('profile-notify-invites');
@@ -11369,10 +11501,10 @@
           if (account.name) return db.collection('riders').doc(safeDocId(account.name)).set({ name: account.name }, { merge: true });
         }).then(function () {
           manageableAccounts = manageableAccounts.filter(function (a) { return a.uid !== uid; });
-          showToast(account.name + ' est maintenant Pilote.', 'success');
+          showToast(account.name + tr('now_rider_suffix'), 'success');
           renderRoot();
         }).catch(function (err) {
-          accountManagerError = 'Erreur : ' + (err && err.message ? err.message : err);
+          accountManagerError = tr('error_prefix') + (err && err.message ? err.message : err);
           renderRoot();
         });
       });
@@ -11384,10 +11516,10 @@
           db.collection('users').doc(uid).delete().then(function () {
             manageableAccounts = manageableAccounts.filter(function (a) { return a.uid !== uid; });
             pendingDeleteAccountUid = null;
-            showToast('Accès retiré.', 'success');
+            showToast(tr('access_removed'), 'success');
             renderRoot();
           }).catch(function (err) {
-            accountManagerError = 'Erreur : ' + (err && err.message ? err.message : err);
+            accountManagerError = tr('error_prefix') + (err && err.message ? err.message : err);
             renderRoot();
           });
         } else {
@@ -11408,10 +11540,10 @@
         writes[field] = next;
         db.collection('users').doc(uid).set(writes, { merge: true }).then(function () {
           account[field] = next;
-          showToast((next ? (account.name + ' est maintenant ') : (account.name + ' n\'est plus ')) + badge.label + '.', 'success');
+          showToast(account.name + (next ? tr('now_prefix') : tr('no_longer_prefix')) + badge.label + '.', 'success');
           renderRoot();
         }).catch(function (err) {
-          accountManagerError = 'Erreur : ' + (err && err.message ? err.message : err);
+          accountManagerError = tr('error_prefix') + (err && err.message ? err.message : err);
           renderRoot();
         });
       });
@@ -11456,7 +11588,7 @@
         var bikeNumberEl = document.getElementById('profile-bike-number');
         var bikeNumber = bikeNumberEl ? bikeNumberEl.value.trim() : '';
         if (bikeNumber && !/^\d{1,3}$/.test(bikeNumber)) {
-          profileSaveMessage = 'Le numéro de moto doit être composé de 1 à 3 chiffres.';
+          profileSaveMessage = tr('bike_number_digits_error');
           renderRoot();
           return;
         }
@@ -11474,7 +11606,7 @@
         var chronoLink = chronoLinkEl ? chronoLinkEl.value.trim() : '';
         if (pseudoEditUnlocked && newName && newName !== currentUserProfile.name && !pseudoRenameConfirmPending) {
           pseudoRenameConfirmPending = true;
-          profileSaveMessage = 'Confirme le changement de pseudo de "' + currentUserProfile.name + '" vers "' + newName + '" en cliquant à nouveau sur Enregistrer. Action immédiate, un seul changement par mois.';
+          profileSaveMessage = tr('confirm_pseudo_change_prefix') + currentUserProfile.name + tr('confirm_pseudo_change_middle') + newName + tr('confirm_pseudo_change_suffix');
           renderRoot();
           return;
         }
@@ -11517,13 +11649,13 @@
         var file = profilePhotoInput.files && profilePhotoInput.files[0];
         if (!file) return;
         if (!/^image\//.test(file.type)) {
-          profilePhotoMessage = 'Choisis un fichier image.';
+          profilePhotoMessage = tr('choose_image_file');
           renderRoot();
           return;
         }
         resizeImageToDataUrl(file, 1000, 0.85, function (dataUrl) {
           if (!dataUrl) {
-            profilePhotoMessage = 'Impossible de lire cette image.';
+            profilePhotoMessage = tr('cannot_read_image');
             renderRoot();
             return;
           }
@@ -11548,7 +11680,7 @@
         var file = horairesPhotoInput.files && horairesPhotoInput.files[0];
         if (!file) return;
         if (!/^image\//.test(file.type)) {
-          horairesPhotoMessage = 'Choisis un fichier image.';
+          horairesPhotoMessage = tr('choose_image_file');
           renderRoot();
           return;
         }
@@ -11556,7 +11688,7 @@
         // to stay legible enough to actually read times off it.
         resizeImageToDataUrl(file, 1400, 0.65, function (dataUrl) {
           if (!dataUrl) {
-            horairesPhotoMessage = 'Impossible de lire cette image.';
+            horairesPhotoMessage = tr('cannot_read_image');
             renderRoot();
             return;
           }
@@ -11564,7 +11696,7 @@
           // every other field of the sortie -- leave headroom rather than
           // find out at save time.
           if (dataUrl.length > 700000) {
-            horairesPhotoMessage = 'Cette photo est trop volumineuse même après compression — recadre-la ou prends-en une capture d\'écran partielle.';
+            horairesPhotoMessage = tr('photo_too_large_recrop');
             renderRoot();
             return;
           }
@@ -11592,18 +11724,18 @@
         var file = circuitMapInput.files && circuitMapInput.files[0];
         if (!file) return;
         if (!/^image\//.test(file.type)) {
-          circuitMapMessage = 'Choisis un fichier image.';
+          circuitMapMessage = tr('choose_image_file');
           renderRoot();
           return;
         }
         resizeImageToDataUrl(file, 1400, 0.7, function (dataUrl) {
           if (!dataUrl) {
-            circuitMapMessage = 'Impossible de lire cette image.';
+            circuitMapMessage = tr('cannot_read_image');
             renderRoot();
             return;
           }
           if (dataUrl.length > 700000) {
-            circuitMapMessage = 'Ce plan est trop volumineux même après compression — recadre-le ou prends-en une capture d\'écran partielle.';
+            circuitMapMessage = tr('map_too_large_recrop');
             renderRoot();
             return;
           }
@@ -11664,18 +11796,18 @@
         var file = wallPostPhotoInput.files && wallPostPhotoInput.files[0];
         if (!file) return;
         if (!/^image\//.test(file.type)) {
-          wallPostMessage = 'Choisis un fichier image.';
+          wallPostMessage = tr('choose_image_file');
           renderRoot();
           return;
         }
         resizeImageToDataUrl(file, 1000, 0.6, function (dataUrl) {
           if (!dataUrl) {
-            wallPostMessage = 'Impossible de lire cette image.';
+            wallPostMessage = tr('cannot_read_image');
             renderRoot();
             return;
           }
           if (dataUrl.length > 700000) {
-            wallPostMessage = 'Cette photo est trop volumineuse même après compression.';
+            wallPostMessage = tr('photo_too_large_after_compression');
             renderRoot();
             return;
           }
@@ -11746,7 +11878,7 @@
         var name = input ? input.value.trim() : '';
         if (!name) return;
         if (!(STATE.usersByName || {})[name]) {
-          showToast('Choisis un pseudo dans la liste proposée.');
+          showToast(tr('choose_pseudo_from_list'));
           return;
         }
         sendFriendRequest(name);
@@ -11820,18 +11952,18 @@
         var scope = btn.closest('.planning-section-body') || document;
         var input = scope.querySelector('[data-team-pro-badge-name]');
         var name = input ? input.value.trim() : '';
-        if (!name) { showToast('Indique un compte.'); return; }
+        if (!name) { showToast(tr('indicate_account')); return; }
         var target = (STATE.usersByName || {})[name];
-        if (!target || !target.uid) { showToast('Compte introuvable : "' + name + '".'); return; }
+        if (!target || !target.uid) { showToast(tr('account_not_found_prefix') + name + tr('quote_close_period')); return; }
         var next = !target[field];
         var writes = {};
         writes[field] = next;
         writes[field + 'TeamId'] = next ? teamId : null;
         db.collection('users').doc(target.uid).set(writes, { merge: true }).then(function () {
-          showToast((next ? (name + ' est maintenant ') : (name + ' n\'est plus ')) + (field === 'coach' ? 'Coach' : 'Photographe officiel') + '.', 'success');
+          showToast(name + (next ? tr('now_prefix') : tr('no_longer_prefix')) + (field === 'coach' ? tr('coach_label') : tr('badge_photographer_label')) + '.', 'success');
           if (input) input.value = '';
         }).catch(function (err) {
-          showToast('Erreur : ' + (err && err.message ? err.message : err));
+          showToast(tr('error_prefix') + (err && err.message ? err.message : err));
         });
       });
     });
@@ -11879,10 +12011,10 @@
       teamFeedPhotoInput.addEventListener('change', function () {
         var file = teamFeedPhotoInput.files && teamFeedPhotoInput.files[0];
         if (!file || !teamPostDraftPhotoTeamId) return;
-        if (!/^image\//.test(file.type)) { showToast('Choisis un fichier image.'); return; }
+        if (!/^image\//.test(file.type)) { showToast(tr('choose_image_file')); return; }
         resizeImageToDataUrl(file, 1000, 0.6, function (dataUrl) {
           if (!dataUrl || dataUrl.length > 700000) {
-            showToast(dataUrl ? 'Cette photo est trop volumineuse même après compression.' : 'Impossible de lire cette image.');
+            showToast(dataUrl ? tr('photo_too_large_after_compression') : tr('cannot_read_image'));
             return;
           }
           teamPostDraftPhotoURL = dataUrl;
@@ -11986,7 +12118,7 @@
         var row = btn.closest('.team-manage-row');
         var input = row ? row.querySelector('[data-team-role-input]') : null;
         setTeamMemberTeamRole(btn.getAttribute('data-team'), btn.getAttribute('data-name'), input ? input.value : '');
-        showToast('Rôle enregistré.', 'success');
+        showToast(tr('role_saved'), 'success');
       });
     });
     document.querySelectorAll('[data-action="event-bike-number-save"]').forEach(function (btn) {
@@ -11994,7 +12126,7 @@
         var row = btn.closest('.friend-row');
         var input = row ? row.querySelector('[data-event-bike-number-input]') : null;
         saveEventRiderBikeNumber(btn.getAttribute('data-id'), btn.getAttribute('data-rider'), input ? input.value : '');
-        showToast('N° enregistré.', 'success');
+        showToast(tr('number_saved'), 'success');
       });
     });
     document.querySelectorAll('[data-action="team-visibility"]').forEach(function (select) {
@@ -12018,11 +12150,11 @@
       teamPhotoInput.addEventListener('change', function () {
         var file = teamPhotoInput.files && teamPhotoInput.files[0];
         if (!file || !teamPhotoUploadTeamId) return;
-        if (!/^image\//.test(file.type)) { showToast('Choisis un fichier image.'); return; }
+        if (!/^image\//.test(file.type)) { showToast(tr('choose_image_file')); return; }
         // Kept larger than the final 400x400 badge output so there's
         // still real detail left to pan/zoom into in the crop modal.
         resizeImageToDataUrl(file, 1000, 0.85, function (dataUrl) {
-          if (!dataUrl) { showToast('Impossible de lire cette image.'); return; }
+          if (!dataUrl) { showToast(tr('cannot_read_image')); return; }
           openCropModal('team', teamPhotoUploadTeamId, dataUrl);
         });
       });
@@ -12048,11 +12180,11 @@
       teamLogoInput.addEventListener('change', function () {
         var file = teamLogoInput.files && teamLogoInput.files[0];
         if (!file || !teamPhotoUploadTeamId) return;
-        if (!/^image\//.test(file.type)) { showToast('Choisis un fichier image.'); return; }
+        if (!/^image\//.test(file.type)) { showToast(tr('choose_image_file')); return; }
         // Kept larger than the final 1280px-wide output so there's still
         // real detail left to pan/zoom into in the crop modal.
         resizeImageToDataUrl(file, 1400, 0.85, function (dataUrl) {
-          if (!dataUrl) { showToast('Impossible de lire cette image.'); return; }
+          if (!dataUrl) { showToast(tr('cannot_read_image')); return; }
           openCropModal('logo', teamPhotoUploadTeamId, dataUrl);
         });
       });
@@ -12355,7 +12487,7 @@
         var id = btn.getAttribute('data-id');
         var textarea = document.querySelector('[data-coach-plan="' + id + '"]');
         saveCoachPlan(id, textarea ? textarea.value : '');
-        showToast('Planning enregistré.', 'success');
+        showToast(tr('planning_saved'), 'success');
       });
     });
     var coachRequestForm = document.getElementById('coach-request-form');
@@ -12384,12 +12516,12 @@
         var u = (STATE.usersByName || {})[name];
         var allowedRoles = coachProposeType === 'bapteme' ? ['pilote', 'accompagnant'] : ['pilote'];
         if (!u || allowedRoles.indexOf(u.role || 'pilote') === -1) {
-          showToast(coachProposeType === 'bapteme' ? 'Choisis un pilote ou un accompagnant dans la liste proposée.' : 'Choisis un pilote dans la liste proposée.');
+          showToast(coachProposeType === 'bapteme' ? tr('choose_rider_or_companion_list') : tr('choose_rider_list'));
           return;
         }
         var target = targetPlanningEvent();
         var chosen = target ? allEventSlots(target.ev).filter(function (s) { return s.label === slotSelect.value; })[0] : null;
-        if (!target || !chosen) { showToast('Choisis un créneau valide.'); return; }
+        if (!target || !chosen) { showToast(tr('choose_valid_slot')); return; }
         sendCoachRequest(name, coachProposeType, {
           eventId: target.ev.id, circuit: target.ev.circuit,
           slotStart: chosen.start, slotEnd: chosen.end, slotLabel: chosen.label
@@ -12709,9 +12841,9 @@
         var link = referralLinkFor(currentUserProfile.name);
         if (navigator.clipboard && navigator.clipboard.writeText) {
           navigator.clipboard.writeText(link).then(function () {
-            showToast('Lien de parrainage copié.', 'success');
+            showToast(tr('referral_link_copied'), 'success');
           }).catch(function () {
-            showToast('Impossible de copier — copie-le manuellement : ' + link);
+            showToast(tr('cannot_copy_manual_link_prefix') + link);
           });
         }
       });
@@ -12725,7 +12857,7 @@
           navigator.share({ title: 'Carnet de Piste', text: 'Rejoins-nous sur Carnet de Piste !', url: link }).catch(function () {});
         } else if (navigator.clipboard && navigator.clipboard.writeText) {
           navigator.clipboard.writeText(link).then(function () {
-            showToast('Lien de parrainage copié.', 'success');
+            showToast(tr('referral_link_copied'), 'success');
           });
         }
       });
@@ -12765,7 +12897,7 @@
       if (groupHintEl) {
         if (hint) {
           groupHintEl.style.display = '';
-          groupHintEl.textContent = 'Groupe suggéré depuis l’événement associé : ' + hint + '.';
+          groupHintEl.textContent = tr('suggested_group_from_event_prefix') + hint + '.';
         } else {
           groupHintEl.style.display = 'none';
         }
@@ -12802,9 +12934,9 @@
           navigator.share({ text: text }).catch(function () {}); // user-cancelled share is not an error
         } else if (navigator.clipboard && navigator.clipboard.writeText) {
           navigator.clipboard.writeText(text).then(function () {
-            showToast('Récap copié — colle-le où tu veux.', 'success');
+            showToast(tr('recap_copied'), 'success');
           }).catch(function () {
-            showToast('Impossible de copier le récap.');
+            showToast(tr('cannot_copy_recap'));
           });
         }
       });
@@ -13397,7 +13529,7 @@
     });
 
     if (dateEl.value.trim() && !date) {
-      errEl.textContent = 'Date invalide — format attendu JJ/MM/AAAA.';
+      errEl.textContent = tr('invalid_date_format');
       errEl.classList.add('visible');
       return;
     }
@@ -13409,17 +13541,17 @@
     // mistyped future date silently hijacked the default circuit shown to
     // everyone, indefinitely, until manually found and fixed.
     if (date && date > dateKey(new Date())) {
-      errEl.textContent = 'Cette date est dans le futur — vérifie le jour/mois/année (' + dateEl.value + ').';
+      errEl.textContent = tr('future_date_error_prefix') + dateEl.value + tr('future_date_error_suffix');
       errEl.classList.add('visible');
       return;
     }
     if (!rider || !date || !circuit || !laps.length) {
-      errEl.textContent = 'Renseignez un pilote, une date et au moins un chrono valide.';
+      errEl.textContent = tr('fill_rider_date_chrono');
       errEl.classList.add('visible');
       return;
     }
     if (invalid) {
-      errEl.textContent = 'Certains chronos sont illisibles — format attendu 1:23.456 ou 83.456.';
+      errEl.textContent = tr('unreadable_chronos_format');
       errEl.classList.add('visible');
       return;
     }
@@ -13472,10 +13604,10 @@
 
     var newBest = sessionBest(session);
     if (previousBest === null || newBest < previousBest) {
-      showToast('Nouveau record personnel sur ' + circuit + ' : ' + formatTime(newBest) + ' !', 'success');
+      showToast(tr('new_personal_record_prefix') + circuit + ' : ' + formatTime(newBest) + tr('exclaim_suffix'), 'success');
       if (previousBest !== null) writeFeedEvent('record', { circuit: circuit, time: newBest, sessionId: session.id });
     } else {
-      showToast('Chrono enregistré.', 'success');
+      showToast(tr('chrono_saved'), 'success');
     }
     // On by default, opt-out (see Réglages), and only for a chrono this
     // account entered for itself -- an organisateur/admin entering one
@@ -13518,7 +13650,7 @@
     var banner = document.getElementById('status-banner');
     if (!banner) return;
     if (!canPersist) {
-      banner.textContent = 'Sauvegarde indisponible dans cette vue : vos modifications ne seront pas conservées.';
+      banner.textContent = tr('save_unavailable_banner');
       banner.classList.add('visible');
       var submitBtn = document.getElementById('submit-btn');
       if (submitBtn) submitBtn.disabled = true;
@@ -14029,7 +14161,7 @@
   function handleSyncError() {
     canPersist = false;
     updateBanner();
-    showToast('Connexion à la base de données perdue — vérifie ta connexion et recharge la page.');
+    showToast(tr('db_connection_lost'));
   }
 
   // Diffs prevState against the current STATE (already mutated in place by
@@ -14110,7 +14242,7 @@
         canPersist = false;
         updateBanner();
       } else {
-        showToast('La sauvegarde a échoué — réessayez.');
+        showToast(tr('save_failed_retry'));
       }
     });
   }
