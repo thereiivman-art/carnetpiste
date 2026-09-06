@@ -320,7 +320,17 @@
       badge_organizer_label: 'Organisateur vérifié', badge_organizer_desc: 'Organisateur vérifié par l\'administrateur.',
       badge_coach_desc: 'Coach — reconnu par l\'administrateur ou le Team Leader d\'un Team PRO pour donner du coaching.',
       badge_photographer_label: 'Photographe officiel', badge_photographer_desc: 'Photographe officiel — reconnu par l\'administrateur ou le Team Leader d\'un Team PRO.',
-      mark_as_prefix: 'Marquer '
+      mark_as_prefix: 'Marquer ',
+      rename_aria_prefix: 'Renommer ', rename_label: 'Renommer',
+      delete_aria_prefix: 'Supprimer ', new_rider_name_placeholder: 'Nom du nouveau pilote',
+      back_to_my_profile: '← Retour à Mon profil', manage_riders_roster: 'Gérer les pilotes (roster)',
+      no_accounts_yet: 'Aucun compte pour l\'instant.',
+      no_results_for_prefix: 'Aucun résultat pour « ', no_results_for_suffix: ' ».',
+      bike_colon: 'moto : ', follows_colon: 'suit : ', demote_to_rider: 'Repasser en pilote',
+      delete_account_aria: 'Supprimer ce compte', revoke_access_title: 'Retirer l\'accès',
+      team_management_heading: 'Gestion des Teams', created_by_prefix: 'créé par ',
+      remove_team_pro: 'Retirer Team PRO', mark_team_pro: 'Marquer Team PRO',
+      delete_team_irreversible_prefix: 'Supprimer "', delete_team_irreversible_suffix: '" est irréversible. Confirme avec ton mot de passe actuel.'
     },
     en: {
       nav_events: 'Events', nav_chronos: 'Chronos', nav_planning: 'ON TRACK', nav_social: 'Social', nav_team: 'Team',
@@ -609,7 +619,17 @@
       badge_organizer_label: 'Verified organizer', badge_organizer_desc: 'Organizer verified by the administrator.',
       badge_coach_desc: 'Coach — recognized by the administrator or the Leader of a Team PRO to give coaching.',
       badge_photographer_label: 'Official photographer', badge_photographer_desc: 'Official photographer — recognized by the administrator or the Leader of a Team PRO.',
-      mark_as_prefix: 'Mark as '
+      mark_as_prefix: 'Mark as ',
+      rename_aria_prefix: 'Rename ', rename_label: 'Rename',
+      delete_aria_prefix: 'Delete ', new_rider_name_placeholder: 'New rider\'s name',
+      back_to_my_profile: '← Back to My profile', manage_riders_roster: 'Manage riders (roster)',
+      no_accounts_yet: 'No accounts yet.',
+      no_results_for_prefix: 'No results for "', no_results_for_suffix: '".',
+      bike_colon: 'bike: ', follows_colon: 'follows: ', demote_to_rider: 'Demote to rider',
+      delete_account_aria: 'Delete this account', revoke_access_title: 'Revoke access',
+      team_management_heading: 'Team management', created_by_prefix: 'created by ',
+      remove_team_pro: 'Remove Team PRO', mark_team_pro: 'Mark as Team PRO',
+      delete_team_irreversible_prefix: 'Deleting "', delete_team_irreversible_suffix: '" is irreversible. Confirm with your current password.'
     }
   };
   function currentLang() {
@@ -2768,21 +2788,21 @@
           '<form data-rename-rider="' + escapeHtml(r) + '" class="rider-manager-rename-form">' +
           '<input type="text" name="new-name" value="' + escapeHtml(r) + '" required autofocus>' +
           '<button type="submit" class="primary">OK</button>' +
-          '<button type="button" class="ghost" data-action="cancel-rename-rider">Annuler</button>' +
+          '<button type="button" class="ghost" data-action="cancel-rename-rider">' + tr('cancel') + '</button>' +
           '</form></li>';
       }
       var isPendingDelete = pendingDeleteRider === r;
       return '<li class="rider-manager-row">' +
         '<span class="rider-manager-name">' + escapeHtml(r) + '</span>' +
-        '<button type="button" class="ghost icon-btn" data-action="rename-rider-request" data-rider="' + escapeHtml(r) + '" aria-label="Renommer ' + escapeHtml(r) + '" title="Renommer">✎</button>' +
-        '<button type="button" class="ghost icon-btn' + (isPendingDelete ? ' confirm' : ' danger') + '" data-action="delete-rider-request" data-rider="' + escapeHtml(r) + '" aria-label="Supprimer ' + escapeHtml(r) + '" title="Supprimer">' + (isPendingDelete ? '✓' : '×') + '</button>' +
+        '<button type="button" class="ghost icon-btn" data-action="rename-rider-request" data-rider="' + escapeHtml(r) + '" aria-label="' + tr('rename_aria_prefix') + escapeHtml(r) + '" title="' + tr('rename_label') + '">✎</button>' +
+        '<button type="button" class="ghost icon-btn' + (isPendingDelete ? ' confirm' : ' danger') + '" data-action="delete-rider-request" data-rider="' + escapeHtml(r) + '" aria-label="' + tr('delete_aria_prefix') + escapeHtml(r) + '" title="' + tr('delete_label') + '">' + (isPendingDelete ? '✓' : '×') + '</button>' +
         '</li>';
     }).join('');
     var html = '<div class="rider-manager">';
     html += riders.length ? '<ul class="rider-manager-list">' + rows + '</ul>' : '';
     html += '<form id="add-rider-form" class="rider-manager-add-form">' +
-      '<input type="text" id="new-rider-name" placeholder="Nom du nouveau pilote" required>' +
-      '<button type="submit" class="primary">Ajouter</button>' +
+      '<input type="text" id="new-rider-name" placeholder="' + tr('new_rider_name_placeholder') + '" required>' +
+      '<button type="submit" class="primary">' + tr('add_aria') + '</button>' +
       '</form>';
     if (riderManagerError) {
       html += '<div class="field-error visible">' + escapeHtml(riderManagerError) + '</div>';
@@ -3333,19 +3353,19 @@
 
   function renderAccountManagerPanel() {
     if (!accountManagerOpen) return '';
-    var html = '<button type="button" class="ghost" id="account-manager-back" style="margin-bottom:0.6rem;">← Retour à Mon profil</button>';
+    var html = '<button type="button" class="ghost" id="account-manager-back" style="margin-bottom:0.6rem;">' + tr('back_to_my_profile') + '</button>';
     html += '<div class="card account-manager-panel">';
-    html += '<div class="section-title" style="display:flex; align-items:center; justify-content:space-between;">Gestion des comptes' +
-      '<button type="button" class="ghost icon-btn" id="rider-manager-toggle" aria-label="Gérer les pilotes (roster)" title="Gérer les pilotes (roster)">⚙</button></div>';
+    html += '<div class="section-title" style="display:flex; align-items:center; justify-content:space-between;">' + tr('account_management_label') +
+      '<button type="button" class="ghost icon-btn" id="rider-manager-toggle" aria-label="' + tr('manage_riders_roster') + '" title="' + tr('manage_riders_roster') + '">⚙</button></div>';
     if (manageableAccounts === null) {
-      html += '<div class="help-text">Chargement...</div>';
+      html += '<div class="help-text">' + tr('loading') + '</div>';
     } else {
-      html += '<input type="text" id="account-manager-search" placeholder="Rechercher un pilote, accompagnant, organisateur..." value="' + escapeHtml(accountManagerSearch) + '" style="margin-bottom:0.8rem;">';
+      html += '<input type="text" id="account-manager-search" placeholder="' + tr('search_person_placeholder') + '" value="' + escapeHtml(accountManagerSearch) + '" style="margin-bottom:0.8rem;">';
       var accounts = filteredManageableAccounts();
       if (!manageableAccounts.length) {
-        html += '<div class="help-text">Aucun compte pour l\'instant.</div>';
+        html += '<div class="help-text">' + tr('no_accounts_yet') + '</div>';
       } else if (!accounts.length) {
-        html += '<div class="help-text">Aucun résultat pour « ' + escapeHtml(accountManagerSearch) + ' ».</div>';
+        html += '<div class="help-text">' + tr('no_results_for_prefix') + escapeHtml(accountManagerSearch) + tr('no_results_for_suffix') + '</div>';
       } else {
       html += '<ul class="rider-manager-list">' + accounts.map(function (a) {
         var isPendingDelete = pendingDeleteAccountUid === a.uid;
@@ -3353,14 +3373,14 @@
         var detail = isPilote ? escapeHtml(a.bike || '—') : escapeHtml((a.followedRiders || []).join(', ') || '—');
         return '<li class="rider-manager-row account-manager-row">' +
           '<div><span class="rider-manager-name' + nameColorClass(a.name) + '">' + escapeHtml(a.name || a.email) + '</span>' + badgesHtml(a) + ' <span class="friend-role-badge">' + roleLabel(a.role) + '</span>' +
-          '<div class="help-text">' + escapeHtml(a.email || '') + ' · ' + (isPilote ? 'moto : ' : 'suit : ') + detail + '</div></div>' +
-          (isPilote ? '' : '<button type="button" class="ghost icon-btn" data-action="demote-account" data-uid="' + a.uid + '" aria-label="Repasser en pilote" title="Repasser en pilote">↺</button>') +
+          '<div class="help-text">' + escapeHtml(a.email || '') + ' · ' + (isPilote ? tr('bike_colon') : tr('follows_colon')) + detail + '</div></div>' +
+          (isPilote ? '' : '<button type="button" class="ghost icon-btn" data-action="demote-account" data-uid="' + a.uid + '" aria-label="' + tr('demote_to_rider') + '" title="' + tr('demote_to_rider') + '">↺</button>') +
           profileBadges().map(function (b) {
             var on = !!a[b.field];
             var title = (on ? tr('remove_generic') + ' ' : tr('mark_as_prefix')) + b.label;
             return '<button type="button" class="ghost icon-btn' + (on ? ' confirm' : '') + '" data-action="toggle-account-badge" data-uid="' + a.uid + '" data-field="' + b.field + '" aria-label="' + escapeHtml(title) + '" title="' + escapeHtml(title) + '">' + b.icon + '</button>';
           }).join('') +
-          '<button type="button" class="ghost icon-btn' + (isPendingDelete ? ' confirm' : ' danger') + '" data-action="delete-account-request" data-uid="' + a.uid + '" aria-label="Supprimer ce compte" title="Retirer l\'accès">' + (isPendingDelete ? '✓' : '×') + '</button>' +
+          '<button type="button" class="ghost icon-btn' + (isPendingDelete ? ' confirm' : ' danger') + '" data-action="delete-account-request" data-uid="' + a.uid + '" aria-label="' + tr('delete_account_aria') + '" title="' + tr('revoke_access_title') + '">' + (isPendingDelete ? '✓' : '×') + '</button>' +
           '</li>';
       }).join('') + '</ul>';
       }
@@ -3379,15 +3399,15 @@
   function renderTeamManagerPanel() {
     var teams = (STATE.teams || []).slice().sort(function (a, b) { return a.name.localeCompare(b.name); });
     if (!teams.length) return '';
-    var html = '<div class="section-title" style="font-size:0.95rem; margin-top:1.2rem; border-top:1px solid var(--border); padding-top:0.9rem;">Gestion des Teams</div>';
+    var html = '<div class="section-title" style="font-size:0.95rem; margin-top:1.2rem; border-top:1px solid var(--border); padding-top:0.9rem;">' + tr('team_management_heading') + '</div>';
     html += '<ul class="rider-manager-list">' + teams.map(function (t) {
       var deleteControl = pendingDeleteTeamId !== t.id
-        ? '<button type="button" class="ghost icon-btn danger" data-action="admin-team-delete-request" data-team="' + t.id + '" aria-label="Supprimer ce Team" title="Supprimer ce Team">×</button>'
+        ? '<button type="button" class="ghost icon-btn danger" data-action="admin-team-delete-request" data-team="' + t.id + '" aria-label="' + tr('delete_team_btn') + '" title="' + tr('delete_team_btn') + '">×</button>'
         : '';
       var row = '<li class="rider-manager-row account-manager-row">' +
         '<div><span class="rider-manager-name">' + escapeHtml(t.name) + '</span>' + teamBadgesHtml(t) +
-        '<div class="help-text">créé par ' + escapeHtml(t.createdBy) + '</div></div>' +
-        '<button type="button" class="ghost icon-btn' + (t.teamPro ? ' confirm' : '') + '" data-action="toggle-team-pro" data-team="' + t.id + '" aria-label="' + (t.teamPro ? 'Retirer Team PRO' : 'Marquer Team PRO') + '" title="' + (t.teamPro ? 'Retirer Team PRO' : 'Marquer Team PRO') + '">✓</button>' +
+        '<div class="help-text">' + tr('created_by_prefix') + escapeHtml(t.createdBy) + '</div></div>' +
+        '<button type="button" class="ghost icon-btn' + (t.teamPro ? ' confirm' : '') + '" data-action="toggle-team-pro" data-team="' + t.id + '" aria-label="' + (t.teamPro ? tr('remove_team_pro') : tr('mark_team_pro')) + '" title="' + (t.teamPro ? tr('remove_team_pro') : tr('mark_team_pro')) + '">✓</button>' +
         deleteControl +
         '</li>';
       // Same password-confirmation dance as a Team Leader deleting their
@@ -3397,12 +3417,12 @@
       // ownership check server-side.
       if (pendingDeleteTeamId === t.id) {
         row += '<li class="rider-manager-row"><form id="admin-team-delete-form" data-team="' + t.id + '" style="width:100%;">' +
-          '<div class="help-text">Supprimer "' + escapeHtml(t.name) + '" est irréversible. Confirme avec ton mot de passe actuel.</div>' +
-          '<label for="admin-team-delete-password" style="margin-top:0.6rem;">Mot de passe actuel</label>' +
+          '<div class="help-text">' + tr('delete_team_irreversible_prefix') + escapeHtml(t.name) + tr('delete_team_irreversible_suffix') + '</div>' +
+          '<label for="admin-team-delete-password" style="margin-top:0.6rem;">' + tr('current_password_label') + '</label>' +
           '<input type="password" id="admin-team-delete-password" autocomplete="current-password">' +
           '<div style="margin-top:0.7rem; display:flex; gap:0.6rem;">' +
-          '<button type="submit" class="ghost danger">Confirmer la suppression</button>' +
-          '<button type="button" class="ghost" data-action="admin-team-delete-cancel">Annuler</button></div>' +
+          '<button type="submit" class="ghost danger">' + tr('confirm_deletion_btn') + '</button>' +
+          '<button type="button" class="ghost" data-action="admin-team-delete-cancel">' + tr('cancel') + '</button></div>' +
           (teamDeleteMessage ? '<div class="help-text" style="margin-top:0.6rem;">' + escapeHtml(teamDeleteMessage) + '</div>' : '') +
           '</form></li>';
       }
