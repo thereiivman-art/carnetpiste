@@ -20,6 +20,42 @@
   var canPersist = false;
   var unsubscribers = [];
 
+  // ---- i18n (FR default, EN optional per-account, see Mon profil) ----
+  //
+  // Persisted on the account itself (currentUserProfile.lang), like the
+  // notify* settings, not in localStorage like the theme toggle -- the
+  // brief asked for a per-account choice, not a per-browser one. Only a
+  // first batch of strings is wired through tr() so far (main navigation,
+  // Mon profil) -- everything else keeps its French literal untouched,
+  // which is deliberately safe: a string tr() never sees just stays
+  // French, so the rest of the app can keep migrating one call site at a
+  // time across future sessions without ever being in a half-broken
+  // state. tr() itself falls back FR -> the key name, so a typo'd or
+  // not-yet-translated EN key never renders blank.
+  var TRANSLATIONS = {
+    fr: {
+      nav_events: 'Événements', nav_chronos: 'Chronos', nav_planning: 'EN PISTE', nav_social: 'Social', nav_team: 'Team',
+      coach_label: 'Coach', stats_label: 'Stats', notifications_label: 'Notifications', my_profile_label: 'Mon profil',
+      profile_theme: 'Thème', profile_theme_light: 'clair', profile_theme_dark: 'sombre', profile_theme_system: 'système',
+      profile_lang: 'Langue', save: 'Enregistrer', cancel: 'Annuler'
+    },
+    en: {
+      nav_events: 'Events', nav_chronos: 'Chronos', nav_planning: 'ON TRACK', nav_social: 'Social', nav_team: 'Team',
+      coach_label: 'Coach', stats_label: 'Stats', notifications_label: 'Notifications', my_profile_label: 'My profile',
+      profile_theme: 'Theme', profile_theme_light: 'light', profile_theme_dark: 'dark', profile_theme_system: 'system',
+      profile_lang: 'Language', save: 'Save', cancel: 'Cancel'
+    }
+  };
+  function currentLang() {
+    return (currentUserProfile && currentUserProfile.lang === 'en') ? 'en' : 'fr';
+  }
+  function tr(key) {
+    var dict = TRANSLATIONS[currentLang()] || TRANSLATIONS.fr;
+    if (dict[key] != null) return dict[key];
+    if (TRANSLATIONS.fr[key] != null) return TRANSLATIONS.fr[key];
+    return key;
+  }
+
   // Real accounts (email/password), not anonymous sign-in -- gates the
   // whole app behind a login/signup screen (see renderAuthScreen()).
   var authState = 'loading'; // 'loading' | 'signed-out' | 'signed-in'
@@ -2400,7 +2436,8 @@
 
   function renderProfileReglagesTab(p) {
     var html = renderNotificationsSettings(p);
-    html += '<div style="margin-top:1.1rem;"><label style="margin-bottom:0.4rem; display:block;">Thème</label>' + renderThemeToggle() + '</div>';
+    html += '<div style="margin-top:1.1rem;"><label style="margin-bottom:0.4rem; display:block;">' + tr('profile_lang') + '</label>' + renderLangToggle() + '</div>';
+    html += '<div style="margin-top:1.1rem;"><label style="margin-bottom:0.4rem; display:block;">' + tr('profile_theme') + '</label>' + renderThemeToggle() + '</div>';
     // Opt-out, on by default -- a quick "comment c'était ?" prompt after
     // every chrono enregistré, until an account explicitly turns it off
     // (see onSubmit's success handler and renderFeelingModal, both gated
@@ -6145,11 +6182,11 @@
   // Stats has its own header icon now (see renderRootUnsafe), not a
   // bottom-nav slot -- only these 5 make up the bottom nav, in this order.
   var MAIN_TABS = [
-    ['event', 'Événements', '📅'],
-    ['circuit', 'Chronos', '⏱️'],
-    ['planning', 'EN PISTE', '🏍️'],
-    ['social', 'Social', '👥'],
-    ['team', 'Team', '🤝']
+    ['event', 'nav_events', '📅'],
+    ['circuit', 'nav_chronos', '⏱️'],
+    ['planning', 'nav_planning', '🏍️'],
+    ['social', 'nav_social', '👥'],
+    ['team', 'nav_team', '🤝']
   ];
 
   // Fixed to the bottom of the viewport (see .bottom-nav), like a native
@@ -6159,9 +6196,9 @@
   // pins it, this ordering is just for readability of the source.
   function renderBottomNav() {
     var html = '<nav class="bottom-nav">';
-    MAIN_TABS.forEach(function (t) {
-      html += '<button type="button" class="bottom-nav-btn' + (activeView === t[0] ? ' active' : '') + '" data-view="' + t[0] + '">' +
-        '<span class="bottom-nav-icon">' + t[2] + '</span><span class="bottom-nav-label">' + t[1] + '</span></button>';
+    MAIN_TABS.forEach(function (tab) {
+      html += '<button type="button" class="bottom-nav-btn' + (activeView === tab[0] ? ' active' : '') + '" data-view="' + tab[0] + '">' +
+        '<span class="bottom-nav-icon">' + tab[2] + '</span><span class="bottom-nav-label">' + tr(tab[1]) + '</span></button>';
     });
     html += '</nav>';
     return html;
@@ -8432,13 +8469,31 @@
 
   function renderThemeToggle() {
     var pref = getThemePref();
-    function btn(value, label, icon) {
-      return '<button type="button" class="theme-toggle-btn' + (pref === value ? ' active' : '') + '" data-theme-choice="' + value + '" aria-label="Thème ' + label + '" title="Thème ' + label + '">' + icon + '</button>';
+    function btn(value, labelKey, icon) {
+      var label = tr('profile_theme') + ' ' + tr(labelKey);
+      return '<button type="button" class="theme-toggle-btn' + (pref === value ? ' active' : '') + '" data-theme-choice="' + value + '" aria-label="' + label + '" title="' + label + '">' + icon + '</button>';
     }
-    return '<div class="theme-toggle" role="group" aria-label="Choix du thème">' +
-      btn('light', 'clair', '☀️') +
-      btn('dark', 'sombre', '🌙') +
-      btn('system', 'système', '🖥️') +
+    return '<div class="theme-toggle" role="group" aria-label="' + tr('profile_theme') + '">' +
+      btn('light', 'profile_theme_light', '☀️') +
+      btn('dark', 'profile_theme_dark', '🌙') +
+      btn('system', 'profile_theme_system', '🖥️') +
+      '</div>';
+  }
+
+  // Per-account (currentUserProfile.lang), unlike the theme toggle above
+  // which is per-browser -- see saveLang. Only FR/EN today; the flag
+  // icons are just a compact visual pick, not meant to imply a country.
+  function saveLang(lang) {
+    saveOwnBooleanField('lang', lang);
+  }
+  function renderLangToggle() {
+    var lang = currentLang();
+    function btn(value, flag, label) {
+      return '<button type="button" class="theme-toggle-btn' + (lang === value ? ' active' : '') + '" data-lang-choice="' + value + '" aria-label="' + label + '" title="' + label + '">' + flag + '</button>';
+    }
+    return '<div class="theme-toggle" role="group" aria-label="' + tr('profile_lang') + '">' +
+      btn('fr', '🇫🇷', 'Français') +
+      btn('en', '🇬🇧', 'English') +
       '</div>';
   }
 
@@ -10269,12 +10324,12 @@
           '<div class="page-head-row">' +
             '<h1 class="title">Carnet de Piste</h1>' +
             '<div class="header-controls">' +
-              (canAccessCoachSpace() ? '<button type="button" class="header-icon-btn' + (activeView === 'coach' ? ' active' : '') + '" data-view="coach" aria-label="Coach" title="Coach">🎓</button>' : '') +
-              '<button type="button" class="header-icon-btn' + (activeView === 'stats' ? ' active' : '') + '" data-view="stats" aria-label="Stats" title="Stats">📊</button>' +
-              '<button type="button" class="header-icon-btn" id="notifications-toggle" aria-label="Notifications" title="Notifications">🔔' +
+              (canAccessCoachSpace() ? '<button type="button" class="header-icon-btn' + (activeView === 'coach' ? ' active' : '') + '" data-view="coach" aria-label="' + tr('coach_label') + '" title="' + tr('coach_label') + '">🎓</button>' : '') +
+              '<button type="button" class="header-icon-btn' + (activeView === 'stats' ? ' active' : '') + '" data-view="stats" aria-label="' + tr('stats_label') + '" title="' + tr('stats_label') + '">📊</button>' +
+              '<button type="button" class="header-icon-btn" id="notifications-toggle" aria-label="' + tr('notifications_label') + '" title="' + tr('notifications_label') + '">🔔' +
                 (notifCount ? '<span class="notif-count">' + (notifCount > 9 ? '9+' : notifCount) + '</span>' : '') +
               '</button>' +
-              '<button type="button" class="profile-badge-btn" id="profile-toggle" aria-label="Mon profil" title="Mon profil">' + avatarHtml(currentUserProfile, currentUserProfile.name) + '</button>' +
+              '<button type="button" class="profile-badge-btn" id="profile-toggle" aria-label="' + tr('my_profile_label') + '" title="' + tr('my_profile_label') + '">' + avatarHtml(currentUserProfile, currentUserProfile.name) + '</button>' +
             '</div>' +
           '</div>' +
           '<div class="banner" id="status-banner"></div>' +
@@ -12102,6 +12157,11 @@
     document.querySelectorAll('[data-theme-choice]').forEach(function (btn) {
       btn.addEventListener('click', function () {
         setThemePref(btn.getAttribute('data-theme-choice'));
+      });
+    });
+    document.querySelectorAll('[data-lang-choice]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        saveLang(btn.getAttribute('data-lang-choice'));
       });
     });
     var form = document.getElementById('session-form');
