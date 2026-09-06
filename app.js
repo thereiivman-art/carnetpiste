@@ -291,7 +291,24 @@
       grant_coach_photographer_help: 'En tant que Team Leader d\'un Team PRO, attribue ou retire ces badges à n\'importe quel compte (pas seulement les membres du Team).',
       search_person_placeholder: 'Rechercher un pilote, accompagnant, organisateur...',
       coach_toggle_btn: '🎓 Coach : attribuer/retirer', photographer_toggle_btn: '📷 Photographe : attribuer/retirer',
-      grant_coach_photographer_heading: 'Attribuer Coach / Photographe officiel'
+      grant_coach_photographer_heading: 'Attribuer Coach / Photographe officiel',
+      participant_word: 'participant', pending_request_word: 'demande', pending_suffix: ' en attente',
+      manage_btn: 'Gérer', view_btn: 'Voir', no_events_team: 'Aucun événement pour ce Team.',
+      nothing_now: 'Rien en ce moment.', nothing_planned: 'Rien de prévu.', no_past_events: 'Aucun événement passé.',
+      events_management_heading: 'Gestion des événements',
+      organized_by_prefix: 'Organisé par ', readonly_leader_can_edit_suffix: ' — lecture seule, seul le Team Leader de ',
+      readonly_can_edit_suffix2: ' peut modifier cet événement.', edit_event_btn: 'Modifier l\'événement',
+      ev_vis_public: 'Public', ev_vis_adherent_only: 'Adhérent only', ev_vis_membre_only: 'Membre only',
+      ev_vis_follower_only: 'Followers only', ev_vis_ouvert: 'Ouvert', visibility_label: 'Visibilité',
+      book_register_btn: 'Réserver / S\'inscrire ↗', rider_col_label: 'Pilote',
+      event_bike_number_label: 'N° pour cet event', save_number_aria: 'Enregistrer le N°',
+      event_bike_number_prefix: 'N° pour cet event : #', no_participants: 'Aucun participant.',
+      participants_heading: 'Participants', requests_to_accept_heading: 'Demandes à accepter', accept_btn: 'Accepter',
+      groups_heading: 'Groupes', add_riders_to_group_hint: 'Ajoute des participants pour pouvoir les répartir en groupes.',
+      remove_from_group_aria: 'Retirer du groupe', unassigned_label: 'Non attribués', nobody_yet: 'Personne pour l\'instant.',
+      group_orga_staff: 'Groupe ORGA (staff)', verified_chronos_heading: 'Chronos vérifiés', no_chrono: 'Aucun chrono',
+      no_announcements_yet: 'Aucune annonce pour l\'instant.', edited_suffix: ' (modifié)',
+      announcement_placeholder: 'Ex. BRIEFING DEMAIN A 8H15', announcements_heading: 'Annonces'
     },
     en: {
       nav_events: 'Events', nav_chronos: 'Chronos', nav_planning: 'ON TRACK', nav_social: 'Social', nav_team: 'Team',
@@ -551,7 +568,24 @@
       grant_coach_photographer_help: 'As the Leader of a Team PRO, grant or revoke these badges to any account (not just Team members).',
       search_person_placeholder: 'Search for a rider, companion, organizer...',
       coach_toggle_btn: '🎓 Coach: grant/revoke', photographer_toggle_btn: '📷 Photographer: grant/revoke',
-      grant_coach_photographer_heading: 'Grant Coach / Official Photographer'
+      grant_coach_photographer_heading: 'Grant Coach / Official Photographer',
+      participant_word: 'rider', pending_request_word: 'request', pending_suffix: ' pending',
+      manage_btn: 'Manage', view_btn: 'View', no_events_team: 'No events for this Team.',
+      nothing_now: 'Nothing right now.', nothing_planned: 'Nothing planned.', no_past_events: 'No past events.',
+      events_management_heading: 'Event management',
+      organized_by_prefix: 'Organized by ', readonly_leader_can_edit_suffix: ' — read-only, only the Team Leader of ',
+      readonly_can_edit_suffix2: ' can edit this event.', edit_event_btn: 'Edit event',
+      ev_vis_public: 'Public', ev_vis_adherent_only: 'Adherent only', ev_vis_membre_only: 'Member only',
+      ev_vis_follower_only: 'Followers only', ev_vis_ouvert: 'Open', visibility_label: 'Visibility',
+      book_register_btn: 'Book / Register ↗', rider_col_label: 'Rider',
+      event_bike_number_label: 'Bike # for this event', save_number_aria: 'Save the #',
+      event_bike_number_prefix: 'Bike # for this event: #', no_participants: 'No participants.',
+      participants_heading: 'Participants', requests_to_accept_heading: 'Requests to accept', accept_btn: 'Accept',
+      groups_heading: 'Groups', add_riders_to_group_hint: 'Add participants to be able to split them into groups.',
+      remove_from_group_aria: 'Remove from group', unassigned_label: 'Unassigned', nobody_yet: 'Nobody yet.',
+      group_orga_staff: 'ORGA Group (staff)', verified_chronos_heading: 'Verified lap times', no_chrono: 'No lap time',
+      no_announcements_yet: 'No announcements yet.', edited_suffix: ' (edited)',
+      announcement_placeholder: 'E.g. BRIEFING TOMORROW AT 8:15AM', announcements_heading: 'Announcements'
     }
   };
   function currentLang() {
@@ -4621,14 +4655,14 @@
     var rows = riders.map(function (rider) {
       var sessions = STATE.sessions.filter(function (s) { return s.rider === rider && s.eventId === ev.id; });
       var valueHtml = !sessions.length
-        ? '<span class="help-text">Aucun chrono</span>'
+        ? '<span class="help-text">' + tr('no_chrono') + '</span>'
         : (function () {
             var best = sessions.reduce(function (a, b) { return sessionBest(b) < sessionBest(a) ? b : a; });
             return formatTime(sessionBest(best)) + ' ' + certifyControl(best);
           })();
       return '<div class="info-row"><span class="info-label">' + nameLinkHtml(rider) + '</span><span class="info-value">' + valueHtml + '</span></div>' + maybeFicheHtml(rider);
     }).join('');
-    return collapsibleSection('cert-' + ev.id, 'Chronos vérifiés', rows, true);
+    return collapsibleSection('cert-' + ev.id, tr('verified_chronos_heading'), rows, true);
   }
 
   // ---- Circuit info (km, virages, prochaine sortie) + visuel annotable ----
@@ -6224,28 +6258,28 @@
     var posts = (STATE.eventAnnouncements || []).filter(function (a) { return a.eventId === ev.id; });
     if (!posts.length && !isLeader) return '';
     var body = !posts.length
-      ? '<div class="empty-state">Aucune annonce pour l\'instant.</div>'
+      ? '<div class="empty-state">' + tr('no_announcements_yet') + '</div>'
       : posts.map(function (a) {
         if (isLeader && editingAnnouncementId === a.id) {
           return '<form class="coach-message-form" data-action="event-announcement-edit-form" data-id="' + a.id + '">' +
             '<input type="text" value="' + escapeHtml(a.text) + '" data-event-announcement-edit-input>' +
-            '<button type="submit" class="primary">Enregistrer</button>' +
-            '<button type="button" class="ghost" data-action="event-announcement-edit-cancel">Annuler</button></form>';
+            '<button type="submit" class="primary">' + tr('save') + '</button>' +
+            '<button type="button" class="ghost" data-action="event-announcement-edit-cancel">' + tr('cancel') + '</button></form>';
         }
         var actions = isLeader
-          ? '<button type="button" class="ghost icon-btn" data-action="event-announcement-edit" data-id="' + a.id + '" aria-label="Modifier" title="Modifier">✎</button>' +
-            '<button type="button" class="ghost icon-btn" data-action="event-announcement-delete" data-id="' + a.id + '" aria-label="Supprimer" title="Supprimer">×</button>'
+          ? '<button type="button" class="ghost icon-btn" data-action="event-announcement-edit" data-id="' + a.id + '" aria-label="' + tr('modify') + '" title="' + tr('modify') + '">✎</button>' +
+            '<button type="button" class="ghost icon-btn" data-action="event-announcement-delete" data-id="' + a.id + '" aria-label="' + tr('delete_label') + '" title="' + tr('delete_label') + '">×</button>'
           : '';
         return '<div class="coach-message"><div class="coach-message-head">' + personNameHtml(a.from) +
-          '<span class="feed-entry-time">' + escapeHtml(relativeTime(a.editedAt || a.createdAt)) + (a.editedAt ? ' (modifié)' : '') + '</span>' + actions + '</div>' +
+          '<span class="feed-entry-time">' + escapeHtml(relativeTime(a.editedAt || a.createdAt)) + (a.editedAt ? tr('edited_suffix') : '') + '</span>' + actions + '</div>' +
           '<div class="coach-message-text">' + escapeHtml(a.text) + '</div></div>';
       }).join('');
     if (isLeader) {
       body += '<form class="coach-message-form" data-action="event-announcement-form" data-event-id="' + ev.id + '" data-team-id="' + ev.teamId + '">' +
-        '<input type="text" placeholder="Ex. BRIEFING DEMAIN A 8H15" data-event-announcement-input>' +
-        '<button type="submit" class="primary">Envoyer</button></form>';
+        '<input type="text" placeholder="' + tr('announcement_placeholder') + '" data-event-announcement-input>' +
+        '<button type="submit" class="primary">' + tr('send_btn') + '</button></form>';
     }
-    return collapsibleSection('event-announcements-' + ev.id, 'Annonces' + (posts.length ? ' (' + posts.length + ')' : ''), body, true);
+    return collapsibleSection('event-announcements-' + ev.id, tr('announcements_heading') + (posts.length ? ' (' + posts.length + ')' : ''), body, true);
   }
 
   // Team-Leader-only free text blocks on the event itself (unlike
@@ -7080,7 +7114,7 @@
   // empty), so the pilotes who best fit that group's level surface first.
   function renderGroupsSection(ev, canEdit) {
     var riders = ev.riders || [];
-    if (!riders.length) return '<div class="section-title" style="margin-top:1rem;">Groupes</div><div class="help-text">Ajoute des participants pour pouvoir les répartir en groupes.</div>';
+    if (!riders.length) return '<div class="section-title" style="margin-top:1rem;">' + tr('groups_heading') + '</div><div class="help-text">' + tr('add_riders_to_group_hint') + '</div>';
     var byGroup = {};
     ROSTER_GROUP_LETTERS.forEach(function (g) { byGroup[g] = []; });
     var unassigned = [];
@@ -7093,7 +7127,7 @@
       var u = (STATE.usersByName || {})[name] || {};
       var t = riderVerifiedBest(ev, name);
       var timeHtml = t != null ? ' <span class="verified-pill">' + formatTime(t) + '</span>' : '';
-      var removeBtn = (removable && canEdit) ? '<button type="button" class="ghost icon-btn" data-action="event-group-remove" data-id="' + ev.id + '" data-rider="' + escapeHtml(name) + '" aria-label="Retirer du groupe" title="Retirer du groupe">×</button>' : '';
+      var removeBtn = (removable && canEdit) ? '<button type="button" class="ghost icon-btn" data-action="event-group-remove" data-id="' + ev.id + '" data-rider="' + escapeHtml(name) + '" aria-label="' + tr('remove_from_group_aria') + '" title="' + tr('remove_from_group_aria') + '">×</button>' : '';
       // Drag-and-drop between groups, desktop mainly (touch browsers mostly
       // don't fire native HTML5 drag events) -- the search-to-add form and
       // the × button above still cover mobile either way.
@@ -7101,7 +7135,7 @@
       return '<div class="friend-row"' + dragAttrs + '><div class="friend-row-main">' + nameLinkHtml(name) + badgesHtml(u) + timeHtml + '</div><div class="friend-row-actions">' + removeBtn + '</div></div>' + maybeFicheHtml(name);
     }
     var assignedCount = riders.length - unassigned.length;
-    var html = '<div class="section-title" style="margin-top:1rem;">Groupes (' + assignedCount + ')</div>';
+    var html = '<div class="section-title" style="margin-top:1rem;">' + tr('groups_heading') + ' (' + assignedCount + ')</div>';
     // .groups-board: on desktop (see style.css) this becomes a row of
     // columns -- Non attribués + every group side by side, like a board,
     // instead of one long vertical stack of accordions. That's exactly
@@ -7117,13 +7151,13 @@
       var unassignedBody = canEdit
         ? '<div class="group-drop-zone" data-drop-group="" data-event-id="' + ev.id + '">' + unassigned.map(function (r) { return riderRow(r, false); }).join('') + '</div>'
         : unassigned.map(function (r) { return riderRow(r, false); }).join('');
-      html += collapsibleSection('event-group-unassigned-' + ev.id, 'Non attribués (' + unassigned.length + ')', unassignedBody, true);
+      html += collapsibleSection('event-group-unassigned-' + ev.id, tr('unassigned_label') + ' (' + unassigned.length + ')', unassignedBody, true);
     }
     ROSTER_GROUP_LETTERS.forEach(function (g) {
       var members = byGroup[g];
       var times = members.map(function (r) { return riderVerifiedBest(ev, r); }).filter(function (t) { return t != null; });
       var avg = times.length ? times.reduce(function (a, b) { return a + b; }, 0) / times.length : null;
-      var membersHtml = members.length ? members.map(function (r) { return riderRow(r, true); }).join('') : '<div class="help-text">Personne pour l\'instant.</div>';
+      var membersHtml = members.length ? members.map(function (r) { return riderRow(r, true); }).join('') : '<div class="help-text">' + tr('nobody_yet') + '</div>';
       var body = canEdit ? '<div class="group-drop-zone" data-drop-group="' + g + '" data-event-id="' + ev.id + '">' + membersHtml + '</div>' : membersHtml;
       var candidates = riders.filter(function (r) { return members.indexOf(r) === -1; }).sort(function (a, b) {
         var ta = riderVerifiedBest(ev, a), tb = riderVerifiedBest(ev, b);
@@ -7138,14 +7172,14 @@
       });
       if (canEdit && candidates.length) {
         body += '<form class="team-event-add-rider-form" data-action="event-group-add-form" data-event-id="' + ev.id + '" data-group="' + g + '">' +
-          '<input type="text" list="event-group-candidates-' + g + '-' + ev.id + '" placeholder="Rechercher un pilote..." data-event-group-add-input>' +
+          '<input type="text" list="event-group-candidates-' + g + '-' + ev.id + '" placeholder="' + tr('search_rider') + '..." data-event-group-add-input>' +
           '<datalist id="event-group-candidates-' + g + '-' + ev.id + '">' + candidates.map(function (n) {
             var t = riderVerifiedBest(ev, n);
             return '<option value="' + escapeHtml(n) + '">' + escapeHtml(n) + (t != null ? ' — ' + formatTime(t) : '') + '</option>';
           }).join('') + '</datalist>' +
-          '<button type="submit" class="ghost">Ajouter</button></form>';
+          '<button type="submit" class="ghost">' + tr('add_aria') + '</button></form>';
       }
-      html += collapsibleSection('event-group-' + g + '-' + ev.id, (g === 'ORGA' ? 'Groupe ORGA (staff)' : 'Groupe ' + g) + ' (' + members.length + ')', body, true);
+      html += collapsibleSection('event-group-' + g + '-' + ev.id, (g === 'ORGA' ? tr('group_orga_staff') : tr('group_prefix') + g) + ' (' + members.length + ')', body, true);
     });
     html += '</div>';
     return html;
@@ -9831,8 +9865,8 @@
       var riders = ev.riders || [];
       var meta;
       if (isOwn) {
-        meta = [String(riders.length) + ' participant' + (riders.length > 1 ? 's' : '')];
-        if (reqs.length) meta.push(reqs.length + ' demande' + (reqs.length > 1 ? 's' : '') + ' en attente');
+        meta = [String(riders.length) + ' ' + tr('participant_word') + (riders.length > 1 ? 's' : '')];
+        if (reqs.length) meta.push(reqs.length + ' ' + tr('pending_request_word') + (reqs.length > 1 ? 's' : '') + tr('pending_suffix'));
       } else {
         var mine = riders.filter(function (r) { return roster.indexOf(r) !== -1; });
         meta = [mine.join(', ')];
@@ -9847,7 +9881,7 @@
       return '<div class="friend-row"><div class="friend-row-main"><span class="friend-name-plain">' + escapeHtml(ev.circuit) + '</span>' +
         (orgTeam ? '<span class="friend-role-badge">' + escapeHtml(orgTeam.name) + '</span>' : '') +
         '<span class="help-text">' + escapeHtml(formatEventRange(ev, true)) + ' · ' + meta.join(' · ') + '</span>' + likesHtml + '</div>' +
-        '<div class="friend-row-actions"><button type="button" class="' + (isOwn ? 'primary' : 'ghost') + '" data-action="team-event-manage-open" data-id="' + ev.id + '">' + (isOwn ? 'Gérer' : 'Voir') + '</button></div></div>';
+        '<div class="friend-row-actions"><button type="button" class="' + (isOwn ? 'primary' : 'ghost') + '" data-action="team-event-manage-open" data-id="' + ev.id + '">' + (isOwn ? tr('manage_btn') : tr('view_btn')) + '</button></div></div>';
     }
     var ongoing = [], upcoming = [], past = [];
     all.forEach(function (ev) {
@@ -9861,17 +9895,17 @@
     past.sort(function (a, b) { return a.dateStart < b.dateStart ? 1 : -1; });
     var body = '';
     if (!all.length) {
-      body = '<div class="empty-state">Aucun événement pour ce Team.</div>';
+      body = '<div class="empty-state">' + tr('no_events_team') + '</div>';
     } else {
       // Toutes rétractées, sauf En cours s'il y en a -- et à défaut, À
       // venir (le prochain), pour toujours ouvrir sur ce qui compte
       // maintenant plutôt que sur du passé.
-      body += collapsibleSection('team-events-ongoing-' + team.id, 'En cours (' + ongoing.length + ')',
-        ongoing.length ? ongoing.map(eventRow).join('') : '<div class="help-text">Rien en ce moment.</div>', true);
-      body += collapsibleSection('team-events-upcoming-' + team.id, 'À venir (' + upcoming.length + ')',
-        upcoming.length ? upcoming.map(eventRow).join('') : '<div class="help-text">Rien de prévu.</div>', !ongoing.length);
-      body += collapsibleSection('team-events-past-' + team.id, 'Passés (' + past.length + ')',
-        past.length ? past.map(eventRow).join('') : '<div class="help-text">Aucun événement passé.</div>', false);
+      body += collapsibleSection('team-events-ongoing-' + team.id, tr('ongoing_label') + ' (' + ongoing.length + ')',
+        ongoing.length ? ongoing.map(eventRow).join('') : '<div class="help-text">' + tr('nothing_now') + '</div>', true);
+      body += collapsibleSection('team-events-upcoming-' + team.id, tr('upcoming_label') + ' (' + upcoming.length + ')',
+        upcoming.length ? upcoming.map(eventRow).join('') : '<div class="help-text">' + tr('nothing_planned') + '</div>', !ongoing.length);
+      body += collapsibleSection('team-events-past-' + team.id, tr('past_label') + ' (' + past.length + ')',
+        past.length ? past.map(eventRow).join('') : '<div class="help-text">' + tr('no_past_events') + '</div>', false);
     }
     if (editingEventId === 'new' && prefillEventTeamId === team.id) body += renderEventForm();
     // Same collapsibleSection style as every other sub-section of this
@@ -9881,11 +9915,11 @@
     // The "+ Ajouter" still lives right next to the title (collapsibleSection
     // now takes the same titleActionsHtml collapsibleCard does) instead
     // of buried at the bottom of a long list.
-    var addBtn = '<button type="button" class="ghost" data-action="team-event-add" data-team="' + team.id + '">+ Ajouter un événement</button>';
+    var addBtn = '<button type="button" class="ghost" data-action="team-event-add" data-team="' + team.id + '">+ ' + tr('add_event_heading') + '</button>';
     // The card title's count is own.length, not all.length -- "Gestion"
     // in the title is about what's actually manageable here; the
     // cross-team, read-only events mixed into the buckets below aren't.
-    return collapsibleSection('team-events-' + team.id, 'Gestion des événements' + (own.length ? ' (' + own.length + ')' : ''), body, false, addBtn);
+    return collapsibleSection('team-events-' + team.id, tr('events_management_heading') + (own.length ? ' (' + own.length + ')' : ''), body, false, addBtn);
   }
 
   // The dedicated per-event management screen (see managingEventId) --
@@ -9910,19 +9944,19 @@
     var riders = ev.riders || [];
     var html = '<div class="card">';
     html += '<h2 class="section-title">' + escapeHtml(ev.circuit) + ' — ' + escapeHtml(formatEventRange(ev, true)) + '</h2>';
-    if (!canEdit && orgTeam !== team) html += '<div class="help-text" style="margin-bottom:0.6rem;">Organisé par ' + escapeHtml(orgTeam.name) + ' — lecture seule, seul le Team Leader de ' + escapeHtml(orgTeam.name) + ' peut modifier cet événement.</div>';
+    if (!canEdit && orgTeam !== team) html += '<div class="help-text" style="margin-bottom:0.6rem;">' + tr('organized_by_prefix') + escapeHtml(orgTeam.name) + tr('readonly_leader_can_edit_suffix') + escapeHtml(orgTeam.name) + tr('readonly_can_edit_suffix2') + '</div>';
     // Modifier right under the title -- it used to sit at the bottom of a
     // long stack of sections, easy to lose track of and easy to confuse
     // with the collapsible headers just above it.
     if (canEdit) {
-      html += '<div style="margin:0.6rem 0 1rem;"><button type="button" class="ghost" data-action="team-event-edit" data-id="' + ev.id + '">Modifier l\'événement</button></div>';
+      html += '<div style="margin:0.6rem 0 1rem;"><button type="button" class="ghost" data-action="team-event-edit" data-id="' + ev.id + '">' + tr('edit_event_btn') + '</button></div>';
       if (editingEventId === ev.id) html += renderEventForm();
     }
     // Résumé -- no dates here, already in the title above.
-    if (ev.note) html += infoRow('Note', escapeHtml(ev.note));
-    var evTeamVis = { public: 'Public', adherent: 'Adhérent only', membre: 'Membre only', follower: 'Followers only', ouvert: 'Ouvert' };
-    if (orgTeam.teamPro) html += infoRow('Visibilité', evTeamVis[ev.eventVisibility] || 'Membre only');
-    if (ev.bookingUrl) html += '<div style="margin:0.6rem 0;"><button type="button" class="ghost" data-action="open-external-url" data-url="' + escapeHtml(ev.bookingUrl) + '">Réserver / S\'inscrire ↗</button></div>';
+    if (ev.note) html += infoRow(tr('note_label'), escapeHtml(ev.note));
+    var evTeamVis = { public: tr('ev_vis_public'), adherent: tr('ev_vis_adherent_only'), membre: tr('ev_vis_membre_only'), follower: tr('ev_vis_follower_only'), ouvert: tr('ev_vis_ouvert') };
+    if (orgTeam.teamPro) html += infoRow(tr('visibility_label'), evTeamVis[ev.eventVisibility] || tr('ev_vis_membre_only'));
+    if (ev.bookingUrl) html += '<div style="margin:0.6rem 0;"><button type="button" class="ghost" data-action="open-external-url" data-url="' + escapeHtml(ev.bookingUrl) + '">' + tr('book_register_btn') + '</button></div>';
     html += renderEventAnnouncements(ev, canEdit);
     // Badges + rôle Team (Membre/Adhérent/Team Leader/Suivi) right on each
     // participant row -- a quick read for the Team orga without having to
@@ -9935,9 +9969,9 @@
       var f = teamFollowers.filter(function (x) { return x.follower === name; })[0];
       var isAdherent = !!(f && f.tier === 'adherent');
       var tags = '';
-      if (m) tags += '<span class="friend-role-badge">' + (m.role === 'leader' ? 'Team Leader' : 'Membre') + '</span>';
-      if (isAdherent) tags += ' <span class="friend-role-badge adherent-badge">Adhérent</span>';
-      else if (f && !m) tags += ' <span class="friend-role-badge">Suivi</span>';
+      if (m) tags += '<span class="friend-role-badge">' + (m.role === 'leader' ? tr('team_leader_label') : tr('member_label')) + '</span>';
+      if (isAdherent) tags += ' <span class="friend-role-badge adherent-badge">' + tr('adherent_singular_badge') + '</span>';
+      else if (f && !m) tags += ' <span class="friend-role-badge">' + tr('follower_label') + '</span>';
       return tags;
     }
     var eventBikeNumbers = ev.riderBikeNumbers || {};
@@ -9950,20 +9984,20 @@
     // Column labels -- hidden on mobile (see style.css), only meaningful
     // once .participants-list actually lays out as a grid on desktop.
     var riderRows = '<div class="participants-list">' +
-      '<div class="participants-list-head friend-row"><span>Pilote</span><span>' + (canEdit ? 'N° pour cet event' : '') + '</span><span></span></div>';
+      '<div class="participants-list-head friend-row"><span>' + tr('rider_col_label') + '</span><span>' + (canEdit ? tr('event_bike_number_label') : '') + '</span><span></span></div>';
     riderRows += riders.length
       ? riders.map(function (name) {
           var u = (STATE.usersByName || {})[name] || {};
           var eventNumber = eventBikeNumbers[name] || '';
           var actions = canEdit
-            ? '<div class="friend-row-actions"><button type="button" class="ghost icon-btn" data-action="team-event-remove-rider" data-id="' + ev.id + '" data-rider="' + escapeHtml(name) + '" aria-label="Retirer" title="Retirer">×</button></div>' +
-              '<div class="team-role-field"><input type="text" placeholder="N° pour cet event" value="' + escapeHtml(eventNumber) + '" data-event-bike-number-input inputmode="numeric">' +
-              '<button type="button" class="ghost icon-btn" data-action="event-bike-number-save" data-id="' + ev.id + '" data-rider="' + escapeHtml(name) + '" aria-label="Enregistrer le N°" title="Enregistrer">✓</button></div>'
-            : (eventNumber ? '<div class="team-role-field"><span class="account-role-tag">N° pour cet event : #' + escapeHtml(eventNumber) + '</span></div>' : '');
+            ? '<div class="friend-row-actions"><button type="button" class="ghost icon-btn" data-action="team-event-remove-rider" data-id="' + ev.id + '" data-rider="' + escapeHtml(name) + '" aria-label="' + tr('remove_label') + '" title="' + tr('remove_label') + '">×</button></div>' +
+              '<div class="team-role-field"><input type="text" placeholder="' + tr('event_bike_number_label') + '" value="' + escapeHtml(eventNumber) + '" data-event-bike-number-input inputmode="numeric">' +
+              '<button type="button" class="ghost icon-btn" data-action="event-bike-number-save" data-id="' + ev.id + '" data-rider="' + escapeHtml(name) + '" aria-label="' + tr('save_number_aria') + '" title="' + tr('save') + '">✓</button></div>'
+            : (eventNumber ? '<div class="team-role-field"><span class="account-role-tag">' + tr('event_bike_number_prefix') + escapeHtml(eventNumber) + '</span></div>' : '');
           return '<div class="friend-row"><div class="friend-row-main">' + nameLinkHtml(name) + badgesHtml(u) + participantRoleTag(name) + (u.bikeNumber ? ' <span class="account-role-tag">#' + escapeHtml(u.bikeNumber) + '</span>' : '') + '</div>' +
             actions + '</div>' + maybeFicheHtml(name);
         }).join('')
-      : '<div class="help-text">Aucun participant.</div>';
+      : '<div class="help-text">' + tr('no_participants') + '</div>';
     riderRows += '</div>';
     // Search-to-add, name + # (bikeNumber) shown per candidate so a Team
     // Leader can tell same-name pilotes apart before adding one.
@@ -9975,10 +10009,10 @@
             var u = (STATE.usersByName || {})[n] || {};
             return '<option value="' + escapeHtml(n) + '">' + escapeHtml(n) + (u.bikeNumber ? ' #' + escapeHtml(u.bikeNumber) : '') + '</option>';
           }).join('') + '</select>' +
-          '<button type="submit" class="ghost">Ajouter</button></form>';
+          '<button type="submit" class="ghost">' + tr('add_aria') + '</button></form>';
       }
     }
-    html += collapsibleSection('event-manage-riders-' + ev.id, 'Participants (' + riders.length + ')', riderRows, true);
+    html += collapsibleSection('event-manage-riders-' + ev.id, tr('participants_heading') + ' (' + riders.length + ')', riderRows, true);
     // Easy per-rider chrono check right here, next to the roster --
     // renderEventCertificationSection already lets the leader verify (✓)
     // or un-verify a rider's best chrono for this sortie whenever they
@@ -9991,11 +10025,11 @@
         var u = (STATE.usersByName || {})[r.from] || {};
         return '<div class="friend-row"><div class="friend-row-main">' + avatarHtml(u, r.from) + personNameHtml(r.from) + badgesHtml(u) + '</div>' +
           '<div class="friend-row-actions">' +
-          '<button type="button" class="primary" data-action="event-join-request-accept" data-id="' + r.id + '">Accepter</button>' +
-          '<button type="button" class="ghost" data-action="event-join-request-remove" data-id="' + r.id + '">Refuser</button>' +
+          '<button type="button" class="primary" data-action="event-join-request-accept" data-id="' + r.id + '">' + tr('accept_btn') + '</button>' +
+          '<button type="button" class="ghost" data-action="event-join-request-remove" data-id="' + r.id + '">' + tr('refuse_generic') + '</button>' +
           '</div></div>';
       }).join('');
-      html += collapsibleSection('event-manage-requests-' + ev.id, 'Demandes à accepter (' + reqs.length + ')', reqRows, true);
+      html += collapsibleSection('event-manage-requests-' + ev.id, tr('requests_to_accept_heading') + ' (' + reqs.length + ')', reqRows, true);
     }
     html += renderGroupsSection(ev, canEdit);
     html += '</div>';
