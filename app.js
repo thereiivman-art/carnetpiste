@@ -308,7 +308,12 @@
       remove_from_group_aria: 'Retirer du groupe', unassigned_label: 'Non attribués', nobody_yet: 'Personne pour l\'instant.',
       group_orga_staff: 'Groupe ORGA (staff)', verified_chronos_heading: 'Chronos vérifiés', no_chrono: 'Aucun chrono',
       no_announcements_yet: 'Aucune annonce pour l\'instant.', edited_suffix: ' (modifié)',
-      announcement_placeholder: 'Ex. BRIEFING DEMAIN A 8H15', announcements_heading: 'Annonces'
+      announcement_placeholder: 'Ex. BRIEFING DEMAIN A 8H15', announcements_heading: 'Annonces',
+      nothing_filled_in_yet: 'Rien renseigné pour l\'instant.', complete_btn: 'Compléter',
+      practical_info_label: 'Infos pratiques', practical_info_placeholder: 'Ex. Parking, accès paddock, restauration...',
+      special_activities_label: 'Baptêmes, coaching...', special_activities_placeholder: 'Ex. Baptêmes de piste 12h-14h, coaching sur inscription...',
+      rental_motos_label: 'Location — Motos', rental_motos_placeholder: 'Ex. 2 CBR600 dispo pour les baptêmes, 1 pour un pilote -- contacter Marc',
+      rental_equipement_label: 'Location — Équipement', rental_equipement_placeholder: 'Ex. Combinaisons et casques toutes tailles, pilotes et baptêmes'
     },
     en: {
       nav_events: 'Events', nav_chronos: 'Chronos', nav_planning: 'ON TRACK', nav_social: 'Social', nav_team: 'Team',
@@ -585,7 +590,12 @@
       remove_from_group_aria: 'Remove from group', unassigned_label: 'Unassigned', nobody_yet: 'Nobody yet.',
       group_orga_staff: 'ORGA Group (staff)', verified_chronos_heading: 'Verified lap times', no_chrono: 'No lap time',
       no_announcements_yet: 'No announcements yet.', edited_suffix: ' (edited)',
-      announcement_placeholder: 'E.g. BRIEFING TOMORROW AT 8:15AM', announcements_heading: 'Announcements'
+      announcement_placeholder: 'E.g. BRIEFING TOMORROW AT 8:15AM', announcements_heading: 'Announcements',
+      nothing_filled_in_yet: 'Nothing filled in yet.', complete_btn: 'Fill in',
+      practical_info_label: 'Practical info', practical_info_placeholder: 'E.g. Parking, paddock access, catering...',
+      special_activities_label: 'Track days, coaching...', special_activities_placeholder: 'E.g. Track days 12pm-2pm, coaching by sign-up...',
+      rental_motos_label: 'Rental — Bikes', rental_motos_placeholder: 'E.g. 2 CBR600 available for track days, 1 for a rider -- contact Marc',
+      rental_equipement_label: 'Rental — Gear', rental_equipement_placeholder: 'E.g. Suits and helmets, all sizes, riders and track days'
     }
   };
   function currentLang() {
@@ -6330,28 +6340,28 @@
     if (!value && !isLeader) return '';
     var body;
     if (editing) {
-      body = '<textarea id="' + opts.inputId + '" rows="3" placeholder="' + escapeHtml(opts.placeholder) + '">' + escapeHtml(value) + '</textarea>' +
+      body = '<textarea id="' + opts.inputId + '" rows="3" placeholder="' + escapeHtml(tr(opts.placeholderKey)) + '">' + escapeHtml(value) + '</textarea>' +
         '<div style="margin-top:0.5rem; display:flex; gap:0.5rem;">' +
-        '<button type="button" class="primary" data-action="' + opts.saveAction + '" data-id="' + ev.id + '">Enregistrer</button>' +
-        '<button type="button" class="ghost" data-action="' + opts.cancelAction + '">Annuler</button></div>';
+        '<button type="button" class="primary" data-action="' + opts.saveAction + '" data-id="' + ev.id + '">' + tr('save') + '</button>' +
+        '<button type="button" class="ghost" data-action="' + opts.cancelAction + '">' + tr('cancel') + '</button></div>';
     } else {
-      body = value ? '<div class="help-text" style="white-space:pre-wrap;">' + escapeHtml(value) + '</div>' : '<div class="help-text">Rien renseigné pour l\'instant.</div>';
-      if (isLeader) body += '<button type="button" class="ghost" data-action="' + opts.editAction + '" data-id="' + ev.id + '" style="margin-top:0.5rem;">' + (value ? 'Modifier' : 'Compléter') + '</button>';
+      body = value ? '<div class="help-text" style="white-space:pre-wrap;">' + escapeHtml(value) + '</div>' : '<div class="help-text">' + tr('nothing_filled_in_yet') + '</div>';
+      if (isLeader) body += '<button type="button" class="ghost" data-action="' + opts.editAction + '" data-id="' + ev.id + '" style="margin-top:0.5rem;">' + (value ? tr('modify') : tr('complete_btn')) + '</button>';
     }
-    return collapsibleSection(opts.key + '-' + ev.id, opts.label, body, !!value);
+    return collapsibleSection(opts.key + '-' + ev.id, tr(opts.labelKey), body, !!value);
   }
   function renderPracticalInfoSection(ev, isLeader) {
     return renderEventLeaderTextSection(ev, isLeader, {
-      field: 'practicalInfo', key: 'infos-pratiques-team', label: 'Infos pratiques',
-      inputId: 'practical-info-input', placeholder: 'Ex. Parking, accès paddock, restauration...',
+      field: 'practicalInfo', key: 'infos-pratiques-team', labelKey: 'practical_info_label',
+      inputId: 'practical-info-input', placeholderKey: 'practical_info_placeholder',
       editingId: function () { return editingPracticalInfoFor; },
       saveAction: 'save-practical-info', cancelAction: 'cancel-practical-info', editAction: 'edit-practical-info'
     });
   }
   function renderSpecialActivitiesSection(ev, isLeader) {
     return renderEventLeaderTextSection(ev, isLeader, {
-      field: 'specialActivities', key: 'special-activities', label: 'Baptêmes, coaching...',
-      inputId: 'special-activities-input', placeholder: 'Ex. Baptêmes de piste 12h-14h, coaching sur inscription...',
+      field: 'specialActivities', key: 'special-activities', labelKey: 'special_activities_label',
+      inputId: 'special-activities-input', placeholderKey: 'special_activities_placeholder',
       editingId: function () { return editingSpecialActivitiesFor; },
       saveAction: 'save-special-activities', cancelAction: 'cancel-special-activities', editAction: 'edit-special-activities'
     });
@@ -6364,16 +6374,16 @@
   // équipement sont des besoins différents.
   function renderRentalMotosSection(ev, isLeader) {
     return renderEventLeaderTextSection(ev, isLeader, {
-      field: 'rentalMotos', key: 'rental-motos', label: 'Location — Motos',
-      inputId: 'rental-motos-input', placeholder: 'Ex. 2 CBR600 dispo pour les baptêmes, 1 pour un pilote -- contacter Marc',
+      field: 'rentalMotos', key: 'rental-motos', labelKey: 'rental_motos_label',
+      inputId: 'rental-motos-input', placeholderKey: 'rental_motos_placeholder',
       editingId: function () { return editingRentalMotosFor; },
       saveAction: 'save-rental-motos', cancelAction: 'cancel-rental-motos', editAction: 'edit-rental-motos'
     });
   }
   function renderRentalEquipementSection(ev, isLeader) {
     return renderEventLeaderTextSection(ev, isLeader, {
-      field: 'rentalEquipement', key: 'rental-equipement', label: 'Location — Équipement',
-      inputId: 'rental-equipement-input', placeholder: 'Ex. Combinaisons et casques toutes tailles, pilotes et baptêmes',
+      field: 'rentalEquipement', key: 'rental-equipement', labelKey: 'rental_equipement_label',
+      inputId: 'rental-equipement-input', placeholderKey: 'rental_equipement_placeholder',
       editingId: function () { return editingRentalEquipementFor; },
       saveAction: 'save-rental-equipement', cancelAction: 'cancel-rental-equipement', editAction: 'edit-rental-equipement'
     });
