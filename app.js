@@ -248,7 +248,23 @@
       followed_riders_label: 'Pilotes que je suis', no_rider_registered: 'Aucun pilote enregistré pour l\'instant.',
       close_label: 'Fermer',
       my_badges_admin_heading: 'Mes badges (admin)',
-      my_badges_admin_help: 'Pour tout autre compte, ces badges se gèrent depuis Gestion des comptes.'
+      my_badges_admin_help: 'Pour tout autre compte, ces badges se gèrent depuis Gestion des comptes.',
+      // Aide / Suggestion tabs
+      about_heading: 'À propos',
+      about_text: 'Carnet de Piste centralise le planning des événements, les groupes/horaires, tes chronos et ta progression entre pilotes et accompagnants — le tout à jour en temps réel pour tout le monde.',
+      review_tutorial_btn: 'Revoir le tutoriel',
+      badges_legend_heading: 'Que veulent dire ces badges ?',
+      team_pro_legend: 'Team PRO — club officiel certifié par l\'administrateur.',
+      team_pro_leader_legend: 'Team Leader d\'un Team PRO.', coach_legend: 'Coach.',
+      adherent_singular_badge: 'Adhérent', adherent_legend: 'Adhérent d\'un Team PRO — statut accordé par son Team Leader.',
+      follower_legend: 'Suit un Team sans en être membre -- droits limités (voir la fiche du Team).',
+      no_partner_yet: 'Aucun partenaire pour l\'instant.',
+      partners_input_label: 'Un par ligne : Nom | URL (URL optionnelle)',
+      our_partners_heading: 'Nos partenaires de Carnet de Piste',
+      feedback_heading: 'Une remarque, une idée ?',
+      feedback_help: 'Dis-nous ce qui manque, ce qui bloque ou ce que tu aimerais voir -- ça part directement à l\'équipe de développement.',
+      feedback_placeholder: 'Ton retour d\'expérience...',
+      feedback_received_label: 'Suggestions reçues ('
     },
     en: {
       nav_events: 'Events', nav_chronos: 'Chronos', nav_planning: 'ON TRACK', nav_social: 'Social', nav_team: 'Team',
@@ -465,7 +481,23 @@
       followed_riders_label: 'Riders I follow', no_rider_registered: 'No rider registered yet.',
       close_label: 'Close',
       my_badges_admin_heading: 'My badges (admin)',
-      my_badges_admin_help: 'For every other account, these badges are managed from Account management.'
+      my_badges_admin_help: 'For every other account, these badges are managed from Account management.',
+      // Aide / Suggestion tabs
+      about_heading: 'About',
+      about_text: 'Carnet de Piste centralizes event scheduling, groups/timetables, your lap times and progress between riders and companions — all kept up to date in real time for everyone.',
+      review_tutorial_btn: 'Replay the tutorial',
+      badges_legend_heading: 'What do these badges mean?',
+      team_pro_legend: 'Team PRO — official club certified by the admin.',
+      team_pro_leader_legend: 'Leader of a Team PRO.', coach_legend: 'Coach.',
+      adherent_singular_badge: 'Adherent', adherent_legend: 'Adherent of a Team PRO — status granted by its Team Leader.',
+      follower_legend: 'Follows a Team without being a member -- limited rights (see the Team\'s page).',
+      no_partner_yet: 'No partner yet.',
+      partners_input_label: 'One per line: Name | URL (URL optional)',
+      our_partners_heading: 'Our Carnet de Piste partners',
+      feedback_heading: 'A remark, an idea?',
+      feedback_help: 'Tell us what\'s missing, what\'s blocking you, or what you\'d like to see -- it goes straight to the development team.',
+      feedback_placeholder: 'Your feedback...',
+      feedback_received_label: 'Feedback received ('
     }
   };
   function currentLang() {
@@ -1225,7 +1257,7 @@
     var body;
     if (!partners.length && !isAdmin()) return '';
     if (!partners.length) {
-      body = '<div class="empty-state">Aucun partenaire pour l\'instant.</div>';
+      body = '<div class="empty-state">' + tr('no_partner_yet') + '</div>';
     } else {
       body = '<div class="team-links-row">' + partners.map(function (p) {
         return p.url
@@ -1235,13 +1267,13 @@
     }
     if (isAdmin()) {
       body += '<form id="partners-form" style="margin-top:0.8rem;">' +
-        '<label for="partners-input">Un par ligne : Nom | URL (URL optionnelle)</label>' +
+        '<label for="partners-input">' + tr('partners_input_label') + '</label>' +
         '<textarea id="partners-input" rows="3" placeholder="Mototeam95 | https://...\nAccimoto\nDepamoto | https://...">' +
         escapeHtml(partners.map(function (p) { return p.url ? p.name + ' | ' + p.url : p.name; }).join('\n')) + '</textarea>' +
-        '<button type="submit" class="primary" style="margin-top:0.6rem;">Enregistrer</button></form>';
+        '<button type="submit" class="primary" style="margin-top:0.6rem;">' + tr('save') + '</button></form>';
     }
     return '<div style="margin-top:1.2rem; border-top:1px solid var(--border); padding-top:0.9rem;">' +
-      '<div class="section-title" style="font-size:0.95rem;">Nos partenaires de Carnet de Piste</div>' + body + '</div>';
+      '<div class="section-title" style="font-size:0.95rem;">' + tr('our_partners_heading') + '</div>' + body + '</div>';
   }
 
   // A Team's OWN partenaires -- set by that Team's Leader (garage,
@@ -1269,7 +1301,7 @@
     var body;
     if (!partners.length && !isLeader) return '';
     if (!partners.length) {
-      body = '<div class="empty-state">Aucun partenaire pour l\'instant.</div>';
+      body = '<div class="empty-state">' + tr('no_partner_yet') + '</div>';
     } else {
       body = '<div class="team-links-row">' + partners.map(function (p) {
         return p.url
@@ -2935,18 +2967,18 @@
     var rows = PROFILE_BADGES.map(function (b) {
       return '<div class="legend-row"><span class="legend-swatch">' + b.icon + '</span><span>' + escapeHtml(b.desc) + '</span></div>';
     }).join('');
-    rows += '<div class="legend-row"><span class="legend-swatch team-pro-badge">✓</span><span>Team PRO — club officiel certifié par l\'administrateur.</span></div>';
-    rows += '<div class="legend-row"><span class="legend-swatch pro-leader-name">Nom</span><span>Team Leader d\'un Team PRO.</span></div>';
-    rows += '<div class="legend-row"><span class="legend-swatch coach-name">Nom</span><span>Coach.</span></div>';
-    rows += '<div class="legend-row"><span class="legend-swatch friend-role-badge adherent-badge">Adhérent</span><span>Adhérent d\'un Team PRO — statut accordé par son Team Leader.</span></div>';
-    rows += '<div class="legend-row"><span class="legend-swatch friend-role-badge">Follower</span><span>Suit un Team sans en être membre -- droits limités (voir la fiche du Team).</span></div>';
-    return collapsibleSection('badges-legend', 'Que veulent dire ces badges ?', rows, false);
+    rows += '<div class="legend-row"><span class="legend-swatch team-pro-badge">✓</span><span>' + tr('team_pro_legend') + '</span></div>';
+    rows += '<div class="legend-row"><span class="legend-swatch pro-leader-name">Nom</span><span>' + tr('team_pro_leader_legend') + '</span></div>';
+    rows += '<div class="legend-row"><span class="legend-swatch coach-name">Nom</span><span>' + tr('coach_legend') + '</span></div>';
+    rows += '<div class="legend-row"><span class="legend-swatch friend-role-badge adherent-badge">' + tr('adherent_singular_badge') + '</span><span>' + tr('adherent_legend') + '</span></div>';
+    rows += '<div class="legend-row"><span class="legend-swatch friend-role-badge">' + tr('follower_label') + '</span><span>' + tr('follower_legend') + '</span></div>';
+    return collapsibleSection('badges-legend', tr('badges_legend_heading'), rows, false);
   }
 
   function renderProfileAideTab(p) {
-    var html = '<div class="section-title" style="font-size:0.95rem;">À propos</div>';
-    html += '<div class="help-text">Carnet de Piste centralise le planning des événements, les groupes/horaires, tes chronos et ta progression entre pilotes et accompagnants — le tout à jour en temps réel pour tout le monde.</div>';
-    html += '<div style="margin-top:1.1rem;"><button type="button" class="ghost" id="tutorial-open-btn">Revoir le tutoriel</button></div>';
+    var html = '<div class="section-title" style="font-size:0.95rem;">' + tr('about_heading') + '</div>';
+    html += '<div class="help-text">' + tr('about_text') + '</div>';
+    html += '<div style="margin-top:1.1rem;"><button type="button" class="ghost" id="tutorial-open-btn">' + tr('review_tutorial_btn') + '</button></div>';
     html += '<div style="margin-top:0.9rem;">' + renderBadgesLegend() + '</div>';
     html += renderPartnersSection();
     return html;
@@ -2959,23 +2991,23 @@
   // onglet voit la liste de tout ce qui a été envoyé, comme un document
   // partagé.
   function renderProfileSuggestionTab(p) {
-    var html = '<div class="section-title" style="font-size:0.95rem;">Une remarque, une idée ?</div>';
-    html += '<div class="help-text">Dis-nous ce qui manque, ce qui bloque ou ce que tu aimerais voir -- ça part directement à l\'équipe de développement.</div>';
+    var html = '<div class="section-title" style="font-size:0.95rem;">' + tr('feedback_heading') + '</div>';
+    html += '<div class="help-text">' + tr('feedback_help') + '</div>';
     html += '<form id="feedback-form">' +
-      '<textarea id="feedback-text" rows="4" placeholder="Ton retour d\'expérience..." required></textarea>' +
-      '<button type="submit" class="primary" style="margin-top:0.6rem;">Envoyer</button>' +
+      '<textarea id="feedback-text" rows="4" placeholder="' + tr('feedback_placeholder') + '" required></textarea>' +
+      '<button type="submit" class="primary" style="margin-top:0.6rem;">' + tr('send_btn') + '</button>' +
       (feedbackMessage ? '<div class="help-text">' + escapeHtml(feedbackMessage) + '</div>' : '') +
       '</form>';
     if (isAdmin()) {
       var items = STATE.feedback || [];
       html += '<div style="margin-top:1.2rem; border-top:1px solid var(--border); padding-top:0.9rem;">';
-      html += '<div class="section-title" style="font-size:0.95rem;">Suggestions reçues (' + items.length + ')</div>';
+      html += '<div class="section-title" style="font-size:0.95rem;">' + tr('feedback_received_label') + items.length + ')</div>';
       if (!items.length) {
-        html += '<div class="help-text">Rien pour l\'instant.</div>';
+        html += '<div class="help-text">' + tr('nothing_yet') + '</div>';
       } else {
         html += items.map(function (f) {
           return '<div class="feedback-row">' +
-            '<div class="feedback-row-meta">' + escapeHtml(f.author || '?') + ' · ' + (f.createdAt ? new Date(f.createdAt).toLocaleString('fr-FR') : '') + '</div>' +
+            '<div class="feedback-row-meta">' + escapeHtml(f.author || '?') + ' · ' + (f.createdAt ? new Date(f.createdAt).toLocaleString(currentLang() === 'en' ? 'en-US' : 'fr-FR') : '') + '</div>' +
             '<div class="feedback-row-text">' + escapeHtml(f.text || '') + '</div>' +
             '</div>';
         }).join('');
