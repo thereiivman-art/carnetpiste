@@ -313,7 +313,14 @@
       practical_info_label: 'Infos pratiques', practical_info_placeholder: 'Ex. Parking, accès paddock, restauration...',
       special_activities_label: 'Baptêmes, coaching...', special_activities_placeholder: 'Ex. Baptêmes de piste 12h-14h, coaching sur inscription...',
       rental_motos_label: 'Location — Motos', rental_motos_placeholder: 'Ex. 2 CBR600 dispo pour les baptêmes, 1 pour un pilote -- contacter Marc',
-      rental_equipement_label: 'Location — Équipement', rental_equipement_placeholder: 'Ex. Combinaisons et casques toutes tailles, pilotes et baptêmes'
+      rental_equipement_label: 'Location — Équipement', rental_equipement_placeholder: 'Ex. Combinaisons et casques toutes tailles, pilotes et baptêmes',
+      badge_certified_label: 'Certifié', badge_certified_desc: 'Certifié — compte vérifié par l\'administrateur.',
+      badge_personality_label: 'Personnalité', badge_personality_desc: 'Personnalité — pilote mis en avant par l\'administrateur.',
+      badge_pro_label: 'Pilote PRO', badge_pro_desc: 'Pilote PRO — statut de pilote professionnel.',
+      badge_organizer_label: 'Organisateur vérifié', badge_organizer_desc: 'Organisateur vérifié par l\'administrateur.',
+      badge_coach_desc: 'Coach — reconnu par l\'administrateur ou le Team Leader d\'un Team PRO pour donner du coaching.',
+      badge_photographer_label: 'Photographe officiel', badge_photographer_desc: 'Photographe officiel — reconnu par l\'administrateur ou le Team Leader d\'un Team PRO.',
+      mark_as_prefix: 'Marquer '
     },
     en: {
       nav_events: 'Events', nav_chronos: 'Chronos', nav_planning: 'ON TRACK', nav_social: 'Social', nav_team: 'Team',
@@ -595,7 +602,14 @@
       practical_info_label: 'Practical info', practical_info_placeholder: 'E.g. Parking, paddock access, catering...',
       special_activities_label: 'Track days, coaching...', special_activities_placeholder: 'E.g. Track days 12pm-2pm, coaching by sign-up...',
       rental_motos_label: 'Rental — Bikes', rental_motos_placeholder: 'E.g. 2 CBR600 available for track days, 1 for a rider -- contact Marc',
-      rental_equipement_label: 'Rental — Gear', rental_equipement_placeholder: 'E.g. Suits and helmets, all sizes, riders and track days'
+      rental_equipement_label: 'Rental — Gear', rental_equipement_placeholder: 'E.g. Suits and helmets, all sizes, riders and track days',
+      badge_certified_label: 'Certified', badge_certified_desc: 'Certified — account verified by the administrator.',
+      badge_personality_label: 'Personality', badge_personality_desc: 'Personality — rider highlighted by the administrator.',
+      badge_pro_label: 'Pro rider', badge_pro_desc: 'Pro rider — professional rider status.',
+      badge_organizer_label: 'Verified organizer', badge_organizer_desc: 'Organizer verified by the administrator.',
+      badge_coach_desc: 'Coach — recognized by the administrator or the Leader of a Team PRO to give coaching.',
+      badge_photographer_label: 'Official photographer', badge_photographer_desc: 'Official photographer — recognized by the administrator or the Leader of a Team PRO.',
+      mark_as_prefix: 'Mark as '
     }
   };
   function currentLang() {
@@ -2933,7 +2947,7 @@
     var html = '<div style="margin-top:1.2rem; border-top:1px solid var(--border); padding-top:0.9rem;">';
     html += '<div class="section-title" style="font-size:0.95rem;">' + tr('my_badges_admin_heading') + '</div>';
     html += '<div class="help-text">' + tr('my_badges_admin_help') + '</div>';
-    html += PROFILE_BADGES.map(function (b) {
+    html += profileBadges().map(function (b) {
       return '<label class="checklist-item" style="margin-top:0.5rem;"><input type="checkbox" data-self-badge="' + b.field + '"' + (p[b.field] ? ' checked' : '') + '> ' + b.icon + ' ' + escapeHtml(b.label) + '</label>';
     }).join('');
     html += '</div>';
@@ -3062,7 +3076,7 @@
   // (✓ Team PRO, Team Leader/Coach name colors, Adhérent, Follower) that
   // have no equivalent entry there.
   function renderBadgesLegend() {
-    var rows = PROFILE_BADGES.map(function (b) {
+    var rows = profileBadges().map(function (b) {
       return '<div class="legend-row"><span class="legend-swatch">' + b.icon + '</span><span>' + escapeHtml(b.desc) + '</span></div>';
     }).join('');
     rows += '<div class="legend-row"><span class="legend-swatch team-pro-badge">✓</span><span>' + tr('team_pro_legend') + '</span></div>';
@@ -3341,9 +3355,9 @@
           '<div><span class="rider-manager-name' + nameColorClass(a.name) + '">' + escapeHtml(a.name || a.email) + '</span>' + badgesHtml(a) + ' <span class="friend-role-badge">' + roleLabel(a.role) + '</span>' +
           '<div class="help-text">' + escapeHtml(a.email || '') + ' · ' + (isPilote ? 'moto : ' : 'suit : ') + detail + '</div></div>' +
           (isPilote ? '' : '<button type="button" class="ghost icon-btn" data-action="demote-account" data-uid="' + a.uid + '" aria-label="Repasser en pilote" title="Repasser en pilote">↺</button>') +
-          PROFILE_BADGES.map(function (b) {
+          profileBadges().map(function (b) {
             var on = !!a[b.field];
-            var title = (on ? 'Retirer ' : 'Marquer ') + b.label;
+            var title = (on ? tr('remove_generic') + ' ' : tr('mark_as_prefix')) + b.label;
             return '<button type="button" class="ghost icon-btn' + (on ? ' confirm' : '') + '" data-action="toggle-account-badge" data-uid="' + a.uid + '" data-field="' + b.field + '" aria-label="' + escapeHtml(title) + '" title="' + escapeHtml(title) + '">' + b.icon + '</button>';
           }).join('') +
           '<button type="button" class="ghost icon-btn' + (isPendingDelete ? ' confirm' : ' danger') + '" data-action="delete-account-request" data-uid="' + a.uid + '" aria-label="Supprimer ce compte" title="Retirer l\'accès">' + (isPendingDelete ? '✓' : '×') + '</button>' +
@@ -9099,14 +9113,19 @@
   // desc is the fuller, tap-friendly explanation (see data-badge-info
   // below) -- label stays the short one already used elsewhere (admin's
   // self-badges checkboxes).
-  var PROFILE_BADGES = [
-    { field: 'certified', icon: '✓', label: 'Certifié', desc: 'Certifié — compte vérifié par l\'administrateur.', cssClass: 'certified-badge', check: isCertified },
-    { field: 'personality', icon: '★', label: 'Personnalité', desc: 'Personnalité — pilote mis en avant par l\'administrateur.', cssClass: 'personality-badge', check: isPersonality },
-    { field: 'pro', icon: '🏅', label: 'Pilote PRO', desc: 'Pilote PRO — statut de pilote professionnel.', cssClass: 'pro-badge', check: isPro },
-    { field: 'organizer', icon: '👤', label: 'Organisateur vérifié', desc: 'Organisateur vérifié par l\'administrateur.', cssClass: 'organizer-badge', check: isOrganizerBadge },
-    { field: 'coach', icon: '🎓', label: 'Coach', desc: 'Coach — reconnu par l\'administrateur ou le Team Leader d\'un Team PRO pour donner du coaching.', cssClass: 'coach-badge', check: isCoachBadge },
-    { field: 'photographer', icon: '📷', label: 'Photographe officiel', desc: 'Photographe officiel — reconnu par l\'administrateur ou le Team Leader d\'un Team PRO.', cssClass: 'photographer-badge', check: isPhotographerBadge }
-  ];
+  // A function, not a static array, so every label/desc re-resolves
+  // through tr() on each call -- needed for the language toggle to affect
+  // badges shown across the app (see currentLang()/tr()).
+  function profileBadges() {
+    return [
+      { field: 'certified', icon: '✓', label: tr('badge_certified_label'), desc: tr('badge_certified_desc'), cssClass: 'certified-badge', check: isCertified },
+      { field: 'personality', icon: '★', label: tr('badge_personality_label'), desc: tr('badge_personality_desc'), cssClass: 'personality-badge', check: isPersonality },
+      { field: 'pro', icon: '🏅', label: tr('badge_pro_label'), desc: tr('badge_pro_desc'), cssClass: 'pro-badge', check: isPro },
+      { field: 'organizer', icon: '👤', label: tr('badge_organizer_label'), desc: tr('badge_organizer_desc'), cssClass: 'organizer-badge', check: isOrganizerBadge },
+      { field: 'coach', icon: '🎓', label: tr('coach_label'), desc: tr('badge_coach_desc'), cssClass: 'coach-badge', check: isCoachBadge },
+      { field: 'photographer', icon: '📷', label: tr('badge_photographer_label'), desc: tr('badge_photographer_desc'), cssClass: 'photographer-badge', check: isPhotographerBadge }
+    ];
+  }
 
   // Badges are icon-only, so their meaning normally only shows on hover
   // (title=...) -- useless on mobile, no cursor to hover with. Every badge
@@ -9114,7 +9133,7 @@
   // toast (see the delegated click handler in attachHandlers), which works
   // identically on touch and desktop.
   function badgesHtml(u) {
-    return PROFILE_BADGES.map(function (b) {
+    return profileBadges().map(function (b) {
       return b.check(u) ? ' <span class="' + b.cssClass + '" title="' + escapeHtml(b.desc) + '" data-badge-info="' + escapeHtml(b.desc) + '">' + b.icon + '</span>' : '';
     }).join('');
   }
@@ -11361,7 +11380,7 @@
       btn.addEventListener('click', function () {
         var uid = btn.getAttribute('data-uid');
         var field = btn.getAttribute('data-field');
-        var badge = PROFILE_BADGES.filter(function (b) { return b.field === field; })[0];
+        var badge = profileBadges().filter(function (b) { return b.field === field; })[0];
         var account = (manageableAccounts || []).filter(function (a) { return a.uid === uid; })[0];
         if (!account || !badge) return;
         var next = !account[field];
