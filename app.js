@@ -264,7 +264,34 @@
       feedback_heading: 'Une remarque, une idée ?',
       feedback_help: 'Dis-nous ce qui manque, ce qui bloque ou ce que tu aimerais voir -- ça part directement à l\'équipe de développement.',
       feedback_placeholder: 'Ton retour d\'expérience...',
-      feedback_received_label: 'Suggestions reçues ('
+      feedback_received_label: 'Suggestions reçues (',
+      // Team advanced sections
+      confirm_question: 'Confirmer ?', accompagnant_role: 'Accompagnant', organisateur_role: 'Organisateur',
+      request_sent: 'Demande envoyée', become_adherent: 'Devenir adhérent', leave_team: 'Quitter',
+      suivi_pill: 'Suivi', membre_pill: 'Membre', adherent_pill: 'Adhérent', team_leader_pill: 'Team Leader',
+      pending_adherent_request: 'Demande d\'adhésion en attente',
+      role_field_placeholder: 'Rôle (mécano, assistant...)', save_role_aria: 'Enregistrer le rôle', save_aria: 'Enregistrer',
+      no_one_yet: 'Personne pour l\'instant.',
+      mecano_option: 'Mécano', assistant_option: 'Assistant', photographe_option: 'Photographe', logistique_option: 'Logistique',
+      members_label: 'Membres (', followers_label: 'Followers (',
+      leaders_only_reserved: '🔒 Réservé aux Team Leaders.',
+      presentation_label: 'Présentation', presentation_placeholder: 'Quelques mots sur le Team...',
+      save_presentation_btn: 'Enregistrer la présentation',
+      change_badge_photo: 'Changer la photo (badge)', add_badge_photo: 'Ajouter une photo (badge)',
+      photo_round_help: 'S\'affiche partout en rond (fil d\'actu, membres, invitations...) -- le prochain écran te laisse choisir le cadrage.',
+      logo_label: 'Logo (affiché en largeur sur la fiche du Team)',
+      change_logo: 'Changer le logo', add_logo: 'Ajouter un logo',
+      logo_help: 'Utile pour un logo large (ex. "Mototeam95") que le badge rond couperait.',
+      links_label: 'Liens (un par ligne : Nom | URL)', save_links_btn: 'Enregistrer les liens',
+      visibility_who_label: 'Visibilité (qui peut trouver et suivre ce Team)',
+      vis_invite_only: 'Sur invitation uniquement', vis_all: 'Visible par tous',
+      vis_pro_riders: 'Visible par les Pilotes PRO', vis_certified: 'Visible par les comptes certifiés',
+      who_can_post_label: 'Qui peut publier', leaders_only_option: 'Team Leaders seulement', all_members_option: 'Tous les membres',
+      delete_team_btn: 'Supprimer ce Team', delete_irreversible_password_help: 'Cette action est irréversible. Confirme avec ton mot de passe actuel.',
+      grant_coach_photographer_help: 'En tant que Team Leader d\'un Team PRO, attribue ou retire ces badges à n\'importe quel compte (pas seulement les membres du Team).',
+      search_person_placeholder: 'Rechercher un pilote, accompagnant, organisateur...',
+      coach_toggle_btn: '🎓 Coach : attribuer/retirer', photographer_toggle_btn: '📷 Photographe : attribuer/retirer',
+      grant_coach_photographer_heading: 'Attribuer Coach / Photographe officiel'
     },
     en: {
       nav_events: 'Events', nav_chronos: 'Chronos', nav_planning: 'ON TRACK', nav_social: 'Social', nav_team: 'Team',
@@ -497,7 +524,34 @@
       feedback_heading: 'A remark, an idea?',
       feedback_help: 'Tell us what\'s missing, what\'s blocking you, or what you\'d like to see -- it goes straight to the development team.',
       feedback_placeholder: 'Your feedback...',
-      feedback_received_label: 'Feedback received ('
+      feedback_received_label: 'Feedback received (',
+      // Team advanced sections
+      confirm_question: 'Confirm?', accompagnant_role: 'Companion', organisateur_role: 'Organizer',
+      request_sent: 'Request sent', become_adherent: 'Become an adherent', leave_team: 'Leave',
+      suivi_pill: 'Followed', membre_pill: 'Member', adherent_pill: 'Adherent', team_leader_pill: 'Team Leader',
+      pending_adherent_request: 'Adherent request pending',
+      role_field_placeholder: 'Role (mechanic, assistant...)', save_role_aria: 'Save the role', save_aria: 'Save',
+      no_one_yet: 'No one yet.',
+      mecano_option: 'Mechanic', assistant_option: 'Assistant', photographe_option: 'Photographer', logistique_option: 'Logistics',
+      members_label: 'Members (', followers_label: 'Followers (',
+      leaders_only_reserved: '🔒 Reserved for Team Leaders.',
+      presentation_label: 'About', presentation_placeholder: 'A few words about the Team...',
+      save_presentation_btn: 'Save the description',
+      change_badge_photo: 'Change photo (badge)', add_badge_photo: 'Add a photo (badge)',
+      photo_round_help: 'Shown everywhere as a circle (news feed, members, invites...) -- the next screen lets you choose the crop.',
+      logo_label: 'Logo (shown full-width on the Team\'s page)',
+      change_logo: 'Change logo', add_logo: 'Add a logo',
+      logo_help: 'Useful for a wide logo (e.g. "Mototeam95") that the round badge would crop.',
+      links_label: 'Links (one per line: Name | URL)', save_links_btn: 'Save the links',
+      visibility_who_label: 'Visibility (who can find and follow this Team)',
+      vis_invite_only: 'Invitation only', vis_all: 'Visible to everyone',
+      vis_pro_riders: 'Visible to PRO Riders', vis_certified: 'Visible to certified accounts',
+      who_can_post_label: 'Who can post', leaders_only_option: 'Team Leaders only', all_members_option: 'All members',
+      delete_team_btn: 'Delete this Team', delete_irreversible_password_help: 'This action is irreversible. Confirm with your current password.',
+      grant_coach_photographer_help: 'As the Leader of a Team PRO, grant or revoke these badges to any account (not just Team members).',
+      search_person_placeholder: 'Search for a rider, companion, organizer...',
+      coach_toggle_btn: '🎓 Coach: grant/revoke', photographer_toggle_btn: '📷 Photographer: grant/revoke',
+      grant_coach_photographer_heading: 'Grant Coach / Official Photographer'
     }
   };
   function currentLang() {
@@ -9580,50 +9634,50 @@
       // click-to-arm/click-to-confirm (same pattern as every other
       // destructive action here) instead of a native window.confirm().
       var armed = key === 'leader' && pendingLeaderToggle && pendingLeaderToggle.team === team.id && pendingLeaderToggle.name === name;
-      var shownLabel = armed ? 'Confirmer ?' : label;
+      var shownLabel = armed ? tr('confirm_question') : label;
       return '<button type="button" class="team-status-pill' + (on ? ' active' : '') + (armed ? ' confirm' : '') + '" data-action="team-status-toggle" data-team="' + team.id + '" data-name="' + escapeHtml(name) + '" data-status="' + key + '" data-on="' + (on ? '0' : '1') + '">' + shownLabel + '</button>';
     }
     var u = (STATE.usersByName || {})[name] || {};
     var isAdherent = !!(followDoc && followDoc.tier === 'adherent');
-    var accountRoleLabel = u.role === 'accompagnant' ? 'Accompagnant' : (u.role === 'organisateur' ? 'Organisateur' : '');
+    var accountRoleLabel = u.role === 'accompagnant' ? tr('accompagnant_role') : (u.role === 'organisateur' ? tr('organisateur_role') : '');
     var actions = '';
     if (name === me.name && memberDoc) {
       if (!isAdherent) {
         actions += (followDoc && followDoc.adherentRequested)
-          ? '<span class="help-text">Demande envoyée</span>'
-          : '<button type="button" class="ghost" data-action="team-request-adherent" data-team="' + team.id + '">Devenir adhérent</button>';
+          ? '<span class="help-text">' + tr('request_sent') + '</span>'
+          : '<button type="button" class="ghost" data-action="team-request-adherent" data-team="' + team.id + '">' + tr('become_adherent') + '</button>';
       }
-      actions += '<button type="button" class="ghost" data-action="team-leave" data-team="' + team.id + '">Quitter</button>';
+      actions += '<button type="button" class="ghost" data-action="team-leave" data-team="' + team.id + '">' + tr('leave_team') + '</button>';
     }
     var row = '<div style="display:flex; align-items:center; justify-content:space-between; gap:0.6rem;">' +
       '<div class="friend-row-main">' + avatarHtml(u, name) + nameLinkHtml(name) + badgesHtml(u) +
       (accountRoleLabel ? '<span class="account-role-tag">' + accountRoleLabel + '</span>' : '') +
       (memberDoc && memberDoc.teamRole ? '<span class="account-role-tag">' + escapeHtml(memberDoc.teamRole) + '</span>' : '') +
-      (isAdherent ? '<span class="friend-role-badge adherent-badge">Adhérent</span>' : '') +
-      (memberDoc ? '<span class="friend-role-badge">' + (memberDoc.role === 'leader' ? 'Team Leader' : 'Membre') + '</span>' : '<span class="friend-role-badge">Follower</span>') +
+      (isAdherent ? '<span class="friend-role-badge adherent-badge">' + tr('adherent_singular_badge') + '</span>' : '') +
+      (memberDoc ? '<span class="friend-role-badge">' + (memberDoc.role === 'leader' ? tr('team_leader_label') : tr('member_label')) + '</span>' : '<span class="friend-role-badge">' + tr('follower_label') + '</span>') +
       '</div><div class="friend-row-actions">' + actions + '</div></div>';
     if (isLeader) {
       var isTeamLeaderRole = !!(memberDoc && memberDoc.role === 'leader');
-      var pills = pill('follow', 'Suivi', !!followDoc) + pill('member', 'Membre', !!memberDoc) +
-        pill('adherent', 'Adhérent', isAdherent) + pill('leader', 'Team Leader', isTeamLeaderRole);
+      var pills = pill('follow', tr('suivi_pill'), !!followDoc) + pill('member', tr('membre_pill'), !!memberDoc) +
+        pill('adherent', tr('adherent_pill'), isAdherent) + pill('leader', tr('team_leader_pill'), isTeamLeaderRole);
       // Explicit Annuler once the Team Leader pill is armed -- same
       // reasoning as deleteEventControl: otherwise the only way out is
       // to guess that clicking elsewhere resets it.
       if (pendingLeaderToggle && pendingLeaderToggle.team === team.id && pendingLeaderToggle.name === name) {
-        pills += '<button type="button" class="ghost" data-action="team-leader-toggle-cancel">Annuler</button>';
+        pills += '<button type="button" class="ghost" data-action="team-leader-toggle-cancel">' + tr('cancel') + '</button>';
       }
       // A pending "je veux être adhérent" request (see
       // requestTeamAdherent) surfaces here rather than in a separate
       // list -- toggling the Adhérent pill above already clears it
       // either way, this just makes sure the leader notices one's waiting.
       var pendingNote = (followDoc && followDoc.adherentRequested && !isAdherent)
-        ? '<div class="team-manage-pending">Demande d\'adhésion en attente' +
-          ' <button type="button" class="ghost" data-action="team-adherent-accept" data-follow-id="' + followDoc.id + '">Accepter</button>' +
-          ' <button type="button" class="ghost" data-action="team-adherent-decline" data-follow-id="' + followDoc.id + '">Refuser</button></div>'
+        ? '<div class="team-manage-pending">' + tr('pending_adherent_request') +
+          ' <button type="button" class="ghost" data-action="team-adherent-accept" data-follow-id="' + followDoc.id + '">' + tr('accept') + '</button>' +
+          ' <button type="button" class="ghost" data-action="team-adherent-decline" data-follow-id="' + followDoc.id + '">' + tr('decline') + '</button></div>'
         : '';
       var roleField = memberDoc
-        ? '<div class="team-role-field"><input type="text" placeholder="Rôle (mécano, assistant...)" value="' + escapeHtml(memberDoc.teamRole || '') + '" data-team-role-input list="team-role-suggestions">' +
-          '<button type="button" class="ghost icon-btn" data-action="team-role-save" data-team="' + team.id + '" data-name="' + escapeHtml(name) + '" aria-label="Enregistrer le rôle" title="Enregistrer">✓</button></div>'
+        ? '<div class="team-role-field"><input type="text" placeholder="' + tr('role_field_placeholder') + '" value="' + escapeHtml(memberDoc.teamRole || '') + '" data-team-role-input list="team-role-suggestions">' +
+          '<button type="button" class="ghost icon-btn" data-action="team-role-save" data-team="' + team.id + '" data-name="' + escapeHtml(name) + '" aria-label="' + tr('save_role_aria') + '" title="' + tr('save_aria') + '">✓</button></div>'
         : '';
       row += '<div class="team-status-pills">' + pills + '</div>' + pendingNote + roleField;
     }
@@ -9635,12 +9689,12 @@
     teamFollowers.forEach(function (f) { followByName[f.follower] = f; });
     var names = members.map(function (m) { return m.name; }).sort(function (a, b) { return a.localeCompare(b); });
     var body = !names.length
-      ? '<div class="help-text">Personne pour l\'instant.</div>'
+      ? '<div class="help-text">' + tr('no_one_yet') + '</div>'
       : names.map(function (name) {
         var memberDoc = members.filter(function (m) { return m.name === name; })[0];
         return renderTeamPersonRow(team, name, memberDoc, followByName[name] || null, me, isLeader);
-      }).join('') + (isLeader ? '<datalist id="team-role-suggestions"><option value="Mécano"><option value="Assistant"><option value="Photographe"><option value="Logistique"></datalist>' : '');
-    return collapsibleSection('team-members-' + team.id, 'Membres (' + members.length + ')', body);
+      }).join('') + (isLeader ? '<datalist id="team-role-suggestions"><option value="' + tr('mecano_option') + '"><option value="' + tr('assistant_option') + '"><option value="' + tr('photographe_option') + '"><option value="' + tr('logistique_option') + '"></datalist>' : '');
+    return collapsibleSection('team-members-' + team.id, tr('members_label') + members.length + ')', body);
   }
 
   // Follows the Team without (yet) being a member of its roster -- Geoff,
@@ -9652,65 +9706,65 @@
     var followersOnly = teamFollowers.filter(function (f) { return memberNames.indexOf(f.follower) === -1; });
     var names = followersOnly.map(function (f) { return f.follower; }).sort(function (a, b) { return a.localeCompare(b); });
     var body = !names.length
-      ? '<div class="help-text">Personne pour l\'instant.</div>'
+      ? '<div class="help-text">' + tr('no_one_yet') + '</div>'
       : names.map(function (name) {
         var followDoc = followersOnly.filter(function (f) { return f.follower === name; })[0];
         return renderTeamPersonRow(team, name, null, followDoc, me, isLeader);
       }).join('');
-    return collapsibleSection('team-followers-' + team.id, 'Followers (' + names.length + ')', body);
+    return collapsibleSection('team-followers-' + team.id, tr('followers_label') + names.length + ')', body);
   }
 
   function renderTeamSettings(team, isLeader) {
     if (!isLeader) {
-      return '<div class="team-settings-disabled"><div class="help-text">🔒 Réservé aux Team Leaders.</div></div>';
+      return '<div class="team-settings-disabled"><div class="help-text">' + tr('leaders_only_reserved') + '</div></div>';
     }
     var visibility = team.visibility || 'private';
-    var html = '<div><label for="team-description-' + team.id + '">Présentation</label>' +
-      '<textarea id="team-description-' + team.id + '" rows="2" placeholder="Quelques mots sur le Team...">' + escapeHtml(team.description || '') + '</textarea>' +
+    var html = '<div><label for="team-description-' + team.id + '">' + tr('presentation_label') + '</label>' +
+      '<textarea id="team-description-' + team.id + '" rows="2" placeholder="' + tr('presentation_placeholder') + '">' + escapeHtml(team.description || '') + '</textarea>' +
       '<div style="margin-top:0.5rem; display:flex; align-items:center; gap:0.6rem;">' +
-      '<button type="button" class="ghost" data-action="team-description-save" data-team="' + team.id + '">Enregistrer la présentation</button>' +
-      '<button type="button" class="ghost" data-action="team-photo-btn" data-team="' + team.id + '">' + (team.photoURL ? 'Changer la photo (badge)' : 'Ajouter une photo (badge)') + '</button>' +
-      (team.photoURL ? '<button type="button" class="ghost" data-action="team-photo-recrop" data-team="' + team.id + '">Modifier le cadrage</button>' : '') +
-      (team.photoURL ? '<button type="button" class="ghost" data-action="team-photo-remove" data-team="' + team.id + '">Retirer</button>' : '') +
+      '<button type="button" class="ghost" data-action="team-description-save" data-team="' + team.id + '">' + tr('save_presentation_btn') + '</button>' +
+      '<button type="button" class="ghost" data-action="team-photo-btn" data-team="' + team.id + '">' + (team.photoURL ? tr('change_badge_photo') : tr('add_badge_photo')) + '</button>' +
+      (team.photoURL ? '<button type="button" class="ghost" data-action="team-photo-recrop" data-team="' + team.id + '">' + tr('edit_crop') + '</button>' : '') +
+      (team.photoURL ? '<button type="button" class="ghost" data-action="team-photo-remove" data-team="' + team.id + '">' + tr('remove_generic') + '</button>' : '') +
       '</div>' +
-      '<div class="help-text" style="margin-top:0.3rem;">S\'affiche partout en rond (fil d\'actu, membres, invitations...) -- le prochain écran te laisse choisir le cadrage.</div>' +
+      '<div class="help-text" style="margin-top:0.3rem;">' + tr('photo_round_help') + '</div>' +
       '</div>';
-    html += '<div style="margin-top:0.9rem;"><label>Logo (affiché en largeur sur la fiche du Team)</label>' +
+    html += '<div style="margin-top:0.9rem;"><label>' + tr('logo_label') + '</label>' +
       '<div style="margin-top:0.3rem; display:flex; align-items:center; gap:0.6rem;">' +
-      '<button type="button" class="ghost" data-action="team-logo-btn" data-team="' + team.id + '">' + (team.logoURL ? 'Changer le logo' : 'Ajouter un logo') + '</button>' +
-      (team.logoURL ? '<button type="button" class="ghost" data-action="team-logo-recrop" data-team="' + team.id + '">Modifier le cadrage</button>' : '') +
-      (team.logoURL ? '<button type="button" class="ghost" data-action="team-logo-remove" data-team="' + team.id + '">Retirer</button>' : '') +
+      '<button type="button" class="ghost" data-action="team-logo-btn" data-team="' + team.id + '">' + (team.logoURL ? tr('change_logo') : tr('add_logo')) + '</button>' +
+      (team.logoURL ? '<button type="button" class="ghost" data-action="team-logo-recrop" data-team="' + team.id + '">' + tr('edit_crop') + '</button>' : '') +
+      (team.logoURL ? '<button type="button" class="ghost" data-action="team-logo-remove" data-team="' + team.id + '">' + tr('remove_generic') + '</button>' : '') +
       '</div>' +
-      '<div class="help-text" style="margin-top:0.3rem;">Utile pour un logo large (ex. "Mototeam95") que le badge rond couperait.</div>' +
+      '<div class="help-text" style="margin-top:0.3rem;">' + tr('logo_help') + '</div>' +
       '</div>';
     html += '<div style="margin-top:0.9rem;"><form data-action="team-links-form" data-team="' + team.id + '">' +
-      '<label for="team-links-' + team.id + '">Liens (un par ligne : Nom | URL)</label>' +
+      '<label for="team-links-' + team.id + '">' + tr('links_label') + '</label>' +
       '<textarea id="team-links-' + team.id + '" data-team-links-input rows="3" placeholder="Site internet | https://...\nBoutique | https://...\nPhotographe | https://...">' +
       escapeHtml((team.links || []).map(function (l) { return l.label + ' | ' + l.url; }).join('\n')) + '</textarea>' +
-      '<button type="submit" class="ghost" style="margin-top:0.4rem;">Enregistrer les liens</button></form></div>';
-    html += '<label for="team-visibility-select-' + team.id + '" style="margin-top:0.9rem;">Visibilité (qui peut trouver et suivre ce Team)</label>' +
+      '<button type="submit" class="ghost" style="margin-top:0.4rem;">' + tr('save_links_btn') + '</button></form></div>';
+    html += '<label for="team-visibility-select-' + team.id + '" style="margin-top:0.9rem;">' + tr('visibility_who_label') + '</label>' +
       '<select id="team-visibility-select-' + team.id + '" data-action="team-visibility" data-team="' + team.id + '">' +
-      '<option value="private"' + (visibility === 'private' ? ' selected' : '') + '>Sur invitation uniquement</option>' +
-      '<option value="all"' + (visibility === 'all' ? ' selected' : '') + '>Visible par tous</option>' +
-      '<option value="pro"' + (visibility === 'pro' ? ' selected' : '') + '>Visible par les Pilotes PRO</option>' +
-      '<option value="certified"' + (visibility === 'certified' ? ' selected' : '') + '>Visible par les comptes certifiés</option>' +
+      '<option value="private"' + (visibility === 'private' ? ' selected' : '') + '>' + tr('vis_invite_only') + '</option>' +
+      '<option value="all"' + (visibility === 'all' ? ' selected' : '') + '>' + tr('vis_all') + '</option>' +
+      '<option value="pro"' + (visibility === 'pro' ? ' selected' : '') + '>' + tr('vis_pro_riders') + '</option>' +
+      '<option value="certified"' + (visibility === 'certified' ? ' selected' : '') + '>' + tr('vis_certified') + '</option>' +
       '</select>';
-    html += '<label for="team-post-policy-select-' + team.id + '" style="margin-top:0.7rem;">Qui peut publier</label>' +
+    html += '<label for="team-post-policy-select-' + team.id + '" style="margin-top:0.7rem;">' + tr('who_can_post_label') + '</label>' +
       '<select id="team-post-policy-select-' + team.id + '" data-action="team-post-policy" data-team="' + team.id + '">' +
-      '<option value="leaders"' + (team.postPolicy !== 'members' ? ' selected' : '') + '>Team Leaders seulement</option>' +
-      '<option value="members"' + (team.postPolicy === 'members' ? ' selected' : '') + '>Tous les membres</option>' +
+      '<option value="leaders"' + (team.postPolicy !== 'members' ? ' selected' : '') + '>' + tr('leaders_only_option') + '</option>' +
+      '<option value="members"' + (team.postPolicy === 'members' ? ' selected' : '') + '>' + tr('all_members_option') + '</option>' +
       '</select>';
     html += '<div class="danger-zone" style="margin-top:1rem;">';
     if (pendingDeleteTeamId !== team.id) {
-      html += '<button type="button" class="ghost danger" data-action="team-delete-request" data-team="' + team.id + '">Supprimer ce Team</button>';
+      html += '<button type="button" class="ghost danger" data-action="team-delete-request" data-team="' + team.id + '">' + tr('delete_team_btn') + '</button>';
     } else {
       html += '<form id="team-delete-form" data-team="' + team.id + '">' +
-        '<div class="help-text">Cette action est irréversible. Confirme avec ton mot de passe actuel.</div>' +
-        '<label for="team-delete-password" style="margin-top:0.6rem;">Mot de passe actuel</label>' +
+        '<div class="help-text">' + tr('delete_irreversible_password_help') + '</div>' +
+        '<label for="team-delete-password" style="margin-top:0.6rem;">' + tr('current_password_label') + '</label>' +
         '<input type="password" id="team-delete-password" autocomplete="current-password">' +
         '<div style="margin-top:0.7rem; display:flex; gap:0.6rem;">' +
-        '<button type="submit" class="ghost danger">Confirmer la suppression</button>' +
-        '<button type="button" class="ghost" data-action="team-delete-cancel">Annuler</button></div>' +
+        '<button type="submit" class="ghost danger">' + tr('confirm_deletion_btn') + '</button>' +
+        '<button type="button" class="ghost" data-action="team-delete-cancel">' + tr('cancel') + '</button></div>' +
         (teamDeleteMessage ? '<div class="help-text" style="margin-top:0.6rem;">' + escapeHtml(teamDeleteMessage) + '</div>' : '') +
         '</form>';
     }
@@ -9727,14 +9781,14 @@
   function renderTeamProBadgeGrantSection(team) {
     var names = allKnownUserNames();
     var options = names.map(function (n) { return '<option value="' + escapeHtml(n) + '">' + escapeHtml(n) + '</option>'; }).join('');
-    var body = '<div class="help-text">En tant que Team Leader d\'un Team PRO, attribue ou retire ces badges à n\'importe quel compte (pas seulement les membres du Team).</div>' +
-      '<input type="text" list="team-pro-badge-names-' + team.id + '" placeholder="Rechercher un pilote, accompagnant, organisateur..." data-team-pro-badge-name style="margin-top:0.5rem;">' +
+    var body = '<div class="help-text">' + tr('grant_coach_photographer_help') + '</div>' +
+      '<input type="text" list="team-pro-badge-names-' + team.id + '" placeholder="' + tr('search_person_placeholder') + '" data-team-pro-badge-name style="margin-top:0.5rem;">' +
       '<datalist id="team-pro-badge-names-' + team.id + '">' + options + '</datalist>' +
       '<div style="display:flex; gap:0.6rem; margin-top:0.6rem; flex-wrap:wrap;">' +
-      '<button type="button" class="ghost" data-action="team-pro-badge-toggle" data-team="' + team.id + '" data-field="coach">🎓 Coach : attribuer/retirer</button>' +
-      '<button type="button" class="ghost" data-action="team-pro-badge-toggle" data-team="' + team.id + '" data-field="photographer">📷 Photographe : attribuer/retirer</button>' +
+      '<button type="button" class="ghost" data-action="team-pro-badge-toggle" data-team="' + team.id + '" data-field="coach">' + tr('coach_toggle_btn') + '</button>' +
+      '<button type="button" class="ghost" data-action="team-pro-badge-toggle" data-team="' + team.id + '" data-field="photographer">' + tr('photographer_toggle_btn') + '</button>' +
       '</div>';
-    return collapsibleSection('team-pro-badges-' + team.id, 'Attribuer Coach / Photographe officiel', body);
+    return collapsibleSection('team-pro-badges-' + team.id, tr('grant_coach_photographer_heading'), body);
   }
 
   // A Team Leader's own "Gestion des événements" -- create/modify a
