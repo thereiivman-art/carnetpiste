@@ -147,7 +147,43 @@
       view_official_chronos: 'Voir ses chronos officiels ↗', verified_chronos_label: 'Chronos vérifiés (',
       not_shared_events: ' n\'a pas choisi de partager ses événements/chronos.', trophies_not_shared: 'Trophées non partagés.',
       remove_friend_confirm: 'Retirer ' , remove_friend_confirm_suffix: ' de tes amis ?',
-      confirm_label: 'Confirmer', remove_this_friend: 'Retirer cet ami'
+      confirm_label: 'Confirmer', remove_this_friend: 'Retirer cet ami',
+      // Coach tab
+      coaching_bapteme_heading: 'Coaching &amp; baptêmes piste',
+      coaching_bapteme_help: 'Un Coach peut proposer un suivi de coaching (pilotes) ou un baptême piste, un tour passager (pilotes et accompagnants) -- clique un créneau du planning ci-dessous pour lui demander directement dessus.',
+      requests_to_handle_label: 'Demandes à traiter (', waiting_for_reply_label: 'En attente de réponse (',
+      my_coached_riders_label: 'Mes pilotes coachés / baptisés', my_coaching_label: 'Mon coaching / baptême',
+      type_label: 'Type', coaching_option: 'Coaching', bapteme_option: 'Baptême piste',
+      no_current_upcoming_event: 'Aucun événement en cours ou à venir.',
+      declare_availability_first: 'Déclare d\'abord tes disponibilités (',
+      declare_availability_first_suffix: ') sur le planning ci-dessus avant de proposer.',
+      no_rider_or_companion_available: 'Aucun pilote ou accompagnant disponible pour l\'instant.',
+      no_rider_available: 'Aucun pilote disponible pour l\'instant.',
+      slot_label: 'Créneau', search_rider_or_companion: 'Rechercher un pilote ou un accompagnant',
+      search_rider: 'Rechercher un pilote', name_placeholder: 'Nom',
+      propose_bapteme_btn: 'Proposer le baptême piste', propose_coaching_btn: 'Proposer le coaching',
+      propose_coaching_bapteme_heading: 'Proposer un coaching ou un baptême piste',
+      ask_to_be_coached_by: 'Demander à être coaché par', send_request_generic: 'Envoyer la demande',
+      ask_for_coaching_heading: 'Demander un coaching',
+      proposed_slots_label: 'Créneaux proposés : ', slot_colon_label: 'Créneau : ',
+      send_generic: 'Envoyer', no_slot_to_propose: 'Aucun créneau disponible à proposer',
+      no_slot_to_propose_check_avail: ' -- vérifie tes disponibilités ci-dessus.',
+      accept_generic: 'Accepter ', propose_other_time: 'Proposer un autre horaire', refuse_generic: 'Refuser',
+      waiting_for_reply_from: 'En attente de la réponse de ', cancel_generic: 'Annuler',
+      coaching_plan_notes_label: 'Planning / notes de coaching', remove_generic: 'Retirer',
+      stop_coaching: 'Arrêter le coaching',
+      no_message_yet: 'Aucun message pour l\'instant.', write_message_placeholder: 'Écrire un message...',
+      send_btn: 'Envoyer', messages_label: 'Messages',
+      now_label: 'En ce moment — ', next_event_dash_label: 'Prochain événement — ',
+      done_label: 'Terminé', set_my_availability: '✎ Définir mes disponibilités',
+      drag_to_mark_available: 'Clique ou fais glisser (doigt ou souris) sur les créneaux pour les marquer disponibles.',
+      availability_legend: '🔵 disponible pour du coaching · 🟠 pour un baptême piste · 🟣 les deux.',
+      planning_horaires_label: 'Planning (horaires par groupe)',
+      ask_for_slot_heading: 'Demander pour ', coaching_riders_only: 'Le coaching est réservé aux pilotes -- choisis "Baptême piste" ci-dessous.',
+      proposed_slots_max: 'Créneaux proposés (3 maximum)',
+      no_coach_available_prefix: 'Aucun Coach disponible sur ', these_slots: 'ces créneaux', this_slot: 'ce créneau',
+      no_coach_available_suffix: ' pour ce type -- essaie d\'autres créneaux ou l\'autre type.',
+      coach_label_field: 'Coach'
     },
     en: {
       nav_events: 'Events', nav_chronos: 'Chronos', nav_planning: 'ON TRACK', nav_social: 'Social', nav_team: 'Team',
@@ -263,7 +299,43 @@
       view_official_chronos: 'View official lap times ↗', verified_chronos_label: 'Verified lap times (',
       not_shared_events: ' hasn\'t chosen to share their events/lap times.', trophies_not_shared: 'Trophies not shared.',
       remove_friend_confirm: 'Remove ', remove_friend_confirm_suffix: ' from your friends?',
-      confirm_label: 'Confirm', remove_this_friend: 'Remove this friend'
+      confirm_label: 'Confirm', remove_this_friend: 'Remove this friend',
+      // Coach tab
+      coaching_bapteme_heading: 'Coaching &amp; track intros',
+      coaching_bapteme_help: 'A Coach can offer ongoing coaching (riders) or a track intro, a passenger lap (riders and companions) -- tap a slot in the schedule below to request it directly.',
+      requests_to_handle_label: 'Requests to handle (', waiting_for_reply_label: 'Waiting for a reply (',
+      my_coached_riders_label: 'My coached / intro riders', my_coaching_label: 'My coaching / intro',
+      type_label: 'Type', coaching_option: 'Coaching', bapteme_option: 'Track intro',
+      no_current_upcoming_event: 'No ongoing or upcoming event.',
+      declare_availability_first: 'First declare your availability (',
+      declare_availability_first_suffix: ') on the schedule above before proposing.',
+      no_rider_or_companion_available: 'No rider or companion available right now.',
+      no_rider_available: 'No rider available right now.',
+      slot_label: 'Slot', search_rider_or_companion: 'Search for a rider or companion',
+      search_rider: 'Search for a rider', name_placeholder: 'Name',
+      propose_bapteme_btn: 'Offer the track intro', propose_coaching_btn: 'Offer coaching',
+      propose_coaching_bapteme_heading: 'Offer coaching or a track intro',
+      ask_to_be_coached_by: 'Ask to be coached by', send_request_generic: 'Send request',
+      ask_for_coaching_heading: 'Ask for coaching',
+      proposed_slots_label: 'Proposed slots: ', slot_colon_label: 'Slot: ',
+      send_generic: 'Send', no_slot_to_propose: 'No slot available to propose',
+      no_slot_to_propose_check_avail: ' -- check your availability above.',
+      accept_generic: 'Accept ', propose_other_time: 'Propose another time', refuse_generic: 'Decline',
+      waiting_for_reply_from: 'Waiting for a reply from ', cancel_generic: 'Cancel',
+      coaching_plan_notes_label: 'Coaching plan / notes', remove_generic: 'Remove',
+      stop_coaching: 'Stop coaching',
+      no_message_yet: 'No message yet.', write_message_placeholder: 'Write a message...',
+      send_btn: 'Send', messages_label: 'Messages',
+      now_label: 'Right now — ', next_event_dash_label: 'Next event — ',
+      done_label: 'Done', set_my_availability: '✎ Set my availability',
+      drag_to_mark_available: 'Tap or drag (finger or mouse) across slots to mark them available.',
+      availability_legend: '🔵 available for coaching · 🟠 for a track intro · 🟣 both.',
+      planning_horaires_label: 'Schedule (per group)',
+      ask_for_slot_heading: 'Request for ', coaching_riders_only: 'Coaching is for riders only -- pick "Track intro" below.',
+      proposed_slots_max: 'Proposed slots (3 max)',
+      no_coach_available_prefix: 'No Coach available for ', these_slots: 'these slots', this_slot: 'this slot',
+      no_coach_available_suffix: ' for this type -- try other slots or the other type.',
+      coach_label_field: 'Coach'
     }
   };
   function currentLang() {
@@ -9911,7 +9983,7 @@
     var me = currentUserProfile;
     var messages = (STATE.coachMessages || []).filter(function (m) { return m.requestId === requestId; });
     var body = !messages.length
-      ? '<div class="empty-state">Aucun message pour l\'instant.</div>'
+      ? '<div class="empty-state">' + tr('no_message_yet') + '</div>'
       : messages.map(function (m) {
         return '<div class="coach-message' + (me && m.from === me.name ? ' mine' : '') + '">' +
           '<div class="coach-message-head">' + personNameHtml(m.from) +
@@ -9919,9 +9991,9 @@
           '<div class="coach-message-text">' + escapeHtml(m.text) + '</div></div>';
       }).join('');
     body += '<form class="coach-message-form" data-action="coach-message-form" data-request-id="' + requestId + '">' +
-      '<input type="text" placeholder="Écrire un message..." data-coach-message-input>' +
-      '<button type="submit" class="primary">Envoyer</button></form>';
-    return collapsibleSection('coach-messages-' + requestId, 'Messages', body);
+      '<input type="text" placeholder="' + tr('write_message_placeholder') + '" data-coach-message-input>' +
+      '<button type="submit" class="primary">' + tr('send_btn') + '</button></form>';
+    return collapsibleSection('coach-messages-' + requestId, tr('messages_label'), body);
   }
 
   // Which type a Coach's propose form is currently set to -- pure UI
@@ -10006,26 +10078,26 @@
     var coachHoraires = eventHoraires(ev);
     var groupsHtml = coachHoraires ? renderHoraireGroups(coachHoraires, null, ev, info.briefing, true, coachAvailabilitySlotClass(ev, me)) : '';
     if (!groupsHtml) return '';
-    var body = '<div class="eyebrow">' + (target.mode === 'ongoing' ? 'En ce moment — ' : 'Prochain événement — ') + escapeHtml(ev.circuit) + '</div>';
+    var body = '<div class="eyebrow">' + (target.mode === 'ongoing' ? tr('now_label') : tr('next_event_dash_label')) + escapeHtml(ev.circuit) + '</div>';
     if (iAmCoach) {
       body += '<div style="display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap; margin:0.4rem 0;">' +
-        '<button type="button" class="ghost" data-action="coach-availability-edit-toggle">' + (editing ? 'Terminé' : '✎ Définir mes disponibilités') + '</button>';
+        '<button type="button" class="ghost" data-action="coach-availability-edit-toggle">' + (editing ? tr('done_label') : tr('set_my_availability')) + '</button>';
       if (editing) {
         body += '<div class="coach-availability-type-switch">' +
-          '<button type="button" class="coach-availability-type-btn' + (coachAvailabilityEditType === 'coaching' ? ' active' : '') + '" data-action="coach-availability-type" data-type="coaching">Coaching</button>' +
-          '<button type="button" class="coach-availability-type-btn' + (coachAvailabilityEditType === 'bapteme' ? ' active' : '') + '" data-action="coach-availability-type" data-type="bapteme">Baptême piste</button>' +
+          '<button type="button" class="coach-availability-type-btn' + (coachAvailabilityEditType === 'coaching' ? ' active' : '') + '" data-action="coach-availability-type" data-type="coaching">' + tr('coaching_option') + '</button>' +
+          '<button type="button" class="coach-availability-type-btn' + (coachAvailabilityEditType === 'bapteme' ? ' active' : '') + '" data-action="coach-availability-type" data-type="bapteme">' + tr('bapteme_option') + '</button>' +
           '</div>';
       }
       body += '</div>';
       if (editing) {
-        body += '<div class="help-text" style="margin-bottom:0.4rem;">Clique ou fais glisser (doigt ou souris) sur les créneaux pour les marquer disponibles.</div>';
+        body += '<div class="help-text" style="margin-bottom:0.4rem;">' + tr('drag_to_mark_available') + '</div>';
       } else {
-        body += '<div class="help-text" style="margin-bottom:0.4rem;">🔵 disponible pour du coaching · 🟠 pour un baptême piste · 🟣 les deux.</div>';
+        body += '<div class="help-text" style="margin-bottom:0.4rem;">' + tr('availability_legend') + '</div>';
       }
     }
     var wrapClass = editing ? 'coach-availability-painting' : 'coach-planning-clickable';
     body += '<div class="' + wrapClass + '" data-event-id="' + ev.id + '" data-circuit="' + escapeHtml(ev.circuit) + '">' + groupsHtml + '</div>';
-    return collapsibleCard('coach-planning', 'Planning (horaires par groupe)', body, true);
+    return collapsibleCard('coach-planning', tr('planning_horaires_label'), body, true);
   }
 
   // ---- Demander depuis un créneau du planning (voir renderCoachPlanningSection) ----
@@ -10070,17 +10142,17 @@
       return !!(av && coachSlotModalSelected.some(function (l) { return av.indexOf(l) !== -1; }));
     });
     var html = '<div class="crop-modal-overlay"><div class="crop-modal">' +
-      '<h2 class="section-title">Demander pour ' + escapeHtml(coachSlotModal.slotLabel) + '</h2>';
+      '<h2 class="section-title">' + tr('ask_for_slot_heading') + escapeHtml(coachSlotModal.slotLabel) + '</h2>';
     if (me && proposeRoles.indexOf(me.role || 'pilote') === -1) {
-      html += '<div class="help-text">Le coaching est réservé aux pilotes -- choisis "Baptême piste" ci-dessous.</div>';
+      html += '<div class="help-text">' + tr('coaching_riders_only') + '</div>';
     }
-    html += '<label for="coach-slot-type" style="margin-top:0.6rem;">Type</label>' +
+    html += '<label for="coach-slot-type" style="margin-top:0.6rem;">' + tr('type_label') + '</label>' +
       '<select id="coach-slot-type">' +
-      '<option value="coaching"' + (coachSlotModalType === 'coaching' ? ' selected' : '') + '>Coaching</option>' +
-      '<option value="bapteme"' + (coachSlotModalType === 'bapteme' ? ' selected' : '') + '>Baptême piste</option>' +
+      '<option value="coaching"' + (coachSlotModalType === 'coaching' ? ' selected' : '') + '>' + tr('coaching_option') + '</option>' +
+      '<option value="bapteme"' + (coachSlotModalType === 'bapteme' ? ' selected' : '') + '>' + tr('bapteme_option') + '</option>' +
       '</select>';
     if (allSlots.length > 1) {
-      html += '<label style="margin-top:0.6rem; display:block;">Créneaux proposés (3 maximum)</label>' +
+      html += '<label style="margin-top:0.6rem; display:block;">' + tr('proposed_slots_max') + '</label>' +
         '<div class="coach-slot-modal-options">' + allSlots.map(function (s) {
           var checked = coachSlotModalSelected.indexOf(s.label) !== -1;
           var disabled = !checked && coachSlotModalSelected.length >= 3;
@@ -10089,14 +10161,14 @@
         }).join('') + '</div>';
     }
     if (!coachCandidates.length) {
-      html += '<div class="help-text" style="margin-top:0.6rem;">Aucun Coach disponible sur ' + (coachSlotModalSelected.length > 1 ? 'ces créneaux' : 'ce créneau') + ' pour ce type -- essaie d\'autres créneaux ou l\'autre type.</div>';
+      html += '<div class="help-text" style="margin-top:0.6rem;">' + tr('no_coach_available_prefix') + (coachSlotModalSelected.length > 1 ? tr('these_slots') : tr('this_slot')) + tr('no_coach_available_suffix') + '</div>';
     } else {
       html += '<form id="coach-slot-request-form" style="margin-top:0.6rem;">' +
-        '<label for="coach-slot-coach">Coach</label>' +
+        '<label for="coach-slot-coach">' + tr('coach_label_field') + '</label>' +
         '<select id="coach-slot-coach">' + coachCandidates.map(function (n) { return '<option value="' + escapeHtml(n) + '">' + escapeHtml(n) + '</option>'; }).join('') + '</select>' +
-        '<button type="submit" class="primary" style="margin-top:0.7rem;">Envoyer la demande</button></form>';
+        '<button type="submit" class="primary" style="margin-top:0.7rem;">' + tr('send_request_generic') + '</button></form>';
     }
-    html += '<button type="button" class="ghost" id="coach-slot-cancel-btn" style="margin-top:0.6rem;">Annuler</button>';
+    html += '<button type="button" class="ghost" id="coach-slot-cancel-btn" style="margin-top:0.6rem;">' + tr('cancel') + '</button>';
     return html + '</div></div>';
   }
   // Which request currently shows its inline "proposer un autre horaire"
@@ -10118,9 +10190,9 @@
     // the matching per-option Accepter buttons); once accepted or down
     // to a single slot, the plain "Créneau : X" line says it all.
     if (r.status === 'pending' && r.slotOptions && r.slotOptions.length > 1) {
-      return '<div class="help-text" style="margin-top:0.2rem;">Créneaux proposés : ' + r.slotOptions.map(escapeHtml).join(', ') + suffix + '</div>';
+      return '<div class="help-text" style="margin-top:0.2rem;">' + tr('proposed_slots_label') + r.slotOptions.map(escapeHtml).join(', ') + suffix + '</div>';
     }
-    return '<div class="help-text" style="margin-top:0.2rem;">Créneau : ' + escapeHtml(r.slotLabel) + suffix + '</div>';
+    return '<div class="help-text" style="margin-top:0.2rem;">' + tr('slot_colon_label') + escapeHtml(r.slotLabel) + suffix + '</div>';
   }
   // A request/proposal that's on me to answer right now -- whichever
   // side of the doc that makes me, and whether it just arrived or is a
@@ -10134,7 +10206,7 @@
     var u = (STATE.usersByName || {})[otherName] || {};
     var isBapteme = r.type === 'bapteme';
     var html = '<div class="coach-request-row"><div class="friend-row-main">' + avatarHtml(u, otherName) + personNameHtml(otherName) + badgesHtml(u) +
-      ' <span class="friend-role-badge">' + (isBapteme ? 'Baptême piste' : 'Coaching') + '</span></div>' +
+      ' <span class="friend-role-badge">' + (isBapteme ? tr('bapteme_option') : tr('coaching_option')) + '</span></div>' +
       coachRequestSlotHtml(r);
     if (counterProposeRequestId === r.id) {
       var slotOptions = coachRequestSlotOptions(r, me.name);
@@ -10143,28 +10215,28 @@
         html += '<select data-coach-slot-propose-select style="flex:1 1 140px;">' + slotOptions.map(function (s) {
           return '<option value="' + escapeHtml(s.label) + '"' + (s.label === r.slotLabel ? ' selected' : '') + '>' + escapeHtml(s.label) + '</option>';
         }).join('') + '</select>' +
-          '<button type="submit" class="primary">Envoyer</button>';
+          '<button type="submit" class="primary">' + tr('send_generic') + '</button>';
       } else {
-        html += '<div class="help-text">Aucun créneau disponible à proposer' + (isCoachBadge(me) ? ' -- vérifie tes disponibilités ci-dessus.' : '.') + '</div>';
+        html += '<div class="help-text">' + tr('no_slot_to_propose') + (isCoachBadge(me) ? tr('no_slot_to_propose_check_avail') : '.') + '</div>';
       }
-      html += '<button type="button" class="ghost" data-action="coach-slot-propose-cancel">Annuler</button></form>';
+      html += '<button type="button" class="ghost" data-action="coach-slot-propose-cancel">' + tr('cancel_generic') + '</button></form>';
     } else if (r.slotOptions && r.slotOptions.length > 1) {
       // Several candidate slots still open -- one Accepter per option
       // rather than a single generic one, since accepting *means*
       // picking which of them (see acceptCoachRequestSlot).
       html += '<div class="friend-row-actions" style="margin-top:0.5rem; flex-direction:column; align-items:stretch;">' +
         r.slotOptions.map(function (label) {
-          return '<button type="button" class="primary" data-action="coach-request-accept-slot" data-id="' + r.id + '" data-label="' + escapeHtml(label) + '">Accepter ' + escapeHtml(label) + '</button>';
+          return '<button type="button" class="primary" data-action="coach-request-accept-slot" data-id="' + r.id + '" data-label="' + escapeHtml(label) + '">' + tr('accept_generic') + escapeHtml(label) + '</button>';
         }).join('') +
         '<div style="display:flex; gap:0.5rem; flex-wrap:wrap;">' +
-        (r.eventId ? '<button type="button" class="ghost" data-action="coach-slot-propose-open" data-id="' + r.id + '">Proposer un autre horaire</button>' : '') +
-        '<button type="button" class="ghost" data-action="coach-request-remove" data-id="' + r.id + '">Refuser</button>' +
+        (r.eventId ? '<button type="button" class="ghost" data-action="coach-slot-propose-open" data-id="' + r.id + '">' + tr('propose_other_time') + '</button>' : '') +
+        '<button type="button" class="ghost" data-action="coach-request-remove" data-id="' + r.id + '">' + tr('refuse_generic') + '</button>' +
         '</div></div>';
     } else {
       html += '<div class="friend-row-actions" style="margin-top:0.5rem;">' +
-        '<button type="button" class="primary" data-action="coach-request-accept" data-id="' + r.id + '">Accepter</button>' +
-        (r.slotLabel && r.eventId ? '<button type="button" class="ghost" data-action="coach-slot-propose-open" data-id="' + r.id + '">Proposer un autre horaire</button>' : '') +
-        '<button type="button" class="ghost" data-action="coach-request-remove" data-id="' + r.id + '">Refuser</button>' +
+        '<button type="button" class="primary" data-action="coach-request-accept" data-id="' + r.id + '">' + tr('accept') + '</button>' +
+        (r.slotLabel && r.eventId ? '<button type="button" class="ghost" data-action="coach-slot-propose-open" data-id="' + r.id + '">' + tr('propose_other_time') + '</button>' : '') +
+        '<button type="button" class="ghost" data-action="coach-request-remove" data-id="' + r.id + '">' + tr('refuse_generic') + '</button>' +
         '</div>';
     }
     return html + '</div>';
@@ -10175,10 +10247,10 @@
     var u = (STATE.usersByName || {})[otherName] || {};
     var isBapteme = r.type === 'bapteme';
     return '<div class="coach-request-row"><div class="friend-row-main">' + avatarHtml(u, otherName) + personNameHtml(otherName) + badgesHtml(u) +
-      ' <span class="friend-role-badge">' + (isBapteme ? 'Baptême piste' : 'Coaching') + '</span></div>' +
+      ' <span class="friend-role-badge">' + (isBapteme ? tr('bapteme_option') : tr('coaching_option')) + '</span></div>' +
       coachRequestSlotHtml(r) +
-      '<div class="help-text" style="margin-top:0.3rem;">En attente de la réponse de ' + escapeHtml(otherName) + '.</div>' +
-      '<div class="friend-row-actions" style="margin-top:0.4rem;"><button type="button" class="ghost" data-action="coach-request-remove" data-id="' + r.id + '">Annuler</button></div></div>';
+      '<div class="help-text" style="margin-top:0.3rem;">' + tr('waiting_for_reply_from') + escapeHtml(otherName) + '.</div>' +
+      '<div class="friend-row-actions" style="margin-top:0.4rem;"><button type="button" class="ghost" data-action="coach-request-remove" data-id="' + r.id + '">' + tr('cancel_generic') + '</button></div></div>';
   }
   // Accepted -- coaching gets the plan/notes field, baptême doesn't (no
   // ongoing training to track for a single ride-along); both get the
@@ -10187,23 +10259,23 @@
     var u = (STATE.usersByName || {})[otherName] || {};
     var isBapteme = r.type === 'bapteme';
     var html = '<div class="coach-request-row"><div class="friend-row-main">' + avatarHtml(u, otherName) + personNameHtml(otherName) + badgesHtml(u) +
-      '<span class="friend-role-badge">' + (isBapteme ? 'Baptême piste' : 'Coaching') + '</span></div>' +
+      '<span class="friend-role-badge">' + (isBapteme ? tr('bapteme_option') : tr('coaching_option')) + '</span></div>' +
       coachRequestSlotHtml(r);
     if (!isBapteme) {
-      html += '<label for="coach-plan-' + r.id + '" style="margin-top:0.5rem;">Planning / notes de coaching</label>' +
+      html += '<label for="coach-plan-' + r.id + '" style="margin-top:0.5rem;">' + tr('coaching_plan_notes_label') + '</label>' +
         '<textarea id="coach-plan-' + r.id + '" rows="3" data-coach-plan="' + r.id + '">' + escapeHtml(r.plan || '') + '</textarea>' +
-        '<div style="margin-top:0.5rem;"><button type="button" class="ghost" data-action="coach-plan-save" data-id="' + r.id + '">Enregistrer</button></div>';
+        '<div style="margin-top:0.5rem;"><button type="button" class="ghost" data-action="coach-plan-save" data-id="' + r.id + '">' + tr('save') + '</button></div>';
     }
     html += '<div style="margin-top:0.5rem;"><button type="button" class="ghost danger" data-action="coach-request-remove" data-id="' + r.id + '">' +
-      (isBapteme ? 'Retirer' : 'Arrêter le coaching') + '</button></div>';
+      (isBapteme ? tr('remove_generic') : tr('stop_coaching')) + '</button></div>';
     html += renderCoachMessageThread(r.id);
     return html + '</div>';
   }
   function renderCoachTab() {
     var me = currentUserProfile;
     if (!me) return '';
-    var html = '<div class="section-title" style="font-size:0.95rem;">Coaching &amp; baptêmes piste</div>' +
-      '<div class="help-text" style="margin-bottom:0.8rem;">Un Coach peut proposer un suivi de coaching (pilotes) ou un baptême piste, un tour passager (pilotes et accompagnants) -- clique un créneau du planning ci-dessous pour lui demander directement dessus.</div>';
+    var html = '<div class="section-title" style="font-size:0.95rem;">' + tr('coaching_bapteme_heading') + '</div>' +
+      '<div class="help-text" style="margin-bottom:0.8rem;">' + tr('coaching_bapteme_help') + '</div>';
     html += renderCoachPlanningSection(me);
     var iAmCoach = isCoachBadge(me);
     var myRequests = (STATE.coachRequests || []).filter(function (r) { return r.from === me.name || r.to === me.name; });
@@ -10213,7 +10285,7 @@
       var needsActionBody = needsAction.map(function (r) {
         return renderCoachActionRow(r, r.from === me.name ? r.to : r.from);
       }).join('');
-      html += collapsibleCard('coach-requests-in', 'Demandes à traiter (' + needsAction.length + ')', needsActionBody, true);
+      html += collapsibleCard('coach-requests-in', tr('requests_to_handle_label') + needsAction.length + ')', needsActionBody, true);
     }
 
     var waiting = myRequests.filter(function (r) { return r.status === 'pending' && !coachRequestAwaitingMe(r, me); });
@@ -10221,7 +10293,7 @@
       var waitingBody = waiting.map(function (r) {
         return renderCoachWaitingRow(r, r.from === me.name ? r.to : r.from);
       }).join('');
-      html += collapsibleCard('coach-requests-waiting', 'En attente de réponse (' + waiting.length + ')', waitingBody, true);
+      html += collapsibleCard('coach-requests-waiting', tr('waiting_for_reply_label') + waiting.length + ')', waitingBody, true);
     }
 
     var active = myRequests.filter(function (r) { return r.status === 'accepted'; });
@@ -10229,7 +10301,7 @@
       var activeBody = active.map(function (r) {
         return renderCoachActiveRow(r, r.from === me.name ? r.to : r.from);
       }).join('');
-      html += collapsibleCard('coach-active', (iAmCoach ? 'Mes pilotes coachés / baptisés' : 'Mon coaching / baptême') + ' (' + active.length + ')', activeBody, true);
+      html += collapsibleCard('coach-active', (iAmCoach ? tr('my_coached_riders_label') : tr('my_coaching_label')) + ' (' + active.length + ')', activeBody, true);
     }
 
     if (iAmCoach) {
@@ -10253,28 +10325,28 @@
       var proposeTarget = targetPlanningEvent();
       var proposeSlots = proposeTarget ? (coachAvailabilityFor(me.name, proposeTarget.ev.id, coachProposeType) || []) : [];
       var proposeSlotObjs = proposeTarget ? allEventSlots(proposeTarget.ev).filter(function (s) { return proposeSlots.indexOf(s.label) !== -1; }) : [];
-      var proposeBody = '<label for="coach-propose-type">Type</label>' +
+      var proposeBody = '<label for="coach-propose-type">' + tr('type_label') + '</label>' +
         '<select id="coach-propose-type">' +
-        '<option value="coaching"' + (coachProposeType === 'coaching' ? ' selected' : '') + '>Coaching</option>' +
-        '<option value="bapteme"' + (coachProposeType === 'bapteme' ? ' selected' : '') + '>Baptême piste</option>' +
+        '<option value="coaching"' + (coachProposeType === 'coaching' ? ' selected' : '') + '>' + tr('coaching_option') + '</option>' +
+        '<option value="bapteme"' + (coachProposeType === 'bapteme' ? ' selected' : '') + '>' + tr('bapteme_option') + '</option>' +
         '</select>';
       if (!proposeTarget) {
-        proposeBody += '<div class="help-text" style="margin-top:0.5rem;">Aucun événement en cours ou à venir.</div>';
+        proposeBody += '<div class="help-text" style="margin-top:0.5rem;">' + tr('no_current_upcoming_event') + '</div>';
       } else if (!proposeSlotObjs.length) {
-        proposeBody += '<div class="help-text" style="margin-top:0.5rem;">Déclare d\'abord tes disponibilités (' + (coachProposeType === 'bapteme' ? 'baptême piste' : 'coaching') + ') sur le planning ci-dessus avant de proposer.</div>';
+        proposeBody += '<div class="help-text" style="margin-top:0.5rem;">' + tr('declare_availability_first') + (coachProposeType === 'bapteme' ? tr('bapteme_option') : tr('coaching_option')) + tr('declare_availability_first_suffix') + '</div>';
       } else if (!proposeCandidates.length) {
         proposeBody += '<div class="help-text" style="margin-top:0.5rem;">' +
-          (coachProposeType === 'bapteme' ? 'Aucun pilote ou accompagnant disponible pour l\'instant.' : 'Aucun pilote disponible pour l\'instant.') + '</div>';
+          (coachProposeType === 'bapteme' ? tr('no_rider_or_companion_available') : tr('no_rider_available')) + '</div>';
       } else {
         proposeBody += '<form id="coach-propose-form" style="margin-top:0.6rem;">' +
-          '<label for="coach-propose-slot">Créneau</label>' +
+          '<label for="coach-propose-slot">' + tr('slot_label') + '</label>' +
           '<select id="coach-propose-slot">' + proposeSlotObjs.map(function (s) { return '<option value="' + escapeHtml(s.label) + '">' + escapeHtml(s.label) + '</option>'; }).join('') + '</select>' +
-          '<label for="coach-propose-input" style="margin-top:0.6rem;">' + (coachProposeType === 'bapteme' ? 'Rechercher un pilote ou un accompagnant' : 'Rechercher un pilote') + '</label>' +
-          '<input type="text" id="coach-propose-input" list="coach-propose-list" placeholder="Nom" autocomplete="off">' +
+          '<label for="coach-propose-input" style="margin-top:0.6rem;">' + (coachProposeType === 'bapteme' ? tr('search_rider_or_companion') : tr('search_rider')) + '</label>' +
+          '<input type="text" id="coach-propose-input" list="coach-propose-list" placeholder="' + tr('name_placeholder') + '" autocomplete="off">' +
           '<datalist id="coach-propose-list">' + proposeCandidates.map(function (n) { return '<option value="' + escapeHtml(n) + '">'; }).join('') + '</datalist>' +
-          '<button type="submit" class="primary" style="margin-top:0.7rem;">' + (coachProposeType === 'bapteme' ? 'Proposer le baptême piste' : 'Proposer le coaching') + '</button></form>';
+          '<button type="submit" class="primary" style="margin-top:0.7rem;">' + (coachProposeType === 'bapteme' ? tr('propose_bapteme_btn') : tr('propose_coaching_btn')) + '</button></form>';
       }
-      html += collapsibleCard('coach-propose', 'Proposer un coaching ou un baptême piste', proposeBody, false);
+      html += collapsibleCard('coach-propose', tr('propose_coaching_bapteme_heading'), proposeBody, false);
     }
 
     // Self-service: ask any Coach for regular coaching, with no relation
@@ -10284,10 +10356,10 @@
     if (!myRequests.length) {
       var coachNames = allKnownUserNames().filter(function (n) { return n !== me.name && isCoachBadge((STATE.usersByName || {})[n]); });
       if (coachNames.length) {
-        var selfRequestBody = '<form id="coach-request-form"><label for="coach-request-select">Demander à être coaché par</label>' +
+        var selfRequestBody = '<form id="coach-request-form"><label for="coach-request-select">' + tr('ask_to_be_coached_by') + '</label>' +
           '<select id="coach-request-select">' + coachNames.map(function (n) { return '<option value="' + escapeHtml(n) + '">' + escapeHtml(n) + '</option>'; }).join('') + '</select>' +
-          '<button type="submit" class="primary" style="margin-top:0.7rem;">Envoyer la demande</button></form>';
-        html += collapsibleCard('coach-self-request', 'Demander un coaching', selfRequestBody, false);
+          '<button type="submit" class="primary" style="margin-top:0.7rem;">' + tr('send_request_generic') + '</button></form>';
+        html += collapsibleCard('coach-self-request', tr('ask_for_coaching_heading'), selfRequestBody, false);
       }
     }
     return html;
