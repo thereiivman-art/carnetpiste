@@ -125,7 +125,29 @@
       all_friends_in_team: 'Tous tes amis sont déjà dans ce team, ou aucun ami à inviter -- vois Social.',
       teampro_invite_help: 'Team PRO : tu peux inviter n’importe quel compte, ami ou non.',
       invite_btn: 'Inviter', cancel_invite: 'Annuler', settings_label: 'Réglages',
-      join_requests_label: 'Demandes pour rejoindre (', sent_invites_label: 'Invitations envoyées ('
+      join_requests_label: 'Demandes pour rejoindre (', sent_invites_label: 'Invitations envoyées (',
+      // Social tab
+      no_friends_yet: 'Pas encore d’amis — ajoutes-en un ci-dessous.', my_friends_label: 'Mes amis (',
+      received_requests_label: 'Demandes reçues (', sent_requests_label: 'Demandes envoyées (',
+      add_friend_btn: '+ Ajouter un ami', no_one_else_to_add: 'Personne d’autre à ajouter pour l’instant.',
+      search_by_username: 'Rechercher par pseudo', username_placeholder: 'Pseudo', send_request_btn: 'Envoyer une demande',
+      connections_label: 'Connexions',
+      suggestions_label: 'Suggestions', add_aria: 'Ajouter',
+      no_personalities_followed: 'Tu ne suis encore aucune personnalité.',
+      to_follow_label: 'À suivre', follow_aria: 'Suivre', personalities_followed_label: 'Suivi des personnalités (',
+      audience_followers: 'Followers', audience_all: 'Amis + followers', audience_friends: 'Amis',
+      edited_suffix: ' (modifié)', wall_post_placeholder: 'Un mot, un événement, une photo...',
+      my_journal_label: 'Mon Journal (', delete_label: 'Supprimer',
+      post_to_journal_btn: 'Publier un message sur mon Journal',
+      post_to_journal_help: 'Ce que tu publies sera visible par tes amis (ou followers, selon ce que tu choisis ci-dessous).',
+      visible_by_label: 'Visible par', my_friends_option: 'Mes amis', my_followers_option: 'Mes followers',
+      add_photo_btn: '📷 Ajouter une photo', adherents_badge: 'Adhérents',
+      just_now: 'à l\'instant', min_ago_prefix: 'il y a ', min_ago_suffix: ' min', hour_ago_suffix: ' h',
+      events_label: 'Événements', circuits_visited_label: 'Circuits visités', track_days_label: 'Jours sur piste',
+      view_official_chronos: 'Voir ses chronos officiels ↗', verified_chronos_label: 'Chronos vérifiés (',
+      not_shared_events: ' n\'a pas choisi de partager ses événements/chronos.', trophies_not_shared: 'Trophées non partagés.',
+      remove_friend_confirm: 'Retirer ' , remove_friend_confirm_suffix: ' de tes amis ?',
+      confirm_label: 'Confirmer', remove_this_friend: 'Retirer cet ami'
     },
     en: {
       nav_events: 'Events', nav_chronos: 'Chronos', nav_planning: 'ON TRACK', nav_social: 'Social', nav_team: 'Team',
@@ -219,7 +241,29 @@
       all_friends_in_team: 'All your friends are already in this team, or none to invite -- see Social.',
       teampro_invite_help: 'Team PRO: you can invite any account, friend or not.',
       invite_btn: 'Invite', cancel_invite: 'Cancel', settings_label: 'Settings',
-      join_requests_label: 'Requests to join (', sent_invites_label: 'Sent invites ('
+      join_requests_label: 'Requests to join (', sent_invites_label: 'Sent invites (',
+      // Social tab
+      no_friends_yet: 'No friends yet — add one below.', my_friends_label: 'My friends (',
+      received_requests_label: 'Received requests (', sent_requests_label: 'Sent requests (',
+      add_friend_btn: '+ Add a friend', no_one_else_to_add: 'No one else to add right now.',
+      search_by_username: 'Search by username', username_placeholder: 'Username', send_request_btn: 'Send request',
+      connections_label: 'Connections',
+      suggestions_label: 'Suggestions', add_aria: 'Add',
+      no_personalities_followed: 'You\'re not following any personality yet.',
+      to_follow_label: 'To follow', follow_aria: 'Follow', personalities_followed_label: 'Personalities followed (',
+      audience_followers: 'Followers', audience_all: 'Friends + followers', audience_friends: 'Friends',
+      edited_suffix: ' (edited)', wall_post_placeholder: 'A word, an event, a photo...',
+      my_journal_label: 'My Journal (', delete_label: 'Delete',
+      post_to_journal_btn: 'Post a message to my Journal',
+      post_to_journal_help: 'What you post will be visible to your friends (or followers, depending on what you pick below).',
+      visible_by_label: 'Visible to', my_friends_option: 'My friends', my_followers_option: 'My followers',
+      add_photo_btn: '📷 Add a photo', adherents_badge: 'Adherents',
+      just_now: 'just now', min_ago_prefix: '', min_ago_suffix: ' min ago', hour_ago_suffix: ' h ago',
+      events_label: 'Events', circuits_visited_label: 'Circuits visited', track_days_label: 'Track days',
+      view_official_chronos: 'View official lap times ↗', verified_chronos_label: 'Verified lap times (',
+      not_shared_events: ' hasn\'t chosen to share their events/lap times.', trophies_not_shared: 'Trophies not shared.',
+      remove_friend_confirm: 'Remove ', remove_friend_confirm_suffix: ' from your friends?',
+      confirm_label: 'Confirm', remove_this_friend: 'Remove this friend'
     }
   };
   function currentLang() {
@@ -8807,23 +8851,23 @@
     if (isPilote) {
       if (shareSorties) {
         var stats = riderStats(name);
-        html += infoRow('Événements', String(stats.outingsCount));
-        html += infoRow('Circuits visités', String(stats.circuitsVisited));
-        html += infoRow('Jours sur piste', String(stats.trackDays));
+        html += infoRow(tr('events_label'), String(stats.outingsCount));
+        html += infoRow(tr('circuits_visited_label'), String(stats.circuitsVisited));
+        html += infoRow(tr('track_days_label'), String(stats.trackDays));
         if (stats.lastSession) {
-          html += infoRow('Dernier événement', escapeHtml(stats.lastSession.circuit) + ' — ' + escapeHtml(formatDate(stats.lastSession.date)) + ' (' + formatTime(stats.lastSession.time) + ')');
+          html += infoRow(tr('last_event_label'), escapeHtml(stats.lastSession.circuit) + ' — ' + escapeHtml(formatDate(stats.lastSession.date)) + ' (' + formatTime(stats.lastSession.time) + ')');
         }
         // Carnet de Piste reste déclaratif -- ce lien renvoie vers l'appli
         // de chrono officielle du pilote (Superlaps ou autre) s'il en a
         // renseigné une dans son profil, jamais une mesure faite ici.
-        if (u.chronoLink) html += '<div style="margin:0.5rem 0;"><button type="button" class="ghost" data-action="open-external-url" data-url="' + escapeHtml(u.chronoLink) + '">Voir ses chronos officiels ↗</button></div>';
+        if (u.chronoLink) html += '<div style="margin:0.5rem 0;"><button type="button" class="ghost" data-action="open-external-url" data-url="' + escapeHtml(u.chronoLink) + '">' + tr('view_official_chronos') + '</button></div>';
         var verifiedSessions = STATE.sessions.filter(function (s) { return s.rider === name && s.certifiedBy; })
           .sort(function (a, b) { return a.date < b.date ? 1 : a.date > b.date ? -1 : 0; });
         if (verifiedSessions.length) {
           var verifiedRows = verifiedSessions.map(function (s) {
             return infoRow(escapeHtml(s.circuit) + ' — ' + escapeHtml(formatDate(s.date)), formatTime(sessionBest(s)) + ' ' + certifyControl(s));
           }).join('');
-          html += collapsibleSection('fiche-verified-' + name, 'Chronos vérifiés (' + verifiedSessions.length + ')', verifiedRows);
+          html += collapsibleSection('fiche-verified-' + name, tr('verified_chronos_label') + verifiedSessions.length + ')', verifiedRows);
         }
         var recentSessions = STATE.sessions.filter(function (s) { return s.rider === name; })
           .sort(function (a, b) { return a.date < b.date ? 1 : a.date > b.date ? -1 : 0; }).slice(0, 10);
@@ -8831,22 +8875,22 @@
           var historyRows = recentSessions.map(function (s) {
             return infoRow(escapeHtml(s.circuit) + ' — ' + escapeHtml(formatDate(s.date)), formatTime(sessionBest(s)));
           }).join('');
-          html += collapsibleSection('fiche-history-' + name, 'Historique', historyRows);
+          html += collapsibleSection('fiche-history-' + name, tr('history_label'), historyRows);
         }
       } else {
-        html += '<div class="help-text">' + escapeHtml(name) + ' n\'a pas choisi de partager ses événements/chronos.</div>';
+        html += '<div class="help-text">' + escapeHtml(name) + tr('not_shared_events') + '</div>';
       }
       if (shareTrophees) {
         html += renderAchievementsCard(riderAchievements(name, riderStats(name)), 'fiche-achievements-' + name);
       } else {
-        html += '<div class="help-text">Trophées non partagés.</div>';
+        html += '<div class="help-text">' + tr('trophies_not_shared') + '</div>';
       }
     } else {
       if (shareTrophees) {
         var ach = u.role === 'organisateur' ? organisateurAchievements(u) : accompagnantAchievements(u);
         html += renderAchievementsCard(ach, 'fiche-achievements-' + name);
       } else {
-        html += '<div class="help-text">Trophées non partagés.</div>';
+        html += '<div class="help-text">' + tr('trophies_not_shared') + '</div>';
       }
     }
     // Removing a friend now happens here, on their own fiche, instead of
@@ -8857,12 +8901,12 @@
     if (friendship) {
       html += '<div class="danger-zone" style="margin-top:0.9rem;">';
       if (pendingRemoveFriendId === friendship.id) {
-        html += '<div class="help-text">Retirer ' + escapeHtml(name) + ' de tes amis ?</div>' +
+        html += '<div class="help-text">' + tr('remove_friend_confirm') + escapeHtml(name) + tr('remove_friend_confirm_suffix') + '</div>' +
           '<div style="margin-top:0.5rem; display:flex; gap:0.6rem;">' +
-          '<button type="button" class="ghost danger" data-action="remove-friend-confirm" data-id="' + friendship.id + '">Confirmer</button>' +
-          '<button type="button" class="ghost" data-action="remove-friend-cancel">Annuler</button></div>';
+          '<button type="button" class="ghost danger" data-action="remove-friend-confirm" data-id="' + friendship.id + '">' + tr('confirm_label') + '</button>' +
+          '<button type="button" class="ghost" data-action="remove-friend-cancel">' + tr('cancel') + '</button></div>';
       } else {
-        html += '<button type="button" class="ghost danger" data-action="remove-friend-request" data-id="' + friendship.id + '">Retirer cet ami</button>';
+        html += '<button type="button" class="ghost danger" data-action="remove-friend-request" data-id="' + friendship.id + '">' + tr('remove_this_friend') + '</button>';
       }
       html += '</div>';
     }
@@ -8872,9 +8916,9 @@
 
   function relativeTime(ms) {
     var diff = Date.now() - ms;
-    if (diff < 60000) return 'à l\'instant';
-    if (diff < 3600000) return 'il y a ' + Math.floor(diff / 60000) + ' min';
-    if (diff < 86400000) return 'il y a ' + Math.floor(diff / 3600000) + ' h';
+    if (diff < 60000) return tr('just_now');
+    if (diff < 3600000) return tr('min_ago_prefix') + Math.floor(diff / 60000) + tr('min_ago_suffix');
+    if (diff < 86400000) return tr('min_ago_prefix') + Math.floor(diff / 3600000) + tr('hour_ago_suffix');
     return formatDate(dateKey(new Date(ms)));
   }
 
@@ -8916,13 +8960,13 @@
   function friendSuggestionChips(candidates) {
     var suggestions = candidates.slice(0, 8);
     if (!suggestions.length) return '';
-    return '<div class="social-suggestions-label" style="margin-top:0.8rem;">Suggestions</div>' +
+    return '<div class="social-suggestions-label" style="margin-top:0.8rem;">' + tr('suggestions_label') + '</div>' +
       '<div class="suggestion-profile-row">' + suggestions.map(function (n) {
         var u = (STATE.usersByName || {})[n] || {};
         return '<div class="suggestion-profile-card">' + avatarHtml(u, n) +
           '<span class="suggestion-profile-name">' + escapeHtml(n) + '</span>' +
           '<span class="friend-role-badge">' + roleLabel(u.role) + '</span>' +
-          '<button type="button" class="ghost icon-btn" data-action="quick-add-friend" data-name="' + escapeHtml(n) + '" aria-label="Ajouter" title="Ajouter">+</button>' +
+          '<button type="button" class="ghost icon-btn" data-action="quick-add-friend" data-name="' + escapeHtml(n) + '" aria-label="' + tr('add_aria') + '" title="' + tr('add_aria') + '">+</button>' +
           '</div>';
       }).join('') + '</div>';
   }
@@ -8936,17 +8980,17 @@
       return n !== me.name && isPersonality(STATE.usersByName[n]) && followed.indexOf(n) === -1;
     }).slice(0, 5);
     var body = !followed.length
-      ? '<div class="empty-state">Tu ne suis encore aucune personnalité.</div>'
+      ? '<div class="empty-state">' + tr('no_personalities_followed') + '</div>'
       : followed.map(function (n) {
-        return renderFriendRow(n, '<button type="button" class="ghost icon-btn" data-action="unfollow" data-name="' + escapeHtml(n) + '" aria-label="Ne plus suivre" title="Ne plus suivre">×</button>');
+        return renderFriendRow(n, '<button type="button" class="ghost icon-btn" data-action="unfollow" data-name="' + escapeHtml(n) + '" aria-label="' + tr('unfollow') + '" title="' + tr('unfollow') + '">×</button>');
       }).join('');
     if (suggestions.length) {
-      body += '<div class="social-suggestions-row"><span class="social-suggestions-label">À suivre</span>' +
+      body += '<div class="social-suggestions-row"><span class="social-suggestions-label">' + tr('to_follow_label') + '</span>' +
         suggestions.map(function (n) {
-          return '<span class="suggestion-chip">' + escapeHtml(n) + ' <button type="button" class="ghost icon-btn" data-action="quick-follow" data-name="' + escapeHtml(n) + '" aria-label="Suivre" title="Suivre">★</button></span>';
+          return '<span class="suggestion-chip">' + escapeHtml(n) + ' <button type="button" class="ghost icon-btn" data-action="quick-follow" data-name="' + escapeHtml(n) + '" aria-label="' + tr('follow_aria') + '" title="' + tr('follow_aria') + '">★</button></span>';
         }).join('') + '</div>';
     }
-    return collapsibleSection('social-personnalites', 'Suivi des personnalités (' + followed.length + ')', body, false);
+    return collapsibleSection('social-personnalites', tr('personalities_followed_label') + followed.length + ')', body, false);
   }
 
   // ---- Mur (wall) ----
@@ -8995,29 +9039,29 @@
 
   function renderWallComposer() {
     if (!wallComposerOpen) {
-      return '<button type="button" class="primary add-chrono-btn" id="wall-composer-toggle" style="margin-top:1rem;">Publier un message sur mon Journal</button>';
+      return '<button type="button" class="primary add-chrono-btn" id="wall-composer-toggle" style="margin-top:1rem;">' + tr('post_to_journal_btn') + '</button>';
     }
-    var html = '<div class="card" style="margin-top:1rem;"><h2 class="section-title">Publier un message sur mon Journal</h2>';
-    html += '<div class="help-text">Ce que tu publies sera visible par tes amis (ou followers, selon ce que tu choisis ci-dessous).</div>';
+    var html = '<div class="card" style="margin-top:1rem;"><h2 class="section-title">' + tr('post_to_journal_btn') + '</h2>';
+    html += '<div class="help-text">' + tr('post_to_journal_help') + '</div>';
     html += '<form id="wall-post-form">';
-    html += '<label for="wall-post-text">Un mot, un événement, une photo...</label><textarea id="wall-post-text" rows="2"></textarea>';
-    html += '<label for="wall-post-link" style="margin-top:0.6rem;">Lien (optionnel)</label><input type="url" id="wall-post-link" placeholder="https://...">';
+    html += '<label for="wall-post-text">' + tr('wall_post_placeholder') + '</label><textarea id="wall-post-text" rows="2"></textarea>';
+    html += '<label for="wall-post-link" style="margin-top:0.6rem;">' + tr('link_optional_placeholder') + '</label><input type="url" id="wall-post-link" placeholder="https://...">';
     html += '<div style="margin-top:0.6rem;">';
     if (wallPostDraftPhotoURL) {
       html += '<img class="wall-post-photo-preview" src="' + escapeHtml(wallPostDraftPhotoURL) + '" alt="">' +
-        '<button type="button" class="ghost" id="wall-post-photo-remove-btn">Retirer la photo</button>';
+        '<button type="button" class="ghost" id="wall-post-photo-remove-btn">' + tr('remove_photo') + '</button>';
     } else {
-      html += '<button type="button" class="ghost" id="wall-post-photo-btn">📷 Ajouter une photo</button>';
+      html += '<button type="button" class="ghost" id="wall-post-photo-btn">' + tr('add_photo_btn') + '</button>';
     }
     html += '<input type="file" id="wall-post-photo-input" accept="image/*" style="display:none;">';
     html += '</div>';
-    html += '<label for="wall-post-audience" style="margin-top:0.6rem;">Visible par</label>' +
+    html += '<label for="wall-post-audience" style="margin-top:0.6rem;">' + tr('visible_by_label') + '</label>' +
       '<select id="wall-post-audience">' +
-      '<option value="friends">Mes amis</option>' +
-      '<option value="followers">Mes followers</option>' +
-      '<option value="all">Amis + followers</option>' +
+      '<option value="friends">' + tr('my_friends_option') + '</option>' +
+      '<option value="followers">' + tr('my_followers_option') + '</option>' +
+      '<option value="all">' + tr('audience_all') + '</option>' +
       '</select>';
-    html += '<button type="submit" class="primary" style="margin-top:0.7rem;">Publier</button>';
+    html += '<button type="submit" class="primary" style="margin-top:0.7rem;">' + tr('publish') + '</button>';
     if (wallPostMessage) html += '<div class="help-text" style="margin-top:0.6rem;">' + escapeHtml(wallPostMessage) + '</div>';
     html += '</form></div>';
     return html;
@@ -9026,26 +9070,26 @@
   var editingWallPostId = null; // id of the one wallPost currently shown as an inline edit form, or null -- same pattern as editingTeamPostId
   function renderWallPost(p) {
     var u = (STATE.usersByName || {})[p.author] || {};
-    var audienceLabel = p.audience === 'followers' ? 'Followers' : (p.audience === 'all' ? 'Amis + followers' : 'Amis');
+    var audienceLabel = p.audience === 'followers' ? tr('audience_followers') : (p.audience === 'all' ? tr('audience_all') : tr('audience_friends'));
     var canEdit = !!(currentUserProfile && p.author === currentUserProfile.name);
     if (canEdit && editingWallPostId === p.id) {
       return '<div class="wall-post"><form data-action="wall-post-edit-form" data-id="' + p.id + '">' +
-        '<textarea rows="2" placeholder="Un mot, un événement, une photo..." data-wall-post-edit-text>' + escapeHtml(p.text || '') + '</textarea>' +
-        '<input type="url" value="' + escapeHtml(p.linkUrl || '') + '" placeholder="Lien (optionnel)" data-wall-post-edit-link>' +
-        '<div style="display:flex; gap:0.5rem; margin-top:0.4rem;"><button type="submit" class="primary">Enregistrer</button>' +
-        '<button type="button" class="ghost" data-action="wall-post-edit-cancel">Annuler</button></div></form></div>';
+        '<textarea rows="2" placeholder="' + tr('wall_post_placeholder') + '" data-wall-post-edit-text>' + escapeHtml(p.text || '') + '</textarea>' +
+        '<input type="url" value="' + escapeHtml(p.linkUrl || '') + '" placeholder="' + tr('link_optional_placeholder') + '" data-wall-post-edit-link>' +
+        '<div style="display:flex; gap:0.5rem; margin-top:0.4rem;"><button type="submit" class="primary">' + tr('save') + '</button>' +
+        '<button type="button" class="ghost" data-action="wall-post-edit-cancel">' + tr('cancel') + '</button></div></form></div>';
     }
     var html = '<div class="wall-post">';
     html += '<div class="wall-post-head">' + avatarHtml(u, p.author) +
       personNameHtml(p.author) + badgesHtml(u) +
       '<span class="friend-role-badge">' + escapeHtml(audienceLabel) + '</span>' +
-      '<span class="feed-entry-time">' + escapeHtml(relativeTime(p.editedAt || p.createdAt)) + (p.editedAt ? ' (modifié)' : '') + '</span></div>';
+      '<span class="feed-entry-time">' + escapeHtml(relativeTime(p.editedAt || p.createdAt)) + (p.editedAt ? tr('edited_suffix') : '') + '</span></div>';
     if (p.text) html += '<div class="wall-post-text">' + escapeHtml(p.text) + '</div>';
     if (p.linkUrl) html += '<a class="wall-post-link" href="' + escapeHtml(p.linkUrl) + '" target="_blank" rel="noopener">🔗 ' + escapeHtml(p.linkUrl) + '</a>';
     if (p.photoURL) html += '<img class="wall-post-photo" src="' + escapeHtml(p.photoURL) + '" alt="">';
     if (canEdit) {
-      html += '<button type="button" class="ghost icon-btn" data-action="wall-post-edit" data-id="' + p.id + '" aria-label="Modifier" title="Modifier">✎</button>' +
-        '<button type="button" class="ghost icon-btn" data-action="delete-wall-post" data-id="' + p.id + '" aria-label="Supprimer" title="Supprimer">×</button>';
+      html += '<button type="button" class="ghost icon-btn" data-action="wall-post-edit" data-id="' + p.id + '" aria-label="' + tr('modify') + '" title="' + tr('modify') + '">✎</button>' +
+        '<button type="button" class="ghost icon-btn" data-action="delete-wall-post" data-id="' + p.id + '" aria-label="' + tr('delete_label') + '" title="' + tr('delete_label') + '">×</button>';
     }
     // Same reaction bar as teamFeed -- was missing entirely here, so
     // anyone who could see a wallPost (a follower included, not just a
@@ -9093,14 +9137,14 @@
     // (and every reaction/edit re-diffing it) up front.
     var visible = items.slice(0, wallFeedVisibleCount);
     var body = !items.length
-      ? '<div class="empty-state">' + (coreDataLoading() ? 'Chargement...' : 'Rien pour l\'instant.') + '</div>'
+      ? '<div class="empty-state">' + (coreDataLoading() ? tr('loading') : tr('nothing_yet')) + '</div>'
       : visible.map(function (it) {
         if (it.kind === 'wall') return renderWallPost(it.data);
         if (it.kind === 'activity') return renderFeedEntry(it.data);
         var t = teamById(it.teamId);
         return renderTeamFeedEntry(it.data, me, t ? t.name : null);
-      }).join('') + (items.length > visible.length ? '<div id="wall-feed-sentinel" class="empty-inline">Chargement...</div>' : '');
-    return collapsibleCard('social-mur', 'Mon Journal (' + items.length + ')', body, true);
+      }).join('') + (items.length > visible.length ? '<div id="wall-feed-sentinel" class="empty-inline">' + tr('loading') + '</div>' : '');
+    return collapsibleCard('social-mur', tr('my_journal_label') + items.length + ')', body, true);
   }
 
   function postToWall(text, linkUrl, photoURL, audience) {
@@ -9169,49 +9213,49 @@
     // renderFriendFiche), plus un bare × sur la ligne -- chaque ligne
     // n'a donc plus d'action, juste le nom cliquable pour l'ouvrir.
     var friendsBody = !friends.length
-      ? '<div class="empty-state">Pas encore d’amis — ajoutes-en un ci-dessous.</div>'
+      ? '<div class="empty-state">' + tr('no_friends_yet') + '</div>'
       : friends.map(function (f) { return renderFriendRow(f.name, '', true); }).join('');
-    var amisHtml = collapsibleSection('social-amis-liste', 'Mes amis (' + friends.length + ')', friendsBody, true);
+    var amisHtml = collapsibleSection('social-amis-liste', tr('my_friends_label') + friends.length + ')', friendsBody, true);
 
     if (incoming.length) {
       var incomingBody = incoming.map(function (r) {
         return renderFriendRow(r.from,
-          '<button type="button" class="primary" data-action="accept-friend" data-id="' + r.id + '">Accepter</button>' +
-          '<button type="button" class="ghost" data-action="remove-friend" data-id="' + r.id + '">Refuser</button>');
+          '<button type="button" class="primary" data-action="accept-friend" data-id="' + r.id + '">' + tr('accept') + '</button>' +
+          '<button type="button" class="ghost" data-action="remove-friend" data-id="' + r.id + '">' + tr('decline') + '</button>');
       }).join('');
-      amisHtml += collapsibleSection('social-demandes-recues', 'Demandes reçues (' + incoming.length + ')', incomingBody, true);
+      amisHtml += collapsibleSection('social-demandes-recues', tr('received_requests_label') + incoming.length + ')', incomingBody, true);
     }
     if (outgoing.length) {
       var outgoingBody = outgoing.map(function (r) {
-        return renderFriendRow(r.to, '<button type="button" class="ghost" data-action="cancel-friend-request" data-id="' + r.id + '">Annuler</button>');
+        return renderFriendRow(r.to, '<button type="button" class="ghost" data-action="cancel-friend-request" data-id="' + r.id + '">' + tr('cancel') + '</button>');
       }).join('');
-      amisHtml += collapsibleSection('social-demandes-envoyees', 'Demandes envoyées (' + outgoing.length + ')', outgoingBody);
+      amisHtml += collapsibleSection('social-demandes-envoyees', tr('sent_requests_label') + outgoing.length + ')', outgoingBody);
     }
     // Retracté par défaut, juste un bouton -- le formulaire (avec ses
     // suggestions) n'apparaît qu'une fois cliqué, même logique que
     // "+ Ajouter un chrono" dans Chronos.
     if (!addFriendOpen) {
-      amisHtml += '<button type="button" class="primary add-chrono-btn" id="add-friend-toggle" style="margin-top:0.8rem;">+ Ajouter un ami</button>';
+      amisHtml += '<button type="button" class="primary add-chrono-btn" id="add-friend-toggle" style="margin-top:0.8rem;">' + tr('add_friend_btn') + '</button>';
     } else {
       // Recherche par pseudo (datalist) plutôt qu'un long menu déroulant --
       // le # (numéro de moto) est affiché à côté de chaque suggestion pour
       // lever le doute entre deux homonymes.
       var addFriendBody = !candidates.length
-        ? '<div class="empty-state">Personne d’autre à ajouter pour l’instant.</div>'
-        : '<form id="add-friend-form"><label for="add-friend-input">Rechercher par pseudo</label>' +
-          '<input type="text" id="add-friend-input" list="add-friend-list" placeholder="Pseudo" autocomplete="off" required>' +
+        ? '<div class="empty-state">' + tr('no_one_else_to_add') + '</div>'
+        : '<form id="add-friend-form"><label for="add-friend-input">' + tr('search_by_username') + '</label>' +
+          '<input type="text" id="add-friend-input" list="add-friend-list" placeholder="' + tr('username_placeholder') + '" autocomplete="off" required>' +
           '<datalist id="add-friend-list">' + candidates.map(function (n) {
             var u = (STATE.usersByName || {})[n] || {};
             var label = n + ' — ' + roleLabel(u.role) + (u.bikeNumber ? ' — #' + u.bikeNumber : '');
             return '<option value="' + escapeHtml(n) + '">' + escapeHtml(label) + '</option>';
           }).join('') + '</datalist>' +
-          '<button type="submit" class="primary" style="margin-top:0.7rem;">Envoyer une demande</button></form>' +
+          '<button type="submit" class="primary" style="margin-top:0.7rem;">' + tr('send_request_btn') + '</button></form>' +
           friendSuggestionChips(candidates);
       amisHtml += '<div style="margin-top:0.8rem;">' + addFriendBody + '</div>';
     }
     amisHtml += renderPersonalitiesSection(me);
 
-    var html = collapsibleCard('social-amis', 'Connexions', amisHtml, true);
+    var html = collapsibleCard('social-amis', tr('connections_label'), amisHtml, true);
     html += renderWallFeed(me);
     html += renderWallComposer();
     return html;
@@ -9241,7 +9285,7 @@
     var html = '<div class="wall-post">';
     html += '<div class="wall-post-head">' + personNameHtml(f.author) +
       (teamName ? '<span class="friend-role-badge">' + escapeHtml(teamName) + '</span>' : '') +
-      (f.audience === 'adherents' ? '<span class="friend-role-badge adherent-badge">Adhérents</span>' : '') +
+      (f.audience === 'adherents' ? '<span class="friend-role-badge adherent-badge">' + tr('adherents_badge') + '</span>' : '') +
       '<span class="feed-entry-time">' + escapeHtml(relativeTime(f.createdAt)) + '</span></div>';
     html += '<div class="wall-post-text">📊 ' + escapeHtml(f.question) + '</div>';
     html += '<div class="poll-options">' + f.options.map(function (opt, i) {
@@ -9266,18 +9310,18 @@
     var canDelete = !!(me && (f.author === me.name || isLeaderOfTeam(f.teamId)));
     if (canEdit && editingTeamPostId === f.id) {
       return '<div class="wall-post"><form data-action="team-post-edit-form" data-id="' + f.id + '">' +
-        '<input type="text" value="' + escapeHtml(f.text || '') + '" placeholder="Écrire au team..." data-team-post-edit-text>' +
-        '<input type="url" value="' + escapeHtml(f.linkUrl || '') + '" placeholder="Lien (optionnel)" data-team-post-edit-link>' +
-        '<div style="display:flex; gap:0.5rem; margin-top:0.4rem;"><button type="submit" class="primary">Enregistrer</button>' +
-        '<button type="button" class="ghost" data-action="team-post-edit-cancel">Annuler</button></div></form></div>';
+        '<input type="text" value="' + escapeHtml(f.text || '') + '" placeholder="' + tr('write_to_team_placeholder') + '" data-team-post-edit-text>' +
+        '<input type="url" value="' + escapeHtml(f.linkUrl || '') + '" placeholder="' + tr('link_optional_placeholder') + '" data-team-post-edit-link>' +
+        '<div style="display:flex; gap:0.5rem; margin-top:0.4rem;"><button type="submit" class="primary">' + tr('save') + '</button>' +
+        '<button type="button" class="ghost" data-action="team-post-edit-cancel">' + tr('cancel') + '</button></div></form></div>';
     }
     var html = '<div class="wall-post">';
     html += '<div class="wall-post-head">' + personNameHtml(f.author) +
       (teamName ? '<span class="friend-role-badge">' + escapeHtml(teamName) + '</span>' : '') +
-      (f.audience === 'adherents' ? '<span class="friend-role-badge adherent-badge">Adhérents</span>' : '') +
-      '<span class="feed-entry-time">' + escapeHtml(relativeTime(f.editedAt || f.createdAt)) + (f.editedAt ? ' (modifié)' : '') + '</span>' +
-      (canEdit ? '<button type="button" class="ghost icon-btn" data-action="team-post-edit" data-id="' + f.id + '" aria-label="Modifier" title="Modifier">✎</button>' : '') +
-      (canDelete ? '<button type="button" class="ghost icon-btn" data-action="team-post-delete" data-id="' + f.id + '" aria-label="Supprimer" title="Supprimer">×</button>' : '') +
+      (f.audience === 'adherents' ? '<span class="friend-role-badge adherent-badge">' + tr('adherents_badge') + '</span>' : '') +
+      '<span class="feed-entry-time">' + escapeHtml(relativeTime(f.editedAt || f.createdAt)) + (f.editedAt ? tr('edited_suffix') : '') + '</span>' +
+      (canEdit ? '<button type="button" class="ghost icon-btn" data-action="team-post-edit" data-id="' + f.id + '" aria-label="' + tr('modify') + '" title="' + tr('modify') + '">✎</button>' : '') +
+      (canDelete ? '<button type="button" class="ghost icon-btn" data-action="team-post-delete" data-id="' + f.id + '" aria-label="' + tr('delete_label') + '" title="' + tr('delete_label') + '">×</button>' : '') +
       '</div>';
     if (f.text) html += '<div class="wall-post-text">' + escapeHtml(f.text) + '</div>';
     if (f.linkUrl) html += '<a class="wall-post-link" href="' + escapeHtml(f.linkUrl) + '" target="_blank" rel="noopener">🔗 ' + escapeHtml(f.linkUrl) + '</a>';
