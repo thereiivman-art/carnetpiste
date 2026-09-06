@@ -102,7 +102,30 @@
       organizer_note_label: 'Organisateur (si absent de l\'app)', riders_label: 'Pilotes',
       riders_search_help: 'Suggestions limitées à tes amis et aux membres de tes Teams -- choisis un nom dans la liste pour l\'ajouter.',
       remove_label: 'Retirer', start_group_label: 'Groupe de départ',
-      managed_from_team: 'Participants et groupes se gèrent depuis la Gestion des événements du Team.'
+      managed_from_team: 'Participants et groupes se gèrent depuis la Gestion des événements du Team.',
+      // Team tab
+      accept: 'Accepter', decline: 'Refuser', invited_by: 'invité par ',
+      received_invites_label: 'Invitations reçues (', no_team_yet: 'Pas encore de team -- crée-en un, rejoins-en un depuis "Découvrir des Teams" ci-dessous, ou attends une invitation.',
+      my_teams_heading: 'Mes Teams', team_leader_label: 'Team Leader', member_label: 'Membre', follower_label: 'Follower',
+      back_to_team: '← Retour à ', back_to_teams: '← Retour aux Teams',
+      create_team_heading: 'Créer un Team',
+      create_team_help: '<strong>Team amateur</strong> : entre amis, ouvert tout de suite, tu en es le premier Team Leader -- membres, fil d\'actualité et événements, sans plus.<br><strong>Team PRO</strong> (coche bleue ✓) : club officiel validé -- en plus de l\'amateur, gère des adhérents, peut attribuer les badges Coach et Photographe officiel, proposer coaching/baptêmes piste, et choisir la visibilité de ses événements (public, adhérents, sur demande...).',
+      create_team_help_organizer_suffix: ' En tant qu\'Organisateur, tu peux directement le créer en Team PRO ci-dessous.',
+      create_team_help_non_organizer_suffix: ' Un Team PRO ne se crée pas directement : contacte l\'administrateur une fois ton Team amateur créé pour le faire valider et passer PRO, ou passe ton profil en Organisateur pour pouvoir le créer directement PRO.',
+      team_name_label: 'Nom du team', create_as_pro: 'Créer directement comme Team PRO ✓', create_btn: 'Créer',
+      unfollow: 'Ne plus suivre', like_suffix: ' like', likes_suffix: ' likes', follow_suffix: ' follow', follows_suffix: ' follows',
+      feed_heading: 'Fil d\'actualité (', nothing_yet: 'Rien pour l\'instant.',
+      visible_all: 'Visible par tous (membres + followers)', adherents_only: 'Adhérents seulement',
+      write_to_team_placeholder: 'Écrire au team...', link_optional_placeholder: 'Lien (optionnel)',
+      remove_photo: 'Retirer la photo', add_photo: 'Ajouter une photo', publish: 'Publier',
+      poll_option_placeholder: 'Option ', poll_option_optional: ' (optionnel)',
+      poll_question_placeholder: 'Créer un sondage : la question', add_option: '+ Ajouter une option',
+      publish_poll: 'Publier le sondage', write_message_btn: '✎ Écrire un message', poll_btn: '📊 Sondage',
+      no_one_else_to_invite: 'Personne d’autre à inviter pour l’instant.',
+      all_friends_in_team: 'Tous tes amis sont déjà dans ce team, ou aucun ami à inviter -- vois Social.',
+      teampro_invite_help: 'Team PRO : tu peux inviter n’importe quel compte, ami ou non.',
+      invite_btn: 'Inviter', cancel_invite: 'Annuler', settings_label: 'Réglages',
+      join_requests_label: 'Demandes pour rejoindre (', sent_invites_label: 'Invitations envoyées ('
     },
     en: {
       nav_events: 'Events', nav_chronos: 'Chronos', nav_planning: 'ON TRACK', nav_social: 'Social', nav_team: 'Team',
@@ -173,7 +196,30 @@
       organizer_note_label: 'Organizer (if not on the app)', riders_label: 'Riders',
       riders_search_help: 'Suggestions limited to your friends and your Teams\' members -- pick a name from the list to add it.',
       remove_label: 'Remove', start_group_label: 'Starting group',
-      managed_from_team: 'Participants and groups are managed from the Team\'s event management screen.'
+      managed_from_team: 'Participants and groups are managed from the Team\'s event management screen.',
+      // Team tab
+      accept: 'Accept', decline: 'Decline', invited_by: 'invited by ',
+      received_invites_label: 'Received invites (', no_team_yet: 'No team yet -- create one, join one from "Discover Teams" below, or wait for an invite.',
+      my_teams_heading: 'My Teams', team_leader_label: 'Team Leader', member_label: 'Member', follower_label: 'Follower',
+      back_to_team: '← Back to ', back_to_teams: '← Back to Teams',
+      create_team_heading: 'Create a Team',
+      create_team_help: '<strong>Amateur Team</strong>: among friends, open right away, you\'re its first Team Leader -- members, a news feed and events, nothing more.<br><strong>Team PRO</strong> (blue check ✓): an officially validated club -- on top of amateur features, it manages adherents, can grant the Coach and Official Photographer badges, offer coaching/track intros, and choose its events\' visibility (public, adherents, on request...).',
+      create_team_help_organizer_suffix: ' As an Organizer, you can create it directly as a Team PRO below.',
+      create_team_help_non_organizer_suffix: ' A Team PRO can\'t be created directly: contact the admin once your amateur Team is created to have it validated and upgraded to PRO, or switch your profile to Organizer to create it directly as PRO.',
+      team_name_label: 'Team name', create_as_pro: 'Create directly as a Team PRO ✓', create_btn: 'Create',
+      unfollow: 'Unfollow', like_suffix: ' like', likes_suffix: ' likes', follow_suffix: ' follow', follows_suffix: ' follows',
+      feed_heading: 'News feed (', nothing_yet: 'Nothing yet.',
+      visible_all: 'Visible to everyone (members + followers)', adherents_only: 'Adherents only',
+      write_to_team_placeholder: 'Write to the team...', link_optional_placeholder: 'Link (optional)',
+      remove_photo: 'Remove photo', add_photo: 'Add a photo', publish: 'Post',
+      poll_option_placeholder: 'Option ', poll_option_optional: ' (optional)',
+      poll_question_placeholder: 'Create a poll: the question', add_option: '+ Add an option',
+      publish_poll: 'Post the poll', write_message_btn: '✎ Write a message', poll_btn: '📊 Poll',
+      no_one_else_to_invite: 'No one else to invite right now.',
+      all_friends_in_team: 'All your friends are already in this team, or none to invite -- see Social.',
+      teampro_invite_help: 'Team PRO: you can invite any account, friend or not.',
+      invite_btn: 'Invite', cancel_invite: 'Cancel', settings_label: 'Settings',
+      join_requests_label: 'Requests to join (', sent_invites_label: 'Sent invites ('
     }
   };
   function currentLang() {
@@ -9655,12 +9701,12 @@
     var html = '<div class="card team-card">';
     html += '<div class="section-title" style="display:flex; align-items:center; gap:0.6rem;">' + avatarHtml(team, team.name) +
       '<span style="flex:1;">' + escapeHtml(team.name) + teamBadgesHtml(team) + '</span>' +
-      (!isMember ? '<button type="button" class="ghost icon-btn" data-action="unfollow-team" data-team="' + team.id + '" aria-label="Ne plus suivre" title="Ne plus suivre">×</button>' : '') +
-      '<span class="friend-role-badge">' + (isLeader ? 'Team Leader' : (isMember ? 'Membre' : 'Follower')) + '</span></div>';
+      (!isMember ? '<button type="button" class="ghost icon-btn" data-action="unfollow-team" data-team="' + team.id + '" aria-label="' + tr('unfollow') + '" title="' + tr('unfollow') + '">×</button>' : '') +
+      '<span class="friend-role-badge">' + (isLeader ? tr('team_leader_label') : (isMember ? tr('member_label') : tr('follower_label'))) + '</span></div>';
     var teamLikeCount = (STATE.teamLikes || []).filter(function (l) { return l.teamId === team.id; }).length;
     var teamFollowCount = ((STATE.teamFollowersByTeam || {})[team.id] || []).length;
-    html += '<div class="team-stats-row"><span>❤ ' + teamLikeCount + ' like' + (teamLikeCount > 1 ? 's' : '') + '</span>' +
-      '<span>👥 ' + teamFollowCount + ' follow' + (teamFollowCount > 1 ? 's' : '') + '</span></div>';
+    html += '<div class="team-stats-row"><span>❤ ' + teamLikeCount + (teamLikeCount > 1 ? tr('likes_suffix') : tr('like_suffix')) + '</span>' +
+      '<span>👥 ' + teamFollowCount + (teamFollowCount > 1 ? tr('follows_suffix') : tr('follow_suffix')) + '</span></div>';
     // A wide logo (e.g. "Mototeam95") shown full-width, uncropped -- the
     // round avatar above is for badges everywhere else, this is the one
     // place it's shown properly.
@@ -9679,7 +9725,7 @@
     if (isLeader && team.teamPro) html += renderTeamProBadgeGrantSection(team);
 
     var feedBody = !feed.length
-      ? '<div class="empty-state">' + (teamFeedSynced ? 'Rien pour l\'instant.' : 'Chargement...') + '</div>'
+      ? '<div class="empty-state">' + (teamFeedSynced ? tr('nothing_yet') : tr('loading')) + '</div>'
       : feed.map(function (f) { return renderTeamFeedEntry(f, me); }).join('');
     if (canPost) {
       // The Adhérents-only audience option only makes sense for a Team PRO
@@ -9689,45 +9735,45 @@
       // visible to every follower (no audience field written at all).
       var audienceSelect = (isLeader && team.teamPro)
         ? '<select data-team-feed-audience style="margin-top:0.4rem;">' +
-          '<option value="all">Visible par tous (membres + followers)</option>' +
-          '<option value="adherents">Adhérents seulement</option>' +
+          '<option value="all">' + tr('visible_all') + '</option>' +
+          '<option value="adherents">' + tr('adherents_only') + '</option>' +
           '</select>'
         : '';
       if (teamComposerMode === 'message') {
         feedBody += '<form class="team-feed-form" data-action="team-feed-form" data-team="' + team.id + '">' +
-          '<input type="text" placeholder="Écrire au team..." data-team-feed-input autofocus>' +
-          '<input type="url" placeholder="Lien (optionnel)" data-team-feed-link>' +
+          '<input type="text" placeholder="' + tr('write_to_team_placeholder') + '" data-team-feed-input autofocus>' +
+          '<input type="url" placeholder="' + tr('link_optional_placeholder') + '" data-team-feed-link>' +
           (teamPostDraftPhotoTeamId === team.id && teamPostDraftPhotoURL
             ? '<img class="wall-post-photo-preview" src="' + escapeHtml(teamPostDraftPhotoURL) + '" alt="">' +
-              '<button type="button" class="ghost" data-action="team-feed-photo-remove">Retirer la photo</button>'
+              '<button type="button" class="ghost" data-action="team-feed-photo-remove">' + tr('remove_photo') + '</button>'
             : '') +
           audienceSelect +
           '<div style="display:flex; gap:0.5rem;">' +
-          '<button type="button" class="ghost icon-btn" data-action="team-feed-photo-btn" data-team="' + team.id + '" aria-label="Ajouter une photo" title="Ajouter une photo">📷</button>' +
-          '<button type="submit" class="primary">Publier</button>' +
-          '<button type="button" class="ghost" data-action="team-composer-close">Annuler</button>' +
+          '<button type="button" class="ghost icon-btn" data-action="team-feed-photo-btn" data-team="' + team.id + '" aria-label="' + tr('add_photo') + '" title="' + tr('add_photo') + '">📷</button>' +
+          '<button type="submit" class="primary">' + tr('publish') + '</button>' +
+          '<button type="button" class="ghost" data-action="team-composer-close">' + tr('cancel') + '</button>' +
           '</div></form>';
       } else if (teamComposerMode === 'poll') {
         var optionInputs = pollDraftOptions.map(function (val, pi) {
-          return '<input type="text" placeholder="Option ' + (pi + 1) + (pi >= 2 ? ' (optionnel)' : '') + '" value="' + escapeHtml(val) + '" data-poll-option>';
+          return '<input type="text" placeholder="' + tr('poll_option_placeholder') + (pi + 1) + (pi >= 2 ? tr('poll_option_optional') : '') + '" value="' + escapeHtml(val) + '" data-poll-option>';
         }).join('');
         feedBody += '<form class="team-poll-form" data-action="team-poll-form" data-team="' + team.id + '">' +
-          '<input type="text" placeholder="Créer un sondage : la question" value="' + escapeHtml(pollDraftQuestion) + '" data-poll-question autofocus>' +
+          '<input type="text" placeholder="' + tr('poll_question_placeholder') + '" value="' + escapeHtml(pollDraftQuestion) + '" data-poll-question autofocus>' +
           optionInputs +
-          '<button type="button" class="ghost" data-action="team-poll-add-option">+ Ajouter une option</button>' +
+          '<button type="button" class="ghost" data-action="team-poll-add-option">' + tr('add_option') + '</button>' +
           audienceSelect +
           '<div style="display:flex; gap:0.5rem; margin-top:0.4rem;">' +
-          '<button type="submit" class="ghost">Publier le sondage</button>' +
-          '<button type="button" class="ghost" data-action="team-composer-close">Annuler</button>' +
+          '<button type="submit" class="ghost">' + tr('publish_poll') + '</button>' +
+          '<button type="button" class="ghost" data-action="team-composer-close">' + tr('cancel') + '</button>' +
           '</div></form>';
       } else {
         feedBody += '<div style="display:flex; gap:0.5rem; margin-top:0.6rem;">' +
-          '<button type="button" class="ghost" data-action="team-composer-open" data-mode="message">✎ Écrire un message</button>' +
-          '<button type="button" class="ghost" data-action="team-composer-open" data-mode="poll">📊 Sondage</button>' +
+          '<button type="button" class="ghost" data-action="team-composer-open" data-mode="message">' + tr('write_message_btn') + '</button>' +
+          '<button type="button" class="ghost" data-action="team-composer-open" data-mode="poll">' + tr('poll_btn') + '</button>' +
           '</div>';
       }
     }
-    html += collapsibleSection('team-feed-' + team.id, 'Fil d\'actualité (' + feed.length + ')', feedBody);
+    html += collapsibleSection('team-feed-' + team.id, tr('feed_heading') + feed.length + ')', feedBody);
 
     var teamFollowers = (STATE.teamFollowersByTeam || {})[team.id] || [];
     html += renderTeamMembersSection(team, members, teamFollowers, me, isLeader);
@@ -9750,35 +9796,35 @@
       });
       var inviteBody = !candidates.length
         ? (team.teamPro
-          ? '<div class="help-text">Personne d’autre à inviter pour l’instant.</div>'
-          : '<div class="help-text">Tous tes amis sont déjà dans ce team, ou aucun ami à inviter -- vois Social.</div>')
+          ? '<div class="help-text">' + tr('no_one_else_to_invite') + '</div>'
+          : '<div class="help-text">' + tr('all_friends_in_team') + '</div>')
         : '<form class="team-invite-form" data-action="team-invite-form" data-team="' + team.id + '">' +
-          (team.teamPro ? '<div class="help-text" style="margin-bottom:0.4rem;">Team PRO : tu peux inviter n’importe quel compte, ami ou non.</div>' : '') +
+          (team.teamPro ? '<div class="help-text" style="margin-bottom:0.4rem;">' + tr('teampro_invite_help') + '</div>' : '') +
           '<select data-team-invite-select>' + candidates.map(function (n) {
             var cu = (STATE.usersByName || {})[n] || {};
             var roleSuffix = cu.role === 'accompagnant' ? ' (Accompagnant)' : (cu.role === 'organisateur' ? ' (Organisateur)' : '');
             return '<option value="' + escapeHtml(n) + '">' + escapeHtml(n) + escapeHtml(roleSuffix) + '</option>';
           }).join('') + '</select>' +
-          '<button type="submit" class="ghost">Inviter</button></form>';
+          '<button type="submit" class="ghost">' + tr('invite_btn') + '</button></form>';
       if (outgoingInvites.length) {
         var outgoingBody = outgoingInvites.map(function (r) {
           return '<div class="friend-row"><div class="friend-row-main">' + personNameHtml(r.to) + '</div>' +
-            '<div class="friend-row-actions"><button type="button" class="ghost" data-action="team-invite-remove" data-id="' + r.id + '">Annuler</button></div></div>';
+            '<div class="friend-row-actions"><button type="button" class="ghost" data-action="team-invite-remove" data-id="' + r.id + '">' + tr('cancel_invite') + '</button></div></div>';
         }).join('');
-        inviteBody += collapsibleSection('team-invites-out-' + team.id, 'Invitations envoyées (' + outgoingInvites.length + ')', outgoingBody);
+        inviteBody += collapsibleSection('team-invites-out-' + team.id, tr('sent_invites_label') + outgoingInvites.length + ')', outgoingBody);
       }
-      html += collapsibleSection('team-invite-' + team.id, 'Inviter', inviteBody);
+      html += collapsibleSection('team-invite-' + team.id, tr('invite_btn'), inviteBody);
     }
 
     if (isLeader) {
       var joinRequests = (STATE.teamJoinRequests || []).filter(function (r) { return r.teamId === team.id && r.status === 'pending'; });
       if (joinRequests.length) {
         var joinReqBody = joinRequests.map(renderTeamJoinRequestRow).join('');
-        html += collapsibleSection('team-join-requests-' + team.id, 'Demandes pour rejoindre (' + joinRequests.length + ')', joinReqBody, true);
+        html += collapsibleSection('team-join-requests-' + team.id, tr('join_requests_label') + joinRequests.length + ')', joinReqBody, true);
       }
     }
 
-    html += collapsibleSection('team-settings-' + team.id, 'Réglages', renderTeamSettings(team, isLeader));
+    html += collapsibleSection('team-settings-' + team.id, tr('settings_label'), renderTeamSettings(team, isLeader));
     html += '</div>';
     return html;
   }
@@ -9786,21 +9832,20 @@
   function renderCreateTeamCard() {
     var me = currentUserProfile;
     var isOrganisateur = !!(me && me.role === 'organisateur');
-    var html = '<div class="card"><h2 class="section-title">Créer un Team</h2>' +
-      '<div class="help-text"><strong>Team amateur</strong> : entre amis, ouvert tout de suite, tu en es le premier Team Leader -- membres, fil d\'actualité et événements, sans plus.<br>' +
-      '<strong>Team PRO</strong> (coche bleue ✓) : club officiel validé -- en plus de l\'amateur, gère des adhérents, peut attribuer les badges Coach et Photographe officiel, proposer coaching/baptêmes piste, et choisir la visibilité de ses événements (public, adhérents, sur demande...).';
+    var html = '<div class="card"><h2 class="section-title">' + tr('create_team_heading') + '</h2>' +
+      '<div class="help-text">' + tr('create_team_help');
     if (isOrganisateur) {
-      html += ' En tant qu\'Organisateur, tu peux directement le créer en Team PRO ci-dessous.</div>';
+      html += tr('create_team_help_organizer_suffix') + '</div>';
     } else {
-      html += ' Un Team PRO ne se crée pas directement : contacte l\'administrateur une fois ton Team amateur créé pour le faire valider et passer PRO, ou passe ton profil en Organisateur pour pouvoir le créer directement PRO.</div>';
+      html += tr('create_team_help_non_organizer_suffix') + '</div>';
     }
     html += '<form id="create-team-form" style="margin-top:0.7rem;">' +
-      '<label for="new-team-name">Nom du team</label>' +
+      '<label for="new-team-name">' + tr('team_name_label') + '</label>' +
       '<input type="text" id="new-team-name" placeholder="Ex. Mototeam95" required>';
     if (isOrganisateur) {
-      html += '<label class="checklist-item" style="margin-top:0.6rem;"><input type="checkbox" id="new-team-pro"> Créer directement comme Team PRO ✓</label>';
+      html += '<label class="checklist-item" style="margin-top:0.6rem;"><input type="checkbox" id="new-team-pro"> ' + tr('create_as_pro') + '</label>';
     }
-    html += '<button type="submit" class="primary" style="margin-top:0.7rem;">Créer</button>' +
+    html += '<button type="submit" class="primary" style="margin-top:0.7rem;">' + tr('create_btn') + '</button>' +
       '</form></div>';
     return html;
   }
@@ -10220,13 +10265,13 @@
     var html = '';
     if (incoming.length) {
       var incomingBody = incoming.map(function (r) {
-        return '<div class="friend-row"><div class="friend-row-main"><span class="friend-name-plain">' + escapeHtml((teamById(r.teamId) || {}).name || r.teamName) + '</span> <span class="help-text">invité par ' + escapeHtml(r.from) + '</span></div>' +
+        return '<div class="friend-row"><div class="friend-row-main"><span class="friend-name-plain">' + escapeHtml((teamById(r.teamId) || {}).name || r.teamName) + '</span> <span class="help-text">' + tr('invited_by') + escapeHtml(r.from) + '</span></div>' +
           '<div class="friend-row-actions">' +
-          '<button type="button" class="primary" data-action="team-invite-accept" data-id="' + r.id + '">Accepter</button>' +
-          '<button type="button" class="ghost" data-action="team-invite-remove" data-id="' + r.id + '">Refuser</button>' +
+          '<button type="button" class="primary" data-action="team-invite-accept" data-id="' + r.id + '">' + tr('accept') + '</button>' +
+          '<button type="button" class="ghost" data-action="team-invite-remove" data-id="' + r.id + '">' + tr('decline') + '</button>' +
           '</div></div>';
       }).join('');
-      html += collapsibleCard('team-invites-in', 'Invitations reçues (' + incoming.length + ')', incomingBody, true);
+      html += collapsibleCard('team-invites-in', tr('received_invites_label') + incoming.length + ')', incomingBody, true);
     }
     // "Invitations envoyées" (this account inviting others into a team it
     // leads) moved into that team's own "Inviter" section (renderTeamCard)
@@ -10234,7 +10279,7 @@
     // per-team info, not something to show before you've even picked one.
 
     if (!myTeams.length) {
-      html += '<div class="card"><div class="empty-state">Pas encore de team -- crée-en un, rejoins-en un depuis "Découvrir des Teams" ci-dessous, ou attends une invitation.</div></div>';
+      html += '<div class="card"><div class="empty-state">' + tr('no_team_yet') + '</div></div>';
     } else {
       // Clean grid of small "encadrés" first -- clicking one opens its
       // full detail (feed, membres, réglages) below, one at a time, so
@@ -10244,9 +10289,9 @@
       // screen, not something to keep scrolling past once you're already
       // deep in a specific Team/Event.
       if (!expandedTeamId) {
-        html += '<h2 class="section-title">Mes Teams</h2>';
+        html += '<h2 class="section-title">' + tr('my_teams_heading') + '</h2>';
         html += '<div class="team-tile-grid">' + myTeams.map(function (t) {
-          var label = isLeaderOfTeam(t.id) ? 'Team Leader' : (memberTeamIds.indexOf(t.id) !== -1 ? 'Membre' : 'Follower');
+          var label = isLeaderOfTeam(t.id) ? tr('team_leader_label') : (memberTeamIds.indexOf(t.id) !== -1 ? tr('member_label') : tr('follower_label'));
           var tag = '<span class="friend-role-badge">' + label + '</span>';
           return renderTeamTile(t, tag, true);
         }).join('') + '</div>';
@@ -10264,12 +10309,12 @@
           : null;
         if (managingEvent) {
           html += '<div style="margin-top:1rem;">' +
-            '<button type="button" class="ghost" data-action="event-manage-close" style="margin-bottom:0.6rem;">← Retour à ' + escapeHtml(expandedTeam.name) + '</button>' +
+            '<button type="button" class="ghost" data-action="event-manage-close" style="margin-bottom:0.6rem;">' + tr('back_to_team') + escapeHtml(expandedTeam.name) + '</button>' +
             renderEventManagementScreen(managingEvent, expandedTeam) +
             '</div>';
         } else {
           html += '<div style="margin-top:1rem;">' +
-            '<button type="button" class="ghost" data-action="team-tile-close" style="margin-bottom:0.6rem;">← Retour aux Teams</button>' +
+            '<button type="button" class="ghost" data-action="team-tile-close" style="margin-bottom:0.6rem;">' + tr('back_to_teams') + '</button>' +
             renderTeamCard(expandedTeam, me) +
             '</div>';
         }
