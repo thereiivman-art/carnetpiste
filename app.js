@@ -322,6 +322,7 @@
       announcement_placeholder: 'Ex. BRIEFING DEMAIN A 8H15', announcements_heading: 'Annonces',
       nothing_filled_in_yet: 'Rien renseigné pour l\'instant.', complete_btn: 'Compléter',
       weather_label: 'Météo & piste', weather_condition_unset: 'Condition —', track_direction_label: 'Sens :', track_direction_unset: 'Sens —', weather_temp_placeholder: 'Ex. 18°C le matin, 25°C l\'après-midi',
+      my_chronos_export_heading: 'Mes chronos', no_chrono_this_outing: 'Aucun chrono enregistré pour cette sortie.', laps_suffix: ' tours', lap_suffix: ' tour', recap_export_caption: 'Récap de la sortie', export_recap_btn: 'Exporter le récap',
       practical_info_label: 'Infos pratiques', practical_info_placeholder: 'Ex. Parking, accès paddock, restauration...',
       special_activities_label: 'Baptêmes, coaching...', special_activities_placeholder: 'Ex. Baptêmes de piste 12h-14h, coaching sur inscription...',
       rental_motos_label: 'Location — Motos', rental_motos_placeholder: 'Ex. 2 CBR600 dispo pour les baptêmes, 1 pour un pilote -- contacter Marc',
@@ -691,6 +692,7 @@
       announcement_placeholder: 'E.g. BRIEFING TOMORROW AT 8:15AM', announcements_heading: 'Announcements',
       nothing_filled_in_yet: 'Nothing filled in yet.', complete_btn: 'Fill in',
       weather_label: 'Weather & track', weather_condition_unset: 'Condition —', track_direction_label: 'Direction:', track_direction_unset: 'Direction —', weather_temp_placeholder: 'E.g. 18°C in the morning, 25°C in the afternoon',
+      my_chronos_export_heading: 'My chronos', no_chrono_this_outing: 'No chrono recorded for this outing.', laps_suffix: ' laps', lap_suffix: ' lap', recap_export_caption: 'Outing recap', export_recap_btn: 'Export recap',
       practical_info_label: 'Practical info', practical_info_placeholder: 'E.g. Parking, paddock access, catering...',
       special_activities_label: 'Track days, coaching...', special_activities_placeholder: 'E.g. Track days 12pm-2pm, coaching by sign-up...',
       rental_motos_label: 'Rental — Bikes', rental_motos_placeholder: 'E.g. 2 CBR600 available for track days, 1 for a rider -- contact Marc',
@@ -6133,6 +6135,74 @@
     return annot.circuit;
   }
 
+  // One shareable recap image per sortie -- circuit/date/Team, the day's
+  // weather (see renderWeatherSection), my own chronos that day, and my
+  // own annotated plan for this circuit (Plan général, falling back to
+  // Contour du tracé) if I have one -- so a rider doesn't have to
+  // hand-assemble screenshots after a trackday. Reuses
+  // showAnnotImagePreview (despite the name, a generic full-screen
+  // "long-press to save" preview, not annotation-specific) for the actual
+  // save step, same as exportAnnotationPng above.
+  function exportEventRecapPng(ev) {
+    var me = currentUserProfile;
+    if (!me) return;
+    var mySessions = STATE.sessions.filter(function (s) { return s.eventId === ev.id && s.rider === me.name; })
+      .sort(function (a, b) { return a.date < b.date ? -1 : a.date > b.date ? 1 : 0; });
+    var info = circuitInfo(ev.circuit);
+    var planDataUrl = (info.drawings || {})[me.name] || (info.outlineDrawings || {})[me.name] || null;
+
+    function finish(planImg) {
+      var W = 900, padding = 40, lineH = 34;
+      var teamName = ev.teamId && teamById(ev.teamId) ? teamById(ev.teamId).name : null;
+      var weatherLine = weatherSummaryLine(ev);
+      var chronoLines = Math.max(1, mySessions.length);
+      var planH = planImg ? Math.round(planImg.height * ((W - padding * 2) / planImg.width)) : 0;
+      var H = padding + 50 + 40 + (weatherLine ? lineH : 0) + 36 + chronoLines * lineH + (planImg ? 20 + planH : 0) + padding;
+      var canvas = document.createElement('canvas');
+      canvas.width = W;
+      canvas.height = H;
+      var ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, W, H);
+      var y = padding;
+      ctx.fillStyle = '#16212c';
+      ctx.font = '700 30px "Titillium Web", sans-serif';
+      ctx.fillText(ev.circuit, padding, y + 24); y += 50;
+      ctx.font = '400 18px "IBM Plex Sans", sans-serif';
+      ctx.fillStyle = '#5c6b78';
+      ctx.fillText(formatEventRange(ev, true) + (teamName ? '  ·  ' + teamName : ''), padding, y); y += 40;
+      if (weatherLine) { ctx.fillText(weatherLine, padding, y); y += lineH; }
+      ctx.font = '700 20px "IBM Plex Sans", sans-serif';
+      ctx.fillStyle = '#16212c';
+      ctx.fillText(tr('my_chronos_export_heading'), padding, y); y += 36;
+      ctx.font = '400 18px "IBM Plex Mono", monospace';
+      if (!mySessions.length) {
+        ctx.fillStyle = '#5c6b78';
+        ctx.fillText(tr('no_chrono_this_outing'), padding, y); y += lineH;
+      } else {
+        mySessions.forEach(function (s) {
+          ctx.fillStyle = '#16212c';
+          ctx.fillText(formatDate(s.date) + '  —  ' + formatTime(sessionBest(s)) + '  (' + s.laps.length + (s.laps.length > 1 ? tr('laps_suffix') : tr('lap_suffix')) + ')', padding, y);
+          y += lineH;
+        });
+      }
+      if (planImg) {
+        y += 20;
+        ctx.drawImage(planImg, padding, y, W - padding * 2, planH);
+      }
+      showAnnotImagePreview(canvas.toDataURL('image/png'), ev.circuit + ' — ' + tr('recap_export_caption'));
+    }
+
+    if (planDataUrl) {
+      var img = new Image();
+      img.onload = function () { finish(img); };
+      img.onerror = function () { finish(null); };
+      img.src = planDataUrl;
+    } else {
+      finish(null);
+    }
+  }
+
   function exportAnnotationPng() {
     if (!annotCanvasEl) return;
     var pendingConfirm = document.querySelector('.annot-text-confirm');
@@ -7588,7 +7658,8 @@
     html += '<div class="event-circuit-map"><div class="event-checklist-title">' + tr('circuit_map_heading') + '</div>' + renderCircuitVisual(circuitInfo(ev.circuit), ev.circuit) + '</div>';
     // The équipement checklist (with its count) lives entirely in
     // Planning now -- Événements stays simple and informative.
-    html += '<div class="event-detail-actions"><button type="button" class="ghost" id="edit-event-btn" data-id="' + ev.id + '">' + tr('modify') + '</button></div>';
+    html += '<div class="event-detail-actions"><button type="button" class="ghost" id="edit-event-btn" data-id="' + ev.id + '">' + tr('modify') + '</button>' +
+      '<button type="button" class="ghost" data-action="export-event-recap" data-id="' + ev.id + '">' + tr('export_recap_btn') + '</button></div>';
     html += '</div>';
     return html;
   }
@@ -13345,6 +13416,12 @@
         renderRoot();
       });
     }
+    document.querySelectorAll('[data-action="export-event-recap"]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var ev = (STATE.events || []).filter(function (e) { return e.id === btn.getAttribute('data-id'); })[0];
+        if (ev) exportEventRecapPng(ev);
+      });
+    });
     document.querySelectorAll('[data-action="edit-media-link"]').forEach(function (btn) {
       btn.addEventListener('click', function () {
         editingMediaLinkFor = btn.getAttribute('data-id');
