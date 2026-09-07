@@ -300,6 +300,7 @@
       delete_team_btn: 'Supprimer ce Team', delete_irreversible_password_help: 'Cette action est irréversible. Confirme avec ton mot de passe actuel.',
       grant_coach_photographer_help: 'En tant que Team Leader d\'un Team PRO, attribue ou retire ces badges à n\'importe quel compte (pas seulement les membres du Team).',
       search_person_placeholder: 'Rechercher un pilote, accompagnant, organisateur...',
+      search_past_event_placeholder: 'Rechercher un circuit, un Team...',
       coach_toggle_btn: '🎓 Coach : attribuer/retirer', photographer_toggle_btn: '📷 Photographe : attribuer/retirer',
       grant_coach_photographer_heading: 'Attribuer Coach / Photographe officiel',
       participant_word: 'participant', pending_request_word: 'demande', pending_suffix: ' en attente',
@@ -320,6 +321,7 @@
       no_announcements_yet: 'Aucune annonce pour l\'instant.', edited_suffix: ' (modifié)',
       announcement_placeholder: 'Ex. BRIEFING DEMAIN A 8H15', announcements_heading: 'Annonces',
       nothing_filled_in_yet: 'Rien renseigné pour l\'instant.', complete_btn: 'Compléter',
+      weather_label: 'Météo & piste', weather_condition_unset: 'Condition —', track_direction_label: 'Sens :', track_direction_unset: 'Sens —', weather_temp_placeholder: 'Ex. 18°C le matin, 25°C l\'après-midi',
       practical_info_label: 'Infos pratiques', practical_info_placeholder: 'Ex. Parking, accès paddock, restauration...',
       special_activities_label: 'Baptêmes, coaching...', special_activities_placeholder: 'Ex. Baptêmes de piste 12h-14h, coaching sur inscription...',
       rental_motos_label: 'Location — Motos', rental_motos_placeholder: 'Ex. 2 CBR600 dispo pour les baptêmes, 1 pour un pilote -- contacter Marc',
@@ -667,6 +669,7 @@
       delete_team_btn: 'Delete this Team', delete_irreversible_password_help: 'This action is irreversible. Confirm with your current password.',
       grant_coach_photographer_help: 'As the Leader of a Team PRO, grant or revoke these badges to any account (not just Team members).',
       search_person_placeholder: 'Search for a rider, companion, organizer...',
+      search_past_event_placeholder: 'Search for a circuit, a Team...',
       coach_toggle_btn: '🎓 Coach: grant/revoke', photographer_toggle_btn: '📷 Photographer: grant/revoke',
       grant_coach_photographer_heading: 'Grant Coach / Official Photographer',
       participant_word: 'rider', pending_request_word: 'request', pending_suffix: ' pending',
@@ -687,6 +690,7 @@
       no_announcements_yet: 'No announcements yet.', edited_suffix: ' (edited)',
       announcement_placeholder: 'E.g. BRIEFING TOMORROW AT 8:15AM', announcements_heading: 'Announcements',
       nothing_filled_in_yet: 'Nothing filled in yet.', complete_btn: 'Fill in',
+      weather_label: 'Weather & track', weather_condition_unset: 'Condition —', track_direction_label: 'Direction:', track_direction_unset: 'Direction —', weather_temp_placeholder: 'E.g. 18°C in the morning, 25°C in the afternoon',
       practical_info_label: 'Practical info', practical_info_placeholder: 'E.g. Parking, paddock access, catering...',
       special_activities_label: 'Track days, coaching...', special_activities_placeholder: 'E.g. Track days 12pm-2pm, coaching by sign-up...',
       rental_motos_label: 'Rental — Bikes', rental_motos_placeholder: 'E.g. 2 CBR600 available for track days, 1 for a rider -- contact Marc',
@@ -6581,6 +6585,63 @@
     });
   }
 
+  // Météo/piste du jour -- saisie manuelle (pas d'API météo : elle ne
+  // couvrirait ni les sorties déjà passées ni celles trop lointaines pour
+  // une prévision, et un circuit n'a pas ses coordonnées GPS enregistrées).
+  // Trois champs groupés dans un seul widget plutôt que trois
+  // renderEventLeaderTextSection séparés : condition et sens de piste sont
+  // des choix fermés (utiles pour un badge/icône ailleurs), la température
+  // reste libre (plage horaire, ressenti...) -- même permission que les
+  // autres blocs Team-Leader-only ci-dessus (isLeader), aucune restriction
+  // côté règles Firestore pour un event personnel (teamId == null).
+  var editingWeatherFor = null;
+  var WEATHER_CONDITIONS = { sec: '☀️ Sec', pluie: '🌧️ Pluie', mixte: '⛅ Mixte' };
+  var TRACK_DIRECTIONS = { normal: 'Normal', inverse: 'Inversé' };
+  function saveWeatherInfo(eventId, condition, direction, temp) {
+    var patch = {
+      weatherCondition: condition || null,
+      trackDirection: direction || null,
+      weatherTemp: (temp || '').trim() || null
+    };
+    db.collection('events').doc(eventId).update(patch).then(function () {
+      editingWeatherFor = null;
+      renderRoot();
+    }).catch(function (err) {
+      showToast(tr('error_prefix') + (err && err.message ? err.message : err));
+    });
+  }
+  function weatherSummaryLine(ev) {
+    var parts = [];
+    if (ev.weatherCondition && WEATHER_CONDITIONS[ev.weatherCondition]) parts.push(WEATHER_CONDITIONS[ev.weatherCondition]);
+    if (ev.weatherTemp) parts.push(ev.weatherTemp);
+    if (ev.trackDirection && TRACK_DIRECTIONS[ev.trackDirection]) parts.push(tr('track_direction_label') + ' ' + TRACK_DIRECTIONS[ev.trackDirection]);
+    return parts.join(' · ');
+  }
+  function renderWeatherSection(ev, isLeader) {
+    var hasAny = !!(ev.weatherCondition || ev.weatherTemp || ev.trackDirection);
+    if (!hasAny && !isLeader) return '';
+    var body;
+    if (editingWeatherFor === ev.id) {
+      body = '<select id="weather-condition-select">' +
+        '<option value="">' + tr('weather_condition_unset') + '</option>' +
+        Object.keys(WEATHER_CONDITIONS).map(function (k) { return '<option value="' + k + '"' + (ev.weatherCondition === k ? ' selected' : '') + '>' + WEATHER_CONDITIONS[k] + '</option>'; }).join('') +
+        '</select>' +
+        '<select id="track-direction-select" style="margin-top:0.5rem;">' +
+        '<option value="">' + tr('track_direction_unset') + '</option>' +
+        Object.keys(TRACK_DIRECTIONS).map(function (k) { return '<option value="' + k + '"' + (ev.trackDirection === k ? ' selected' : '') + '>' + TRACK_DIRECTIONS[k] + '</option>'; }).join('') +
+        '</select>' +
+        '<input type="text" id="weather-temp-input" placeholder="' + tr('weather_temp_placeholder') + '" value="' + escapeHtml(ev.weatherTemp || '') + '" style="margin-top:0.5rem;">' +
+        '<div style="margin-top:0.5rem; display:flex; gap:0.5rem;">' +
+        '<button type="button" class="primary" data-action="save-weather" data-id="' + ev.id + '">' + tr('save') + '</button>' +
+        '<button type="button" class="ghost" data-action="cancel-weather">' + tr('cancel') + '</button></div>';
+    } else {
+      var summary = weatherSummaryLine(ev);
+      body = summary ? '<div class="help-text">' + escapeHtml(summary) + '</div>' : '<div class="help-text">' + tr('nothing_filled_in_yet') + '</div>';
+      if (isLeader) body += '<button type="button" class="ghost" data-action="edit-weather" data-id="' + ev.id + '" style="margin-top:0.5rem;">' + (hasAny ? tr('modify') : tr('complete_btn')) + '</button>';
+    }
+    return collapsibleSection('weather-' + ev.id, tr('weather_label'), body, hasAny);
+  }
+
   // "Découvrir les Événements PRO" -- every Team PRO event this account
   // isn't already riding, open enough for it to request/self-join given
   // its own relationship to the owning Team ('adherent'/'follower' need
@@ -7480,6 +7541,11 @@
     html += infoRow(tr('circuit_label'), escapeHtml(ev.circuit));
     html += infoRow(tr('dates_label'), escapeHtml(formatEventRange(ev, true)));
     if (ev.note) html += infoRow(tr('note_label'), escapeHtml(ev.note));
+    // Read-only here (editing happens from EN PISTE, see renderWeatherSection)
+    // -- just a quick reminder of the day's conditions for whoever opens
+    // the event from Événements instead.
+    var evWeather = weatherSummaryLine(ev);
+    if (evWeather) html += infoRow(tr('weather_label'), escapeHtml(evWeather));
     // Carnet de Piste ne gère pas les paiements/réservations -- ce lien
     // renvoie vers l'outil de billetterie du Team (Billetweb ou autre),
     // jamais une inscription gérée ici.
@@ -7713,11 +7779,32 @@
   // year only stays open once the rider has actually clicked it open.
   var expandedPastYears = {};
 
+  // Free-text filter over past events (circuit or organizing Team name) --
+  // only shows/matters once there's more than a handful of seasons behind
+  // you, same threshold and idiom as teamMemberSearch. A non-empty query
+  // bypasses the year-band accordion entirely (there's no year to click
+  // into once you already know what you're looking for) and shows a flat,
+  // most-recent-first list of just the matches instead.
+  var pastEventSearch = '';
+
   // Past sorties collapse into one closed band per year (most recent
   // first) instead of one long flat list -- opening a year reveals its
   // sorties in place, same accordion row as everywhere else.
   function renderPastEventsCard(past) {
     if (!past.length) return collapsibleCard('events-past', tr('past_label'), '<div class="empty-state">' + tr('no_event') + '</div>', false);
+    var searchHtml = past.length > 6
+      ? '<input type="text" id="past-event-search" placeholder="' + tr('search_past_event_placeholder') + '" value="' + escapeHtml(pastEventSearch) + '" style="margin-bottom:0.6rem;">'
+      : '';
+    var q = pastEventSearch.trim().toLowerCase();
+    if (q) {
+      var matches = past.filter(function (ev) {
+        return (ev.circuit || '').toLowerCase().indexOf(q) !== -1 || (teamById(ev.teamId) || {}).name && teamById(ev.teamId).name.toLowerCase().indexOf(q) !== -1;
+      });
+      var matchBody = !matches.length
+        ? '<div class="help-text">' + tr('no_results_for_prefix') + escapeHtml(pastEventSearch) + tr('no_results_for_suffix') + '</div>'
+        : matches.map(function (ev) { return renderEventRow(ev, { hideGroups: false }); }).join('');
+      return collapsibleCard('events-past', tr('past_label'), searchHtml + matchBody, false);
+    }
     var byYear = {};
     past.forEach(function (ev) {
       var year = (ev.dateStart || '').slice(0, 4) || '—';
@@ -7725,7 +7812,7 @@
       byYear[year].push(ev);
     });
     var years = Object.keys(byYear).sort(function (a, b) { return b.localeCompare(a); });
-    var body = '';
+    var body = searchHtml;
     years.forEach(function (year) {
       var yearEvents = byYear[year];
       var isExpanded = !!expandedPastYears[year];
@@ -8147,6 +8234,7 @@
       else html += '<div style="margin:0.5rem 0;"><button type="button" class="ghost" data-action="team-event-edit" data-id="' + ev.id + '">✎ Modifier l\'événement</button></div>';
     }
     if (ev.teamId) html += renderEventAnnouncements(ev, false);
+    html += renderWeatherSection(ev, isLeader);
     html += renderSpecialActivitiesSection(ev, isLeader);
     html += renderRentalMotosSection(ev, isLeader);
     html += renderRentalEquipementSection(ev, isLeader);
@@ -9944,16 +10032,31 @@
     return '<div class="team-manage-row">' + row + '</div>' + maybeFicheHtml(name);
   }
 
+  // One search box, not one per Team -- only ever one Team's card is open
+  // at a time (see expandedTeamId), same simplicity as accountManagerSearch.
+  // Cleared whenever a different Team's card opens (see the click handler
+  // that sets expandedTeamId) so a leftover query never silently hides a
+  // newly-opened Team's whole roster.
+  var teamMemberSearch = '';
   function renderTeamMembersSection(team, members, teamFollowers, me, isLeader) {
     var followByName = {};
     teamFollowers.forEach(function (f) { followByName[f.follower] = f; });
     var names = members.map(function (m) { return m.name; }).sort(function (a, b) { return a.localeCompare(b); });
+    // The search box itself only earns its place once a roster is long
+    // enough that scanning it by eye stops being faster than typing.
+    var q = teamMemberSearch.trim().toLowerCase();
+    var visibleNames = q ? names.filter(function (n) { return n.toLowerCase().indexOf(q) !== -1; }) : names;
+    var searchHtml = names.length > 6
+      ? '<input type="text" id="team-member-search-' + team.id + '" placeholder="' + tr('search_person_placeholder') + '" value="' + escapeHtml(teamMemberSearch) + '" style="margin-bottom:0.6rem;">'
+      : '';
     var body = !names.length
       ? '<div class="help-text">' + tr('no_one_yet') + '</div>'
-      : names.map(function (name) {
-        var memberDoc = members.filter(function (m) { return m.name === name; })[0];
-        return renderTeamPersonRow(team, name, memberDoc, followByName[name] || null, me, isLeader);
-      }).join('') + (isLeader ? '<datalist id="team-role-suggestions"><option value="' + tr('mecano_option') + '"><option value="' + tr('assistant_option') + '"><option value="' + tr('photographe_option') + '"><option value="' + tr('logistique_option') + '"></datalist>' : '');
+      : searchHtml + (!visibleNames.length
+        ? '<div class="help-text">' + tr('no_results_for_prefix') + escapeHtml(teamMemberSearch) + tr('no_results_for_suffix') + '</div>'
+        : visibleNames.map(function (name) {
+          var memberDoc = members.filter(function (m) { return m.name === name; })[0];
+          return renderTeamPersonRow(team, name, memberDoc, followByName[name] || null, me, isLeader);
+        }).join('')) + (isLeader ? '<datalist id="team-role-suggestions"><option value="' + tr('mecano_option') + '"><option value="' + tr('assistant_option') + '"><option value="' + tr('photographe_option') + '"><option value="' + tr('logistique_option') + '"></datalist>' : '');
     return collapsibleSection('team-members-' + team.id, tr('members_label') + members.length + ')', body);
   }
 
@@ -12488,13 +12591,21 @@
       btn.addEventListener('click', function () {
         expandedTeamId = btn.getAttribute('data-team');
         managingEventId = null;
+        teamMemberSearch = '';
         renderRoot();
         window.scrollTo(0, 0);
       });
     });
     document.querySelectorAll('[data-action="team-tile-close"]').forEach(function (btn) {
-      btn.addEventListener('click', function () { expandedTeamId = null; managingEventId = null; renderRoot(); });
+      btn.addEventListener('click', function () { expandedTeamId = null; managingEventId = null; teamMemberSearch = ''; renderRoot(); });
     });
+    var teamMemberSearchEl = expandedTeamId && document.getElementById('team-member-search-' + expandedTeamId);
+    if (teamMemberSearchEl) {
+      teamMemberSearchEl.addEventListener('input', function () {
+        teamMemberSearch = teamMemberSearchEl.value;
+        renderRoot();
+      });
+    }
     document.querySelectorAll('[data-action="team-event-manage-open"]').forEach(function (btn) {
       btn.addEventListener('click', function () {
         managingEventId = btn.getAttribute('data-id');
@@ -12780,6 +12891,20 @@
       btn.addEventListener('click', function () {
         var input = document.getElementById('practical-info-input');
         savePracticalInfo(btn.getAttribute('data-id'), input ? input.value : '');
+      });
+    });
+    document.querySelectorAll('[data-action="edit-weather"]').forEach(function (btn) {
+      btn.addEventListener('click', function () { editingWeatherFor = btn.getAttribute('data-id'); renderRoot(); });
+    });
+    document.querySelectorAll('[data-action="cancel-weather"]').forEach(function (btn) {
+      btn.addEventListener('click', function () { editingWeatherFor = null; renderRoot(); });
+    });
+    document.querySelectorAll('[data-action="save-weather"]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var conditionEl = document.getElementById('weather-condition-select');
+        var directionEl = document.getElementById('track-direction-select');
+        var tempEl = document.getElementById('weather-temp-input');
+        saveWeatherInfo(btn.getAttribute('data-id'), conditionEl ? conditionEl.value : '', directionEl ? directionEl.value : '', tempEl ? tempEl.value : '');
       });
     });
     document.querySelectorAll('[data-action="edit-special-activities"]').forEach(function (btn) {
@@ -13541,6 +13666,13 @@
     if (accountManagerSearchEl) {
       accountManagerSearchEl.addEventListener('input', function () {
         accountManagerSearch = accountManagerSearchEl.value;
+        renderRoot();
+      });
+    }
+    var pastEventSearchEl = document.getElementById('past-event-search');
+    if (pastEventSearchEl) {
+      pastEventSearchEl.addEventListener('input', function () {
+        pastEventSearch = pastEventSearchEl.value;
         renderRoot();
       });
     }
