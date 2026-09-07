@@ -11,6 +11,14 @@
   // first and hit STATE while it's still undefined.
   var db = firebase.firestore();
   var auth = firebase.auth();
+  // Lets the last-synced events/sessions/circuits stay readable (not
+  // writable-and-guaranteed-to-sync, just readable) with no network -- e.g.
+  // at a track with no signal. Best-effort: 'failed-precondition' means
+  // another tab already holds the persistence lock (only one tab can at a
+  // time), 'unimplemented' means the browser doesn't support it -- both
+  // just leave the app working online-only, exactly as before this call
+  // existed.
+  db.enablePersistence({ synchronizeTabs: true }).catch(function () {});
   var STATE = {
     sessions: [], events: [], circuits: {}, riders: [], usersByName: {}, friendRequests: [], feedEvents: [], myFollows: [], myFollowedTeams: [],
     myFollowedTeamTiers: {}, myTeamFollowDocs: {}, teams: [], myTeamMemberships: [], teamInvites: [], teamMembersByTeam: {}, teamFeed: [], teamFollowersByTeam: {},
@@ -8350,7 +8358,26 @@
     var subject = currentUserProfile.role === 'accompagnant'
       ? departingNames.join(', ') + ' part' + (departingNames.length > 1 ? 'ent' : '') + ' rouler'
       : 'Ton groupe part rouler';
-    new Notification('Carnet de Piste', { body: subject + ' dans ' + diff + ' min !' });
+    sendAppNotification(subject + ' dans ' + diff + ' min !');
+  }
+
+  // Every notification in the app goes through here instead of a bare
+  // `new Notification(...)` -- once installed as a PWA, routing through the
+  // service worker's own showNotification() is what lets Android/desktop
+  // Chrome keep delivering these while the tab is merely backgrounded
+  // (minimized window, switched tab) rather than requiring it to stay the
+  // focused, foreground tab. Still no real push: with no backend to wake
+  // the service worker on GitHub Pages' free static hosting, this can only
+  // fire while the app's own JS is already running somewhere (open or
+  // backgrounded tab) -- a fully closed app/browser still won't notify.
+  function sendAppNotification(body) {
+    if (navigator.serviceWorker && navigator.serviceWorker.ready) {
+      navigator.serviceWorker.ready.then(function (reg) {
+        reg.showNotification('Carnet de Piste', { body: body, icon: 'icons/icon-192.png', badge: 'icons/icon-192.png' });
+      }).catch(function () { new Notification('Carnet de Piste', { body: body }); });
+    } else {
+      new Notification('Carnet de Piste', { body: body });
+    }
   }
 
   // Same "opted-in + permission granted" gating as maybeNotifyGroupDeparture
@@ -8389,7 +8416,7 @@
       notifiedEventEndedIds[ev.id] = true;
       changed = true;
       if ((ev.reactions || {})[me.name]) return;
-      new Notification('Carnet de Piste', { body: 'Comment s\'est passé ' + ev.circuit + ' ? Réagis avec un emoji !' });
+      sendAppNotification('Comment s\'est passé ' + ev.circuit + ' ? Réagis avec un emoji !');
     });
     if (changed) {
       try { localStorage.setItem(storageKey, JSON.stringify(notifiedEventEndedIds)); } catch (e) {}
@@ -8457,7 +8484,7 @@
       var body = f.tier === 'adherent'
         ? 'Ta demande d\'adhésion' + (t ? ' à ' + t.name : '') + ' a été acceptée !'
         : 'Ta demande d\'adhésion' + (t ? ' à ' + t.name : '') + ' a été refusée.';
-      new Notification('Carnet de Piste', { body: body });
+      sendAppNotification(body);
     });
   }
 
@@ -8482,7 +8509,7 @@
           var body = !memSnap.empty
             ? 'Ta demande pour rejoindre' + (t ? ' ' + t.name : '') + ' a été acceptée !'
             : 'Ta demande pour rejoindre' + (t ? ' ' + t.name : '') + ' a été refusée.';
-          new Notification('Carnet de Piste', { body: body });
+          sendAppNotification(body);
         }).catch(function () {});
       }
     });
@@ -8510,7 +8537,7 @@
       if (myFriendRequestCancellations[id]) { delete myFriendRequestCancellations[id]; return; }
       if (prev[id].status !== 'pending') return;
       if (!notifCategoryAllowed('notifyRequestDecisions')) return;
-      new Notification('Carnet de Piste', { body: 'Ta demande d\'ami' + (prev[id].to ? ' à ' + prev[id].to : '') + ' a été refusée.' });
+      sendAppNotification('Ta demande d\'ami' + (prev[id].to ? ' à ' + prev[id].to : '') + ' a été refusée.');
     });
     myFriendRequestsSeen = byId;
   }
@@ -8535,7 +8562,7 @@
       if (isFirstEver) return;
       var prev = myChronoCertifiedState[s.id];
       if (s.certifiedBy && !prev && notifCategoryAllowed('notifyChronoCertified')) {
-        new Notification('Carnet de Piste', { body: 'Ton chrono' + (s.circuit ? ' à ' + s.circuit : '') + ' a été vérifié par ' + s.certifiedBy + ' !' });
+        sendAppNotification('Ton chrono' + (s.circuit ? ' à ' + s.circuit : '') + ' a été vérifié par ' + s.certifiedBy + ' !');
       }
     });
     myChronoCertifiedState = next;
@@ -8562,7 +8589,7 @@
         if (isFirstEver || !me || p[authorField] !== me.name || !notifCategoryAllowed('notifyReactions')) return;
         Object.keys(p.reactions || {}).forEach(function (name) {
           if (name === me.name || prevReactions[name]) return;
-          new Notification('Carnet de Piste', { body: name + ' a réagi ' + p.reactions[name] + ' à ' + describe(p) });
+          sendAppNotification(name + ' a réagi ' + p.reactions[name] + ' à ' + describe(p));
         });
       });
       seen = next;
@@ -8579,7 +8606,7 @@
     notifyOnNewIds('team-invites', pending, function (inv) { return inv.id; }, function (inv) {
       if (!notifCategoryAllowed('notifyInvites')) return;
       var invTeamName = (teamById(inv.teamId) || {}).name || inv.teamName;
-      new Notification('Carnet de Piste', { body: 'Tu as reçu une invitation' + (invTeamName ? ' à rejoindre ' + invTeamName : '') + ' !' });
+      sendAppNotification('Tu as reçu une invitation' + (invTeamName ? ' à rejoindre ' + invTeamName : '') + ' !');
     });
   }
 
@@ -14075,7 +14102,7 @@
         if (notifCategoryAllowed('notifyTeamNews')) {
           var t = teamById(f.teamId);
           var body = f.text || f.question || (f.linkUrl ? 'Nouveau lien partagé' : (f.photoURL ? 'Nouvelle photo partagée' : 'Nouvelle publication'));
-          new Notification('Carnet de Piste', { body: 'Actu' + (t ? ' de ' + t.name : ' de ton Team') + ' : ' + body.slice(0, 100) });
+          sendAppNotification('Actu' + (t ? ' de ' + t.name : ' de ton Team') + ' : ' + body.slice(0, 100));
         }
       });
       maybeNotifyTeamFeedReaction(posts);
@@ -14108,7 +14135,7 @@
       notifyOnNewIds('team-adherent-requests', pendingAdherentRequests(), function (f) { return f.id; }, function (f) {
         if (!notifCategoryAllowed('notifyAdherentRequests')) return;
         var t = teamById(f.followee);
-        new Notification('Carnet de Piste', { body: f.follower + ' souhaite devenir adhérent' + (t ? ' de ' + t.name : '') + '.' });
+        sendAppNotification(f.follower + ' souhaite devenir adhérent' + (t ? ' de ' + t.name : '') + '.');
       });
       renderRoot();
     }, handleSyncError));
@@ -14136,7 +14163,7 @@
         if (currentUserProfile && a.from === currentUserProfile.name) return;
         if (notifCategoryAllowed('notifyEventAnnouncements')) {
           var ev = (STATE.events || []).filter(function (e) { return e.id === a.eventId; })[0];
-          new Notification('Carnet de Piste', { body: (ev ? ev.circuit + ' — ' : '') + (a.text || '').slice(0, 150) });
+          sendAppNotification((ev ? ev.circuit + ' — ' : '') + (a.text || '').slice(0, 150));
         }
       });
       STATE.eventAnnouncements = posts;
@@ -14190,7 +14217,7 @@
       notifyOnNewIds('coach-messages', messages, function (m) { return m.id; }, function (m) {
         if (currentUserProfile && m.from === currentUserProfile.name) return;
         if (notifCategoryAllowed('notifyCoachMessages')) {
-          new Notification('Carnet de Piste', { body: 'Message de ' + m.from + ' (coaching) : ' + (m.text || '').slice(0, 100) });
+          sendAppNotification('Message de ' + m.from + ' (coaching) : ' + (m.text || '').slice(0, 100));
         }
       });
       STATE.coachMessages = messages.sort(function (a, b) { return (a.createdAt || 0) - (b.createdAt || 0); });

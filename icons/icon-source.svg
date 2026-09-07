@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" fill="#e4e9ee"/>
+  <circle cx="256" cy="224" r="112" fill="none" stroke="#16212c" stroke-width="56"/>
+  <circle cx="256" cy="224" r="20" fill="#d9691b"/>
+  <g>
+    <!-- Checkered finish line, 8 columns x 2 rows -->
+    <clipPath id="checker-clip"><rect x="64" y="368" width="384" height="64"/></clipPath>
+    <g clip-path="url(#checker-clip)">
+      <rect x="64" y="368" width="384" height="64" fill="#e4e9ee"/>
+      <g fill="#16212c">
+        <rect x="64" y="368" width="48" height="32"/>
+        <rect x="160" y="368" width="48" height="32"/>
+        <rect x="256" y="368" width="48" height="32"/>
+        <rect x="352" y="368" width="48" height="32"/>
+        <rect x="112" y="400" width="48" height="32"/>
+        <rect x="208" y="400" width="48" height="32"/>
+        <rect x="304" y="400" width="48" height="32"/>
+        <rect x="400" y="400" width="48" height="32"/>
+      </g>
+    </g>
+  </g>
+</svg>
