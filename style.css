@@ -108,6 +108,14 @@
        colour instead of blending into the background. */
     border-bottom: 3px solid var(--accent);
     margin-bottom: 0;
+    /* Installed as a standalone PWA (see manifest.json), there's no browser
+       chrome left to push content below the device's own status bar/notch
+       -- without this, the clock/signal icons render right on top of the
+       title and header buttons. Padding (not just a top offset) so it's
+       included in the offsetHeight updateFixedHeaderOffset() measures,
+       and .wrap's padding-top -- driven by that same --header-h -- clears
+       it automatically. A no-op on a normal browser tab (inset is 0). */
+    padding-top: env(safe-area-inset-top);
   }
   .title {
     font-family: var(--font-display);
