@@ -8166,23 +8166,70 @@
     return html;
   }
 
+  // Excludes 'avant-session' -- it moved to its own standalone section
+  // (see renderAvantSessionChecklist) right above this one, so its items
+  // shouldn't also count toward this label's X/Y.
   function checklistCountLabel(ev) {
-    var allItems = checklistAllItems();
+    var allItems = [];
+    checklistTemplate().categories.forEach(function (cat) {
+      if (cat.id !== 'avant-session') cat.items.forEach(function (item) { allItems.push(item); });
+    });
     if (!allItems.length) return 'Liste des équipements avant le départ pour le circuit';
     var checklist = ev.checklist || {};
     var done = allItems.filter(function (item) { return checklist[item.id]; }).length;
     return 'Liste des équipements avant le départ pour le circuit — ' + done + '/' + allItems.length;
   }
 
+  function avantSessionCategory() {
+    return checklistTemplate().categories.filter(function (c) { return c.id === 'avant-session'; })[0] || null;
+  }
+
+  function avantSessionChecklistLabel(ev) {
+    var cat = avantSessionCategory();
+    if (!cat || !cat.items.length) return 'Liste avant toute session';
+    var checklist = ev.checklist || {};
+    var done = cat.items.filter(function (item) { return checklist[item.id]; }).length;
+    return 'Liste avant toute session — ' + done + '/' + cat.items.length;
+  }
+
+  // Its own standalone section (between Mes amis and the equipment
+  // checklist) rather than just another category nested inside the
+  // equipment checklist -- it's checked before EVERY session, not once
+  // per event like the rest, so it deserves to stand on its own instead
+  // of being buried a click deeper alongside "Papiers administratifs" and
+  // the like. Flat list, no per-category <details> nesting: there's only
+  // ever this one category here, so its own collapsibleSection wrapper
+  // (see the call site) is the only toggle it needs.
+  function renderAvantSessionChecklist(ev) {
+    var cat = avantSessionCategory();
+    if (!cat) return '';
+    var checklist = ev.checklist || {};
+    var admin = isAdmin();
+    var html = '<div class="event-checklist planning-checklist">';
+    cat.items.forEach(function (item) {
+      var checked = !!checklist[item.id];
+      html += '<div class="checklist-item-row">' +
+        '<label class="checklist-item"><input type="checkbox" data-checklist-key="' + item.id + '" data-event-id="' + ev.id + '"' + (checked ? ' checked' : '') + '> ' + escapeHtml(item.label) + '</label>' +
+        (admin ? '<button type="button" class="ghost icon-btn checklist-item-remove" data-action="remove-checklist-item" data-category="' + cat.id + '" data-item="' + item.id + '" aria-label="Retirer ' + escapeHtml(item.label) + '" title="Retirer">×</button>' : '') +
+        '</div>';
+    });
+    html += '<form class="checklist-add-item-form" data-add-item-category="' + cat.id + '">' +
+      '<input type="text" placeholder="+ ajouter un objet" data-new-item-input>' +
+      '<button type="submit" class="ghost">Ajouter</button></form>';
+    html += '</div>';
+    return html;
+  }
+
   // The full, editable, categorized pense-bête -- any rider can check an
   // item for this sortie, add/remove an item within a category, or add/
-  // remove a whole category, straight from Planning.
+  // remove a whole category, straight from Planning. 'avant-session' is
+  // excluded (see renderAvantSessionChecklist just above).
   function renderPlanningChecklist(ev) {
     var tpl = checklistTemplate();
     var checklist = ev.checklist || {};
     var admin = isAdmin();
     var html = '<div class="event-checklist planning-checklist">';
-    tpl.categories.forEach(function (cat) {
+    tpl.categories.filter(function (cat) { return cat.id !== 'avant-session'; }).forEach(function (cat) {
       var isPendingDelete = pendingDeleteChecklistCategory === cat.id;
       var doneInCat = cat.items.filter(function (item) { return checklist[item.id]; }).length;
       var catKey = 'cat-' + cat.id;
@@ -8424,6 +8471,7 @@
     // something the Team orga fills in for everyone.
     var personal = '<div class="card personal-info-card">';
     personal += renderFriendsGroupSection(ev);
+    personal += collapsibleSection('avant-session-section', avantSessionChecklistLabel(ev), renderAvantSessionChecklist(ev));
     personal += collapsibleSection('equipement', checklistCountLabel(ev), renderPlanningChecklist(ev));
     personal += renderMyTravelInfoSection(ev);
     personal += renderFollowedTravelInfoSection(ev);
