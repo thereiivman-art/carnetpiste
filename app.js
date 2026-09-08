@@ -213,6 +213,8 @@
       social_settings_heading: 'Réglages social', social_settings_help: 'Ce que tes amis voient quand ils ouvrent ta fiche depuis Social.',
       share_events_chronos: 'Partager mes événements/chronos', share_trophies: 'Partager mes trophées',
       share_travel_info: 'Partager mes infos de voyage (avec les amis qui te suivent)',
+      travel_defaults_heading: 'Mes infos de voyage par défaut', travel_defaults_help: 'Pré-remplit "Mes infos de voyage" sur chaque nouvel événement -- à ajuster ensuite si un déplacement particulier diffère.',
+      travel_prefilled_from_defaults: 'Pré-rempli depuis tes infos de voyage par défaut (Mon profil) -- modifie-les ici si cette sortie est différente.',
       account_heading: 'Compte', current_email_label: 'Email actuel', new_email_label: 'Nouvel email',
       current_password_label: 'Mot de passe actuel', change_email_btn: 'Changer mon email',
       delete_account_heading: 'Supprimer mon compte',
@@ -583,6 +585,8 @@
       social_settings_heading: 'Social settings', social_settings_help: 'What your friends see when they open your card from Social.',
       share_events_chronos: 'Share my events/lap times', share_trophies: 'Share my trophies',
       share_travel_info: 'Share my travel info (with friends who follow you)',
+      travel_defaults_heading: 'My default travel info', travel_defaults_help: 'Pre-fills "My travel info" on every new event -- adjust it afterward if a specific trip differs.',
+      travel_prefilled_from_defaults: 'Pre-filled from your default travel info (My profile) -- edit it here if this outing is different.',
       account_heading: 'Account', current_email_label: 'Current email', new_email_label: 'New email',
       current_password_label: 'Current password', change_email_btn: 'Change my email',
       delete_account_heading: 'Delete my account',
@@ -3234,6 +3238,7 @@
     html += '<label class="checklist-item" style="margin-top:0.4rem;"><input type="checkbox" id="profile-share-trophees"' + (p.shareTrophees !== false ? ' checked' : '') + '> ' + tr('share_trophies') + '</label>';
     html += '<label class="checklist-item" style="margin-top:0.4rem;"><input type="checkbox" id="profile-share-travel-info"' + (p.shareTravelInfo !== false ? ' checked' : '') + '> ' + tr('share_travel_info') + '</label>';
     html += '</div>';
+    html += '<div style="margin-top:1.2rem; border-top:1px solid var(--border); padding-top:0.9rem;">' + renderMyTravelDefaultsSection() + '</div>';
     if (isAdmin()) html += renderSelfBadges(p);
     // Separate form -- changing the sign-in email needs the current
     // password (Firebase requires a recent reauthentication for it), which
@@ -7763,25 +7768,52 @@
       renderRoot();
     }).catch(function () {});
   }
+  // Shared by the per-event form (renderMyTravelInfoSection, idPrefix
+  // 'travel' -- unchanged ids, so this refactor doesn't touch existing
+  // saved forms/handlers) and the per-rider defaults form
+  // (renderMyTravelDefaultsSection, idPrefix 'travel-default').
+  function renderTravelInfoFieldsHtml(prefix, info) {
+    var body = '<div class="field-row" style="margin-top:0.6rem;">';
+    body += '<div><label for="' + prefix + '-hotel-name">Hôtel — nom</label><input type="text" id="' + prefix + '-hotel-name" placeholder="Ex. Ibis Le Mans" value="' + escapeHtml(info.hotelName || '') + '"></div>';
+    body += '<div><label for="' + prefix + '-hotel-address">Hôtel — adresse</label><input type="text" id="' + prefix + '-hotel-address" placeholder="Ex. 12 rue de la Sarthe, 72100 Le Mans" value="' + escapeHtml(info.hotelAddress || '') + '"></div>';
+    body += '<div><label for="' + prefix + '-hotel-link">Hôtel — lien</label><input type="url" id="' + prefix + '-hotel-link" placeholder="Ex. https://booking.com/..." value="' + escapeHtml(info.hotelLink || '') + '"></div>';
+    body += '<div><label for="' + prefix + '-booking-link">Lien de réservation</label><input type="url" id="' + prefix + '-booking-link" placeholder="Ex. https://..." value="' + escapeHtml(info.bookingLink || '') + '"></div>';
+    body += '</div>';
+    body += '<label style="margin-top:0.6rem; display:block;">Avion</label><div class="field-row">';
+    body += '<div><label for="' + prefix + '-flight-out-dep" class="horaires-sublabel">Aller — départ</label><input type="text" id="' + prefix + '-flight-out-dep" placeholder="Ex. 6h40" value="' + escapeHtml(info.flightOutDep || '') + '"></div>';
+    body += '<div><label for="' + prefix + '-flight-out-arr" class="horaires-sublabel">Aller — arrivée</label><input type="text" id="' + prefix + '-flight-out-arr" placeholder="Ex. 8h15" value="' + escapeHtml(info.flightOutArr || '') + '"></div>';
+    body += '<div><label for="' + prefix + '-flight-back-dep" class="horaires-sublabel">Retour — départ</label><input type="text" id="' + prefix + '-flight-back-dep" placeholder="Ex. 18h00" value="' + escapeHtml(info.flightBackDep || '') + '"></div>';
+    body += '<div><label for="' + prefix + '-flight-back-arr" class="horaires-sublabel">Retour — arrivée</label><input type="text" id="' + prefix + '-flight-back-arr" placeholder="Ex. 19h35" value="' + escapeHtml(info.flightBackArr || '') + '"></div>';
+    body += '<div><label for="' + prefix + '-airport-dep" class="horaires-sublabel">Aéroport — départ</label><input type="text" id="' + prefix + '-airport-dep" placeholder="Ex. Paris Beauvais" value="' + escapeHtml(info.airportDep || '') + '"></div>';
+    body += '<div><label for="' + prefix + '-airport-arr" class="horaires-sublabel">Aéroport — arrivée</label><input type="text" id="' + prefix + '-airport-arr" placeholder="Ex. Aéroport de Bologne" value="' + escapeHtml(info.airportArr || '') + '"></div>';
+    body += '<div><label for="' + prefix + '-flight-link" class="horaires-sublabel">Billet d\'avion — lien</label><input type="url" id="' + prefix + '-flight-link" placeholder="Ex. https://..." value="' + escapeHtml(info.flightLink || '') + '"></div>';
+    body += '</div>';
+    body += '<div style="margin-top:0.6rem;"><label for="' + prefix + '-note">Notes</label><textarea id="' + prefix + '-note" rows="2" placeholder="Toute autre info utile (location de voiture, covoiturage, code du logement...)">' + escapeHtml(info.note || '') + '</textarea></div>';
+    return body;
+  }
+  function readTravelInfoFieldsFromForm(prefix) {
+    function val(id) { var el = document.getElementById(id); return el ? (el.value || '').trim() || null : null; }
+    return {
+      hotelName: val(prefix + '-hotel-name'),
+      hotelAddress: val(prefix + '-hotel-address'),
+      hotelLink: val(prefix + '-hotel-link'),
+      bookingLink: val(prefix + '-booking-link'),
+      flightOutDep: val(prefix + '-flight-out-dep'),
+      flightOutArr: val(prefix + '-flight-out-arr'),
+      flightBackDep: val(prefix + '-flight-back-dep'),
+      flightBackArr: val(prefix + '-flight-back-arr'),
+      flightLink: val(prefix + '-flight-link'),
+      airportDep: val(prefix + '-airport-dep'),
+      airportArr: val(prefix + '-airport-arr'),
+      note: val(prefix + '-note')
+    };
+  }
   function saveMyTravelInfo(eventId) {
     var me = currentUserProfile;
     if (!me) return;
-    var data = {
-      rider: me.name,
-      uid: myUid(),
-      hotelName: (document.getElementById('travel-hotel-name').value || '').trim() || null,
-      hotelAddress: (document.getElementById('travel-hotel-address').value || '').trim() || null,
-      hotelLink: (document.getElementById('travel-hotel-link').value || '').trim() || null,
-      bookingLink: (document.getElementById('travel-booking-link').value || '').trim() || null,
-      flightOutDep: (document.getElementById('travel-flight-out-dep').value || '').trim() || null,
-      flightOutArr: (document.getElementById('travel-flight-out-arr').value || '').trim() || null,
-      flightBackDep: (document.getElementById('travel-flight-back-dep').value || '').trim() || null,
-      flightBackArr: (document.getElementById('travel-flight-back-arr').value || '').trim() || null,
-      flightLink: (document.getElementById('travel-flight-link').value || '').trim() || null,
-      airportDep: (document.getElementById('travel-airport-dep').value || '').trim() || null,
-      airportArr: (document.getElementById('travel-airport-arr').value || '').trim() || null,
-      note: (document.getElementById('travel-note').value || '').trim() || null
-    };
+    var data = readTravelInfoFieldsFromForm('travel');
+    data.rider = me.name;
+    data.uid = myUid();
     db.collection('eventTravelInfo').doc(eventId + '_' + me.name).set(data, { merge: true }).then(function () {
       travelInfoByEvent[eventId] = data;
       showToast(tr('travel_info_saved'), 'success');
@@ -7790,27 +7822,54 @@
       showToast(tr('error_prefix') + (err && err.message ? err.message : err));
     });
   }
+  // Per-rider, not per-event -- "je veux entrer mes infos de voyage une
+  // fois pour tous les futurs événements" -- see renderMyTravelDefaultsSection
+  // (Mon profil) where it's actually edited. renderMyTravelInfoSection below
+  // pre-fills a new event's (still-empty) form from this instead of leaving
+  // it blank; saving that event's own form still only ever writes
+  // eventTravelInfo for that one event, so a one-off trip (different
+  // hotel/flight) is always free to diverge without touching the default.
+  var myTravelDefaults = null; // null = not loaded yet, {} = loaded, nothing set
+  function ensureMyTravelDefaultsLoaded() {
+    if (!currentUserProfile || myTravelDefaults !== null) return;
+    myTravelDefaults = {};
+    db.collection('eventTravelInfoDefaults').doc(currentUserProfile.name).get().then(function (doc) {
+      myTravelDefaults = doc.exists ? doc.data() : {};
+      renderRoot();
+    }).catch(function () {});
+  }
+  function saveMyTravelDefaults() {
+    var me = currentUserProfile;
+    if (!me) return;
+    var data = readTravelInfoFieldsFromForm('travel-default');
+    data.rider = me.name;
+    db.collection('eventTravelInfoDefaults').doc(me.name).set(data).then(function () {
+      myTravelDefaults = data;
+      showToast(tr('travel_info_saved'), 'success');
+      renderRoot();
+    }).catch(function (err) {
+      showToast(tr('error_prefix') + (err && err.message ? err.message : err));
+    });
+  }
+  function renderMyTravelDefaultsSection() {
+    if (!currentUserProfile) return '';
+    ensureMyTravelDefaultsLoaded();
+    var body = '<div class="help-text">' + tr('travel_defaults_help') + '</div>';
+    body += renderTravelInfoFieldsHtml('travel-default', myTravelDefaults || {});
+    body += '<div style="margin-top:0.6rem;"><button type="button" class="ghost" data-action="save-travel-defaults">' + tr('save') + '</button></div>';
+    return collapsibleSection('travel-defaults', tr('travel_defaults_heading'), body);
+  }
   function renderMyTravelInfoSection(ev) {
     if (!currentUserProfile) return '';
     ensureMyTravelInfoLoaded(ev.id);
+    ensureMyTravelDefaultsLoaded();
     var info = travelInfoByEvent[ev.id] || {};
+    var hasOwnInfo = Object.keys(info).length > 0;
+    var hasDefaults = myTravelDefaults && Object.keys(myTravelDefaults).length > 0;
+    var effective = hasOwnInfo ? info : (hasDefaults ? myTravelDefaults : {});
     var body = '<div class="help-text">Visible par toi et par les comptes Accompagnant qui te suivent.</div>';
-    body += '<div class="field-row" style="margin-top:0.6rem;">';
-    body += '<div><label for="travel-hotel-name">Hôtel — nom</label><input type="text" id="travel-hotel-name" placeholder="Ex. Ibis Le Mans" value="' + escapeHtml(info.hotelName || '') + '"></div>';
-    body += '<div><label for="travel-hotel-address">Hôtel — adresse</label><input type="text" id="travel-hotel-address" placeholder="Ex. 12 rue de la Sarthe, 72100 Le Mans" value="' + escapeHtml(info.hotelAddress || '') + '"></div>';
-    body += '<div><label for="travel-hotel-link">Hôtel — lien</label><input type="url" id="travel-hotel-link" placeholder="Ex. https://booking.com/..." value="' + escapeHtml(info.hotelLink || '') + '"></div>';
-    body += '<div><label for="travel-booking-link">Lien de réservation</label><input type="url" id="travel-booking-link" placeholder="Ex. https://..." value="' + escapeHtml(info.bookingLink || '') + '"></div>';
-    body += '</div>';
-    body += '<label style="margin-top:0.6rem; display:block;">Avion</label><div class="field-row">';
-    body += '<div><label for="travel-flight-out-dep" class="horaires-sublabel">Aller — départ</label><input type="text" id="travel-flight-out-dep" placeholder="Ex. 6h40" value="' + escapeHtml(info.flightOutDep || '') + '"></div>';
-    body += '<div><label for="travel-flight-out-arr" class="horaires-sublabel">Aller — arrivée</label><input type="text" id="travel-flight-out-arr" placeholder="Ex. 8h15" value="' + escapeHtml(info.flightOutArr || '') + '"></div>';
-    body += '<div><label for="travel-flight-back-dep" class="horaires-sublabel">Retour — départ</label><input type="text" id="travel-flight-back-dep" placeholder="Ex. 18h00" value="' + escapeHtml(info.flightBackDep || '') + '"></div>';
-    body += '<div><label for="travel-flight-back-arr" class="horaires-sublabel">Retour — arrivée</label><input type="text" id="travel-flight-back-arr" placeholder="Ex. 19h35" value="' + escapeHtml(info.flightBackArr || '') + '"></div>';
-    body += '<div><label for="travel-airport-dep" class="horaires-sublabel">Aéroport — départ</label><input type="text" id="travel-airport-dep" placeholder="Ex. Paris Beauvais" value="' + escapeHtml(info.airportDep || '') + '"></div>';
-    body += '<div><label for="travel-airport-arr" class="horaires-sublabel">Aéroport — arrivée</label><input type="text" id="travel-airport-arr" placeholder="Ex. Aéroport de Bologne" value="' + escapeHtml(info.airportArr || '') + '"></div>';
-    body += '<div><label for="travel-flight-link" class="horaires-sublabel">Billet d\'avion — lien</label><input type="url" id="travel-flight-link" placeholder="Ex. https://..." value="' + escapeHtml(info.flightLink || '') + '"></div>';
-    body += '</div>';
-    body += '<div style="margin-top:0.6rem;"><label for="travel-note">Notes</label><textarea id="travel-note" rows="2" placeholder="Toute autre info utile (location de voiture, covoiturage, code du logement...)">' + escapeHtml(info.note || '') + '</textarea></div>';
+    if (!hasOwnInfo && hasDefaults) body += '<div class="help-text">' + tr('travel_prefilled_from_defaults') + '</div>';
+    body += renderTravelInfoFieldsHtml('travel', effective);
     body += '<div style="margin-top:0.6rem;"><button type="button" class="ghost" data-action="save-travel-info" data-event-id="' + ev.id + '">Enregistrer</button></div>';
     return collapsibleSection('travel-info-' + ev.id, 'Mes infos de voyage', body);
   }
@@ -13588,6 +13647,9 @@
     });
     document.querySelectorAll('[data-action="save-travel-info"]').forEach(function (btn) {
       btn.addEventListener('click', function () { saveMyTravelInfo(btn.getAttribute('data-event-id')); });
+    });
+    document.querySelectorAll('[data-action="save-travel-defaults"]').forEach(function (btn) {
+      btn.addEventListener('click', saveMyTravelDefaults);
     });
     var addChronoToggle = document.getElementById('add-chrono-toggle');
     if (addChronoToggle) {

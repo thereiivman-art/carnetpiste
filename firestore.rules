@@ -700,6 +700,16 @@ service cloud.firestore {
       allow update: if verified() && (isAdmin() || resource.data.rider == myName() || canBackfillUid(resource, 'rider', 'uid'));
       allow delete: if verified() && (isAdmin() || resource.data.rider == myName() || resource.data.get('uid', null) == request.auth.uid);
     }
+    // "Mes infos de voyage par défaut" (Mon profil) -- a personal template
+    // (same shape as eventTravelInfo) that pre-fills a new event's own,
+    // still-empty travel info instead of leaving it blank (see
+    // renderMyTravelInfoSection). Doc id is the rider's own name, so unlike
+    // eventTravelInfo there's no per-event id to reconcile on a rename --
+    // strictly self-only, never shared with followers (only the per-event
+    // copy a rider actually saves is ever visible to them).
+    match /eventTravelInfoDefaults/{id} {
+      allow read, write: if verified() && (isAdmin() || id == myName());
+    }
     // Retour d'expérience libre envoyé depuis Profil -> Suggestion --
     // write-only for whoever sends it (no edit/delete of one's own once
     // sent), read-only for the admin who reviews them like a shared inbox.
