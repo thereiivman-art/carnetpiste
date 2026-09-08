@@ -2269,6 +2269,12 @@
     z-index: 100;
     display: none;
     flex-direction: column;
+    /* Same PWA-standalone fix as header.page-head: this is its own
+       separate full-screen fixed layer (not inside .wrap), so it needs
+       the device status-bar/notch clearance again on its own -- without
+       it, .annot-header sits right under the clock/camera housing once
+       the app is installed. */
+    padding-top: env(safe-area-inset-top);
   }
   .annot-overlay.open { display: flex; }
   .annot-overlay.force-landscape {
@@ -2460,7 +2466,7 @@
   }
   .annot-image-preview-close {
     position: absolute;
-    top: 1rem;
+    top: calc(1rem + env(safe-area-inset-top));
     right: 1rem;
     background: rgba(255,255,255,0.15);
     color: #ffffff;
