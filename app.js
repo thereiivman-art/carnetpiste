@@ -2316,50 +2316,58 @@
       ]},
       // Checked before EVERY session (not once per event like the
       // categories above) -- moto (pneus/freinage/mécanique) and pilote
-      // (équipement/physique/mental), each item labelled with its group so
-      // the flat checklist UI still reads as organized. Stable id
-      // ('avant-session') doubles as the marker ensureAvantSessionChecklist
-      // below checks for, so an already-materialized live template (see
-      // checklistTemplate()) also gets this category exactly once.
+      // (équipement/physique/mental). group/subgroup drive the headings
+      // renderAvantSessionChecklist prints once per group instead of
+      // repeating "Moto — Pneus :" on every single item -- only `label`
+      // needs to actually say what to check. Stable id ('avant-session')
+      // doubles as the marker ensureAvantSessionChecklistCategory below
+      // checks for, so an already-materialized live template (see
+      // checklistTemplate()) also gets this category (or its later
+      // reshapes) applied.
       { id: 'avant-session', name: 'Liste avant toute session', items: [
-        { id: 'as-pneus-pression', label: 'Moto — Pneus : pression' },
-        { id: 'as-pneus-etat', label: 'Moto — Pneus : état' },
-        { id: 'as-pneus-couverture', label: 'Moto — Pneus : couverture' },
-        { id: 'as-freinage-plaquettes', label: 'Moto — Freinage : plaquettes' },
-        { id: 'as-freinage-levier', label: 'Moto — Freinage : levier' },
-        { id: 'as-freinage-liquide', label: 'Moto — Freinage : liquide' },
-        { id: 'as-meca-chaine', label: 'Moto — Mécanique : chaîne' },
-        { id: 'as-meca-huile', label: 'Moto — Mécanique : huile' },
-        { id: 'as-meca-eau', label: 'Moto — Mécanique : eau' },
-        { id: 'as-meca-serrage', label: 'Moto — Mécanique : serrage' },
-        { id: 'as-meca-fuite', label: 'Moto — Mécanique : fuite' },
-        { id: 'as-equip-casque', label: 'Pilote — Équipement : casque / visière propre' },
-        { id: 'as-equip-dorsale', label: 'Pilote — Équipement : dorsale / airbag chargé (racing)' },
-        { id: 'as-physique-hydrater', label: "Pilote — Physique : s'hydrater" },
-        { id: 'as-physique-echauffer', label: "Pilote — Physique : s'échauffer" },
-        { id: 'as-physique-fatigue', label: 'Pilote — Physique : pas forcer si fatigué' },
-        { id: 'as-mental-respiration', label: 'Pilote — Mental : respiration calme' },
-        { id: 'as-mental-objectif', label: 'Pilote — Mental : objectif de session' },
-        { id: 'as-mental-concentration', label: 'Pilote — Mental : concentration' }
+        { id: 'as-pneus-pression', label: 'Pression', group: 'Moto', subgroup: 'Pneus' },
+        { id: 'as-pneus-etat', label: 'État', group: 'Moto', subgroup: 'Pneus' },
+        { id: 'as-pneus-couverture', label: 'Couverture', group: 'Moto', subgroup: 'Pneus' },
+        { id: 'as-freinage-plaquettes', label: 'Plaquettes', group: 'Moto', subgroup: 'Freinage' },
+        { id: 'as-freinage-levier', label: 'Levier', group: 'Moto', subgroup: 'Freinage' },
+        { id: 'as-freinage-liquide', label: 'Liquide', group: 'Moto', subgroup: 'Freinage' },
+        { id: 'as-meca-chaine', label: 'Chaîne', group: 'Moto', subgroup: 'Mécanique' },
+        { id: 'as-meca-huile', label: 'Huile', group: 'Moto', subgroup: 'Mécanique' },
+        { id: 'as-meca-eau', label: 'Eau', group: 'Moto', subgroup: 'Mécanique' },
+        { id: 'as-meca-serrage', label: 'Serrage', group: 'Moto', subgroup: 'Mécanique' },
+        { id: 'as-meca-fuite', label: 'Fuite', group: 'Moto', subgroup: 'Mécanique' },
+        { id: 'as-equip-casque', label: 'Casque / visière propre', group: 'Pilote', subgroup: 'Équipement' },
+        { id: 'as-equip-dorsale', label: 'Dorsale / airbag chargé (racing)', group: 'Pilote', subgroup: 'Équipement' },
+        { id: 'as-physique-hydrater', label: "S'hydrater", group: 'Pilote', subgroup: 'Physique' },
+        { id: 'as-physique-echauffer', label: "S'échauffer", group: 'Pilote', subgroup: 'Physique' },
+        { id: 'as-physique-fatigue', label: 'Pas forcer si fatigué', group: 'Pilote', subgroup: 'Physique' },
+        { id: 'as-mental-respiration', label: 'Respiration calme', group: 'Pilote', subgroup: 'Mental' },
+        { id: 'as-mental-objectif', label: 'Objectif de session', group: 'Pilote', subgroup: 'Mental' },
+        { id: 'as-mental-concentration', label: 'Concentration', group: 'Pilote', subgroup: 'Mental' }
       ]}
     ]
   };
 
-  // One-time backfill for a live template that already materialized (see
+  // Backfill for a live template that already materialized (see
   // cloneChecklistTemplate) before the 'avant-session' category above
-  // existed -- a fresh/never-edited install just gets it for free from
-  // DEFAULT_CHECKLIST_TEMPLATE, no backfill needed. Idempotent (checks the
-  // category id is already there) and collaborative-write-safe the same
-  // way as any other checklist edit (settings/checklist is open to any
-  // verified account, see firestore.rules) -- worst case with two clients
-  // racing on a cold cache is a rare duplicate category, trivially removed
-  // like any other checklist mistake.
+  // existed, or before it grew group/subgroup (its first shape repeated
+  // "Moto — Pneus :" etc. on every item's own label instead) -- a fresh/
+  // never-edited install just gets the current shape for free from
+  // DEFAULT_CHECKLIST_TEMPLATE, no backfill needed. Detects "old shape" by
+  // any item missing `group` (added items keep their checked state in
+  // ev.checklist either way, since ids don't change across reshapes) and
+  // replaces the whole category wholesale in that case -- collaborative-
+  // write-safe the same way as any other checklist edit (settings/
+  // checklist is open to any verified account, see firestore.rules).
   function ensureAvantSessionChecklistCategory() {
     if (!STATE.checklistTemplate) return;
-    if (STATE.checklistTemplate.categories.some(function (c) { return c.id === 'avant-session'; })) return;
+    var current = STATE.checklistTemplate.categories.filter(function (c) { return c.id === 'avant-session'; })[0];
+    if (current && current.items.every(function (item) { return item.group; })) return;
+    var latest = JSON.parse(JSON.stringify(DEFAULT_CHECKLIST_TEMPLATE.categories.filter(function (c) { return c.id === 'avant-session'; })[0]));
     var prevState = JSON.parse(JSON.stringify(STATE));
     var tpl = cloneChecklistTemplate();
-    tpl.categories.push(JSON.parse(JSON.stringify(DEFAULT_CHECKLIST_TEMPLATE.categories.filter(function (c) { return c.id === 'avant-session'; })[0])));
+    var idx = tpl.categories.findIndex(function (c) { return c.id === 'avant-session'; });
+    if (idx === -1) tpl.categories.push(latest); else tpl.categories[idx] = latest;
     STATE.checklistTemplate = tpl;
     persist(prevState);
   }
@@ -8206,7 +8214,22 @@
     var checklist = ev.checklist || {};
     var admin = isAdmin();
     var html = '<div class="event-checklist planning-checklist">';
+    // A heading prints only when the group/subgroup actually changes from
+    // the previous item -- items are already grouped in the template
+    // (Moto: Pneus, Freinage, Mécanique, then Pilote: Équipement,
+    // Physique, Mental), so this never reprints "Moto — Pneus :" on every
+    // line the way the item labels themselves used to.
+    var lastGroup = null, lastSubgroup = null;
     cat.items.forEach(function (item) {
+      if (item.group && item.group !== lastGroup) {
+        html += '<div class="checklist-group-heading">' + escapeHtml(item.group) + '</div>';
+        lastGroup = item.group;
+        lastSubgroup = null;
+      }
+      if (item.subgroup && item.subgroup !== lastSubgroup) {
+        html += '<div class="checklist-subgroup-heading">' + escapeHtml(item.subgroup) + '</div>';
+        lastSubgroup = item.subgroup;
+      }
       var checked = !!checklist[item.id];
       html += '<div class="checklist-item-row">' +
         '<label class="checklist-item"><input type="checkbox" data-checklist-key="' + item.id + '" data-event-id="' + ev.id + '"' + (checked ? ' checked' : '') + '> ' + escapeHtml(item.label) + '</label>' +

@@ -2165,6 +2165,24 @@
     margin-bottom: 0.2rem;
   }
   .checklist-category-name { font-weight: 600; font-size: 0.9rem; }
+  /* Group/subgroup headings inside the "Liste avant toute session"
+     section (see renderAvantSessionChecklist) -- print once per group
+     instead of repeating it on every item's own label. */
+  .checklist-group-heading {
+    font-weight: 700;
+    font-size: 0.95rem;
+    color: var(--accent);
+    margin-top: 0.9rem;
+  }
+  .checklist-group-heading:first-child { margin-top: 0; }
+  .checklist-subgroup-heading {
+    font-weight: 600;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    margin-top: 0.5rem;
+  }
   .checklist-add-item-form, .checklist-add-category-form {
     display: flex;
     gap: 0.5rem;
