@@ -7707,11 +7707,15 @@
       uid: myUid(),
       hotelName: (document.getElementById('travel-hotel-name').value || '').trim() || null,
       hotelAddress: (document.getElementById('travel-hotel-address').value || '').trim() || null,
+      hotelLink: (document.getElementById('travel-hotel-link').value || '').trim() || null,
+      bookingLink: (document.getElementById('travel-booking-link').value || '').trim() || null,
       flightOutDep: (document.getElementById('travel-flight-out-dep').value || '').trim() || null,
       flightOutArr: (document.getElementById('travel-flight-out-arr').value || '').trim() || null,
       flightBackDep: (document.getElementById('travel-flight-back-dep').value || '').trim() || null,
       flightBackArr: (document.getElementById('travel-flight-back-arr').value || '').trim() || null,
-      airport: (document.getElementById('travel-airport').value || '').trim() || null
+      flightLink: (document.getElementById('travel-flight-link').value || '').trim() || null,
+      airport: (document.getElementById('travel-airport').value || '').trim() || null,
+      note: (document.getElementById('travel-note').value || '').trim() || null
     };
     db.collection('eventTravelInfo').doc(eventId + '_' + me.name).set(data, { merge: true }).then(function () {
       travelInfoByEvent[eventId] = data;
@@ -7729,6 +7733,8 @@
     body += '<div class="field-row" style="margin-top:0.6rem;">';
     body += '<div><label for="travel-hotel-name">Hôtel — nom</label><input type="text" id="travel-hotel-name" placeholder="Ex. Ibis Le Mans" value="' + escapeHtml(info.hotelName || '') + '"></div>';
     body += '<div><label for="travel-hotel-address">Hôtel — adresse</label><input type="text" id="travel-hotel-address" placeholder="Ex. 12 rue de la Sarthe, 72100 Le Mans" value="' + escapeHtml(info.hotelAddress || '') + '"></div>';
+    body += '<div><label for="travel-hotel-link">Hôtel — lien</label><input type="url" id="travel-hotel-link" placeholder="Ex. https://booking.com/..." value="' + escapeHtml(info.hotelLink || '') + '"></div>';
+    body += '<div><label for="travel-booking-link">Lien de réservation</label><input type="url" id="travel-booking-link" placeholder="Ex. https://..." value="' + escapeHtml(info.bookingLink || '') + '"></div>';
     body += '</div>';
     body += '<label style="margin-top:0.6rem; display:block;">Avion</label><div class="field-row">';
     body += '<div><label for="travel-flight-out-dep" class="horaires-sublabel">Aller — départ</label><input type="text" id="travel-flight-out-dep" placeholder="Ex. 6h40" value="' + escapeHtml(info.flightOutDep || '') + '"></div>';
@@ -7736,7 +7742,9 @@
     body += '<div><label for="travel-flight-back-dep" class="horaires-sublabel">Retour — départ</label><input type="text" id="travel-flight-back-dep" placeholder="Ex. 18h00" value="' + escapeHtml(info.flightBackDep || '') + '"></div>';
     body += '<div><label for="travel-flight-back-arr" class="horaires-sublabel">Retour — arrivée</label><input type="text" id="travel-flight-back-arr" placeholder="Ex. 19h35" value="' + escapeHtml(info.flightBackArr || '') + '"></div>';
     body += '<div><label for="travel-airport" class="horaires-sublabel">Aéroport</label><input type="text" id="travel-airport" placeholder="Ex. Aéroport de Bologne" value="' + escapeHtml(info.airport || '') + '"></div>';
+    body += '<div><label for="travel-flight-link" class="horaires-sublabel">Billet d\'avion — lien</label><input type="url" id="travel-flight-link" placeholder="Ex. https://..." value="' + escapeHtml(info.flightLink || '') + '"></div>';
     body += '</div>';
+    body += '<div style="margin-top:0.6rem;"><label for="travel-note">Notes</label><textarea id="travel-note" rows="2" placeholder="Toute autre info utile (location de voiture, covoiturage, code du logement...)">' + escapeHtml(info.note || '') + '</textarea></div>';
     body += '<div style="margin-top:0.6rem;"><button type="button" class="ghost" data-action="save-travel-info" data-event-id="' + ev.id + '">Enregistrer</button></div>';
     return collapsibleSection('travel-info-' + ev.id, 'Mes infos de voyage', body);
   }
@@ -7763,10 +7771,14 @@
       else if (!Object.keys(info).length) rows = '<div class="help-text">Rien renseigné pour l\'instant.</div>';
       else {
         rows = '';
-        if (info.hotelName) rows += infoRow('Hôtel', escapeHtml(info.hotelName) + (info.hotelAddress ? ' — ' + escapeHtml(info.hotelAddress) : ''));
+        var travelLinkBtn = function (label, url) { return ' <button type="button" class="ghost" data-action="open-external-url" data-url="' + escapeHtml(url) + '">' + escapeHtml(label) + ' ↗</button>'; };
+        if (info.hotelName || info.hotelLink) rows += infoRow('Hôtel', escapeHtml(info.hotelName || '') + (info.hotelAddress ? ' — ' + escapeHtml(info.hotelAddress) : '') + (info.hotelLink ? travelLinkBtn('Lien', info.hotelLink) : ''));
+        if (info.bookingLink) rows += infoRow('Réservation', travelLinkBtn('Ouvrir', info.bookingLink));
         if (info.flightOutDep || info.flightOutArr) rows += infoRow('Aller', escapeHtml(info.flightOutDep || '?') + ' → ' + escapeHtml(info.flightOutArr || '?'));
         if (info.flightBackDep || info.flightBackArr) rows += infoRow('Retour', escapeHtml(info.flightBackDep || '?') + ' → ' + escapeHtml(info.flightBackArr || '?'));
+        if (info.flightLink) rows += infoRow('Billet d\'avion', travelLinkBtn('Ouvrir', info.flightLink));
         if (info.airport) rows += infoRow('Aéroport', escapeHtml(info.airport));
+        if (info.note) rows += infoRow('Notes', escapeHtml(info.note));
         if (!rows) rows = '<div class="help-text">Rien renseigné pour l\'instant.</div>';
       }
       return '<div style="margin-top:0.6rem;"><div class="account-role-tag" style="margin-bottom:0.3rem;">' + escapeHtml(rider) + '</div>' + rows + '</div>';
