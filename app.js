@@ -2313,9 +2313,56 @@
         { id: 'autocollant', label: 'Autocollant' },
         { id: 'plan-circuit', label: 'Plan circuit' },
         { id: 'app-telephone', label: 'Application téléphone' }
+      ]},
+      // Checked before EVERY session (not once per event like the
+      // categories above) -- moto (pneus/freinage/mécanique) and pilote
+      // (équipement/physique/mental), each item labelled with its group so
+      // the flat checklist UI still reads as organized. Stable id
+      // ('avant-session') doubles as the marker ensureAvantSessionChecklist
+      // below checks for, so an already-materialized live template (see
+      // checklistTemplate()) also gets this category exactly once.
+      { id: 'avant-session', name: 'Liste avant toute session', items: [
+        { id: 'as-pneus-pression', label: 'Moto — Pneus : pression' },
+        { id: 'as-pneus-etat', label: 'Moto — Pneus : état' },
+        { id: 'as-pneus-couverture', label: 'Moto — Pneus : couverture' },
+        { id: 'as-freinage-plaquettes', label: 'Moto — Freinage : plaquettes' },
+        { id: 'as-freinage-levier', label: 'Moto — Freinage : levier' },
+        { id: 'as-freinage-liquide', label: 'Moto — Freinage : liquide' },
+        { id: 'as-meca-chaine', label: 'Moto — Mécanique : chaîne' },
+        { id: 'as-meca-huile', label: 'Moto — Mécanique : huile' },
+        { id: 'as-meca-eau', label: 'Moto — Mécanique : eau' },
+        { id: 'as-meca-serrage', label: 'Moto — Mécanique : serrage' },
+        { id: 'as-meca-fuite', label: 'Moto — Mécanique : fuite' },
+        { id: 'as-equip-casque', label: 'Pilote — Équipement : casque / visière propre' },
+        { id: 'as-equip-dorsale', label: 'Pilote — Équipement : dorsale / airbag chargé (racing)' },
+        { id: 'as-physique-hydrater', label: "Pilote — Physique : s'hydrater" },
+        { id: 'as-physique-echauffer', label: "Pilote — Physique : s'échauffer" },
+        { id: 'as-physique-fatigue', label: 'Pilote — Physique : pas forcer si fatigué' },
+        { id: 'as-mental-respiration', label: 'Pilote — Mental : respiration calme' },
+        { id: 'as-mental-objectif', label: 'Pilote — Mental : objectif de session' },
+        { id: 'as-mental-concentration', label: 'Pilote — Mental : concentration' }
       ]}
     ]
   };
+
+  // One-time backfill for a live template that already materialized (see
+  // cloneChecklistTemplate) before the 'avant-session' category above
+  // existed -- a fresh/never-edited install just gets it for free from
+  // DEFAULT_CHECKLIST_TEMPLATE, no backfill needed. Idempotent (checks the
+  // category id is already there) and collaborative-write-safe the same
+  // way as any other checklist edit (settings/checklist is open to any
+  // verified account, see firestore.rules) -- worst case with two clients
+  // racing on a cold cache is a rare duplicate category, trivially removed
+  // like any other checklist mistake.
+  function ensureAvantSessionChecklistCategory() {
+    if (!STATE.checklistTemplate) return;
+    if (STATE.checklistTemplate.categories.some(function (c) { return c.id === 'avant-session'; })) return;
+    var prevState = JSON.parse(JSON.stringify(STATE));
+    var tpl = cloneChecklistTemplate();
+    tpl.categories.push(JSON.parse(JSON.stringify(DEFAULT_CHECKLIST_TEMPLATE.categories.filter(function (c) { return c.id === 'avant-session'; })[0])));
+    STATE.checklistTemplate = tpl;
+    persist(prevState);
+  }
 
   function checklistTemplate() {
     return STATE.checklistTemplate || DEFAULT_CHECKLIST_TEMPLATE;
@@ -8121,10 +8168,10 @@
 
   function checklistCountLabel(ev) {
     var allItems = checklistAllItems();
-    if (!allItems.length) return 'Équipement (pense-bête)';
+    if (!allItems.length) return 'Liste des équipements avant le départ pour le circuit';
     var checklist = ev.checklist || {};
     var done = allItems.filter(function (item) { return checklist[item.id]; }).length;
-    return 'Équipement (pense-bête) — ' + done + '/' + allItems.length;
+    return 'Liste des équipements avant le départ pour le circuit — ' + done + '/' + allItems.length;
   }
 
   // The full, editable, categorized pense-bête -- any rider can check an
@@ -14018,6 +14065,7 @@
     }, handleSyncError));
     unsubscribers.push(db.collection('settings').doc('checklist').onSnapshot(function (doc) {
       STATE.checklistTemplate = doc.exists ? doc.data() : null;
+      ensureAvantSessionChecklistCategory();
       renderRoot();
     }, handleSyncError));
     unsubscribers.push(db.collection('settings').doc('partners').onSnapshot(function (doc) {
