@@ -7714,7 +7714,8 @@
       flightBackDep: (document.getElementById('travel-flight-back-dep').value || '').trim() || null,
       flightBackArr: (document.getElementById('travel-flight-back-arr').value || '').trim() || null,
       flightLink: (document.getElementById('travel-flight-link').value || '').trim() || null,
-      airport: (document.getElementById('travel-airport').value || '').trim() || null,
+      airportDep: (document.getElementById('travel-airport-dep').value || '').trim() || null,
+      airportArr: (document.getElementById('travel-airport-arr').value || '').trim() || null,
       note: (document.getElementById('travel-note').value || '').trim() || null
     };
     db.collection('eventTravelInfo').doc(eventId + '_' + me.name).set(data, { merge: true }).then(function () {
@@ -7741,7 +7742,8 @@
     body += '<div><label for="travel-flight-out-arr" class="horaires-sublabel">Aller — arrivée</label><input type="text" id="travel-flight-out-arr" placeholder="Ex. 8h15" value="' + escapeHtml(info.flightOutArr || '') + '"></div>';
     body += '<div><label for="travel-flight-back-dep" class="horaires-sublabel">Retour — départ</label><input type="text" id="travel-flight-back-dep" placeholder="Ex. 18h00" value="' + escapeHtml(info.flightBackDep || '') + '"></div>';
     body += '<div><label for="travel-flight-back-arr" class="horaires-sublabel">Retour — arrivée</label><input type="text" id="travel-flight-back-arr" placeholder="Ex. 19h35" value="' + escapeHtml(info.flightBackArr || '') + '"></div>';
-    body += '<div><label for="travel-airport" class="horaires-sublabel">Aéroport</label><input type="text" id="travel-airport" placeholder="Ex. Aéroport de Bologne" value="' + escapeHtml(info.airport || '') + '"></div>';
+    body += '<div><label for="travel-airport-dep" class="horaires-sublabel">Aéroport — départ</label><input type="text" id="travel-airport-dep" placeholder="Ex. Paris Beauvais" value="' + escapeHtml(info.airportDep || '') + '"></div>';
+    body += '<div><label for="travel-airport-arr" class="horaires-sublabel">Aéroport — arrivée</label><input type="text" id="travel-airport-arr" placeholder="Ex. Aéroport de Bologne" value="' + escapeHtml(info.airportArr || '') + '"></div>';
     body += '<div><label for="travel-flight-link" class="horaires-sublabel">Billet d\'avion — lien</label><input type="url" id="travel-flight-link" placeholder="Ex. https://..." value="' + escapeHtml(info.flightLink || '') + '"></div>';
     body += '</div>';
     body += '<div style="margin-top:0.6rem;"><label for="travel-note">Notes</label><textarea id="travel-note" rows="2" placeholder="Toute autre info utile (location de voiture, covoiturage, code du logement...)">' + escapeHtml(info.note || '') + '</textarea></div>';
@@ -7777,7 +7779,7 @@
         if (info.flightOutDep || info.flightOutArr) rows += infoRow('Aller', escapeHtml(info.flightOutDep || '?') + ' → ' + escapeHtml(info.flightOutArr || '?'));
         if (info.flightBackDep || info.flightBackArr) rows += infoRow('Retour', escapeHtml(info.flightBackDep || '?') + ' → ' + escapeHtml(info.flightBackArr || '?'));
         if (info.flightLink) rows += infoRow('Billet d\'avion', travelLinkBtn('Ouvrir', info.flightLink));
-        if (info.airport) rows += infoRow('Aéroport', escapeHtml(info.airport));
+        if (info.airportDep || info.airportArr) rows += infoRow('Aéroport', escapeHtml(info.airportDep || '?') + ' → ' + escapeHtml(info.airportArr || '?'));
         if (info.note) rows += infoRow('Notes', escapeHtml(info.note));
         if (!rows) rows = '<div class="help-text">Rien renseigné pour l\'instant.</div>';
       }
