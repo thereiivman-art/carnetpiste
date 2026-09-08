@@ -7717,7 +7717,16 @@
     html += '<div class="event-circuit-map"><div class="event-checklist-title">' + tr('circuit_map_heading') + '</div>' + renderCircuitVisual(circuitInfo(ev.circuit), ev.circuit) + '</div>';
     // The équipement checklist (with its count) lives entirely in
     // Planning now -- Événements stays simple and informative.
-    html += '<div class="event-detail-actions"><button type="button" class="ghost" id="edit-event-btn" data-id="' + ev.id + '">' + tr('modify') + '</button>' +
+    // "Modifier" was shown unconditionally here (unlike every other edit
+    // entry point -- see renderEventManagementScreen's canEdit and
+    // Planning's isLeader) -- a Team event's roster member could open the
+    // full edit form even though firestore.rules would reject the actual
+    // write, a confusing dead end rather than the field just not being
+    // offered. A personal event (no teamId) stays editable by anyone, same
+    // as its own permissive write rule.
+    var canEditThisEvent = !ev.teamId || isLeaderOfTeam(ev.teamId);
+    html += '<div class="event-detail-actions">' +
+      (canEditThisEvent ? '<button type="button" class="ghost" id="edit-event-btn" data-id="' + ev.id + '">' + tr('modify') + '</button>' : '') +
       '<button type="button" class="ghost" data-action="export-event-recap" data-id="' + ev.id + '">' + tr('export_recap_btn') + '</button></div>';
     html += '</div>';
     return html;
