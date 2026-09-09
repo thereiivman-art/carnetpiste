@@ -73,6 +73,7 @@
       chronos_field_help: 'Un chrono par ligne (ou séparés par une virgule) — tape juste les chiffres, les : et . s\'ajoutent automatiquement. Ex. 1 54 104 pour 1:54.104.',
       note_optional: 'Note (optionnel)', submit_chrono: 'Enregistrer le chrono',
       granularity_day: 'Jour', granularity_event: 'Événement', granularity_all: 'All time',
+      compare_with_friend_label: 'Comparer avec un ami', compare_none_option: 'Aucun',
       table_date: 'Date', table_rider: 'Pilote', table_chronos: 'Chronos', table_bike: 'Moto',
       no_sessions_for_riders: 'Aucune session pour ce circuit avec les pilotes sélectionnés.',
       history_label: 'Historique',
@@ -445,6 +446,7 @@
       chronos_field_help: 'One lap time per line (or comma-separated) -- just type the digits, the : and . are added automatically. E.g. 1 54 104 for 1:54.104.',
       note_optional: 'Note (optional)', submit_chrono: 'Save lap time',
       granularity_day: 'Day', granularity_event: 'Event', granularity_all: 'All time',
+      compare_with_friend_label: 'Compare with a friend', compare_none_option: 'None',
       table_date: 'Date', table_rider: 'Rider', table_chronos: 'Lap times', table_bike: 'Bike',
       no_sessions_for_riders: 'No sessions for this circuit with the selected riders.',
       history_label: 'History',
@@ -4525,6 +4527,12 @@
   var PROGRESSION_POINTS = [];
   var PROGRESSION_MULTI = false; // whether the last render had >1 rider series (caption then names the rider)
   var progressionCircuitPick = null; // circuit chosen in the chart's own dropdown, overriding Circuit's selection
+  // "Comparer avec un ami" -- a friend added to the chart's own overlay,
+  // independent of (never mutates) the app-wide selectedRiders filter.
+  // A plain name, not a Set: only one at a time, picked from a dropdown
+  // (see renderProgressionChart) rather than a multi-select, since the
+  // point is "me vs. this one friend", not building an arbitrary roster.
+  var progressionCompareFriend = null;
 
   // Fixed hue order for rider series -- a rider keeps the same color
   // whenever they appear on this chart, regardless of who else is shown
@@ -4596,13 +4604,27 @@
     return relevant.map(function (s) { return { date: s.date, time: sessionBest(s) }; });
   }
 
-  function renderProgressionChart(riders, circuit, availableCircuits) {
+  function renderProgressionChart(baseRiders, circuit, availableCircuits) {
+    // Merged in below the app-wide rider selection, purely for this chart
+    // -- see progressionCompareFriend above.
+    var riders = baseRiders.slice();
+    if (progressionCompareFriend && riders.indexOf(progressionCompareFriend) === -1) riders.push(progressionCompareFriend);
     var selectorHtml = '';
     if (availableCircuits && availableCircuits.length > 1) {
       selectorHtml = '<label for="progression-circuit-select" class="help-text" style="display:block; margin-bottom:0.3rem;">' + tr('circuit_label') + '</label>' +
         '<select id="progression-circuit-select" style="margin-bottom:0.8rem;">' +
         availableCircuits.map(function (c) { return '<option value="' + escapeHtml(c) + '"' + (c === circuit ? ' selected' : '') + '>' + escapeHtml(c) + '</option>'; }).join('') +
         '</select>';
+    }
+    if (currentUserProfile) {
+      var compareCandidates = friendsOf(currentUserProfile.name).filter(function (f) { return baseRiders.indexOf(f.name) === -1; });
+      if (compareCandidates.length) {
+        selectorHtml += '<div style="margin-bottom:0.8rem;"><label for="progression-compare-select" class="help-text" style="display:block; margin-bottom:0.3rem;">' + tr('compare_with_friend_label') + '</label>' +
+          '<select id="progression-compare-select"><option value="">' + tr('compare_none_option') + '</option>' +
+          compareCandidates.map(function (f) {
+            return '<option value="' + escapeHtml(f.name) + '"' + (f.name === progressionCompareFriend ? ' selected' : '') + '>' + escapeHtml(f.name) + '</option>';
+          }).join('') + '</select></div>';
+      }
     }
     selectorHtml += '<div class="progression-granularity">' + [['day', tr('granularity_day')], ['event', tr('granularity_event')], ['all', tr('granularity_all')]].map(function (g) {
       return '<button type="button" class="ghost' + (progressionGranularity === g[0] ? ' active' : '') + '" data-action="progression-granularity" data-granularity="' + g[0] + '">' + g[1] + '</button>';
@@ -5092,10 +5114,13 @@
     html += '<div class="circuit-info-list">';
     html += infoRow(tr('distance_label'), info.km != null ? (escapeHtml(String(info.km)) + ' km') : '—');
     html += infoRow(tr('turns_label'), turnsHtml);
-    var lastEvent = (lastSession && lastSession.eventId) ? eventsList().filter(function (e) { return e.id === lastSession.eventId; })[0] : null;
     var lastOutingText = lastSession ? (escapeHtml(formatDate(lastSession.date)) + ' — ' + formatTime(sessionBest(lastSession))) : '—';
-    html += infoRow(tr('last_event_label'), lastEvent
-      ? '<button type="button" class="link-btn" id="last-outing-link" data-event-id="' + lastEvent.id + '">' + lastOutingText + '</button>'
+    // Used to jump to this session's own event (Événements) -- now jumps to
+    // the progression chart just below instead (see the click handler in
+    // attachHandlers), since "look at this chrono" more often means
+    // "how does it fit in my progression" than "what was this event".
+    html += infoRow(tr('last_event_label'), lastSession
+      ? '<button type="button" class="link-btn" id="last-outing-link">' + lastOutingText + '</button>'
       : lastOutingText);
     html += infoRow(tr('circuit_record_label'), recordSession ? (formatTime(recordTime) + ' (' + escapeHtml(recordSession.rider) + ')') : '—');
     var upcoming = nextOutingForCircuit(selectedCircuit);
@@ -13554,9 +13579,19 @@
     var lastOutingLink = document.getElementById('last-outing-link');
     if (lastOutingLink) {
       lastOutingLink.addEventListener('click', function () {
-        selectEvent(lastOutingLink.getAttribute('data-event-id'));
-        activeView = 'event';
+        // Force the progression chart open (same key math as
+        // renderProgressionChart/renderChronosTab) and scroll to it --
+        // it stays a <details> the user can still collapse afterward,
+        // this only guarantees it's open the moment we jump to it.
+        var progRiders = (selectedRiders && selectedRiders.size) ? Array.from(selectedRiders) : [];
+        if (progressionCompareFriend && progRiders.indexOf(progressionCompareFriend) === -1) progRiders.push(progressionCompareFriend);
+        var progKey = 'progression-' + progRiders.slice().sort().join(',');
+        planningSectionsOpen[progKey] = true;
         renderRoot();
+        requestAnimationFrame(function () {
+          var el = document.querySelector('[data-planning-section="' + progKey + '"]');
+          if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
       });
     }
     var closeEventDetail = document.getElementById('close-event-detail');
@@ -13964,6 +13999,13 @@
     if (progressionCircuitSelect) {
       progressionCircuitSelect.addEventListener('change', function () {
         progressionCircuitPick = progressionCircuitSelect.value;
+        renderRoot();
+      });
+    }
+    var progressionCompareSelect = document.getElementById('progression-compare-select');
+    if (progressionCompareSelect) {
+      progressionCompareSelect.addEventListener('change', function () {
+        progressionCompareFriend = progressionCompareSelect.value || null;
         renderRoot();
       });
     }
