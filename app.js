@@ -72,7 +72,7 @@
       no_specific_slot: 'Aucun créneau spécifique', chronos_field_label: 'Chronos',
       chronos_field_help: 'Un chrono par ligne (ou séparés par une virgule) — tape juste les chiffres, les : et . s\'ajoutent automatiquement. Ex. 1 54 104 pour 1:54.104.',
       note_optional: 'Note (optionnel)', submit_chrono: 'Enregistrer le chrono',
-      granularity_day: 'Jour', granularity_event: 'Événement', granularity_all: 'All time',
+      granularity_day: 'Jour', granularity_event: 'Événement', granularity_all: 'Tout',
       compare_with_friend_label: 'Comparer avec un ami', compare_none_option: 'Aucun',
       table_date: 'Date', table_rider: 'Pilote', table_chronos: 'Chronos', table_bike: 'Moto',
       no_sessions_for_riders: 'Aucune session pour ce circuit avec les pilotes sélectionnés.',
@@ -4562,7 +4562,7 @@
   // vertical scatter instead of hiding behind one collapsed value. Pure
   // UI state, not persisted, shared across every progression chart
   // currently on screen.
-  var progressionGranularity = 'day';
+  var progressionGranularity = 'all';
   var progressionDayPick = null; // 'YYYY-MM-DD', re-validated against the actual date list on every render
   var progressionEventPick = null; // an event id, same re-validation
 
