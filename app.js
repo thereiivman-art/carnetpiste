@@ -7741,6 +7741,17 @@
       }
     }
     html += renderEventCertificationSection(ev);
+    // Previously only reachable for whichever event happened to be
+    // targetPlanningEvent()'s current/next pick (EN PISTE) -- a rider
+    // signed up for two upcoming sorties had no way to fill in the
+    // second one's travel info until the first one passed. Every rider on
+    // this event can fill in their own here too, for any event that
+    // hasn't happened yet (a past one keeps this read-only-by-omission,
+    // same as the reaction bar just above going the other way).
+    if (currentUserProfile && (ev.riders || []).indexOf(currentUserProfile.name) !== -1
+      && eventTemporalStatus(ev, dateKey(new Date())) !== 'past') {
+      html += renderMyTravelInfoSection(ev);
+    }
     html += renderMediaLinkSection(ev);
     // The circuit's own interactive map, so the annotated track is one tap
     // away from the sortie it belongs to, not just reachable from Circuit.
