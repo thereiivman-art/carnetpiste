@@ -189,6 +189,7 @@
       done_label: 'Terminé', set_my_availability: '✎ Définir mes disponibilités',
       drag_to_mark_available: 'Clique ou fais glisser (doigt ou souris) sur les créneaux pour les marquer disponibles.',
       availability_legend: '🔵 disponible pour du coaching · 🟠 pour un baptême piste · 🟣 les deux.',
+      slot_type_locked_help: 'Aucun coach n\'a proposé l\'autre type sur ce créneau.',
       planning_horaires_label: 'Planning (horaires par groupe)',
       ask_for_slot_heading: 'Demander pour ', coaching_riders_only: 'Le coaching est réservé aux pilotes -- choisis "Baptême piste" ci-dessous.',
       proposed_slots_max: 'Créneaux proposés (3 maximum)',
@@ -208,8 +209,9 @@
       notify_coach_message: 'Nouveau message dans l\'espace coaching',
       notify_event_announcement: 'Annonce du Team Leader sur un événement',
       notify_event_ended: 'Un event auquel j\'ai participé vient de se terminer',
-      simplified_mode_label: 'Mode simplifié', simplified_mode_help: 'Masque par défaut Team, météo, checklists, comparaison de progression et infos de voyage pour ne garder que l\'essentiel (prochain événement, horaires, saisie de chrono). Un bouton "Afficher plus d\'options" les révèle ponctuellement sans changer ce réglage.',
+      simplified_mode_label: 'Mode simplifié', simplified_mode_help: 'Masque par défaut Team, Coaching, météo, checklists, comparaison de progression et infos de voyage pour ne garder que l\'essentiel (prochain événement, horaires, saisie de chrono). Un bouton "Afficher plus d\'options" les révèle ponctuellement sans changer ce réglage.',
       show_advanced_options: 'Afficher plus d\'options', hide_advanced_options: 'Masquer les options avancées',
+      simplified_mode_banner_text: 'Mode simplifié activé — certaines sections sont masquées.',
       feeling_after_session_heading: 'Ressenti après chaque session',
       enable_feeling: 'Activer le ressenti à ton retour de chaque session',
       feeling_help: 'Une fois activé, un chrono enregistré te proposera de dire en un clic comment s\'est passée la session (forme, fatigue...).',
@@ -564,6 +566,7 @@
       done_label: 'Done', set_my_availability: '✎ Set my availability',
       drag_to_mark_available: 'Tap or drag (finger or mouse) across slots to mark them available.',
       availability_legend: '🔵 available for coaching · 🟠 for a track intro · 🟣 both.',
+      slot_type_locked_help: 'No coach has offered the other type for this slot.',
       planning_horaires_label: 'Schedule (per group)',
       ask_for_slot_heading: 'Request for ', coaching_riders_only: 'Coaching is for riders only -- pick "Track intro" below.',
       proposed_slots_max: 'Proposed slots (3 max)',
@@ -583,8 +586,9 @@
       notify_coach_message: 'New message in the coaching space',
       notify_event_announcement: 'Team Leader announcement on an event',
       notify_event_ended: 'An event I took part in just ended',
-      simplified_mode_label: 'Simplified mode', simplified_mode_help: 'Hides Team, weather, checklists, progression comparison and travel info by default, keeping just the essentials (next event, schedule, chrono entry). A "Show more options" button reveals them for that visit without changing this setting.',
+      simplified_mode_label: 'Simplified mode', simplified_mode_help: 'Hides Team, Coaching, weather, checklists, progression comparison and travel info by default, keeping just the essentials (next event, schedule, chrono entry). A "Show more options" button reveals them for that visit without changing this setting.',
       show_advanced_options: 'Show more options', hide_advanced_options: 'Hide advanced options',
+      simplified_mode_banner_text: 'Simplified mode is on — some sections are hidden.',
       feeling_after_session_heading: 'Feeling after each session',
       enable_feeling: 'Turn on the feeling check when you get back from each session',
       feeling_help: 'Once turned on, a saved lap time will offer to say in one click how the session went (shape, fatigue...).',
@@ -8551,6 +8555,18 @@
     var info = circuitInfo(ev.circuit);
     var horaires = eventHoraires(ev);
 
+    // Mode simplifié -- a slim, always-on-top banner (not buried at the
+    // bottom of the personal card below) so the one control to reveal
+    // hidden sections is the very first thing on screen, not something to
+    // scroll past a whole orange card to find.
+    var simplifiedBanner = '';
+    if (currentUserProfile && currentUserProfile.simplifiedMode) {
+      simplifiedBanner = '<div class="card" style="padding:0.7rem 0.9rem; display:flex; align-items:center; justify-content:space-between; gap:0.6rem; flex-wrap:wrap;">' +
+        '<span class="help-text" style="margin:0;">' + tr('simplified_mode_banner_text') + '</span>' +
+        '<button type="button" class="ghost" data-action="toggle-advanced-revealed">' +
+        (advancedRevealed ? tr('hide_advanced_options') : tr('show_advanced_options')) + '</button></div>';
+    }
+
     // Orange card: everything the organizing Team PRO/Team provides --
     // schedule, announcements, and the two leader-editable blocks below.
     // Distinguished from the grey card underneath (this account's own,
@@ -8639,13 +8655,9 @@
       personal += renderMyTravelInfoSection(ev);
       personal += renderFollowedTravelInfoSection(ev);
     }
-    if (currentUserProfile && currentUserProfile.simplifiedMode) {
-      personal += '<button type="button" class="ghost" data-action="toggle-advanced-revealed" style="margin-top:0.6rem;">' +
-        (advancedRevealed ? tr('hide_advanced_options') : tr('show_advanced_options')) + '</button>';
-    }
     personal += '</div>';
 
-    return html + personal;
+    return simplifiedBanner + html + personal;
   }
 
   // The connected pilote's own group for a given date -- pm takes
@@ -10948,6 +10960,21 @@
     currentUserProfile.coachAvailability = Object.assign({}, currentUserProfile.coachAvailability || {});
     currentUserProfile.coachAvailability[paintEventId] = byType;
   }
+  // Every Coach's declared availability for one event, aggregated across
+  // both types -- { coachingLabels: {label: true}, baptemeLabels: {label:
+  // true} }. Shared by coachAvailabilitySlotClass (the dot colors) and
+  // openCoachSlotModal (which type(s) a rider is even allowed to pick for
+  // a given slot -- see there).
+  function aggregatedCoachAvailability(eventId) {
+    var coachingLabels = {}, baptemeLabels = {};
+    Object.keys(STATE.usersByName || {}).forEach(function (name) {
+      var byType = (STATE.usersByName[name].coachAvailability || {})[eventId];
+      if (!byType || !isCoachBadge(STATE.usersByName[name])) return;
+      (byType.coaching || []).forEach(function (l) { coachingLabels[l] = true; });
+      (byType.bapteme || []).forEach(function (l) { baptemeLabels[l] = true; });
+    });
+    return { coachingLabels: coachingLabels, baptemeLabels: baptemeLabels };
+  }
   // Every Coach's declared availability for this event, aggregated for
   // display (view mode only -- edit mode shows just the current Coach's
   // own picks, see renderCoachPlanningSection) -- blue dot = someone's
@@ -10957,17 +10984,25 @@
       var mine = coachAvailabilityFor(me.name, ev.id, coachAvailabilityEditType) || [];
       return function (label) { return mine.indexOf(label) !== -1 ? ' slot-avail-' + coachAvailabilityEditType : ''; };
     }
-    var coachingLabels = {}, baptemeLabels = {};
-    Object.keys(STATE.usersByName || {}).forEach(function (name) {
-      var byType = (STATE.usersByName[name].coachAvailability || {})[ev.id];
-      if (!byType || !isCoachBadge(STATE.usersByName[name])) return;
-      (byType.coaching || []).forEach(function (l) { coachingLabels[l] = true; });
-      (byType.bapteme || []).forEach(function (l) { baptemeLabels[l] = true; });
-    });
+    var agg = aggregatedCoachAvailability(ev.id);
     return function (label) {
-      var c = !!coachingLabels[label], b = !!baptemeLabels[label];
+      var c = !!agg.coachingLabels[label], b = !!agg.baptemeLabels[label];
       return c && b ? ' slot-avail-both' : c ? ' slot-avail-coaching' : b ? ' slot-avail-bapteme' : '';
     };
+  }
+  // Which type(s) (coaching/bapteme) at least one Coach has actually
+  // declared themselves free for, for this one slot label -- what a rider
+  // clicking that slot may request. A slot only ever colored for coaching
+  // (see coachAvailabilitySlotClass) means no Coach has offered a baptême
+  // there, so offering that choice in the ask modal would just dead-end
+  // on "no coach available" -- restricting the dropdown itself up front is
+  // clearer than letting the pick fail silently after the fact.
+  function slotAvailableTypes(eventId, slotLabel) {
+    var agg = aggregatedCoachAvailability(eventId);
+    var types = [];
+    if (agg.coachingLabels[slotLabel]) types.push('coaching');
+    if (agg.baptemeLabels[slotLabel]) types.push('bapteme');
+    return types;
   }
   // Same ongoing/upcoming event + horaires-by-group as EN PISTE's own
   // "today-schedule-card" (see renderPlanningTab/renderHoraireGroups) --
@@ -11005,11 +11040,15 @@
           '</div>';
       }
       body += '</div>';
-      if (editing) {
-        body += '<div class="help-text" style="margin-bottom:0.4rem;">' + tr('drag_to_mark_available') + '</div>';
-      } else {
-        body += '<div class="help-text" style="margin-bottom:0.4rem;">' + tr('availability_legend') + '</div>';
-      }
+    }
+    // Legend for the dot colors on the grid below -- shown to everyone,
+    // not just Coaches, since a non-coach pilote/accompagnant sees these
+    // same colored slots and needs to understand them to know when/who to
+    // ask (clicking a slot opens renderCoachSlotModal regardless of role).
+    if (editing) {
+      body += '<div class="help-text" style="margin-bottom:0.4rem;">' + tr('drag_to_mark_available') + '</div>';
+    } else {
+      body += '<div class="help-text" style="margin-bottom:0.4rem;">' + tr('availability_legend') + '</div>';
     }
     var wrapClass = editing ? 'coach-availability-painting' : 'coach-planning-clickable';
     body += '<div class="' + wrapClass + '" data-event-id="' + ev.id + '" data-circuit="' + escapeHtml(ev.circuit) + '">' + groupsHtml + '</div>';
@@ -11030,9 +11069,26 @@
   var coachSlotModalSelected = [];
   function openCoachSlotModal(eventId, circuit, slotStart, slotEnd, slotLabel) {
     coachSlotModal = { eventId: eventId, circuit: circuit, slotLabel: slotLabel };
-    coachSlotModalType = 'coaching';
+    // Default to whichever type a Coach actually declared for this exact
+    // slot (coaching preferred when both are on offer) rather than always
+    // 'coaching' -- see slotAvailableTypes/coachSlotModalAllowedTypes.
+    var allowed = slotAvailableTypes(eventId, slotLabel);
+    coachSlotModalType = allowed.length ? allowed[0] : 'coaching';
     coachSlotModalSelected = [slotLabel];
     renderRoot();
+  }
+  // Union of types at least one Coach declared for any of the currently
+  // selected slot(s) -- what the type dropdown in renderCoachSlotModal may
+  // offer. Empty when nobody's declared anything for any of them (falls
+  // back to showing both, same as before this restriction existed, since
+  // "no coach available" already covers that case once a type is picked).
+  function coachSlotModalAllowedTypes() {
+    if (!coachSlotModal) return [];
+    var set = {};
+    coachSlotModalSelected.forEach(function (label) {
+      slotAvailableTypes(coachSlotModal.eventId, label).forEach(function (t) { set[t] = true; });
+    });
+    return Object.keys(set);
   }
   function closeCoachSlotModal() {
     coachSlotModal = null;
@@ -11041,6 +11097,14 @@
   function renderCoachSlotModal() {
     if (!coachSlotModal) return '';
     var me = currentUserProfile;
+    // Restrict the Type choice to what's actually on offer for the
+    // selected slot(s) -- a slot only ever declared for coaching never
+    // shows Baptême as pickable, so a coached rider can't even attempt to
+    // ask for one there (see coachSlotModalAllowedTypes). Falls back to
+    // both when nothing's declared yet for any selected slot.
+    var allowedTypes = coachSlotModalAllowedTypes();
+    if (allowedTypes.length && allowedTypes.indexOf(coachSlotModalType) === -1) coachSlotModalType = allowedTypes[0];
+    var typeOptions = allowedTypes.length ? allowedTypes : ['coaching', 'bapteme'];
     var proposeRoles = coachSlotModalType === 'bapteme' ? ['pilote', 'accompagnant'] : ['pilote'];
     var linkedNames = (STATE.coachRequests || []).filter(function (r) { return me && (r.from === me.name || r.to === me.name) && (r.type || 'coaching') === coachSlotModalType; })
       .map(function (r) { return r.from === me.name ? r.to : r.from; });
@@ -11063,10 +11127,13 @@
       html += '<div class="help-text">' + tr('coaching_riders_only') + '</div>';
     }
     html += '<label for="coach-slot-type" style="margin-top:0.6rem;">' + tr('type_label') + '</label>' +
-      '<select id="coach-slot-type">' +
-      '<option value="coaching"' + (coachSlotModalType === 'coaching' ? ' selected' : '') + '>' + tr('coaching_option') + '</option>' +
-      '<option value="bapteme"' + (coachSlotModalType === 'bapteme' ? ' selected' : '') + '>' + tr('bapteme_option') + '</option>' +
-      '</select>';
+      '<select id="coach-slot-type"' + (typeOptions.length === 1 ? ' disabled' : '') + '>' +
+      typeOptions.map(function (t) {
+        return '<option value="' + t + '"' + (coachSlotModalType === t ? ' selected' : '') + '>' + tr(t === 'bapteme' ? 'bapteme_option' : 'coaching_option') + '</option>';
+      }).join('') + '</select>';
+    if (typeOptions.length === 1) {
+      html += '<div class="help-text" style="margin-top:0.3rem;">' + tr('slot_type_locked_help') + '</div>';
+    }
     if (allSlots.length > 1) {
       html += '<label style="margin-top:0.6rem; display:block;">' + tr('proposed_slots_max') + '</label>' +
         '<div class="coach-slot-modal-options">' + allSlots.map(function (s) {
@@ -11532,7 +11599,7 @@
           '<div class="page-head-row">' +
             '<h1 class="title">Carnet de Piste</h1>' +
             '<div class="header-controls">' +
-              (canAccessCoachSpace() ? '<button type="button" class="header-icon-btn' + (activeView === 'coach' ? ' active' : '') + '" data-view="coach" aria-label="' + tr('coach_label') + '" title="' + tr('coach_label') + '">🎓</button>' : '') +
+              (canAccessCoachSpace() && !advancedHidden() ? '<button type="button" class="header-icon-btn' + (activeView === 'coach' ? ' active' : '') + '" data-view="coach" aria-label="' + tr('coach_label') + '" title="' + tr('coach_label') + '">🎓</button>' : '') +
               '<button type="button" class="header-icon-btn' + (activeView === 'stats' ? ' active' : '') + '" data-view="stats" aria-label="' + tr('stats_label') + '" title="' + tr('stats_label') + '">📊</button>' +
               '<button type="button" class="header-icon-btn" id="notifications-toggle" aria-label="' + tr('notifications_label') + '" title="' + tr('notifications_label') + '">🔔' +
                 (notifCount ? '<span class="notif-count">' + (notifCount > 9 ? '9+' : notifCount) + '</span>' : '') +
