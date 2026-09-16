@@ -208,6 +208,8 @@
       notify_coach_message: 'Nouveau message dans l\'espace coaching',
       notify_event_announcement: 'Annonce du Team Leader sur un événement',
       notify_event_ended: 'Un event auquel j\'ai participé vient de se terminer',
+      simplified_mode_label: 'Mode simplifié', simplified_mode_help: 'Masque par défaut Team, météo, checklists, comparaison de progression et infos de voyage pour ne garder que l\'essentiel (prochain événement, horaires, saisie de chrono). Un bouton "Afficher plus d\'options" les révèle ponctuellement sans changer ce réglage.',
+      show_advanced_options: 'Afficher plus d\'options', hide_advanced_options: 'Masquer les options avancées',
       feeling_after_session_heading: 'Ressenti après chaque session',
       enable_feeling: 'Activer le ressenti à ton retour de chaque session',
       feeling_help: 'Une fois activé, un chrono enregistré te proposera de dire en un clic comment s\'est passée la session (forme, fatigue...).',
@@ -581,6 +583,8 @@
       notify_coach_message: 'New message in the coaching space',
       notify_event_announcement: 'Team Leader announcement on an event',
       notify_event_ended: 'An event I took part in just ended',
+      simplified_mode_label: 'Simplified mode', simplified_mode_help: 'Hides Team, weather, checklists, progression comparison and travel info by default, keeping just the essentials (next event, schedule, chrono entry). A "Show more options" button reveals them for that visit without changing this setting.',
+      show_advanced_options: 'Show more options', hide_advanced_options: 'Hide advanced options',
       feeling_after_session_heading: 'Feeling after each session',
       enable_feeling: 'Turn on the feeling check when you get back from each session',
       feeling_help: 'Once turned on, a saved lap time will offer to say in one click how the session went (shape, fatigue...).',
@@ -2229,6 +2233,11 @@
   var addChronoOpen = false; // whether renderForm() shows the actual "Entrer un nouveau chrono" form, or just its collapsed teaser button
   var selectedSessionDate = _savedUiState.selectedSessionDate || null; // 'YYYY-MM-DD' — shows the "chronos of that day" card
   var planningGroupFilter = _savedUiState.planningGroupFilter || null; // array of HORAIRES_GROUPS keys, or null for "all available"
+  // Mode simplifié (Réglages, currentUserProfile.simplifiedMode) hides
+  // several sections by default -- this is the one-visit-only "show them
+  // anyway" escape hatch, never persisted, reset back to false on reload.
+  var advancedRevealed = false;
+  function advancedHidden() { return !!(currentUserProfile && currentUserProfile.simplifiedMode) && !advancedRevealed; }
   var planningIsOngoing = false; // set by renderPlanningTab(), read by updateLiveClock()
   var planningEventDateStart = null; // ditto -- 'YYYY-MM-DD' of the target sortie
   var planningEventId = null; // ditto -- id of the target sortie, read by maybeNotifyGroupDeparture()
@@ -3217,7 +3226,18 @@
   }
 
   function renderProfileReglagesTab(p) {
-    var html = renderNotificationsSettings(p);
+    // Meta-setting, sits above everything else it affects -- collapses/
+    // hides the app's advanced surface (Team nav tab, météo, checklists,
+    // comparaison de progression, infos de voyage...) by default, down to
+    // prochain événement/horaires/saisie de chrono. Nothing is deleted:
+    // an "Afficher plus d'options" button on each affected screen still
+    // reveals it for that visit (see advancedRevealed) without touching
+    // this setting.
+    var html = '<div style="padding-bottom:0.9rem; margin-bottom:1.1rem; border-bottom:1px solid var(--border);">';
+    html += '<label class="checklist-item"><input type="checkbox" id="profile-simplified-mode"' + (p.simplifiedMode ? ' checked' : '') + '> ' + tr('simplified_mode_label') + '</label>';
+    html += '<div class="help-text" style="margin-top:0.3rem;">' + tr('simplified_mode_help') + '</div>';
+    html += '</div>';
+    html += renderNotificationsSettings(p);
     html += '<div style="margin-top:1.1rem;"><label style="margin-bottom:0.4rem; display:block;">' + tr('profile_lang') + '</label>' + renderLangToggle() + '</div>';
     html += '<div style="margin-top:1.1rem;"><label style="margin-bottom:0.4rem; display:block;">' + tr('profile_theme') + '</label>' + renderThemeToggle() + '</div>';
     // Opt-out, on by default -- a quick "comment c'était ?" prompt after
@@ -4618,12 +4638,17 @@
     }
     if (currentUserProfile) {
       var compareCandidates = friendsOf(currentUserProfile.name).filter(function (f) { return baseRiders.indexOf(f.name) === -1; });
-      if (compareCandidates.length) {
+      if (compareCandidates.length && !advancedHidden()) {
         selectorHtml += '<div style="margin-bottom:0.8rem;"><label for="progression-compare-select" class="help-text" style="display:block; margin-bottom:0.3rem;">' + tr('compare_with_friend_label') + '</label>' +
           '<select id="progression-compare-select"><option value="">' + tr('compare_none_option') + '</option>' +
           compareCandidates.map(function (f) {
             return '<option value="' + escapeHtml(f.name) + '"' + (f.name === progressionCompareFriend ? ' selected' : '') + '>' + escapeHtml(f.name) + '</option>';
           }).join('') + '</select></div>';
+      } else if (compareCandidates.length && currentUserProfile.simplifiedMode) {
+        // Mode simplifié hides the comparison picker here too -- same
+        // one-visit reveal button as Planning, so it's reachable without
+        // leaving Chronos to go flip the setting off in Réglages.
+        selectorHtml += '<div style="margin-bottom:0.8rem;"><button type="button" class="ghost" data-action="toggle-advanced-revealed">' + tr('show_advanced_options') + '</button></div>';
       }
     }
     selectorHtml += '<div class="progression-granularity">' + [['day', tr('granularity_day')], ['event', tr('granularity_event')], ['all', tr('granularity_all')]].map(function (g) {
@@ -7144,7 +7169,15 @@
   // pins it, this ordering is just for readability of the source.
   function renderBottomNav() {
     var html = '<nav class="bottom-nav">';
-    MAIN_TABS.forEach(function (tab) {
+    // Mode simplifié (Réglages) hides Team from the nav -- Team feed/
+    // gestion is the one whole area of the app a solo/casual rider never
+    // touches, unlike Social (friends) which still feeds "Comparer avec un
+    // ami" on the progression chart. Reversible any time from Réglages,
+    // so hiding it outright (not just collapsing) is safe.
+    var visibleTabs = (currentUserProfile && currentUserProfile.simplifiedMode)
+      ? MAIN_TABS.filter(function (tab) { return tab[0] !== 'team'; })
+      : MAIN_TABS;
+    visibleTabs.forEach(function (tab) {
       html += '<button type="button" class="bottom-nav-btn' + (activeView === tab[0] ? ' active' : '') + '" data-view="' + tab[0] + '">' +
         '<span class="bottom-nav-icon">' + tab[2] + '</span><span class="bottom-nav-label">' + tr(tab[1]) + '</span></button>';
     });
@@ -8544,10 +8577,12 @@
       else html += '<div style="margin:0.5rem 0;"><button type="button" class="ghost" data-action="team-event-edit" data-id="' + ev.id + '">✎ Modifier l\'événement</button></div>';
     }
     if (ev.teamId) html += renderEventAnnouncements(ev, false);
-    html += renderWeatherSection(ev, isLeader);
-    html += renderSpecialActivitiesSection(ev, isLeader);
-    html += renderRentalMotosSection(ev, isLeader);
-    html += renderRentalEquipementSection(ev, isLeader);
+    if (!advancedHidden()) {
+      html += renderWeatherSection(ev, isLeader);
+      html += renderSpecialActivitiesSection(ev, isLeader);
+      html += renderRentalMotosSection(ev, isLeader);
+      html += renderRentalEquipementSection(ev, isLeader);
+    }
     // Briefing lives with Horaires (above the group filter) now, not up
     // here -- it's schedule information, same family as the slot times.
     var briefingLine = info.briefing ? '<div class="help-text" style="margin-bottom:0.6rem; color:var(--accent); font-weight:600;">Briefing ' + escapeHtml(info.briefing) + '</div>' : '';
@@ -8584,7 +8619,7 @@
       horairesInner += renderHorairesPhotoSection(ev);
       html += collapsibleSection('horaires', 'Horaires', horairesInner, false);
     }
-    html += renderPracticalInfoSection(ev, isLeader);
+    if (!advancedHidden()) html += renderPracticalInfoSection(ev, isLeader);
     if (isOngoing && availableGroups.length) {
       var todayKey = dateKey(new Date());
       if (myGroupFinishedToday(ev, horaires, todayKey)) {
@@ -8598,10 +8633,16 @@
     // something the Team orga fills in for everyone.
     var personal = '<div class="card personal-info-card">';
     personal += renderFriendsGroupSection(ev);
-    personal += collapsibleSection('avant-session-section', avantSessionChecklistLabel(ev), renderAvantSessionChecklist(ev));
-    personal += collapsibleSection('equipement', checklistCountLabel(ev), renderPlanningChecklist(ev));
-    personal += renderMyTravelInfoSection(ev);
-    personal += renderFollowedTravelInfoSection(ev);
+    if (!advancedHidden()) {
+      personal += collapsibleSection('avant-session-section', avantSessionChecklistLabel(ev), renderAvantSessionChecklist(ev));
+      personal += collapsibleSection('equipement', checklistCountLabel(ev), renderPlanningChecklist(ev));
+      personal += renderMyTravelInfoSection(ev);
+      personal += renderFollowedTravelInfoSection(ev);
+    }
+    if (currentUserProfile && currentUserProfile.simplifiedMode) {
+      personal += '<button type="button" class="ghost" data-action="toggle-advanced-revealed" style="margin-top:0.6rem;">' +
+        (advancedRevealed ? tr('hide_advanced_options') : tr('show_advanced_options')) + '</button>';
+    }
     personal += '</div>';
 
     return html + personal;
@@ -11915,6 +11956,10 @@
     if (feelingEnabledEl) {
       feelingEnabledEl.addEventListener('change', function () { saveOwnBooleanField('sessionFeelingEnabled', feelingEnabledEl.checked); });
     }
+    var simplifiedModeEl = document.getElementById('profile-simplified-mode');
+    if (simplifiedModeEl) {
+      simplifiedModeEl.addEventListener('change', function () { saveOwnBooleanField('simplifiedMode', simplifiedModeEl.checked); });
+    }
     var shareSortiesEl = document.getElementById('profile-share-sorties');
     if (shareSortiesEl) {
       shareSortiesEl.addEventListener('change', function () { saveOwnBooleanField('shareSorties', shareSortiesEl.checked); });
@@ -14034,6 +14079,12 @@
         renderRoot();
       });
     }
+    document.querySelectorAll('[data-action="toggle-advanced-revealed"]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        advancedRevealed = !advancedRevealed;
+        renderRoot();
+      });
+    });
     document.querySelectorAll('[data-action="progression-granularity"]').forEach(function (btn) {
       btn.addEventListener('click', function () {
         progressionGranularity = btn.getAttribute('data-granularity');
