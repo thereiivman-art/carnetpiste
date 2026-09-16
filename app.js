@@ -209,8 +209,11 @@
       notify_coach_message: 'Nouveau message dans l\'espace coaching',
       notify_event_announcement: 'Annonce du Team Leader sur un événement',
       notify_event_ended: 'Un event auquel j\'ai participé vient de se terminer',
-      simplified_mode_label: 'Mode simplifié', simplified_mode_help: 'Masque par défaut Team, Coaching, météo, checklists, comparaison de progression et infos de voyage pour ne garder que l\'essentiel (prochain événement, horaires, saisie de chrono). Activé par défaut pour tout le monde sauf les Organisateurs.',
-      show_advanced_options: 'Afficher plus d\'options',
+      ui_mode_label: 'Niveau d\'affichage', show_advanced_options: 'Afficher plus d\'options',
+      ui_mode_complet_option: 'Complet', ui_mode_simplifie_option: 'Simplifié', ui_mode_solo_option: 'Solo',
+      ui_mode_help_complet: 'Tout est affiché : Team, Coaching, Social, météo, checklists, comparaison de progression, infos de voyage...',
+      ui_mode_help_simplifie: 'Masque Team, Coaching, météo, checklists, comparaison de progression et infos de voyage pour ne garder que l\'essentiel (prochain événement, horaires, saisie de chrono). Social reste visible.',
+      ui_mode_help_solo: 'Comme Simplifié, en retirant en plus tout l\'aspect social (onglet Social, amis sur un événement, comparaison de progression) -- ne garde que Événements, EN PISTE et Chronos.',
       feeling_after_session_heading: 'Ressenti après chaque session',
       enable_feeling: 'Activer le ressenti à ton retour de chaque session',
       feeling_help: 'Une fois activé, un chrono enregistré te proposera de dire en un clic comment s\'est passée la session (forme, fatigue...).',
@@ -585,8 +588,11 @@
       notify_coach_message: 'New message in the coaching space',
       notify_event_announcement: 'Team Leader announcement on an event',
       notify_event_ended: 'An event I took part in just ended',
-      simplified_mode_label: 'Simplified mode', simplified_mode_help: 'Hides Team, Coaching, weather, checklists, progression comparison and travel info by default, keeping just the essentials (next event, schedule, chrono entry). On by default for everyone except Organizers.',
-      show_advanced_options: 'Show more options',
+      ui_mode_label: 'Display level', show_advanced_options: 'Show more options',
+      ui_mode_complet_option: 'Full', ui_mode_simplifie_option: 'Simplified', ui_mode_solo_option: 'Solo',
+      ui_mode_help_complet: 'Everything is shown: Team, Coaching, Social, weather, checklists, progression comparison, travel info...',
+      ui_mode_help_simplifie: 'Hides Team, Coaching, weather, checklists, progression comparison and travel info, keeping just the essentials (next event, schedule, chrono entry). Social stays visible.',
+      ui_mode_help_solo: 'Like Simplified, plus dropping the social side too (Social tab, friends on an event, progression comparison) -- keeps only Events, ON TRACK and Chronos.',
       feeling_after_session_heading: 'Feeling after each session',
       enable_feeling: 'Turn on the feeling check when you get back from each session',
       feeling_help: 'Once turned on, a saved lap time will offer to say in one click how the session went (shape, fatigue...).',
@@ -2236,19 +2242,35 @@
   var selectedSessionDate = _savedUiState.selectedSessionDate || null; // 'YYYY-MM-DD' — shows the "chronos of that day" card
   var planningGroupFilter = _savedUiState.planningGroupFilter || null; // array of HORAIRES_GROUPS keys, or null for "all available"
   // Mode simplifié (Réglages) hides several sections by default -- on by
-  // default for every account except an Organisateur (who needs the full
-  // Team/coaching tooling from day one), until the account explicitly
-  // sets it one way or the other (a real true/false on the profile always
-  // wins over that role-based default).
-  function isSimplifiedModeOn(p) {
-    if (!p) return false;
-    if (typeof p.simplifiedMode === 'boolean') return p.simplifiedMode;
-    return p.role !== 'organisateur';
+  // 'complet' | 'simplifie' | 'solo' -- three levels, not a boolean:
+  // 'simplifie' hides the same advanced surface as before (Team,
+  // Coaching, météo, checklists...); 'solo' additionally drops the
+  // social side (Social nav tab, friends-on-this-event, compare-with-
+  // friend), leaving just Événements/EN PISTE/Chronos. p.uiMode is the
+  // explicit choice once an account has made one (from Réglages);
+  // otherwise this falls back to p.simplifiedMode (the old boolean field,
+  // migrated in place -- true meant 'simplifie', false meant 'complet'),
+  // then to a role/team-based guess: an Organisateur needs the full
+  // toolset from day one ('complet'); everyone else defaults to
+  // 'simplifie' once they've joined a Team, or 'solo' before that (solo
+  // riders/no Team yet have no social surface to speak of anyway).
+  function uiMode(p) {
+    if (!p) return 'complet';
+    if (p.uiMode === 'complet' || p.uiMode === 'simplifie' || p.uiMode === 'solo') return p.uiMode;
+    if (typeof p.simplifiedMode === 'boolean') return p.simplifiedMode ? 'simplifie' : 'complet';
+    if (p.role === 'organisateur') return 'complet';
+    return (STATE.myTeamMemberships || []).length ? 'simplifie' : 'solo';
   }
+  function isSimplifiedModeOn(p) { return uiMode(p) !== 'complet'; }
+  function isSoloModeOn(p) { return uiMode(p) === 'solo'; }
   // The one-visit-only "show them anyway" escape hatch for advancedHidden,
   // never persisted, reset back to false on reload.
   var advancedRevealed = false;
   function advancedHidden() { return isSimplifiedModeOn(currentUserProfile) && !advancedRevealed; }
+  // Solo has no reveal button -- unlike Simplifié's advancedHidden, it's a
+  // deliberate "I ride alone, I don't want the social side at all" choice,
+  // not something to peek past for one visit.
+  function soloHidden() { return isSoloModeOn(currentUserProfile); }
   var planningIsOngoing = false; // set by renderPlanningTab(), read by updateLiveClock()
   var planningEventDateStart = null; // ditto -- 'YYYY-MM-DD' of the target sortie
   var planningEventId = null; // ditto -- id of the target sortie, read by maybeNotifyGroupDeparture()
@@ -3237,18 +3259,27 @@
   }
 
   function renderProfileReglagesTab(p) {
-    // Meta-setting, sits above everything else it affects -- collapses/
-    // hides the app's advanced surface (Team nav tab, Coaching, météo,
-    // checklists, comparaison de progression, infos de voyage...) by
-    // default, down to prochain événement/horaires/saisie de chrono. On
-    // by default for everyone except an Organisateur (isSimplifiedModeOn)
-    // until explicitly toggled. Nothing is deleted -- a compare-with-
-    // friend reveal button on the progression chart still surfaces its
-    // one hidden bit for that visit (see advancedRevealed) without
-    // touching this setting.
+    // Meta-setting, sits above everything else it affects -- three levels
+    // (see uiMode), not a checkbox: Complet shows everything; Simplifié
+    // collapses/hides the advanced surface (Team nav tab, Coaching,
+    // météo, checklists, comparaison de progression, infos de voyage...)
+    // down to prochain événement/horaires/saisie de chrono, same as
+    // before; Solo goes further and drops the social side too (onglet
+    // Social, amis sur un événement, comparaison de progression), leaving
+    // just Événements/Chronos/EN PISTE. Defaults to a role/Team-based
+    // guess (see uiMode) until explicitly picked here. Nothing is ever
+    // deleted -- Simplifié's compare-with-friend reveal button on the
+    // progression chart still surfaces its one hidden bit for that visit
+    // (see advancedRevealed) without touching this setting; Solo has no
+    // such reveal, it's a deliberate choice.
+    var currentMode = uiMode(p);
     var html = '<div style="padding-bottom:0.9rem; margin-bottom:1.1rem; border-bottom:1px solid var(--border);">';
-    html += '<label class="checklist-item"><input type="checkbox" id="profile-simplified-mode"' + (isSimplifiedModeOn(p) ? ' checked' : '') + '> ' + tr('simplified_mode_label') + '</label>';
-    html += '<div class="help-text" style="margin-top:0.3rem;">' + tr('simplified_mode_help') + '</div>';
+    html += '<label for="profile-ui-mode">' + tr('ui_mode_label') + '</label>';
+    html += '<select id="profile-ui-mode">' +
+      ['complet', 'simplifie', 'solo'].map(function (m) {
+        return '<option value="' + m + '"' + (currentMode === m ? ' selected' : '') + '>' + tr('ui_mode_' + m + '_option') + '</option>';
+      }).join('') + '</select>';
+    html += '<div class="help-text" style="margin-top:0.3rem;">' + tr('ui_mode_help_' + currentMode) + '</div>';
     html += '</div>';
     html += renderNotificationsSettings(p);
     html += '<div style="margin-top:1.1rem;"><label style="margin-bottom:0.4rem; display:block;">' + tr('profile_lang') + '</label>' + renderLangToggle() + '</div>';
@@ -4649,7 +4680,10 @@
         availableCircuits.map(function (c) { return '<option value="' + escapeHtml(c) + '"' + (c === circuit ? ' selected' : '') + '>' + escapeHtml(c) + '</option>'; }).join('') +
         '</select>';
     }
-    if (currentUserProfile) {
+    // Mode solo drops the comparison feature outright (no friends side at
+    // all, not even a reveal button) -- Mode simplifié alone still offers
+    // it behind the one-visit "Afficher plus d'options" escape hatch.
+    if (currentUserProfile && !soloHidden()) {
       var compareCandidates = friendsOf(currentUserProfile.name).filter(function (f) { return baseRiders.indexOf(f.name) === -1; });
       if (compareCandidates.length && !advancedHidden()) {
         selectorHtml += '<div style="margin-bottom:0.8rem;"><label for="progression-compare-select" class="help-text" style="display:block; margin-bottom:0.3rem;">' + tr('compare_with_friend_label') + '</label>' +
@@ -7184,12 +7218,14 @@
     var html = '<nav class="bottom-nav">';
     // Mode simplifié (Réglages) hides Team from the nav -- Team feed/
     // gestion is the one whole area of the app a solo/casual rider never
-    // touches, unlike Social (friends) which still feeds "Comparer avec un
-    // ami" on the progression chart. Reversible any time from Réglages,
-    // so hiding it outright (not just collapsing) is safe.
-    var visibleTabs = isSimplifiedModeOn(currentUserProfile)
-      ? MAIN_TABS.filter(function (tab) { return tab[0] !== 'team'; })
-      : MAIN_TABS;
+    // touches. Mode solo goes further and also drops Social, leaving just
+    // Événements/Chronos/EN PISTE. Reversible any time from Réglages, so
+    // hiding either outright (not just collapsing) is safe.
+    var hideTeamTab = isSimplifiedModeOn(currentUserProfile);
+    var hideSocialTab = isSoloModeOn(currentUserProfile);
+    var visibleTabs = MAIN_TABS.filter(function (tab) {
+      return !((tab[0] === 'team' && hideTeamTab) || (tab[0] === 'social' && hideSocialTab));
+    });
     visibleTabs.forEach(function (tab) {
       html += '<button type="button" class="bottom-nav-btn' + (activeView === tab[0] ? ' active' : '') + '" data-view="' + tab[0] + '">' +
         '<span class="bottom-nav-icon">' + tab[2] + '</span><span class="bottom-nav-label">' + tr(tab[1]) + '</span></button>';
@@ -7676,7 +7712,7 @@
   // their own fiche.
   function renderFriendsGroupSection(ev) {
     var me = currentUserProfile;
-    if (!me) return '';
+    if (!me || soloHidden()) return '';
     var friendNames = friendsOf(me.name).map(function (f) { return f.name; });
     var onEvent = (ev.riders || []).filter(function (r) { return friendNames.indexOf(r) !== -1; }).sort();
     if (!onEvent.length) return '';
@@ -12020,9 +12056,9 @@
     if (feelingEnabledEl) {
       feelingEnabledEl.addEventListener('change', function () { saveOwnBooleanField('sessionFeelingEnabled', feelingEnabledEl.checked); });
     }
-    var simplifiedModeEl = document.getElementById('profile-simplified-mode');
-    if (simplifiedModeEl) {
-      simplifiedModeEl.addEventListener('change', function () { saveOwnBooleanField('simplifiedMode', simplifiedModeEl.checked); });
+    var uiModeEl = document.getElementById('profile-ui-mode');
+    if (uiModeEl) {
+      uiModeEl.addEventListener('change', function () { saveOwnBooleanField('uiMode', uiModeEl.value); });
     }
     var shareSortiesEl = document.getElementById('profile-share-sorties');
     if (shareSortiesEl) {
