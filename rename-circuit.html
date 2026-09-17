@@ -88,9 +88,25 @@
     gatherPlan(oldName, newName).then(function (plan) {
       lastPlan = { oldName: oldName, newName: newName, plan: plan };
       if (!plan.oldCircuit.exists && plan.events.empty && plan.sessions.empty) {
-        log('Rien trouvé sous "' + oldName + '" (ni fiche circuit, ni événement, ni chrono). Rien à faire.');
+        log('Rien trouvé sous "' + oldName + '" exactement (recherche sensible à la casse/espaces).');
         lastPlan = null;
-        return;
+        // where('==') ne trouve rien si l'orthographe réelle diffère un
+        // peu (casse, espace en trop...) -- un balayage complet des
+        // circuits et des noms de circuit d'événements distincts aide à
+        // repérer le nom exact tel qu'il est vraiment enregistré.
+        return Promise.all([db.collection('circuits').get(), db.collection('events').get()]).then(function (r) {
+          var norm = function (s) { return (s || '').trim().toLowerCase(); };
+          var target = norm(oldName);
+          var candidates = {};
+          r[0].forEach(function (d) { if (norm(d.data().name).indexOf(target.slice(0, 4)) !== -1) candidates[d.data().name] = true; });
+          r[1].forEach(function (d) { if (norm(d.data().circuit).indexOf(target.slice(0, 4)) !== -1) candidates[d.data().circuit] = true; });
+          var names = Object.keys(candidates);
+          if (names.length) {
+            log('Noms de circuits proches trouvés dans la base : ' + names.map(function (n) { return '"' + n + '"'; }).join(', ') + ' -- vérifie l\'orthographe exacte (espaces compris) et relance.');
+          } else {
+            log('Aucun nom de circuit approchant trouvé du tout -- vérifie que tu regardes le bon projet Firebase.');
+          }
+        });
       }
       log('Fiche circuit "' + oldName + '" : ' + (plan.oldCircuit.exists ? 'existe' : 'absente'));
       log('Fiche circuit "' + newName + '" : ' + (plan.newCircuit.exists ? 'existe déjà (conservée, complétée si besoin)' : 'sera créée'));
@@ -110,35 +126,58 @@
     var oldName = lastPlan.oldName, newName = lastPlan.newName, plan = lastPlan.plan;
     document.getElementById('preview').innerHTML = '';
     log('--- Renommage en cours ---');
-    var batch = db.batch();
 
-    if (plan.oldCircuit.exists) {
-      var oldData = plan.oldCircuit.data();
-      var newData = plan.newCircuit.exists ? plan.newCircuit.data() : {};
-      // Never overwrite a field the correctly-named fiche already has --
-      // only fills in gaps from the misspelled one.
-      var merged = Object.assign({}, oldData, newData, { name: newName });
-      batch.set(db.collection('circuits').doc(safeDocId(newName)), merged);
-      batch.delete(db.collection('circuits').doc(safeDocId(oldName)));
-      log('Fiche circuit : fusionnée sous "' + newName + '", ancienne fiche supprimée.');
-    }
+    // Three separate steps, not one atomic batch -- a Team Event can only
+    // be updated by that Team's own Leader (firestore.rules has no admin
+    // bypass on events, unlike circuits/sessions), so one event outside
+    // your Teams must never roll back everything else. Each event is
+    // attempted and reported on its own.
+    var circuitStep = plan.oldCircuit.exists
+      ? (function () {
+          var oldData = plan.oldCircuit.data();
+          var newData = plan.newCircuit.exists ? plan.newCircuit.data() : {};
+          // Never overwrite a field the correctly-named fiche already has --
+          // only fills in gaps from the misspelled one.
+          var merged = Object.assign({}, oldData, newData, { name: newName });
+          return db.collection('circuits').doc(safeDocId(newName)).set(merged).then(function () {
+            return db.collection('circuits').doc(safeDocId(oldName)).delete();
+          }).then(function () {
+            log('OK -- fiche circuit fusionnée sous "' + newName + '", ancienne fiche supprimée.');
+          });
+        })()
+      : Promise.resolve();
 
-    plan.events.forEach(function (doc) {
-      batch.update(doc.ref, { circuit: newName });
-    });
-    if (plan.events.size) log(plan.events.size + ' événement(s) : circuit -> "' + newName + '".');
-
-    plan.sessions.forEach(function (doc) {
-      batch.update(doc.ref, { circuit: newName });
-    });
-    if (plan.sessions.size) log(plan.sessions.size + ' chrono(s) : circuit -> "' + newName + '".');
-
-    batch.commit().then(function () {
+    circuitStep.catch(function (err) {
+      log('ERREUR sur la fiche circuit : ' + (err && err.message ? err.message : err));
+    }).then(function () {
+      if (!plan.events.size) return;
+      log('Événements (' + plan.events.size + ') :');
+      return plan.events.docs.reduce(function (chain, doc) {
+        return chain.then(function () {
+          return doc.ref.update({ circuit: newName }).then(function () {
+            log('  OK -- ' + doc.id);
+          }).catch(function (err) {
+            var ev = doc.data();
+            var reason = (err && err.code === 'permission-denied')
+              ? 'refusé -- réservé au Team Leader de cet événement (teamId: ' + (ev.teamId || '?') + '). Demande-lui de corriger le circuit depuis "Modifier l\'événement" dans l\'app, ou de te nommer Team Leader.'
+              : (err && err.message ? err.message : err);
+            log('  ÉCHEC -- ' + doc.id + ' : ' + reason);
+          });
+        });
+      }, Promise.resolve());
+    }).then(function () {
+      if (!plan.sessions.size) return;
+      var batch = db.batch();
+      plan.sessions.forEach(function (doc) { batch.update(doc.ref, { circuit: newName }); });
+      return batch.commit().then(function () {
+        log('OK -- ' + plan.sessions.size + ' chrono(s) : circuit -> "' + newName + '".');
+      }).catch(function (err) {
+        log('ERREUR sur les chronos : ' + (err && err.message ? err.message : err));
+      });
+    }).then(function () {
       log('--- Terminé. ---');
-      log('Un éventuel "Objectif pour la prochaine session" déjà enregistré sous l\'ancien nom (chronoGoals, propre à chaque compte) n\'est pas repris automatiquement -- cosmétique et rare, à corriger à la main si besoin (Profil -> le texte reste visible tant que ce circuit reste sélectionné).');
+      log('Un éventuel "Objectif pour la prochaine session" déjà enregistré sous l\'ancien nom (chronoGoals, propre à chaque compte) n\'est pas repris automatiquement -- cosmétique et rare, à corriger à la main si besoin.');
       lastPlan = null;
-    }).catch(function (err) {
-      log('ERREUR : ' + (err && err.message ? err.message : err));
     });
   }
 </script>
