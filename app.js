@@ -4139,9 +4139,13 @@
     user.reauthenticateWithCredential(cred).then(function () {
       return user.updateEmail(newEmail);
     }).then(function () {
-      return db.collection('users').doc(user.uid).set({ email: newEmail }, { merge: true });
+      // Clears the create-accounts.html placeholder-email reminder banner
+      // for good, the moment a real address is set -- whether or not this
+      // account ever had one, writing false here is harmless.
+      return db.collection('users').doc(user.uid).set({ email: newEmail, needsEmailUpdate: false }, { merge: true });
     }).then(function () {
       currentUserProfile.email = newEmail;
+      currentUserProfile.needsEmailUpdate = false;
       return user.sendEmailVerification();
     }).then(function () {
       // updateEmail() resets emailVerified server-side, so the app has to
@@ -11710,6 +11714,16 @@
           '<div class="banner" id="status-banner"></div>' +
         '</div>' +
       '</header>' +
+      // A compte créé par un admin sans email réel (compte de démo/test,
+      // voir create-accounts.html) porte needsEmailUpdate:true jusqu'à ce
+      // que son titulaire renseigne le sien -- ce bandeau le rappelle sur
+      // chaque écran plutôt que d'espérer qu'il pense à aller le chercher
+      // dans Réglages. Se referme tout seul (voir changeProfileEmail) une
+      // fois l'email changé.
+      (currentUserProfile && currentUserProfile.needsEmailUpdate
+        ? '<div class="email-reminder-banner"><span>📧 Pense à renseigner ton propre email dans Réglages.</span>' +
+          '<button type="button" class="ghost" data-action="open-email-reminder">Ajouter mon email</button></div>'
+        : '') +
       body +
       renderBottomNav() +
       renderCropModal() +
@@ -12051,6 +12065,14 @@
         window.open('https://waze.com/ul?q=' + encodeURIComponent(text) + '&navigate=yes', '_blank', 'noopener');
       });
     });
+    var emailReminderBtn = document.querySelector('[data-action="open-email-reminder"]');
+    if (emailReminderBtn) {
+      emailReminderBtn.addEventListener('click', function () {
+        profilePanelOpen = true;
+        profileSubTab = 'reglages';
+        renderRoot();
+      });
+    }
     var profileToggle = document.getElementById('profile-toggle');
     if (profileToggle) {
       profileToggle.addEventListener('click', function () {

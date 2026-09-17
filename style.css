@@ -469,6 +469,22 @@
     color: var(--text-muted);
   }
   .banner.visible { display: block; }
+  .email-reminder-banner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.8rem;
+    flex-wrap: wrap;
+    padding: 0.7rem 1rem;
+    margin: 0 0 1rem;
+    background: color-mix(in srgb, var(--accent) 12%, var(--surface));
+    border: 1px solid var(--accent);
+    border-radius: var(--radius);
+    font-size: 0.86rem;
+    font-weight: 600;
+    color: var(--accent);
+  }
+  .email-reminder-banner button { flex: none; }
 
   .sessions-card { margin-bottom: 1.5rem; }
   .records-year-card { margin-bottom: 1.5rem; }
