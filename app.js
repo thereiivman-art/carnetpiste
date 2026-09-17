@@ -5211,7 +5211,13 @@
   // EN PISTE instead (see renderPlanningTab).
   function renderChronoGoalsCard(circuit) {
     var me = currentUserProfile;
-    if (!me || !circuit) return '';
+    // Un objectif de session et un ressenti n'ont de sens que pour qui
+    // roule -- même distinction isNonRider que partout ailleurs (stats,
+    // saisie de chrono...), pas la peine d'inventer une variante du texte
+    // pour un Accompagnant/Organisateur qui n'a ni session ni ressenti à
+    // suivre ici.
+    var isNonRider = !!(me && (me.role === 'accompagnant' || me.role === 'organisateur'));
+    if (!me || !circuit || isNonRider) return '';
     var goals = (me.chronoGoals || {})[circuit] || '';
     var last = mostRecentSessionForRider(me.name);
     var feelingOpt = last && last.feeling ? FEELING_OPTIONS.filter(function (f) { return f.key === last.feeling; })[0] : null;
