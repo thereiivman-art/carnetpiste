@@ -224,6 +224,11 @@
       travel_prefilled_from_defaults: 'Pré-rempli depuis tes infos de voyage par défaut (Mon profil) -- modifie-les ici si cette sortie est différente.',
       account_heading: 'Compte', current_email_label: 'Email actuel', new_email_label: 'Nouvel email',
       current_password_label: 'Mot de passe actuel', change_email_btn: 'Changer mon email',
+      change_password_heading: 'Mot de passe', new_password_label: 'Nouveau mot de passe',
+      confirm_new_password_label: 'Confirmer le nouveau mot de passe', change_password_btn: 'Changer mon mot de passe',
+      indicate_current_new_password: 'Indique ton mot de passe actuel et le nouveau.',
+      password_mismatch: 'Les deux mots de passe ne correspondent pas.',
+      password_updated_success: 'Mot de passe mis à jour.',
       delete_account_heading: 'Supprimer mon compte',
       delete_account_help: 'Supprime définitivement ton compte (accès et profil). Tes chronos déjà enregistrés restent visibles pour le groupe.',
       delete_account_btn: 'Supprimer mon compte', delete_irreversible_help: 'Cette action est irréversible. Confirme avec ton mot de passe actuel.',
@@ -603,6 +608,11 @@
       travel_prefilled_from_defaults: 'Pre-filled from your default travel info (My profile) -- edit it here if this outing is different.',
       account_heading: 'Account', current_email_label: 'Current email', new_email_label: 'New email',
       current_password_label: 'Current password', change_email_btn: 'Change my email',
+      change_password_heading: 'Password', new_password_label: 'New password',
+      confirm_new_password_label: 'Confirm new password', change_password_btn: 'Change my password',
+      indicate_current_new_password: 'Enter your current password and the new one.',
+      password_mismatch: 'The two passwords don\'t match.',
+      password_updated_success: 'Password updated.',
       delete_account_heading: 'Delete my account',
       delete_account_help: 'Permanently deletes your account (access and profile). Your already-saved lap times stay visible to the group.',
       delete_account_btn: 'Delete my account', delete_irreversible_help: 'This action is irreversible. Confirm with your current password.',
@@ -3319,6 +3329,19 @@
     if (profileEmailMessage) html += '<div class="help-text" style="margin-top:0.6rem;">' + escapeHtml(profileEmailMessage) + '</div>';
     html += '</form>';
     html += '</div>';
+    // Same reauthentication pattern as the email form just above, kept as
+    // its own separate form/submit so the two never accidentally
+    // interfere (e.g. hitting Enter in one shouldn't submit the other).
+    html += '<div style="margin-top:1.2rem; border-top:1px solid var(--border); padding-top:0.9rem;">';
+    html += '<div class="section-title" style="font-size:0.95rem;">' + tr('change_password_heading') + '</div>';
+    html += '<form id="profile-password-form">';
+    html += '<label for="profile-password-current" style="margin-top:0.6rem;">' + tr('current_password_label') + '</label><input type="password" id="profile-password-current" autocomplete="current-password">';
+    html += '<label for="profile-password-new" style="margin-top:0.6rem;">' + tr('new_password_label') + '</label><input type="password" id="profile-password-new" autocomplete="new-password">';
+    html += '<label for="profile-password-confirm" style="margin-top:0.6rem;">' + tr('confirm_new_password_label') + '</label><input type="password" id="profile-password-confirm" autocomplete="new-password">';
+    html += '<div style="margin-top:0.7rem;"><button type="submit" class="ghost">' + tr('change_password_btn') + '</button></div>';
+    if (profilePasswordMessage) html += '<div class="help-text" style="margin-top:0.6rem;">' + escapeHtml(profilePasswordMessage) + '</div>';
+    html += '</form>';
+    html += '</div>';
     html += '<div class="danger-zone">';
     html += '<div class="section-title" style="font-size:0.95rem;">' + tr('delete_account_heading') + '</div>';
     if (!profileDeleteConfirmOpen) {
@@ -4131,6 +4154,37 @@
       showToast(tr('email_updated_verify'), 'success');
     }).catch(function (err) {
       profileEmailMessage = translateAuthError(err);
+      renderRoot();
+    });
+  }
+
+  // Same reauthentication requirement as changeProfileEmail -- Firebase
+  // needs a recent sign-in before updatePassword(), not just knowledge of
+  // the old one, hence asking for it again here rather than trusting a
+  // still-open session.
+  var profilePasswordMessage = '';
+  function changeProfilePassword(currentPassword, newPassword, confirmPassword) {
+    var user = auth.currentUser;
+    if (!user) return;
+    if (!currentPassword || !newPassword) {
+      profilePasswordMessage = tr('indicate_current_new_password');
+      renderRoot();
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      profilePasswordMessage = tr('password_mismatch');
+      renderRoot();
+      return;
+    }
+    var cred = firebase.auth.EmailAuthProvider.credential(user.email, currentPassword);
+    user.reauthenticateWithCredential(cred).then(function () {
+      return user.updatePassword(newPassword);
+    }).then(function () {
+      profilePasswordMessage = '';
+      renderRoot();
+      showToast(tr('password_updated_success'), 'success');
+    }).catch(function (err) {
+      profilePasswordMessage = translateAuthError(err);
       renderRoot();
     });
   }
@@ -12256,6 +12310,16 @@
         var newEmail = document.getElementById('profile-new-email').value.trim();
         var currentPassword = document.getElementById('profile-current-password').value;
         changeProfileEmail(newEmail, currentPassword);
+      });
+    }
+    var profilePasswordForm = document.getElementById('profile-password-form');
+    if (profilePasswordForm) {
+      profilePasswordForm.addEventListener('submit', function (evt) {
+        evt.preventDefault();
+        var currentPassword = document.getElementById('profile-password-current').value;
+        var newPassword = document.getElementById('profile-password-new').value;
+        var confirmPassword = document.getElementById('profile-password-confirm').value;
+        changeProfilePassword(currentPassword, newPassword, confirmPassword);
       });
     }
     var profilePhotoBtn = document.getElementById('profile-photo-btn');
