@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Réafficher le tutoriel à tous (admin) — Carnet de Piste</title>
+<style>
+  body { font: 15px -apple-system, sans-serif; max-width: 640px; margin: 3rem auto; padding: 0 1rem; color: #16212c; }
+  label { display: block; margin-top: 1rem; font-weight: 600; }
+  input { font-size: 1rem; padding: 0.5rem; width: 100%; box-sizing: border-box; margin-top: 0.3rem; }
+  button { font-size: 1rem; padding: 0.6rem 1.2rem; cursor: pointer; margin-top: 1.2rem; }
+  #log { white-space: pre-wrap; background: #f2f2f2; padding: 1rem; margin-top: 1.2rem; font-family: monospace; font-size: 0.85rem; max-height: 420px; overflow: auto; }
+  #step2 { display: none; }
+</style>
+</head>
+<body>
+<h1>Réafficher le tutoriel « Bienvenue » à tous les comptes</h1>
+<p>Remet à zéro <code>tutorialSeen</code> sur chaque compte -- le tour guidé (Événements, Chronos, EN PISTE, Social, Team, Stats/Notifications) s'ouvrira alors tout seul pour tout le monde à la prochaine ouverture ou au prochain rechargement de l'app, comme pour un compte flambant neuf. Chacun garde ensuite la main pour le refermer ou le revoir plus tard depuis Profil → Réglages → Aide.</p>
+
+<div id="step1">
+  <label for="login-email">Email (compte admin)</label>
+  <input type="email" id="login-email" autocomplete="username">
+  <label for="login-password">Mot de passe</label>
+  <input type="password" id="login-password" autocomplete="current-password">
+  <button id="login-btn">Se connecter</button>
+</div>
+
+<div id="step2">
+  <button id="go">Réafficher le tutoriel pour tous les comptes</button>
+</div>
+
+<div id="log"></div>
+
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore-compat.js"></script>
+<script src="firebase-config.js"></script>
+<script>
+  var logEl = document.getElementById('log');
+  function log(msg) { logEl.textContent += msg + '\n'; logEl.scrollTop = logEl.scrollHeight; }
+
+  var db, auth;
+
+  document.getElementById('login-btn').addEventListener('click', function () {
+    db = firebase.firestore();
+    auth = firebase.auth();
+    var email = document.getElementById('login-email').value.trim();
+    var password = document.getElementById('login-password').value;
+    log('Connexion...');
+    auth.signInWithEmailAndPassword(email, password).then(function () {
+      log('Connecté.');
+      document.getElementById('step1').style.display = 'none';
+      document.getElementById('step2').style.display = 'block';
+    }).catch(function (err) {
+      log('ERREUR : ' + (err && err.message ? err.message : err));
+    });
+  });
+
+  document.getElementById('go').addEventListener('click', function () {
+    var btn = document.getElementById('go');
+    btn.disabled = true;
+    log('--- Recherche des comptes ayant déjà vu le tutoriel ---');
+    db.collection('users').where('tutorialSeen', '==', true).get().then(function (snap) {
+      if (snap.empty) {
+        log('Aucun compte à remettre à zéro (personne n\'a encore de tutorialSeen à true).');
+        btn.disabled = false;
+        return null;
+      }
+      log(snap.size + ' compte(s) trouvé(s). Remise à zéro...');
+      // Firestore limite un batch à 500 écritures -- largement suffisant
+      // ici, mais découpé par lots de 400 par prudence si la base grossit.
+      var docs = snap.docs;
+      var chunks = [];
+      for (var i = 0; i < docs.length; i += 400) chunks.push(docs.slice(i, i + 400));
+      return chunks.reduce(function (chain, chunk) {
+        return chain.then(function () {
+          var batch = db.batch();
+          chunk.forEach(function (doc) {
+            batch.update(doc.ref, { tutorialSeen: false });
+            log('  ' + (doc.data().name || doc.id));
+          });
+          return batch.commit();
+        });
+      }, Promise.resolve()).then(function () {
+        log('OK : ' + docs.length + ' compte(s) remis à zéro.');
+      });
+    }).then(function () {
+      log('--- Terminé. ---');
+      btn.disabled = false;
+    }).catch(function (err) {
+      log('ERREUR : ' + (err && err.message ? err.message : err));
+      btn.disabled = false;
+    });
+  });
+</script>
+</body>
+</html>

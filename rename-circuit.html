@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Renommer un circuit (admin) — Carnet de Piste</title>
+<style>
+  body { font: 15px -apple-system, sans-serif; max-width: 720px; margin: 3rem auto; padding: 0 1rem; color: #16212c; }
+  label { display: block; margin-top: 1rem; font-weight: 600; }
+  input { font-size: 1rem; padding: 0.5rem; width: 100%; box-sizing: border-box; margin-top: 0.3rem; }
+  button { font-size: 1rem; padding: 0.6rem 1.2rem; cursor: pointer; margin-top: 1.2rem; }
+  .help { font-size: 0.82rem; color: #666; font-weight: 400; margin-top: 0.2rem; }
+  #log { white-space: pre-wrap; background: #f2f2f2; padding: 1rem; margin-top: 1.2rem; font-family: monospace; font-size: 0.85rem; max-height: 420px; overflow: auto; }
+  #step2 { display: none; }
+</style>
+</head>
+<body>
+<h1>Renommer un circuit</h1>
+<p>Corrige un nom de circuit mal orthographié partout où il apparaît : la fiche circuit elle-même, le champ <code>circuit</code> des événements et des chronos. Si une fiche existe déjà sous le bon nom, ses infos (plan, distance, horaires...) sont conservées -- seuls les champs absents sont complétés depuis l'ancienne fiche, jamais écrasés.</p>
+
+<div id="step1">
+  <label for="login-email">Email (compte admin)</label>
+  <input type="email" id="login-email" autocomplete="username">
+  <label for="login-password">Mot de passe</label>
+  <input type="password" id="login-password" autocomplete="current-password">
+  <button id="login-btn">Se connecter</button>
+</div>
+
+<div id="step2">
+  <label for="old-name">Nom actuel (mal orthographié)</label>
+  <input type="text" id="old-name" value="Bacelone">
+  <label for="new-name">Nom corrigé</label>
+  <input type="text" id="new-name" value="Barcelone">
+  <button id="preview-btn">Prévisualiser</button>
+  <div id="preview"></div>
+</div>
+
+<div id="log"></div>
+
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore-compat.js"></script>
+<script src="firebase-config.js"></script>
+<script>
+  var logEl = document.getElementById('log');
+  function log(msg) { logEl.textContent += msg + '\n'; logEl.scrollTop = logEl.scrollHeight; }
+  function safeDocId(name) { return encodeURIComponent(name).slice(0, 300) || '_'; }
+
+  var db, auth;
+
+  document.getElementById('login-btn').addEventListener('click', function () {
+    db = firebase.firestore();
+    auth = firebase.auth();
+    var email = document.getElementById('login-email').value.trim();
+    var password = document.getElementById('login-password').value;
+    log('Connexion...');
+    auth.signInWithEmailAndPassword(email, password).then(function () {
+      log('Connecté.');
+      document.getElementById('step1').style.display = 'none';
+      document.getElementById('step2').style.display = 'block';
+    }).catch(function (err) {
+      log('ERREUR : ' + (err && err.message ? err.message : err));
+    });
+  });
+
+  function gatherPlan(oldName, newName) {
+    return Promise.all([
+      db.collection('circuits').doc(safeDocId(oldName)).get(),
+      db.collection('circuits').doc(safeDocId(newName)).get(),
+      db.collection('events').where('circuit', '==', oldName).get(),
+      db.collection('sessions').where('circuit', '==', oldName).get()
+    ]).then(function (r) {
+      return { oldCircuit: r[0], newCircuit: r[1], events: r[2], sessions: r[3] };
+    });
+  }
+
+  var lastPlan = null;
+
+  document.getElementById('preview-btn').addEventListener('click', function () {
+    var oldName = document.getElementById('old-name').value.trim();
+    var newName = document.getElementById('new-name').value.trim();
+    var previewEl = document.getElementById('preview');
+    previewEl.innerHTML = '';
+    if (!oldName || !newName || oldName === newName) {
+      log('Indique un nom actuel et un nom corrigé différents.');
+      return;
+    }
+    log('--- Recherche "' + oldName + '" -> "' + newName + '" ---');
+    gatherPlan(oldName, newName).then(function (plan) {
+      lastPlan = { oldName: oldName, newName: newName, plan: plan };
+      if (!plan.oldCircuit.exists && plan.events.empty && plan.sessions.empty) {
+        log('Rien trouvé sous "' + oldName + '" (ni fiche circuit, ni événement, ni chrono). Rien à faire.');
+        lastPlan = null;
+        return;
+      }
+      log('Fiche circuit "' + oldName + '" : ' + (plan.oldCircuit.exists ? 'existe' : 'absente'));
+      log('Fiche circuit "' + newName + '" : ' + (plan.newCircuit.exists ? 'existe déjà (conservée, complétée si besoin)' : 'sera créée'));
+      log(plan.events.size + ' événement(s) à corriger.');
+      log(plan.sessions.size + ' chrono(s) à corriger.');
+      var btn = document.createElement('button');
+      btn.textContent = 'Confirmer le renommage';
+      btn.addEventListener('click', doRename);
+      previewEl.appendChild(btn);
+    }).catch(function (err) {
+      log('ERREUR : ' + (err && err.message ? err.message : err));
+    });
+  });
+
+  function doRename() {
+    if (!lastPlan) return;
+    var oldName = lastPlan.oldName, newName = lastPlan.newName, plan = lastPlan.plan;
+    document.getElementById('preview').innerHTML = '';
+    log('--- Renommage en cours ---');
+    var batch = db.batch();
+
+    if (plan.oldCircuit.exists) {
+      var oldData = plan.oldCircuit.data();
+      var newData = plan.newCircuit.exists ? plan.newCircuit.data() : {};
+      // Never overwrite a field the correctly-named fiche already has --
+      // only fills in gaps from the misspelled one.
+      var merged = Object.assign({}, oldData, newData, { name: newName });
+      batch.set(db.collection('circuits').doc(safeDocId(newName)), merged);
+      batch.delete(db.collection('circuits').doc(safeDocId(oldName)));
+      log('Fiche circuit : fusionnée sous "' + newName + '", ancienne fiche supprimée.');
+    }
+
+    plan.events.forEach(function (doc) {
+      batch.update(doc.ref, { circuit: newName });
+    });
+    if (plan.events.size) log(plan.events.size + ' événement(s) : circuit -> "' + newName + '".');
+
+    plan.sessions.forEach(function (doc) {
+      batch.update(doc.ref, { circuit: newName });
+    });
+    if (plan.sessions.size) log(plan.sessions.size + ' chrono(s) : circuit -> "' + newName + '".');
+
+    batch.commit().then(function () {
+      log('--- Terminé. ---');
+      log('Un éventuel "Objectif pour la prochaine session" déjà enregistré sous l\'ancien nom (chronoGoals, propre à chaque compte) n\'est pas repris automatiquement -- cosmétique et rare, à corriger à la main si besoin (Profil -> le texte reste visible tant que ce circuit reste sélectionné).');
+      lastPlan = null;
+    }).catch(function (err) {
+      log('ERREUR : ' + (err && err.message ? err.message : err));
+    });
+  }
+</script>
+</body>
+</html>
