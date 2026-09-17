@@ -14,13 +14,15 @@
   td input, td select { margin-top: 0; }
   .email-preview { font-family: monospace; font-size: 0.82rem; color: #444; padding-top: 0.6rem; display: block; }
   button { font-size: 1rem; padding: 0.6rem 1.2rem; cursor: pointer; margin-top: 1.4rem; }
+  .remove-row-btn { font-size: 1.1rem; line-height: 1; padding: 0.3rem 0.55rem; margin-top: 0; background: none; border: 1px solid #ccc; border-radius: 6px; color: #a33; }
+  #add-row-btn { font-size: 0.88rem; padding: 0.45rem 0.9rem; margin-top: 0.7rem; background: none; border: 1.5px dashed #999; border-radius: 6px; color: #444; }
   #log { white-space: pre-wrap; background: #f2f2f2; padding: 1rem; margin-top: 1.2rem; font-family: monospace; font-size: 0.85rem; max-height: 400px; overflow: auto; }
   #step2 { display: none; }
 </style>
 </head>
 <body>
 <h1>Créer des comptes (démo/équipe)</h1>
-<p>Crée jusqu'à 3 comptes d'un coup, avec une adresse email temporaire en <code>+alias</code> sous ta propre boîte -- Firebase exige un email réel et cliquable pour activer un compte, il n'y a pas moyen de s'en passer même temporairement. Chaque compte affichera ensuite un bandeau « Ajoute ton propre email » jusqu'à ce que son titulaire le change depuis Réglages.</p>
+<p>Crée autant de comptes que nécessaire d'un coup (ajoute/retire des lignes selon le besoin), avec une adresse email temporaire en <code>+alias</code> sous ta propre boîte -- Firebase exige un email réel et cliquable pour activer un compte, il n'y a pas moyen de s'en passer même temporairement. Chaque compte affichera ensuite un bandeau « Ajoute ton propre email » jusqu'à ce que son titulaire le change depuis Réglages.</p>
 
 <div id="step1">
   <p>Connecte-toi d'abord avec ton propre compte (déjà vérifié) -- nécessaire pour enregistrer les nouveaux pilotes dans la liste des pilotes, une écriture réservée aux comptes vérifiés.</p>
@@ -36,29 +38,14 @@
   <input type="email" id="base-email" autocomplete="off">
   <div class="help">Les comptes créés utiliseront toi+nicolas@gmail.com, toi+juliette@gmail.com, etc. -- Gmail (et la plupart des fournisseurs) livrent tout dans la boîte principale. Pré-rempli avec ton email de connexion, modifiable.</div>
 
-  <label for="shared-password">Mot de passe pour les 3 comptes</label>
+  <label for="shared-password">Mot de passe pour ces comptes</label>
   <input type="text" id="shared-password" value="Moto78!" autocomplete="off">
 
   <table id="accounts-table">
-    <thead><tr><th>Pseudo</th><th>Rôle</th><th>Email généré</th></tr></thead>
-    <tbody>
-      <tr data-row>
-        <td><input type="text" class="acc-name" value="Nicolas"></td>
-        <td><select class="acc-role"><option value="pilote" selected>Pilote</option><option value="accompagnant">Accompagnant</option><option value="organisateur">Organisateur</option></select></td>
-        <td><span class="email-preview"></span></td>
-      </tr>
-      <tr data-row>
-        <td><input type="text" class="acc-name" value="Juliette"></td>
-        <td><select class="acc-role"><option value="pilote">Pilote</option><option value="accompagnant" selected>Accompagnant</option><option value="organisateur">Organisateur</option></select></td>
-        <td><span class="email-preview"></span></td>
-      </tr>
-      <tr data-row>
-        <td><input type="text" class="acc-name" value="Christelle"></td>
-        <td><select class="acc-role"><option value="pilote">Pilote</option><option value="accompagnant">Accompagnant</option><option value="organisateur" selected>Organisateur</option></select></td>
-        <td><span class="email-preview"></span></td>
-      </tr>
-    </tbody>
+    <thead><tr><th>Pseudo</th><th>Rôle</th><th>Email généré</th><th></th></tr></thead>
+    <tbody id="accounts-body"></tbody>
   </table>
+  <button type="button" id="add-row-btn">+ Ajouter une ligne</button>
 
   <button id="go">Créer les comptes</button>
   <p class="help">Ensuite : va cliquer les liens de vérification reçus, puis donne à chacun son pseudo et le mot de passe -- ils changeront leur email eux-mêmes au premier login (Profil → Réglages, bandeau « Ajoute ton propre email »).</p>
@@ -85,6 +72,50 @@
     return m[1] + '+' + tag + '@' + m[2];
   }
 
+  // Rows are built dynamically (add/remove) rather than a fixed 3-row
+  // table -- a 4th/5th account (e.g. "Sandrine" added on top of the
+  // initial 3) used to mean hand-editing the HTML, which is how a stray
+  // extra row with a leftover duplicate name/email caused a bad batch
+  // last time. One delegated listener on the tbody covers every row,
+  // present now or added later, no per-row wiring needed.
+  var accountsBody = document.getElementById('accounts-body');
+  var rowSeq = 0;
+  var PRESETS = [
+    { name: 'Nicolas', role: 'pilote' },
+    { name: 'Juliette', role: 'accompagnant' },
+    { name: 'Christelle', role: 'organisateur' }
+  ];
+
+  function addRow(preset) {
+    rowSeq++;
+    var tr = document.createElement('tr');
+    tr.setAttribute('data-row', '');
+    tr.innerHTML =
+      '<td><input type="text" class="acc-name" value="' + (preset ? preset.name : '') + '"></td>' +
+      '<td><select class="acc-role">' +
+        ['pilote', 'accompagnant', 'organisateur'].map(function (r) {
+          var label = r === 'pilote' ? 'Pilote' : (r === 'accompagnant' ? 'Accompagnant' : 'Organisateur');
+          var selected = (preset ? preset.role : 'pilote') === r ? ' selected' : '';
+          return '<option value="' + r + '"' + selected + '>' + label + '</option>';
+        }).join('') +
+      '</select></td>' +
+      '<td><span class="email-preview"></span></td>' +
+      '<td><button type="button" class="remove-row-btn" aria-label="Retirer cette ligne">×</button></td>';
+    accountsBody.appendChild(tr);
+    updatePreviews();
+  }
+  document.getElementById('add-row-btn').addEventListener('click', function () { addRow(null); });
+  PRESETS.forEach(addRow);
+
+  accountsBody.addEventListener('click', function (e) {
+    if (e.target.classList.contains('remove-row-btn')) {
+      e.target.closest('[data-row]').remove();
+    }
+  });
+  accountsBody.addEventListener('input', function (e) {
+    if (e.target.classList.contains('acc-name')) updatePreviews();
+  });
+
   function updatePreviews() {
     var base = document.getElementById('base-email').value;
     document.querySelectorAll('[data-row]').forEach(function (row) {
@@ -93,7 +124,6 @@
     });
   }
   document.getElementById('base-email').addEventListener('input', updatePreviews);
-  document.querySelectorAll('.acc-name').forEach(function (el) { el.addEventListener('input', updatePreviews); });
 
   // Same collision guard as the in-app signup form (onSignupSubmit) --
   // only riders matter, since only role:pilote ever writes to `riders`.
@@ -144,7 +174,31 @@
         role: row.querySelector('.acc-role').value,
         email: aliasEmail(baseEmail, row.querySelector('.acc-name').value)
       };
+    }).filter(function (acc) {
+      if (!acc.name) log('(ligne sans pseudo ignorée)');
+      return !!acc.name;
     });
+    if (!rows.length) {
+      log('Aucune ligne avec un pseudo -- rien à créer.');
+      goBtn.disabled = false;
+      return;
+    }
+    // Two rows sharing a pseudo or a generated email (e.g. a copy-pasted
+    // row never renamed) would otherwise mean the second createUser call
+    // either collides or silently reuses the first's account -- caught
+    // here, before anything is sent, rather than mid-batch.
+    var seenNames = {}, seenEmails = {}, dupe = null;
+    rows.forEach(function (acc) {
+      var key = acc.name.toLowerCase();
+      if (seenNames[key] || seenEmails[acc.email]) dupe = acc.name;
+      seenNames[key] = true;
+      seenEmails[acc.email] = true;
+    });
+    if (dupe) {
+      log('Deux lignes partagent le même pseudo ou email généré ("' + dupe + '") -- corrige avant de relancer.');
+      goBtn.disabled = false;
+      return;
+    }
     var pilotesCreated = [];
 
     log('');
