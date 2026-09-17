@@ -2372,7 +2372,7 @@
       // checks for, so an already-materialized live template (see
       // checklistTemplate()) also gets this category (or its later
       // reshapes) applied.
-      { id: 'avant-session', name: 'Liste avant toute session', items: [
+      { id: 'avant-session', name: 'Checklist avant session', items: [
         { id: 'as-pneus-pression', label: 'Pression', group: 'Moto', subgroup: 'Pneus' },
         { id: 'as-pneus-etat', label: 'État', group: 'Moto', subgroup: 'Pneus' },
         { id: 'as-pneus-couverture', label: 'Couverture', group: 'Moto', subgroup: 'Pneus' },
@@ -5112,7 +5112,9 @@
     });
     html += '</select></div>';
     html += renderCircuitInfoCard();
-    html += renderChronoGoalsCard();
+    // Objectif pour la prochaine session lives in EN PISTE now (see
+    // renderPlanningTab), keyed off the current/next event's own circuit --
+    // not repeated here.
     // Chronos used to be its own tab; it's really always been about
     // "the currently active circuit", so it lives here now, right after
     // the circuit's own info.
@@ -5146,10 +5148,13 @@
       renderRoot();
     });
   }
-  function renderChronoGoalsCard() {
+  // circuit: explicit now (EN PISTE's own current/next event circuit) --
+  // no longer tied to Chronos' selectedCircuit since this card lives in
+  // EN PISTE instead (see renderPlanningTab).
+  function renderChronoGoalsCard(circuit) {
     var me = currentUserProfile;
-    if (!me || !selectedCircuit) return '';
-    var goals = (me.chronoGoals || {})[selectedCircuit] || '';
+    if (!me || !circuit) return '';
+    var goals = (me.chronoGoals || {})[circuit] || '';
     var last = mostRecentSessionForRider(me.name);
     var feelingOpt = last && last.feeling ? FEELING_OPTIONS.filter(function (f) { return f.key === last.feeling; })[0] : null;
     var html = '<div class="card" style="margin-top:1rem;"><h2 class="section-title">' + tr('goal_heading') + '</h2>';
@@ -5157,7 +5162,7 @@
       ? '<div class="help-text">' + tr('goal_last_feeling') + feelingOpt.icon + ' ' + escapeHtml(feelingOpt.label) + (last.feelingComment ? ' — ' + escapeHtml(last.feelingComment) : '') + '</div>'
       : '<div class="help-text">' + tr('goal_no_feeling') + '</div>';
     html += '<textarea id="chrono-goals-input" rows="4" style="margin-top:0.6rem;" placeholder="' + tr('goal_placeholder') + '">' + escapeHtml(goals) + '</textarea>';
-    html += '<button type="button" class="ghost" id="chrono-goals-save-btn" style="margin-top:0.5rem;">' + tr('save') + '</button>';
+    html += '<button type="button" class="ghost" id="chrono-goals-save-btn" data-circuit="' + escapeHtml(circuit) + '" style="margin-top:0.5rem;">' + tr('save') + '</button>';
     if (chronoGoalsMessage) html += '<div class="help-text" style="margin-top:0.4rem;">' + escapeHtml(chronoGoalsMessage) + '</div>';
     html += '</div>';
     return html;
@@ -8026,7 +8031,7 @@
       }
       return '<div style="margin-top:0.6rem;"><div class="account-role-tag" style="margin-bottom:0.3rem;">' + escapeHtml(rider) + '</div>' + rows + '</div>';
     }).join('');
-    return collapsibleSection('followed-travel-' + ev.id, 'Infos de voyage des pilotes suivis', body);
+    return collapsibleSection('followed-travel-' + ev.id, 'Infos de voyage des amis', body);
   }
 
   // Photos/vidéos de la sortie -- one link par event (Drive, WeTransfer,
@@ -8368,10 +8373,10 @@
     checklistTemplate().categories.forEach(function (cat) {
       if (cat.id !== 'avant-session') cat.items.forEach(function (item) { allItems.push(item); });
     });
-    if (!allItems.length) return 'Liste des équipements avant le départ pour le circuit';
+    if (!allItems.length) return 'Équipement à emporter';
     var checklist = ev.checklist || {};
     var done = allItems.filter(function (item) { return checklist[item.id]; }).length;
-    return 'Liste des équipements avant le départ pour le circuit — ' + done + '/' + allItems.length;
+    return 'Équipement à emporter — ' + done + '/' + allItems.length;
   }
 
   function avantSessionCategory() {
@@ -8380,10 +8385,10 @@
 
   function avantSessionChecklistLabel(ev) {
     var cat = avantSessionCategory();
-    if (!cat || !cat.items.length) return 'Liste avant toute session';
+    if (!cat || !cat.items.length) return 'Checklist avant session';
     var checklist = ev.checklist || {};
     var done = cat.items.filter(function (item) { return checklist[item.id]; }).length;
-    return 'Liste avant toute session — ' + done + '/' + cat.items.length;
+    return 'Checklist avant session — ' + done + '/' + cat.items.length;
   }
 
   // Its own standalone section (between Mes amis and the equipment
@@ -8677,6 +8682,14 @@
       html += renderDailyRecap(ev, horaires, todayKey);
     }
     html += '</div>';
+
+    // Objectif pour la prochaine session -- moved here from the Circuit
+    // tab (Chronos) so it sits right where a rider is actually planning
+    // that next outing, keyed off this event's own circuit rather than
+    // whichever one happens to be selected in Chronos. Its own
+    // margin-top:1rem (see renderChronoGoalsCard) already gives it clean
+    // breathing room below the orange card.
+    html += renderChronoGoalsCard(ev.circuit);
 
     // Grey card: this account's own personal info for the sortie -- never
     // something the Team orga fills in for everyone.
@@ -12996,7 +13009,7 @@
     if (chronoGoalsSaveBtn) {
       chronoGoalsSaveBtn.addEventListener('click', function () {
         var input = document.getElementById('chrono-goals-input');
-        saveChronoGoals(selectedCircuit, input ? input.value : '');
+        saveChronoGoals(chronoGoalsSaveBtn.getAttribute('data-circuit'), input ? input.value : '');
       });
     }
     document.querySelectorAll('[data-action="team-delete-request"]').forEach(function (btn) {
