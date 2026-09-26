@@ -1763,6 +1763,20 @@
       showToast(tr('error_prefix') + (err && err.message ? err.message : err));
     });
   }
+  // Full-screen viewer for any photo tapped via data-action="open-photo-
+  // lightbox" (currently just the horaires photo -- see
+  // renderHorairesPhotoSection). Plain <img> at (near-)viewport size so
+  // the browser's own pinch-to-zoom/pan handles reading fine print on a
+  // phone, rather than reimplementing that -- the annotation tool's own
+  // zoom/pan (see renderAnnotOverlay) is for *drawing* on a plan, overkill
+  // for "let me just see this bigger".
+  function renderPhotoLightbox() {
+    if (!photoLightboxUrl) return '';
+    return '<div class="photo-lightbox-overlay" data-action="close-photo-lightbox">' +
+      '<button type="button" class="photo-lightbox-close" data-action="close-photo-lightbox" aria-label="Fermer">✕</button>' +
+      '<img class="photo-lightbox-img" src="' + escapeHtml(photoLightboxUrl) + '" alt="Photo en plein écran">' +
+      '</div>';
+  }
   function renderFeelingModal() {
     if (!feelingModalSessionId) return '';
     return '<div class="crop-modal-overlay">' +
@@ -5283,6 +5297,98 @@
     return html;
   }
 
+  // Shared by renderCircuitInfoEditForm (circuit's "horaires habituels",
+  // admin) and renderEventForm (a specific sortie's override) -- same
+  // one-text-field-per-groupe grid, same "type the same staggered rotation
+  // by hand for every groupe" tedium, so the generator that fills them in
+  // one shot (see renderHorairesGenerator/generateHorairesFromInputs)
+  // lives here once instead of twice. prefix ('ci' or 'ev') keeps every
+  // element id from colliding when, in principle, both forms could ever
+  // render on the same page.
+  function renderHorairesGridWithGenerator(prefix, horairesVal, circuitName, labelKey) {
+    var activeGroups = HORAIRES_GROUPS.filter(function (g) {
+      return !(g.key === 'groupR' && circuitName !== 'Mugello' && !horairesVal.groupR);
+    });
+    var html = '<div style="margin-top:0.6rem;"><label>' + tr(labelKey) + '</label>';
+    html += renderHorairesGenerator(prefix, activeGroups);
+    html += '<div class="horaires-grid">';
+    activeGroups.forEach(function (g) {
+      html += '<div><label for="' + prefix + '-horaires-' + g.key + '" class="horaires-sublabel">' + escapeHtml(g.label) + '</label>' +
+        '<input type="text" id="' + prefix + '-horaires-' + g.key + '" placeholder="Ex. 9h, 10h40, 14h, 15h20, 16h40" value="' + escapeHtml(horairesVal[g.key] || '') + '"></div>';
+    });
+    html += '</div></div>';
+    return html;
+  }
+
+  // Collapsed by default so it doesn't crowd the plain text fields for
+  // whoever's happy typing those directly -- opt into the assistant only
+  // when the rotation is regular enough for it to actually save time.
+  // data-groups on the button carries the active group keys in display
+  // order, in lieu of re-deriving HORAIRES_GROUPS/circuit context inside
+  // the click handler (see attachHandlers' generate-horaires wiring).
+  function renderHorairesGenerator(prefix, activeGroups) {
+    if (activeGroups.length < 2) return '';
+    var groupKeys = activeGroups.map(function (g) { return g.key; }).join(',');
+    var id = function (suffix) { return prefix + '-gen-' + suffix; };
+    var html = '<details class="horaires-generator">' +
+      '<summary>⚡ Générer les horaires</summary>' +
+      '<div class="horaires-generator-body">' +
+      '<div class="help-text">Calcule un tour de piste par groupe, à tour de rôle (Groupe A, B, C... puis on recommence), et remplit les champs ci-dessous -- à ajuster ensuite si besoin.</div>';
+    html += '<div class="horaires-gen-row"><label for="' + id('start') + '">Premier départ</label><input type="time" id="' + id('start') + '" value="09:00"></div>';
+    html += '<div class="horaires-gen-row"><label for="' + id('duration') + '">Durée d\'un tour de piste (min)</label><input type="number" inputmode="numeric" min="5" max="60" id="' + id('duration') + '" value="20"></div>';
+    html += '<div class="horaires-gen-row"><label for="' + id('rounds') + '">Rotations dans la journée</label><input type="number" inputmode="numeric" min="1" max="10" id="' + id('rounds') + '" value="4"></div>';
+    html += '<label class="checklist-item"><input type="checkbox" id="' + id('lunch-toggle') + '"> Pause déjeuner</label>';
+    html += '<div class="horaires-gen-row horaires-gen-lunch" id="' + id('lunch-row') + '" style="display:none;">' +
+      '<label for="' + id('lunch-start') + '">De</label><input type="time" id="' + id('lunch-start') + '" value="12:00">' +
+      '<label for="' + id('lunch-end') + '">à</label><input type="time" id="' + id('lunch-end') + '" value="13:00">' +
+      '</div>';
+    html += '<button type="button" class="ghost" data-action="generate-horaires" data-prefix="' + prefix + '" data-groups="' + groupKeys + '" style="margin-top:0.5rem;">Remplir les champs</button>';
+    html += '</div></details>';
+    return html;
+  }
+
+  // duration/gapBetweenGroups/rounds in minutes -- group i's round r starts
+  // at start + i*duration + r*(groupCount*duration), i.e. every group gets
+  // one tour de piste before the rotation comes back around to the first.
+  // A lunch window (optional) is skipped wholesale: any slot that would
+  // otherwise fall inside it, or later the same day, shifts later by
+  // exactly the lunch's own length -- once, not per slot, so the whole
+  // afternoon stays shifted together rather than each slot re-triggering
+  // the check.
+  function generateHorairesFromInputs(prefix, groupKeys) {
+    var val = function (suffix) { return document.getElementById(prefix + '-gen-' + suffix); };
+    var startEl = val('start'), durationEl = val('duration'), roundsEl = val('rounds');
+    if (!startEl || !startEl.value) return null;
+    var startParts = startEl.value.split(':');
+    var startMin = parseInt(startParts[0], 10) * 60 + parseInt(startParts[1], 10);
+    var duration = Math.max(1, parseInt(durationEl.value, 10) || 20);
+    var rounds = Math.max(1, parseInt(roundsEl.value, 10) || 1);
+    var lunchToggle = val('lunch-toggle');
+    var lunchStartMin = null, lunchEndMin = null;
+    if (lunchToggle && lunchToggle.checked) {
+      var lsEl = val('lunch-start'), leEl = val('lunch-end');
+      if (lsEl && lsEl.value && leEl && leEl.value) {
+        var ls = lsEl.value.split(':'), le = leEl.value.split(':');
+        lunchStartMin = parseInt(ls[0], 10) * 60 + parseInt(ls[1], 10);
+        lunchEndMin = parseInt(le[0], 10) * 60 + parseInt(le[1], 10);
+      }
+    }
+    var lunchLen = (lunchStartMin != null && lunchEndMin != null && lunchEndMin > lunchStartMin) ? (lunchEndMin - lunchStartMin) : 0;
+    var groupCount = groupKeys.length;
+    var result = {};
+    groupKeys.forEach(function (key, i) {
+      var labels = [];
+      for (var r = 0; r < rounds; r++) {
+        var t = startMin + i * duration + r * groupCount * duration;
+        if (lunchLen && t >= lunchStartMin) t += lunchLen;
+        var h = Math.floor(t / 60), m = t % 60;
+        labels.push(h + 'h' + pad2(m));
+      }
+      result[key] = labels.join(', ');
+    });
+    return result;
+  }
+
   function renderCircuitInfoEditForm(info) {
     var html = '<div class="info-edit-form">';
     html += '<div><label for="ci-km">' + tr('ci_distance_km') + '</label><input type="text" inputmode="decimal" id="ci-km" value="' + (info.km != null ? escapeHtml(String(info.km)) : '') + '" placeholder="Ex. 4.2"></div>';
@@ -5299,15 +5405,7 @@
     // créée sur ce circuit (voir renderEventForm) -- utile puisque
     // l'organisateur fixe en général les mêmes créneaux à chaque sortie.
     var horairesVal = (info.horaires && typeof info.horaires === 'object') ? info.horaires : {};
-    html += '<div style="margin-top:0.6rem;"><label>' + tr('ci_usual_horaires') + '</label><div class="horaires-grid">';
-    HORAIRES_GROUPS.forEach(function (g) {
-      // Rookies (groupe R) is Mugello-only for now -- hide the field
-      // elsewhere so it doesn't look like every circuit has one.
-      if (g.key === 'groupR' && selectedCircuit !== 'Mugello' && !horairesVal.groupR) return;
-      html += '<div><label for="ci-horaires-' + g.key + '" class="horaires-sublabel">' + escapeHtml(g.label) + '</label>' +
-        '<input type="text" id="ci-horaires-' + g.key + '" placeholder="Ex. 9h, 10h40, 14h, 15h20, 16h40" value="' + escapeHtml(horairesVal[g.key] || '') + '"></div>';
-    });
-    html += '</div></div>';
+    html += renderHorairesGridWithGenerator('ci', horairesVal, selectedCircuit, 'ci_usual_horaires');
     // Same free upload as everywhere else in the app (photo/logo/horaires
     // photo) -- no in-app path existed at all before to set info.mapImage,
     // it could only ever be seeded by hand -- so "Aucun plan importé pour
@@ -8612,7 +8710,11 @@
   // through the ordinary STATE + persist() flow like every other event
   // field (mediaLink is the same pattern) rather than a direct write.
   var horairesPhotoMessage = '';
-  var horairesPhotoExpanded = {}; // event id -> bool, tap to zoom
+  // Set to the photo's own data URL while its full-screen lightbox is open
+  // (see renderPhotoLightbox) -- null the rest of the time. Holding the
+  // URL itself rather than just an event id keeps the lightbox reusable
+  // for any future "tap a photo to see it big" spot, not tied to horaires.
+  var photoLightboxUrl = null;
   function saveHorairesPhoto(eventId, dataUrl) {
     var prevState = JSON.parse(JSON.stringify(STATE));
     var ev = STATE.events.filter(function (e) { return e.id === eventId; })[0];
@@ -8636,8 +8738,7 @@
     html += '<div class="horaires-photo-title">📷 Photo des horaires de l\'organisateur</div>';
     html += '<div class="help-text">Pour vérifier les horaires ci-dessus par rapport à ce qui a été partagé dans le groupe WhatsApp.</div>';
     if (ev.horairesPhotoURL) {
-      var expanded = !!horairesPhotoExpanded[ev.id];
-      html += '<img class="horaires-photo-thumb' + (expanded ? ' expanded' : '') + '" src="' + escapeHtml(ev.horairesPhotoURL) + '" alt="Photo des horaires" data-action="toggle-horaires-photo" data-id="' + ev.id + '">';
+      html += '<img class="horaires-photo-thumb" src="' + escapeHtml(ev.horairesPhotoURL) + '" alt="Photo des horaires" data-action="open-photo-lightbox" data-url="' + escapeHtml(ev.horairesPhotoURL) + '">';
       if (ev.horairesPhotoAddedBy) html += '<div class="help-text">Ajoutée par ' + escapeHtml(ev.horairesPhotoAddedBy) + '</div>';
       if (isLeader) {
         html += '<div style="margin-top:0.5rem; display:flex; gap:0.5rem;">' +
@@ -9462,13 +9563,7 @@
     // the renderHoraireGroups call sites), so this is purely an
     // exception for a specific sortie's unusual schedule.
     var evHorairesVal = ev.horairesOverride || {};
-    html += '<div style="margin-top:0.9rem;"><label>' + tr('horaires_this_event_label') + '</label><div class="horaires-grid">';
-    HORAIRES_GROUPS.forEach(function (g) {
-      if (g.key === 'groupR' && ev.circuit !== 'Mugello' && !evHorairesVal.groupR) return;
-      html += '<div><label for="ev-horaires-' + g.key + '" class="horaires-sublabel">' + escapeHtml(g.label) + '</label>' +
-        '<input type="text" id="ev-horaires-' + g.key + '" placeholder="Ex. 9h, 10h40, 14h, 15h20, 16h40" value="' + escapeHtml(evHorairesVal[g.key] || '') + '"></div>';
-    });
-    html += '</div></div>';
+    html += renderHorairesGridWithGenerator('ev', evHorairesVal, ev.circuit, 'horaires_this_event_label');
     // Pilotes/groupes for a Team event now live entirely in the Team's own
     // "Gestion des événements" (search-to-add, chronos vérifiés as
     // reference for group moves) -- this form only still carries the
@@ -11735,7 +11830,8 @@
       renderCropModal() +
       renderTutorialOverlay() +
       renderFeelingModal() +
-      renderCoachSlotModal();
+      renderCoachSlotModal() +
+      renderPhotoLightbox();
     attachHandlers();
     if (focusedId) {
       var toRefocus = document.getElementById(focusedId);
@@ -12502,13 +12598,24 @@
     document.querySelectorAll('[data-action="horaires-photo-remove"]').forEach(function (btn) {
       btn.addEventListener('click', function () { saveHorairesPhoto(btn.getAttribute('data-id'), null); });
     });
-    document.querySelectorAll('[data-action="toggle-horaires-photo"]').forEach(function (img) {
+    document.querySelectorAll('[data-action="open-photo-lightbox"]').forEach(function (img) {
       img.addEventListener('click', function () {
-        var id = img.getAttribute('data-id');
-        horairesPhotoExpanded[id] = !horairesPhotoExpanded[id];
+        photoLightboxUrl = img.getAttribute('data-url');
         renderRoot();
       });
     });
+    var photoLightboxOverlay = document.querySelector('.photo-lightbox-overlay');
+    if (photoLightboxOverlay) {
+      photoLightboxOverlay.addEventListener('click', function (evt) {
+        // Only the backdrop itself (or the explicit close button) closes
+        // it -- a click that bubbled up from the <img> (pinch/pan/tap to
+        // inspect) must never dismiss the lightbox out from under it.
+        if (evt.target === photoLightboxOverlay || evt.target.closest('[data-action="close-photo-lightbox"]')) {
+          photoLightboxUrl = null;
+          renderRoot();
+        }
+      });
+    }
     var wallFeedSentinel = document.getElementById('wall-feed-sentinel');
     if (wallFeedSentinel && window.IntersectionObserver) {
       var wallFeedObserver = new IntersectionObserver(function (entries) {
@@ -14023,6 +14130,27 @@
         evMoreOptionsToggle.textContent = eventFormMoreOptionsOpen ? '− Moins d\'options' : '+ Plus d\'options (horaires, pilotes, organisateur...)';
       });
     }
+    // Horaires generator (see renderHorairesGenerator) -- shared by the
+    // circuit info form (ci-) and the per-event override form (ev-), one
+    // delegated pair of listeners covers whichever is on screen.
+    document.querySelectorAll('[id$="-gen-lunch-toggle"]').forEach(function (cb) {
+      cb.addEventListener('change', function () {
+        var row = document.getElementById(cb.id.replace('-toggle', '-row'));
+        if (row) row.style.display = cb.checked ? 'flex' : 'none';
+      });
+    });
+    document.querySelectorAll('[data-action="generate-horaires"]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var prefix = btn.getAttribute('data-prefix');
+        var groupKeys = btn.getAttribute('data-groups').split(',');
+        var result = generateHorairesFromInputs(prefix, groupKeys);
+        if (!result) return;
+        groupKeys.forEach(function (key) {
+          var input = document.getElementById(prefix + '-horaires-' + key);
+          if (input) input.value = result[key];
+        });
+      });
+    });
     // Search-and-add Pilotes widget (see renderEventForm) -- a datalist
     // has no "onselect", so matching the typed value against a known
     // candidate on every keystroke is the usual trick for detecting a

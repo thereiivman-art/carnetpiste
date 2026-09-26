@@ -1352,10 +1352,40 @@
     cursor: zoom-in;
     object-fit: contain;
   }
-  .horaires-photo-thumb.expanded {
+  .photo-lightbox-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 250;
+    background: rgba(0, 0, 0, 0.92);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: env(safe-area-inset-top, 0px) 0 env(safe-area-inset-bottom, 0px);
+    /* Lets a pinch/pan gesture on the photo itself scroll past the
+       overlay's own bounds instead of the whole page moving underneath
+       it -- overflow:auto plus this keeps the gesture contained here. */
+    overflow: auto;
+    touch-action: pinch-zoom pan-x pan-y;
+  }
+  .photo-lightbox-img {
     max-width: 100%;
-    max-height: none;
-    cursor: zoom-out;
+    max-height: 100%;
+    margin: auto;
+    display: block;
+  }
+  .photo-lightbox-close {
+    position: fixed;
+    top: calc(env(safe-area-inset-top, 0px) + 0.8rem);
+    right: 0.8rem;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    border: none;
+    background: rgba(255, 255, 255, 0.15);
+    color: #fff;
+    font-size: 1.2rem;
+    line-height: 1;
+    z-index: 251;
   }
   .referral-panel {
     display: flex;
@@ -1738,6 +1768,34 @@
     margin-top: 0.35rem;
   }
   .horaires-sublabel { font-size: 0.76rem; }
+
+  .horaires-generator {
+    margin-top: 0.5rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface-alt);
+  }
+  .horaires-generator summary {
+    cursor: pointer;
+    padding: 0.55rem 0.8rem;
+    font-weight: 600;
+    font-size: 0.86rem;
+  }
+  .horaires-generator-body { padding: 0 0.8rem 0.8rem; }
+  .horaires-gen-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    margin-top: 0.5rem;
+  }
+  .horaires-gen-row label { font-size: 0.8rem; white-space: nowrap; }
+  .horaires-gen-row input[type="time"],
+  .horaires-gen-row input[type="number"] {
+    width: auto;
+    flex: 1 1 90px;
+    min-width: 0;
+  }
 
   .rider-start-groups { display: flex; flex-direction: column; gap: 0.3rem; }
 
