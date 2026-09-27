@@ -1,0 +1,261 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Ajouter Olive, Nico + demandes d'ami de Juliette — Carnet de Piste</title>
+<style>
+  body { font: 15px -apple-system, sans-serif; max-width: 720px; margin: 3rem auto; padding: 0 1rem; color: #16212c; }
+  h2 { margin-top: 2.4rem; border-top: 1px solid #ddd; padding-top: 1.4rem; }
+  label { display: block; margin-top: 1rem; font-weight: 600; }
+  input, select { font-size: 1rem; padding: 0.5rem; width: 100%; box-sizing: border-box; margin-top: 0.3rem; }
+  .help { font-size: 0.82rem; color: #666; font-weight: 400; margin-top: 0.2rem; }
+  button { font-size: 1rem; padding: 0.6rem 1.2rem; cursor: pointer; margin-top: 1.4rem; }
+  #log { white-space: pre-wrap; background: #f2f2f2; padding: 1rem; margin-top: 1.4rem; font-family: monospace; font-size: 0.85rem; max-height: 480px; overflow: auto; }
+  #step2, #step3 { display: none; }
+</style>
+</head>
+<body>
+<h1>Olive, Nico (Jerez) + demandes d'ami de Juliette</h1>
+<p>Fait en une fois : crée Olive (pilote, groupe C à Jerez) et Nico (pilote, groupe B à Jerez), puis connecte-toi en Juliette pour lui faire demander tout le monde en ami.</p>
+
+<div id="step1">
+  <p>Connecte-toi d'abord avec ton compte admin -- nécessaire pour créer les comptes et modifier l'événement Jerez.</p>
+  <label for="login-email">Ton email admin</label>
+  <input type="email" id="login-email" autocomplete="username">
+  <label for="login-password">Ton mot de passe</label>
+  <input type="password" id="login-password" autocomplete="current-password">
+  <button id="login-btn">Se connecter</button>
+</div>
+
+<div id="step2">
+  <label for="base-email">Email pour les alias +</label>
+  <input type="email" id="base-email" autocomplete="off">
+  <div class="help">Olive et Nico seront créés en toi+olive@..., toi+nico@... -- même principe que les comptes précédents (Nicolas/Juliette/Christelle).</div>
+  <label for="shared-password">Mot de passe pour ces comptes</label>
+  <input type="text" id="shared-password" value="Moto78!" autocomplete="off">
+  <button id="go">Créer Olive + Nico et les inscrire à Jerez</button>
+  <p class="help">Olive -> Groupe C, Nico -> Groupe B, sur l'événement Jerez trouvé automatiquement (le plus proche à venir). Le log ci-dessous précise lequel a été choisi si plusieurs existent.</p>
+</div>
+
+<div id="step3">
+  <h2>Demandes d'ami de Juliette</h2>
+  <p>Un compte ne peut envoyer des demandes d'ami qu'en son propre nom (règle de sécurité) -- il faut donc se reconnecter avec le compte de Juliette pour cette partie.</p>
+  <label for="juliette-email">Email de Juliette</label>
+  <input type="email" id="juliette-email" autocomplete="off">
+  <div class="help">Pré-rempli avec le même schéma d'alias que ses comptes soeurs -- corrige si son vrai email diffère.</div>
+  <label for="juliette-password">Mot de passe de Juliette</label>
+  <input type="text" id="juliette-password" value="Moto78!" autocomplete="off">
+  <button id="juliette-go">Connecter Juliette et demander tout le monde en ami</button>
+  <p class="help">Si ça échoue avec une erreur de permission, c'est probablement que le compte de Juliette n'a pas encore cliqué son lien de vérification d'email -- fais-le d'abord, puis relance.</p>
+</div>
+
+<div id="log"></div>
+
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore-compat.js"></script>
+<script src="firebase-config.js"></script>
+<script>
+  var logEl = document.getElementById('log');
+  function log(msg) { logEl.textContent += msg + '\n'; }
+
+  var db, auth;
+  var adminEmail, adminPassword;
+
+  function aliasEmail(base, name) {
+    var m = (base || '').trim().match(/^([^@]+)@(.+)$/);
+    if (!m) return '';
+    var tag = name.trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '');
+    return m[1] + '+' + tag + '@' + m[2];
+  }
+  function safeDocId(name) { return encodeURIComponent(name).slice(0, 300) || '_'; }
+
+  // Same shape as app.js's own datesInRange/dateKey -- riderGroups is
+  // stored per-date (see assignRiderToGroup in app.js), so a rider's
+  // "one group for the whole sortie" has to be written for every date
+  // in the event's range, am+pm, exactly like the in-app group picker does.
+  function pad2(n) { return n < 10 ? '0' + n : '' + n; }
+  function parseLocalDate(str) { var p = str.split('-').map(Number); return new Date(p[0], p[1] - 1, p[2]); }
+  function dateKey(d) { return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()); }
+  function datesInRange(startStr, endStr) {
+    var out = [];
+    if (!startStr) return out;
+    var cur = parseLocalDate(startStr), end = parseLocalDate(endStr || startStr), guard = 0;
+    while (cur.getTime() <= end.getTime() && guard < 60) { out.push(dateKey(cur)); cur.setDate(cur.getDate() + 1); guard++; }
+    return out;
+  }
+  function todayKey() { return dateKey(new Date()); }
+
+  document.getElementById('login-btn').addEventListener('click', function () {
+    db = firebase.firestore();
+    auth = firebase.auth();
+    adminEmail = document.getElementById('login-email').value.trim();
+    adminPassword = document.getElementById('login-password').value;
+    log('Connexion admin...');
+    auth.signInWithEmailAndPassword(adminEmail, adminPassword).then(function () {
+      log('Connecté.');
+      document.getElementById('base-email').value = adminEmail;
+      document.getElementById('juliette-email').value = aliasEmail(adminEmail, 'Juliette');
+      document.getElementById('step1').style.display = 'none';
+      document.getElementById('step2').style.display = 'block';
+      document.getElementById('step3').style.display = 'block';
+    }).catch(function (err) {
+      log('ERREUR : ' + (err && err.message ? err.message : err));
+    });
+  });
+
+  function findJerezEvent() {
+    return db.collection('events').where('circuit', '==', 'Jerez').get().then(function (snap) {
+      var events = snap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); });
+      if (!events.length) return null;
+      log('  ' + events.length + ' événement(s) Jerez trouvé(s) :');
+      events.forEach(function (e) { log('    - ' + e.id + ' : ' + e.dateStart + (e.dateEnd && e.dateEnd !== e.dateStart ? ' -> ' + e.dateEnd : '') + (e.teamId ? ' (team ' + e.teamId + ')' : ' (personnel)')); });
+      var withTeam = events.filter(function (e) { return e.teamId; });
+      var pool = withTeam.length ? withTeam : events;
+      var today = todayKey();
+      var upcoming = pool.filter(function (e) { return (e.dateEnd || e.dateStart) >= today; }).sort(function (a, b) { return a.dateStart.localeCompare(b.dateStart); });
+      var chosen = upcoming.length ? upcoming[0] : pool.slice().sort(function (a, b) { return b.dateStart.localeCompare(a.dateStart); })[0];
+      log('  -> Choisi : ' + chosen.id + ' (' + chosen.dateStart + ')');
+      return chosen;
+    });
+  }
+
+  document.getElementById('go').addEventListener('click', function () {
+    var goBtn = document.getElementById('go');
+    goBtn.disabled = true;
+    var baseEmail = document.getElementById('base-email').value.trim();
+    var password = document.getElementById('shared-password').value;
+    var accounts = [
+      { name: 'Olive', role: 'pilote', group: 'C' },
+      { name: 'Nico', role: 'pilote', group: 'B' }
+    ];
+    log('');
+    log('Recherche de l\'événement Jerez...');
+    var existingRiderNames = [];
+    var jerezEvent = null;
+    db.collection('riders').get().then(function (snap) {
+      existingRiderNames = snap.docs.map(function (d) { return d.data().name; });
+      return findJerezEvent();
+    }).then(function (ev) {
+      jerezEvent = ev;
+      if (!jerezEvent) log('  ATTENTION : aucun événement Jerez trouvé -- les comptes seront créés mais pas inscrits à un événement.');
+      var dupe = accounts.filter(function (a) { return existingRiderNames.some(function (r) { return r.toLowerCase() === a.name.toLowerCase(); }); });
+      if (dupe.length) {
+        log('ERREUR : pseudo déjà utilisé (' + dupe.map(function (a) { return a.name; }).join(', ') + ') -- annulé, rien n\'a été créé.');
+        goBtn.disabled = false;
+        throw new Error('stop');
+      }
+      log('');
+      log('Création des comptes...');
+      return accounts.reduce(function (chain, acc) {
+        return chain.then(function () {
+          var email = aliasEmail(baseEmail, acc.name);
+          log('  ' + acc.name + ' (' + acc.role + ', ' + email + ')...');
+          return auth.signOut().then(function () {
+            return auth.createUserWithEmailAndPassword(email, password);
+          }).then(function (cred) {
+            return db.collection('users').doc(cred.user.uid).set({ name: acc.name, role: acc.role, email: email, notifyBeforeSession: true, needsEmailUpdate: true }).then(function () {
+              return cred.user.sendEmailVerification();
+            });
+          }).then(function () {
+            log('    OK -- email de vérification envoyé.');
+            return auth.signOut();
+          }).catch(function (err) {
+            acc.failed = true;
+            log('    ERREUR pour ' + acc.name + ' : ' + (err && err.message ? err.message : err));
+            return auth.signOut().catch(function () {});
+          });
+        });
+      }, Promise.resolve());
+    }).then(function () {
+      log('');
+      log('Reconnexion admin pour enregistrer les pilotes et mettre à jour Jerez...');
+      return auth.signInWithEmailAndPassword(adminEmail, adminPassword);
+    }).then(function () {
+      var ok = accounts.filter(function (a) { return !a.failed; });
+      if (!ok.length) return null;
+      var batch = db.batch();
+      ok.forEach(function (a) { batch.set(db.collection('riders').doc(safeDocId(a.name)), { name: a.name }, { merge: true }); });
+      return batch.commit().then(function () {
+        log('  OK -- ' + ok.map(function (a) { return a.name; }).join(', ') + ' ajouté(s) à la liste des pilotes.');
+        if (!jerezEvent) return null;
+        var evRef = db.collection('events').doc(jerezEvent.id);
+        return evRef.get().then(function (snap) {
+          var ev = snap.data();
+          var riders = (ev.riders || []).slice();
+          ok.forEach(function (a) { if (riders.indexOf(a.name) === -1) riders.push(a.name); });
+          var dates = datesInRange(ev.dateStart, ev.dateEnd);
+          var riderGroups = Object.assign({}, ev.riderGroups || {});
+          ok.forEach(function (a) {
+            var entry = {};
+            dates.forEach(function (d) { entry[d] = { am: a.group, pm: a.group }; });
+            riderGroups[a.name] = entry;
+          });
+          return evRef.update({ riders: riders, riderGroups: riderGroups });
+        }).then(function () {
+          log('  OK -- ' + ok.map(function (a) { return a.name + ' (groupe ' + a.group + ')'; }).join(', ') + ' inscrit(s) à ' + jerezEvent.id + '.');
+        });
+      });
+    }).then(function () {
+      log('');
+      log('Terminé. Va cliquer les liens de vérification reçus dans ' + baseEmail + ', puis donne pseudo + mot de passe à chacun.');
+      goBtn.disabled = false;
+    }).catch(function (err) {
+      if (err && err.message === 'stop') return;
+      log('ERREUR : ' + (err && err.message ? err.message : err));
+      goBtn.disabled = false;
+    });
+  });
+
+  document.getElementById('juliette-go').addEventListener('click', function () {
+    var btn = document.getElementById('juliette-go');
+    btn.disabled = true;
+    var julietteEmail = document.getElementById('juliette-email').value.trim();
+    var julientePassword = document.getElementById('juliette-password').value;
+    var julietteName = 'Juliette';
+    log('');
+    log('Connexion Juliette...');
+    auth.signOut().then(function () {
+      return auth.signInWithEmailAndPassword(julietteEmail, julientePassword);
+    }).then(function (cred) {
+      log('Connectée (uid ' + cred.user.uid + ').');
+      return db.collection('users').get();
+    }).then(function (usersSnap) {
+      var allUsers = usersSnap.docs.map(function (d) { return Object.assign({ uid: d.id }, d.data()); });
+      var me = allUsers.filter(function (u) { return u.name === julietteName; })[0];
+      if (!me) throw new Error('Impossible de retrouver le profil "Juliette" (vérifie le pseudo exact).');
+      var others = allUsers.filter(function (u) { return u.name && u.name !== julietteName; });
+      log('  ' + others.length + ' autre(s) compte(s) trouvé(s).');
+      return db.collection('friendRequests')
+        .get()
+        .then(function (frSnap) {
+          var already = {};
+          frSnap.docs.forEach(function (d) {
+            var r = d.data();
+            if (r.from === julietteName) already[r.to] = true;
+            if (r.to === julietteName) already[r.from] = true;
+          });
+          var toSend = others.filter(function (u) { return !already[u.name]; });
+          if (!toSend.length) { log('  Rien à envoyer -- déjà amie ou déjà en attente avec tout le monde.'); return null; }
+          log('  Envoi de ' + toSend.length + ' demande(s) : ' + toSend.map(function (u) { return u.name; }).join(', '));
+          var batch = db.batch();
+          toSend.forEach(function (u) {
+            var ref = db.collection('friendRequests').doc();
+            batch.set(ref, { from: julietteName, to: u.name, status: 'pending', fromUid: me.uid, toUid: u.uid });
+          });
+          return batch.commit().then(function () { log('  OK -- demandes envoyées.'); });
+        });
+    }).then(function () {
+      log('Terminé.');
+      btn.disabled = false;
+      return auth.signOut();
+    }).catch(function (err) {
+      log('ERREUR : ' + (err && err.message ? err.message : err));
+      log('(Si c\'est une erreur de permission, le compte de Juliette n\'a probablement pas encore vérifié son email -- clique le lien reçu puis relance.)');
+      btn.disabled = false;
+      auth.signOut().catch(function () {});
+    });
+  });
+</script>
+</body>
+</html>
