@@ -246,17 +246,31 @@ service cloud.firestore {
     // *value* actually changed against the stored doc.
     match /circuits/{id} {
       allow read: if request.auth != null;
+      // drawingObjects/drawingsBase (and their outline- twins) are the
+      // per-account vector layer and its frozen pre-vector backdrop (see
+      // saveAnnotation/setupAnnotCanvas in app.js) -- always written
+      // alongside their `drawings`/`outlineDrawings` flattened-PNG sibling
+      // in the very same call, so both create and update need to accept
+      // all three keys of one family together, never just one alone.
       allow create: if isAdmin() || (verified() && (
-        (request.resource.data.keys().hasOnly(['drawings', 'name'])
-          && request.resource.data.get('drawings', {}).keys().hasOnly([myName()]))
-        || (request.resource.data.keys().hasOnly(['outlineDrawings', 'name'])
-          && request.resource.data.get('outlineDrawings', {}).keys().hasOnly([myName()]))
+        (request.resource.data.keys().hasOnly(['drawings', 'drawingObjects', 'drawingsBase', 'name'])
+          && request.resource.data.get('drawings', {}).keys().hasOnly([myName()])
+          && request.resource.data.get('drawingObjects', {}).keys().hasOnly([myName()])
+          && request.resource.data.get('drawingsBase', {}).keys().hasOnly([myName()]))
+        || (request.resource.data.keys().hasOnly(['outlineDrawings', 'outlineDrawingObjects', 'outlineDrawingsBase', 'name'])
+          && request.resource.data.get('outlineDrawings', {}).keys().hasOnly([myName()])
+          && request.resource.data.get('outlineDrawingObjects', {}).keys().hasOnly([myName()])
+          && request.resource.data.get('outlineDrawingsBase', {}).keys().hasOnly([myName()]))
       ));
       allow update: if isAdmin() || (verified() && (
-        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['drawings'])
-          && onlyOwnKeyChanged(resource.data.get('drawings', {}), request.resource.data.drawings))
-        || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['outlineDrawings'])
-          && onlyOwnKeyChanged(resource.data.get('outlineDrawings', {}), request.resource.data.outlineDrawings))
+        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['drawings', 'drawingObjects', 'drawingsBase'])
+          && onlyOwnKeyChanged(resource.data.get('drawings', {}), request.resource.data.get('drawings', {}))
+          && onlyOwnKeyChanged(resource.data.get('drawingObjects', {}), request.resource.data.get('drawingObjects', {}))
+          && onlyOwnKeyChanged(resource.data.get('drawingsBase', {}), request.resource.data.get('drawingsBase', {})))
+        || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['outlineDrawings', 'outlineDrawingObjects', 'outlineDrawingsBase'])
+          && onlyOwnKeyChanged(resource.data.get('outlineDrawings', {}), request.resource.data.get('outlineDrawings', {}))
+          && onlyOwnKeyChanged(resource.data.get('outlineDrawingObjects', {}), request.resource.data.get('outlineDrawingObjects', {}))
+          && onlyOwnKeyChanged(resource.data.get('outlineDrawingsBase', {}), request.resource.data.get('outlineDrawingsBase', {})))
       ));
       allow delete: if isAdmin();
     }

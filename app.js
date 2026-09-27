@@ -387,7 +387,7 @@
       team_migration_error_prefix: 'Erreur de migration Team : ', partial_migration_prefix: 'Migration partielle : ',
       email_updated_verify: 'Email mis à jour — vérifie ta boîte mail pour confirmer la nouvelle adresse.',
       rider_added: 'Pilote ajouté.', rider_renamed: 'Pilote renommé.', rider_deleted: 'Pilote supprimé.',
-      chrono_verified: 'Chrono vérifié.', already_landscape: 'Déjà en mode paysage.', nothing_to_undo: 'Rien à annuler.',
+      chrono_verified: 'Chrono vérifié.', already_landscape: 'Déjà en mode paysage.', nothing_to_undo: 'Rien à annuler.', nothing_to_redo: 'Rien à rétablir.',
       annotation_saved: 'Annotation enregistrée.', you_joined_prefix: 'Tu as rejoint "',
       request_sent_plain: 'Demande envoyée.', joined_event_suffix: ' a rejoint l\'événement.',
       travel_info_saved: 'Infos de voyage enregistrées.', message_cannot_be_empty: 'Le message ne peut pas être vide.',
@@ -771,7 +771,7 @@
       team_migration_error_prefix: 'Team migration error: ', partial_migration_prefix: 'Partial migration: ',
       email_updated_verify: 'Email updated — check your inbox to confirm the new address.',
       rider_added: 'Rider added.', rider_renamed: 'Rider renamed.', rider_deleted: 'Rider deleted.',
-      chrono_verified: 'Lap time verified.', already_landscape: 'Already in landscape mode.', nothing_to_undo: 'Nothing to undo.',
+      chrono_verified: 'Lap time verified.', already_landscape: 'Already in landscape mode.', nothing_to_undo: 'Nothing to undo.', nothing_to_redo: 'Nothing to redo.',
       annotation_saved: 'Annotation saved.', you_joined_prefix: 'You joined "',
       request_sent_plain: 'Request sent.', joined_event_suffix: ' joined the event.',
       travel_info_saved: 'Travel info saved.', message_cannot_be_empty: 'The message cannot be empty.',
@@ -5541,6 +5541,7 @@
   // canvas.width/height currently are.
   var annotObjects = []; // {type:'stroke', tool, color, sizeFrac, points:[{nx,ny}]} | {type:'text', text, color, nx, ny, fontSizeFrac}
   var annotUndoStack = []; // [{baseVisible, objects}], most recent last
+  var annotRedoStack = []; // same shape, popped back onto annotUndoStack by annotRedo
   var annotBaseImageObj = null; // previously-saved PNG (Image), immutable background layer
   var annotBaseImageVisible = false;
   var annotCurrentStroke = null; // in-progress stroke object while drawing
@@ -5645,6 +5646,7 @@
     annotPinch = null;
     annotObjects = [];
     annotUndoStack = [];
+    annotRedoStack = [];
     annotBaseImageObj = null;
     annotBaseImageVisible = false;
     annotCurrentStroke = null;
@@ -5759,6 +5761,9 @@
     // icon (a similar counter-clockwise curve) read as a near-duplicate of
     // it at this size, making the two toolbar buttons hard to tell apart.
     var svgUndo = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"/><path d="M11 18l-6-6 6-6"/></svg>';
+    // Undo's arrow mirrored, not a fresh glyph -- reads instantly as "the
+    // other direction of that same action" sitting right next to it.
+    var svgRedo = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M13 18l6-6-6-6"/></svg>';
     var svgExport = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M7 8l5-5 5 5"/><path d="M4 17v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></svg>';
     // Read-only mode (see openAnnotationView) shows someone else's own
     // per-account plan -- no drawing tools, no save, just look/zoom/export,
@@ -5790,6 +5795,7 @@
     html += '<button type="button" class="ghost icon-btn" id="annot-export" aria-label="Exporter en image" title="Afficher le tracé annoté en grand pour l\'enregistrer">' + svgExport + '</button>';
     if (!annot.viewOnly) {
       html += '<button type="button" class="ghost icon-btn" id="annot-undo" aria-label="Annuler" title="Annuler la dernière action (Ctrl+Z)">' + svgUndo + '</button>';
+      html += '<button type="button" class="ghost icon-btn" id="annot-redo" aria-label="Rétablir" title="Rétablir l\'action annulée (Ctrl+Maj+Z)">' + svgRedo + '</button>';
       html += '<button type="button" class="ghost icon-btn" id="annot-clear" aria-label="Tout effacer" title="Tout effacer">' + svgClear + '</button>';
       html += '<button type="button" class="primary annot-save-btn" id="annot-save">Enregistrer</button>';
     }
@@ -5814,9 +5820,19 @@
 
   function onAnnotKeydown(e) {
     var isZ = e.key === 'z' || e.key === 'Z';
-    if ((e.ctrlKey || e.metaKey) && isZ) {
+    var isY = e.key === 'y' || e.key === 'Y';
+    if ((e.ctrlKey || e.metaKey) && isZ && e.shiftKey) {
+      e.preventDefault();
+      annotRedo();
+    } else if ((e.ctrlKey || e.metaKey) && isZ) {
       e.preventDefault();
       annotUndo();
+    } else if ((e.ctrlKey || e.metaKey) && isY) {
+      // Ctrl+Y is the Windows-convention redo shortcut most riders on a
+      // laptop will reach for instead of Ctrl+Shift+Z, which is more of a
+      // Mac/creative-app habit -- support both rather than picking one.
+      e.preventDefault();
+      annotRedo();
     }
   }
 
@@ -5839,29 +5855,54 @@
     ctx.lineJoin = 'round';
     annotObjects = [];
     annotUndoStack = [];
+    annotRedoStack = [];
     annotCurrentStroke = null;
     annotDrag = null;
     annotBaseImageObj = null;
     annotBaseImageVisible = false;
-    var existingDrawing = annot.sessionId === ANNOT_CIRCUIT_LEVEL
-      ? (currentUserProfile && (circuitInfo(annot.circuit).drawings || {})[currentUserProfile.name])
-      : annot.sessionId === ANNOT_OUTLINE_LEVEL
-        ? (currentUserProfile && (circuitInfo(annot.circuit).outlineDrawings || {})[currentUserProfile.name])
-        : isViewLevelId(annot.sessionId)
-          ? (function () {
-              var parsed = parseViewLevelId(annot.sessionId);
-              var map = parsed.level === 'outline' ? circuitInfo(annot.circuit).outlineDrawings : circuitInfo(annot.circuit).drawings;
-              return (map || {})[parsed.name];
-            })()
-          : null;
-    if (existingDrawing) {
+    var info = circuitInfo(annot.circuit);
+    var isMine = annot.sessionId === ANNOT_CIRCUIT_LEVEL || annot.sessionId === ANNOT_OUTLINE_LEVEL;
+    // Own plan, editable: strokes/text saved since drawingObjects existed
+    // (see saveAnnotation) reload as live objects here -- movable, same as
+    // ones drawn in this very session -- instead of the old all-or-nothing
+    // "everything I ever drew is one flattened, frozen picture". Anything
+    // drawn *before* that existed can't be un-flattened after the fact, so
+    // it stays a static backdrop forever (drawingsBase, frozen the first
+    // time a save happens under this scheme -- see saveAnnotation), but
+    // every stroke saved from here on is fully movable on every future
+    // reopen, not just within the session that drew it.
+    var vectorObjects = null, baseSrc = null;
+    if (isMine && currentUserProfile) {
+      var objectsMap = annot.sessionId === ANNOT_CIRCUIT_LEVEL ? info.drawingObjects : info.outlineDrawingObjects;
+      var baseMap = annot.sessionId === ANNOT_CIRCUIT_LEVEL ? info.drawingsBase : info.outlineDrawingsBase;
+      var legacyMap = annot.sessionId === ANNOT_CIRCUIT_LEVEL ? info.drawings : info.outlineDrawings;
+      vectorObjects = (objectsMap || {})[currentUserProfile.name] || null;
+      baseSrc = vectorObjects
+        ? (baseMap || {})[currentUserProfile.name] || null
+        : (legacyMap || {})[currentUserProfile.name] || null; // not migrated yet -- whole thing is background, as before
+    } else if (isViewLevelId(annot.sessionId)) {
+      // Someone else's plan, read-only -- always the flattened export
+      // snapshot (kept up to date on every one of their saves regardless
+      // of drawingObjects), never their live objects: nothing here is ever
+      // draggable anyway (annot.viewOnly hides the tool buttons), so there's
+      // no reason to reach into their vector data at all.
+      var parsed = parseViewLevelId(annot.sessionId);
+      var map = parsed.level === 'outline' ? circuitInfo(annot.circuit).outlineDrawings : circuitInfo(annot.circuit).drawings;
+      baseSrc = (map || {})[parsed.name] || null;
+    }
+    if (vectorObjects && vectorObjects.length) {
+      annotObjects = cloneAnnotObjects(vectorObjects);
+    }
+    if (baseSrc) {
       var img = new Image();
       img.onload = function () {
         annotBaseImageObj = img;
         annotBaseImageVisible = true;
         redrawAnnotCanvas();
       };
-      img.src = existingDrawing;
+      img.src = baseSrc;
+    } else if (annotObjects.length) {
+      redrawAnnotCanvas();
     }
   }
 
@@ -5893,10 +5934,14 @@
 
   // Call before any action that mutates the drawing (finishing a stroke,
   // baking text, clearing, moving an object) so Ctrl+Z / the undo button can
-  // step back to exactly this point.
+  // step back to exactly this point. Any new action branches off the
+  // current history, so whatever redo steps existed (from a previous
+  // undo) are no longer reachable and are dropped here -- standard undo/
+  // redo semantics, same as a text editor.
   function pushAnnotUndo() {
     annotUndoStack.push({ baseVisible: annotBaseImageVisible, objects: cloneAnnotObjects(annotObjects) });
     if (annotUndoStack.length > 30) annotUndoStack.shift();
+    annotRedoStack = [];
   }
 
   function annotUndo() {
@@ -5904,9 +5949,28 @@
       showToast(tr('nothing_to_undo'));
       return;
     }
+    annotRedoStack.push({ baseVisible: annotBaseImageVisible, objects: cloneAnnotObjects(annotObjects) });
     var prev = annotUndoStack.pop();
     annotBaseImageVisible = prev.baseVisible;
     annotObjects = prev.objects;
+    annotDrag = null;
+    redrawAnnotCanvas();
+  }
+
+  // Redo -- steps back FORWARD to whatever annotUndo just stepped back
+  // from, in case that undo was a misclick rather than intentional. Only
+  // reachable until the next actual edit (see pushAnnotUndo, which clears
+  // this stack): redo is "undo the undo", not a second independent
+  // history, so it can't survive a new stroke branching off in between.
+  function annotRedo() {
+    if (!annotRedoStack.length) {
+      showToast(tr('nothing_to_redo'));
+      return;
+    }
+    annotUndoStack.push({ baseVisible: annotBaseImageVisible, objects: cloneAnnotObjects(annotObjects) });
+    var next = annotRedoStack.pop();
+    annotBaseImageVisible = next.baseVisible;
+    annotObjects = next.objects;
     annotDrag = null;
     redrawAnnotCanvas();
   }
@@ -6434,11 +6498,30 @@
     var pendingConfirm = document.querySelector('.annot-text-confirm');
     if (pendingConfirm) pendingConfirm.click();
     var dataUrl = annotCanvasEl.toDataURL('image/png');
+    // The live object list, saved from here on so a future reopen can
+    // reload every one of these as movable objects again instead of a
+    // single flattened picture (see setupAnnotCanvas) -- annotObjects
+    // only ever holds *this* level's own strokes/text, never the frozen
+    // legacy backdrop (that stays purely in drawingsBase, untouched).
+    var objectsSnapshot = cloneAnnotObjects(annotObjects);
     var prevState = JSON.parse(JSON.stringify(STATE));
     if (annot.sessionId === ANNOT_CIRCUIT_LEVEL) {
       if (!currentUserProfile) return;
       STATE.circuits = STATE.circuits || {};
       var entry = STATE.circuits[annot.circuit] || {};
+      // Freeze whatever was flattened together before this feature
+      // existed, exactly once -- every save after that only ever touches
+      // drawingObjects, so nothing already-migrated ever gets re-flattened
+      // and loses its "still movable" status.
+      entry.drawingsBase = Object.assign({}, entry.drawingsBase || {});
+      if (entry.drawingsBase[currentUserProfile.name] === undefined) {
+        entry.drawingsBase[currentUserProfile.name] = (entry.drawings || {})[currentUserProfile.name] || null;
+      }
+      entry.drawingObjects = Object.assign({}, entry.drawingObjects || {});
+      entry.drawingObjects[currentUserProfile.name] = objectsSnapshot;
+      // drawings[name] keeps being the flattened export/thumbnail snapshot
+      // (used by exportEventRecapPng and the "✎" marker in the plan
+      // picker) -- always regenerated in full here, same as before.
       entry.drawings = Object.assign({}, entry.drawings || {});
       entry.drawings[currentUserProfile.name] = dataUrl;
       STATE.circuits[annot.circuit] = entry;
@@ -6446,6 +6529,12 @@
       if (!currentUserProfile) return;
       STATE.circuits = STATE.circuits || {};
       var outlineEntry = STATE.circuits[annot.circuit] || {};
+      outlineEntry.outlineDrawingsBase = Object.assign({}, outlineEntry.outlineDrawingsBase || {});
+      if (outlineEntry.outlineDrawingsBase[currentUserProfile.name] === undefined) {
+        outlineEntry.outlineDrawingsBase[currentUserProfile.name] = (outlineEntry.outlineDrawings || {})[currentUserProfile.name] || null;
+      }
+      outlineEntry.outlineDrawingObjects = Object.assign({}, outlineEntry.outlineDrawingObjects || {});
+      outlineEntry.outlineDrawingObjects[currentUserProfile.name] = objectsSnapshot;
       outlineEntry.outlineDrawings = Object.assign({}, outlineEntry.outlineDrawings || {});
       outlineEntry.outlineDrawings[currentUserProfile.name] = dataUrl;
       STATE.circuits[annot.circuit] = outlineEntry;
@@ -6649,6 +6738,8 @@
 
     var undoBtn = document.getElementById('annot-undo');
     if (undoBtn) undoBtn.addEventListener('click', annotUndo);
+    var redoBtn = document.getElementById('annot-redo');
+    if (redoBtn) redoBtn.addEventListener('click', annotRedo);
 
     var clearBtn = document.getElementById('annot-clear');
     if (clearBtn) {
