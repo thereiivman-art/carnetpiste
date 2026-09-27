@@ -341,6 +341,7 @@
       participants_heading: 'Participants', requests_to_accept_heading: 'Demandes à accepter', accept_btn: 'Accepter',
       groups_heading: 'Groupes', add_riders_to_group_hint: 'Ajoute des participants pour pouvoir les répartir en groupes.',
       remove_from_group_aria: 'Retirer du groupe', unassigned_label: 'Non attribués', nobody_yet: 'Personne pour l\'instant.',
+      orphan_group_entry: 'nom invalide, à retirer', invalid_group_rider: 'Choisis un pilote dans la liste proposée.',
       group_orga_staff: 'Groupe ORGA (staff)', verified_chronos_heading: 'Chronos vérifiés', no_chrono: 'Aucun chrono',
       no_announcements_yet: 'Aucune annonce pour l\'instant.', edited_suffix: ' (modifié)',
       announcement_placeholder: 'Ex. BRIEFING DEMAIN A 8H15', announcements_heading: 'Annonces',
@@ -725,6 +726,7 @@
       participants_heading: 'Participants', requests_to_accept_heading: 'Requests to accept', accept_btn: 'Accept',
       groups_heading: 'Groups', add_riders_to_group_hint: 'Add participants to be able to split them into groups.',
       remove_from_group_aria: 'Remove from group', unassigned_label: 'Unassigned', nobody_yet: 'Nobody yet.',
+      orphan_group_entry: 'invalid name, remove it', invalid_group_rider: 'Pick a rider from the suggested list.',
       group_orga_staff: 'ORGA Group (staff)', verified_chronos_heading: 'Verified lap times', no_chrono: 'No lap time',
       no_announcements_yet: 'No announcements yet.', edited_suffix: ' (edited)',
       announcement_placeholder: 'E.g. BRIEFING TOMORROW AT 8:15AM', announcements_heading: 'Announcements',
@@ -7863,6 +7865,14 @@
   function assignRiderToGroup(eventId, rider, group) {
     var ev = (STATE.events || []).filter(function (e) { return e.id === eventId; })[0];
     if (!ev) return;
+    // A group entry only ever makes sense for an actual participant of
+    // this sortie -- guarded here too (not just in the add-rider form's
+    // submit handler above) since this is also reached by the drag-and-
+    // drop path (dragging a friend-row's data-drag-rider onto a group's
+    // drop zone), which has no free-text input to validate in the first
+    // place but could still be handed a stale name if the roster changed
+    // mid-drag.
+    if ((ev.riders || []).indexOf(rider) === -1) return;
     var dates = datesInRange(ev.dateStart, ev.dateEnd);
     var riderGroups = Object.assign({}, ev.riderGroups || {});
     var entry = {};
@@ -7893,27 +7903,40 @@
   // empty), so the pilotes who best fit that group's level surface first.
   function renderGroupsSection(ev, canEdit) {
     var riders = ev.riders || [];
-    if (!riders.length) return '<div class="section-title" style="margin-top:1rem;">' + tr('groups_heading') + '</div><div class="help-text">' + tr('add_riders_to_group_hint') + '</div>';
+    // A group entry can end up referring to a name that isn't (or isn't
+    // any more) an actual participant of this sortie -- e.g. a typo typed
+    // into the search-to-add field below before it validated its input
+    // (see the event-group-add-form submit handler), or a rider removed
+    // from the event after being placed in a group. Those "orphan" entries
+    // are still shown here (always removable, even when read-only for
+    // everything else) so they can be cleaned up with the × button instead
+    // of being stuck invisible in ev.riderGroups forever.
+    var orphanNames = Object.keys(ev.riderGroups || {}).filter(function (r) { return riders.indexOf(r) === -1; });
+    var allNames = riders.concat(orphanNames);
+    if (!allNames.length) return '<div class="section-title" style="margin-top:1rem;">' + tr('groups_heading') + '</div><div class="help-text">' + tr('add_riders_to_group_hint') + '</div>';
     var byGroup = {};
     ROSTER_GROUP_LETTERS.forEach(function (g) { byGroup[g] = []; });
     var unassigned = [];
-    riders.forEach(function (r) {
+    allNames.forEach(function (r) {
       var g = riderEventGroup(ev, r);
       if (g && byGroup[g]) byGroup[g].push(r);
       else unassigned.push(r);
     });
     function riderRow(name, removable) {
+      var isOrphan = orphanNames.indexOf(name) !== -1;
       var u = (STATE.usersByName || {})[name] || {};
       var t = riderVerifiedBest(ev, name);
       var timeHtml = t != null ? ' <span class="verified-pill">' + formatTime(t) + '</span>' : '';
-      var removeBtn = (removable && canEdit) ? '<button type="button" class="ghost icon-btn" data-action="event-group-remove" data-id="' + ev.id + '" data-rider="' + escapeHtml(name) + '" aria-label="' + tr('remove_from_group_aria') + '" title="' + tr('remove_from_group_aria') + '">×</button>' : '';
+      var orphanHtml = isOrphan ? ' <span class="help-text">(' + tr('orphan_group_entry') + ')</span>' : '';
+      var removeBtn = ((removable || isOrphan) && canEdit) ? '<button type="button" class="ghost icon-btn" data-action="event-group-remove" data-id="' + ev.id + '" data-rider="' + escapeHtml(name) + '" aria-label="' + tr('remove_from_group_aria') + '" title="' + tr('remove_from_group_aria') + '">×</button>' : '';
       // Drag-and-drop between groups, desktop mainly (touch browsers mostly
       // don't fire native HTML5 drag events) -- the search-to-add form and
-      // the × button above still cover mobile either way.
-      var dragAttrs = canEdit ? ' draggable="true" data-drag-rider="' + escapeHtml(name) + '"' : '';
-      return '<div class="friend-row"' + dragAttrs + '><div class="friend-row-main">' + nameLinkHtml(name) + badgesHtml(u) + timeHtml + '</div><div class="friend-row-actions">' + removeBtn + '</div></div>' + maybeFicheHtml(name);
+      // the × button above still cover mobile either way. Not for orphans:
+      // there's nothing valid to drag them into.
+      var dragAttrs = (canEdit && !isOrphan) ? ' draggable="true" data-drag-rider="' + escapeHtml(name) + '"' : '';
+      return '<div class="friend-row"' + dragAttrs + '><div class="friend-row-main">' + nameLinkHtml(name) + badgesHtml(u) + timeHtml + orphanHtml + '</div><div class="friend-row-actions">' + removeBtn + '</div></div>' + maybeFicheHtml(name);
     }
-    var assignedCount = riders.length - unassigned.length;
+    var assignedCount = allNames.length - unassigned.length;
     var html = '<div class="section-title" style="margin-top:1rem;">' + tr('groups_heading') + ' (' + assignedCount + ')</div>';
     // .groups-board: on desktop (see style.css) this becomes a row of
     // columns -- Non attribués + every group side by side, like a board,
@@ -14094,7 +14117,21 @@
         evt.preventDefault();
         var input = form.querySelector('[data-event-group-add-input]');
         var name = input ? input.value.trim() : '';
-        if (name) assignRiderToGroup(form.getAttribute('data-event-id'), name, form.getAttribute('data-group'));
+        if (!name) return;
+        // The field above is a free-text input with a <datalist> for
+        // suggestions only -- a browser lets any text through it, not just
+        // one of the suggested names, so a typo ("Xav" for "Xavier") used
+        // to get written straight into ev.riderGroups as its own entry,
+        // one that could never show up (or get a remove button) anywhere
+        // since it isn't a real event participant. Only accept a name that
+        // is actually one of this sortie's riders.
+        var evId = form.getAttribute('data-event-id');
+        var ev = (STATE.events || []).filter(function (e) { return e.id === evId; })[0];
+        if (!ev || (ev.riders || []).indexOf(name) === -1) {
+          showToast(tr('invalid_group_rider'));
+          return;
+        }
+        assignRiderToGroup(evId, name, form.getAttribute('data-group'));
         if (input) input.value = '';
       });
     });
