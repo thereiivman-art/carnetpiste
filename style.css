@@ -485,6 +485,15 @@
     color: var(--accent);
   }
   .email-reminder-banner button { flex: none; }
+  .offline-banner {
+    padding: 0.65rem 1rem;
+    margin: 0 0 1rem;
+    background: var(--surface-alt);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    font-size: 0.84rem;
+    color: var(--text-muted);
+  }
 
   .sessions-card { margin-bottom: 1.5rem; }
   .records-year-card { margin-bottom: 1.5rem; }

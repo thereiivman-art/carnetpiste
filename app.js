@@ -27,6 +27,16 @@
   };
   var canPersist = false;
   var unsubscribers = [];
+  // Purely a UI signal (see the offline banner in renderRootUnsafe) --
+  // Firestore's own offline persistence (db.enablePersistence() below)
+  // and the service worker's app-shell cache (sw.js) already make the
+  // app usable with no network at all; this only tells the account it's
+  // looking at possibly-stale, already-synced data rather than leaving
+  // that silent. navigator.onLine is occasionally wrong (some browsers
+  // report online on a captive portal with no real connectivity, or lag
+  // a few seconds on a real disconnect), but it's the only signal
+  // available without pinging a server just to ask.
+  var isOnline = navigator.onLine;
 
   // ---- i18n (FR default, EN optional per-account, see Mon profil) ----
   //
@@ -11815,6 +11825,15 @@
           '<div class="banner" id="status-banner"></div>' +
         '</div>' +
       '</header>' +
+      // See isOnline's own comment -- the underlying "still works" is
+      // already handled elsewhere (service worker app shell + Firestore
+      // offline persistence); this banner is purely so that's visible
+      // instead of assumed broken. No dismiss button: it should stay
+      // exactly as long as the connection actually is down, and disappear
+      // the moment the 'online' listener above fires, not before.
+      (!isOnline
+        ? '<div class="offline-banner">📡 Hors ligne — tu vois les dernières données synchronisées. Tes changements seront envoyés dès que la connexion reviendra.</div>'
+        : '') +
       // A compte créé par un admin sans email réel (compte de démo/test,
       // voir create-accounts.html) porte needsEmailUpdate:true jusqu'à ce
       // que son titulaire renseigne le sien -- ce bandeau le rappelle sur
@@ -15195,6 +15214,8 @@
     document.addEventListener('pointercancel', onCalendarPointerUp);
     document.addEventListener('wheel', onCalendarWheel, { passive: false });
     document.addEventListener('keydown', onCalendarKeydown);
+    window.addEventListener('online', function () { isOnline = true; renderRoot(); });
+    window.addEventListener('offline', function () { isOnline = false; renderRoot(); });
     // Real accounts (Pilote/Accompagnant), not anonymous sign-in: only
     // onSignupSubmit's own success handler moves authState to 'signed-in'
     // for a brand-new account (see its comment) -- here, a missing profile
