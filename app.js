@@ -97,6 +97,7 @@
       // Événements tab
       my_events_heading: 'Mes Événements', no_event_yet: 'Aucun événement enregistré — ajoutez-en un ci-dessous.',
       ongoing_label: 'En cours', upcoming_label: 'À venir', past_label: 'Passés', discover_events_heading: 'Découvrir des Événements',
+      discovery_none_upcoming: 'Rien à venir pour l\'instant.',
       no_event: 'Aucun événement.', event_count_suffix: ' événement', events_count_suffix: ' événements',
       riders_unspecified: 'Pilotes non précisés', close: 'Fermer',
       team_label: 'Team', organizer_label: 'Organisateur', dates_label: 'Dates', note_label: 'Note',
@@ -482,6 +483,7 @@
       // Événements tab
       my_events_heading: 'My Events', no_event_yet: 'No event recorded yet — add one below.',
       ongoing_label: 'Ongoing', upcoming_label: 'Upcoming', past_label: 'Past', discover_events_heading: 'Discover Events',
+      discovery_none_upcoming: 'Nothing upcoming for now.',
       no_event: 'No event.', event_count_suffix: ' event', events_count_suffix: ' events',
       riders_unspecified: 'Riders not specified', close: 'Close',
       team_label: 'Team', organizer_label: 'Organizer', dates_label: 'Dates', note_label: 'Note',
@@ -7328,23 +7330,36 @@
         '<button type="button" class="calendar-view-btn' + (discoverySortMode === 'date' ? ' active' : '') + '" data-action="discovery-sort-mode" data-mode="date">Trier par date</button>' +
         '<button type="button" class="calendar-view-btn' + (discoverySortMode === 'team' ? ' active' : '') + '" data-action="discovery-sort-mode" data-mode="team">Trier par Team</button>' +
         '</div>';
-      if (discoverySortMode === 'team') {
-        var byTeam = {};
-        candidates.forEach(function (ev) {
-          (byTeam[ev.teamId] = byTeam[ev.teamId] || []).push(ev);
-        });
-        var teamIds = Object.keys(byTeam).sort(function (a, b) {
-          var ta = teamById(a), tb = teamById(b);
-          return (ta ? ta.name : '').localeCompare(tb ? tb.name : '');
-        });
-        body = toggle + sortToggle + teamIds.map(function (tid) {
-          var t = teamById(tid);
-          return '<div class="section-title" style="font-size:0.95rem; margin-top:0.8rem;">' + avatarHtml(t || {}, t ? t.name : '') +
-            ' ' + escapeHtml(t ? t.name : '') + teamBadgesHtml(t) + '</div>' +
-            byTeam[tid].map(rowHtml).join('');
-        }).join('');
-      } else {
-        body = toggle + sortToggle + candidates.map(rowHtml).join('');
+      function renderCandidateList(list) {
+        if (discoverySortMode === 'team') {
+          var byTeam = {};
+          list.forEach(function (ev) {
+            (byTeam[ev.teamId] = byTeam[ev.teamId] || []).push(ev);
+          });
+          var teamIds = Object.keys(byTeam).sort(function (a, b) {
+            var ta = teamById(a), tb = teamById(b);
+            return (ta ? ta.name : '').localeCompare(tb ? tb.name : '');
+          });
+          return teamIds.map(function (tid) {
+            var t = teamById(tid);
+            return '<div class="section-title" style="font-size:0.95rem; margin-top:0.8rem;">' + avatarHtml(t || {}, t ? t.name : '') +
+              ' ' + escapeHtml(t ? t.name : '') + teamBadgesHtml(t) + '</div>' +
+              byTeam[tid].map(rowHtml).join('');
+          }).join('');
+        }
+        return list.map(rowHtml).join('');
+      }
+      // Split à venir/passés like "Mes Événements" does -- an event this
+      // account hasn't joined yet still stops being something to discover
+      // once it's over, and mixed together with upcoming ones (the only
+      // split this list had before) it just piled up forever.
+      var todayKeyDisc = dateKey(new Date());
+      var upcomingCandidates = candidates.filter(function (ev) { return eventTemporalStatus(ev, todayKeyDisc) !== 'past'; });
+      var pastCandidates = candidates.filter(function (ev) { return eventTemporalStatus(ev, todayKeyDisc) === 'past'; })
+        .sort(function (a, b) { return a.dateStart < b.dateStart ? 1 : a.dateStart > b.dateStart ? -1 : 0; });
+      body = toggle + sortToggle + (upcomingCandidates.length ? renderCandidateList(upcomingCandidates) : '<div class="help-text">' + tr('discovery_none_upcoming') + '</div>');
+      if (pastCandidates.length) {
+        body += collapsibleSection('event-discovery-pro-past', tr('past_label') + ' (' + pastCandidates.length + ')', renderCandidateList(pastCandidates), false);
       }
     }
     return collapsibleCard('event-discovery-pro', 'Événements de Teams PRO', body, false);
