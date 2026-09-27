@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Réinitialiser le plan d'un circuit (admin) — Carnet de Piste</title>
+<style>
+  body { font: 15px -apple-system, sans-serif; max-width: 720px; margin: 3rem auto; padding: 0 1rem; color: #16212c; }
+  label { display: block; margin-top: 1rem; font-weight: 600; }
+  input { font-size: 1rem; padding: 0.5rem; width: 100%; box-sizing: border-box; margin-top: 0.3rem; }
+  button { font-size: 1rem; padding: 0.6rem 1.2rem; cursor: pointer; margin-top: 1.2rem; }
+  button.danger { background: #a33; color: #fff; border: none; border-radius: 6px; }
+  .help { font-size: 0.82rem; color: #666; font-weight: 400; margin-top: 0.2rem; }
+  #log { white-space: pre-wrap; background: #f2f2f2; padding: 1rem; margin-top: 1.2rem; font-family: monospace; font-size: 0.85rem; max-height: 420px; overflow: auto; }
+  #step2 { display: none; }
+</style>
+</head>
+<body>
+<h1>Réinitialiser le plan d'un circuit</h1>
+<p>Efface toutes les annotations dessinées sur la fiche d'un circuit -- les deux niveaux (Plan général et Contour du tracé), pour <strong>tous les comptes</strong> qui y ont dessiné. Ne touche à rien d'autre sur la fiche (nom, distance, image du circuit, horaires habituels...). Irréversible -- les dessins effacés ne peuvent pas être récupérés.</p>
+
+<div id="step1">
+  <label for="login-email">Email (compte admin)</label>
+  <input type="email" id="login-email" autocomplete="username">
+  <label for="login-password">Mot de passe</label>
+  <input type="password" id="login-password" autocomplete="current-password">
+  <button id="login-btn">Se connecter</button>
+</div>
+
+<div id="step2">
+  <label for="circuit-name">Nom du circuit</label>
+  <input type="text" id="circuit-name" value="Jerez">
+  <button id="preview-btn">Prévisualiser</button>
+  <div id="preview"></div>
+</div>
+
+<div id="log"></div>
+
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore-compat.js"></script>
+<script src="firebase-config.js"></script>
+<script>
+  var logEl = document.getElementById('log');
+  function log(msg) { logEl.textContent += msg + '\n'; logEl.scrollTop = logEl.scrollHeight; }
+  function safeDocId(name) { return encodeURIComponent(name).slice(0, 300) || '_'; }
+
+  var db, auth;
+  var DRAWING_FIELDS = ['drawings', 'outlineDrawings', 'drawingObjects', 'drawingsBase', 'outlineDrawingObjects', 'outlineDrawingsBase'];
+
+  document.getElementById('login-btn').addEventListener('click', function () {
+    db = firebase.firestore();
+    auth = firebase.auth();
+    var email = document.getElementById('login-email').value.trim();
+    var password = document.getElementById('login-password').value;
+    log('Connexion...');
+    auth.signInWithEmailAndPassword(email, password).then(function () {
+      log('Connecté.');
+      document.getElementById('step1').style.display = 'none';
+      document.getElementById('step2').style.display = 'block';
+    }).catch(function (err) {
+      log('ERREUR : ' + (err && err.message ? err.message : err));
+    });
+  });
+
+  var lastPreview = null;
+
+  document.getElementById('preview-btn').addEventListener('click', function () {
+    var name = document.getElementById('circuit-name').value.trim();
+    var previewEl = document.getElementById('preview');
+    previewEl.innerHTML = '';
+    lastPreview = null;
+    if (!name) { log('Indique un nom de circuit.'); return; }
+    log('--- Recherche "' + name + '" ---');
+    db.collection('circuits').doc(safeDocId(name)).get().then(function (snap) {
+      if (!snap.exists) {
+        log('Aucune fiche circuit "' + name + '" trouvée (recherche exacte, sensible à la casse/espaces).');
+        return db.collection('circuits').get().then(function (all) {
+          var norm = function (s) { return (s || '').trim().toLowerCase(); };
+          var target = norm(name);
+          var candidates = all.docs.map(function (d) { return d.data().name; }).filter(function (n) { return norm(n).indexOf(target.slice(0, 4)) !== -1; });
+          if (candidates.length) log('Noms proches trouvés : ' + candidates.map(function (n) { return '"' + n + '"'; }).join(', ') + ' -- vérifie l\'orthographe exacte et relance.');
+        });
+      }
+      var data = snap.data();
+      var names = {};
+      DRAWING_FIELDS.forEach(function (f) {
+        Object.keys(data[f] || {}).forEach(function (n) { names[n] = true; });
+      });
+      var riderNames = Object.keys(names);
+      if (!riderNames.length) {
+        log('Rien à réinitialiser -- aucune annotation enregistrée sur "' + name + '".');
+        return;
+      }
+      log('Comptes ayant des annotations sur "' + name + '" : ' + riderNames.join(', '));
+      log('Champs qui seront vidés : ' + DRAWING_FIELDS.join(', ') + '.');
+      lastPreview = { name: name };
+      var btn = document.createElement('button');
+      btn.className = 'danger';
+      btn.textContent = 'Confirmer la réinitialisation (irréversible)';
+      btn.addEventListener('click', doReset);
+      previewEl.appendChild(btn);
+    }).catch(function (err) {
+      log('ERREUR : ' + (err && err.message ? err.message : err));
+    });
+  });
+
+  function doReset() {
+    if (!lastPreview) return;
+    var name = lastPreview.name;
+    document.getElementById('preview').innerHTML = '';
+    log('--- Réinitialisation en cours ---');
+    var update = {};
+    DRAWING_FIELDS.forEach(function (f) { update[f] = {}; });
+    db.collection('circuits').doc(safeDocId(name)).update(update).then(function () {
+      log('OK -- plan de "' + name + '" réinitialisé (Plan général et Contour du tracé vidés pour tous les comptes).');
+      lastPreview = null;
+    }).catch(function (err) {
+      log('ERREUR : ' + (err && err.message ? err.message : err));
+    });
+  }
+</script>
+</body>
+</html>
