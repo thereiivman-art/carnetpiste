@@ -2317,14 +2317,22 @@
   // too (events/sessions on the grid, and the period's sorties list).
   var selectedCircuit = _savedUiState.selectedCircuit || null;
   // Whether this sign-in's session has already applied normalizeSelection's
-  // en cours/à venir/passé-récent default once -- selectedCircuit is
-  // otherwise sticky (persisted, see saveUiState), which used to mean a
-  // circuit picked weeks ago for some other event silently kept winning
-  // forever, since normalizeSelection only ever recomputes it when it's
-  // empty/invalid. Reset on every fresh sign-in (see init()) so a new
-  // session re-derives "the right circuit for right now" once, while a
-  // manual pick made *during* that same session still sticks afterward.
-  var circuitDefaultApplied = false;
+  // en cours/à venir/passé-récent default -- selectedCircuit is otherwise
+  // sticky (persisted, see saveUiState), which used to mean a circuit
+  // picked once (even just the first default computed on load) silently
+  // kept winning forever, since normalizeSelection only recomputed it
+  // when empty/invalid. A newly-scheduled event closer in time than
+  // whatever was last selected -- created or synced in after that first
+  // computation, e.g. a Team Leader adding tomorrow's Jerez sortie while
+  // this account still had an older Le Mans default from before it
+  // existed -- never took over until reloading the app from scratch.
+  // Recomputed on every render instead (see normalizeSelection) as long
+  // as this stays false; a manual pick made *during* the session (the
+  // Chronos circuit dropdown, or jumping here from a just-logged chrono/
+  // just-created event) sets it true and sticks for the rest of that
+  // session. Reset on every fresh sign-in (see init()) so a new session
+  // always starts back in "auto-follow the nearest event" mode.
+  var userPickedCircuit = false;
   var selectedRiders = _savedUiState.selectedRidersAll ? new Set(allKnownRiders()) : (_savedUiState.selectedRider ? new Set([_savedUiState.selectedRider]) : null); // Set — 1 rider, or the full roster when "Tous" is active
   var ZOOM_LEVELS = ['year', '6month', '3month', '2month', 'month', 'week', 'day'];
   // The checklist is a shared, editable template (STATE.checklistTemplate,
@@ -2583,8 +2591,7 @@
     var circuits = allCircuits();
     if (!circuits.length) {
       selectedCircuit = null;
-    } else if (!selectedCircuit || circuits.indexOf(selectedCircuit) === -1 || !circuitDefaultApplied) {
-      circuitDefaultApplied = true;
+    } else if (!selectedCircuit || circuits.indexOf(selectedCircuit) === -1 || !userPickedCircuit) {
       // Default to the circuit of the ongoing or next sortie (what a rider
       // is about to ride or is currently riding); if there's neither,
       // fall back to the circuit of their own most recent past event, and
@@ -7722,7 +7729,7 @@
     selectedEventId = id || null;
     if (id) {
       var ev = eventsList().filter(function (e) { return e.id === id; })[0];
-      if (ev) selectedCircuit = ev.circuit;
+      if (ev) { selectedCircuit = ev.circuit; userPickedCircuit = true; }
     }
   }
 
@@ -9738,6 +9745,7 @@
       }
     }
     selectedCircuit = circuit;
+    userPickedCircuit = true;
     calendarAnchor = dateStart;
     editingEventId = null;
     prefillEventCircuit = null;
@@ -14372,6 +14380,7 @@
     if (circuitSelect) {
       circuitSelect.addEventListener('change', function () {
         selectedCircuit = circuitSelect.value;
+        userPickedCircuit = true;
         editingCircuitInfo = false;
         editingSessionId = null;
         renderRoot();
@@ -14555,6 +14564,7 @@
     STATE.sessions.push(session);
     selectedRiders = new Set([rider]);
     selectedCircuit = circuit;
+    userPickedCircuit = true;
     addChronoOpen = false;
     renderRoot();
     persist(prevState);
@@ -15272,7 +15282,7 @@
             tutorialOpen = true;
             tutorialStep = 0;
           }
-          circuitDefaultApplied = false;
+          userPickedCircuit = false;
           startSync();
           renderRoot();
           selfHealStaleNames(user.uid, currentUserProfile.name);
