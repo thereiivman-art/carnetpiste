@@ -6056,6 +6056,15 @@
           return obj;
         }
       } else if (obj.type === 'stroke') {
+        // An eraser stroke renders nothing of its own (destination-out just
+        // punches a transparent hole through whatever was drawn earlier) --
+        // it's a mask, not something a user would ever think to grab and
+        // drag. Without this, its (invisible) hit region kept winning
+        // against a real ink stroke sitting right under or beside an
+        // erased patch, since it's checked first here (most recent object
+        // first) -- "déplacer un objet proche du blanc" would silently
+        // grab the erase mark itself instead.
+        if (obj.tool === 'eraser') continue;
         var threshold = Math.max(obj.sizeFrac * canvas.width * 2, 22 * ANNOT_DPR);
         var pts = obj.points;
         var hit = false;
