@@ -6084,6 +6084,66 @@
     return null;
   }
 
+  // Shortest distance from (px,py) to the polyline poly (array of {x,y} in
+  // canvas-buffer pixels) -- reuses annotPointSegDist per segment, same as
+  // annotHitTest above, just walking every segment instead of stopping at
+  // the first hit.
+  function annotMinDistToPolyline(px, py, poly) {
+    if (!poly.length) return Infinity;
+    if (poly.length === 1) return annotDistance({ x: px, y: py }, poly[0]);
+    var min = Infinity;
+    for (var i = 0; i < poly.length - 1; i++) {
+      var d = annotPointSegDist(px, py, poly[i].x, poly[i].y, poly[i + 1].x, poly[i + 1].y);
+      if (d < min) min = d;
+    }
+    return min;
+  }
+
+  // True erase: deletes/splits whatever ink this eraser gesture actually
+  // touched, instead of leaving a separate destination-out "mask" stroke
+  // sitting on top of everything (the old approach -- see git history).
+  // That mask had no shape of its own to test sensibly against: excluded
+  // from hit-testing, an ink stroke could be grabbed and dragged right out
+  // from under a hole that then no longer lined up with anything, which is
+  // exactly what "ça déplace quand même les objets sous les traits de
+  // gomme" was describing -- the hole stays put, the ink moves away from
+  // it, so parts that were meant to stay hidden reappear and the erased
+  // gap ends up somewhere that was never drawn on in the first place.
+  // Erasing an object's ink directly removes that whole problem: nothing
+  // is left behind to move independently of the ink it was erasing.
+  function applyEraserStroke(eraserStroke, canvas) {
+    var eraserPoly = eraserStroke.points.map(function (p) { return { x: p.nx * canvas.width, y: p.ny * canvas.height }; });
+    var eraserRadius = (eraserStroke.sizeFrac * canvas.width * 3) / 2;
+    var next = [];
+    annotObjects.forEach(function (obj) {
+      // A mask object from before this fix -- dropped the first time a new
+      // erase gesture touches this level, rather than carried forward
+      // forever. Leaves already-erased-away ink erased (never restored
+      // for existing plans, only reinterpreted).
+      if (obj.tool === 'eraser') return;
+      if (obj.type === 'text') {
+        var tx = obj.nx * canvas.width, ty = obj.ny * canvas.height;
+        var textRadius = obj.fontSizeFrac * canvas.width * 0.7;
+        if (annotMinDistToPolyline(tx, ty, eraserPoly) <= eraserRadius + textRadius) return;
+        next.push(obj);
+        return;
+      }
+      if (obj.type !== 'stroke') { next.push(obj); return; }
+      var threshold = eraserRadius + (obj.sizeFrac * canvas.width) / 2;
+      var run = [];
+      function flush() {
+        if (run.length) next.push({ type: 'stroke', tool: obj.tool, color: obj.color, sizeFrac: obj.sizeFrac, points: run });
+        run = [];
+      }
+      obj.points.forEach(function (p) {
+        var x = p.nx * canvas.width, y = p.ny * canvas.height;
+        if (annotMinDistToPolyline(x, y, eraserPoly) > threshold) run.push(p); else flush();
+      });
+      flush();
+    });
+    annotObjects = next;
+  }
+
   function applyAnnotView() {
     if (!annotInnerEl) return;
     annotInnerEl.style.transform = 'translate(' + annotView.x + 'px,' + annotView.y + 'px) scale(' + annotView.scale + ')';
@@ -6204,7 +6264,16 @@
   // sketching apps, and works with mouse too (mouse never has a 2nd pointer).
   function annotFinalizeCurrentStroke() {
     if (annotCurrentStroke) {
-      annotObjects.push(annotCurrentStroke);
+      if (annotCurrentStroke.tool === 'eraser') {
+        // Never stored as its own object -- see applyEraserStroke. The
+        // live destination-out preview drawn while dragging (annotDrawSegment)
+        // is just that, a preview; this redraw replaces it with the real
+        // (now permanently edited) object list.
+        applyEraserStroke(annotCurrentStroke, annotCanvasEl);
+        redrawAnnotCanvas();
+      } else {
+        annotObjects.push(annotCurrentStroke);
+      }
       annotCurrentStroke = null;
     }
   }
