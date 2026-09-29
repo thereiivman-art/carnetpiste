@@ -4704,14 +4704,12 @@
   }
 
   // Line chart of one or more riders' recorded chronos on one circuit,
-  // over time -- one line per rider, sharing the same date scale so
-  // they're directly comparable. x is spaced evenly by chronological rank
-  // of distinct session dates, not proportionally to real elapsed time --
-  // the date already prints under each point, so a six-month gap between
-  // two sorties doesn't need to visually dwarf the rest of the chart to
-  // say so. y is NOT inverted — a faster (lower) time naturally plots
-  // lower on the chart, same as any plain numeric axis where values grow
-  // upward (1'54 below 2'00, not above it).
+  // over time -- one line per rider, sharing the same time/date scale so
+  // they're directly comparable. x is spaced proportionally to real
+  // elapsed time between session dates (not just index order); y is NOT
+  // inverted — a faster (lower) time naturally plots lower on the chart,
+  // same as any plain numeric axis where values grow upward (1'54 below
+  // 2'00, not above it).
   // 'day' (a single day, picked below -- every chrono entered that day),
   // 'event' (every chrono entered on any of the selected événement's
   // dates, whichever circuit day it falls on), or 'all' (every chrono
@@ -4854,35 +4852,24 @@
     var marginL = 64, marginR = 16, marginT = 34, marginB = 38;
     var plotW = W - marginL - marginR, plotH = H - marginT - marginB;
 
-    var allTimes = [];
-    var dateSet = {};
+    var allTimes = [], allStamps = [];
     series.forEach(function (s) {
       s.raw.forEach(function (p) {
         allTimes.push(p.time);
-        dateSet[p.date] = true;
+        allStamps.push(parseLocalDate(p.date).getTime());
       });
     });
     var minTime = Math.min.apply(null, allTimes);
     var maxTime = Math.max.apply(null, allTimes);
     var timeSpan = maxTime - minTime;
-    // Homogeneous spacing by chronological RANK of distinct dates, not by
-    // real elapsed time -- a sortie right after the previous one and a
-    // sortie six months later used to land at wildly different distances
-    // apart, squeezing a cluster of close-together chronos into a sliver
-    // of the chart just to represent "then nothing happened for months",
-    // when the date already printed under each point says that on its
-    // own. Same-day chronos still share one x (dateRank keys off the date
-    // string alone), so several attempts the same day still show as a
-    // vertical scatter rather than being pulled apart.
-    var uniqueDates = Object.keys(dateSet).sort();
-    var dateRank = {};
-    uniqueDates.forEach(function (d, i) { dateRank[d] = i; });
-    var rankSpan = uniqueDates.length - 1;
+    var minStamp = Math.min.apply(null, allStamps);
+    var maxStamp = Math.max.apply(null, allStamps);
+    var stampSpan = maxStamp - minStamp;
 
     series.forEach(function (s) {
       var recordTime = Math.min.apply(null, s.raw.map(function (p) { return p.time; }));
-      s.pts = s.raw.map(function (p) {
-        var xFrac = rankSpan > 0 ? dateRank[p.date] / rankSpan : 0.5;
+      s.pts = s.raw.map(function (p, i) {
+        var xFrac = stampSpan > 0 ? (parseLocalDate(p.date).getTime() - minStamp) / stampSpan : (s.raw.length > 1 ? i / (s.raw.length - 1) : 0.5);
         var yFrac = timeSpan > 0 ? (maxTime - p.time) / timeSpan : 0.5;
         return { x: marginL + xFrac * plotW, y: marginT + yFrac * plotH, date: p.date, time: p.time, isBest: p.time === recordTime };
       });
