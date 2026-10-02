@@ -8226,6 +8226,7 @@
       html += renderMyTravelInfoSection(ev);
     }
     html += renderMediaLinkSection(ev);
+    html += renderPersonalMediaLinksSection(ev);
     // The circuit's own interactive map, so the annotated track is one tap
     // away from the sortie it belongs to, not just reachable from Circuit.
     html += '<div class="event-circuit-map"><div class="event-checklist-title">' + tr('circuit_map_heading') + '</div>' + renderCircuitVisual(circuitInfo(ev.circuit), ev.circuit) + '</div>';
@@ -8455,6 +8456,58 @@
       delete ev.mediaLinkAddedBy;
     }
     editingMediaLinkFor = null;
+    renderRoot();
+    persist(prevState);
+  }
+
+  // Lien photos perso -- the mediaLink above is one shared link for the
+  // whole sortie, but several riders/accompagnants often each have their
+  // OWN album from their own phone and there's no single "official" one to
+  // pick. One link per account instead (ev.personalMediaLinks[riderName]),
+  // each account only ever writing its own key (see firestore.rules --
+  // same onlyOwnKeyChanged shape as reactions, open to any rider on the
+  // event, not just the Team Leader, unlike the shared mediaLink above).
+  var editingPersonalMediaLinkFor = null; // event id currently showing my edit form, or null
+  function renderPersonalMediaLinksSection(ev) {
+    if (!currentUserProfile) return '';
+    var myName = currentUserProfile.name;
+    var isOnRoster = (ev.riders || []).indexOf(myName) !== -1;
+    var links = ev.personalMediaLinks || {};
+    var others = Object.keys(links).filter(function (n) { return n !== myName && links[n]; });
+    var html = '';
+    if (isOnRoster) {
+      if (editingPersonalMediaLinkFor === ev.id) {
+        html += '<div class="media-link-edit">' +
+          '<label for="personal-media-link-input">Mon lien photos perso (Drive, WeTransfer...)</label>' +
+          '<input type="url" id="personal-media-link-input" placeholder="https://..." value="' + escapeHtml(links[myName] || '') + '">' +
+          '<div style="margin-top:0.5rem; display:flex; gap:0.5rem;">' +
+          '<button type="button" class="primary" data-action="save-personal-media-link" data-id="' + ev.id + '">Enregistrer</button>' +
+          '<button type="button" class="ghost" data-action="cancel-personal-media-link">Annuler</button></div></div>';
+      } else if (links[myName]) {
+        html += infoRow('Mon lien photos perso', '<a class="ghost" href="' + escapeHtml(links[myName]) + '" target="_blank" rel="noopener">📷 Ouvrir</a>' +
+          ' <button type="button" class="ghost icon-btn" data-action="edit-personal-media-link" data-id="' + ev.id + '" aria-label="Modifier mon lien" title="Modifier">✎</button>');
+      } else {
+        html += '<div style="margin-top:0.6rem;"><button type="button" class="ghost" data-action="edit-personal-media-link" data-id="' + ev.id + '">📷 Ajouter mon lien photos perso</button></div>';
+      }
+    }
+    if (others.length) {
+      html += collapsibleSection('personal-media-links-' + ev.id, 'Liens photos perso des autres (' + others.length + ')',
+        others.sort().map(function (n) {
+          return infoRow(n, '<a class="ghost" href="' + escapeHtml(links[n]) + '" target="_blank" rel="noopener">📷 Ouvrir</a>');
+        }).join(''));
+    }
+    return html;
+  }
+
+  function savePersonalMediaLink(eventId, url) {
+    if (!currentUserProfile) return;
+    var prevState = JSON.parse(JSON.stringify(STATE));
+    var ev = STATE.events.filter(function (e) { return e.id === eventId; })[0];
+    if (!ev) return;
+    var links = Object.assign({}, ev.personalMediaLinks || {});
+    if (url) links[currentUserProfile.name] = url; else delete links[currentUserProfile.name];
+    ev.personalMediaLinks = links;
+    editingPersonalMediaLinkFor = null;
     renderRoot();
     persist(prevState);
   }
@@ -14294,6 +14347,25 @@
       btn.addEventListener('click', function () {
         var input = document.getElementById('media-link-input');
         saveMediaLink(btn.getAttribute('data-id'), input.value.trim());
+      });
+    });
+    document.querySelectorAll('[data-action="edit-personal-media-link"]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        editingPersonalMediaLinkFor = btn.getAttribute('data-id');
+        renderRoot();
+      });
+    });
+    var cancelPersonalMediaLinkBtn = document.querySelector('[data-action="cancel-personal-media-link"]');
+    if (cancelPersonalMediaLinkBtn) {
+      cancelPersonalMediaLinkBtn.addEventListener('click', function () {
+        editingPersonalMediaLinkFor = null;
+        renderRoot();
+      });
+    }
+    document.querySelectorAll('[data-action="save-personal-media-link"]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var input = document.getElementById('personal-media-link-input');
+        savePersonalMediaLink(btn.getAttribute('data-id'), input.value.trim());
       });
     });
     document.querySelectorAll('[data-action="save-travel-info"]').forEach(function (btn) {

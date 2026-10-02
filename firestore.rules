@@ -203,7 +203,10 @@ service cloud.firestore {
       // A rider of the event may also react with one emoji once it's
       // over (reactions.<myName()>, own key only, see onlyOwnKeyChanged)
       // -- the lightweight post-event "likes" ask, deliberately not a
-      // free-text comment/photo thread.
+      // free-text comment/photo thread. personalMediaLinks is the same
+      // own-key-only shape -- each rider's own photo album link, open to
+      // any rider on the roster (not just the Team Leader, unlike the one
+      // shared mediaLink field above).
       allow update: if verified() && (
         resource.data.get('teamId', null) == null
         || isTeamLeader(resource.data.teamId)
@@ -213,6 +216,9 @@ service cloud.firestore {
         || (myName() in resource.data.get('riders', [])
             && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reactions'])
             && onlyOwnKeyChanged(resource.data.get('reactions', {}), request.resource.data.reactions))
+        || (myName() in resource.data.get('riders', [])
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['personalMediaLinks'])
+            && onlyOwnKeyChanged(resource.data.get('personalMediaLinks', {}), request.resource.data.personalMediaLinks))
       );
       allow delete: if verified() && (isAdmin() || (resource.data.get('teamId', null) != null && isTeamLeader(resource.data.teamId)));
     }
