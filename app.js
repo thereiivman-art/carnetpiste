@@ -68,6 +68,7 @@
       not_planned_plan_it: 'Non planifiée — planifier', edit_info: 'Modifier les infos',
       ci_distance_km: 'Distance (km)', ci_turns_right: 'Virages à droite', ci_turns_left: 'Virages à gauche',
       ci_organizer: 'Organisateur', ci_briefing: 'Briefing', ci_usual_horaires: 'Horaires habituels par groupe',
+      ci_live_timing_url: 'Lien chronos en direct', live_timing_link_label: 'Chronos en direct',
       circuit_map_label: 'Plan du circuit', circuit_map_replace: 'Remplacer le plan', circuit_map_import: 'Importer un plan',
       circuit_map_remove: 'Retirer', tap_to_view_companion_map: 'Toucher pour voir/marquer le contour du tracé',
       circuit_outline_label: 'Contour du tracé', circuit_outline_replace: 'Remplacer le contour', circuit_outline_import: 'Importer un contour',
@@ -454,6 +455,7 @@
       not_planned_plan_it: 'Not planned — plan it', edit_info: 'Edit info',
       ci_distance_km: 'Distance (km)', ci_turns_right: 'Right-hand turns', ci_turns_left: 'Left-hand turns',
       ci_organizer: 'Organizer', ci_briefing: 'Briefing', ci_usual_horaires: 'Usual schedule per group',
+      ci_live_timing_url: 'Live timing link', live_timing_link_label: 'Live timing',
       circuit_map_label: 'Circuit map', circuit_map_replace: 'Replace map', circuit_map_import: 'Import a map',
       circuit_map_remove: 'Remove', tap_to_view_companion_map: 'Tap to view/mark the track outline',
       circuit_outline_label: 'Track outline', circuit_outline_replace: 'Replace outline', circuit_outline_import: 'Import an outline',
@@ -5421,6 +5423,11 @@
         return '<option value="' + t.id + '"' + (t.id === info.organizerTeamId ? ' selected' : '') + '>' + escapeHtml(t.name) + (t.teamPro ? ' (PRO)' : '') + '</option>';
       }).join('') + '</select></div>';
     html += '<div><label for="ci-briefing">' + tr('ci_briefing') + '</label><input type="text" id="ci-briefing" value="' + escapeHtml(info.briefing || '') + '" placeholder="Ex. 8h15"></div>';
+    // Shown in EN PISTE's orange card and next to "Mon groupe" (see
+    // renderPlanningTab/renderMyGroupSection) -- one link per circuit, not
+    // per event, since the timing provider's URL for a given circuit is
+    // normally the same every time a Team rides there.
+    html += '<div><label for="ci-live-timing-url">' + tr('ci_live_timing_url') + '</label><input type="url" id="ci-live-timing-url" value="' + escapeHtml(info.liveTimingUrl || '') + '" placeholder="Ex. https://mugellocircuit.cronorapino.it/"></div>';
     html += '</div>';
     // These usual times pre-remplissent automatiquement une nouvelle sortie
     // créée sur ce circuit (voir renderEventForm) -- utile puisque
@@ -5508,6 +5515,8 @@
     var left = leftRaw ? parseInt(leftRaw, 10) : null;
     var organizerTeamId = document.getElementById('ci-organizer').value;
     var briefing = document.getElementById('ci-briefing').value.trim();
+    var liveTimingUrlEl = document.getElementById('ci-live-timing-url');
+    var liveTimingUrl = liveTimingUrlEl ? liveTimingUrlEl.value.trim() : '';
     var horaires = {};
     var anyHoraire = false;
     HORAIRES_GROUPS.forEach(function (g) {
@@ -5523,6 +5532,7 @@
     entry.turnsLeft = (left != null && !isNaN(left)) ? left : null;
     entry.organizerTeamId = organizerTeamId || null;
     entry.briefing = briefing || null;
+    entry.liveTimingUrl = liveTimingUrl || null;
     entry.horaires = anyHoraire ? horaires : null;
     STATE.circuits[selectedCircuit] = entry;
     editingCircuitInfo = false;
@@ -8095,6 +8105,13 @@
     // never touching, "Ma moto" on the rider's own profile.
     var eventNumber = (ev.riderBikeNumbers || {})[me.name];
     if (eventNumber) row += infoRow('N° pour cet événement', '#' + escapeHtml(eventNumber));
+    // Same circuit-level link as the orange card's header above -- handy
+    // right here too, since checking "which group am I in" is usually the
+    // same moment you'd want to go check your live chrono.
+    var liveTimingUrl = circuitInfo(ev.circuit).liveTimingUrl;
+    if (liveTimingUrl) {
+      row += '<div style="margin-top:0.5rem;"><button type="button" class="ghost" data-action="open-external-url" data-url="' + escapeHtml(liveTimingUrl) + '">⏱️ ' + tr('live_timing_link_label') + ' ↗</button></div>';
+    }
     return collapsibleSection('my-group-' + ev.id, 'Mon groupe', row, true);
   }
 
@@ -9065,6 +9082,14 @@
     var sub = [];
     if (!isOngoing) sub.push(escapeHtml(formatEventRange(ev, true)) + ' (' + weekdayName(ev.dateStart) + ')');
     if (sub.length) html += '<div class="help-text" style="font-size:0.78rem; font-weight:400;">' + sub.join(' · ') + '</div>';
+    // One link per circuit (set from Circuit -> Modifier les infos), not
+    // per event -- the timing provider's URL for a given circuit is
+    // normally the same every time a Team rides there. Also surfaced next
+    // to "Mon groupe" below (see renderMyGroupSection) for whoever's
+    // already looking there to check their group.
+    if (info.liveTimingUrl) {
+      html += '<div style="margin:0.5rem 0;"><button type="button" class="ghost" data-action="open-external-url" data-url="' + escapeHtml(info.liveTimingUrl) + '">⏱️ ' + tr('live_timing_link_label') + ' ↗</button></div>';
+    }
     // Raccourci vers Modifier l'événement, uniquement pour le Team Leader
     // du Team qui gère cet event -- pas besoin d'aller jusqu'à Team ->
     // Gestion des événements pour un ajustement rapide.
