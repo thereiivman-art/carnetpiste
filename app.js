@@ -23,7 +23,7 @@
     sessions: [], events: [], circuits: {}, riders: [], usersByName: {}, friendRequests: [], feedEvents: [], myFollows: [], myFollowedTeams: [],
     myFollowedTeamTiers: {}, myTeamFollowDocs: {}, teams: [], myTeamMemberships: [], teamInvites: [], teamMembersByTeam: {}, teamFeed: [], teamFollowersByTeam: {},
     followedTeamFeed: [], wallPosts: [], coachRequests: [], teamJoinRequests: [], teamLikes: [], eventJoinRequests: [], coachMessages: [], eventAnnouncements: [],
-    allTeamLeaders: [], feedback: [], partners: []
+    allTeamLeaders: [], feedback: [], partners: [], featureVisibility: {}
   };
   var canPersist = false;
   var unsubscribers = [];
@@ -297,6 +297,9 @@
       no_partner_yet: 'Aucun partenaire pour l\'instant.',
       partners_input_label: 'Un par ligne : Nom | URL (URL optionnelle)',
       our_partners_heading: 'Nos partenaires de Carnet de Piste',
+      optional_features_heading: 'Fonctionnalités optionnelles',
+      optional_features_help: 'Masquées pour tout le monde par défaut (même en Mode complet/Organisateur) -- à activer seulement si un Team en a besoin.',
+      feature_weather_label: 'Météo & piste', feature_special_activities_label: 'Baptêmes, coaching...', feature_rental_label: 'Location (motos et équipement)',
       feedback_heading: 'Une remarque, une idée ?',
       feedback_help: 'Dis-nous ce qui manque, ce qui bloque ou ce que tu aimerais voir -- ça part directement à l\'équipe de développement.',
       feedback_placeholder: 'Ton retour d\'expérience...',
@@ -684,6 +687,9 @@
       no_partner_yet: 'No partner yet.',
       partners_input_label: 'One per line: Name | URL (URL optional)',
       our_partners_heading: 'Our Carnet de Piste partners',
+      optional_features_heading: 'Optional features',
+      optional_features_help: 'Hidden for everyone by default (even in Mode complet/Organisateur) -- turn on only if a Team actually needs it.',
+      feature_weather_label: 'Weather & track', feature_special_activities_label: 'Track days, coaching...', feature_rental_label: 'Rental (bikes and gear)',
       feedback_heading: 'A remark, an idea?',
       feedback_help: 'Tell us what\'s missing, what\'s blocking you, or what you\'d like to see -- it goes straight to the development team.',
       feedback_placeholder: 'Your feedback...',
@@ -1602,6 +1608,29 @@
       '<div class="section-title" style="font-size:0.95rem;">' + tr('our_partners_heading') + '</div>' + body + '</div>';
   }
 
+  // Admin-only toggles for the three optional EN PISTE blocks (Météo &
+  // piste / Baptêmes-coaching / Location) -- see featureEnabled. Off by
+  // default for every account, including Organisateur, until switched on
+  // here; a Team that doesn't offer baptêmes/location never sees an empty
+  // "add" button for it, and the app stays as simple as possible by
+  // default everywhere else too.
+  var OPTIONAL_FEATURES = [
+    { key: 'weather', labelKey: 'feature_weather_label' },
+    { key: 'specialActivities', labelKey: 'feature_special_activities_label' },
+    { key: 'rental', labelKey: 'feature_rental_label' }
+  ];
+  function renderOptionalFeaturesSection() {
+    if (!isAdmin()) return '';
+    var rows = OPTIONAL_FEATURES.map(function (f) {
+      var checked = featureEnabled(f.key);
+      return '<label class="planning-group-check" style="display:flex; margin-top:0.4rem;">' +
+        '<input type="checkbox" data-feature-toggle="' + f.key + '"' + (checked ? ' checked' : '') + '> ' + tr(f.labelKey) + '</label>';
+    }).join('');
+    return '<div style="margin-top:1.2rem; border-top:1px solid var(--border); padding-top:0.9rem;">' +
+      '<div class="section-title" style="font-size:0.95rem;">' + tr('optional_features_heading') + '</div>' +
+      '<div class="help-text">' + tr('optional_features_help') + '</div>' + rows + '</div>';
+  }
+
   // A Team's OWN partenaires -- set by that Team's Leader (garage,
   // concessionnaire, sponsor...), own list per Team on the team doc
   // itself (a Team Leader can already write any field there but teamPro,
@@ -2307,6 +2336,22 @@
   // never persisted, reset back to false on reload.
   var advancedRevealed = false;
   function advancedHidden() { return isSimplifiedModeOn(currentUserProfile) && !advancedRevealed; }
+  // Admin-level ceiling on top of advancedHidden()/Mode complet -- a
+  // feature off here stays hidden for literally everyone (including an
+  // Organisateur account, which otherwise defaults to Mode complet and
+  // would see every one of these unconditionally), until the admin opts
+  // it back in from Profil -> Aide (see renderOptionalFeaturesSection).
+  // Undefined/doc-absent reads as off -- "simplifié au max par défaut"
+  // applies from the very first load, no seeding required.
+  function featureEnabled(key) { return !!(STATE.featureVisibility && STATE.featureVisibility[key]); }
+  function saveFeatureVisibility(key, value) {
+    if (!isAdmin()) return;
+    var patch = {};
+    patch[key] = value;
+    db.collection('settings').doc('featureVisibility').set(patch, { merge: true }).catch(function (err) {
+      showToast(tr('error_prefix') + (err && err.message ? err.message : err));
+    });
+  }
   // Solo has no reveal button -- unlike Simplifié's advancedHidden, it's a
   // deliberate "I ride alone, I don't want the social side at all" choice,
   // not something to peek past for one visit.
@@ -3449,6 +3494,7 @@
     html += '<div style="margin-top:1.1rem;"><button type="button" class="ghost" id="tutorial-open-btn">' + tr('review_tutorial_btn') + '</button></div>';
     html += '<div style="margin-top:0.9rem;">' + renderBadgesLegend() + '</div>';
     html += renderPartnersSection();
+    html += renderOptionalFeaturesSection();
     return html;
   }
 
@@ -9099,10 +9145,12 @@
     }
     if (ev.teamId) html += renderEventAnnouncements(ev, false);
     if (!advancedHidden()) {
-      html += renderWeatherSection(ev, isLeader);
-      html += renderSpecialActivitiesSection(ev, isLeader);
-      html += renderRentalMotosSection(ev, isLeader);
-      html += renderRentalEquipementSection(ev, isLeader);
+      if (featureEnabled('weather')) html += renderWeatherSection(ev, isLeader);
+      if (featureEnabled('specialActivities')) html += renderSpecialActivitiesSection(ev, isLeader);
+      if (featureEnabled('rental')) {
+        html += renderRentalMotosSection(ev, isLeader);
+        html += renderRentalEquipementSection(ev, isLeader);
+      }
     }
     // Briefing lives with Horaires (above the group filter) now, not up
     // here -- it's schedule information, same family as the slot times.
@@ -13382,6 +13430,11 @@
         savePartners(textarea ? textarea.value : '');
       });
     }
+    document.querySelectorAll('[data-feature-toggle]').forEach(function (cb) {
+      cb.addEventListener('change', function () {
+        saveFeatureVisibility(cb.getAttribute('data-feature-toggle'), cb.checked);
+      });
+    });
     document.querySelectorAll('[data-action="team-partners-form"]').forEach(function (form) {
       form.addEventListener('submit', function (evt) {
         evt.preventDefault();
@@ -14996,6 +15049,16 @@
     }, handleSyncError));
     unsubscribers.push(db.collection('settings').doc('partners').onSnapshot(function (doc) {
       STATE.partners = doc.exists ? (doc.data().list || []) : [];
+      renderRoot();
+    }, handleSyncError));
+    // Admin-only kill switch for Météo/Baptêmes-coaching/Location, each
+    // hidden for everyone by default (see featureEnabled) regardless of a
+    // given account's own Mode simplifié/complet choice -- "simplifié au
+    // max par défaut", the admin opts a feature back in only once a Team
+    // actually offers it, rather than every Organisateur account seeing
+    // empty "add" buttons for things nobody uses.
+    unsubscribers.push(db.collection('settings').doc('featureVisibility').onSnapshot(function (doc) {
+      STATE.featureVisibility = doc.exists ? doc.data() : {};
       renderRoot();
     }, handleSyncError));
     // Powers the chrono form's bike auto-suggest (see refreshChronoFormAux):
