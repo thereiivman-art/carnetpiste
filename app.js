@@ -347,7 +347,7 @@
       groups_heading: 'Groupes', add_riders_to_group_hint: 'Ajoute des participants pour pouvoir les répartir en groupes.',
       remove_from_group_aria: 'Retirer du groupe', unassigned_label: 'Non attribués', nobody_yet: 'Personne pour l\'instant.',
       orphan_group_entry: 'nom invalide, à retirer', invalid_group_rider: 'Choisis un pilote dans la liste proposée.',
-      group_orga_staff: 'Groupe ORGA (staff)', verified_chronos_heading: 'Chronos vérifiés', no_chrono: 'Aucun chrono',
+      group_orga_staff: 'Groupe ORGA (staff)', group_r_rookies_label: 'Groupe R (Rookies)', verified_chronos_heading: 'Chronos vérifiés', no_chrono: 'Aucun chrono',
       no_announcements_yet: 'Aucune annonce pour l\'instant.', edited_suffix: ' (modifié)',
       announcement_placeholder: 'Ex. BRIEFING DEMAIN A 8H15', announcements_heading: 'Annonces',
       nothing_filled_in_yet: 'Rien renseigné pour l\'instant.', complete_btn: 'Compléter',
@@ -737,7 +737,7 @@
       groups_heading: 'Groups', add_riders_to_group_hint: 'Add participants to be able to split them into groups.',
       remove_from_group_aria: 'Remove from group', unassigned_label: 'Unassigned', nobody_yet: 'Nobody yet.',
       orphan_group_entry: 'invalid name, remove it', invalid_group_rider: 'Pick a rider from the suggested list.',
-      group_orga_staff: 'ORGA Group (staff)', verified_chronos_heading: 'Verified lap times', no_chrono: 'No lap time',
+      group_orga_staff: 'ORGA Group (staff)', group_r_rookies_label: 'Group R (Rookies)', verified_chronos_heading: 'Verified lap times', no_chrono: 'No lap time',
       no_announcements_yet: 'No announcements yet.', edited_suffix: ' (edited)',
       announcement_placeholder: 'E.g. BRIEFING TOMORROW AT 8:15AM', announcements_heading: 'Announcements',
       nothing_filled_in_yet: 'Nothing filled in yet.', complete_btn: 'Fill in',
@@ -2594,6 +2594,16 @@
   // used for the Team Leader's roster assignment (renderGroupsSection),
   // never offered when tagging a chrono's group since ORGA never rides.
   var ROSTER_GROUP_LETTERS = GROUP_LETTERS.concat(['ORGA']);
+  // Groupe R (Rookies) only exists for Mugello -- same circuit-only
+  // gating as renderHorairesGridWithGenerator's groupR field (the horaires
+  // editor only surfaces it there, so it's the only circuit that can ever
+  // actually schedule an R group). Without this, the roster assignment
+  // (renderGroupsSection) stayed stuck at A-D/ORGA regardless of circuit,
+  // so Mugello's 5th group had no way to get pilotes assigned to it even
+  // though its horaires could already schedule one.
+  function rosterGroupLettersFor(circuit) {
+    return (circuit === 'Mugello' ? ['R'] : []).concat(ROSTER_GROUP_LETTERS);
+  }
 
   // Every calendar date from start to end (inclusive), 'YYYY-MM-DD' strings
   // -- used to build the per-day group-assignment grid for a multi-day
@@ -8063,8 +8073,9 @@
     var orphanNames = Object.keys(ev.riderGroups || {}).filter(function (r) { return riders.indexOf(r) === -1; });
     var allNames = riders.concat(orphanNames);
     if (!allNames.length) return '<div class="section-title" style="margin-top:1rem;">' + tr('groups_heading') + '</div><div class="help-text">' + tr('add_riders_to_group_hint') + '</div>';
+    var rosterLetters = rosterGroupLettersFor(ev.circuit);
     var byGroup = {};
-    ROSTER_GROUP_LETTERS.forEach(function (g) { byGroup[g] = []; });
+    rosterLetters.forEach(function (g) { byGroup[g] = []; });
     var unassigned = [];
     allNames.forEach(function (r) {
       var g = riderEventGroup(ev, r);
@@ -8104,7 +8115,7 @@
         : unassigned.map(function (r) { return riderRow(r, false); }).join('');
       html += collapsibleSection('event-group-unassigned-' + ev.id, tr('unassigned_label') + ' (' + unassigned.length + ')', unassignedBody, true);
     }
-    ROSTER_GROUP_LETTERS.forEach(function (g) {
+    rosterLetters.forEach(function (g) {
       var members = byGroup[g];
       var times = members.map(function (r) { return riderVerifiedBest(ev, r); }).filter(function (t) { return t != null; });
       var avg = times.length ? times.reduce(function (a, b) { return a + b; }, 0) / times.length : null;
@@ -8130,7 +8141,8 @@
           }).join('') + '</datalist>' +
           '<button type="submit" class="ghost">' + tr('add_aria') + '</button></form>';
       }
-      html += collapsibleSection('event-group-' + g + '-' + ev.id, (g === 'ORGA' ? tr('group_orga_staff') : tr('group_prefix') + g) + ' (' + members.length + ')', body, true);
+      var groupLabel = g === 'ORGA' ? tr('group_orga_staff') : g === 'R' ? tr('group_r_rookies_label') : tr('group_prefix') + g;
+      html += collapsibleSection('event-group-' + g + '-' + ev.id, groupLabel + ' (' + members.length + ')', body, true);
     });
     html += '</div>';
     return html;
