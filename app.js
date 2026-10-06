@@ -5423,6 +5423,11 @@
     // than silently dropping a group's schedule.
     html += '<div class="horaires-gen-row"><label for="' + id('order') + '">Ordre des groupes</label><input type="text" id="' + id('order') + '" value="' + escapeHtml(letters.join(', ')) + '" placeholder="Ex. ' + escapeHtml(letters.join(', ')) + '"></div>';
     html += '<div class="horaires-gen-row"><label for="' + id('duration') + '">Durée d\'un tour de piste (min)</label><input type="number" inputmode="numeric" min="5" max="60" id="' + id('duration') + '" value="20"></div>';
+    // Optional, defaults to the same value as above when left blank --
+    // a first "tour de reconnaissance"/briefing round is often shorter
+    // than the rest of the day (ex. 15 min first round, then 20 min for
+    // every round after), see generateHorairesFromInputs.
+    html += '<div class="horaires-gen-row"><label for="' + id('first-duration') + '">Durée du 1er tour (min)</label><input type="number" inputmode="numeric" min="5" max="60" id="' + id('first-duration') + '" placeholder="identique"></div>';
     html += '<div class="horaires-gen-row"><label for="' + id('rounds') + '">Rotations dans la journée</label><input type="number" inputmode="numeric" min="1" max="10" id="' + id('rounds') + '" value="4"></div>';
     html += '<label class="checklist-item"><input type="checkbox" id="' + id('lunch-toggle') + '"> Pause déjeuner</label>';
     html += '<div class="horaires-gen-row horaires-gen-lunch" id="' + id('lunch-row') + '" style="display:none;">' +
@@ -5437,6 +5442,11 @@
   // duration/gapBetweenGroups/rounds in minutes -- group i's round r starts
   // at start + i*duration + r*(groupCount*duration), i.e. every group gets
   // one tour de piste before the rotation comes back around to the first.
+  // The first round can run its own, usually shorter, duration (a first
+  // "tour de reconnaissance"/briefing round) -- firstDuration defaults to
+  // duration when left blank, so round 0 spans groupCount*firstDuration
+  // minutes and every round after it slots in right behind that, each
+  // groupCount*duration minutes long as before.
   // A lunch window (optional) is skipped wholesale: any slot that would
   // otherwise fall inside it, or later the same day, shifts later by
   // exactly the lunch's own length -- once, not per slot, so the whole
@@ -5450,6 +5460,8 @@
     var startMin = parseInt(startParts[0], 10) * 60 + parseInt(startParts[1], 10);
     var duration = Math.max(1, parseInt(durationEl.value, 10) || 20);
     var rounds = Math.max(1, parseInt(roundsEl.value, 10) || 1);
+    var firstDurationEl = val('first-duration');
+    var firstDuration = (firstDurationEl && firstDurationEl.value) ? Math.max(1, parseInt(firstDurationEl.value, 10) || duration) : duration;
     var lunchToggle = val('lunch-toggle');
     var lunchStartMin = null, lunchEndMin = null;
     if (lunchToggle && lunchToggle.checked) {
@@ -5485,7 +5497,12 @@
     orderedKeys.forEach(function (key, i) {
       var labels = [];
       for (var r = 0; r < rounds; r++) {
-        var t = startMin + i * duration + r * groupCount * duration;
+        // Round 0 runs at firstDuration spacing; every round after it
+        // picks up right where round 0's block ends (groupCount*firstDuration
+        // past start) and reverts to the regular duration spacing.
+        var t = (r === 0)
+          ? startMin + i * firstDuration
+          : startMin + groupCount * firstDuration + i * duration + (r - 1) * groupCount * duration;
         if (lunchLen && t >= lunchStartMin) t += lunchLen;
         var h = Math.floor(t / 60), m = t % 60;
         labels.push(h + 'h' + pad2(m));
