@@ -5493,6 +5493,12 @@
     } else {
       orderedKeys = groupKeys;
     }
+    // "Groupe R 9h-9h15" -- each slot label carries its own end time now
+    // (start+sessionDuration for whichever round it's in), not just a bare
+    // start. parseHoraireToken already understands a "Xh-Yh" label (it's
+    // always supported manually-typed ranges, defaulting to start+20 when
+    // a label is start-only) -- the generator just wasn't producing one.
+    var fmt = function (mins) { return Math.floor(mins / 60) + 'h' + pad2(mins % 60); };
     var result = {};
     orderedKeys.forEach(function (key, i) {
       var labels = [];
@@ -5500,12 +5506,12 @@
         // Round 0 runs at firstDuration spacing; every round after it
         // picks up right where round 0's block ends (groupCount*firstDuration
         // past start) and reverts to the regular duration spacing.
+        var roundDuration = r === 0 ? firstDuration : duration;
         var t = (r === 0)
           ? startMin + i * firstDuration
           : startMin + groupCount * firstDuration + i * duration + (r - 1) * groupCount * duration;
         if (lunchLen && t >= lunchStartMin) t += lunchLen;
-        var h = Math.floor(t / 60), m = t % 60;
-        labels.push(h + 'h' + pad2(m));
+        labels.push(fmt(t) + '-' + fmt(t + roundDuration));
       }
       result[key] = labels.join(', ');
     });
