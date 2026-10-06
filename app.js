@@ -5407,13 +5407,21 @@
   // the click handler (see attachHandlers' generate-horaires wiring).
   function renderHorairesGenerator(prefix, activeGroups) {
     if (activeGroups.length < 2) return '';
+    var letters = activeGroups.map(function (g) { return g.key.replace('group', ''); });
     var groupKeys = activeGroups.map(function (g) { return g.key; }).join(',');
     var id = function (suffix) { return prefix + '-gen-' + suffix; };
     var html = '<details class="horaires-generator">' +
       '<summary>⚡ Générer les horaires</summary>' +
       '<div class="horaires-generator-body">' +
-      '<div class="help-text">Calcule un tour de piste par groupe, à tour de rôle (Groupe A, B, C... puis on recommence), et remplit les champs ci-dessous -- à ajuster ensuite si besoin.</div>';
+      '<div class="help-text">Calcule un tour de piste par groupe, à tour de rôle, et remplit les champs ci-dessous -- à ajuster ensuite si besoin.</div>';
     html += '<div class="horaires-gen-row"><label for="' + id('start') + '">Premier départ</label><input type="time" id="' + id('start') + '" value="09:00"></div>';
+    // Free-text order instead of always A, B, C... -- "Groupe C commence,
+    // suivi de A, D, B" is just as common as the alphabetical rotation,
+    // and typing a few letters beats a drag-and-drop reorder widget for
+    // this. Any letter missing/mistyped falls back to the canonical order
+    // for whatever's left over (see generateHorairesFromInputs) rather
+    // than silently dropping a group's schedule.
+    html += '<div class="horaires-gen-row"><label for="' + id('order') + '">Ordre des groupes</label><input type="text" id="' + id('order') + '" value="' + escapeHtml(letters.join(', ')) + '" placeholder="Ex. ' + escapeHtml(letters.join(', ')) + '"></div>';
     html += '<div class="horaires-gen-row"><label for="' + id('duration') + '">Durée d\'un tour de piste (min)</label><input type="number" inputmode="numeric" min="5" max="60" id="' + id('duration') + '" value="20"></div>';
     html += '<div class="horaires-gen-row"><label for="' + id('rounds') + '">Rotations dans la journée</label><input type="number" inputmode="numeric" min="1" max="10" id="' + id('rounds') + '" value="4"></div>';
     html += '<label class="checklist-item"><input type="checkbox" id="' + id('lunch-toggle') + '"> Pause déjeuner</label>';
@@ -5454,8 +5462,27 @@
     }
     var lunchLen = (lunchStartMin != null && lunchEndMin != null && lunchEndMin > lunchStartMin) ? (lunchEndMin - lunchStartMin) : 0;
     var groupCount = groupKeys.length;
+    // "Groupe C commence, suivi de A, D, B" -- parses the free-text order
+    // field into a sequence of actual group keys. Any letter that's
+    // mistyped, repeated, or not one of this circuit's groups is dropped;
+    // whatever group key(s) that leaves unmentioned are appended at the
+    // end in their original (canonical) order, so every group still gets
+    // a schedule even from a sloppy or empty order field.
+    var orderEl = val('order');
+    var orderedKeys = [];
+    if (orderEl && orderEl.value) {
+      var seen = {};
+      orderEl.value.split(/[\s,]+/).forEach(function (token) {
+        if (!token) return;
+        var key = 'group' + token.trim().toUpperCase();
+        if (groupKeys.indexOf(key) !== -1 && !seen[key]) { orderedKeys.push(key); seen[key] = true; }
+      });
+      groupKeys.forEach(function (key) { if (!seen[key]) orderedKeys.push(key); });
+    } else {
+      orderedKeys = groupKeys;
+    }
     var result = {};
-    groupKeys.forEach(function (key, i) {
+    orderedKeys.forEach(function (key, i) {
       var labels = [];
       for (var r = 0; r < rounds; r++) {
         var t = startMin + i * duration + r * groupCount * duration;
