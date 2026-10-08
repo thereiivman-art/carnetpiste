@@ -20,7 +20,7 @@
 </head>
 <body>
 <h1>Horaires exceptionnels d'un événement</h1>
-<p>Fixe des horaires propres à UNE sortie précise (ev.horairesOverride), sans toucher aux horaires habituels du circuit ni aux autres sorties sur ce même circuit (ex. corriger seulement le vendredi d'un week-end, le samedi garde les horaires habituels). Pré-rempli avec l'horaire exceptionnel Mugello du vendredi 9 octobre 2026 (4 groupes A-D, sans Rookies) -- modifiable avant d'enregistrer.</p>
+<p>Fixe des horaires propres à UNE sortie précise (horairesByDate, un seul jour), sans toucher aux horaires habituels du circuit ni aux autres sorties sur ce même circuit (ex. corriger seulement le vendredi d'un week-end, le samedi garde les horaires habituels). Pré-rempli avec l'horaire exceptionnel Mugello du vendredi 9 octobre 2026 (4 groupes A-D, sans Rookies) -- modifiable avant d'enregistrer.</p>
 
 <div id="step1">
   <label for="login-email">Email (compte admin / Team Leader)</label>
@@ -40,6 +40,8 @@
 <div id="step3">
   <div id="selected-event-label" style="font-weight:600; margin-top:1rem;"></div>
   <div class="help">Laisse un champ vide pour ne PAS définir ce groupe ce jour-là (ex. pas de Rookies le vendredi).</div>
+  <label for="h-day">Jour concerné (AAAA-MM-JJ)</label>
+  <input type="text" id="h-day" value="2026-10-09">
   <label for="h-groupR">Groupe R (Rookies)</label>
   <textarea id="h-groupR" rows="2"></textarea>
   <label for="h-groupA">Groupe A</label>
@@ -119,7 +121,7 @@
         var range = ev.dateStart + (ev.dateEnd && ev.dateEnd !== ev.dateStart ? ' -> ' + ev.dateEnd : '');
         lbl.innerHTML = '<input type="radio" name="ev-pick" value="' + ev.id + '"> ' +
           '<strong>' + range + '</strong> -- ' + ev.id + (ev.teamId ? ' (team ' + ev.teamId + ')' : ' (personnel)') +
-          (ev.horairesOverride ? ' -- a déjà un horaire exceptionnel' : '');
+          (ev.horairesByDate ? ' -- a déjà des horaires par jour' : '');
         listEl.appendChild(lbl);
       });
       listEl.querySelectorAll('input[name="ev-pick"]').forEach(function (radio) {
@@ -129,7 +131,7 @@
           document.getElementById('selected-event-label').textContent = 'Sortie sélectionnée : ' + ev.dateStart + ' (' + ev.id + ')';
           // Pre-fill from any existing override so re-running this tool on
           // an already-corrected event doesn't blank out a field by hand.
-          var ov = ev.horairesOverride || {};
+          var ov = (ev.horairesByDate || {})[document.getElementById('h-day').value.trim()] || {};
           ['R', 'A', 'B', 'C', 'D'].forEach(function (letter) {
             if (ov['group' + letter] !== undefined) {
               document.getElementById('h-group' + letter).value = ov['group' + letter] || '';
@@ -156,8 +158,12 @@
     // horairesOverride only -- never touches the circuit's own horaires
     // habituels, nor any other event (e.g. the Saturday sortie on the
     // same circuit keeps whatever it already had).
-    db.collection('events').doc(selectedEventId).update({ horairesOverride: horairesOverride }).then(function () {
-      log('OK -- horaires exceptionnels enregistrés pour ' + selectedEventId + ' uniquement.');
+    var day = document.getElementById('h-day').value.trim();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) { log('Date invalide (format AAAA-MM-JJ).'); return; }
+    var upd = {};
+    upd['horairesByDate.' + day] = horairesOverride;
+    db.collection('events').doc(selectedEventId).update(upd).then(function () {
+      log('OK -- horaires du ' + day + ' enregistrés pour ' + selectedEventId + ' (les autres jours de la sortie ne changent pas).');
     }).catch(function (err) {
       var reason = (err && err.code === 'permission-denied')
         ? 'refusé -- réservé au Team Leader de cet événement. Connecte-toi avec ce compte, ou demande-lui de le faire.'

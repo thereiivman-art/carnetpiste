@@ -5177,7 +5177,10 @@
   // see renderCircuitInfoEditForm). Lets a Team Leader fix an unusual
   // schedule for their own sortie without needing write access to the
   // circuit's own reference data.
-  function eventHoraires(ev) {
+  function eventHoraires(ev, dayKey) {
+    // Per-day schedule of a multi-day sortie (ev.horairesByDate['YYYY-MM-DD'])
+    // wins for that day; other days keep the whole-event override / circuit.
+    if (ev && dayKey && ev.horairesByDate && ev.horairesByDate[dayKey] && Object.keys(ev.horairesByDate[dayKey]).length) return ev.horairesByDate[dayKey];
     if (ev && ev.horairesOverride && Object.keys(ev.horairesOverride).length) return ev.horairesOverride;
     return ev ? circuitInfo(ev.circuit).horaires : null;
   }
@@ -7939,7 +7942,7 @@
     html += '<div class="eyebrow">' + escapeHtml(ev.circuit) + '</div>';
     var calOrganizerTeam = info.organizerTeamId ? teamById(info.organizerTeamId) : null;
     if (calOrganizerTeam) html += '<div class="help-text">Organisateur ' + escapeHtml(calOrganizerTeam.name) + '</div>';
-    var dayHoraires = eventHoraires(ev);
+    var dayHoraires = eventHoraires(ev, calendarAnchor);
     if (!dayHoraires) {
       html += '<div class="help-text">Aucun horaire enregistré pour ' + escapeHtml(ev.circuit) + '.</div>';
     } else {
@@ -8821,14 +8824,17 @@
   // slot that genuinely exists in this event's horaires, never free text.
   function allEventSlots(ev) {
     var horaires = ev && eventHoraires(ev);
-    if (!horaires) return [];
+    if (!horaires && !(ev && ev.horairesByDate)) return [];
+    var dayScheds = [horaires].concat(ev && ev.horairesByDate ? Object.keys(ev.horairesByDate).map(function (k) { return ev.horairesByDate[k]; }) : []).filter(Boolean);
     var seen = {}, out = [];
-    HORAIRES_GROUPS.forEach(function (g) {
-      if (!horaires[g.key]) return;
-      parseHoraireLine(horaires[g.key]).forEach(function (slot) {
-        if (slot.start == null || seen[slot.label]) return;
-        seen[slot.label] = true;
-        out.push(slot);
+    dayScheds.forEach(function (sched) {
+      HORAIRES_GROUPS.forEach(function (g) {
+        if (!sched[g.key]) return;
+        parseHoraireLine(sched[g.key]).forEach(function (slot) {
+          if (slot.start == null || seen[slot.label]) return;
+          seen[slot.label] = true;
+          out.push(slot);
+        });
       });
     });
     out.sort(function (a, b) { return a.start - b.start; });
@@ -9170,7 +9176,10 @@
     planningEventDateStart = ev.dateStart;
     planningEventId = ev.id;
     var info = circuitInfo(ev.circuit);
-    var horaires = eventHoraires(ev);
+    var planningDay = ev.dateStart;
+    var todayK = dateKey(new Date());
+    if (ev.dateStart && todayK >= ev.dateStart && todayK <= (ev.dateEnd || ev.dateStart)) planningDay = todayK;
+    var horaires = eventHoraires(ev, planningDay);
 
     // Orange card: everything the organizing Team PRO/Team provides --
     // schedule, announcements, and the two leader-editable blocks below.
