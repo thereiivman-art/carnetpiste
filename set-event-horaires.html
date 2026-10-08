@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Horaires exceptionnels d'un événement (admin) — Carnet de Piste</title>
+<style>
+  body { font: 15px -apple-system, sans-serif; max-width: 720px; margin: 3rem auto; padding: 0 1rem; color: #16212c; }
+  label { display: block; margin-top: 1rem; font-weight: 600; }
+  input, textarea { font-size: 1rem; padding: 0.5rem; width: 100%; box-sizing: border-box; margin-top: 0.3rem; font-family: inherit; }
+  textarea { font-family: monospace; font-size: 0.85rem; }
+  button { font-size: 1rem; padding: 0.6rem 1.2rem; cursor: pointer; margin-top: 1.2rem; }
+  button.danger { background: #a33; color: #fff; border: none; border-radius: 6px; }
+  .help { font-size: 0.82rem; color: #666; font-weight: 400; margin-top: 0.2rem; }
+  .event-pick { display: block; border: 1px solid #ccc; border-radius: 8px; padding: 0.6rem 0.8rem; margin-top: 0.5rem; cursor: pointer; }
+  .event-pick:hover { background: #f5f5f5; }
+  .event-pick input { width: auto; display: inline; margin: 0 0.5rem 0 0; }
+  #log { white-space: pre-wrap; background: #f2f2f2; padding: 1rem; margin-top: 1.2rem; font-family: monospace; font-size: 0.85rem; max-height: 420px; overflow: auto; }
+  #step2, #step3 { display: none; }
+</style>
+</head>
+<body>
+<h1>Horaires exceptionnels d'un événement</h1>
+<p>Fixe des horaires propres à UNE sortie précise (ev.horairesOverride), sans toucher aux horaires habituels du circuit ni aux autres sorties sur ce même circuit (ex. corriger seulement le vendredi d'un week-end, le samedi garde les horaires habituels). Pré-rempli avec l'horaire exceptionnel Mugello du vendredi 9 octobre 2026 (4 groupes A-D, sans Rookies) -- modifiable avant d'enregistrer.</p>
+
+<div id="step1">
+  <label for="login-email">Email (compte admin / Team Leader)</label>
+  <input type="email" id="login-email" autocomplete="username">
+  <label for="login-password">Mot de passe</label>
+  <input type="password" id="login-password" autocomplete="current-password">
+  <button id="login-btn">Se connecter</button>
+</div>
+
+<div id="step2">
+  <label for="circuit-name">Circuit</label>
+  <input type="text" id="circuit-name" value="Mugello">
+  <button id="search-btn">Chercher les événements</button>
+  <div id="event-list"></div>
+</div>
+
+<div id="step3">
+  <div id="selected-event-label" style="font-weight:600; margin-top:1rem;"></div>
+  <div class="help">Laisse un champ vide pour ne PAS définir ce groupe ce jour-là (ex. pas de Rookies le vendredi).</div>
+  <label for="h-groupR">Groupe R (Rookies)</label>
+  <textarea id="h-groupR" rows="2"></textarea>
+  <label for="h-groupA">Groupe A</label>
+  <textarea id="h-groupA" rows="2">13h50-14h05, 14h50-15h10, 16h10-16h30, 17h30-17h45</textarea>
+  <label for="h-groupB">Groupe B</label>
+  <textarea id="h-groupB" rows="2">14h05-14h20, 15h10-15h30, 16h30-16h50, 17h45-18h00</textarea>
+  <label for="h-groupC">Groupe C</label>
+  <textarea id="h-groupC" rows="2">14h20-14h35, 15h30-15h50, 16h50-17h10, 18h00-18h15</textarea>
+  <label for="h-groupD">Groupe D</label>
+  <textarea id="h-groupD" rows="2">14h35-14h50, 15h50-16h10, 17h10-17h30, 18h15-18h30</textarea>
+  <button type="button" class="danger" id="save-btn">Enregistrer ces horaires pour cette sortie uniquement</button>
+</div>
+
+<div id="log"></div>
+
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore-compat.js"></script>
+<script src="firebase-config.js"></script>
+<script>
+  var logEl = document.getElementById('log');
+  function log(msg) { logEl.textContent += msg + '\n'; logEl.scrollTop = logEl.scrollHeight; }
+
+  var db, auth;
+  var selectedEventId = null;
+
+  document.getElementById('login-btn').addEventListener('click', function () {
+    db = firebase.firestore();
+    auth = firebase.auth();
+    var email = document.getElementById('login-email').value.trim();
+    var password = document.getElementById('login-password').value;
+    log('Connexion...');
+    auth.signInWithEmailAndPassword(email, password).then(function () {
+      log('Connecté.');
+      document.getElementById('step1').style.display = 'none';
+      document.getElementById('step2').style.display = 'block';
+    }).catch(function (err) {
+      log('ERREUR : ' + (err && err.message ? err.message : err));
+    });
+  });
+
+  document.getElementById('search-btn').addEventListener('click', function () {
+    var name = document.getElementById('circuit-name').value.trim();
+    var listEl = document.getElementById('event-list');
+    listEl.innerHTML = '';
+    document.getElementById('step3').style.display = 'none';
+    if (!name) { log('Indique un nom de circuit.'); return; }
+    log('--- Recherche des événements sur "' + name + '" ---');
+    db.collection('events').where('circuit', '==', name).get().then(function (snap) {
+      if (snap.empty) { log('Aucun événement trouvé sur "' + name + '".'); return; }
+      var events = snap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); })
+        .sort(function (a, b) { return (a.dateStart || '').localeCompare(b.dateStart || ''); });
+      log(events.length + ' événement(s) trouvé(s) -- choisis celui du vendredi 9 octobre 2026 ci-dessous.');
+      events.forEach(function (ev) {
+        var lbl = document.createElement('label');
+        lbl.className = 'event-pick';
+        var range = ev.dateStart + (ev.dateEnd && ev.dateEnd !== ev.dateStart ? ' -> ' + ev.dateEnd : '');
+        lbl.innerHTML = '<input type="radio" name="ev-pick" value="' + ev.id + '"> ' +
+          '<strong>' + range + '</strong> -- ' + ev.id + (ev.teamId ? ' (team ' + ev.teamId + ')' : ' (personnel)') +
+          (ev.horairesOverride ? ' -- a déjà un horaire exceptionnel' : '');
+        listEl.appendChild(lbl);
+      });
+      listEl.querySelectorAll('input[name="ev-pick"]').forEach(function (radio) {
+        radio.addEventListener('change', function () {
+          selectedEventId = radio.value;
+          var ev = events.filter(function (e) { return e.id === selectedEventId; })[0];
+          document.getElementById('selected-event-label').textContent = 'Sortie sélectionnée : ' + ev.dateStart + ' (' + ev.id + ')';
+          // Pre-fill from any existing override so re-running this tool on
+          // an already-corrected event doesn't blank out a field by hand.
+          var ov = ev.horairesOverride || {};
+          ['R', 'A', 'B', 'C', 'D'].forEach(function (letter) {
+            if (ov['group' + letter] !== undefined) {
+              document.getElementById('h-group' + letter).value = ov['group' + letter] || '';
+            }
+          });
+          document.getElementById('step3').style.display = 'block';
+        });
+      });
+    }).catch(function (err) {
+      log('ERREUR : ' + (err && err.message ? err.message : err));
+    });
+  });
+
+  document.getElementById('save-btn').addEventListener('click', function () {
+    if (!selectedEventId) { log('Choisis d\'abord une sortie ci-dessus.'); return; }
+    var horairesOverride = {};
+    var any = false;
+    ['R', 'A', 'B', 'C', 'D'].forEach(function (letter) {
+      var v = document.getElementById('h-group' + letter).value.trim();
+      if (v) { horairesOverride['group' + letter] = v; any = true; }
+    });
+    if (!any) { log('Tous les champs sont vides -- rien à enregistrer.'); return; }
+    log('--- Enregistrement sur ' + selectedEventId + ' ---');
+    // horairesOverride only -- never touches the circuit's own horaires
+    // habituels, nor any other event (e.g. the Saturday sortie on the
+    // same circuit keeps whatever it already had).
+    db.collection('events').doc(selectedEventId).update({ horairesOverride: horairesOverride }).then(function () {
+      log('OK -- horaires exceptionnels enregistrés pour ' + selectedEventId + ' uniquement.');
+    }).catch(function (err) {
+      var reason = (err && err.code === 'permission-denied')
+        ? 'refusé -- réservé au Team Leader de cet événement. Connecte-toi avec ce compte, ou demande-lui de le faire.'
+        : (err && err.message ? err.message : err);
+      log('ERREUR : ' + reason);
+    });
+  });
+</script>
+</body>
+</html>
