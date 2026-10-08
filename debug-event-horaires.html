@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Diagnostic horaires (lecture seule) — Carnet de Piste</title>
+<style>
+  body { font: 15px -apple-system, sans-serif; max-width: 720px; margin: 3rem auto; padding: 0 1rem; color: #16212c; }
+  label { display: block; margin-top: 1rem; font-weight: 600; }
+  input { font-size: 1rem; padding: 0.5rem; width: 100%; box-sizing: border-box; margin-top: 0.3rem; }
+  button { font-size: 1rem; padding: 0.6rem 1.2rem; cursor: pointer; margin-top: 1.2rem; }
+  #log { white-space: pre-wrap; background: #f2f2f2; padding: 1rem; margin-top: 1.2rem; font-family: monospace; font-size: 0.82rem; max-height: 600px; overflow: auto; }
+  #step2 { display: none; }
+</style>
+</head>
+<body>
+<h1>Diagnostic horaires (lecture seule)</h1>
+<p>N'écrit rien -- liste juste, pour un circuit donné, chaque événement avec ses dates, son horairesOverride éventuel (tel qu'enregistré) et les horaires habituels du circuit, pour voir exactement ce qui est stocké.</p>
+
+<div id="step1">
+  <label for="login-email">Email</label>
+  <input type="email" id="login-email" autocomplete="username">
+  <label for="login-password">Mot de passe</label>
+  <input type="password" id="login-password" autocomplete="current-password">
+  <button id="login-btn">Se connecter</button>
+</div>
+
+<div id="step2">
+  <label for="circuit-name">Circuit</label>
+  <input type="text" id="circuit-name" value="Mugello">
+  <button id="search-btn">Diagnostiquer</button>
+</div>
+
+<div id="log"></div>
+
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore-compat.js"></script>
+<script src="firebase-config.js"></script>
+<script>
+  var logEl = document.getElementById('log');
+  function log(msg) { logEl.textContent += msg + '\n'; logEl.scrollTop = logEl.scrollHeight; }
+  function safeDocId(name) { return encodeURIComponent(name).slice(0, 300) || '_'; }
+
+  var db, auth;
+
+  document.getElementById('login-btn').addEventListener('click', function () {
+    db = firebase.firestore();
+    auth = firebase.auth();
+    var email = document.getElementById('login-email').value.trim();
+    var password = document.getElementById('login-password').value;
+    log('Connexion...');
+    auth.signInWithEmailAndPassword(email, password).then(function () {
+      log('Connecté en tant que ' + email + '.');
+      document.getElementById('step1').style.display = 'none';
+      document.getElementById('step2').style.display = 'block';
+    }).catch(function (err) {
+      log('ERREUR : ' + (err && err.message ? err.message : err));
+    });
+  });
+
+  document.getElementById('search-btn').addEventListener('click', function () {
+    var name = document.getElementById('circuit-name').value.trim();
+    if (!name) { log('Indique un nom de circuit.'); return; }
+    logEl.textContent = '';
+    log('=== Fiche circuit "' + name + '" ===');
+    db.collection('circuits').doc(safeDocId(name)).get().then(function (snap) {
+      if (!snap.exists) {
+        log('Aucune fiche circuit exacte sous "' + name + '".');
+      } else {
+        var c = snap.data();
+        log('Horaires habituels (horaires habituels par groupe) :');
+        log(JSON.stringify(c.horaires || null, null, 2));
+      }
+      log('');
+      log('=== Événements sur circuit == "' + name + '" (comparaison stricte) ===');
+      return db.collection('events').where('circuit', '==', name).get();
+    }).then(function (snap) {
+      if (snap.empty) {
+        log('Aucun événement trouvé avec circuit exactement == "' + name + '".');
+      } else {
+        var events = snap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); })
+          .sort(function (a, b) { return (a.dateStart || '').localeCompare(b.dateStart || ''); });
+        events.forEach(function (ev) {
+          log('--- ' + ev.id + ' ---');
+          log('  circuit (valeur exacte stockée) : "' + ev.circuit + '"');
+          log('  dateStart: ' + ev.dateStart + '   dateEnd: ' + ev.dateEnd);
+          log('  teamId: ' + (ev.teamId || '(personnel)'));
+          log('  horairesOverride: ' + JSON.stringify(ev.horairesOverride || null, null, 2));
+        });
+      }
+      log('');
+      log('=== Tous les événements (tous circuits) dont le nom de circuit CONTIENT "' + name.slice(0, 4) + '" (au cas où la casse/accent/espace diffère) ===');
+      return db.collection('events').get();
+    }).then(function (snap) {
+      var target = name.trim().toLowerCase();
+      var near = snap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); })
+        .filter(function (ev) { return (ev.circuit || '').trim().toLowerCase().indexOf(target.slice(0, 4).toLowerCase()) !== -1; });
+      if (!near.length) {
+        log('Rien trouvé.');
+      } else {
+        near.forEach(function (ev) {
+          log(ev.id + ' -- circuit="' + ev.circuit + '" -- ' + ev.dateStart + ' -> ' + ev.dateEnd + ' -- horairesOverride: ' + (ev.horairesOverride ? 'PRÉSENT' : 'absent'));
+        });
+      }
+      log('');
+      log('=== Terminé ===');
+    }).catch(function (err) {
+      log('ERREUR : ' + (err && err.message ? err.message : err));
+    });
+  });
+</script>
+</body>
+</html>
