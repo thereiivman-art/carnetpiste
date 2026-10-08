@@ -43,17 +43,37 @@
 
   var db, auth;
 
-  document.getElementById('login-btn').addEventListener('click', function () {
+  function onLoggedIn(label) {
+    log('Connecté' + (label ? ' (' + label + ')' : '') + '.');
+    document.getElementById('step1').style.display = 'none';
+    document.getElementById('step2').style.display = 'block';
+  }
+
+  if (typeof firebase === 'undefined' || !firebase.auth) {
+    log('ERREUR : le moteur Firebase ne s\'est pas chargé (réseau/bloqueur de contenu ?). Recharge la page.');
+  } else {
     db = firebase.firestore();
     auth = firebase.auth();
+    // Same origin as the app itself, so an already-open app session is
+    // picked up here with no password typed at all.
+    auth.onAuthStateChanged(function (user) {
+      if (user && document.getElementById('step1').style.display !== 'none') onLoggedIn(user.email + ', session de l\'app');
+    });
+  }
+
+  document.getElementById('login-btn').addEventListener('click', function () {
+    if (!auth) { log('Firebase indisponible -- recharge la page.'); return; }
     var email = document.getElementById('login-email').value.trim();
     var password = document.getElementById('login-password').value;
     log('Connexion...');
+    var slow = setTimeout(function () {
+      log('Toujours en attente après 10 s -- réseau lent, navigation privée, ou mauvais mot de passe sans réponse. Recharge la page : si tu es déjà connecté dans l\'app, la connexion sera automatique.');
+    }, 10000);
     auth.signInWithEmailAndPassword(email, password).then(function () {
-      log('Connecté en tant que ' + email + '.');
-      document.getElementById('step1').style.display = 'none';
-      document.getElementById('step2').style.display = 'block';
+      clearTimeout(slow);
+      onLoggedIn(email);
     }).catch(function (err) {
+      clearTimeout(slow);
       log('ERREUR : ' + (err && err.message ? err.message : err));
     });
   });
