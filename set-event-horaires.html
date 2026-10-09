@@ -20,7 +20,7 @@
 </head>
 <body>
 <h1>Horaires exceptionnels d'un événement</h1>
-<p>Fixe des horaires propres à UNE sortie précise (horairesByDate, un seul jour), sans toucher aux horaires habituels du circuit ni aux autres sorties sur ce même circuit (ex. corriger seulement le vendredi d'un week-end, le samedi garde les horaires habituels). Pré-rempli avec l'horaire exceptionnel Mugello du vendredi 9 octobre 2026 (4 groupes A-D, sans Rookies) -- modifiable avant d'enregistrer.</p>
+<p>Fixe des horaires propres à UNE sortie précise (horairesByDate, un seul jour), sans toucher aux horaires habituels du circuit ni aux autres sorties sur ce même circuit (ex. corriger seulement le vendredi d'un week-end, le samedi garde les horaires habituels). Pré-rempli avec l'horaire Mugello des 10-11 octobre 2026 (Promo Racing, groupes R + A-D, journée complète) -- modifiable avant d'enregistrer.</p>
 
 <div id="step1">
   <label for="login-email">Email (compte admin / Team Leader)</label>
@@ -40,18 +40,18 @@
 <div id="step3">
   <div id="selected-event-label" style="font-weight:600; margin-top:1rem;"></div>
   <div class="help">Laisse un champ vide pour ne PAS définir ce groupe ce jour-là (ex. pas de Rookies le vendredi).</div>
-  <label for="h-day">Jour concerné (AAAA-MM-JJ)</label>
-  <input type="text" id="h-day" value="2026-10-09">
+  <label for="h-day">Jour concerné (AAAA-MM-JJ) -- laisser VIDE pour toute la sortie (ex. samedi + dimanche identiques)</label>
+  <input type="text" id="h-day" value="">
   <label for="h-groupR">Groupe R (Rookies)</label>
-  <textarea id="h-groupR" rows="2"></textarea>
+  <textarea id="h-groupR" rows="2">9h00-9h15, 10h15-10h35, 11h55-12h15, 14h35-14h55, 16h15-16h35</textarea>
   <label for="h-groupA">Groupe A</label>
-  <textarea id="h-groupA" rows="2">13h50-14h05, 14h50-15h10, 16h10-16h30, 17h30-17h45</textarea>
+  <textarea id="h-groupA" rows="2">9h15-9h30, 10h35-10h55, 12h15-12h35, 14h55-15h15, 16h35-16h55</textarea>
   <label for="h-groupB">Groupe B</label>
-  <textarea id="h-groupB" rows="2">14h05-14h20, 15h10-15h30, 16h30-16h50, 17h45-18h00</textarea>
+  <textarea id="h-groupB" rows="2">9h30-9h45, 10h55-11h15, 12h35-12h55, 15h15-15h35, 16h55-17h15</textarea>
   <label for="h-groupC">Groupe C</label>
-  <textarea id="h-groupC" rows="2">14h20-14h35, 15h30-15h50, 16h50-17h10, 18h00-18h15</textarea>
+  <textarea id="h-groupC" rows="2">9h45-10h00, 11h15-11h35, 12h55-13h15, 15h35-15h55, 17h15-17h35</textarea>
   <label for="h-groupD">Groupe D</label>
-  <textarea id="h-groupD" rows="2">14h35-14h50, 15h50-16h10, 17h10-17h30, 18h15-18h30</textarea>
+  <textarea id="h-groupD" rows="2">10h00-10h15, 11h35-11h55, 13h15-13h35, 15h55-16h15, 17h35-17h55</textarea>
   <button type="button" class="danger" id="save-btn">Enregistrer ces horaires pour cette sortie uniquement</button>
 </div>
 
@@ -131,7 +131,7 @@
           document.getElementById('selected-event-label').textContent = 'Sortie sélectionnée : ' + ev.dateStart + ' (' + ev.id + ')';
           // Pre-fill from any existing override so re-running this tool on
           // an already-corrected event doesn't blank out a field by hand.
-          var ov = (ev.horairesByDate || {})[document.getElementById('h-day').value.trim()] || {};
+          var ov = {}; // valeurs par défaut du formulaire conservées
           ['R', 'A', 'B', 'C', 'D'].forEach(function (letter) {
             if (ov['group' + letter] !== undefined) {
               document.getElementById('h-group' + letter).value = ov['group' + letter] || '';
@@ -159,11 +159,11 @@
     // habituels, nor any other event (e.g. the Saturday sortie on the
     // same circuit keeps whatever it already had).
     var day = document.getElementById('h-day').value.trim();
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) { log('Date invalide (format AAAA-MM-JJ).'); return; }
+    if (day && !/^\d{4}-\d{2}-\d{2}$/.test(day)) { log('Date invalide (format AAAA-MM-JJ).'); return; }
     var upd = {};
-    upd['horairesByDate.' + day] = horairesOverride;
+    if (day) upd['horairesByDate.' + day] = horairesOverride; else upd.horairesOverride = horairesOverride;
     db.collection('events').doc(selectedEventId).update(upd).then(function () {
-      log('OK -- horaires du ' + day + ' enregistrés pour ' + selectedEventId + ' (les autres jours de la sortie ne changent pas).');
+      log('OK -- horaires ' + (day ? 'du ' + day : 'de toute la sortie') + ' enregistrés pour ' + selectedEventId + ' (les autres jours de la sortie ne changent pas).');
     }).catch(function (err) {
       var reason = (err && err.code === 'permission-denied')
         ? 'refusé -- réservé au Team Leader de cet événement. Connecte-toi avec ce compte, ou demande-lui de le faire.'
