@@ -11,6 +11,8 @@
 
   // Version figée (jamais "latest") : le script s'exécute dans la page de
   // l'appli, donc on ne charge qu'une version précise et connue.
+  var PDFJS_URL = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js';
+  var PDFJS_WORKER_URL = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
   var TESSERACT_URL = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';
 
   function stripAccents(s) {
@@ -57,7 +59,10 @@
     var used = [];
     var re = /(?:^|[^\d.:'"])(\d{1,2})\s?[:'.;]\s?([0-5]\d)\s?[.,:"]\s?(\d{1,3})(?![\d])/g;
     var m;
-    var work = fixTimeish(' ' + line + ' ');
+    // Heures de passage (10:39:15.314) : ce n'est pas un temps au tour --
+    // remplacées par des espaces de même longueur (les positions restent).
+    var noClock = line.replace(/\b\d{1,2}:\d{2}:\d{2}[.,]\d{1,3}\b/g, function (c) { return new Array(c.length + 1).join(' '); });
+    var work = fixTimeish(' ' + noClock + ' ');
     // work a un espace de plus en tête : les index sont décalés de 1 par
     // rapport à `line` (corrigé ci-dessous dans le retour).
     // On ne corrige O/l/S qu'à l'intérieur des mots "temps" : on ré-extrait
@@ -68,7 +73,7 @@
       var total = min * 60 + sec + frac;
       if (plausibleLap(total)) {
         var lead = m[0].match(/^[^\d]*/)[0].length;
-        times.push({ sec: total, index: m.index + lead, end: m.index + m[0].length });
+        times.push({ sec: total, minutes: true, index: m.index + lead, end: m.index + m[0].length });
         used.push([m.index, m.index + m[0].length]);
       }
       re.lastIndex = m.index + m[0].length - 1;
@@ -86,6 +91,9 @@
         times.push({ sec: v, index: m.index + lead2, end: m.index + m[0].length });
       }
     }
+    // Une ligne qui contient un vrai temps m:ss.mmm : les secondes seules à
+    // côté (temps de secteur 31.723, écart 2.218...) n'en sont pas.
+    if (times.some(function (t) { return t.minutes; })) times = times.filter(function (t) { return t.minutes; });
     times.sort(function (a, b) { return a.index - b.index; });
     times.forEach(function (t) { t.index -= 1; t.end -= 1; });
     return times;
@@ -139,7 +147,15 @@
 
   // ---- Lignes / candidats ----
 
+  // Libellé d'une ligne = ce qui précède le premier temps (numéro + nom) si
+  // ça contient un nom -- le reste (écarts, tours, classe SBK/SSP...) n'en fait pas partie.
   function cleanLabel(line, times) {
+    if (times.length) {
+      var before = line.slice(0, Math.max(0, times[0].index)).replace(/\s+/g, ' ').trim();
+      before = before.replace(/(\s+(SBK|SSP|STK|SS|PRO|AMA|EVO|[A-Z]{3}))+$/, '').replace(/[\s|:;,.\-_]+$/, '');
+      before = before.replace(/^\d{1,3}\s+(?=#?\d{1,3}\s)/, '');
+      if (hasName(before)) return before;
+    }
     var label = line;
     times.slice().reverse().forEach(function (t) {
       label = label.slice(0, Math.max(0, t.index)) + ' ' + label.slice(Math.max(0, t.end));
@@ -154,23 +170,70 @@
   // Candidats : une ligne = un pilote (plusieurs temps), ou un pilote par ligne
   // avec son seul meilleur temps (classement), ou un seul pilote dont chaque
   // ligne est un tour.
+  // En-tête d'un pilote dans un relevé détaillé : "(167) GERMAIN Xavier"
+  // (ligne sans temps, numéro + nom).
+  function parseSectionHeader(line) {
+    var m = line.trim().match(/^[(\[]?\s*#?(\d{1,3})\s*[)\]]?\s*[-:]?\s*([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ'’. \-]{2,})$/);
+    if (!m) return null;
+    return { number: m[1], name: m[2].trim() };
+  }
+
   function buildCandidates(text, loose) {
     var lines = String(text || '').split(/\r?\n/);
     var rows = [];
+    var sections = [];
+    var current = null;
     lines.forEach(function (line) {
       var times = extractTimes(line, loose);
-      if (!times.length) return;
-      rows.push({ raw: line, times: times, label: cleanLabel(line, times) });
+      // En-tête "(167) GERMAIN Xavier" collé en fin de ligne (capture sur
+      // deux colonnes lue par l'OCR) : on le sort de la ligne.
+      var inline = line.match(/\((\d{1,3})\s*\)\s*([A-ZÀ-Ý][A-Za-zÀ-ÿ'’. \-]{2,})\s*$/);
+      if (inline && !times.some(function (t) { return t.minutes; }) && parseSectionHeader(line) == null) {
+        current = { label: '(' + inline[1] + ') ' + inline[2].trim(), raw: inline[0], laps: [] }; sections.push(current);
+        return;
+      }
+      if (!times.length) {
+        var h = parseSectionHeader(line);
+        if (h) { current = { label: '(' + h.number + ') ' + h.name, raw: line, laps: [] }; sections.push(current); }
+        return;
+      }
+      var row = { raw: line, times: times, label: cleanLabel(line, times) };
+      rows.push(row);
+      if (current) current.laps.push(times[0].sec); // relevé tour par tour : 1er temps = le tour
     });
     var candidates = [];
-    var multi = rows.filter(function (r) { return r.times.length >= 2; });
-    var named = rows.filter(function (r) { return r.times.length === 1 && hasName(r.label); });
 
-    if (multi.length) {
-      multi.forEach(function (r) {
-        candidates.push({ label: r.label || 'Ligne', named: hasName(r.label), laps: r.times.map(function (t) { return t.sec; }), kind: 'row', raw: r.raw });
+    // Relevé détaillé par pilote (une section par pilote, un tour par ligne).
+    var usable = sections.filter(function (sec) { return sec.laps.length >= 1; });
+    if (usable.length) {
+      usable.forEach(function (sec) {
+        candidates.push({ label: sec.label, named: true, laps: sec.laps, kind: 'section', raw: sec.raw });
       });
+      return candidates;
     }
+
+    var multi = rows.filter(function (r) { return r.times.length >= 2; });
+    var named = rows.filter(function (r) { return r.times.length === 1 && hasName(r.label) && !/break|no laps|pause|session/i.test(r.label); });
+
+    // Colonnes (ex. un tableau "Day 2 Morning | Day 2 Afternoon" : une
+    // colonne = une session) : lignes sans nom ayant toutes le même nombre
+    // de temps, au moins 3 lignes -> un candidat par colonne.
+    var unlabeled = multi.filter(function (r) { return !hasName(r.label); });
+    var counts = {};
+    unlabeled.forEach(function (r) { counts[r.times.length] = (counts[r.times.length] || 0) + 1; });
+    var modal = 0;
+    Object.keys(counts).forEach(function (k) { if (counts[k] >= 3 && (!modal || counts[k] > counts[modal])) modal = parseInt(k, 10); });
+    if (modal) {
+      var full = unlabeled.filter(function (r) { return r.times.length === modal; });
+      for (var c = 0; c < modal; c++) {
+        candidates.push({ label: 'Colonne ' + (c + 1), named: false, laps: full.map(function (r) { return r.times[c].sec; }), kind: 'column', raw: '' });
+      }
+      multi = multi.filter(function (r) { return unlabeled.indexOf(r) === -1; });
+    }
+
+    multi.forEach(function (r) {
+      candidates.push({ label: r.label || 'Ligne', named: hasName(r.label), laps: r.times.map(function (t) { return t.sec; }), kind: 'row', raw: r.raw });
+    });
     if (named.length >= 2 && !multi.length) {
       named.forEach(function (r) {
         candidates.push({ label: r.label, named: true, laps: [r.times[0].sec], kind: 'best', raw: r.raw });
@@ -180,7 +243,8 @@
     // d'un seul pilote (ou le secours si la ligne du pilote n'est pas reconnue).
     var all = [];
     rows.forEach(function (r) { r.times.forEach(function (t) { all.push(t.sec); }); });
-    if (all.length && (!candidates.length || candidates.length > 1 || candidates[0].kind !== 'row' || all.length !== candidates[0].laps.length)) {
+    var onlyRows = candidates.length && candidates.every(function (c) { return c.kind === 'row'; });
+    if (all.length && (!candidates.length || candidates.length > 1 || !onlyRows || all.length !== candidates[0].laps.length)) {
       var onlyNumericRows = rows.every(function (r) { return !hasName(r.label); });
       candidates.push({
         label: onlyNumericRows ? 'Tous les tours détectés' : 'Tous les temps de la page',
@@ -242,7 +306,7 @@
     if (bestIdx === -1 && candidates.length === 1) bestIdx = 0;
     // Aucune ligne nommée (simple liste de temps) : on prend "tous les tours".
     if (bestIdx === -1 && !candidates.some(function (c) { return c.named; })) {
-      candidates.forEach(function (c, i) { if (c.kind === 'all') bestIdx = i; });
+      if (!candidates.some(function (c) { return c.kind === 'column'; })) candidates.forEach(function (c, i) { if (c.kind === 'all') bestIdx = i; });
     }
     var confidence = opts.confidence == null ? 100 : opts.confidence;
     return {
@@ -324,10 +388,8 @@
     });
   }
 
-  // -> Promise<{ text, confidence }>. onProgress(0..1, statut)
-  function recognize(file, onProgress) {
-    return Promise.all([loadTesseract(), prepareImage(file)]).then(function (res) {
-      var T = res[0], canvas = res[1];
+  function ocrCanvas(canvas, onProgress) {
+    return loadTesseract().then(function (T) {
       return T.createWorker('eng', 1, {
         logger: function (m) { if (onProgress && m && typeof m.progress === 'number') onProgress(m.progress, m.status); }
       }).then(function (worker) {
@@ -342,6 +404,85 @@
     });
   }
 
+  // ---- PDF (texte vectoriel, ex. classements MyLaps) ----
+
+  var pdfJsPromise = null;
+  function loadPdfJs() {
+    if (root.pdfjsLib) return Promise.resolve(root.pdfjsLib);
+    if (pdfJsPromise) return pdfJsPromise;
+    pdfJsPromise = new Promise(function (resolve, reject) {
+      var s = document.createElement('script');
+      s.src = PDFJS_URL;
+      s.crossOrigin = 'anonymous';
+      s.onload = function () {
+        if (!root.pdfjsLib) { reject(new Error('pdfjs-missing')); return; }
+        root.pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS_WORKER_URL;
+        resolve(root.pdfjsLib);
+      };
+      s.onerror = function () { pdfJsPromise = null; reject(new Error('pdfjs-load-failed')); };
+      document.head.appendChild(s);
+    });
+    return pdfJsPromise;
+  }
+
+  // Éléments de texte positionnés ({str, x, y}) -> lignes : même hauteur
+  // (tolérance ~ une demi-ligne), de gauche à droite, de haut en bas.
+  function itemsToLines(items, tolerance) {
+    tolerance = tolerance || 3;
+    var rows = [];
+    items.slice().sort(function (a, b) { return b.y - a.y || a.x - b.x; }).forEach(function (it) {
+      if (!String(it.str).trim()) return;
+      var row = rows.filter(function (r) { return Math.abs(r.y - it.y) <= tolerance; })[0];
+      if (!row) { row = { y: it.y, cells: [] }; rows.push(row); }
+      row.cells.push(it);
+    });
+    rows.sort(function (a, b) { return b.y - a.y; });
+    return rows.map(function (r) {
+      return r.cells.sort(function (a, b) { return a.x - b.x; }).map(function (c) { return String(c.str).trim(); }).join(' ');
+    });
+  }
+
+  function recognizePdf(file, onProgress) {
+    return loadPdfJs().then(function (pdfjs) {
+      return file.arrayBuffer().then(function (buf) { return pdfjs.getDocument({ data: buf }).promise; });
+    }).then(function (pdf) {
+      var pages = [];
+      for (var n = 1; n <= Math.min(pdf.numPages, 20); n++) pages.push(n);
+      var lines = [];
+      return pages.reduce(function (chain, n) {
+        return chain.then(function () {
+          return pdf.getPage(n).then(function (page) { return page.getTextContent(); }).then(function (tc) {
+            var items = tc.items.map(function (it) { return { str: it.str, x: it.transform[4], y: it.transform[5] }; });
+            lines = lines.concat(itemsToLines(items), ['']);
+            if (onProgress) onProgress(n / pages.length, 'lecture du PDF');
+          });
+        });
+      }, Promise.resolve()).then(function () {
+        var text = lines.join('\n');
+        if (text.replace(/\s/g, '').length >= 20) return { text: text, confidence: 100 };
+        // PDF scanné (une image) : on rend la 1re page et on la lit comme une photo.
+        return pdf.getPage(1).then(function (page) {
+          var viewport = page.getViewport({ scale: 2 });
+          var canvas = document.createElement('canvas');
+          canvas.width = viewport.width; canvas.height = viewport.height;
+          return page.render({ canvasContext: canvas.getContext('2d'), viewport: viewport }).promise.then(function () {
+            return ocrCanvas(canvas, onProgress);
+          });
+        });
+      });
+    });
+  }
+
+  function isPdf(file) {
+    return !!file && (file.type === 'application/pdf' || /\.pdf$/i.test(file.name || ''));
+  }
+
+  // -> Promise<{ text, confidence }>. onProgress(0..1, statut)
+  function recognize(file, onProgress) {
+    if (isPdf(file)) return recognizePdf(file, onProgress);
+    return prepareImage(file).then(function (canvas) { return ocrCanvas(canvas, onProgress); });
+  }
+
   root.ChronoImport = {
     analyze: analyze,
     extractTimes: extractTimes,
@@ -351,6 +492,8 @@
     findCircuit: findCircuit,
     outlierIndexes: outlierIndexes,
     recognize: recognize,
+    itemsToLines: itemsToLines,
+    isPdf: isPdf,
     loadTesseract: loadTesseract
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = root.ChronoImport;

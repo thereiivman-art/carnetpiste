@@ -4655,9 +4655,9 @@
     html += '<div class="help-text" id="f-group-hint"' + (groupHint ? '' : ' style="display:none;"') + '>' + tr('group_hint_prefix') + escapeHtml(groupHint) + '.</div>';
     html += '<div class="help-text" id="f-slot-hint"' + (suggestedSlotIdx !== -1 ? '' : ' style="display:none;"') + '>' + tr('slot_hint') + '</div>';
     html += '<div class="import-chrono-row">' +
-      '<button type="button" class="ghost" id="import-photo-btn">📷 Importer depuis une photo</button>' +
+      '<button type="button" class="ghost" id="import-photo-btn">📷 Importer photo / capture / PDF</button>' +
       '<button type="button" class="ghost" id="import-paste-btn">📋 Coller une liste de temps</button>' +
-      '<input type="file" id="import-photo-input" accept="image/*" hidden>' +
+      '<input type="file" id="import-photo-input" accept="image/*,application/pdf" hidden>' +
       '</div>';
     html += '<label for="f-laps">' + tr('chronos_field_label') + '</label>' +
       '<textarea id="f-laps" placeholder="1:23.456' + String.fromCharCode(10) + '1:22.980' + String.fromCharCode(10) + '1:23.120" required></textarea>' +
@@ -15014,6 +15014,9 @@
             (best != null ? ', meilleur ' + CI.formatLap(best) : '') + (i === sel && result.autoMatched ? ', détectée' : '') + ')</span></label>';
         });
       }
+      if (result.lowConfidence || cands.length > 1) {
+        h += '<div class="help-text" style="margin-top:0.5rem;">Astuce : si plusieurs pilotes ou colonnes sont mélangés, recadre la capture sur ta ligne ou ta colonne et réessaie.</div>';
+      }
       h += '<label for="imp-laps" style="margin-top:0.7rem; display:block;">Tours (un par ligne, modifiables)</label>' +
         '<textarea id="imp-laps" rows="7" style="width:100%;"></textarea><div class="help-text" id="imp-flags"></div>' +
         '<div class="field-row" style="margin-top:0.6rem;"><div><label for="imp-date">Date' + (result.date ? ' (lue sur la feuille)' : '') + '</label>' +
@@ -15076,8 +15079,8 @@
     if (mode === 'paste') { showPaste(); return; }
     // Photo : la bibliothèque de lecture se télécharge au premier usage
     // (réseau nécessaire ce jour-là), ensuite le navigateur la garde.
-    if (!window.Tesseract && navigator.onLine === false) {
-      showMessage('Pas de connexion', 'La lecture d\'une photo nécessite une connexion la première fois (chargement du lecteur de texte). Utilise « Coller une liste de temps » ou la saisie manuelle.');
+    if (!window.Tesseract && !window.pdfjsLib && navigator.onLine === false) {
+      showMessage('Pas de connexion', 'La lecture d\'une photo ou d\'un PDF nécessite une connexion la première fois (chargement du lecteur de texte). Utilise « Coller une liste de temps » ou la saisie manuelle.');
       return;
     }
     showReading(null);
@@ -15089,7 +15092,9 @@
       showValidate(CI.analyze(r.text, { circuits: allCircuits(), me: me, confidence: r.confidence }));
     }).catch(function (err) {
       if (!overlay.parentNode) return;
-      var msg = (err && err.message === 'tesseract-load-failed')
+      var msg = (err && (err.message === 'pdfjs-load-failed' || err.message === 'pdfjs-missing'))
+        ? 'Impossible de charger le lecteur de PDF (connexion ?). Réessaie avec du réseau, ou fais une capture d\'écran du PDF.'
+        : (err && err.message === 'tesseract-load-failed')
         ? 'Impossible de charger le lecteur de texte (connexion ?). Réessaie avec du réseau, ou utilise « Coller une liste de temps ».'
         : (err && err.message === 'image-unreadable') ? 'Cette image n\'a pas pu être ouverte.' : 'La lecture a échoué : ' + ((err && err.message) || err);
       showMessage('Import impossible', msg);
