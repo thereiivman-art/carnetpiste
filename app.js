@@ -1636,7 +1636,7 @@
       '<div class="section-title" style="font-size:0.95rem;">Mots de passe temporaires (comptes de test)</div>' +
       '<div class="help-text">Remplace le mot de passe de plusieurs comptes d\'un coup. Il faut connaître leur mot de passe actuel.</div>' +
       '<label for="pwreset-names" style="display:block; margin-top:0.5rem;">Pseudos (séparés par des virgules)</label>' +
-      '<input type="text" id="pwreset-names" value="Nicolas, Juliette, Christelle, Olive, Nico, Laeti" style="width:100%;">' +
+      '<input type="text" id="pwreset-names" value="Juliette, Christelle, Olive, Nico, Laeti" style="width:100%;">' +
       '<label for="pwreset-old" style="display:block; margin-top:0.5rem;">Mot de passe actuel de ces comptes</label>' +
       '<input type="password" id="pwreset-old" autocomplete="off" style="width:100%;">' +
       '<label for="pwreset-new" style="display:block; margin-top:0.5rem;">Nouveau mot de passe temporaire (6 caractères min.)</label>' +
