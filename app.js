@@ -2016,9 +2016,13 @@
   // removed a nested item" from "added one").
   var ADMIN_EMAIL = 'germainxav@gmail.com';
   function isAdmin() {
-    return !!(currentUserProfile && currentUserProfile.email &&
-      currentUserProfile.email.toLowerCase() === ADMIN_EMAIL.toLowerCase());
+    var e = (auth && auth.currentUser && auth.currentUser.email) || (currentUserProfile && currentUserProfile.email);
+    return !!(e && e.toLowerCase() === ADMIN_EMAIL.toLowerCase());
   }
+
+  // Unique-pseudo registry key (names/{key}, see firestore.rules) --
+  // case-insensitive so "Xavier" and "xavier" can't both exist.
+  function nameKey(name) { return String(name || '').trim().toLowerCase(); }
 
   function genId() {
     return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
@@ -3414,7 +3418,7 @@
     html += '<div style="margin-top:1.2rem; border-top:1px solid var(--border); padding-top:0.9rem;">';
     html += '<div class="section-title" style="font-size:0.95rem;">' + tr('account_heading') + '</div>';
     html += '<form id="profile-email-form">';
-    html += '<label>' + tr('current_email_label') + '<input type="text" value="' + escapeHtml(p.email || '') + '" disabled></label>';
+    html += '<label>' + tr('current_email_label') + '<input type="text" value="' + escapeHtml(p.email || (auth.currentUser && auth.currentUser.email) || '') + '" disabled></label>';
     html += '<label for="profile-new-email" style="margin-top:0.6rem;">' + tr('new_email_label') + '</label><input type="email" id="profile-new-email" autocomplete="username">';
     html += '<label for="profile-current-password" style="margin-top:0.6rem;">' + tr('current_password_label') + '</label><input type="password" id="profile-current-password" autocomplete="current-password">';
     html += '<div style="margin-top:0.7rem;"><button type="submit" class="ghost">' + tr('change_email_btn') + '</button></div>';
@@ -3718,9 +3722,11 @@
 
   function loadManageableAccounts() {
     accountManagerError = '';
-    db.collection('users').get().then(function (snap) {
+    Promise.all([db.collection('users').get(), db.collection('userPrivate').get().catch(function () { return { docs: [] }; })]).then(function (res) {
+      var snap = res[0], privateEmails = {};
+      res[1].docs.forEach(function (d) { privateEmails[d.id] = d.data().email; });
       manageableAccounts = snap.docs
-        .map(function (doc) { return Object.assign({ uid: doc.id }, doc.data()); })
+        .map(function (doc) { var d = doc.data(); if (!d.email && privateEmails[doc.id]) d.email = privateEmails[doc.id]; return Object.assign({ uid: doc.id }, d); })
         .filter(function (a) { return a.email !== ADMIN_EMAIL; })
         .sort(function (a, b) { return (a.name || '').localeCompare(b.name || ''); });
       renderRoot();
@@ -4086,7 +4092,18 @@
       return backfillGroupAUids(results, uid);
     }) : Promise.resolve()).then(function () {
       if (nameChanged) writes.lastNameChangeAt = firebase.firestore.FieldValue.serverTimestamp();
-      return db.collection('users').doc(uid).set(writes, { merge: true });
+      if (!nameChanged) return db.collection('users').doc(uid).set(writes, { merge: true });
+      // New pseudo claimed and old one released atomically (names/{key} is
+      // what firestore.rules uses to keep pseudos unique).
+      var renameBatch = db.batch();
+      renameBatch.set(db.collection('users').doc(uid), writes, { merge: true });
+      if (nameKey(finalName) !== nameKey(oldName)) {
+        renameBatch.set(db.collection('names').doc(nameKey(finalName)), { uid: uid, name: finalName });
+        renameBatch.delete(db.collection('names').doc(nameKey(oldName)));
+      } else {
+        renameBatch.set(db.collection('names').doc(nameKey(finalName)), { uid: uid, name: finalName });
+      }
+      return renameBatch.commit();
     }).then(function () {
       // Covers switching to Pilote (or renaming while already one) without
       // ever having gone through onSignupSubmit's own rider-doc creation.
@@ -4235,7 +4252,9 @@
       // Clears the create-accounts.html placeholder-email reminder banner
       // for good, the moment a real address is set -- whether or not this
       // account ever had one, writing false here is harmless.
-      return db.collection('users').doc(user.uid).set({ email: newEmail, needsEmailUpdate: false }, { merge: true });
+      return db.collection('users').doc(user.uid).set({ needsEmailUpdate: false }, { merge: true }).then(function () {
+        return db.collection('userPrivate').doc(user.uid).set({ email: newEmail }, { merge: true });
+      });
     }).then(function () {
       currentUserProfile.email = newEmail;
       currentUserProfile.needsEmailUpdate = false;
@@ -12326,8 +12345,7 @@
     } else {
       html += '<h2 class="section-title">Connexion</h2>';
       html += '<form id="login-form" novalidate>';
-      html += '<label for="au-email">Email ou pseudo</label><input type="text" id="au-email" name="email" autocomplete="username" required>';
-      html += '<div class="help-text" style="margin-top:0.2rem;">Avec le pseudo, retape-le exactement comme à l\'inscription, numéro de course compris (ex. "Julien #12").</div>';
+      html += '<label for="au-email">Email</label><input type="email" id="au-email" name="email" autocomplete="username" required>';
       html += '<label for="au-password" style="margin-top:0.7rem;">Mot de passe</label><input type="password" id="au-password" name="password" autocomplete="current-password" required>';
       html += '<label class="checklist-item" style="margin-top:0.6rem;"><input type="checkbox" id="au-remember" checked> Se souvenir de moi</label>';
       html += '<div class="field-error' + (authError ? ' visible' : '') + '" id="auth-error">' + escapeHtml(authError) + '</div>';
@@ -12365,31 +12383,11 @@
   // ouvrir la lecture des emails à tout le monde. onAuthStateChanged
   // ignore les users anonymes (voir init()) donc ce passage est invisible.
   function resolveLoginIdentifier(identifier) {
+    // Pseudo login was removed: resolving a pseudo to an email needed a
+    // publicly readable pseudo->email lookup, which let anyone harvest
+    // every account's email. Sign in with the email address instead.
     if (identifier.indexOf('@') !== -1) return Promise.resolve(identifier);
-    return auth.signInAnonymously().then(function () {
-      return db.collection('users').where('name', '==', identifier).limit(1).get();
-    }).then(function (snap) {
-      if (!snap.empty) return snap.docs[0].data().email;
-      // Query exacte d'abord (rapide) -- secours insensible à la casse
-      // seulement si rien trouvé, en relisant toute la collection (petite
-      // base, pas d'index composé pour une comparaison lowercase).
-      return db.collection('users').get().then(function (allSnap) {
-        var match = null;
-        allSnap.forEach(function (doc) {
-          var n = (doc.data().name || '').trim();
-          if (n && n.toLowerCase() === identifier.toLowerCase()) match = doc.data();
-        });
-        return match && match.email;
-      });
-    }).then(function (email) {
-      if (!email) {
-        // Distinct from a genuine wrong-password rejection (see
-        // translateAuthError) -- this means no account's pseudo matched
-        // at all, so blaming the password would be misleading.
-        return Promise.reject({ code: 'custom/pseudo-not-found', message: 'Aucun compte avec le pseudo "' + identifier + '" -- vérifie l\'orthographe exacte, ou connecte-toi avec ton email.' });
-      }
-      return email;
-    });
+    return Promise.reject({ code: 'custom/pseudo-not-found', message: 'Connecte-toi avec ton adresse email (la connexion par pseudo a été retirée pour des raisons de sécurité).' });
   }
 
   function onLoginSubmit(evt) {
@@ -12430,36 +12428,38 @@
     authError = '';
     var name = rawName;
     auth.createUserWithEmailAndPassword(email, password).then(function (cred) {
-      // STATE.riders isn't synced yet at this point (that only starts once
-      // signed in) -- a live query is the only way to check for a homonym
-      // before this account claims the name. Skipped for accompagnant:
-      // they're not a rider, so there's nothing to collide with.
-      var collisionCheck = role === 'pilote'
-        ? db.collection('riders').get().then(function (snap) {
-            return snap.docs.map(function (d) { return d.data().name; });
-          })
-        : Promise.resolve([]);
-      return collisionCheck.then(function (existingNames) {
-        var result = resolveUniquePseudo(rawName, existingNames, null);
-        if (!result.ok) {
-          // The auth account already exists at this point -- back it out
-          // rather than leave an orphaned, nameless account behind.
-          return cred.user.delete().then(function () {
-            return Promise.reject({ code: 'custom/name-collision', message: result.error });
-          });
-        }
-        name = result.name;
-        var profileDoc = { name: name, role: role, email: email, notifyBeforeSession: true };
-        // A parrain can't refer themselves -- someone opening their own
-        // link and signing up under the same name shouldn't count.
-        if (pendingReferrer && pendingReferrer !== name) profileDoc.referredBy = pendingReferrer;
-        return db.collection('users').doc(cred.user.uid).set(profileDoc).then(function () {
-          if (role === 'pilote') {
-            return db.collection('riders').doc(safeDocId(name)).set({ name: name }, { merge: true });
-          }
-        }).then(function () {
-          return cred.user.sendEmailVerification();
+      // The pseudo is claimed atomically with the profile (names/{key}):
+      // firestore.rules refuses a second claim of the same pseudo, which
+      // is what keeps one account from impersonating another by name.
+      if (rawName.indexOf('/') !== -1) {
+        return cred.user.delete().then(function () {
+          return Promise.reject({ code: 'custom/name-collision', message: 'Le pseudo ne peut pas contenir "/".' });
         });
+      }
+      name = rawName;
+      var profileDoc = { name: name, role: role, notifyBeforeSession: true };
+      // A parrain can't refer themselves -- someone opening their own
+      // link and signing up under the same name shouldn't count.
+      if (pendingReferrer && pendingReferrer !== name) profileDoc.referredBy = pendingReferrer;
+      var signupBatch = db.batch();
+      signupBatch.set(db.collection('users').doc(cred.user.uid), profileDoc);
+      signupBatch.set(db.collection('names').doc(nameKey(name)), { uid: cred.user.uid, name: name });
+      // Email lives in a private doc, not in the world-readable profile.
+      signupBatch.set(db.collection('userPrivate').doc(cred.user.uid), { email: email });
+      return signupBatch.commit().catch(function (err) {
+        // The auth account already exists at this point -- back it out
+        // rather than leave an orphaned, nameless account behind.
+        return cred.user.delete().catch(function () {}).then(function () {
+          return Promise.reject({ code: 'custom/name-collision', message: 'Ce pseudo est déjà utilisé -- ajoute par exemple ton numéro de course (ex. "Julien #12").' });
+        });
+      }).then(function () {
+        if (role === 'pilote') {
+          // Needs a verified email (rules) -- if it can't land yet, the
+          // rider doc is created later (see saveProfile / first login).
+          return db.collection('riders').doc(safeDocId(name)).set({ name: name }, { merge: true }).catch(function () {});
+        }
+      }).then(function () {
+        return cred.user.sendEmailVerification();
       });
     }).then(function () {
       // Held at 'verify-email' -- the account and profile both exist, but

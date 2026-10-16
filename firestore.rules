@@ -1,11 +1,25 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    // email_verified is required too: Firebase Auth lets anyone register an
+    // email they don't own until it's confirmed, so the address alone isn't
+    // proof of identity.
     function isAdmin() {
-      return request.auth != null && request.auth.token.email == 'germainxav@gmail.com';
+      return request.auth != null && request.auth.token.email == 'germainxav@gmail.com'
+        && request.auth.token.email_verified == true;
     }
     function verified() {
       return request.auth != null && request.auth.token.email_verified == true;
+    }
+    // Pseudos are the identity key of this whole app (ownership, team
+    // leadership...), so they have to be unique: names/{lowercased pseudo}
+    // holds the claiming account's uid, and a users doc may only carry a
+    // pseudo whose names doc (checked as it will be AFTER the same batch,
+    // since signup/rename write both together) belongs to its own uid.
+    function nameKey(n) { return n.lower(); }
+    function ownsNameAfter(n) {
+      return existsAfter(/databases/$(database)/documents/names/$(nameKey(n)))
+        && getAfter(/databases/$(database)/documents/names/$(nameKey(n))).data.uid == request.auth.uid;
     }
     function myName() {
       return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.name;
@@ -109,8 +123,11 @@ service cloud.firestore {
     // their own doc still goes through the isAdmin() branch below, so
     // they can flip their own badges same as anyone else's).
     match /users/{userId} {
-      allow read: if request.auth != null;
+      // Own profile readable before the email is confirmed (the app loads
+      // it right after signup); everyone else's only once verified.
+      allow read: if verified() || (request.auth != null && request.auth.uid == userId);
       allow create: if request.auth != null && request.auth.uid == userId
+        && ownsNameAfter(request.resource.data.name)
         && request.resource.data.get('certified', false) == false
         && request.resource.data.get('personality', false) == false
         && request.resource.data.get('pro', false) == false
@@ -132,7 +149,8 @@ service cloud.firestore {
           && request.resource.data.get('coach', false) == resource.data.get('coach', false)
           && request.resource.data.get('photographer', false) == resource.data.get('photographer', false)
           && (request.resource.data.name == resource.data.name
-              || request.time > resource.data.get('lastNameChangeAt', timestamp.date(1970, 1, 1)) + duration.value(30, 'd')))
+              || (request.time > resource.data.get('lastNameChangeAt', timestamp.date(1970, 1, 1)) + duration.value(30, 'd')
+                  && ownsNameAfter(request.resource.data.name))))
         // Coach/Photographe officiel peuvent aussi être attribués/retirés
         // par le Team Leader d'un Team PRO, à n'importe quel compte --
         // pas seulement l'admin. <field>TeamId nomme le Team PRO qui
@@ -149,19 +167,43 @@ service cloud.firestore {
       );
       allow delete: if request.auth != null && (request.auth.uid == userId || isAdmin());
     }
+    // Pseudo registry (see nameKey above). A claim is create-only, for the
+    // caller's own uid and a doc id equal to the lowercased pseudo; the
+    // owner can release it (rename / account deletion), only the admin can
+    // edit or seed one (legacy riders without an account are seeded by the
+    // admin so nobody can squat their name and inherit their chronos).
+    match /names/{id} {
+      allow read: if verified();
+      allow create: if (request.auth != null && request.resource.data.keys().hasOnly(['uid', 'name'])
+          && request.resource.data.uid == request.auth.uid
+          && request.resource.data.name.lower() == id) || isAdmin();
+      allow update: if isAdmin();
+      allow delete: if isAdmin() || (request.auth != null && resource.data.uid == request.auth.uid);
+    }
+    // Email addresses live here, not on the world-readable users doc --
+    // own doc only (no verified() needed: it's written at signup, before
+    // the address is confirmed), plus the admin.
+    match /userPrivate/{uid} {
+      allow read, write: if request.auth != null && (request.auth.uid == uid || isAdmin());
+    }
     // Everything else requires a verified email to write, so a bot that
     // signs up with a throwaway address can't touch shared data. A chrono
     // can only be created/edited/deleted by its own pilote or the admin --
     // never by another pilote, never by an accompagnant, and a pilote
     // can't reassign one to someone else's name either.
     match /sessions/{id} {
-      allow read: if request.auth != null;
-      allow create: if verified() && (isAdmin() || ownsChrono(request.resource.data.rider)
-        || ownsChronoViaTeam(request.resource.data.rider, request.resource.data.get('teamId', null)));
+      allow read: if verified();
+      // certifiedBy is the event organiser's seal on a chrono -- a pilote
+      // (or a team leader entering one for a teammate) can never set or
+      // change it on their own write; only the dedicated clause below can.
+      allow create: if verified() && (isAdmin() || (request.resource.data.get('certifiedBy', null) == null
+        && (ownsChrono(request.resource.data.rider)
+            || ownsChronoViaTeam(request.resource.data.rider, request.resource.data.get('teamId', null)))));
       allow update: if verified() && (isAdmin()
-        || (ownsChrono(resource.data.rider) && ownsChrono(request.resource.data.rider))
-        || (ownsChronoViaTeam(resource.data.rider, resource.data.get('teamId', null))
-            && ownsChronoViaTeam(request.resource.data.rider, request.resource.data.get('teamId', null)))
+        || (request.resource.data.get('certifiedBy', null) == resource.data.get('certifiedBy', null)
+            && ((ownsChrono(resource.data.rider) && ownsChrono(request.resource.data.rider))
+                || (ownsChronoViaTeam(resource.data.rider, resource.data.get('teamId', null))
+                    && ownsChronoViaTeam(request.resource.data.rider, request.resource.data.get('teamId', null)))))
         // Certification -- the linked event's own Team Leader, and only
         // the certifiedBy field, so this can never be used to touch the
         // rider/laps/date of someone else's chrono.
@@ -186,7 +228,7 @@ service cloud.firestore {
     // (see eventsList()), same convention as every other audience field
     // in this app -- read stays open to any signed-in account.
     match /events/{id} {
-      allow read: if request.auth != null;
+      allow read: if verified();
       allow create: if verified() && (request.resource.data.get('teamId', null) == null || isTeamLeader(request.resource.data.teamId));
       // A Team Event flagged 'ouvert' also lets any verified account add
       // themselves (only themselves, only an addition) to riders directly
@@ -207,8 +249,14 @@ service cloud.firestore {
       // own-key-only shape -- each rider's own photo album link, open to
       // any rider on the roster (not just the Team Leader, unlike the one
       // shared mediaLink field above).
+      // A personal event (no teamId) is editable by the pilotes it lists
+      // (or by the admin), and anyone may append themselves to its riders
+      // -- no longer by any verified account whatsoever.
       allow update: if verified() && (
-        resource.data.get('teamId', null) == null
+        (resource.data.get('teamId', null) == null
+          && (isAdmin() || myName() in resource.data.get('riders', [])
+              || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['riders'])
+                  && request.resource.data.riders == resource.data.get('riders', []).concat([myName()]))))
         || isTeamLeader(resource.data.teamId)
         || (resource.data.get('eventVisibility', null) == 'ouvert'
             && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['riders'])
@@ -229,7 +277,7 @@ service cloud.firestore {
     // leader adding the rider to event.riders themselves (already allowed)
     // then deleting this doc, no "accepted" status needed.
     match /eventJoinRequests/{id} {
-      allow read: if request.auth != null;
+      allow read: if verified();
       allow create: if verified() && request.resource.data.from == myName() && request.resource.data.status == 'pending';
       allow delete: if verified() && (
         resource.data.from == myName()
@@ -251,7 +299,7 @@ service cloud.firestore {
     // partial update, so affectedKeys() only ever lists fields whose
     // *value* actually changed against the stored doc.
     match /circuits/{id} {
-      allow read: if request.auth != null;
+      allow read: if verified();
       // drawingObjects/drawingsBase (and their outline- twins) are the
       // per-account vector layer and its frozen pre-vector backdrop (see
       // saveAnnotation/setupAnnotCanvas in app.js) -- always written
@@ -290,13 +338,16 @@ service cloud.firestore {
     // ever denied, the WHOLE batch rolled back atomically, leaving the
     // old name stuck forever and blocking anyone from ever reusing it).
     match /riders/{id} {
-      allow read: if request.auth != null;
+      allow read: if verified();
       allow create: if verified();
-      allow update: if verified();
-      allow delete: if verified();
+      // Not open to everyone anymore: a pilote's own roster entry only
+      // (matched by name, which also covers the old name during a rename
+      // -- get() sees the pre-batch profile), or the admin.
+      allow update: if verified() && (isAdmin() || resource.data.name == myName() || request.resource.data.name == myName());
+      allow delete: if verified() && (isAdmin() || resource.data.name == myName());
     }
     match /settings/{id} {
-      allow read: if request.auth != null;
+      allow read: if verified();
       // "Nos partenaires" (Profil -> Aide -> A propos, see savePartners)
       // and featureVisibility (the Météo/Baptêmes-coaching/Location
       // on-off switches, see saveFeatureVisibility) are admin-only content
@@ -309,7 +360,7 @@ service cloud.firestore {
       // -- removing one is only gated admin-only client-side, a much
       // lower-stakes gap than partners/featureVisibility since it's
       // trivially recoverable.
-      allow write: if verified() && ((id != 'partners' && id != 'featureVisibility') || isAdmin());
+      allow write: if verified() && (id == 'checklist' || isAdmin());
     }
     // Friendship is name-keyed, like everything else in this app, and
     // reduced to one collection instead of a `friends` array on each
@@ -319,7 +370,7 @@ service cloud.firestore {
     // by the recipient; either side deleting it covers cancel/decline/
     // un-friend alike, so there's no separate "removed" state to model.
     match /friendRequests/{id} {
-      allow read: if request.auth != null;
+      allow read: if verified();
       allow create: if verified()
         && request.resource.data.from == myName()
         && request.resource.data.to != myName()
@@ -344,7 +395,7 @@ service cloud.firestore {
     // can write 'plan' (their training notes for that pilote) via a
     // narrow update that touches nothing else.
     match /coachRequests/{id} {
-      allow read: if request.auth != null;
+      allow read: if verified();
       allow create: if verified()
         && request.resource.data.from == myName()
         && request.resource.data.to != myName()
@@ -405,7 +456,7 @@ service cloud.firestore {
     // so a deleted chrono doesn't leave a permanent "battu son record" in
     // everyone's Journal.
     match /feedEvents/{id} {
-      allow read: if request.auth != null;
+      allow read: if verified();
       allow create: if verified() && request.resource.data.actor == myName();
       // Emoji reaction -- reactions.<myName()> only, own key untouched by
       // anyone else (see onlyOwnKeyChanged).
@@ -431,7 +482,7 @@ service cloud.firestore {
     // self-follow; only the separate update path above ever sets
     // 'adherent'.
     match /follows/{id} {
-      allow read: if request.auth != null;
+      allow read: if verified();
       allow create: if verified() && request.resource.data.get('tier', 'follower') == 'follower' && (
         (request.resource.data.follower == myName()
           && (request.resource.data.get('followeeType', 'user') != 'user' || request.resource.data.followee != myName()))
@@ -467,7 +518,7 @@ service cloud.firestore {
     // riding together) -- the team doc itself is just identity; who's in
     // it and who leads lives in teamMembers below.
     match /teams/{teamId} {
-      allow read: if request.auth != null;
+      allow read: if verified();
       // teamPro (the "Team PRO certifié" badge) is admin-only, same
       // integrity guarantee as certified/personality/pro on users/{}: a
       // leader can change every other field (name, visibility,
@@ -498,7 +549,7 @@ service cloud.firestore {
     // accepted teamInvite joins as 'member'; or an existing leader adds/
     // promotes anyone directly (invite or not).
     match /teamMembers/{id} {
-      allow read: if request.auth != null;
+      allow read: if verified();
       allow create: if verified() && (
         isAdmin()
         || (request.resource.data.name == myName() && request.resource.data.role == 'leader'
@@ -551,7 +602,7 @@ service cloud.firestore {
     // "accepted" status transition needs to live here; declining is just
     // deleting the request.
     match /teamJoinRequests/{id} {
-      allow read: if request.auth != null;
+      allow read: if verified();
       allow create: if verified() && (
         (request.resource.data.from == myName()
           && (request.resource.data.kind == 'member' || request.resource.data.kind == 'adherent')
@@ -574,7 +625,7 @@ service cloud.firestore {
     // self-service create/delete only, like followTeam's own follows rows
     // but without any tier or request semantics.
     match /teamLikes/{id} {
-      allow read: if request.auth != null;
+      allow read: if verified();
       allow create: if verified() && (
         request.resource.data.name == myName()
         // Id = teamId_name, so a rename needs a new id -- same
@@ -593,7 +644,7 @@ service cloud.firestore {
     // overwrite, not stack) -- same accept-only-by-recipient shape as
     // friendRequests.
     match /teamInvites/{id} {
-      allow read: if request.auth != null;
+      allow read: if verified();
       allow create: if verified() && (
         (request.resource.data.from == myName()
           && isTeamLeader(request.resource.data.teamId)
@@ -628,7 +679,7 @@ service cloud.firestore {
     // Team feed -- announcements, leader-only per the brief ("écrire dans
     // le feed du team" is listed as one of the admin/leader powers).
     match /teamFeed/{id} {
-      allow read: if request.auth != null;
+      allow read: if verified();
       allow create: if verified() && request.resource.data.author == myName() && (
         isTeamLeader(request.resource.data.teamId)
         || (isTeamMember(request.resource.data.teamId) && teamPostPolicy(request.resource.data.teamId) == 'members')
@@ -666,7 +717,7 @@ service cloud.firestore {
     // the audience field is a display-layer choice (see
     // visibleWallPosts), not a server-enforced boundary.
     match /wallPosts/{id} {
-      allow read: if request.auth != null;
+      allow read: if verified();
       allow create: if verified() && request.resource.data.author == myName();
       // Emoji reaction, own key only -- same "anyone who can see it can
       // react to it" reasoning as teamFeed (see there for why this isn't
@@ -688,7 +739,7 @@ service cloud.firestore {
     // server-enforced); only that event's owning Team's leader may post,
     // edit or delete one.
     match /eventAnnouncements/{id} {
-      allow read: if request.auth != null;
+      allow read: if verified();
       allow create: if verified() && request.resource.data.from == myName()
         && isTeamLeader(request.resource.data.teamId);
       allow update: if verified() && (
