@@ -1896,7 +1896,8 @@
       }).join('') + '</div>' +
       '<label for="feeling-comment-input" style="margin-top:0.7rem; display:block;">Commentaire (optionnel)</label>' +
       '<input type="text" id="feeling-comment-input" placeholder="Ex. bonnes sensations en freinage">' +
-      '<button type="button" class="ghost" id="feeling-skip-btn" style="margin-top:0.8rem;">Passer</button>' +
+      '<div style="margin-top:0.8rem; display:flex; gap:0.5rem; flex-wrap:wrap;"><button type="button" class="ghost" data-action="share-session" data-id="' + escapeHtml(String(feelingModalSessionId)) + '">⤴ Partager en story</button>' +
+      '<button type="button" class="ghost" id="feeling-skip-btn">Passer</button></div>' +
       '</div></div>';
   }
 
@@ -3108,7 +3109,7 @@
         if (showRider) tableHtml += '<td class="rider-cell">' + (s.rider ? renderRiderLink(s.rider) : '—') + '</td>';
         tableHtml += '<td class="laps-cell">' + lapsHtml + (isRecord ? '<span class="record-pill">' + tr('record_pill') + '</span>' : '') + '</td>';
         tableHtml += '<td class="bike-cell">' + (s.bike ? escapeHtml(s.bike) : '—') + '</td>';
-        tableHtml += '<td class="row-actions">' + certifyControl(s) + editControl(s) + deleteControl(s) + '</td>';
+        tableHtml += '<td class="row-actions">' + certifyControl(s) + shareControl(s) + editControl(s) + deleteControl(s) + '</td>';
         tableHtml += '</tr>';
       });
       tableHtml += '</tbody></table></div>';
@@ -5170,6 +5171,156 @@
   function deleteControl(session) {
     if (!canEditSession(session)) return '';
     return '<button type="button" class="ghost icon-btn" data-action="delete-request" data-id="' + session.id + '" aria-label="Supprimer cette session" title="Supprimer">×</button>';
+  }
+
+  // ---- Carte de partage (story 1080x1920) ----
+  // Image générée sur l'appareil (canvas) pour une session : circuit, date,
+  // meilleur tour, record éventuel, tours en barres, lien de parrainage.
+  // Partagée via la feuille de partage du téléphone (Instagram, WhatsApp...)
+  // ou téléchargée si le navigateur ne sait pas partager un fichier.
+
+  // Record au moment de la session : comparé aux sessions précédentes du
+  // même pilote sur le même circuit.
+  function sessionRecordInfo(session) {
+    var best = sessionBest(session);
+    var prev = null;
+    (STATE.sessions || []).forEach(function (s) {
+      if (s.id === session.id || s.rider !== session.rider || s.circuit !== session.circuit) return;
+      if (s.date > session.date) return;
+      if (s.date === session.date && String(s.id) > String(session.id)) return;
+      var b = sessionBest(s);
+      if (prev === null || b < prev) prev = b;
+    });
+    return { best: best, prevBest: prev, isRecord: prev === null || best < prev, first: prev === null };
+  }
+
+  function loadImageEl(src) {
+    return new Promise(function (resolve) {
+      var img = new Image();
+      img.onload = function () { resolve(img); };
+      img.onerror = function () { resolve(null); };
+      img.src = src;
+    });
+  }
+
+  function roundRect(ctx, x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+  }
+
+  function fitText(ctx, text, maxWidth, size, weight) {
+    var fs = size;
+    do {
+      ctx.font = weight + ' ' + fs + 'px -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
+      if (ctx.measureText(text).width <= maxWidth) break;
+      fs -= 4;
+    } while (fs > 24);
+    return fs;
+  }
+
+  function buildShareCard(session) {
+    var W = 1080, H = 1920, ACCENT = '#ef8b3a', INK = '#f3f5f7', MUTED = '#9aa7b4';
+    var canvas = document.createElement('canvas');
+    canvas.width = W; canvas.height = H;
+    var ctx = canvas.getContext('2d');
+    return loadImageEl('icons/icon-192.png').then(function (icon) {
+      var g = ctx.createLinearGradient(0, 0, 0, H);
+      g.addColorStop(0, '#10151b'); g.addColorStop(1, '#1f2a35');
+      ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+      // bande damier
+      var sq = 36;
+      for (var cx = 0; cx < W; cx += sq) for (var cy = 0; cy < 2; cy++) {
+        ctx.fillStyle = ((cx / sq + cy) % 2) ? '#ffffff' : '#16212c';
+        ctx.fillRect(cx, H - 2 * sq + cy * sq, sq, sq);
+      }
+      ctx.textBaseline = 'alphabetic';
+      // en-tête
+      if (icon) { ctx.save(); roundRect(ctx, 80, 90, 110, 110, 24); ctx.clip(); ctx.drawImage(icon, 80, 90, 110, 110); ctx.restore(); }
+      ctx.fillStyle = INK; ctx.font = '800 44px -apple-system, "Segoe UI", Roboto, sans-serif';
+      ctx.fillText('CARNET DE PISTE', 220, 160);
+      // circuit + date
+      ctx.fillStyle = INK; fitText(ctx, session.circuit || '', W - 160, 110, '800');
+      ctx.fillText(session.circuit || '', 80, 380);
+      ctx.fillStyle = MUTED; ctx.font = '500 46px -apple-system, "Segoe UI", Roboto, sans-serif';
+      var sub = formatDate(session.date) + (session.group ? '  ·  Groupe ' + session.group : '');
+      ctx.fillText(sub, 80, 450);
+      ctx.fillStyle = INK; fitText(ctx, session.rider + (session.bike ? '  ·  ' + session.bike : ''), W - 160, 50, '600');
+      ctx.fillText(session.rider + (session.bike ? '  ·  ' + session.bike : ''), 80, 520);
+      // meilleur tour
+      var info = sessionRecordInfo(session);
+      ctx.fillStyle = MUTED; ctx.font = '600 44px -apple-system, "Segoe UI", Roboto, sans-serif';
+      ctx.fillText('MEILLEUR TOUR', 80, 700);
+      ctx.fillStyle = ACCENT; fitText(ctx, formatTime(info.best), W - 160, 230, '800');
+      ctx.fillText(formatTime(info.best), 72, 900);
+      // badge record
+      var badge = info.first ? 'Premier chrono sur ce circuit' : (info.isRecord ? 'Nouveau record perso  −' + (info.prevBest - info.best).toFixed(3) + ' s' : 'Record perso : ' + formatTime(info.prevBest));
+      ctx.font = '700 44px -apple-system, "Segoe UI", Roboto, sans-serif';
+      var badgeText = (info.isRecord && !info.first ? '🏆 ' : '') + badge;
+      var bw = ctx.measureText(badgeText).width + 70;
+      ctx.fillStyle = info.isRecord && !info.first ? ACCENT : 'rgba(255,255,255,0.12)';
+      roundRect(ctx, 80, 960, bw, 90, 45); ctx.fill();
+      ctx.fillStyle = info.isRecord && !info.first ? '#16120b' : INK;
+      ctx.fillText(badgeText, 115, 1020);
+      // barres des tours
+      var laps = (session.laps || []).slice(0, 30);
+      var top = 1150, chartH = 360, left = 80, right = W - 80;
+      if (laps.length) {
+        var minL = Math.min.apply(null, laps);
+        var cap = minL * 1.25; // tour de rentrée écrêté
+        var maxL = Math.min(Math.max.apply(null, laps), cap);
+        var span = Math.max(0.5, maxL - minL);
+        var gap = 14, bwid = Math.min(90, (right - left - gap * (laps.length - 1)) / laps.length);
+        laps.forEach(function (v, i) {
+          var t = (Math.min(v, cap) - minL) / span;      // 0 = meilleur
+          var h = chartH * (1 - 0.75 * t);               // meilleur = barre la plus haute
+          var x = left + i * (bwid + gap);
+          ctx.fillStyle = v === minL ? ACCENT : 'rgba(255,255,255,0.28)';
+          roundRect(ctx, x, top + chartH - h, bwid, h, Math.min(12, bwid / 3)); ctx.fill();
+        });
+        ctx.fillStyle = MUTED; ctx.font = '500 38px -apple-system, "Segoe UI", Roboto, sans-serif';
+        ctx.fillText(laps.length + ' tour' + (laps.length > 1 ? 's' : '') + '  ·  barre haute = tour rapide', left, top + chartH + 65);
+      }
+      // pied : invitation
+      ctx.fillStyle = INK; ctx.font = '700 46px -apple-system, "Segoe UI", Roboto, sans-serif';
+      ctx.fillText('Mon carnet de piste, gratuit :', 80, H - 230);
+      ctx.fillStyle = ACCENT; fitText(ctx, 'thereiivman-art.github.io/carnetpiste', W - 160, 46, '700');
+      ctx.fillText('thereiivman-art.github.io/carnetpiste', 80, H - 160);
+      return new Promise(function (resolve) { canvas.toBlob(function (b) { resolve(b); }, 'image/png'); });
+    });
+  }
+
+  function shareSessionCard(sessionId) {
+    var session = (STATE.sessions || []).filter(function (s) { return s.id === sessionId; })[0];
+    if (!session) return;
+    showToast('Préparation de l\'image…');
+    buildShareCard(session).then(function (blob) {
+      if (!blob) throw new Error('image');
+      var fileName = 'carnet-de-piste-' + (session.circuit || 'circuit').replace(/[^\w-]+/g, '-') + '-' + session.date + '.png';
+      var file = new File([blob], fileName, { type: 'image/png' });
+      var text = formatTime(sessionBest(session)) + ' à ' + session.circuit + ' — mon carnet de piste : ' +
+        (currentUserProfile && currentUserProfile.name ? referralLinkFor(currentUserProfile.name) : 'https://thereiivman-art.github.io/carnetpiste/');
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        return navigator.share({ files: [file], text: text }).catch(function () {});
+      }
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url; a.download = fileName;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
+      showToast('Image enregistrée -- publie-la en story !', 'success');
+    }).catch(function () {
+      showToast('Impossible de créer l\'image sur cet appareil.');
+    });
+  }
+
+  function shareControl(session) {
+    if (!currentUserProfile || session.rider !== currentUserProfile.name) return '';
+    return '<button type="button" class="ghost icon-btn" data-action="share-session" data-id="' + session.id + '" aria-label="Partager ce chrono en image" title="Partager">⤴</button>';
   }
 
   function editControl(session) {
@@ -14359,6 +14510,9 @@
         renderRoot();
       });
     }
+    document.querySelectorAll('[data-action="share-session"]').forEach(function (btn) {
+      btn.addEventListener('click', function () { shareSessionCard(btn.getAttribute('data-id')); });
+    });
     document.querySelectorAll('[data-action="delete-request"]').forEach(function (btn) {
       btn.addEventListener('click', function () {
         var id = btn.getAttribute('data-id');
