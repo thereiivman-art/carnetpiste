@@ -5836,21 +5836,182 @@
 
   function renderCircuitVisual(info, circuitName) {
     circuitName = circuitName || selectedCircuit;
-    if (info.mapImage) {
+    var base = info.mapImage || outlineImageFor(info, circuitName);
+    var notes = myTrackNotes(circuitName);
+    if (base) {
+      var pins = notes.map(function (n, i) {
+        return '<span class="track-pin-mini" style="left:' + (n.x * 100) + '%; top:' + (n.y * 100) + '%;">' + (i + 1) + '</span>';
+      }).join('');
       return (
         '<div class="circuit-visual-frame">' +
-          '<button type="button" class="circuit-visual-btn" id="open-annot-btn" data-circuit="' + escapeHtml(circuitName) + '" aria-label="' + tr('annotate_circuit_aria') + '">' +
-            '<img src="' + info.mapImage + '" alt="Tracé de ' + escapeHtml(circuitName) + '">' +
+          '<button type="button" class="circuit-visual-btn" data-action="open-track-notes" data-circuit="' + escapeHtml(circuitName) + '" aria-label="Mes repères sur ' + escapeHtml(circuitName) + '">' +
+            '<span class="track-mini-wrap"><img src="' + base + '" alt="Tracé de ' + escapeHtml(circuitName) + '">' + pins + '</span>' +
           '</button>' +
-          '<div class="circuit-visual-caption">' + ((currentUserProfile && currentUserProfile.role === 'accompagnant' && !isAdmin()) ? tr('tap_to_view_companion_map') : tr('tap_to_annotate')) + '</div>' +
+          '<div class="circuit-visual-caption">' + (notes.length ? notes.length + ' repère' + (notes.length > 1 ? 's' : '') + ' · toucher pour voir' : 'Toucher pour noter tes repères') + '</div>' +
+          (info.mapImage ? '<button type="button" class="link-btn circuit-visual-caption" id="open-annot-btn" data-circuit="' + escapeHtml(circuitName) + '">Dessin libre</button>' : '') +
         '</div>'
       );
     }
     return (
       '<div class="circuit-visual-frame">' +
-        '<div class="circuit-visual-btn circuit-visual-placeholder">' + tr('no_map_imported') + '</div>' +
+        '<button type="button" class="circuit-visual-btn circuit-visual-placeholder" data-action="open-track-notes" data-circuit="' + escapeHtml(circuitName) + '">' + tr('no_map_imported') + '<br>Toucher pour noter tes repères</button>' +
       '</div>'
     );
+  }
+
+  // ---- Mes repères (notes par virage, épinglées sur le plan) ----
+  // Stockées sur le profil du pilote (users/{uid}.trackNotes[circuit] =
+  // [{id, x, y, turn, brake, gear, mark, note}], x/y en fraction de
+  // l'image) : le profil est déjà modifiable par son propriétaire, aucune
+  // règle Firestore à changer. Chaque modification est enregistrée tout de
+  // suite -- pas de bouton "Enregistrer" global à ne pas oublier.
+  function myTrackNotes(circuit) {
+    var all = (currentUserProfile && currentUserProfile.trackNotes) || {};
+    return (all[circuit] || []).slice();
+  }
+  function saveMyTrackNotes(circuit, list) {
+    if (!currentUserProfile || !auth.currentUser) return Promise.resolve();
+    currentUserProfile.trackNotes = Object.assign({}, currentUserProfile.trackNotes || {});
+    currentUserProfile.trackNotes[circuit] = list;
+    var patch = {}; patch[circuit] = list;
+    return db.collection('users').doc(auth.currentUser.uid).set({ trackNotes: patch }, { merge: true }).catch(function (err) {
+      showToast('Repère non enregistré : ' + ((err && err.message) || err));
+    });
+  }
+  function trackNoteSummary(n) {
+    var parts = [];
+    if (n.brake) parts.push('Freinage : ' + n.brake);
+    if (n.gear) parts.push(n.gear + (/^\d$/.test(n.gear) ? (n.gear === '1' ? 're' : 'e') : ''));
+    if (n.mark) parts.push(n.mark);
+    if (n.note) parts.push(n.note);
+    return parts.join(' · ');
+  }
+
+  function openTrackNotes(circuit) {
+    var info = circuitInfo(circuit);
+    var base = info.mapImage || outlineImageFor(info, circuit);
+    var notes = myTrackNotes(circuit);
+    var zoomed = false;
+    var movingId = null;
+    var overlay = document.createElement('div');
+    overlay.className = 'track-notes-overlay';
+    document.body.appendChild(overlay);
+    function close() { if (overlay.parentNode) overlay.parentNode.removeChild(overlay); renderRoot(); }
+    function persistNotes() { saveMyTrackNotes(circuit, notes); }
+
+    function render() {
+      var h = '<div class="track-notes-head"><button type="button" class="ghost icon-btn" data-tn="close" aria-label="Fermer">←</button>' +
+        '<div class="track-notes-title">Mes repères · ' + escapeHtml(circuit) + '</div>' +
+        (base ? '<button type="button" class="ghost" data-tn="zoom">' + (zoomed ? 'Réduire' : 'Agrandir') + '</button>' : '') + '</div>';
+      h += '<div class="help-text track-notes-help">' + (movingId ? 'Touche le nouvel emplacement du repère.' : (base ? 'Touche le tracé pour poser un repère, touche un repère pour le modifier.' : 'Pas de plan pour ce circuit : ajoute tes repères en liste.')) + '</div>';
+      if (base) {
+        h += '<div class="track-notes-scroll"><div class="track-notes-map' + (zoomed ? ' zoomed' : '') + '"><img src="' + base + '" alt="" draggable="false">';
+        notes.forEach(function (n, i) {
+          h += '<button type="button" class="track-pin" data-pin="' + n.id + '" style="left:' + (n.x * 100) + '%; top:' + (n.y * 100) + '%;">' + (i + 1) + '</button>';
+        });
+        h += '</div></div>';
+      } else {
+        h += '<button type="button" class="primary" data-tn="add-nomap" style="margin:0.6rem 0;">+ Ajouter un repère</button>';
+      }
+      h += '<div class="track-notes-list">';
+      if (!notes.length) h += '<div class="empty-state">Aucun repère pour l\'instant.</div>';
+      notes.forEach(function (n, i) {
+        h += '<button type="button" class="track-note-row" data-pin="' + n.id + '"><span class="track-pin static">' + (i + 1) + '</span>' +
+          '<span class="track-note-text"><strong>' + (n.turn ? 'Virage ' + escapeHtml(n.turn) : 'Repère ' + (i + 1)) + '</strong>' +
+          (trackNoteSummary(n) ? '<br><span class="help-text">' + escapeHtml(trackNoteSummary(n)) + '</span>' : '') + '</span></button>';
+      });
+      h += '</div>';
+      overlay.innerHTML = h;
+      bind();
+    }
+
+    function bind() {
+      overlay.querySelector('[data-tn="close"]').addEventListener('click', close);
+      var z = overlay.querySelector('[data-tn="zoom"]');
+      if (z) z.addEventListener('click', function () { zoomed = !zoomed; render(); });
+      var addNoMap = overlay.querySelector('[data-tn="add-nomap"]');
+      if (addNoMap) addNoMap.addEventListener('click', function () { editNote({ id: genId(), x: 0.5, y: 0.5 }, true); });
+      var map = overlay.querySelector('.track-notes-map');
+      if (map) {
+        // "click" ne part que sur un vrai toucher (pas en faisant défiler ou
+        // zoomer) : on ne pose jamais de repère par erreur en se déplaçant.
+        map.addEventListener('click', function (e) {
+          if (e.target.closest('.track-pin')) return;
+          var img = map.querySelector('img');
+          var r = img.getBoundingClientRect();
+          var x = (e.clientX - r.left) / r.width, y = (e.clientY - r.top) / r.height;
+          if (x < 0 || x > 1 || y < 0 || y > 1) return;
+          x = Math.round(x * 1000) / 1000; y = Math.round(y * 1000) / 1000;
+          if (movingId) {
+            notes.forEach(function (n) { if (n.id === movingId) { n.x = x; n.y = y; } });
+            movingId = null; persistNotes(); render(); return;
+          }
+          editNote({ id: genId(), x: x, y: y }, true);
+        });
+      }
+      overlay.querySelectorAll('[data-pin]').forEach(function (b) {
+        b.addEventListener('click', function (e) {
+          e.stopPropagation();
+          var n = notes.filter(function (x) { return x.id === b.getAttribute('data-pin'); })[0];
+          if (n) editNote(n, false);
+        });
+      });
+    }
+
+    function editNote(note, isNew) {
+      var sheet = document.createElement('div');
+      sheet.className = 'crop-modal-overlay';
+      var gears = ['', '1', '2', '3', '4', '5', '6'];
+      sheet.innerHTML = '<div class="crop-modal" style="max-width:420px;">' +
+        '<h2 class="section-title">' + (isNew ? 'Nouveau repère' : 'Repère') + '</h2>' +
+        '<div class="field-row"><div><label for="tn-turn">Virage</label><input type="text" id="tn-turn" placeholder="Ex. 3 ou San Donato" value="' + escapeHtml(note.turn || '') + '"></div>' +
+        '<div><label for="tn-gear">Rapport</label><select id="tn-gear">' + gears.map(function (g) { return '<option value="' + g + '"' + ((note.gear || '') === g ? ' selected' : '') + '>' + (g || '—') + '</option>'; }).join('') + '</select></div></div>' +
+        '<label for="tn-brake" style="display:block; margin-top:0.5rem;">Point de freinage</label><input type="text" id="tn-brake" placeholder="Ex. panneau 150 m" value="' + escapeHtml(note.brake || '') + '">' +
+        '<label for="tn-mark" style="display:block; margin-top:0.5rem;">Repère visuel / point de corde</label><input type="text" id="tn-mark" placeholder="Ex. corde au vibreur rouge" value="' + escapeHtml(note.mark || '') + '">' +
+        '<label for="tn-note" style="display:block; margin-top:0.5rem;">Commentaire</label><textarea id="tn-note" rows="3" placeholder="Ex. remettre les gaz plus tôt">' + escapeHtml(note.note || '') + '</textarea>' +
+        '<div style="margin-top:0.8rem; display:flex; gap:0.5rem; flex-wrap:wrap;"><button type="button" class="primary" data-s="save">Enregistrer</button>' +
+        '<button type="button" class="ghost" data-s="cancel">Annuler</button>' +
+        (!isNew && base ? '<button type="button" class="ghost" data-s="move">Déplacer</button>' : '') +
+        (!isNew ? '<button type="button" class="ghost danger" data-s="delete">Supprimer</button>' : '') + '</div></div>';
+      document.body.appendChild(sheet);
+      function shut() { if (sheet.parentNode) sheet.parentNode.removeChild(sheet); }
+      sheet.querySelector('[data-s="cancel"]').addEventListener('click', shut);
+      sheet.querySelector('[data-s="save"]').addEventListener('click', function () {
+        note.turn = sheet.querySelector('#tn-turn').value.trim();
+        note.gear = sheet.querySelector('#tn-gear').value;
+        note.brake = sheet.querySelector('#tn-brake').value.trim();
+        note.mark = sheet.querySelector('#tn-mark').value.trim();
+        note.note = sheet.querySelector('#tn-note').value.trim();
+        if (isNew) notes.push(note);
+        persistNotes(); shut(); render();
+        showToast('Repère enregistré', 'success');
+      });
+      var mv = sheet.querySelector('[data-s="move"]');
+      if (mv) mv.addEventListener('click', function () { movingId = note.id; shut(); render(); });
+      var del = sheet.querySelector('[data-s="delete"]');
+      if (del) del.addEventListener('click', function () {
+        if (!confirm('Supprimer ce repère ?')) return;
+        notes = notes.filter(function (x) { return x.id !== note.id; });
+        persistNotes(); shut(); render();
+      });
+      var first = sheet.querySelector('#tn-turn');
+      if (first && isNew) first.focus();
+    }
+
+    render();
+  }
+
+  // Rappel dans "En piste" : les repères du circuit de la prochaine sortie.
+  function renderTrackNotesReminder(circuit) {
+    var notes = myTrackNotes(circuit);
+    var body = notes.length
+      ? notes.map(function (n, i) {
+          return '<div class="track-note-line"><span class="track-pin static">' + (i + 1) + '</span><span><strong>' + (n.turn ? 'Virage ' + escapeHtml(n.turn) : 'Repère ' + (i + 1)) + '</strong>' +
+            (trackNoteSummary(n) ? ' — ' + escapeHtml(trackNoteSummary(n)) : '') + '</span></div>';
+        }).join('')
+      : '<div class="help-text">Aucun repère noté pour ' + escapeHtml(circuit) + '.</div>';
+    body += '<button type="button" class="ghost" data-action="open-track-notes" data-circuit="' + escapeHtml(circuit) + '" style="margin-top:0.5rem;">' + (notes.length ? 'Voir sur le plan' : 'Noter mes repères') + '</button>';
+    return collapsibleSection('mes-reperes', 'Mes repères' + (notes.length ? ' (' + notes.length + ')' : ''), body);
   }
 
   function saveCircuitInfo() {
@@ -9519,6 +9680,7 @@
     // Grey card: this account's own personal info for the sortie -- never
     // something the Team orga fills in for everyone.
     var personal = '<div class="card personal-info-card">';
+    personal += renderTrackNotesReminder(ev.circuit);
     personal += renderFriendsGroupSection(ev);
     if (!advancedHidden()) {
       personal += collapsibleSection('avant-session-section', avantSessionChecklistLabel(ev), renderAvantSessionChecklist(ev));
@@ -15071,6 +15233,9 @@
     if (cancelInfoBtn) cancelInfoBtn.addEventListener('click', function () { editingCircuitInfo = false; renderRoot(); });
     var saveInfoBtn = document.getElementById('save-circuit-info-btn');
     if (saveInfoBtn) saveInfoBtn.addEventListener('click', saveCircuitInfo);
+    document.querySelectorAll('[data-action="open-track-notes"]').forEach(function (btn) {
+      btn.addEventListener('click', function () { openTrackNotes(btn.getAttribute('data-circuit') || selectedCircuit); });
+    });
     var openAnnotBtn = document.getElementById('open-annot-btn');
     if (openAnnotBtn) {
       openAnnotBtn.addEventListener('click', function () {
