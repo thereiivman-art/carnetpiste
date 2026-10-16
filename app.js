@@ -5880,9 +5880,15 @@
   }
   function trackNoteSummary(n) {
     var parts = [];
+    var apex = n.apex || n.mark; // "mark" = ancien champ "repère visuel / point de corde"
     if (n.brake) parts.push('Freinage : ' + n.brake);
     if (n.gear) parts.push(n.gear + (/^\d$/.test(n.gear) ? (n.gear === '1' ? 're' : 'e') : ''));
-    if (n.mark) parts.push(n.mark);
+    if (n.turnIn) parts.push('Déclenchement : ' + n.turnIn);
+    if (n.doubleApex) {
+      if (apex) parts.push('Corde 1 : ' + apex);
+      if (n.apex2) parts.push('Corde 2 : ' + n.apex2);
+    } else if (apex) parts.push('Corde : ' + apex);
+    if (n.exit) parts.push('Sortie : ' + n.exit);
     if (n.note) parts.push(n.note);
     return parts.join(' · ');
   }
@@ -5962,12 +5968,16 @@
       var sheet = document.createElement('div');
       sheet.className = 'crop-modal-overlay';
       var gears = ['', '1', '2', '3', '4', '5', '6'];
-      sheet.innerHTML = '<div class="crop-modal" style="max-width:420px;">' +
+      sheet.innerHTML = '<div class="crop-modal" style="max-width:420px; max-height:90vh; overflow-y:auto;">' +
         '<h2 class="section-title">' + (isNew ? 'Nouveau repère' : 'Repère') + '</h2>' +
         '<div class="field-row"><div><label for="tn-turn">Virage</label><input type="text" id="tn-turn" placeholder="Ex. 3 ou San Donato" value="' + escapeHtml(note.turn || '') + '"></div>' +
         '<div><label for="tn-gear">Rapport</label><select id="tn-gear">' + gears.map(function (g) { return '<option value="' + g + '"' + ((note.gear || '') === g ? ' selected' : '') + '>' + (g || '—') + '</option>'; }).join('') + '</select></div></div>' +
         '<label for="tn-brake" style="display:block; margin-top:0.5rem;">Point de freinage</label><input type="text" id="tn-brake" placeholder="Ex. panneau 150 m" value="' + escapeHtml(note.brake || '') + '">' +
-        '<label for="tn-mark" style="display:block; margin-top:0.5rem;">Repère visuel / point de corde</label><input type="text" id="tn-mark" placeholder="Ex. corde au vibreur rouge" value="' + escapeHtml(note.mark || '') + '">' +
+        '<label for="tn-turnin" style="display:block; margin-top:0.5rem;">Point de déclenchement</label><input type="text" id="tn-turnin" placeholder="Ex. fin du vibreur extérieur" value="' + escapeHtml(note.turnIn || '') + '">' +
+        '<label class="planning-group-check" style="display:flex; gap:0.4rem; align-items:center; margin-top:0.6rem;"><input type="checkbox" id="tn-double"' + (note.doubleApex ? ' checked' : '') + '> Trajectoire en double point de corde</label>' +
+        '<label for="tn-apex" id="tn-apex-label" style="display:block; margin-top:0.5rem;">' + (note.doubleApex ? 'Point de corde 1' : 'Point de corde') + '</label><input type="text" id="tn-apex" placeholder="Ex. vibreur rouge intérieur" value="' + escapeHtml(note.apex || note.mark || '') + '">' +
+        '<div id="tn-apex2-wrap"' + (note.doubleApex ? '' : ' style="display:none;"') + '><label for="tn-apex2" style="display:block; margin-top:0.5rem;">Point de corde 2</label><input type="text" id="tn-apex2" placeholder="Ex. 2e vibreur, après la bosse" value="' + escapeHtml(note.apex2 || '') + '"></div>' +
+        '<label for="tn-exit" style="display:block; margin-top:0.5rem;">Point de sortie</label><input type="text" id="tn-exit" placeholder="Ex. laisser filer jusqu\'au vibreur extérieur" value="' + escapeHtml(note.exit || '') + '">' +
         '<label for="tn-note" style="display:block; margin-top:0.5rem;">Commentaire</label><textarea id="tn-note" rows="3" placeholder="Ex. remettre les gaz plus tôt">' + escapeHtml(note.note || '') + '</textarea>' +
         '<div style="margin-top:0.8rem; display:flex; gap:0.5rem; flex-wrap:wrap;"><button type="button" class="primary" data-s="save">Enregistrer</button>' +
         '<button type="button" class="ghost" data-s="cancel">Annuler</button>' +
@@ -5976,11 +5986,20 @@
       document.body.appendChild(sheet);
       function shut() { if (sheet.parentNode) sheet.parentNode.removeChild(sheet); }
       sheet.querySelector('[data-s="cancel"]').addEventListener('click', shut);
+      sheet.querySelector('#tn-double').addEventListener('change', function (e) {
+        sheet.querySelector('#tn-apex2-wrap').style.display = e.target.checked ? '' : 'none';
+        sheet.querySelector('#tn-apex-label').textContent = e.target.checked ? 'Point de corde 1' : 'Point de corde';
+      });
       sheet.querySelector('[data-s="save"]').addEventListener('click', function () {
         note.turn = sheet.querySelector('#tn-turn').value.trim();
         note.gear = sheet.querySelector('#tn-gear').value;
         note.brake = sheet.querySelector('#tn-brake').value.trim();
-        note.mark = sheet.querySelector('#tn-mark').value.trim();
+        note.turnIn = sheet.querySelector('#tn-turnin').value.trim();
+        note.doubleApex = sheet.querySelector('#tn-double').checked;
+        note.apex = sheet.querySelector('#tn-apex').value.trim();
+        note.apex2 = note.doubleApex ? sheet.querySelector('#tn-apex2').value.trim() : '';
+        note.exit = sheet.querySelector('#tn-exit').value.trim();
+        delete note.mark; // remplacé par apex
         note.note = sheet.querySelector('#tn-note').value.trim();
         if (isNew) notes.push(note);
         persistNotes(); shut(); render();
