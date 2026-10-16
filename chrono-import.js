@@ -40,6 +40,7 @@
   }
 
   function formatLap(sec) {
+    if (sec == null) return '??';
     var m = Math.floor(sec / 60);
     var s = sec - m * 60;
     var str = s.toFixed(3);
@@ -189,17 +190,28 @@
       // deux colonnes lue par l'OCR) : on le sort de la ligne.
       var inline = line.match(/\((\d{1,3})\s*\)\s*([A-ZÀ-Ý][A-Za-zÀ-ÿ'’. \-]{2,})\s*$/);
       if (inline && !times.some(function (t) { return t.minutes; }) && parseSectionHeader(line) == null) {
-        current = { label: '(' + inline[1] + ') ' + inline[2].trim(), raw: inline[0], laps: [] }; sections.push(current);
+        current = { label: '(' + inline[1] + ') ' + inline[2].trim(), raw: inline[0], laps: [], rebuilt: [] }; sections.push(current);
         return;
       }
       if (!times.length) {
         var h = parseSectionHeader(line);
-        if (h) { current = { label: '(' + h.number + ') ' + h.name, raw: line, laps: [] }; sections.push(current); }
+        if (h) { current = { label: '(' + h.number + ') ' + h.name, raw: line, laps: [], rebuilt: [] }; sections.push(current); }
         return;
       }
       var row = { raw: line, times: times, label: cleanLabel(line, times) };
       rows.push(row);
-      if (current) current.laps.push(times[0].sec); // relevé tour par tour : 1er temps = le tour
+      if (current) {
+        // Relevé tour par tour : le tour est le temps avec minutes. S'il n'a
+        // pas été lu mais que les 4 temps de secteur l'ont été, le tour en
+        // est la somme (signalée "reconstitué") ; sinon ligne illisible (??).
+        var withMin = times.filter(function (t) { return t.minutes; });
+        if (withMin.length) { current.laps.push(withMin[0].sec); }
+        else {
+          var sum = times.length >= 4 ? times.slice(-4).reduce(function (a, t) { return a + t.sec; }, 0) : 0;
+          if (sum >= 60 && sum <= 400) { current.rebuilt.push(current.laps.length); current.laps.push(Math.round(sum * 1000) / 1000); }
+          else current.laps.push(null);
+        }
+      }
     });
     var candidates = [];
 
@@ -207,7 +219,7 @@
     var usable = sections.filter(function (sec) { return sec.laps.length >= 1; });
     if (usable.length) {
       usable.forEach(function (sec) {
-        candidates.push({ label: sec.label, named: true, laps: sec.laps, kind: 'section', raw: sec.raw });
+        candidates.push({ label: sec.label, named: true, laps: sec.laps, rebuilt: sec.rebuilt, kind: 'section', raw: sec.raw });
       });
       return candidates;
     }
@@ -264,10 +276,11 @@
   // Indices des tours qui sortent nettement de la série (tour de rentrée,
   // erreur de lecture...) -- simple signalement, jamais supprimés d'office.
   function outlierIndexes(laps) {
-    if (laps.length < 3) return [];
-    var med = median(laps);
+    var valid = laps.filter(function (v) { return v != null; });
+    if (valid.length < 3) return [];
+    var med = median(valid);
     var out = [];
-    laps.forEach(function (v, i) { if (v > med * 1.35 || v < med * 0.75) out.push(i); });
+    laps.forEach(function (v, i) { if (v != null && (v > med * 1.35 || v < med * 0.75)) out.push(i); });
     return out;
   }
 

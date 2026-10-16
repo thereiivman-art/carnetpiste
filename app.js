@@ -15008,7 +15008,8 @@
       if (cands.length > 1 || sel === -1) {
         h += '<div class="help-text" style="margin-top:0.6rem;">' + (sel === -1 ? 'Je n\'ai pas reconnu ta ligne -- choisis-la :' : 'Plusieurs lignes détectées -- vérifie que c\'est la tienne :') + '</div>';
         cands.forEach(function (c, i) {
-          var best = c.laps.length ? Math.min.apply(null, c.laps) : null;
+          var valid = c.laps.filter(function (v) { return v != null; });
+          var best = valid.length ? Math.min.apply(null, valid) : null;
           h += '<label style="display:block; margin:0.3rem 0;"><input type="radio" name="imp-cand" value="' + i + '"' + (i === sel ? ' checked' : '') + '> ' +
             escapeHtml(c.label || 'Ligne') + ' <span class="help-text">(' + c.laps.length + ' tour' + (c.laps.length > 1 ? 's' : '') +
             (best != null ? ', meilleur ' + CI.formatLap(best) : '') + (i === sel && result.autoMatched ? ', détectée' : '') + ')</span></label>';
@@ -15018,7 +15019,7 @@
         h += '<div class="help-text" style="margin-top:0.5rem;">Astuce : si plusieurs pilotes ou colonnes sont mélangés, recadre la capture sur ta ligne ou ta colonne et réessaie.</div>';
       }
       h += '<label for="imp-laps" style="margin-top:0.7rem; display:block;">Tours (un par ligne, modifiables)</label>' +
-        '<textarea id="imp-laps" rows="7" style="width:100%;"></textarea><div class="help-text" id="imp-flags"></div>' +
+        '<textarea id="imp-laps" rows="7" style="width:100%;"></textarea><div class="help-text" id="imp-rebuilt"></div><div class="help-text" id="imp-flags"></div>' +
         '<div class="field-row" style="margin-top:0.6rem;"><div><label for="imp-date">Date' + (result.date ? ' (lue sur la feuille)' : '') + '</label>' +
         '<input type="text" id="imp-date" inputmode="numeric" value="' + escapeHtml(dateVal) + '"></div>' +
         '<div><label for="imp-circuit">Circuit' + (result.circuit ? ' (reconnu)' : '') + '</label><select id="imp-circuit">' +
@@ -15034,10 +15035,19 @@
       var flagsEl = box.querySelector('#imp-flags');
       var dupeEl = box.querySelector('#imp-dupe');
       function currentLaps() { return CI.parseLapList(lapsEl.value); }
+      // Lignes marquées ?? = tour que la lecture n'a pas su lire (à saisir ou supprimer).
+      function unreadableLines() {
+        var out = [];
+        lapsEl.value.split(/\r?\n/).forEach(function (l, i) { if (l.indexOf('??') !== -1) out.push(i + 1); });
+        return out;
+      }
       function refreshFlags() {
         var laps = currentLaps();
         var bad = CI.outlierIndexes(laps);
-        flagsEl.innerHTML = bad.length
+        var unread = unreadableLines();
+        flagsEl.innerHTML = unread.length
+          ? '⚠ Tour' + (unread.length > 1 ? 's' : '') + ' illisible' + (unread.length > 1 ? 's' : '') + ' (ligne' + (unread.length > 1 ? 's' : '') + ' ' + unread.join(', ') + ', marquée' + (unread.length > 1 ? 's' : '') + ' ??) : saisis le temps ou supprime la ligne.'
+          : bad.length
           ? '⚠ ' + bad.map(function (i) { return 'tour ' + (i + 1) + ' (' + CI.formatLap(laps[i]) + ')'; }).join(', ') + ' : très différent des autres (tour de rentrée ? erreur de lecture ?)'
           : '';
         flagsEl.style.color = bad.length ? 'var(--danger)' : '';
@@ -15052,6 +15062,10 @@
         var c = cands[i];
         lapsEl.value = c ? c.laps.map(CI.formatLap).join('\n') : '';
         refreshFlags();
+        var note = box.querySelector('#imp-rebuilt');
+        if (note) note.textContent = (c && c.rebuilt && c.rebuilt.length)
+          ? 'Tour' + (c.rebuilt.length > 1 ? 's' : '') + ' ' + c.rebuilt.map(function (i) { return i + 1; }).join(', ') + ' : temps non lu, reconstitué en additionnant les 4 secteurs -- à vérifier.'
+          : '';
       }
       loadCandidate(sel === -1 ? -1 : sel);
       box.querySelectorAll('input[name="imp-cand"]').forEach(function (r) {
@@ -15062,6 +15076,7 @@
       box.querySelector('#imp-circuit').addEventListener('change', refreshFlags);
       box.querySelector('[data-imp="apply"]').addEventListener('click', function () {
         var laps = currentLaps();
+        if (unreadableLines().length) { refreshFlags(); return; }
         if (!laps.length) { flagsEl.textContent = 'Aucun tour à importer.'; return; }
         var fLaps = document.getElementById('f-laps');
         var fDate = document.getElementById('f-date');
