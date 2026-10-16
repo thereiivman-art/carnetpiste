@@ -1619,6 +1619,69 @@
     { key: 'specialActivities', labelKey: 'feature_special_activities_label' },
     { key: 'rental', labelKey: 'feature_rental_label' }
   ];
+  // ---- Mots de passe temporaires (admin, temporaire) ----
+  // Pour les comptes créés avec un mot de passe commun : se connecte à
+  // chacun avec l'ancien mot de passe (sur une 2e instance Firebase, la
+  // session de l'admin n'est pas touchée) et le remplace. À retirer après usage.
+  var pwResetLog = '';
+  var pwResetRunning = false;
+  function pwLog(msg) {
+    pwResetLog += msg + '\n';
+    var el = document.getElementById('pwreset-log');
+    if (el) { el.textContent = pwResetLog; el.scrollTop = el.scrollHeight; }
+  }
+  function renderPasswordResetSection() {
+    if (!isAdmin()) return '';
+    return '<div style="margin-top:1.2rem; border-top:1px solid var(--border); padding-top:0.9rem;">' +
+      '<div class="section-title" style="font-size:0.95rem;">Mots de passe temporaires (comptes de test)</div>' +
+      '<div class="help-text">Remplace le mot de passe de plusieurs comptes d\'un coup. Il faut connaître leur mot de passe actuel.</div>' +
+      '<label for="pwreset-names" style="display:block; margin-top:0.5rem;">Pseudos (séparés par des virgules)</label>' +
+      '<input type="text" id="pwreset-names" value="Nicolas, Juliette, Christelle, Olive, Nico, Laeti" style="width:100%;">' +
+      '<label for="pwreset-old" style="display:block; margin-top:0.5rem;">Mot de passe actuel de ces comptes</label>' +
+      '<input type="password" id="pwreset-old" autocomplete="off" style="width:100%;">' +
+      '<label for="pwreset-new" style="display:block; margin-top:0.5rem;">Nouveau mot de passe temporaire (6 caractères min.)</label>' +
+      '<input type="text" id="pwreset-new" autocomplete="off" style="width:100%;">' +
+      '<div style="margin-top:0.6rem;"><button type="button" class="primary" id="pwreset-go-btn">Remplacer les mots de passe</button></div>' +
+      '<pre id="pwreset-log" style="white-space:pre-wrap; font-size:0.78rem; max-height:260px; overflow:auto; margin-top:0.6rem;">' + escapeHtml(pwResetLog) + '</pre></div>';
+  }
+  function runPasswordReset() {
+    if (!isAdmin() || pwResetRunning) return;
+    var names = (document.getElementById('pwreset-names').value || '').split(',').map(function (n) { return n.trim(); }).filter(Boolean);
+    var oldPw = document.getElementById('pwreset-old').value;
+    var newPw = document.getElementById('pwreset-new').value;
+    pwResetLog = '';
+    if (!names.length || !oldPw || newPw.length < 6) { pwLog('Remplis les pseudos, le mot de passe actuel et un nouveau mot de passe (6 caractères min.).'); return; }
+    if (newPw === oldPw) { pwLog('Le nouveau mot de passe doit être différent de l\'ancien.'); return; }
+    pwResetRunning = true;
+    var secondary = null;
+    try { secondary = firebase.initializeApp(firebaseConfig, 'pwreset-' + Date.now()); } catch (e) { pwLog('ERREUR : ' + (e && e.message ? e.message : e)); pwResetRunning = false; return; }
+    var secAuth = secondary.auth();
+    Promise.all([db.collection('users').get(), db.collection('userPrivate').get()]).then(function (res) {
+      var emailByUid = {};
+      res[1].docs.forEach(function (d) { emailByUid[d.id] = d.data().email; });
+      var targets = names.map(function (n) {
+        var u = res[0].docs.filter(function (d) { return (d.data().name || '').toLowerCase() === n.toLowerCase(); })[0];
+        return { name: n, email: u ? (emailByUid[u.id] || u.data().email) : null };
+      });
+      return targets.reduce(function (chain, t) {
+        return chain.then(function () {
+          if (!t.email) { pwLog('✗ ' + t.name + ' : compte ou email introuvable'); return null; }
+          return secAuth.signInWithEmailAndPassword(t.email, oldPw).then(function (cred) {
+            return cred.user.updatePassword(newPw);
+          }).then(function () {
+            pwLog('✓ ' + t.name + ' : mot de passe remplacé');
+            return secAuth.signOut();
+          }).catch(function (err) {
+            pwLog('✗ ' + t.name + ' : ' + (err && err.code === 'auth/invalid-credential' || err && err.code === 'auth/wrong-password' ? 'mot de passe actuel incorrect (déjà changé ?)' : (err && err.message ? err.message : err)));
+          });
+        });
+      }, Promise.resolve());
+    }).then(function () { pwLog('Terminé.'); }).catch(function (e) { pwLog('ERREUR : ' + (e && e.message ? e.message : e)); }).then(function () {
+      pwResetRunning = false;
+      if (secondary && secondary.delete) secondary.delete().catch(function () {});
+    });
+  }
+
   function renderOptionalFeaturesSection() {
     if (!isAdmin()) return '';
     var rows = OPTIONAL_FEATURES.map(function (f) {
@@ -3509,6 +3572,7 @@
     html += '<div style="margin-top:0.9rem;">' + renderBadgesLegend() + '</div>';
     html += renderPartnersSection();
     html += renderOptionalFeaturesSection();
+    html += renderPasswordResetSection();
     return html;
   }
 
@@ -13506,6 +13570,8 @@
         savePartners(textarea ? textarea.value : '');
       });
     }
+    var pwGoBtn = document.getElementById('pwreset-go-btn');
+    if (pwGoBtn) pwGoBtn.addEventListener('click', function () { if (confirm('Remplacer le mot de passe de ces comptes ?')) runPasswordReset(); });
     document.querySelectorAll('[data-feature-toggle]').forEach(function (cb) {
       cb.addEventListener('change', function () {
         saveFeatureVisibility(cb.getAttribute('data-feature-toggle'), cb.checked);
