@@ -1619,74 +1619,6 @@
     { key: 'specialActivities', labelKey: 'feature_special_activities_label' },
     { key: 'rental', labelKey: 'feature_rental_label' }
   ];
-  // ---- Migration sécurité (admin, temporaire) ----
-  // Une seule fois après le déploiement des règles : enregistre chaque
-  // pseudo dans names/ et déplace les emails vers userPrivate/. À retirer
-  // du code une fois faite.
-  var migrationLog = '';
-  var migrationRunning = false;
-  function migLog(msg) {
-    migrationLog += msg + '\n';
-    var el = document.getElementById('migration-log');
-    if (el) { el.textContent = migrationLog; el.scrollTop = el.scrollHeight; }
-  }
-  function renderSecurityMigrationSection() {
-    if (!isAdmin()) return '';
-    return '<div style="margin-top:1.2rem; border-top:1px solid var(--border); padding-top:0.9rem;">' +
-      '<div class="section-title" style="font-size:0.95rem;">Migration sécurité (une seule fois)</div>' +
-      '<div class="help-text">Réserve chaque pseudo existant et déplace les emails vers un espace privé. Commence par « Simulation » (n\'écrit rien), puis « Migrer ».</div>' +
-      '<div style="margin-top:0.6rem; display:flex; gap:0.5rem;">' +
-      '<button type="button" class="ghost" id="migration-dry-btn">Simulation</button>' +
-      '<button type="button" class="primary" id="migration-go-btn">Migrer</button></div>' +
-      '<pre id="migration-log" style="white-space:pre-wrap; font-size:0.78rem; max-height:260px; overflow:auto; margin-top:0.6rem;">' + escapeHtml(migrationLog) + '</pre></div>';
-  }
-  function runSecurityMigration(dry) {
-    if (!isAdmin() || migrationRunning) return;
-    migrationRunning = true;
-    migrationLog = '';
-    migLog(dry ? '=== SIMULATION ===' : '=== MIGRATION ===');
-    var claimed = {}, tasks = [];
-    Promise.all([db.collection('users').get(), db.collection('riders').get(), db.collection('names').get()]).then(function (res) {
-      res[2].docs.forEach(function (d) { claimed[d.id] = d.data().uid; });
-      var users = res[0].docs;
-      users.forEach(function (d) {
-        var u = d.data(), name = (u.name || '').trim();
-        if (!name) { migLog('! profil sans pseudo ignoré : ' + d.id); return; }
-        var key = nameKey(name);
-        if (key.indexOf('/') !== -1) { migLog('! pseudo avec "/" (à renommer) : ' + name); return; }
-        if (claimed[key] && claimed[key] !== d.id) {
-          migLog('! CONFLIT de pseudo "' + name + '" (déjà pris par ' + claimed[key] + ') -- compte ' + d.id + ' non enregistré, à renommer.');
-        } else if (!claimed[key]) {
-          claimed[key] = d.id;
-          tasks.push(['pseudo ' + name, function () { return db.collection('names').doc(key).set({ uid: d.id, name: name }); }]);
-        }
-        if (u.email) {
-          tasks.push(['email privé ' + name, function () { return db.collection('userPrivate').doc(d.id).set({ email: u.email }, { merge: true }); }]);
-        }
-      });
-      res[1].docs.forEach(function (d) {
-        var name = ((d.data().name) || '').trim(), key = nameKey(name);
-        if (!name || key.indexOf('/') !== -1 || claimed[key]) return;
-        claimed[key] = 'legacy';
-        tasks.push(['pilote sans compte réservé : ' + name, function () { return db.collection('names').doc(key).set({ uid: 'legacy', name: name }); }]);
-      });
-      // Emails retirés des profils publics seulement une fois toutes les copies privées créées.
-      users.forEach(function (d) {
-        var u = d.data();
-        if (u.email && u.email.toLowerCase() !== ADMIN_EMAIL.toLowerCase()) {
-          tasks.push(['email retiré du profil public ' + (u.name || d.id), function () { return db.collection('users').doc(d.id).update({ email: firebase.firestore.FieldValue.delete() }); }]);
-        }
-      });
-      migLog(tasks.length + ' opération(s) prévue(s).');
-      return tasks.reduce(function (chain, t) {
-        return chain.then(function () {
-          if (dry) { migLog('  (simul.) ' + t[0]); return null; }
-          return t[1]().then(function () { migLog('  OK ' + t[0]); }).catch(function (e) { migLog('  ERREUR ' + t[0] + ' : ' + (e && e.message ? e.message : e)); });
-        });
-      }, Promise.resolve());
-    }).then(function () { migLog('Terminé.'); }).catch(function (e) { migLog('ERREUR : ' + (e && e.message ? e.message : e)); }).then(function () { migrationRunning = false; });
-  }
-
   function renderOptionalFeaturesSection() {
     if (!isAdmin()) return '';
     var rows = OPTIONAL_FEATURES.map(function (f) {
@@ -3577,7 +3509,6 @@
     html += '<div style="margin-top:0.9rem;">' + renderBadgesLegend() + '</div>';
     html += renderPartnersSection();
     html += renderOptionalFeaturesSection();
-    html += renderSecurityMigrationSection();
     return html;
   }
 
@@ -13575,10 +13506,6 @@
         savePartners(textarea ? textarea.value : '');
       });
     }
-    var migDryBtn = document.getElementById('migration-dry-btn');
-    var migGoBtn = document.getElementById('migration-go-btn');
-    if (migDryBtn) migDryBtn.addEventListener('click', function () { runSecurityMigration(true); });
-    if (migGoBtn) migGoBtn.addEventListener('click', function () { if (confirm('Lancer la migration pour de bon ?')) runSecurityMigration(false); });
     document.querySelectorAll('[data-feature-toggle]').forEach(function (cb) {
       cb.addEventListener('change', function () {
         saveFeatureVisibility(cb.getAttribute('data-feature-toggle'), cb.checked);
