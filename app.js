@@ -4654,6 +4654,11 @@
     html += '</div>';
     html += '<div class="help-text" id="f-group-hint"' + (groupHint ? '' : ' style="display:none;"') + '>' + tr('group_hint_prefix') + escapeHtml(groupHint) + '.</div>';
     html += '<div class="help-text" id="f-slot-hint"' + (suggestedSlotIdx !== -1 ? '' : ' style="display:none;"') + '>' + tr('slot_hint') + '</div>';
+    html += '<div class="import-chrono-row">' +
+      '<button type="button" class="ghost" id="import-photo-btn">📷 Importer depuis une photo</button>' +
+      '<button type="button" class="ghost" id="import-paste-btn">📋 Coller une liste de temps</button>' +
+      '<input type="file" id="import-photo-input" accept="image/*" hidden>' +
+      '</div>';
     html += '<label for="f-laps">' + tr('chronos_field_label') + '</label>' +
       '<textarea id="f-laps" placeholder="1:23.456' + String.fromCharCode(10) + '1:22.980' + String.fromCharCode(10) + '1:23.120" required></textarea>' +
       '<div class="help-text">' + tr('chronos_field_help') + '</div>';
@@ -14237,6 +14242,18 @@
     }
     var fLapsEl = document.getElementById('f-laps');
     if (fLapsEl) attachLapsAutoFormat(fLapsEl);
+    var importPhotoBtn = document.getElementById('import-photo-btn');
+    var importPhotoInput = document.getElementById('import-photo-input');
+    var importPasteBtn = document.getElementById('import-paste-btn');
+    if (importPhotoBtn && importPhotoInput) {
+      importPhotoBtn.addEventListener('click', function () { importPhotoInput.click(); });
+      importPhotoInput.addEventListener('change', function () {
+        var file = importPhotoInput.files && importPhotoInput.files[0];
+        importPhotoInput.value = '';
+        if (file) openChronoImport('photo', file);
+      });
+    }
+    if (importPasteBtn) importPasteBtn.addEventListener('click', function () { openChronoImport('paste'); });
     var recapShareBtn = document.getElementById('daily-recap-share-btn');
     if (recapShareBtn) {
       recapShareBtn.addEventListener('click', function () {
@@ -14906,6 +14923,179 @@
     });
   }
 
+  // ---- Import de chronos (photo / capture d'écran / texte collé) ----
+  // La lecture de l'image se fait sur l'appareil (Tesseract.js, voir
+  // chrono-import.js) -- gratuit, aucune image n'est envoyée. Rien n'est
+  // enregistré ici : l'écran de validation remplit seulement le formulaire,
+  // et c'est le bouton d'enregistrement habituel qui confirme.
+
+  // Même pilote, date, circuit et mêmes tours (à 0,5 ms) = même feuille
+  // importée deux fois.
+  function findDuplicateSession(rider, date, circuit, laps) {
+    return (STATE.sessions || []).some(function (s) {
+      if (s.rider !== rider || s.date !== date || s.circuit !== circuit) return false;
+      if (!s.laps || s.laps.length !== laps.length) return false;
+      return s.laps.every(function (v, i) { return Math.abs(v - laps[i]) < 0.0005; });
+    });
+  }
+
+  function openChronoImport(mode, file) {
+    var CI = window.ChronoImport;
+    if (!CI) { showToast('Import indisponible (fichier non chargé) -- recharge la page.'); return; }
+    var overlay = document.createElement('div');
+    overlay.className = 'crop-modal-overlay';
+    var box = document.createElement('div');
+    box.className = 'crop-modal import-modal';
+    box.style.maxWidth = '440px';
+    box.style.maxHeight = '90vh';
+    box.style.overflowY = 'auto';
+    overlay.appendChild(box);
+    document.body.appendChild(overlay);
+    function close() { if (overlay.parentNode) overlay.parentNode.removeChild(overlay); }
+    function setBody(html) { box.innerHTML = html; var c = box.querySelector('[data-imp="cancel"]'); if (c) c.addEventListener('click', close); }
+
+    var riderEl = document.getElementById('f-rider');
+    var riderName = (riderEl && riderEl.value) || (currentUserProfile && currentUserProfile.name) || '';
+    var profile = (STATE.usersByName || {})[riderName] || currentUserProfile || {};
+    var me = {
+      number: profile.bikeNumber || '',
+      names: [riderName, profile.firstName, profile.lastName, [profile.firstName, profile.lastName].filter(Boolean).join(' ')].filter(Boolean)
+    };
+
+    function showMessage(title, text) {
+      setBody('<h2 class="section-title">' + escapeHtml(title) + '</h2><p>' + escapeHtml(text) + '</p>' +
+        '<div style="margin-top:0.8rem;"><button type="button" class="primary" data-imp="cancel">Fermer</button></div>');
+    }
+
+    function showPaste() {
+      setBody('<h2 class="section-title">Coller une liste de temps</h2>' +
+        '<p class="help-text">Colle des temps (un par ligne ou séparés par des espaces / virgules), ou le texte copié d\'un site de chronométrage. Ex. 1:58.742</p>' +
+        '<textarea id="imp-paste" rows="8" style="width:100%;" placeholder="1:58.742&#10;1:57.221"></textarea>' +
+        '<div style="margin-top:0.8rem; display:flex; gap:0.5rem;"><button type="button" class="primary" data-imp="analyze">Analyser</button>' +
+        '<button type="button" class="ghost" data-imp="cancel">Annuler</button></div>');
+      box.querySelector('[data-imp="analyze"]').addEventListener('click', function () {
+        var text = box.querySelector('#imp-paste').value;
+        showValidate(CI.analyze(text, { circuits: allCircuits(), me: me, loose: true, confidence: 100 }));
+      });
+    }
+
+    function showReading(pct) {
+      setBody('<h2 class="section-title">Lecture de l\'image…</h2><p class="help-text" id="imp-progress">' +
+        (pct == null ? 'Préparation (le premier chargement peut prendre quelques secondes)…' : 'Reconnaissance du texte : ' + Math.round(pct * 100) + ' %') +
+        '</p><p class="help-text">Tout se passe sur ton appareil, l\'image n\'est envoyée nulle part.</p>' +
+        '<div style="margin-top:0.8rem;"><button type="button" class="ghost" data-imp="cancel">Annuler</button></div>');
+    }
+
+    function showValidate(result) {
+      var cands = result.candidates;
+      var sel = result.selected;
+      var formDate = (document.getElementById('f-date') || {}).value || '';
+      var formCircuit = (document.getElementById('f-circuit') || {}).value || selectedCircuit || '';
+      var circuitVal = result.circuit || formCircuit;
+      var dateVal = result.date ? isoToFrDate(result.date) : formDate;
+      var h = '<h2 class="section-title">Vérifie les temps lus</h2>';
+      if (!cands.length) {
+        h += '<div class="field-error visible">Aucun temps n\'a été reconnu. Essaie avec une photo plus nette et bien cadrée sur le tableau, une capture d\'écran, ou colle les temps en texte.</div>' +
+          '<div style="margin-top:0.8rem; display:flex; gap:0.5rem;"><button type="button" class="ghost" data-imp="paste">Coller du texte</button><button type="button" class="ghost" data-imp="cancel">Fermer</button></div>';
+        setBody(h);
+        box.querySelector('[data-imp="paste"]').addEventListener('click', showPaste);
+        return;
+      }
+      if (result.lowConfidence) {
+        h += '<div class="field-error visible">⚠ Lecture peu fiable (' + Math.round(result.confidence) + ' %' +
+          ') : relis chaque temps, surtout ceux marqués ⚠, avant de continuer.</div>';
+      }
+      if (cands.length > 1 || sel === -1) {
+        h += '<div class="help-text" style="margin-top:0.6rem;">' + (sel === -1 ? 'Je n\'ai pas reconnu ta ligne -- choisis-la :' : 'Plusieurs lignes détectées -- vérifie que c\'est la tienne :') + '</div>';
+        cands.forEach(function (c, i) {
+          var best = c.laps.length ? Math.min.apply(null, c.laps) : null;
+          h += '<label style="display:block; margin:0.3rem 0;"><input type="radio" name="imp-cand" value="' + i + '"' + (i === sel ? ' checked' : '') + '> ' +
+            escapeHtml(c.label || 'Ligne') + ' <span class="help-text">(' + c.laps.length + ' tour' + (c.laps.length > 1 ? 's' : '') +
+            (best != null ? ', meilleur ' + CI.formatLap(best) : '') + (i === sel && result.autoMatched ? ', détectée' : '') + ')</span></label>';
+        });
+      }
+      h += '<label for="imp-laps" style="margin-top:0.7rem; display:block;">Tours (un par ligne, modifiables)</label>' +
+        '<textarea id="imp-laps" rows="7" style="width:100%;"></textarea><div class="help-text" id="imp-flags"></div>' +
+        '<div class="field-row" style="margin-top:0.6rem;"><div><label for="imp-date">Date' + (result.date ? ' (lue sur la feuille)' : '') + '</label>' +
+        '<input type="text" id="imp-date" inputmode="numeric" value="' + escapeHtml(dateVal) + '"></div>' +
+        '<div><label for="imp-circuit">Circuit' + (result.circuit ? ' (reconnu)' : '') + '</label><select id="imp-circuit">' +
+        allCircuits().map(function (c) { return '<option value="' + escapeHtml(c) + '"' + (c === circuitVal ? ' selected' : '') + '>' + escapeHtml(c) + '</option>'; }).join('') +
+        '</select></div></div>' +
+        '<div class="field-error" id="imp-dupe" style="display:none;"></div>' +
+        '<div style="margin-top:0.9rem; display:flex; gap:0.5rem;"><button type="button" class="primary" data-imp="apply">Remplir le formulaire</button>' +
+        '<button type="button" class="ghost" data-imp="cancel">Annuler</button></div>' +
+        '<div class="help-text" style="margin-top:0.5rem;">Rien n\'est enregistré tant que tu n\'as pas validé le formulaire.</div>';
+      setBody(h);
+
+      var lapsEl = box.querySelector('#imp-laps');
+      var flagsEl = box.querySelector('#imp-flags');
+      var dupeEl = box.querySelector('#imp-dupe');
+      function currentLaps() { return CI.parseLapList(lapsEl.value); }
+      function refreshFlags() {
+        var laps = currentLaps();
+        var bad = CI.outlierIndexes(laps);
+        flagsEl.innerHTML = bad.length
+          ? '⚠ ' + bad.map(function (i) { return 'tour ' + (i + 1) + ' (' + CI.formatLap(laps[i]) + ')'; }).join(', ') + ' : très différent des autres (tour de rentrée ? erreur de lecture ?)'
+          : '';
+        flagsEl.style.color = bad.length ? 'var(--danger)' : '';
+        var iso = frDateToIso(box.querySelector('#imp-date').value);
+        var circuit = box.querySelector('#imp-circuit').value;
+        var dupe = iso && laps.length && findDuplicateSession(riderName, iso, circuit, laps);
+        dupeEl.style.display = dupe ? '' : 'none';
+        dupeEl.className = 'field-error' + (dupe ? ' visible' : '');
+        dupeEl.textContent = dupe ? 'Ces tours sont déjà enregistrés pour ce pilote à cette date et sur ce circuit.' : '';
+      }
+      function loadCandidate(i) {
+        var c = cands[i];
+        lapsEl.value = c ? c.laps.map(CI.formatLap).join('\n') : '';
+        refreshFlags();
+      }
+      loadCandidate(sel === -1 ? -1 : sel);
+      box.querySelectorAll('input[name="imp-cand"]').forEach(function (r) {
+        r.addEventListener('change', function () { loadCandidate(parseInt(r.value, 10)); });
+      });
+      lapsEl.addEventListener('input', refreshFlags);
+      box.querySelector('#imp-date').addEventListener('input', refreshFlags);
+      box.querySelector('#imp-circuit').addEventListener('change', refreshFlags);
+      box.querySelector('[data-imp="apply"]').addEventListener('click', function () {
+        var laps = currentLaps();
+        if (!laps.length) { flagsEl.textContent = 'Aucun tour à importer.'; return; }
+        var fLaps = document.getElementById('f-laps');
+        var fDate = document.getElementById('f-date');
+        var fCircuit = document.getElementById('f-circuit');
+        if (fLaps) fLaps.value = laps.map(CI.formatLap).join('\n');
+        var dateField = box.querySelector('#imp-date').value.trim();
+        if (fDate && frDateToIso(dateField)) { fDate.value = dateField; fDate.dispatchEvent(new Event('input', { bubbles: true })); }
+        var circuitField = box.querySelector('#imp-circuit').value;
+        if (fCircuit && circuitField) { fCircuit.value = circuitField; fCircuit.dispatchEvent(new Event('change', { bubbles: true })); }
+        close();
+        showToast('Tours importés -- vérifie puis enregistre le chrono.', 'success');
+      });
+    }
+
+    if (mode === 'paste') { showPaste(); return; }
+    // Photo : la bibliothèque de lecture se télécharge au premier usage
+    // (réseau nécessaire ce jour-là), ensuite le navigateur la garde.
+    if (!window.Tesseract && navigator.onLine === false) {
+      showMessage('Pas de connexion', 'La lecture d\'une photo nécessite une connexion la première fois (chargement du lecteur de texte). Utilise « Coller une liste de temps » ou la saisie manuelle.');
+      return;
+    }
+    showReading(null);
+    CI.recognize(file, function (p) {
+      var el = box.querySelector('#imp-progress');
+      if (el) el.textContent = 'Reconnaissance du texte : ' + Math.round(p * 100) + ' %';
+    }).then(function (r) {
+      if (!overlay.parentNode) return; // annulé entre-temps
+      showValidate(CI.analyze(r.text, { circuits: allCircuits(), me: me, confidence: r.confidence }));
+    }).catch(function (err) {
+      if (!overlay.parentNode) return;
+      var msg = (err && err.message === 'tesseract-load-failed')
+        ? 'Impossible de charger le lecteur de texte (connexion ?). Réessaie avec du réseau, ou utilise « Coller une liste de temps ».'
+        : (err && err.message === 'image-unreadable') ? 'Cette image n\'a pas pu être ouverte.' : 'La lecture a échoué : ' + ((err && err.message) || err);
+      showMessage('Import impossible', msg);
+    });
+  }
+
   function onSubmit(ev) {
     ev.preventDefault();
     var riderEl = document.getElementById('f-rider');
@@ -14964,6 +15154,11 @@
       return;
     }
 
+    if (findDuplicateSession(rider, date, circuit, laps)) {
+      errEl.textContent = 'Ce chrono existe déjà (même pilote, même date, même circuit et mêmes tours) -- rien n\'a été ajouté.';
+      errEl.classList.add('visible');
+      return;
+    }
     var previousBest = riderCircuitBest(rider, circuit);
     var session = { id: genId(), rider: rider, date: date, circuit: circuit, laps: laps };
     if (bike) session.bike = bike;
