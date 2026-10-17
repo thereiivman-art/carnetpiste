@@ -2958,3 +2958,4 @@
 .add-chrono-btn, .cta-btn, button.primary.add-chrono-btn, button.primary.cta-btn { display: block; width: 100%; padding: 0.9rem 1rem; font-size: 1.05rem; font-weight: 700; border-radius: 12px; }
 .add-chrono-btn + .card, .cta-btn + .card { margin-top: 0.9rem; }
 .card + .pill-tabs { margin-top: 0.9rem; }
+.card > .planning-section:first-child { margin-top: 0; border-top: none; padding-top: 0; }

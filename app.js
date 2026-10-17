@@ -3832,7 +3832,7 @@
 
   function renderAccountManagerPanel() {
     if (!accountManagerOpen) return '';
-    var html = '<button type="button" class="ghost" id="account-manager-back" style="margin-bottom:0.6rem;">' + tr('back_to_my_profile') + '</button>';
+    var html = '<button type="button" class="link-btn back-link" id="account-manager-back">' + tr('back_to_my_profile') + '</button>';
     html += '<div class="card account-manager-panel">';
     html += '<div class="section-title" style="display:flex; align-items:center; justify-content:space-between;">' + tr('account_management_label') +
       '<button type="button" class="ghost icon-btn" id="rider-manager-toggle" aria-label="' + tr('manage_riders_roster') + '" title="' + tr('manage_riders_roster') + '">⚙</button></div>';
@@ -5581,7 +5581,7 @@
   // circuit: explicit now (EN PISTE's own current/next event circuit) --
   // no longer tied to Chronos' selectedCircuit since this card lives in
   // EN PISTE instead (see renderPlanningTab).
-  function renderChronoGoalsCard(circuit) {
+  function renderChronoGoalsCard(circuit, asSection) {
     var me = currentUserProfile;
     // Un objectif de session et un ressenti n'ont de sens que pour qui
     // roule -- même distinction isNonRider que partout ailleurs (stats,
@@ -5593,13 +5593,14 @@
     var goals = (me.chronoGoals || {})[circuit] || '';
     var last = mostRecentSessionForRider(me.name);
     var feelingOpt = last && last.feeling ? FEELING_OPTIONS.filter(function (f) { return f.key === last.feeling; })[0] : null;
-    var html = '<div class="card" style="margin-top:1rem;"><h2 class="section-title">' + tr('goal_heading') + '</h2>';
+    var html = asSection ? '' : '<div class="card" style="margin-top:1rem;"><h2 class="section-title">' + tr('goal_heading') + '</h2>';
     html += feelingOpt
       ? '<div class="help-text">' + tr('goal_last_feeling') + feelingOpt.icon + ' ' + escapeHtml(feelingOpt.label) + (last.feelingComment ? ' — ' + escapeHtml(last.feelingComment) : '') + '</div>'
       : '<div class="help-text">' + tr('goal_no_feeling') + '</div>';
     html += '<textarea id="chrono-goals-input" rows="4" style="margin-top:0.6rem;" placeholder="' + tr('goal_placeholder') + '">' + escapeHtml(goals) + '</textarea>';
     html += '<button type="button" class="ghost" id="chrono-goals-save-btn" data-circuit="' + escapeHtml(circuit) + '" style="margin-top:0.5rem;">' + tr('save') + '</button>';
     if (chronoGoalsMessage) html += '<div class="help-text" style="margin-top:0.4rem;">' + escapeHtml(chronoGoalsMessage) + '</div>';
+    if (asSection) return collapsibleSection('objectif-session', tr('goal_heading') + (goals ? ' ✓' : ''), html, !goals);
     html += '</div>';
     return html;
   }
@@ -6032,6 +6033,8 @@
   var outingView = null; // { circuit, date, eventId }
   function openOuting(circuit, date, eventId) {
     outingView = { circuit: circuit, date: date, eventId: eventId || null };
+    // A roulage still to come opens on its infos; a past one on its chronos.
+    pillState.outing = date > dateKey(new Date()) ? 'infos' : 'chronos';
     activeView = 'outing';
     renderRoot();
     window.scrollTo(0, 0);
@@ -6078,47 +6081,68 @@
     }
     var slotsAll = group ? todaysGroupSlots(circuit, group) : [];
     html += '<div class="outing-group-card"><div class="outing-group-main"><span class="outing-label">Mon groupe</span><span class="outing-group-value">' + escapeHtml(group || '—') + '</span>' +
-      '<span class="help-text">🕒 ' + (slotsAll.length ? escapeHtml(slotsAll.map(function (sl) { return sl.label; }).join(', ')) : 'Horaires non communiqués') + '</span></div>' +
+      '<span class="help-text">🕒 ' + (slotsAll.length ? escapeHtml(slotsAll.map(function (sl) { return sl.label; }).join(', ')) : (group ? 'Horaires non communiqués' : 'Groupe pas encore attribué')) + '</span></div>' +
       '<div class="outing-group-status">' + statusHtml + '</div></div>';
 
-    // Meilleur tour
-    if (status === 'avenir') {
-      html += '<button type="button" class="outing-best-card" data-carnet-circuit="' + escapeHtml(circuit) + '"><span class="outing-label light">Mon record à battre</span>' +
-        '<span class="outing-best-time">' + (prevBest !== null ? formatTime(prevBest) : '—') + '</span>' +
-        '<span class="outing-best-delta">' + (prevBest !== null ? 'Objectif : faire mieux !' : 'Premier roulage sur ce circuit') + '</span><span class="outing-best-arrow">›</span></button>';
-    } else
-    html += '<button type="button" class="outing-best-card" data-carnet-circuit="' + escapeHtml(circuit) + '"><span class="outing-label light">Meilleur tour</span>' +
-      '<span class="outing-best-time">' + (best !== null ? formatTime(best) : '—') + '</span>' +
-      (best !== null && prevBest !== null ? '<span class="outing-best-delta">' + (best < prevBest ? '🏆 Nouveau record (−' + (prevBest - best).toFixed(3) + ')' : '+' + (best - prevBest).toFixed(3) + ' vs record') + '</span>' : (best !== null ? '<span class="outing-best-delta">1er roulage ici</span>' : '<span class="outing-best-delta">Pas encore de chrono pour ce jour</span>')) +
-      '<span class="outing-best-arrow">›</span></button>';
+    // Same pills as everywhere else: Chronos / Infos / Repères.
+    var notes = myTrackNotes(circuit);
+    html += renderPills('outing', [['chronos', 'Chronos' + (sessions.length ? ' (' + sessions.length + ')' : '')], ['infos', 'Infos'], ['reperes', 'Repères' + (notes.length ? ' (' + notes.length + ')' : '')]]);
+    var cur = pillState.outing;
 
-    // Tuiles
-    html += '<div class="outing-tiles">' +
-      '<button type="button" class="outing-tile" ' + (ev ? 'data-open-event="' + escapeHtml(ev.id) + '"' : 'data-carnet-circuit="' + escapeHtml(circuit) + '"') + '><span class="outing-tile-icon">ℹ️</span><strong>Informations</strong><span class="help-text">Horaires, groupes, infos pratiques</span></button>' +
-      '<button type="button" class="outing-tile" data-action="open-track-notes" data-circuit="' + escapeHtml(circuit) + '"><span class="outing-tile-icon">📍</span><strong>Plan &amp; repères</strong><span class="help-text">' + myTrackNotes(circuit).length + ' repère(s) sur le plan</span></button>' +
-      '</div>';
-    if (info.liveTimingUrl) {
-      html += '<a class="outing-live" href="' + escapeHtml(info.liveTimingUrl) + '" target="_blank" rel="noopener"><span class="outing-live-dot">((•))</span><span><strong>Live timing</strong><br><span>Sur le site du chronométreur</span></span><span class="outing-live-arrow">→</span></a>';
-    }
-
-    // Mes sessions du jour
-    html += '<div class="card"><h2 class="section-title">Mes sessions</h2>';
-    if (!sessions.length) {
-      html += '<div class="help-text">Aucun chrono enregistré ce jour-là.</div>';
+    if (cur === 'chronos') {
+      // Meilleur tour
+      if (status === 'avenir') {
+        html += '<button type="button" class="outing-best-card" data-carnet-circuit="' + escapeHtml(circuit) + '"><span class="outing-label light">Mon record à battre</span>' +
+          '<span class="outing-best-time">' + (prevBest !== null ? formatTime(prevBest) : '—') + '</span>' +
+          '<span class="outing-best-delta">' + (prevBest !== null ? 'Objectif : faire mieux !' : 'Premier roulage sur ce circuit') + '</span><span class="outing-best-arrow">›</span></button>';
+      } else {
+        html += '<button type="button" class="outing-best-card" data-carnet-circuit="' + escapeHtml(circuit) + '"><span class="outing-label light">Meilleur tour</span>' +
+          '<span class="outing-best-time">' + (best !== null ? formatTime(best) : '—') + '</span>' +
+          (best !== null && prevBest !== null ? '<span class="outing-best-delta">' + (best < prevBest ? '🏆 Nouveau record (−' + (prevBest - best).toFixed(3) + ')' : '+' + (best - prevBest).toFixed(3) + ' vs record') + '</span>' : (best !== null ? '<span class="outing-best-delta">1er roulage ici</span>' : '<span class="outing-best-delta">Pas encore de chrono pour ce jour</span>')) +
+          '<span class="outing-best-arrow">›</span></button>';
+      }
+      if (status !== 'avenir') html += '<button type="button" class="primary add-chrono-btn" id="outing-add-chrono">+ Ajouter un chrono pour ce jour</button>';
+      // Mes sessions du jour
+      html += '<div class="card">';
+      if (!sessions.length) {
+        html += '<div class="empty-state">' + (status === 'avenir' ? 'Tes chronos de ce roulage apparaîtront ici.' : 'Aucun chrono enregistré ce jour-là.') + '</div>';
+      } else {
+        sessions.slice().sort(function (a, b) { return (a.slotStart || 0) - (b.slotStart || 0); }).forEach(function (x) {
+          var b = sessionBest(x);
+          html += '<div class="outing-session"><div><strong>' + escapeHtml(x.slotLabel || (x.group ? 'Groupe ' + x.group : 'Session')) + '</strong>' +
+            '<div class="outing-session-laps">' + x.laps.map(function (l) { return l === b ? '<span class="best-lap">' + formatTime(l) + '</span>' : '<span class="other-lap">' + formatTime(l) + '</span>'; }).join(' ') + '</div></div>' +
+            shareControl(x) + '</div>';
+        });
+      }
+      html += '</div>';
+      var debs = myDebriefs(circuit, date);
+      if (debs.length) {
+        html += '<div class="card"><h2 class="section-title">Mes débriefs</h2>' + debs.map(function (d) {
+          return '<div class="outing-session"><div><strong>' + (d.feeling || '') + ' ' + escapeHtml(d.time || '') + '</strong><div>' + escapeHtml(d.note || '') + '</div></div></div>';
+        }).join('') + '</div>';
+      }
+    } else if (cur === 'infos') {
+      if (info.liveTimingUrl) {
+        html += '<a class="outing-live" href="' + escapeHtml(info.liveTimingUrl) + '" target="_blank" rel="noopener"><span class="outing-live-dot">((•))</span><span><strong>Live timing</strong><br><span>Sur le site du chronométreur</span></span><span class="outing-live-arrow">→</span></a>';
+      }
+      html += '<div class="card">';
+      var horaires = ev ? eventHoraires(ev, date) : null;
+      var groupsAvail = horaires ? HORAIRES_GROUPS.filter(function (g) { return horaires[g.key]; }) : [];
+      if (info.briefing) html += '<div class="help-text" style="margin-bottom:0.6rem; color:var(--accent); font-weight:600;">Briefing ' + escapeHtml(info.briefing) + '</div>';
+      if (groupsAvail.length) {
+        html += '<h2 class="section-title">Horaires</h2>' + renderHoraireGroups(horaires, groupsAvail.map(function (g) { return g.key; }), ev, info.briefing);
+      } else {
+        html += '<div class="empty-state">Pas encore d\'horaires pour ce roulage.</div>';
+        if (ev) html += renderHorairesImportButton(ev, false);
+      }
+      if (ev) html += '<button type="button" class="ghost" data-open-event="' + escapeHtml(ev.id) + '" style="margin-top:0.8rem;">Fiche complète du roulage ›</button>';
+      html += '</div>';
     } else {
-      sessions.slice().sort(function (a, b) { return (a.slotStart || 0) - (b.slotStart || 0); }).forEach(function (x) {
-        var b = sessionBest(x);
-        html += '<div class="outing-session"><div><strong>' + escapeHtml(x.slotLabel || (x.group ? 'Groupe ' + x.group : 'Session')) + '</strong>' +
-          '<div class="outing-session-laps">' + x.laps.map(function (l) { return l === b ? '<span class="best-lap">' + formatTime(l) + '</span>' : '<span class="other-lap">' + formatTime(l) + '</span>'; }).join(' ') + '</div></div>' +
-          shareControl(x) + '</div>';
-      });
-    }
-    html += '<button type="button" class="ghost" id="outing-add-chrono" style="margin-top:0.6rem;">+ Ajouter un chrono pour ce jour</button></div>';
-    var debs = myDebriefs(circuit, date);
-    if (debs.length) {
-      html += '<div class="card"><h2 class="section-title">Mes débriefs</h2>' + debs.map(function (d) {
-        return '<div class="outing-session"><div><strong>' + (d.feeling || '') + ' ' + escapeHtml(d.time || '') + '</strong><div>' + escapeHtml(d.note || '') + '</div></div></div>';
-      }).join('') + '</div>';
+      html += '<button type="button" class="primary add-chrono-btn" data-action="open-track-notes" data-circuit="' + escapeHtml(circuit) + '">📍 ' + (notes.length ? 'Voir le plan et mes repères' : 'Noter mes repères sur le plan') + '</button>';
+      html += '<div class="card">' + (notes.length ? notes.map(function (n, i) {
+        return '<div class="track-note-line"><span class="track-pin static">' + (i + 1) + '</span><span><strong>' + (n.turn ? 'Virage ' + escapeHtml(n.turn) : 'Repère ' + (i + 1)) + '</strong>' +
+          (trackNoteSummary(n) ? ' — ' + escapeHtml(trackNoteSummary(n)) : '') + '</span></div>';
+      }).join('') : '<div class="empty-state">Aucun repère pour ' + escapeHtml(circuit) + ' : freinage, déclenchement, corde, sortie… touche le plan pour les épingler.</div>') + '</div>';
     }
     html += '</div>';
     return html;
@@ -8909,7 +8933,7 @@
   }
   // Pastilles (3e niveau, à l'intérieur d'un sous-onglet) : même style que
   // le filtre Passés/À venir du carnet. État mémorisé par groupe.
-  var pillState = { profil: 'identite', settings: 'affichage', social: 'fil', events: 'avenir', circuit: 'plan', stats: 'records', teams: 'mine', team: 'fil', coach: 'demandes', planning: 'programme' };
+  var pillState = { profil: 'identite', settings: 'affichage', social: 'fil', events: 'avenir', circuit: 'plan', stats: 'records', teams: 'mine', team: 'fil', coach: 'demandes', planning: 'programme', outing: 'chronos' };
   function renderPills(group, items) {
     var cur = pillState[group];
     if (!items.some(function (it) { return it[0] === cur; })) cur = pillState[group] = items[0][0];
@@ -10525,7 +10549,6 @@
     // whichever one happens to be selected in Chronos. Its own
     // margin-top:1rem (see renderChronoGoalsCard) already gives it clean
     // breathing room below the orange card.
-    var goalsHtml = renderChronoGoalsCard(ev.circuit).replace('<div class="card" style="margin-top:1rem;">', '<div class="card">');
 
     // Grey card: this account's own personal info for the sortie -- never
     // something the Team orga fills in for everyone.
@@ -10533,7 +10556,8 @@
     if (isOngoing && (ev.riders || []).indexOf(currentUserProfile && currentUserProfile.name) !== -1) {
       jourjHtml = '<button type="button" class="primary jourj-launch" data-action="open-jourj">🏁 Mode jour J — prochaine session en grand</button>';
     }
-    var personal = '<div class="card personal-info-card">';
+    var personal = '<div class="card prep-card">';
+    personal += renderChronoGoalsCard(ev.circuit, true);
     personal += renderTrackNotesReminder(ev.circuit);
     personal += renderFriendsGroupSection(ev);
     if (!advancedHidden()) {
@@ -10548,7 +10572,7 @@
     // vs. this rider's own prep (Ma prépa).
     return jourjHtml + renderClientPills('planning', [['programme', 'Programme'], ['prepa', 'Ma prépa']]) +
       cpillSection('planning', 'programme') + html + '</div>' +
-      cpillSection('planning', 'prepa') + goalsHtml + personal + '</div>';
+      cpillSection('planning', 'prepa') + personal + '</div>';
   }
 
   // The connected pilote's own group for a given date -- pm takes
@@ -13315,12 +13339,12 @@
           : null;
         if (managingEvent) {
           html += '<div style="margin-top:1rem;">' +
-            '<button type="button" class="ghost" data-action="event-manage-close" style="margin-bottom:0.6rem;">' + tr('back_to_team') + escapeHtml(expandedTeam.name) + '</button>' +
+            '<button type="button" class="link-btn back-link" data-action="event-manage-close">' + tr('back_to_team') + escapeHtml(expandedTeam.name) + '</button>' +
             renderEventManagementScreen(managingEvent, expandedTeam) +
             '</div>';
         } else {
           html += '<div style="margin-top:1rem;">' +
-            '<button type="button" class="ghost" data-action="team-tile-close" style="margin-bottom:0.6rem;">' + tr('back_to_teams') + '</button>' +
+            '<button type="button" class="link-btn back-link" data-action="team-tile-close">' + tr('back_to_teams') + '</button>' +
             renderTeamCard(expandedTeam, me) +
             '</div>';
         }
