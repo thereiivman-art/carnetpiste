@@ -1,17 +1,19 @@
   :root {
-    --bg: #eef1f4;
+    /* Paddock : blanc cassé chaud, encre presque noire, rouge vibreur */
+    --bg: #f4f3ef;
     --surface: #ffffff;
-    --surface-alt: #e4e9ee;
-    --border: #ccd5dc;
-    --text: #16212c;
-    --text-muted: #5c6b78;
-    --accent: #d9691b;
-    --accent-strong: #b8540f;
+    --surface-alt: #ebe9e2;
+    --border: #e1dfd8;
+    --text: #14161a;
+    --text-muted: #6a6e76;
+    --accent: #c8261f;
+    --accent-strong: #9e1d18;
     --accent-ink: #ffffff;
-    --best: #1c8f5a;
-    --best-bg: #e3f5ec;
-    --danger: #c23b3b;
+    --best: #1d8a4e;
+    --best-bg: #e4f3ea;
+    --danger: #b42318;
     --danger-bg: #fbe9e8;
+    --kerb: repeating-linear-gradient(90deg, #c8261f 0 8px, #ffffff 8px 16px);
     --series-2: #2f6fed;
     --series-3: #8b3fd9;
     --series-4: #0e8f8f;
@@ -35,9 +37,10 @@
       --border: #2c3742;
       --text: #ecf1f5;
       --text-muted: #93a3b0;
-      --accent: #ef8b3a;
-      --accent-strong: #ffa456;
-      --accent-ink: #16120b;
+      --accent: #f0544a;
+      --accent-strong: #ff7a70;
+      --accent-ink: #ffffff;
+      --kerb: repeating-linear-gradient(90deg, #f0544a 0 8px, #f4f3ef 8px 16px);
       --best: #3fcf8e;
       --best-bg: rgba(63,207,142,0.14);
       --danger: #f0716a;
@@ -55,9 +58,10 @@
     --border: #2c3742;
     --text: #ecf1f5;
     --text-muted: #93a3b0;
-    --accent: #ef8b3a;
-    --accent-strong: #ffa456;
-    --accent-ink: #16120b;
+    --accent: #f0544a;
+    --accent-strong: #ff7a70;
+    --accent-ink: #ffffff;
+    --kerb: repeating-linear-gradient(90deg, #f0544a 0 8px, #f4f3ef 8px 16px);
     --best: #3fcf8e;
     --best-bg: rgba(63,207,142,0.14);
     --danger: #f0716a;
@@ -106,7 +110,7 @@
     /* A bold accent line, not a hairline neutral border -- the header is
        the one element on screen at all times, worth carrying the brand
        colour instead of blending into the background. */
-    border-bottom: 3px solid var(--accent);
+    border-bottom: 1px solid var(--border);
     margin-bottom: 0;
     /* Installed as a standalone PWA (see manifest.json), there's no browser
        chrome left to push content below the device's own status bar/notch
@@ -1838,7 +1842,7 @@
     font-size: 0.72rem;
     font-weight: 700;
     color: var(--accent);
-    background: var(--accent-bg, rgba(217, 105, 27, 0.12));
+    background: var(--accent-bg, rgba(200, 38, 31, 0.10));
     border: 1px solid var(--accent);
     border-radius: 999px;
     padding: 0.2rem 0.6rem;
@@ -2920,7 +2924,7 @@
 .jourj-overlay { position: fixed; inset: 0; z-index: 300; background: #111418; color: #f3f5f7; overflow-y: auto; padding: max(1rem, env(safe-area-inset-top)) 1rem max(1.5rem, env(safe-area-inset-bottom)); display: flex; flex-direction: column; gap: 1rem; }
 .jourj-top { display: flex; justify-content: space-between; align-items: flex-start; }
 .jourj-circuit { font-family: var(--font-display); font-weight: 800; font-size: 1.8rem; text-transform: uppercase; }
-.jourj-group { font-size: 1.15rem; color: #ef8b3a; font-weight: 700; }
+.jourj-group { font-size: 1.15rem; color: #ff7a70; font-weight: 700; }
 .jourj-close { background: rgba(255,255,255,0.1); color: #fff; border: none; border-radius: 50%; width: 46px; height: 46px; font-size: 1.2rem; cursor: pointer; }
 .jourj-main { background: #1c2229; border-radius: 22px; padding: 1.3rem 1rem; text-align: center; }
 .jourj-main.soon { background: #7a3511; }
@@ -3011,3 +3015,16 @@ div.outing-best-card { cursor: default; }
 .outing-live-dot { color: #fff; }
 .outing-live span span { color: var(--text-muted); }
 .feedback-row-actions { display: flex; gap: 0.5rem; margin-top: 0.4rem; }
+
+/* Signature Paddock : le petit vibreur rouge/blanc marque ce qui est sélectionné */
+.pill-tabs .pill-btn { position: relative; }
+.pill-tabs .pill-btn.active { color: var(--text); border-bottom-color: transparent; }
+.pill-tabs .pill-btn.active::after { content: ''; position: absolute; left: 0.45rem; right: 0.45rem; bottom: -1px; height: 3px; border-radius: 2px; background: var(--kerb); box-shadow: 0 0 0 1px rgba(200,38,31,0.15); }
+.bottom-nav-btn { position: relative; }
+.bottom-nav-btn.active { color: var(--text); }
+.bottom-nav-btn.active::after { content: ''; position: absolute; left: 50%; bottom: 4px; width: 20px; margin-left: -10px; height: 3px; border-radius: 2px; background: var(--kerb); }
+.sub-pill-btn.active { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.bottom-nav-btn.active::after { top: 0; bottom: auto; }
+/* Carte du prochain roulage : filet fin + liseré vibreur, comme les autres cartes clés */
+.today-schedule-card { border: 1px solid var(--border); position: relative; overflow: hidden; padding-top: 1.45rem; }
+.today-schedule-card::before { content: ''; position: absolute; left: 0; right: 0; top: 0; height: 5px; background: repeating-linear-gradient(90deg, #c8261f 0 14px, #ffffff 14px 28px); }
