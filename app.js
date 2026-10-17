@@ -179,7 +179,7 @@
       type_label: 'Type', coaching_option: 'Coaching', bapteme_option: 'Baptême piste',
       no_current_upcoming_event: 'Aucun roulage en cours ou à venir.',
       declare_availability_first: 'Déclare d\'abord tes disponibilités (',
-      declare_availability_first_suffix: ') sur le planning ci-dessus avant de proposer.',
+      declare_availability_first_suffix: ') dans la pastille Planning avant de proposer.',
       no_rider_or_companion_available: 'Aucun pilote ou accompagnant disponible pour l\'instant.',
       no_rider_available: 'Aucun pilote disponible pour l\'instant.',
       slot_label: 'Créneau', search_rider_or_companion: 'Rechercher un pilote ou un accompagnant',
@@ -569,7 +569,7 @@
       type_label: 'Type', coaching_option: 'Coaching', bapteme_option: 'Track intro',
       no_current_upcoming_event: 'No ongoing or upcoming trackday.',
       declare_availability_first: 'First declare your availability (',
-      declare_availability_first_suffix: ') on the schedule above before proposing.',
+      declare_availability_first_suffix: ') in the Planning tab before proposing.',
       no_rider_or_companion_available: 'No rider or companion available right now.',
       no_rider_available: 'No rider available right now.',
       slot_label: 'Slot', search_rider_or_companion: 'Search for a rider or companion',
@@ -4580,6 +4580,18 @@
     var names = rider ? [rider] : (selectedRiders && selectedRiders.size ? Array.from(selectedRiders) : riders).slice().sort(function (a, b) { return a.localeCompare(b); });
     // Exporte exactement ce que la page affiche -- le(s) pilote(s)
     // actuellement filtré(s) par le sélecteur global, pas toute la base.
+    var sp = pillState.stats;
+    if (sp === 'donnees') return html + '<div class="card"><h2 class="section-title">Mes données</h2>' +
+      '<div class="help-text"><strong>Qui voit quoi :</strong> tes chronos et tes roulages sont visibles des autres pilotes de l\'appli (classements, roulages en commun) -- tu peux les retirer de ta fiche dans Réglages → Confidentialité. Tes repères et tes débriefs ne sont affichés qu\'à toi. Ton email reste privé.</div>' +
+      '<div style="margin-top:0.6rem;"><button type="button" class="ghost" data-action="export-chronos-csv">⬇ Exporter mes chronos (tableur CSV)</button></div></div>';
+    if (sp === 'trophees') {
+      var skipFor = isNonRider ? me.name : null;
+      names.forEach(function (r) { if (r !== skipFor) html += renderRiderAchievementsCard(r); });
+      if (isNonRider) html += renderAchievementsCard(nonRiderAch, 'achievements-profile-' + me.name);
+      return html;
+    }
+    names.forEach(function (r) { html += renderRiderStatsCard(r); });
+    return html;
     html += '<div class="card"><h2 class="section-title">Mes données</h2>' +
       '<div class="help-text"><strong>Qui voit quoi :</strong> tes chronos et tes roulages sont visibles des autres pilotes de l\'appli (classements, roulages en commun) -- tu peux les retirer de ta fiche dans Réglages → Confidentialité. Tes repères et tes débriefs ne sont affichés qu\'à toi. Ton email reste privé.</div>' +
       '<div style="margin-top:0.6rem;"><button type="button" class="ghost" data-action="export-chronos-csv">⬇ Exporter mes chronos (tableur CSV)</button></div></div>';
@@ -5502,13 +5514,19 @@
     if (!circuits.length) {
       return '<div class="card"><div class="empty-state">' + (coreDataLoading() ? tr('loading') : tr('circuit_none_yet')) + '</div></div>';
     }
-    var html = '<div class="card"><label for="f-filter-circuit">' + tr('circuit_label') + '</label><select id="f-filter-circuit">';
+    var html = renderPills('circuit', [['plan', 'Plan & repères'], ['chronos', 'Chronos'], ['infos', 'Infos']]);
+    html += '<div class="card"><label for="f-filter-circuit">' + tr('circuit_label') + '</label><select id="f-filter-circuit">';
     circuits.forEach(function (c) {
       html += '<option value="' + escapeHtml(c) + '"' + (c === selectedCircuit ? ' selected' : '') + '>' + escapeHtml(c) + '</option>';
     });
     html += '</select></div>';
-    html += renderCircuitInfoCard();
-    html += '<div class="card">' + renderTrackNotesReminder(selectedCircuit) + '</div>';
+    var cp = pillState.circuit;
+    if (cp === 'plan') {
+      html += renderCircuitInfoCard('plan');
+      html += '<div class="card">' + renderTrackNotesReminder(selectedCircuit) + '</div>';
+      return html;
+    }
+    if (cp === 'infos') { html += renderCircuitInfoCard('infos'); return html; }
     // Objectif pour la prochaine session lives in EN PISTE now (see
     // renderPlanningTab), keyed off the current/next event's own circuit --
     // not repeated here.
@@ -5570,7 +5588,7 @@
     html += '</div>';
     return html;
   }
-  function renderCircuitInfoCard() {
+  function renderCircuitInfoCard(mode) {
     var info = circuitInfo(selectedCircuit);
     var sessions = circuitSessionsDesc(selectedCircuit, true);
     var lastSession = null;
@@ -5589,8 +5607,8 @@
     // Pas de titre "circuit-name" redondant ici -- le <select> juste
     // au-dessus (voir renderCircuitTab) sert déjà de titre pour ce
     // circuit, pas la peine de répéter son nom.
+    if (mode === 'plan') return '<div class="card circuit-info-card"><div class="circuit-info-map-full">' + renderCircuitVisual(info) + '</div></div>';
     var html = '<div class="card circuit-info-card">';
-    html += '<div class="circuit-info-map-full">' + renderCircuitVisual(info) + '</div>';
     html += '<div class="circuit-info-list">';
     // Mes données d'abord : mon record et mes sorties sur ce circuit.
     var meName = currentUserProfile && currentUserProfile.name;
@@ -8860,7 +8878,7 @@
   }
   // Pastilles (3e niveau, à l'intérieur d'un sous-onglet) : même style que
   // le filtre Passés/À venir du carnet. État mémorisé par groupe.
-  var pillState = { social: 'fil', events: 'avenir' };
+  var pillState = { social: 'fil', events: 'avenir', circuit: 'plan', stats: 'records', teams: 'mine', team: 'fil', coach: 'demandes' };
   function renderPills(group, items) {
     var cur = pillState[group];
     if (!items.some(function (it) { return it[0] === cur; })) cur = pillState[group] = items[0][0];
@@ -9933,16 +9951,16 @@
     upcoming.sort(function (a, b) { return a.dateStart < b.dateStart ? -1 : a.dateStart > b.dateStart ? 1 : 0; });
     past.sort(function (a, b) { return a.dateStart < b.dateStart ? 1 : a.dateStart > b.dateStart ? -1 : 0; });
     var html = '';
+    var discovery = renderProEventDiscovery(me);
+    var pills = [['avenir', 'À venir' + ((ongoing.length + upcoming.length) ? ' (' + (ongoing.length + upcoming.length) + ')' : '')], ['passes', 'Passés'], ['calendrier', 'Calendrier']];
+    if (discovery) pills.push(['decouvrir', 'Découvrir']);
+    html += renderPills('events', pills);
     if (editingEventId === 'new') {
       html += renderEventForm();
     } else {
       html += '<button type="button" class="primary add-chrono-btn" data-action="quick-outing">+ Ajouter un roulage</button>';
       html += '<div class="help-text carnet-add-help">Circuit et date suffisent ; horaires et groupes peuvent venir après (photo de l\'affiche).</div>';
     }
-    var discovery = renderProEventDiscovery(me);
-    var pills = [['avenir', 'À venir' + ((ongoing.length + upcoming.length) ? ' (' + (ongoing.length + upcoming.length) + ')' : '')], ['passes', 'Passés'], ['calendrier', 'Calendrier']];
-    if (discovery) pills.push(['decouvrir', 'Découvrir']);
-    html += renderPills('events', pills);
     var cur = pillState.events;
     if (cur === 'avenir') {
       if (!ongoing.length && !upcoming.length) {
@@ -12580,8 +12598,10 @@
     // présentation/liens) -- it's the main reason a Team Leader opens
     // this screen, not something to scroll past Fil d'actualité/Membres
     // to reach.
-    if (isLeader) html += renderTeamEventsManagement(team);
-    if (isLeader && team.teamPro) html += renderTeamProBadgeGrantSection(team);
+    var headHtml = html; html = '';
+    var bRoulages = '';
+    if (isLeader) bRoulages += renderTeamEventsManagement(team);
+    if (isLeader && team.teamPro) bRoulages += renderTeamProBadgeGrantSection(team);
 
     var feedBody = !feed.length
       ? '<div class="empty-state">' + (teamFeedSynced ? tr('nothing_yet') : tr('loading')) + '</div>'
@@ -12632,7 +12652,7 @@
           '</div>';
       }
     }
-    html += collapsibleSection('team-feed-' + team.id, tr('feed_heading') + feed.length + ')', feedBody);
+    var bFil = feedBody;
 
     var teamFollowers = (STATE.teamFollowersByTeam || {})[team.id] || [];
     html += renderTeamMembersSection(team, members, teamFollowers, me, isLeader);
@@ -12683,9 +12703,14 @@
       }
     }
 
-    html += collapsibleSection('team-settings-' + team.id, tr('settings_label'), renderTeamSettings(team, isLeader));
-    html += '</div>';
-    return html;
+    var bMembres = html;
+    var bReglages = renderTeamSettings(team, isLeader);
+    var teamPills = [['fil', 'Fil'], ['membres', 'Membres (' + members.length + ')']];
+    if (isLeader) teamPills.push(['roulages', 'Roulages']);
+    teamPills.push(['reglages', 'Réglages']);
+    var pillsHtml = renderPills('team', teamPills);
+    var body = pillState.team === 'membres' ? bMembres : pillState.team === 'roulages' ? bRoulages : pillState.team === 'reglages' ? bReglages : bFil;
+    return headHtml + pillsHtml + body + '</div>';
   }
 
   function renderCreateTeamCard() {
@@ -13072,14 +13097,20 @@
   function renderCoachTab() {
     var me = currentUserProfile;
     if (!me) return '';
-    var html = '<div class="section-title" style="font-size:0.95rem;">' + tr('coaching_bapteme_heading') + '</div>' +
-      '<div class="help-text" style="margin-bottom:0.8rem;">' + tr('coaching_bapteme_help') + '</div>';
-    html += renderCoachPlanningSection(me);
     var iAmCoach = isCoachBadge(me);
     var myRequests = (STATE.coachRequests || []).filter(function (r) { return r.from === me.name || r.to === me.name; });
+    var pendingCount = myRequests.filter(function (r) { return r.status === 'pending'; }).length;
+    var activeCount = myRequests.filter(function (r) { return r.status === 'accepted'; }).length;
+    var coachPills = [['demandes', 'Demandes' + (pendingCount ? ' (' + pendingCount + ')' : '')], ['suivis', 'En cours' + (activeCount ? ' (' + activeCount + ')' : '')], ['planning', 'Planning'], ['nouveau', iAmCoach ? 'Proposer' : 'Demander']];
+    var html = renderPills('coach', coachPills);
+    var cpill = pillState.coach;
+    if (cpill === 'planning') {
+      return html + '<div class="help-text" style="margin-bottom:0.8rem;">' + tr('coaching_bapteme_help') + '</div>' + renderCoachPlanningSection(me);
+    }
+    var startLen = html.length;
 
     var needsAction = myRequests.filter(function (r) { return r.status === 'pending' && coachRequestAwaitingMe(r, me); });
-    if (needsAction.length) {
+    if (cpill === 'demandes' && needsAction.length) {
       var needsActionBody = needsAction.map(function (r) {
         return renderCoachActionRow(r, r.from === me.name ? r.to : r.from);
       }).join('');
@@ -13087,7 +13118,7 @@
     }
 
     var waiting = myRequests.filter(function (r) { return r.status === 'pending' && !coachRequestAwaitingMe(r, me); });
-    if (waiting.length) {
+    if (cpill === 'demandes' && waiting.length) {
       var waitingBody = waiting.map(function (r) {
         return renderCoachWaitingRow(r, r.from === me.name ? r.to : r.from);
       }).join('');
@@ -13095,14 +13126,14 @@
     }
 
     var active = myRequests.filter(function (r) { return r.status === 'accepted'; });
-    if (active.length) {
+    if (cpill === 'suivis' && active.length) {
       var activeBody = active.map(function (r) {
         return renderCoachActiveRow(r, r.from === me.name ? r.to : r.from);
       }).join('');
       html += collapsibleCard('coach-active', (iAmCoach ? tr('my_coached_riders_label') : tr('my_coaching_label')) + ' (' + active.length + ')', activeBody, true);
     }
 
-    if (iAmCoach) {
+    if (cpill === 'nouveau' && iAmCoach) {
       // Proposer un coaching (pilotes seulement) ou un baptême piste
       // (pilote OU accompagnant, un baptême étant un tour passager --
       // pas de badge séparé, juste une deuxième chose qu'un Coach peut
@@ -13144,22 +13175,23 @@
           '<datalist id="coach-propose-list">' + proposeCandidates.map(function (n) { return '<option value="' + escapeHtml(n) + '">'; }).join('') + '</datalist>' +
           '<button type="submit" class="primary" style="margin-top:0.7rem;">' + (coachProposeType === 'bapteme' ? tr('propose_bapteme_btn') : tr('propose_coaching_btn')) + '</button></form>';
       }
-      html += collapsibleCard('coach-propose', tr('propose_coaching_bapteme_heading'), proposeBody, false);
+      html += collapsibleCard('coach-propose', tr('propose_coaching_bapteme_heading'), proposeBody, true);
     }
 
     // Self-service: ask any Coach for regular coaching, with no relation
     // at all yet -- only offered once (a second request would just hit
     // the "already" guard in sendCoachRequest), and not the baptême
     // side, which stays Coach-initiated only per the brief.
-    if (!myRequests.length) {
+    if (cpill === 'nouveau' && !iAmCoach) {
       var coachNames = allKnownUserNames().filter(function (n) { return n !== me.name && isCoachBadge((STATE.usersByName || {})[n]); });
       if (coachNames.length) {
         var selfRequestBody = '<form id="coach-request-form"><label for="coach-request-select">' + tr('ask_to_be_coached_by') + '</label>' +
           '<select id="coach-request-select">' + coachNames.map(function (n) { return '<option value="' + escapeHtml(n) + '">' + escapeHtml(n) + '</option>'; }).join('') + '</select>' +
           '<button type="submit" class="primary" style="margin-top:0.7rem;">' + tr('send_request_generic') + '</button></form>';
-        html += collapsibleCard('coach-self-request', tr('ask_for_coaching_heading'), selfRequestBody, false);
-      }
+        html += collapsibleCard('coach-self-request', tr('ask_for_coaching_heading'), selfRequestBody, true);
+      } else html += '<div class="card"><div class="empty-state">Aucun coach disponible pour l\'instant.</div></div>';
     }
+    if (html.length === startLen) html += '<div class="card"><div class="empty-state">' + (cpill === 'suivis' ? 'Aucun coaching en cours.' : 'Aucune demande en attente.') + '</div></div>';
     return html;
   }
 
@@ -13192,6 +13224,11 @@
     // instead of sitting here, unscoped, right under the header -- it's
     // per-team info, not something to show before you've even picked one.
 
+    if (!expandedTeamId) {
+      html = renderPills('teams', [['mine', 'Mes teams' + (myTeams.length ? ' (' + myTeams.length + ')' : '')], ['discover', 'Découvrir'], ['create', 'Créer un team']]) + html;
+      if (pillState.teams === 'discover') return html + renderTeamDiscovery(me, myTeams);
+      if (pillState.teams === 'create') return html + renderCreateTeamCard();
+    }
     if (!myTeams.length) {
       html += '<div class="card"><div class="empty-state">' + tr('no_team_yet') + '</div></div>';
     } else {
@@ -13243,10 +13280,6 @@
     // Same reasoning as the tile grid above -- Découvrir des Teams/Créer
     // un Team belong on the Team space's home screen, not trailing behind
     // whatever specific Team/Event you've drilled into.
-    if (!expandedTeamId) {
-      html += renderTeamDiscovery(me, myTeams);
-      html += renderCreateTeamCard();
-    }
     return html;
   }
 
@@ -13409,7 +13442,7 @@
       if (activeView === 'outing') body = renderOutingPage();
       else if (activeView === 'carnet') body = carnetSub + renderCarnetTab();
       else if (activeView === 'circuit') body = carnetSub + renderCircuitTab();
-      else if (activeView === 'stats') body = carnetSub + renderMyRecordsCard() + renderStatsTab();
+      else if (activeView === 'stats') body = carnetSub + renderPills('stats', [['records', 'Records'], ['trophees', 'Trophées'], ['donnees', 'Mes données']]) + (pillState.stats === 'records' ? renderMyRecordsCard() : '') + renderStatsTab();
       else if (activeView === 'planning') body = renderSubNav([['planning', 'Prochain roulage'], ['event', 'Calendrier']]) + renderPlanningTab();
       else if (activeView === 'social') body = renderSubNav(communauteSubItems()) + renderSocialTab();
       else if (activeView === 'team') body = renderSubNav(communauteSubItems()) + renderTeamTab();

@@ -2974,3 +2974,10 @@
 .pill-tabs { display: flex; gap: 0.35rem; flex-wrap: wrap; margin: 0.2rem 0 0.8rem; }
 .pill-tabs .pill-btn { font-size: 0.88rem; padding: 0.35rem 0.85rem; }
 .add-chrono-btn[data-action="quick-outing"] { width: 100%; padding: 0.9rem; font-size: 1.05rem; }
+
+/* Pastilles (3e niveau) : grandes, pleine largeur, juste sous le sous-onglet */
+.pill-tabs { display: flex; gap: 0; flex-wrap: nowrap; margin: -0.4rem 0 0.9rem; border-bottom: 1px solid var(--border); overflow-x: auto; }
+.pill-tabs .pill-btn { flex: 1 0 auto; border: none; border-bottom: 3px solid transparent; border-radius: 0; background: none; padding: 0.7rem 0.6rem; font-size: 0.95rem; font-weight: 700; color: var(--text-muted); white-space: nowrap; }
+.pill-tabs .pill-btn.active { background: none; color: var(--accent); border-bottom-color: var(--accent); }
+/* Boutons d'action principaux : tous identiques */
+.add-chrono-btn, .cta-btn { display: block; width: 100%; padding: 0.9rem 1rem; font-size: 1.05rem; font-weight: 700; border-radius: 12px; }
