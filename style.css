@@ -2969,3 +2969,8 @@
 .planning-section.flat { margin-top: 0; border-top: none; padding-top: 0; }
 .planning-section.flat > summary { display: none; }
 .planning-section.flat > .planning-section-body { margin-top: 0; }
+/* Espacement uniforme entre cartes successives, partout */
+.card + .card { margin-top: 0.9rem; }
+.circuit-picker { margin: 0 0 0.9rem; }
+.circuit-picker select { font-weight: 700; }
+.no-top-rule > .planning-section { border-top: none; margin-top: 0; }

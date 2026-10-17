@@ -2858,7 +2858,7 @@
     var proTeamsFounded = (STATE.teams || []).filter(function (t) { return t.createdBy === name && t.teamPro; }).length;
     var wallPostCount = (STATE.wallPosts || []).filter(function (w) { return w.author === name; }).length;
     return [
-      achievementEntry('🧑‍🤝‍🧑', 'Premier ami', 'Avoir un premier ami accepté dans Social.', friendsCount, 1, 'ami(s)'),
+      achievementEntry('🧑‍🤝‍🧑', 'Premier ami', 'Avoir un premier ami accepté (Communauté → Amis & fil).', friendsCount, 1, 'ami(s)'),
       achievementEntry('👥', 'Cercle fidèle', 'Avoir 5 amis acceptés ou plus.', friendsCount, 5, 'amis'),
       achievementEntry('🏍️', 'Fondateur', 'Créer un Team.', teamsFounded, 1, 'team(s)'),
       achievementEntry('🏆', 'Team PRO', 'Fonder un Team certifié PRO.', proTeamsFounded, 1, 'team(s)'),
@@ -2943,6 +2943,7 @@
   // it), not just a row of chips with a tooltip. Collapsed by default
   // (masquable) so it doesn't crowd out the profile itself -- key must be
   // unique per rider/profile so open/closed state doesn't bleed between them.
+  var achievementsFlat = false;
   function renderAchievementsCard(achievements, key) {
     var earnedCount = achievements.filter(function (a) { return a.earned; }).length;
     var inner = '<div class="achievements-list">';
@@ -2956,6 +2957,7 @@
     });
     inner += '</div>';
     var title = '🏆 Trophées — ' + earnedCount + '/' + achievements.length + ' débloqués';
+    if (achievementsFlat) return '<div class="card achievements-card"><h2 class="section-title">' + escapeHtml(title) + '</h2>' + inner + '</div>';
     return '<div class="card achievements-card">' + collapsibleSection(key, title, inner) + '</div>';
   }
 
@@ -3067,7 +3069,7 @@
     var sessions = getDisplaySessions();
     var showRider = selectedRiders.size !== 1;
     var html = '<div class="card sessions-card">';
-    html += '<div class="circuit-head"><div class="circuit-name">' + escapeHtml(selectedCircuit) + '</div>';
+    html += '<div class="circuit-head"><h2 class="section-title" style="margin:0;">Historique</h2>';
     var record = null;
     sessions.forEach(function (s) {
       var b = sessionBest(s);
@@ -3138,10 +3140,10 @@
       '</details>';
   }
 
-  function renderRiderStatsCard(riderName) {
+  function renderRiderStatsCard(riderName, hideName) {
     var stats = riderStats(riderName);
     var html = '<div class="card">';
-    html += '<div class="rider-stat-name">' + escapeHtml(riderName) + '</div>';
+    html += hideName ? '<h2 class="section-title">Mes chiffres</h2>' : '<div class="rider-stat-name">' + escapeHtml(riderName) + '</div>';
     html += '<div class="rider-stat-summaries">';
     var outingsDetail = '';
     if (stats.lastSession) {
@@ -3479,7 +3481,7 @@
         '<label class="checklist-item" style="margin-top:0.4rem;"><input type="checkbox" id="profile-share-travel-info"' + (p.shareTravelInfo !== false ? ' checked' : '') + '> ' + tr('share_travel_info') + '</label>';
       sections.confidentialite = privacy;
     }
-    if (!advancedHidden()) sections.affichage += '<div style="margin-top:1rem;">' + renderMyTravelDefaultsSection() + '</div>';
+    if (!advancedHidden()) sections.affichage += '<div class="no-top-rule">' + renderMyTravelDefaultsSection() + '</div>';
     var accountHtml = '';
     // Separate form -- changing the sign-in email needs the current
     // password (Firebase requires a recent reauthentication for it), which
@@ -3582,10 +3584,12 @@
     html += '<div class="help-text">' + tr('about_text') + '</div>';
     html += '<div style="margin-top:1.1rem;"><button type="button" class="ghost" id="tutorial-open-btn">' + tr('review_tutorial_btn') + '</button></div>';
     html += '<div style="margin-top:0.9rem;">' + renderBadgesLegend() + '</div>';
-    html += renderPartnersSection();
-    html += renderOptionalFeaturesSection();
-    html += renderPasswordResetSection();
-    return html;
+    if (!isAdmin()) return '<div class="card">' + html + renderPartnersSection() + '</div>';
+    // Admin tools get their own pill instead of trailing under the help.
+    if (!pillState.aide) pillState.aide = 'aide';
+    var pills = renderPills('aide', [['aide', 'Aide'], ['admin', 'Admin']]);
+    if (pillState.aide === 'admin') return pills + '<div class="card">' + renderPartnersSection().replace('margin-top:1.2rem; border-top:1px solid var(--border); padding-top:0.9rem;', '') + renderOptionalFeaturesSection() + renderPasswordResetSection() + '</div>';
+    return pills + '<div class="card">' + html + '</div>';
   }
 
   // Retour d'expérience libre vers l'équipe de dev -- pas de backend/mail
@@ -3647,7 +3651,7 @@
     html += '<div class="profile-tab-body">';
     if (profileSubTab === 'parrainage') profileSubTab = 'profil'; // fusionné dans le QR d'invitation
     if (profileSubTab === 'reglages') html += renderProfileReglagesTab(p);
-    else if (profileSubTab === 'aide') html += '<div class="card">' + renderProfileAideTab(p) + '</div>';
+    else if (profileSubTab === 'aide') html += renderProfileAideTab(p);
     else if (profileSubTab === 'suggestion') html += '<div class="card">' + renderProfileSuggestionTab(p) + '</div>';
     else html += renderProfileProfilTab(p);
     html += '</div>';
@@ -4596,16 +4600,20 @@
     // Exporte exactement ce que la page affiche -- le(s) pilote(s)
     // actuellement filtré(s) par le sélecteur global, pas toute la base.
     var sp = pillState.stats;
-    if (sp === 'donnees') return html + '<div class="card"><h2 class="section-title">Mes données</h2>' +
-      '<div class="help-text"><strong>Qui voit quoi :</strong> tes chronos et tes roulages sont visibles des autres pilotes de l\'appli (classements, roulages en commun) -- tu peux les retirer de ta fiche dans Réglages → Confidentialité. Tes repères et tes débriefs ne sont affichés qu\'à toi. Ton email reste privé.</div>' +
-      '<div style="margin-top:0.6rem;"><button type="button" class="ghost" data-action="export-chronos-csv">⬇ Exporter mes chronos (tableur CSV)</button></div></div>';
+    if (sp === 'donnees') return html + '<button type="button" class="primary add-chrono-btn" data-action="export-chronos-csv">⬇ Exporter mes chronos (tableur CSV)</button>' +
+      '<div class="card"><h2 class="section-title">Qui voit quoi</h2>' +
+      '<div class="help-text">Tes chronos et tes roulages sont visibles des autres pilotes de l\'appli (classements, roulages en commun) -- tu peux les retirer de ta fiche dans Réglages → Vie privée. Tes repères et tes débriefs ne sont affichés qu\'à toi. Ton email reste privé.</div></div>';
     if (sp === 'trophees') {
       var skipFor = isNonRider ? me.name : null;
+      // Under the Trophées pill: shown open, the count as the card title.
+      achievementsFlat = true;
       names.forEach(function (r) { if (r !== skipFor) html += renderRiderAchievementsCard(r); });
       if (isNonRider) html += renderAchievementsCard(nonRiderAch, 'achievements-profile-' + me.name);
+      achievementsFlat = false;
       return html;
     }
-    names.forEach(function (r) { html += renderRiderStatsCard(r); });
+    var soloMe = names.length === 1 && me && names[0] === me.name;
+    names.forEach(function (r) { html += renderRiderStatsCard(r, soloMe); });
     return html;
     html += '<div class="card"><h2 class="section-title">Mes données</h2>' +
       '<div class="help-text"><strong>Qui voit quoi :</strong> tes chronos et tes roulages sont visibles des autres pilotes de l\'appli (classements, roulages en commun) -- tu peux les retirer de ta fiche dans Réglages → Confidentialité. Tes repères et tes débriefs ne sont affichés qu\'à toi. Ton email reste privé.</div>' +
@@ -4821,10 +4829,11 @@
     // The history table already supports any number of selected riders
     // (it shows a "Pilote" column when more than one is active), so keep
     // it visible in "Tous les pilotes" mode too.
+    // Action first (big "+ Ajouter un chrono" or the form), then the list.
+    html += renderForm();
     if (selectedCircuit && selectedRiders && selectedRiders.size) {
       html += renderSessionsCard();
     }
-    html += '<div style="margin-top:1rem;">' + renderForm() + '</div>';
     // The progression chart comes right after the chronos summary. With
     // several riders active (including "Tous les pilotes") every one of
     // them gets their own line, overlaid on the same chart, instead of
@@ -5530,7 +5539,7 @@
       return '<div class="card"><div class="empty-state">' + (coreDataLoading() ? tr('loading') : tr('circuit_none_yet')) + '</div></div>';
     }
     var html = renderPills('circuit', [['plan', 'Plan & repères'], ['chronos', 'Chronos'], ['infos', 'Infos']]);
-    html += '<div class="card"><label for="f-filter-circuit">' + tr('circuit_label') + '</label><select id="f-filter-circuit">';
+    html += '<div class="circuit-picker"><select id="f-filter-circuit" aria-label="' + tr('circuit_label') + '">';
     circuits.forEach(function (c) {
       html += '<option value="' + escapeHtml(c) + '"' + (c === selectedCircuit ? ' selected' : '') + '>' + escapeHtml(c) + '</option>';
     });
@@ -5538,7 +5547,8 @@
     var cp = pillState.circuit;
     if (cp === 'plan') {
       html += renderCircuitInfoCard('plan');
-      html += '<div class="card">' + renderTrackNotesReminder(selectedCircuit) + '</div>';
+      var nNotes = myTrackNotes(selectedCircuit).length;
+      html += '<div class="card"><h2 class="section-title">Mes repères' + (nNotes ? ' (' + nNotes + ')' : '') + '</h2>' + flatSections(renderTrackNotesReminder(selectedCircuit)) + '</div>';
       return html;
     }
     if (cp === 'infos') { html += renderCircuitInfoCard('infos'); return html; }
@@ -5548,7 +5558,6 @@
     // Chronos used to be its own tab; it's really always been about
     // "the currently active circuit", so it lives here now, right after
     // the circuit's own info.
-    html += '<h2 class="section-title" style="margin-top:0.5rem;">' + tr('chronos_heading') + '</h2>';
     html += renderChronosTab();
     return html;
   }
@@ -6017,7 +6026,7 @@
     if (!outings.length) return '';
     var records = {};
     outings.forEach(function (o) { if (!records[o.circuit] || o.best < records[o.circuit].best) records[o.circuit] = o; });
-    var html = '<div class="card"><h2 class="section-title">Mes records</h2>';
+    var html = '<div class="card"><h2 class="section-title">Record par circuit</h2>';
     Object.keys(records).sort().forEach(function (c) {
       var r = records[c];
       html += '<button type="button" class="carnet-row" data-carnet-circuit="' + escapeHtml(r.circuit) + '"><span class="carnet-row-main"><strong>' + escapeHtml(r.circuit) + '</strong>' +
