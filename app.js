@@ -941,6 +941,11 @@
 "Remplacer": "Replace",
 "Retirer": "Remove",
 "Supprimer la catégorie": "Delete category",
+"Rien de nouveau.": "Nothing new.", "QR code indisponible hors connexion -- partage le lien ci-dessous.": "QR code unavailable offline -- share the link below.", "Accepter": "Accept", "Refuser": "Decline", "Demande d'ami": "Friend request",
+"Invite un pilote": "Invite a rider", "Fais scanner ce code : il s'inscrit avec ton lien et devient ton filleul.": "Have them scan this code: they sign up with your link and become your referral.",
+"Partager le lien": "Share the link", "Copier": "Copy", "Lien copié": "Link copied",
+"souhaite rejoindre": "wants to join", "Accepter comme membre": "Accept as member", "comme adhérent": "as adherent", "comme Team Leader": "as Team Leader",
+"demande à devenir adhérent de": "asks to become an adherent of", "Accepter comme adhérent": "Accept as adherent",
 "Pas encore d'horaires pour ce roulage.": "No times for this trackday yet.",
 "Objectif": "Goal",
 "Repères": "Marks",
@@ -1192,6 +1197,9 @@
     [/^Dans (\d+) jours? — Groupe (.+)$/, 'In $1 days — Group $2'], [/^Dans 1 jour$/, 'Tomorrow'], [/^Dans (\d+) jours?$/, 'In $1 days'],
     [/^J-(\d+)$/, 'D-$1'],
     [/^Ex\. (.+)$/, 'E.g. $1'],
+    [/^invité par (.+)$/, 'invited by $1'],
+    [/^indique venir à (.+)$/, 'says they\'re going to $1'],
+    [/^souhaite rejoindre (.+)$/, 'wants to join $1'],
     [/^(.*) · (\d+) pilotes?$/, '$1 · $2 rider(s)'], [/^(\d+) pilotes?$/, '$1 rider(s)'],
     [/^y vont déjà · partagé par (.+)$/, 'already going · shared by $1'], [/^y vont déjà$/, 'already going'], [/^Sois le premier à y aller(.*)$/, 'Be the first to go$1'],
     [/^Progression — (.+)$/, 'Progress — $1'],
@@ -6472,7 +6480,7 @@
     overlay.querySelector('[data-q="close"]').addEventListener('click', close);
     var shareBtn = overlay.querySelector('[data-q="share"]');
     if (shareBtn) shareBtn.addEventListener('click', function () {
-      navigator.share({ text: 'Rejoins-moi sur Carnet de Piste, mon carnet de chronos et de repères : ' + link }).catch(function () {});
+      navigator.share({ text: (currentLang() === 'en' ? 'Join me on Carnet de Piste, my lap times and track marks logbook: ' : 'Rejoins-moi sur Carnet de Piste, mon carnet de chronos et de repères : ') + link }).catch(function () {});
     });
     overlay.querySelector('[data-q="copy"]').addEventListener('click', function () {
       if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(link).then(function () { showToast('Lien copié', 'success'); }).catch(function () {});
@@ -6484,7 +6492,7 @@
       var n = filleulCounts[currentUserProfile.name];
       var txt = (n == null ? '…' : n) + (n === 1 ? tr('filleul_singular') : tr('filleul_plural'));
       [[1, tr('parrain_badge')], [5, tr('grand_parrain_badge')]].forEach(function (m) {
-        txt += ' · ' + (n != null && n >= m[0] ? '✓ ' : m[0] + ' filleul' + (m[0] > 1 ? 's' : '') + ' → ') + m[1];
+        txt += ' · ' + (n != null && n >= m[0] ? '✓ ' : m[0] + (m[0] > 1 ? tr('filleul_plural') : tr('filleul_singular')) + ' → ') + m[1];
       });
       el.textContent = txt;
     }
