@@ -102,7 +102,7 @@
       no_event: 'Aucun roulage.', event_count_suffix: ' roulage', events_count_suffix: ' roulages',
       riders_unspecified: 'Pilotes non précisés', close: 'Fermer',
       team_label: 'Team', organizer_label: 'Organisateur', dates_label: 'Dates', note_label: 'Note',
-      book_register: 'Réserver / S\'inscrire ↗', how_was_it: 'Comment s\'est passé cet event ?',
+      book_register: 'Réserver chez l\'orga ↗', how_was_it: 'Comment s\'est passé cet event ?',
       groups_horaires_this_event: 'Groupes & horaires de ce roulage', circuit_map_heading: 'Carte du circuit',
       modify: 'Modifier',
       vis_public: 'Public', vis_adherent: 'Adhérent only', vis_membre: 'Membre only', vis_follower: 'Followers only', vis_ouvert: 'Ouvert',
@@ -167,13 +167,13 @@
       add_photo_btn: '📷 Ajouter une photo', adherents_badge: 'Adhérents',
       just_now: 'à l\'instant', min_ago_prefix: 'il y a ', min_ago_suffix: ' min', hour_ago_suffix: ' h',
       events_label: 'Roulages', circuits_visited_label: 'Circuits visités', track_days_label: 'Jours sur piste',
-      view_official_chronos: 'Voir ses chronos officiels ↗', verified_chronos_label: 'Chronos vérifiés (',
+      view_official_chronos: 'Voir ses chronos officiels ↗', verified_chronos_label: 'Chronos validés par le team (',
       not_shared_events: ' n\'a pas choisi de partager ses roulages/chronos.', trophies_not_shared: 'Trophées non partagés.',
       remove_friend_confirm: 'Retirer ' , remove_friend_confirm_suffix: ' de tes amis ?',
       confirm_label: 'Confirmer', remove_this_friend: 'Retirer cet ami',
       // Coach tab
       coaching_bapteme_heading: 'Coaching &amp; baptêmes piste',
-      coaching_bapteme_help: 'Un Coach peut proposer un suivi de coaching (pilotes) ou un baptême piste, un tour passager (pilotes et accompagnants) -- clique un créneau du planning ci-dessous pour lui demander directement dessus.',
+      coaching_bapteme_help: 'Un Coach peut proposer un suivi de coaching (pilotes) ou un baptême piste, un tour passager (pilotes et accompagnants) -- clique un créneau du planning ci-dessous pour lui envoyer une demande. Rien n\'est réservé ni payé ici : vous confirmez ensemble, avec l\'organisateur si besoin.',
       requests_to_handle_label: 'Demandes à traiter (', waiting_for_reply_label: 'En attente de réponse (',
       my_coached_riders_label: 'Mes pilotes coachés / baptisés', my_coaching_label: 'Mon coaching / baptême',
       type_label: 'Type', coaching_option: 'Coaching', bapteme_option: 'Baptême piste',
@@ -215,7 +215,7 @@
       notify_received_invite: 'J\'ai reçu une invitation', notify_team_news: 'Actu de mon Team',
       notify_adherent_request: 'Demande d\'adhésion sur un Team que je dirige',
       notify_request_decision: 'Réponse à une demande que j\'ai envoyée (ami, rejoindre un Team, devenir adhérent)',
-      notify_chrono_certified: 'Un de mes chronos a été vérifié',
+      notify_chrono_certified: 'Un de mes chronos a été validé par mon team',
       notify_reaction: 'Quelqu\'un a réagi à un de mes posts',
       notify_pro_outing: 'Nouveau roulage organisé par un Team PRO que je suis ou dont je suis adhérent',
       notify_coach_message: 'Nouveau message dans l\'espace coaching',
@@ -257,7 +257,7 @@
       role_info_pilote_1: 'Enregistrer tes chronos (à la main ou depuis une photo de ta feuille de temps) et retrouver ton historique et tes records par circuit',
       role_info_pilote_2: 'Noter tes repères (freinage, déclenchement, corde, sortie) sur le plan de chaque circuit',
       role_info_pilote_3: 'Retrouver les horaires, groupes et infos pratiques de chaque roulage dans l\'onglet Roulages',
-      role_info_pilote_4: 'En bonus : partager tes infos de voyage, faire vérifier tes chronos par l\'organisateur',
+      role_info_pilote_4: 'En bonus : partager tes infos de voyage, faire valider tes chronos par ton team',
       role_info_pilote_5: 'Suivre tes amis, réagir sur leur Journal et sur le fil d\'actualité de ton Team',
       role_info_pilote_6: 'Rejoindre un Team (amateur ou PRO) et participer à ses roulages',
       role_info_accompagnant_title: 'Espace accompagnant',
@@ -347,7 +347,7 @@
       groups_heading: 'Groupes', add_riders_to_group_hint: 'Ajoute des participants pour pouvoir les répartir en groupes.',
       remove_from_group_aria: 'Retirer du groupe', unassigned_label: 'Non attribués', nobody_yet: 'Personne pour l\'instant.',
       orphan_group_entry: 'nom invalide, à retirer', invalid_group_rider: 'Choisis un pilote dans la liste proposée.',
-      group_orga_staff: 'Groupe ORGA (staff)', group_r_rookies_label: 'Groupe R (Rookies)', verified_chronos_heading: 'Chronos vérifiés', no_chrono: 'Aucun chrono',
+      group_orga_staff: 'Groupe ORGA (staff)', group_r_rookies_label: 'Groupe R (Rookies)', verified_chronos_heading: 'Chronos validés par le team', no_chrono: 'Aucun chrono',
       no_announcements_yet: 'Aucune annonce pour l\'instant.', edited_suffix: ' (modifié)',
       announcement_placeholder: 'Ex. BRIEFING DEMAIN A 8H15', announcements_heading: 'Annonces',
       nothing_filled_in_yet: 'Rien renseigné pour l\'instant.', complete_btn: 'Compléter',
@@ -393,7 +393,7 @@
       team_migration_error_prefix: 'Erreur de migration Team : ', partial_migration_prefix: 'Migration partielle : ',
       email_updated_verify: 'Email mis à jour — vérifie ta boîte mail pour confirmer la nouvelle adresse.',
       rider_added: 'Pilote ajouté.', rider_renamed: 'Pilote renommé.', rider_deleted: 'Pilote supprimé.',
-      chrono_verified: 'Chrono vérifié.', already_landscape: 'Déjà en mode paysage.', nothing_to_undo: 'Rien à annuler.', nothing_to_redo: 'Rien à rétablir.',
+      chrono_verified: 'Chrono validé.', already_landscape: 'Déjà en mode paysage.', nothing_to_undo: 'Rien à annuler.', nothing_to_redo: 'Rien à rétablir.',
       annotation_saved: 'Annotation enregistrée.', you_joined_prefix: 'Tu as rejoint "',
       request_sent_plain: 'Demande envoyée.', joined_event_suffix: ' a rejoint le roulage.',
       travel_info_saved: 'Infos de voyage enregistrées.', message_cannot_be_empty: 'Le message ne peut pas être vide.',
@@ -492,7 +492,7 @@
       no_event: 'No trackday.', event_count_suffix: ' trackday', events_count_suffix: ' trackdays',
       riders_unspecified: 'Riders not specified', close: 'Close',
       team_label: 'Team', organizer_label: 'Organizer', dates_label: 'Dates', note_label: 'Note',
-      book_register: 'Book / Register ↗', how_was_it: 'How did this trackday go?',
+      book_register: 'Book with the organiser ↗', how_was_it: 'How did this trackday go?',
       groups_horaires_this_event: 'Groups & schedule for this trackday', circuit_map_heading: 'Circuit map',
       modify: 'Edit',
       vis_public: 'Public', vis_adherent: 'Adherents only', vis_membre: 'Members only', vis_follower: 'Followers only', vis_ouvert: 'Open',
@@ -557,7 +557,7 @@
       add_photo_btn: '📷 Add a photo', adherents_badge: 'Adherents',
       just_now: 'just now', min_ago_prefix: '', min_ago_suffix: ' min ago', hour_ago_suffix: ' h ago',
       events_label: 'Events', circuits_visited_label: 'Circuits visited', track_days_label: 'Track days',
-      view_official_chronos: 'View official lap times ↗', verified_chronos_label: 'Verified lap times (',
+      view_official_chronos: 'View official lap times ↗', verified_chronos_label: 'Team-validated lap times (',
       not_shared_events: ' hasn\'t chosen to share their trackdays/lap times.', trophies_not_shared: 'Trophies not shared.',
       remove_friend_confirm: 'Remove ', remove_friend_confirm_suffix: ' from your friends?',
       confirm_label: 'Confirm', remove_this_friend: 'Remove this friend',
@@ -605,7 +605,7 @@
       notify_received_invite: 'I received an invite', notify_team_news: 'News from my Team',
       notify_adherent_request: 'Adherent request on a Team I lead',
       notify_request_decision: 'Reply to a request I sent (friend, join a Team, become an adherent)',
-      notify_chrono_certified: 'One of my lap times was verified',
+      notify_chrono_certified: 'One of my lap times was validated by my team',
       notify_reaction: 'Someone reacted to one of my posts',
       notify_pro_outing: 'New trackday organized by a Team PRO I follow or am an adherent of',
       notify_coach_message: 'New message in the coaching space',
@@ -737,7 +737,7 @@
       groups_heading: 'Groups', add_riders_to_group_hint: 'Add participants to be able to split them into groups.',
       remove_from_group_aria: 'Remove from group', unassigned_label: 'Unassigned', nobody_yet: 'Nobody yet.',
       orphan_group_entry: 'invalid name, remove it', invalid_group_rider: 'Pick a rider from the suggested list.',
-      group_orga_staff: 'ORGA Group (staff)', group_r_rookies_label: 'Group R (Rookies)', verified_chronos_heading: 'Verified lap times', no_chrono: 'No lap time',
+      group_orga_staff: 'ORGA Group (staff)', group_r_rookies_label: 'Group R (Rookies)', verified_chronos_heading: 'Team-validated lap times', no_chrono: 'No lap time',
       no_announcements_yet: 'No announcements yet.', edited_suffix: ' (edited)',
       announcement_placeholder: 'E.g. BRIEFING TOMORROW AT 8:15AM', announcements_heading: 'Announcements',
       nothing_filled_in_yet: 'Nothing filled in yet.', complete_btn: 'Fill in',
@@ -3195,7 +3195,7 @@
     var verifiedDetail = !verifiedSessions.length ? '' : verifiedSessions.map(function (s) {
       return infoRow(escapeHtml(s.circuit) + ' — ' + escapeHtml(formatDate(s.date)), formatTime(sessionBest(s)) + ' ' + certifyControl(s));
     }).join('');
-    html += renderStatSummaryCategory('verified-' + riderName, 'Chronos vérifiés', verifiedSessions.length, verifiedDetail);
+    html += renderStatSummaryCategory('verified-' + riderName, 'Chronos validés par le team', verifiedSessions.length, verifiedDetail);
     html += renderRiderRecordsCategory(riderName);
     html += '</div>';
     html += '</div>';
@@ -3703,7 +3703,7 @@
     var u = (STATE.usersByName || {})[r.from] || {};
     var team = teamById(r.teamId);
     return '<div class="friend-row"><div class="friend-row-main">' + avatarHtml(u, r.from) + personNameHtml(r.from) + badgesHtml(u) +
-      '<span class="help-text">souhaite participer à ' + escapeHtml(r.circuit || '') + (team ? ' (' + escapeHtml(team.name) + ')' : '') + '</span></div>' +
+      '<span class="help-text">indique venir à ' + escapeHtml(r.circuit || '') + (team ? ' (' + escapeHtml(team.name) + ')' : '') + '</span></div>' +
       '<div class="friend-row-actions">' +
       '<button type="button" class="primary" data-action="event-join-request-accept" data-id="' + r.id + '">Accepter</button>' +
       '<button type="button" class="ghost" data-action="event-join-request-remove" data-id="' + r.id + '">Refuser</button>' +
@@ -5433,10 +5433,10 @@
   function certifyControl(session) {
     var manageable = canManageCertification(session);
     if (session.certifiedBy) {
-      var verifiedDesc = 'Chrono vérifié par ' + escapeHtml(session.certifiedBy);
+      var verifiedDesc = 'Chrono validé par ' + escapeHtml(session.certifiedBy) + ' (team) — non officiel';
       var pill = '<span class="verified-pill" title="' + verifiedDesc + '" data-badge-info="' + verifiedDesc + '">✓ Vérifié</span>';
       if (!manageable) return pill;
-      return pill + '<button type="button" class="ghost icon-btn" data-action="uncertify-session" data-id="' + session.id + '" aria-label="Retirer la vérification" title="Retirer la vérification">×</button>';
+      return pill + '<button type="button" class="ghost icon-btn" data-action="uncertify-session" data-id="' + session.id + '" aria-label="Retirer la validation" title="Retirer la validation">×</button>';
     }
     if (!manageable) return '';
     return '<button type="button" class="ghost icon-btn" data-action="certify-session" data-id="' + session.id + '" aria-label="Vérifier ce chrono" title="Vérifier ce chrono">✓</button>';
@@ -5490,6 +5490,7 @@
           })();
       return '<div class="info-row"><span class="info-label">' + nameLinkHtml(rider) + '</span><span class="info-value">' + valueHtml + '</span></div>' + maybeFicheHtml(rider);
     }).join('');
+    rows = '<div class="help-text" style="margin-bottom:0.5rem;">Validation interne au team, pour vos classements entre vous. La référence officielle reste le chronométrage de l\'organisateur.</div>' + rows;
     return collapsibleSection('cert-' + ev.id, tr('verified_chronos_heading'), rows, true);
   }
 
@@ -8839,15 +8840,15 @@
       var team = teamById(ev.teamId);
       var vis = ev.eventVisibility || 'membre';
       var myRequest = (STATE.eventJoinRequests || []).filter(function (r) { return r.eventId === ev.id && r.from === me.name; })[0];
-      var actionHtml = vis === 'ouvert'
-        ? '<button type="button" class="primary" data-action="event-join-ouvert" data-id="' + ev.id + '">Rejoindre</button>'
+      // "J'y vais" only puts the rider on this roulage's list in Carnet de
+      // Piste (déclaratif). The actual inscription/payment is the orga's
+      // own booking tool, offered first whenever the Team set one.
+      var goHtml = vis === 'ouvert'
+        ? '<button type="button" class="' + (ev.bookingUrl ? 'ghost' : 'primary') + '" data-action="event-join-ouvert" data-id="' + ev.id + '">J\'y vais</button>'
         : (myRequest
-          ? '<span class="help-text">Demande envoyée</span>'
-          : '<button type="button" class="ghost" data-action="event-join-request" data-id="' + ev.id + '" title="Envoie une demande sur Carnet de Piste, à valider par le Team -- ne réserve/paie rien.">Rejoindre</button>');
-      // A separate external action -- the actual paid reservation/
-      // inscription, if the Team Leader set one, never Carnet de Piste's
-      // own roster/join flow above.
-      if (ev.bookingUrl) actionHtml += ' <button type="button" class="ghost" data-action="open-external-url" data-url="' + escapeHtml(ev.bookingUrl) + '">Réserver ↗</button>';
+          ? '<span class="help-text">En attente du Team</span>'
+          : '<button type="button" class="ghost" data-action="event-join-request" data-id="' + ev.id + '" title="Te signale au Team sur Carnet de Piste -- ne réserve ni ne paie rien.">J\'y vais</button>');
+      var actionHtml = (ev.bookingUrl ? '<button type="button" class="primary" data-action="open-external-url" data-url="' + escapeHtml(ev.bookingUrl) + '">Réserver chez l\'orga ↗</button> ' : '') + goHtml;
       // The Team leads here (avatar, name, ✓ badge) rather than a bare
       // name in the help-text -- the whole point of this card is "which
       // Team PRO is proposing this", not just "which circuit".
@@ -8857,7 +8858,7 @@
         ' · ' + (visTags[vis] || '') + '</span></div>' +
         '<div class="friend-row-actions">' + actionHtml + '</div></div>';
     }
-    var legend = '<div class="help-text" style="margin-bottom:0.7rem;">"Rejoindre sur Carnet de Piste" envoie juste une demande au Team, à valider -- ça ne réserve ni ne paie rien. "Réserver" ouvre le site de billetterie du Team pour l\'inscription/le paiement.</div>';
+    var legend = '<div class="help-text" style="margin-bottom:0.7rem;">L\'inscription et le paiement se font chez l\'organisateur (« Réserver chez l\'orga »). « J\'y vais » te met seulement sur la liste des pilotes du roulage dans Carnet de Piste, pour retrouver horaires, groupe et copains.</div>';
     var toggle = legend + '<div style="display:flex; flex-wrap:wrap; gap:0.5rem; margin-bottom:0.7rem;">' +
       '<button type="button" class="calendar-view-btn' + (discoveryViewMode === 'list' ? ' active' : '') + '" data-action="discovery-view-mode" data-mode="list">Liste</button>' +
       '<button type="button" class="calendar-view-btn' + (discoveryViewMode === 'month' ? ' active' : '') + '" data-action="discovery-view-mode" data-mode="month">Mois</button>' +
@@ -9550,7 +9551,8 @@
       return '<div class="friend-row"' + dragAttrs + '><div class="friend-row-main">' + nameLinkHtml(name) + badgesHtml(u) + timeHtml + orphanHtml + '</div><div class="friend-row-actions">' + removeBtn + '</div></div>' + maybeFicheHtml(name);
     }
     var assignedCount = allNames.length - unassigned.length;
-    var html = '<div class="help-text" style="margin:-0.3rem 0 0.6rem;">' + assignedCount + ' pilote(s) réparti(s) dans un groupe.</div>';
+    var html = '<div class="help-text" style="margin:-0.3rem 0 0.6rem;">' + assignedCount + ' pilote(s) réparti(s) dans un groupe.' +
+      (canEdit ? ' Reporte ici les groupes de l\'organisateur (ou ceux de ton team) pour que chacun retrouve ses horaires.' : '') + '</div>';
     // .groups-board: on desktop (see style.css) this becomes a row of
     // columns -- Non attribués + every group side by side, like a board,
     // instead of one long vertical stack of accordions. That's exactly
@@ -9714,7 +9716,7 @@
     // Carnet de Piste ne gère pas les paiements/réservations -- ce lien
     // renvoie vers l'outil de billetterie du Team (Billetweb ou autre),
     // jamais une inscription gérée ici.
-    if (ev.bookingUrl) html += '<div style="margin-top:0.6rem;"><button type="button" class="primary" data-action="open-external-url" data-url="' + escapeHtml(ev.bookingUrl) + '">' + tr('book_register') + '</button></div>';
+    if (ev.bookingUrl) html += '<div style="margin-top:0.6rem;"><button type="button" class="primary" data-action="open-external-url" data-url="' + escapeHtml(ev.bookingUrl) + '">' + tr('book_register') + '</button><div class="help-text" style="margin-top:0.3rem;">Inscription et paiement chez l\'organisateur.</div></div>';
     // Once the event is over, its own rider can react with an emoji --
     // the lightweight "on a kiffé" ask (see maybeNotifyEndedEvents), never
     // a text/photo comment thread.
@@ -11086,7 +11088,7 @@
       if (isFirstEver) return;
       var prev = myChronoCertifiedState[s.id];
       if (s.certifiedBy && !prev && notifCategoryAllowed('notifyChronoCertified')) {
-        sendAppNotification('Ton chrono' + (s.circuit ? ' à ' + s.circuit : '') + ' a été vérifié par ' + s.certifiedBy + ' !');
+        sendAppNotification('Ton chrono' + (s.circuit ? ' à ' + s.circuit : '') + ' a été validé par ' + s.certifiedBy + ' (team) !');
       }
     });
     myChronoCertifiedState = next;
@@ -13234,7 +13236,8 @@
       return !!(av && coachSlotModalSelected.some(function (l) { return av.indexOf(l) !== -1; }));
     });
     var html = '<div class="crop-modal-overlay"><div class="crop-modal">' +
-      '<h2 class="section-title">' + tr('ask_for_slot_heading') + escapeHtml(coachSlotModal.slotLabel) + '</h2>';
+      '<h2 class="section-title">' + tr('ask_for_slot_heading') + escapeHtml(coachSlotModal.slotLabel) + '</h2>' +
+      '<div class="help-text" style="margin-bottom:0.5rem;">C\'est une demande au coach, à confirmer avec lui (et avec l\'organisateur si besoin) : Carnet de Piste ne réserve ni ne fait payer de créneau.</div>';
     if (me && proposeRoles.indexOf(me.role || 'pilote') === -1) {
       html += '<div class="help-text">' + tr('coaching_riders_only') + '</div>';
     }
