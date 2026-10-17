@@ -3122,3 +3122,7 @@ body { min-height: 100%; min-height: 100dvh; }
 .join-banner-actions { display: flex; gap: 0.6rem; flex-wrap: wrap; margin-top: 0.6rem; }
 .public-roulage a.add-chrono-btn { display: block; background: var(--accent); color: var(--accent-ink); border-radius: 12px; padding: 0.9rem 1rem; font-weight: 700; font-size: 1.05rem; text-decoration: none; }
 .public-roulage a.ghost { border: 1px solid var(--border); border-radius: 10px; padding: 0.45rem 0.8rem; color: var(--text); font-weight: 600; background: var(--surface); }
+.lang-stats-row { display: grid; grid-template-columns: 1.4fr 1fr 1fr; gap: 0.5rem; padding: 0.45rem 0; border-top: 1px solid var(--border); font-variant-numeric: tabular-nums; }
+.lang-stats-row span:not(:first-child) { text-align: right; font-family: var(--font-display); font-weight: 700; font-size: 1.1rem; }
+.lang-stats-head { border-top: none; color: var(--text-muted); font-size: 0.85rem; }
+.lang-stats-head span:not(:first-child) { font-family: var(--font-body); font-size: 0.85rem; font-weight: 600; }

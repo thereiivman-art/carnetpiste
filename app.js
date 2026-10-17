@@ -832,8 +832,35 @@
       save_unavailable_banner: 'Saving is unavailable in this view: your changes will not be kept.'
     }
   };
+  // The phone's own language (2-3 letter code), e.g. 'nl' for nl-BE.
+  function deviceLangCode() {
+    var l = (navigator.languages && navigator.languages[0]) || navigator.language || 'fr';
+    return String(l).toLowerCase().split('-')[0].replace(/[^a-z]/g, '').slice(0, 3) || 'fr';
+  }
+  // Signed in: the profile's choice (French unless set to English).
+  // Signed out (public roulage page, signup): follow the phone -- French
+  // for a French phone, English for everyone else until more languages.
   function currentLang() {
-    return (currentUserProfile && currentUserProfile.lang === 'en') ? 'en' : 'fr';
+    if (currentUserProfile) return currentUserProfile.lang === 'en' ? 'en' : 'fr';
+    return deviceLangCode() === 'fr' ? 'fr' : 'en';
+  }
+  // Anonymous count of visitors' phone languages (langStats/{code}), to
+  // decide which languages are worth adding. Nothing personal is stored:
+  // just a counter per language and per source, once per session.
+  function countVisitorLang(source) {
+    try {
+      var flag = 'cdp-lang-counted-' + source;
+      if (sessionStorage.getItem(flag)) return;
+      sessionStorage.setItem(flag, '1');
+    } catch (e) {}
+    var code = deviceLangCode();
+    if (!/^[a-z]{2,3}$/.test(code)) return;
+    try {
+      var inc = firebase.firestore.FieldValue.increment(1);
+      var patch = { count: inc };
+      patch[source] = inc;
+      db.collection('langStats').doc(code).set(patch, { merge: true }).catch(function () {});
+    } catch (e) {}
   }
   function tr(key) {
     var dict = TRANSLATIONS[currentLang()] || TRANSLATIONS.fr;
@@ -941,7 +968,19 @@
 "Remplacer": "Replace",
 "Retirer": "Remove",
 "Supprimer la catégorie": "Delete category",
-"Rien de nouveau.": "Nothing new.", "QR code indisponible hors connexion -- partage le lien ci-dessous.": "QR code unavailable offline -- share the link below.", "Accepter": "Accept", "Refuser": "Decline", "Demande d'ami": "Friend request",
+"Rien de nouveau.": "Nothing new.",
+"Connexion": "Sign in", "Mot de passe": "Password", "Se souvenir de moi": "Remember me", "Se connecter": "Sign in",
+"Pas encore de compte ?": "No account yet?", "Créer un compte": "Create an account", "Mot de passe oublié ?": "Forgot your password?",
+"Pseudo": "Username", "C'est le pseudo que verront les autres pilotes -- en cas de doublon, ajoute ton numéro de course (ex. \"Julien #12\").": "This is the username others will see -- if it's taken, add your race number (e.g. \"Julien #12\").",
+"Je suis": "I am a", "Pilote": "Rider", "Accompagnant": "Companion", "Organisateur": "Organiser", "Créer mon compte": "Create my account", "Déjà un compte ?": "Already have an account?",
+"Ex. Julien #12": "E.g. Julien #12", "Email": "Email",
+"Vérifie ton email": "Check your email", "Un email de vérification a été envoyé à": "A verification email was sent to",
+". Clique sur le lien qu'il contient, puis reviens ici. Pense à vérifier tes spams/courriers indésirables si tu ne le vois pas — l'expéditeur est une adresse @firebaseapp.com.": ". Click the link inside, then come back here. Check your spam folder if you can't find it — the sender is an @firebaseapp.com address.",
+"J'ai vérifié, continuer": "I've verified, continue", "Renvoyer l'email": "Resend the email", "Se déconnecter": "Sign out",
+"Cet email est déjà utilisé — connecte-toi plutôt.": "This email is already in use — sign in instead.", "Email invalide.": "Invalid email.", "Trop de tentatives — attends quelques minutes avant de renvoyer l'email.": "Too many attempts — wait a few minutes before resending the email.",
+"Mot de passe trop court (6 caractères minimum).": "Password too short (6 characters minimum).", "Email ou mot de passe incorrect.": "Wrong email or password.",
+"Connecte-toi avec ton adresse email (la connexion par pseudo a été retirée pour des raisons de sécurité).": "Sign in with your email address (username sign-in was removed for security reasons).",
+"Carnet de Piste": "Carnet de Piste", "QR code indisponible hors connexion -- partage le lien ci-dessous.": "QR code unavailable offline -- share the link below.", "Accepter": "Accept", "Refuser": "Decline", "Demande d'ami": "Friend request",
 "Invite un pilote": "Invite a rider", "Fais scanner ce code : il s'inscrit avec ton lien et devient ton filleul.": "Have them scan this code: they sign up with your link and become your referral.",
 "Partager le lien": "Share the link", "Copier": "Copy", "Lien copié": "Link copied",
 "souhaite rejoindre": "wants to join", "Accepter comme membre": "Accept as member", "comme adhérent": "as adherent", "comme Team Leader": "as Team Leader",
@@ -4026,6 +4065,28 @@
     return collapsibleSection('badges-legend', tr('badges_legend_heading'), rows, false);
   }
 
+  var langStats = null; // admin: langStats docs once loaded
+  var LANG_NAMES = { fr: 'Français', en: 'Anglais', nl: 'Néerlandais', de: 'Allemand', es: 'Espagnol', it: 'Italien', pt: 'Portugais', pl: 'Polonais', ca: 'Catalan', da: 'Danois', sv: 'Suédois', no: 'Norvégien', nb: 'Norvégien', fi: 'Finnois', cs: 'Tchèque', hu: 'Hongrois', ro: 'Roumain', el: 'Grec', ja: 'Japonais', zh: 'Chinois', ru: 'Russe', uk: 'Ukrainien', tr: 'Turc', ar: 'Arabe' };
+  function renderLangStatsCard() {
+    if (!isAdmin()) return '';
+    if (langStats === null) {
+      langStats = [];
+      db.collection('langStats').get().then(function (snap) {
+        langStats = snap.docs.map(function (d) { return Object.assign({ code: d.id }, d.data()); });
+        renderRoot();
+      }).catch(function () {});
+    }
+    var rows = langStats.slice().sort(function (a, b) { return (b.count || 0) - (a.count || 0); });
+    var html = '<div class="card"><h2 class="section-title">Langues des visiteurs</h2>' +
+      '<div class="help-text" style="margin-bottom:0.6rem;">Langue du téléphone des personnes qui ouvrent un lien public de roulage ou créent un compte. Anonyme : un simple compteur par langue.</div>';
+    if (!rows.length) return html + '<div class="help-text">Pas encore de visite comptée.</div></div>';
+    html += '<div class="lang-stats-row lang-stats-head"><span>Langue</span><span>Liens ouverts</span><span>Comptes créés</span></div>';
+    html += rows.map(function (r) {
+      return '<div class="lang-stats-row"><span>' + escapeHtml(LANG_NAMES[r.code] || r.code) + '</span><span>' + (r.roulage || 0) + '</span><span>' + (r.signup || 0) + '</span></div>';
+    }).join('');
+    return html + '</div>';
+  }
+
   function renderProfileAideTab(p) {
     var html = '';
     html += '<div class="help-text">' + tr('about_text') + '</div>';
@@ -4035,7 +4096,7 @@
     // Admin tools get their own pill instead of trailing under the help.
     if (!pillState.aide) pillState.aide = 'aide';
     var pills = renderPills('aide', [['aide', 'Aide'], ['admin', 'Admin']]);
-    if (pillState.aide === 'admin') return pills + '<div class="card">' + renderPartnersSection().replace('margin-top:1.2rem; border-top:1px solid var(--border); padding-top:0.9rem;', '') + renderOptionalFeaturesSection() + renderPasswordResetSection() + '</div>';
+    if (pillState.aide === 'admin') return pills + renderLangStatsCard() + '<div class="card">' + renderPartnersSection().replace('margin-top:1.2rem; border-top:1px solid var(--border); padding-top:0.9rem;', '') + renderOptionalFeaturesSection() + renderPasswordResetSection() + '</div>';
     return pills + html;
   }
 
@@ -14329,6 +14390,7 @@
     db.collection('publicRoulages').doc(pendingRoulageId).get().then(function (doc) {
       publicRoulage = doc.exists ? doc.data() : null;
       publicRoulageState = doc.exists ? 'ready' : 'missing';
+      if (doc.exists) countVisitorLang('roulage');
       renderRoot();
     }).catch(function () { publicRoulageState = 'missing'; renderRoot(); });
   }
@@ -14409,7 +14471,7 @@
       html += '<h2 class="section-title">Créer un compte</h2>';
       html += '<form id="signup-form" novalidate>';
       html += '<label for="au-name">Pseudo</label><input type="text" id="au-name" name="name" autocomplete="username" placeholder="Ex. Julien #12" required>';
-      html += '<div class="help-text" style="margin-top:0.2rem;">C\'est ce pseudo qu\'il faudra retaper pour se connecter -- en cas de doublon, ajoute ton numéro de course (ex. "Julien #12").</div>';
+      html += '<div class="help-text" style="margin-top:0.2rem;">C\'est le pseudo que verront les autres pilotes -- en cas de doublon, ajoute ton numéro de course (ex. "Julien #12").</div>';
       html += '<label style="margin-top:0.7rem;">Je suis</label><div class="auth-role-choice">' +
         '<label><input type="radio" name="au-role" value="pilote" checked> Pilote</label>' +
         '<label><input type="radio" name="au-role" value="accompagnant"> Accompagnant</label>' +
@@ -14516,6 +14578,8 @@
       }
       name = rawName;
       var profileDoc = { name: name, role: role, notifyBeforeSession: true };
+      if (deviceLangCode() !== 'fr') profileDoc.lang = 'en';
+      countVisitorLang('signup');
       // A parrain can't refer themselves -- someone opening their own
       // link and signing up under the same name shouldn't count.
       if (pendingReferrer && pendingReferrer !== name) profileDoc.referredBy = pendingReferrer;

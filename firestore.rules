@@ -787,6 +787,27 @@ service cloud.firestore {
     // Retour d'expérience libre envoyé depuis Profil -> Suggestion --
     // write-only for whoever sends it (no edit/delete of one's own once
     // sent), read-only for the admin who reviews them like a shared inbox.
+    // Anonymous visitor-language counters (langStats/{2-3 letter code}):
+    // anyone, signed in or not, may only add exactly 1 to the total and
+    // to at most one source counter -- no other field, no other change.
+    // Only the admin reads them (Aide -> Admin).
+    function langStatOk(f) {
+      return request.resource.data.get(f, 0) == resource.data.get(f, 0)
+        || request.resource.data.get(f, 0) == resource.data.get(f, 0) + 1;
+    }
+    match /langStats/{code} {
+      allow read: if isAdmin();
+      allow create: if code.matches('^[a-z]{2,3}$')
+        && request.resource.data.keys().hasOnly(['count', 'roulage', 'signup'])
+        && request.resource.data.count == 1
+        && request.resource.data.get('roulage', 0) <= 1
+        && request.resource.data.get('signup', 0) <= 1;
+      allow update: if request.resource.data.keys().hasOnly(['count', 'roulage', 'signup'])
+        && request.resource.data.count == resource.data.count + 1
+        && langStatOk('roulage') && langStatOk('signup');
+      allow delete: if isAdmin();
+    }
+
     // Public, read-only snapshot of a roulage for the shareable link
     // (?roulage=<eventId>), readable WITHOUT an account. Holds no rider
     // names -- only a participant count. Written by a rider of that event,
