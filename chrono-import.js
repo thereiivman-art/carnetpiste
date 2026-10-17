@@ -496,7 +496,75 @@
     return prepareImage(file).then(function (canvas) { return ocrCanvas(canvas, onProgress); });
   }
 
+
+  // ---- Horaires (affiche / PDF de l'organisateur) ----
+  // Reconnaît, ligne par ligne, une lettre de groupe (R, A, B, C, D, ou
+  // "R - ROOKIE", "Groupe B", "Gr. C"...) et des heures (9:00, 09.15, 9h20).
+  // - ligne avec groupe + 2 heures : un créneau début-fin ;
+  // - ligne avec groupe + plusieurs heures : paires début/fin si elles
+  //   s'enchaînent comme telles, sinon des débuts (durée par défaut).
+  // Résultat au format des horaires de l'appli : { groupA: "9h00-9h20, ..." }.
+  function parseClock(tok) {
+    var m = String(tok).match(/^(\d{1,2})\s*[:.hH]\s*(\d{2})$/);
+    if (!m) return null;
+    var h = +m[1], mi = +m[2];
+    if (h > 23 || mi > 59 || h < 6) return null;
+    return h * 60 + mi;
+  }
+  function fmtClock(min) {
+    var h = Math.floor(min / 60), m = min % 60;
+    return h + 'h' + (m < 10 ? '0' : '') + m;
+  }
+  function findGroupLetter(line) {
+    var t = ' ' + stripAccents(line).toUpperCase().replace(/[|]/g, ' ') + ' ';
+    var m = t.match(/(?:^|\s)(?:GROUPE?|GR\.?)\s*([RABCD])(?=[\s.:\-)]|$)/);
+    if (m) return m[1];
+    m = t.match(/(?:^|\s)([RABCD])\s*[-–:]\s*[A-Z]{3,}/); // "R - ROOKIE", "B - ESPERTI"
+    if (m) return m[1];
+    var words = { ROOKIE: 'R', ROOKIES: 'R', AMATORI: 'A', ESPERTI: 'B', VELOCI: 'C', PRO: 'D' };
+    for (var w in words) if (new RegExp('\\s' + w + '\\s').test(t)) return words[w];
+    m = t.match(/^\s*([RABCD])\s+(?=\d)/); // ligne qui commence par la lettre seule
+    if (m) return m[1];
+    return null;
+  }
+  function parseHoraires(text, defaultDuration) {
+    defaultDuration = defaultDuration || 20;
+    var slots = {}; // letter -> [{s,e}]
+    String(text || '').split(/\r?\n/).forEach(function (line) {
+      var letter = findGroupLetter(line);
+      if (!letter) return;
+      var times = (line.match(/\b\d{1,2}\s*[:.hH]\s*\d{2}\b/g) || []).map(parseClock).filter(function (v) { return v !== null; });
+      if (!times.length) return;
+      var list = slots[letter] || (slots[letter] = []);
+      if (times.length === 2 && times[1] > times[0] && times[1] - times[0] <= 60) {
+        list.push({ s: times[0], e: times[1] });
+        return;
+      }
+      // Appariement glouton début/fin (créneau de 45 min max). Une heure
+      // isolée au milieu de paires (ex. colonne « pause 13.00 ») est ignorée.
+      var pairs = [], singles = [], i = 0;
+      while (i < times.length) {
+        var d = i + 1 < times.length ? times[i + 1] - times[i] : -1;
+        if (d > 0 && d <= 45 && (i + 2 >= times.length || times[i + 2] >= times[i + 1])) { pairs.push({ s: times[i], e: times[i + 1] }); i += 2; }
+        else { singles.push(times[i]); i++; }
+      }
+      if (pairs.length >= 2) pairs.forEach(function (x) { list.push(x); });
+      else times.forEach(function (t) { list.push({ s: t, e: t + defaultDuration }); });
+    });
+    var out = {}, count = 0;
+    Object.keys(slots).forEach(function (letter) {
+      var seen = {};
+      var list = slots[letter].filter(function (x) { var k = x.s + '-' + x.e; if (seen[k]) return false; seen[k] = true; return true; })
+        .sort(function (a, b) { return a.s - b.s; });
+      if (!list.length) return;
+      out['group' + letter] = list.map(function (x) { return fmtClock(x.s) + '-' + fmtClock(x.e); }).join(', ');
+      count += list.length;
+    });
+    return { horaires: out, slotCount: count };
+  }
+
   root.ChronoImport = {
+    parseHoraires: parseHoraires,
     analyze: analyze,
     extractTimes: extractTimes,
     parseLapList: parseLapList,

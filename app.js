@@ -6082,6 +6082,78 @@
     return html;
   }
 
+  // ---- Import des horaires depuis une photo / un PDF ----
+  // Un pilote de la sortie (ou son organisateur) photographie l'affiche ou
+  // le PDF des horaires : groupes et créneaux sont lus sur l'appareil puis
+  // validés, et enregistrés sur la sortie -- visibles par tous ses pilotes.
+  function canEditEventHoraires(ev) {
+    var me = currentUserProfile && currentUserProfile.name;
+    if (!ev || !me) return false;
+    if (isAdmin()) return true;
+    if (ev.teamId) return isLeaderOfTeam(ev.teamId);
+    return (ev.riders || []).indexOf(me) !== -1;
+  }
+  function renderHorairesImportButton(ev, hasHoraires) {
+    if (!canEditEventHoraires(ev)) return '';
+    return '<div style="margin:0.5rem 0;"><button type="button" class="' + (hasHoraires ? 'link-btn inline-link' : 'primary') + '" data-action="import-horaires" data-event-id="' + escapeHtml(ev.id) + '">' +
+      (hasHoraires ? '📷 Remplacer les horaires (photo ou PDF)' : '📷 Importer les horaires (photo ou PDF)') + '</button></div>';
+  }
+  function openHorairesImport(eventId) {
+    var ev = eventsList().filter(function (e) { return e.id === eventId; })[0];
+    var CI = window.ChronoImport;
+    if (!ev || !CI) return;
+    var input = document.createElement('input');
+    input.type = 'file'; input.accept = 'image/*,application/pdf';
+    input.addEventListener('change', function () {
+      var file = input.files && input.files[0];
+      if (!file) return;
+      var overlay = document.createElement('div');
+      overlay.className = 'crop-modal-overlay';
+      overlay.innerHTML = '<div class="crop-modal" style="max-width:440px; max-height:90vh; overflow-y:auto;"><h2 class="section-title">Lecture des horaires…</h2><p class="help-text" id="hi-progress">Préparation…</p></div>';
+      document.body.appendChild(overlay);
+      var box = overlay.querySelector('.crop-modal');
+      function close() { overlay.remove(); }
+      CI.recognize(file, function (pct) { var el = box.querySelector('#hi-progress'); if (el) el.textContent = 'Lecture : ' + Math.round(pct * 100) + ' %'; }).then(function (r) {
+        var res = CI.parseHoraires(r.text);
+        var days = datesInRange(ev.dateStart, ev.dateEnd || ev.dateStart);
+        var h = '<h2 class="section-title">Vérifie les horaires lus</h2>';
+        if (!res.slotCount) h += '<div class="field-error visible">Aucun créneau reconnu. Essaie une photo plus nette et bien droite, ou saisis-les ci-dessous.</div>';
+        else if (r.confidence < 75) h += '<div class="field-error visible">⚠ Lecture peu fiable (' + Math.round(r.confidence) + ' %) : relis chaque groupe.</div>';
+        h += '<div class="help-text">Un créneau par virgule, au format 9h00-9h20. Laisse vide un groupe qui ne roule pas.</div>';
+        HORAIRES_GROUPS.forEach(function (g) {
+          h += '<label for="hi-' + g.key + '" style="display:block; margin-top:0.5rem;">' + escapeHtml(g.label) + '</label><textarea id="hi-' + g.key + '" rows="2" style="width:100%;">' + escapeHtml(res.horaires[g.key] || '') + '</textarea>';
+        });
+        if (days.length > 1) {
+          h += '<label for="hi-day" style="display:block; margin-top:0.6rem;">Valable pour</label><select id="hi-day"><option value="">Tous les jours de la sortie</option>' +
+            days.map(function (d) { return '<option value="' + d + '">Seulement le ' + escapeHtml(formatDate(d)) + '</option>'; }).join('') + '</select>';
+        }
+        h += '<div class="help-text" style="margin-top:0.5rem;">Ils seront visibles par tous les pilotes de cette sortie.</div>' +
+          '<div style="margin-top:0.8rem; display:flex; gap:0.5rem;"><button type="button" class="primary" data-hi="save">Enregistrer</button><button type="button" class="ghost" data-hi="cancel">Annuler</button></div>';
+        box.innerHTML = h;
+        box.querySelector('[data-hi="cancel"]').addEventListener('click', close);
+        box.querySelector('[data-hi="save"]').addEventListener('click', function () {
+          var horaires = {}, any = false;
+          HORAIRES_GROUPS.forEach(function (g) { var v = box.querySelector('#hi-' + g.key).value.trim(); if (v) { horaires[g.key] = v; any = true; } });
+          if (!any) { close(); return; }
+          var daySel = box.querySelector('#hi-day');
+          var day = daySel ? daySel.value : '';
+          var prevState = JSON.parse(JSON.stringify(STATE));
+          if (day) { ev.horairesByDate = Object.assign({}, ev.horairesByDate || {}); ev.horairesByDate[day] = horaires; }
+          else ev.horairesOverride = horaires;
+          ev.horairesBy = currentUserProfile.name;
+          persist(prevState);
+          close();
+          renderRoot();
+          showToast('Horaires enregistrés pour la sortie ' + ev.circuit + '.', 'success');
+        });
+      }).catch(function (err) {
+        box.innerHTML = '<h2 class="section-title">Import impossible</h2><p>' + escapeHtml((err && /load-failed|missing/.test(err.message)) ? 'Le lecteur n\'a pas pu se charger (connexion ?). Réessaie avec du réseau.' : 'La lecture a échoué.') + '</p><button type="button" class="ghost" data-hi="cancel">Fermer</button>';
+        box.querySelector('[data-hi="cancel"]').addEventListener('click', close);
+      });
+    });
+    input.click();
+  }
+
   // ---- Sortie en 10 secondes ----
   // Circuit + date (+ lien de réservation de l'organisateur, facultatif).
   // Si une sortie existe déjà sur ce circuit à cette date, on propose de la
@@ -10080,9 +10152,12 @@
     var availableGroups = horaires ? HORAIRES_GROUPS.filter(function (g) { return horaires[g.key]; }) : [];
     if (!availableGroups.length) {
       html += briefingLine;
-      html += '<div class="help-text">Aucun horaire enregistré pour ' + escapeHtml(ev.circuit) + ' — un admin peut les ajouter depuis l\'onglet Circuit (Modifier les infos), ou le Team Leader depuis "Modifier l\'événement" pour cette sortie seulement.</div>';
+      html += '<div class="help-text">Pas encore d\'horaires pour cette sortie.</div>';
+      html += renderHorairesImportButton(ev, false);
       html += renderHorairesPhotoSection(ev);
     } else {
+      if (ev.horairesBy) html += '<div class="help-text">Horaires ajoutés par ' + escapeHtml(ev.horairesBy) + '</div>';
+      html += renderHorairesImportButton(ev, true);
       var activeKeys = (planningGroupFilter && planningGroupFilter.length)
         ? planningGroupFilter.filter(function (k) { return availableGroups.some(function (g) { return g.key === k; }); })
         : availableGroups.map(function (g) { return g.key; });
@@ -15712,6 +15787,9 @@
     var carnetCancel = document.getElementById('carnet-cancel-add');
     if (carnetCancel) carnetCancel.addEventListener('click', function () { addChronoOpen = false; renderRoot(); });
     bindQuickOutingForms();
+    document.querySelectorAll('[data-action="import-horaires"]').forEach(function (b) {
+      b.addEventListener('click', function () { openHorairesImport(b.getAttribute('data-event-id')); });
+    });
     document.querySelectorAll('[data-action="quick-outing"]').forEach(function (b) { b.addEventListener('click', openQuickOutingModal); });
     document.querySelectorAll('[data-cards-mode]').forEach(function (b) {
       b.addEventListener('click', function () { carnetCardsMode = b.getAttribute('data-cards-mode'); renderRoot(); });
