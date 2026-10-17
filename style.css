@@ -2955,4 +2955,5 @@
 .pill-tabs .pill-btn { flex: 1 0 auto; border: none; border-bottom: 3px solid transparent; border-radius: 0; background: none; padding: 0.7rem 0.45rem; font-size: 0.92rem; font-weight: 700; color: var(--text-muted); white-space: nowrap; }
 .pill-tabs .pill-btn.active { background: none; color: var(--accent); border-bottom-color: var(--accent); }
 /* Boutons d'action principaux : tous identiques */
-.add-chrono-btn, .cta-btn { display: block; width: 100%; padding: 0.9rem 1rem; font-size: 1.05rem; font-weight: 700; border-radius: 12px; }
+.add-chrono-btn, .cta-btn, button.primary.add-chrono-btn, button.primary.cta-btn { display: block; width: 100%; padding: 0.9rem 1rem; font-size: 1.05rem; font-weight: 700; border-radius: 12px; }
+.add-chrono-btn + .card, .cta-btn + .card { margin-top: 0.9rem; }

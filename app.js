@@ -150,7 +150,7 @@
       invite_btn: 'Inviter', cancel_invite: 'Annuler', settings_label: 'Réglages',
       join_requests_label: 'Demandes pour rejoindre (', sent_invites_label: 'Invitations envoyées (',
       // Social tab
-      no_friends_yet: 'Pas encore d’amis — ajoutes-en un ci-dessous.', my_friends_label: 'Mes amis (',
+      no_friends_yet: 'Pas encore d’amis — ajoutes-en un avec le bouton ci-dessus.', my_friends_label: 'Mes amis (',
       received_requests_label: 'Demandes reçues (', sent_requests_label: 'Demandes envoyées (',
       add_friend_btn: '+ Ajouter un ami', no_one_else_to_add: 'Personne d’autre à ajouter pour l’instant.',
       search_by_username: 'Rechercher par pseudo', username_placeholder: 'Pseudo', send_request_btn: 'Envoyer une demande',
@@ -161,7 +161,7 @@
       audience_followers: 'Followers', audience_all: 'Amis + followers', audience_friends: 'Amis',
       edited_suffix: ' (modifié)', wall_post_placeholder: 'Un mot, un roulage, une photo...',
       my_journal_label: 'Mon Journal (', delete_label: 'Supprimer',
-      post_to_journal_btn: 'Publier un message sur mon Journal',
+      post_to_journal_btn: '+ Publier un message',
       post_to_journal_help: 'Ce que tu publies sera visible par tes amis (ou followers, selon ce que tu choisis ci-dessous).',
       visible_by_label: 'Visible par', my_friends_option: 'Mes amis', my_followers_option: 'Mes followers',
       add_photo_btn: '📷 Ajouter une photo', adherents_badge: 'Adhérents',
@@ -540,7 +540,7 @@
       invite_btn: 'Invite', cancel_invite: 'Cancel', settings_label: 'Settings',
       join_requests_label: 'Requests to join (', sent_invites_label: 'Sent invites (',
       // Social tab
-      no_friends_yet: 'No friends yet — add one below.', my_friends_label: 'My friends (',
+      no_friends_yet: 'No friends yet — add one with the button above.', my_friends_label: 'My friends (',
       received_requests_label: 'Received requests (', sent_requests_label: 'Sent requests (',
       add_friend_btn: '+ Add a friend', no_one_else_to_add: 'No one else to add right now.',
       search_by_username: 'Search by username', username_placeholder: 'Username', send_request_btn: 'Send request',
@@ -551,7 +551,7 @@
       audience_followers: 'Followers', audience_all: 'Friends + followers', audience_friends: 'Friends',
       edited_suffix: ' (edited)', wall_post_placeholder: 'A word, a trackday, a photo...',
       my_journal_label: 'My Journal (', delete_label: 'Delete',
-      post_to_journal_btn: 'Post a message to my Journal',
+      post_to_journal_btn: '+ Post a message',
       post_to_journal_help: 'What you post will be visible to your friends (or followers, depending on what you pick below).',
       visible_by_label: 'Visible to', my_friends_option: 'My friends', my_followers_option: 'My followers',
       add_photo_btn: '📷 Add a photo', adherents_badge: 'Adherents',
@@ -11910,9 +11910,9 @@
 
   function renderWallComposer() {
     if (!wallComposerOpen) {
-      return '<button type="button" class="primary add-chrono-btn" id="wall-composer-toggle" style="margin-top:1rem;">' + tr('post_to_journal_btn') + '</button>';
+      return '<button type="button" class="primary add-chrono-btn" id="wall-composer-toggle">' + tr('post_to_journal_btn') + '</button>';
     }
-    var html = '<div class="card" style="margin-top:1rem;"><h2 class="section-title">' + tr('post_to_journal_btn') + '</h2>';
+    var html = '<div class="card"><h2 class="section-title">' + tr('post_to_journal_btn') + '</h2>';
     html += '<div class="help-text">' + tr('post_to_journal_help') + '</div>';
     html += '<form id="wall-post-form">';
     html += '<label for="wall-post-text">' + tr('wall_post_placeholder') + '</label><textarea id="wall-post-text" rows="2"></textarea>';
@@ -12015,7 +12015,7 @@
         var t = teamById(it.teamId);
         return renderTeamFeedEntry(it.data, me, t ? t.name : null);
       }).join('') + (items.length > visible.length ? '<div id="wall-feed-sentinel" class="empty-inline">' + tr('loading') + '</div>' : '');
-    return collapsibleCard('social-mur', tr('my_journal_label') + items.length + ')', body, true);
+    return '<div class="card">' + body + '</div>';
   }
 
   function postToWall(text, linkUrl, photoURL, audience) {
@@ -12086,7 +12086,7 @@
     var friendsBody = !friends.length
       ? '<div class="empty-state">' + tr('no_friends_yet') + '</div>'
       : friends.map(function (f) { return renderFriendRow(f.name, '', true); }).join('');
-    var amisHtml = collapsibleSection('social-amis-liste', tr('my_friends_label') + friends.length + ')', friendsBody, true);
+    var amisHtml = '<h2 class="section-title">' + tr('my_friends_label') + friends.length + ')</h2>' + friendsBody;
 
     if (incoming.length) {
       var incomingBody = incoming.map(function (r) {
@@ -12105,8 +12105,9 @@
     // Retracté par défaut, juste un bouton -- le formulaire (avec ses
     // suggestions) n'apparaît qu'une fois cliqué, même logique que
     // "+ Ajouter un chrono" dans Chronos.
+    var addFriendCta = '';
     if (!addFriendOpen) {
-      amisHtml += '<button type="button" class="primary add-chrono-btn" id="add-friend-toggle" style="margin-top:0.8rem;">' + tr('add_friend_btn') + '</button>';
+      addFriendCta = '<button type="button" class="primary add-chrono-btn" id="add-friend-toggle">' + tr('add_friend_btn') + '</button>';
     } else {
       // Recherche par pseudo (datalist) plutôt qu'un long menu déroulant --
       // le # (numéro de moto) est affiché à côté de chaque suggestion pour
@@ -12122,12 +12123,12 @@
           }).join('') + '</datalist>' +
           '<button type="submit" class="primary" style="margin-top:0.7rem;">' + tr('send_request_btn') + '</button></form>' +
           friendSuggestionChips(candidates);
-      amisHtml += '<div style="margin-top:0.8rem;">' + addFriendBody + '</div>';
+      addFriendCta = '<div class="card"><h2 class="section-title">' + escapeHtml(tr('add_friend_btn').replace(/^\+\s*/, '')) + '</h2>' + addFriendBody + '</div>';
     }
     amisHtml += renderPersonalitiesSection(me);
 
     var html = renderPills('social', [['fil', 'Fil d\'actualité'], ['amis', 'Amis' + (incoming.length ? ' (' + incoming.length + ')' : '')]]);
-    if (pillState.social === 'amis') html += '<div class="card">' + amisHtml + '</div>';
+    if (pillState.social === 'amis') html += addFriendCta + '<div class="card">' + amisHtml + '</div>';
     else { html += renderWallComposer(); html += renderWallFeed(me); }
     return html;
   }
@@ -12912,16 +12913,16 @@
   // gesture across several slots (see attachHandlers' coach-availability-*
   // handlers) rather than one tap per slot, since a whole day's worth one
   // at a time was tedious.
-  function renderCoachPlanningSection(me) {
+  function renderCoachPlanningSection(me, introHtml) {
     var target = targetPlanningEvent();
-    if (!target) return '';
+    if (!target) return '<div class="card">' + (introHtml || '') + '<div class="empty-state">Aucun roulage à venir.</div></div>';
     var ev = target.ev;
     var info = circuitInfo(ev.circuit);
     var iAmCoach = isCoachBadge(me);
     var editing = coachAvailabilityEditOpen && iAmCoach;
     var coachHoraires = eventHoraires(ev);
     var groupsHtml = coachHoraires ? renderHoraireGroups(coachHoraires, null, ev, info.briefing, true, coachAvailabilitySlotClass(ev, me)) : '';
-    if (!groupsHtml) return '';
+    if (!groupsHtml) return '<div class="card">' + (introHtml || '') + '<div class="empty-state">Pas encore d\'horaires pour ce roulage.</div></div>';
     var body = '<div class="eyebrow">' + (target.mode === 'ongoing' ? tr('now_label') : tr('next_event_dash_label')) + escapeHtml(ev.circuit) + '</div>';
     if (iAmCoach) {
       body += '<div style="display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap; margin:0.4rem 0;">' +
@@ -12945,7 +12946,7 @@
     }
     var wrapClass = editing ? 'coach-availability-painting' : 'coach-planning-clickable';
     body += '<div class="' + wrapClass + '" data-event-id="' + ev.id + '" data-circuit="' + escapeHtml(ev.circuit) + '">' + groupsHtml + '</div>';
-    return collapsibleCard('coach-planning', tr('planning_horaires_label'), body, true);
+    return '<div class="card">' + (introHtml || '') + body + '</div>';
   }
 
   // ---- Demander depuis un créneau du planning (voir renderCoachPlanningSection) ----
@@ -13158,7 +13159,7 @@
     var html = renderPills('coach', coachPills);
     var cpill = pillState.coach;
     if (cpill === 'planning') {
-      return html + '<div class="help-text" style="margin-bottom:0.8rem;">' + tr('coaching_bapteme_help') + '</div>' + renderCoachPlanningSection(me);
+      return html + renderCoachPlanningSection(me, '<div class="help-text" style="margin-bottom:0.8rem;">' + tr('coaching_bapteme_help') + '</div>');
     }
     var startLen = html.length;
 
@@ -13183,7 +13184,7 @@
       var activeBody = active.map(function (r) {
         return renderCoachActiveRow(r, r.from === me.name ? r.to : r.from);
       }).join('');
-      html += collapsibleCard('coach-active', (iAmCoach ? tr('my_coached_riders_label') : tr('my_coaching_label')) + ' (' + active.length + ')', activeBody, true);
+      html += '<div class="card">' + activeBody + '</div>';
     }
 
     if (cpill === 'nouveau' && iAmCoach) {
@@ -13228,7 +13229,7 @@
           '<datalist id="coach-propose-list">' + proposeCandidates.map(function (n) { return '<option value="' + escapeHtml(n) + '">'; }).join('') + '</datalist>' +
           '<button type="submit" class="primary" style="margin-top:0.7rem;">' + (coachProposeType === 'bapteme' ? tr('propose_bapteme_btn') : tr('propose_coaching_btn')) + '</button></form>';
       }
-      html += collapsibleCard('coach-propose', tr('propose_coaching_bapteme_heading'), proposeBody, true);
+      html += '<div class="card"><h2 class="section-title">' + tr('propose_coaching_bapteme_heading') + '</h2>' + proposeBody + '</div>';
     }
 
     // Self-service: ask any Coach for regular coaching, with no relation
@@ -13241,7 +13242,7 @@
         var selfRequestBody = '<form id="coach-request-form"><label for="coach-request-select">' + tr('ask_to_be_coached_by') + '</label>' +
           '<select id="coach-request-select">' + coachNames.map(function (n) { return '<option value="' + escapeHtml(n) + '">' + escapeHtml(n) + '</option>'; }).join('') + '</select>' +
           '<button type="submit" class="primary" style="margin-top:0.7rem;">' + tr('send_request_generic') + '</button></form>';
-        html += collapsibleCard('coach-self-request', tr('ask_for_coaching_heading'), selfRequestBody, true);
+        html += '<div class="card"><h2 class="section-title">' + tr('ask_for_coaching_heading') + '</h2>' + selfRequestBody + '</div>';
       } else html += '<div class="card"><div class="empty-state">Aucun coach disponible pour l\'instant.</div></div>';
     }
     if (html.length === startLen) html += '<div class="card"><div class="empty-state">' + (cpill === 'suivis' ? 'Aucun coaching en cours.' : 'Aucune demande en attente.') + '</div></div>';
@@ -13293,7 +13294,6 @@
       // screen, not something to keep scrolling past once you're already
       // deep in a specific Team/Event.
       if (!expandedTeamId) {
-        html += '<h2 class="section-title">' + tr('my_teams_heading') + '</h2>';
         html += '<div class="team-tile-grid">' + myTeams.map(function (t) {
           var label = isLeaderOfTeam(t.id) ? tr('team_leader_label') : (memberTeamIds.indexOf(t.id) !== -1 ? tr('member_label') : tr('follower_label'));
           var tag = '<span class="friend-role-badge">' + label + '</span>';
@@ -13406,7 +13406,7 @@
       if (t.visibility === 'certified') return isCertified(me);
       return false;
     }).sort(function (a, b) { return a.name.localeCompare(b.name); });
-    if (!discoverable.length && !followedTeamIds.length) return '';
+    if (!discoverable.length && !followedTeamIds.length) return '<div class="card"><div class="empty-state">Aucun team à découvrir pour l\'instant.</div></div>';
     var body = '';
     if (followedTeamIds.length) {
       body += '<div class="team-section-title">Teams suivis</div><div class="team-tile-grid">';
@@ -13420,7 +13420,7 @@
       body += '<div class="team-section-title">À découvrir</div><div class="team-tile-grid">';
       body += toSuggest.map(function (t) { return renderTeamDiscoveryTile(t, me, false); }).join('') + '</div>';
     }
-    return collapsibleCard('team-discovery', 'Découvrir des Teams', body, false);
+    return '<div class="card">' + body + '</div>';
   }
 
   function renderRoot() {
