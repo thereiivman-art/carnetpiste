@@ -3325,7 +3325,7 @@
     // and which achievements set applies differ between the two.
     var isNonRider = p.role === 'accompagnant' || p.role === 'organisateur';
     var followed = p.followedRiders || [];
-    var pills = renderClientPills('profil', [['identite', 'Identité'], ['role', 'Je suis'], ['moto', isNonRider ? 'Pilotes suivis' : 'Ma moto']]);
+    var pills = renderClientPills('profil', [['identite', 'Identité'], ['role', 'Rôle'], ['moto', isNonRider ? 'Pilotes suivis' : 'Ma moto']]);
     var html = '<form id="profile-form">';
     html += cpillSection('profil', 'identite');
     html += renderProfileAvatar(p);
@@ -12764,7 +12764,9 @@
     teamPills.push(['reglages', 'Réglages']);
     var pillsHtml = renderPills('team', teamPills);
     var body = pillState.team === 'membres' ? bMembres : pillState.team === 'roulages' ? bRoulages : pillState.team === 'reglages' ? bReglages : bFil;
-    return headHtml + pillsHtml + body + '</div>';
+    // Team header in its own card, then the pills outside it like on every
+    // other page, then the chosen section in a second card.
+    return headHtml + '</div>' + pillsHtml + '<div class="card team-card">' + body + '</div>';
   }
 
   function renderCreateTeamCard() {
