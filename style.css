@@ -3010,3 +3010,4 @@ div.outing-best-card { cursor: default; }
 .outing-live { background: var(--surface); color: var(--text); border: 1px solid var(--border); box-shadow: var(--shadow); }
 .outing-live-dot { color: #fff; }
 .outing-live span span { color: var(--text-muted); }
+.feedback-row-actions { display: flex; gap: 0.5rem; margin-top: 0.4rem; }

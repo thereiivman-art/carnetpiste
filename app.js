@@ -3607,6 +3607,7 @@
   // par l'admin, voir firestore.rules), et l'admin qui ouvre ce même
   // onglet voit la liste de tout ce qui a été envoyé, comme un document
   // partagé.
+  var pendingDeleteFeedbackId = null;
   function renderProfileSuggestionTab(p) {
     var html = '<div class="section-title" style="font-size:0.95rem;">' + tr('feedback_heading') + '</div>';
     html += '<div class="help-text">' + tr('feedback_help') + '</div>';
@@ -3626,6 +3627,11 @@
           return '<div class="feedback-row">' +
             '<div class="feedback-row-meta">' + escapeHtml(f.author || '?') + ' · ' + (f.createdAt ? new Date(f.createdAt).toLocaleString(currentLang() === 'en' ? 'en-US' : 'fr-FR') : '') + '</div>' +
             '<div class="feedback-row-text">' + escapeHtml(f.text || '') + '</div>' +
+            // Two taps to delete (arm, then confirm), like the rest of the app.
+            '<div class="feedback-row-actions">' + (pendingDeleteFeedbackId === f.id
+              ? '<button type="button" class="ghost danger" data-action="feedback-delete-confirm" data-id="' + escapeHtml(f.id) + '">Confirmer la suppression</button>' +
+                '<button type="button" class="ghost" data-action="feedback-delete-cancel">Annuler</button>'
+              : '<button type="button" class="ghost" data-action="feedback-delete" data-id="' + escapeHtml(f.id) + '">Supprimer</button>') + '</div>' +
             '</div>';
         }).join('');
       }
@@ -15136,6 +15142,24 @@
         teamMemberSearch = '';
         renderRoot();
         window.scrollTo(0, 0);
+      });
+    });
+    document.querySelectorAll('[data-action="feedback-delete"]').forEach(function (btn) {
+      btn.addEventListener('click', function () { pendingDeleteFeedbackId = btn.getAttribute('data-id'); renderRoot(); });
+    });
+    document.querySelectorAll('[data-action="feedback-delete-cancel"]').forEach(function (btn) {
+      btn.addEventListener('click', function () { pendingDeleteFeedbackId = null; renderRoot(); });
+    });
+    document.querySelectorAll('[data-action="feedback-delete-confirm"]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var id = btn.getAttribute('data-id');
+        if (!isAdmin() || !id) return;
+        pendingDeleteFeedbackId = null;
+        STATE.feedback = (STATE.feedback || []).filter(function (f) { return f.id !== id; });
+        renderRoot();
+        db.collection('feedback').doc(id).delete().then(function () {
+          showToast('Suggestion supprimée.', 'success');
+        }).catch(function (err) { showToast('Suppression impossible : ' + ((err && err.message) || err)); });
       });
     });
     document.querySelectorAll('[data-action="team-invite-toggle"]').forEach(function (btn) {
