@@ -2089,7 +2089,16 @@
     return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
   }
 
+  // Pistard notation: 1’54”754 (minutes ’ seconds ” thousandths).
   function formatTime(seconds) {
+    var ms = Math.round(seconds * 1000);
+    var m = Math.floor(ms / 60000);
+    var sec = Math.floor((ms - m * 60000) / 1000);
+    var th = ms % 1000;
+    return m + '’' + (sec < 10 ? '0' : '') + sec + '”' + ('00' + th).slice(-3);
+  }
+  // Spreadsheet-friendly M:SS.mmm (CSV export, editable text fields).
+  function formatTimePlain(seconds) {
     var m = Math.floor(seconds / 60);
     var rem = seconds - m * 60;
     var remStr = rem.toFixed(3);
@@ -2111,15 +2120,13 @@
   // point on the progression chart, where the y-axis alongside it already
   // establishes the minute, so repeating it on every point is just noise.
   function formatSecondsOnly(seconds) {
-    var m = Math.floor(seconds / 60);
-    var rem = seconds - m * 60;
-    var remStr = rem.toFixed(3);
-    if (rem < 10) remStr = '0' + remStr;
-    return remStr;
+    var t = formatTime(seconds);
+    return t.slice(t.indexOf('’') + 1);
   }
 
   function parseTime(raw) {
-    var str = String(raw).trim();
+    // Accepts 1:54.754 as well as the displayed 1’54”754 / 1'54"754.
+    var str = String(raw).trim().replace(/[’'′]/g, ':').replace(/[”"″]/g, '.');
     if (!str) return null;
     var m = str.match(/^(\d+):(\d{1,2}(?:\.\d+)?)$/);
     if (m) {
@@ -2987,7 +2994,7 @@
     html += '<div><label for="se-slot">' + tr('session_label') + '</label><select id="se-slot">' + renderSlotOptions(seSlots, seSlotIdx) + '</select></div>';
     html += '</div>';
     html += '<label for="se-laps">' + tr('chronos_field_label') + '</label>' +
-      '<textarea id="se-laps" required>' + escapeHtml(s.laps.map(function (l) { return formatTime(l); }).join('\n')) + '</textarea>' +
+      '<textarea id="se-laps" required>' + escapeHtml(s.laps.map(function (l) { return formatTimePlain(l); }).join('\n')) + '</textarea>' +
       '<div class="help-text">' + tr('session_edit_laps_help') + '</div>';
     html += '<div style="margin-top:0.6rem;"><label for="se-note">' + tr('note_optional') + '</label><input type="text" id="se-note" value="' + escapeHtml(s.note || '') + '"></div>';
     html += '<div class="field-error" id="session-edit-error"></div>';
@@ -3101,7 +3108,7 @@
         }).join(' ');
         // Écart du meilleur tour de la session au record perso, sous la date.
         var deltaHtml = (personalBest !== null && best > personalBest)
-          ? '<div class="lap-delta-line" title="Écart à ton record perso">+' + (best - personalBest).toFixed(3) + '</div>'
+          ? '<div class="lap-delta-line" title="Écart à ton record perso">+' + formatGap(best - personalBest) + '</div>'
           : (personalBest !== null && best === personalBest && !isRecord ? '<div class="lap-delta-line best">Record perso</div>' : '');
         var noteHtml = s.note ? '<div class="note-text">' + escapeHtml(s.note) + '</div>' : '';
         var periodLabel = s.period === 'matin' ? tr('period_morning') : s.period === 'apres-midi' ? tr('period_afternoon') : '';
@@ -3170,8 +3177,8 @@
         var progressionHtml = '';
         if (b.progression != null) {
           progressionHtml = b.progression < 0
-            ? '<span class="daily-recap-better">−' + Math.abs(b.progression).toFixed(3) + '</span>'
-            : (b.progression > 0 ? '<span class="daily-recap-worse">+' + b.progression.toFixed(3) + '</span>' : '=');
+            ? '<span class="daily-recap-better">−' + formatGap(b.progression) + '</span>'
+            : (b.progression > 0 ? '<span class="daily-recap-worse">+' + formatGap(b.progression) + '</span>' : '=');
         }
         bestsDetail += '<div class="best-time-row"><span class="best-time-circuit">' + escapeHtml(b.circuit) + ' <span class="help-text" style="display:inline;">(' + b.outings + ' roulage' + (b.outings > 1 ? 's' : '') + ')</span></span>' +
           '<span><span class="best-time-value">' + formatTime(b.time) + '</span>' +
@@ -4558,7 +4565,14 @@
   // formatTime() only for the rare gain that spans a full minute.
   function formatGain(seconds) {
     if (seconds >= 60) return formatTime(seconds);
-    return seconds.toFixed(3) + 's';
+    return formatGap(seconds);
+  }
+  // An écart under a minute, same notation as lap times: 1”913.
+  function formatGap(seconds) {
+    seconds = Math.abs(seconds);
+    if (seconds >= 60) return formatTime(seconds);
+    var ms = Math.round(seconds * 1000);
+    return Math.floor(ms / 1000) + '”' + ('00' + (ms % 1000)).slice(-3);
   }
 
   // Records battus, scoped to this one rider and folded right into their
@@ -4645,8 +4659,8 @@
       .sort(function (a, b) { return a.date < b.date ? -1 : a.date > b.date ? 1 : (a.rider < b.rider ? -1 : 1); })
       .forEach(function (s) {
         rows.push([
-          s.rider, s.date, s.circuit, s.group || '', s.slotLabel || '', s.bike || '', formatTime(sessionBest(s)), s.laps.length,
-          s.laps.map(formatTime).join(' / '), s.note || '',
+          s.rider, s.date, s.circuit, s.group || '', s.slotLabel || '', s.bike || '', formatTimePlain(sessionBest(s)), s.laps.length,
+          s.laps.map(formatTimePlain).join(' / '), s.note || '',
           s.certifiedBy ? 'Oui' : 'Non', s.certifiedBy || ''
         ]);
       });
@@ -5299,7 +5313,7 @@
       ctx.fillStyle = ACCENT; fitText(ctx, formatTime(info.best), W - 160, 230, '800');
       ctx.fillText(formatTime(info.best), 72, 900);
       // badge record
-      var badge = info.first ? 'Premier chrono sur ce circuit' : (info.isRecord ? 'Nouveau record perso  −' + (info.prevBest - info.best).toFixed(3) + ' s' : 'Record perso : ' + formatTime(info.prevBest));
+      var badge = info.first ? 'Premier chrono sur ce circuit' : (info.isRecord ? 'Nouveau record perso  −' + formatGap(info.prevBest - info.best) : 'Record perso : ' + formatTime(info.prevBest));
       ctx.font = '700 44px -apple-system, "Segoe UI", Roboto, sans-serif';
       var badgeText = (info.isRecord && !info.first ? '🏆 ' : '') + badge;
       var bw = ctx.measureText(badgeText).width + 70;
@@ -6120,7 +6134,7 @@
       } else {
         html += '<button type="button" class="outing-best-card" data-carnet-circuit="' + escapeHtml(circuit) + '"><span class="outing-label light">Meilleur tour</span>' +
           '<span class="outing-best-time">' + (best !== null ? formatTime(best) : '—') + '</span>' +
-          (best !== null && prevBest !== null ? '<span class="outing-best-delta">' + (best < prevBest ? '🏆 Nouveau record (−' + (prevBest - best).toFixed(3) + ')' : '+' + (best - prevBest).toFixed(3) + ' vs record') + '</span>' : (best !== null ? '<span class="outing-best-delta">1er roulage ici</span>' : '<span class="outing-best-delta">Pas encore de chrono pour ce jour</span>')) +
+          (best !== null && prevBest !== null ? '<span class="outing-best-delta">' + (best < prevBest ? '🏆 Nouveau record (−' + formatGap(prevBest - best) + ')' : '+' + formatGap(best - prevBest) + ' vs record') + '</span>' : (best !== null ? '<span class="outing-best-delta">1er roulage ici</span>' : '<span class="outing-best-delta">Pas encore de chrono pour ce jour</span>')) +
           '<span class="outing-best-arrow">›</span></button>';
       }
       if (status !== 'avenir') html += '<button type="button" class="primary add-chrono-btn" id="outing-add-chrono">+ Ajouter un chrono pour ce jour</button>';
@@ -6157,6 +6171,7 @@
         html += '<div class="empty-state">Pas encore d\'horaires pour ce roulage.</div>';
         if (ev) html += renderHorairesImportButton(ev, false);
       }
+      if (ev) html += renderHorairesPhotoSection(ev);
       html += '</div>';
       if (ev) html += (editingEventId === ev.id) ? renderEventForm() : renderEventSummaryCard(ev, { hideGroups: true, inPage: true });
     } else {
@@ -6613,7 +6628,7 @@
         var delta = '';
         if (o.prevBest !== null) {
           var d = o.best - o.prevBest;
-          delta = d < 0 ? '<span class="daily-recap-better">−' + Math.abs(d).toFixed(3) + '</span>' : '<span class="daily-recap-worse">+' + d.toFixed(3) + '</span>';
+          delta = d < 0 ? '<span class="daily-recap-better">−' + formatGap(d) + '</span>' : '<span class="daily-recap-worse">+' + formatGap(d) + '</span>';
         } else delta = '<span class="help-text">1re fois</span>';
         html += '<button type="button" class="outing-row" data-open-outing="' + escapeHtml(o.circuit) + '" data-outing-date="' + escapeHtml(o.date) + '" data-outing-event="' + escapeHtml(o.eventId || '') + '">' +
           '<span class="outing-thumb">' + circuitThumbHtml(o.circuit) + '</span>' +
@@ -10707,7 +10722,7 @@
   function dailyRecapShareText(circuit, dateStr, rows) {
     var lines = ['🏁 Récap ' + circuit + ' — ' + formatDate(dateStr)];
     rows.forEach(function (r) {
-      var deltaText = r.delta == null ? '' : r.delta < 0 ? ' (−' + Math.abs(r.delta).toFixed(3) + ')' : r.delta > 0 ? ' (+' + r.delta.toFixed(3) + ')' : ' (=)';
+      var deltaText = r.delta == null ? '' : r.delta < 0 ? ' (−' + formatGap(r.delta) + ')' : r.delta > 0 ? ' (+' + formatGap(r.delta) + ')' : ' (=)';
       lines.push(r.rider + ' — ' + formatTime(r.best) + deltaText + ' · ' + r.laps + ' tour' + (r.laps > 1 ? 's' : ''));
     });
     return lines.join('\n');
@@ -10725,8 +10740,8 @@
     rows.forEach(function (r) {
       var deltaHtml = '—';
       if (r.delta != null) {
-        if (r.delta < 0) deltaHtml = '<span class="daily-recap-better">−' + Math.abs(r.delta).toFixed(3) + '</span>';
-        else if (r.delta > 0) deltaHtml = '<span class="daily-recap-worse">+' + r.delta.toFixed(3) + '</span>';
+        if (r.delta < 0) deltaHtml = '<span class="daily-recap-better">−' + formatGap(r.delta) + '</span>';
+        else if (r.delta > 0) deltaHtml = '<span class="daily-recap-worse">+' + formatGap(r.delta) + '</span>';
         else deltaHtml = '=';
       }
       html += '<tr><td>' + renderRiderLink(r.rider) + '</td><td>' + formatTime(r.best) + '</td><td>' + r.laps + '</td><td>' + deltaHtml + '</td></tr>';
@@ -16459,7 +16474,7 @@
           var best = valid.length ? Math.min.apply(null, valid) : null;
           h += '<label style="display:block; margin:0.3rem 0;"><input type="radio" name="imp-cand" value="' + i + '"' + (i === sel ? ' checked' : '') + '> ' +
             escapeHtml(c.label || 'Ligne') + ' <span class="help-text">(' + c.laps.length + ' tour' + (c.laps.length > 1 ? 's' : '') +
-            (best != null ? ', meilleur ' + CI.formatLap(best) : '') + (i === sel && result.autoMatched ? ', détectée' : '') + ')</span></label>';
+            (best != null ? ', meilleur ' + formatTime(best) : '') + (i === sel && result.autoMatched ? ', détectée' : '') + ')</span></label>';
         });
       }
       if (result.lowConfidence || cands.length > 1) {
@@ -16495,7 +16510,7 @@
         flagsEl.innerHTML = unread.length
           ? '⚠ Tour' + (unread.length > 1 ? 's' : '') + ' illisible' + (unread.length > 1 ? 's' : '') + ' (ligne' + (unread.length > 1 ? 's' : '') + ' ' + unread.join(', ') + ', marquée' + (unread.length > 1 ? 's' : '') + ' ??) : saisis le temps ou supprime la ligne.'
           : bad.length
-          ? '⚠ ' + bad.map(function (i) { return 'tour ' + (i + 1) + ' (' + CI.formatLap(laps[i]) + ')'; }).join(', ') + ' : très différent des autres (tour de rentrée ? erreur de lecture ?)'
+          ? '⚠ ' + bad.map(function (i) { return 'tour ' + (i + 1) + ' (' + formatTime(laps[i]) + ')'; }).join(', ') + ' : très différent des autres (tour de rentrée ? erreur de lecture ?)'
           : '';
         flagsEl.style.color = bad.length ? 'var(--danger)' : '';
         var iso = frDateToIso(box.querySelector('#imp-date').value);

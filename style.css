@@ -1353,9 +1353,9 @@
   .horaires-photo-thumb {
     display: block;
     margin-top: 0.6rem;
-    max-width: 220px;
-    max-height: 220px;
-    width: auto;
+    width: 100%;
+    max-width: 100%;
+    max-height: none;
     border-radius: 8px;
     border: 1px solid var(--border);
     cursor: zoom-in;
@@ -2881,16 +2881,17 @@
 .outing-hero-row { display: flex; flex-wrap: wrap; gap: 0.8rem; align-items: center; }
 .outing-date-chip { border: 1px solid var(--accent); color: var(--accent); border-radius: 10px; padding: 0.4rem 0.7rem; font-weight: 600; }
 .outing-org { display: flex; align-items: center; gap: 0.5rem; }
-.outing-org img { height: 32px; max-width: 70px; object-fit: contain; }
+.outing-org img { height: 56px; max-width: 120px; object-fit: contain; border-radius: 8px; }
 .outing-group-card { display: flex; background: var(--surface); border: 1px solid var(--border); border-radius: 18px; overflow: hidden; margin-bottom: 0.8rem; }
 .outing-group-main { flex: 1; padding: 0.9rem; display: flex; flex-direction: column; gap: 0.2rem; }
 .outing-group-value { font-family: var(--font-display); font-weight: 800; font-size: 1.6rem; }
 .outing-group-status { width: 38%; background: var(--surface-alt); padding: 0.9rem; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 0.3rem; }
 .outing-status-dash { font-size: 1.5rem; color: var(--text-muted); }
-.outing-best-card { position: relative; display: flex; flex-direction: column; width: 100%; text-align: left; border: none; border-radius: 20px; padding: 1.1rem 1.2rem; margin-bottom: 0.8rem; color: #fff; cursor: pointer; background: linear-gradient(135deg, #f47a2c, #e3591c); box-shadow: 0 6px 18px rgba(227, 89, 28, 0.3); }
-.outing-best-card::after { content: ''; position: absolute; inset: 0 0 0 45%; border-radius: 0 20px 20px 0; background-image: linear-gradient(45deg, rgba(255,255,255,0.08) 25%, transparent 25%, transparent 75%, rgba(255,255,255,0.08) 75%), linear-gradient(45deg, rgba(255,255,255,0.08) 25%, transparent 25%, transparent 75%, rgba(255,255,255,0.08) 75%); background-size: 28px 28px; background-position: 0 0, 14px 14px; pointer-events: none; }
+.outing-best-card { position: relative; display: flex; flex-direction: column; width: 100%; text-align: left; border: none; border-radius: 14px; padding: 1rem 1.2rem 1rem 1.6rem; margin-bottom: 0.8rem; color: #f3f4f6; cursor: pointer; background: #16181d; box-shadow: 0 6px 18px rgba(0,0,0,0.18); overflow: hidden; }
+/* Bande de vibreur (rouge/blanc) sur le bord gauche : un clin d'œil piste, pas un drapeau à damier */
+.outing-best-card::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 7px; background: repeating-linear-gradient(180deg, #e3262b 0 12px, #ffffff 12px 24px); }
 .outing-label.light { color: rgba(255,255,255,0.85); }
-.outing-best-time { font-family: var(--font-display); font-weight: 800; font-size: 2.6rem; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.outing-best-time { font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace); font-weight: 700; font-size: 2.4rem; line-height: 1.15; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; color: #fff; }
 .outing-best-delta { font-size: 0.85rem; opacity: 0.95; }
 .outing-best-arrow { position: absolute; right: 1rem; top: 50%; transform: translateY(-50%); font-size: 1.6rem; z-index: 1; }
 .outing-tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 0.7rem; margin-bottom: 0.8rem; }
@@ -2996,3 +2997,5 @@
 .planning-group-check { display: inline-flex; align-items: center; gap: 0.4rem; margin: 0; font-size: 1rem; font-weight: 700; color: var(--text); }
 .planning-group-check input { margin: 0; }
 .card > .settings-block:last-child, [data-cpill-section] .settings-block { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+.outing-best-card .outing-best-delta { color: #9ca3af; }
+.outing-best-card .outing-best-arrow { color: #9ca3af; }
