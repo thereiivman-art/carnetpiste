@@ -3251,8 +3251,8 @@
   // someone else's.
   function renderProfileTabBar() {
     var tabs = [['profil', tr('tab_profil')], ['reglages', tr('tab_reglages')], ['aide', tr('tab_aide')], ['suggestion', tr('tab_suggestion')]];
-    return '<div class="profile-tabs" role="tablist">' + tabs.map(function (t) {
-      return '<button type="button" class="profile-tab-btn' + (profileSubTab === t[0] ? ' active' : '') + '" role="tab" aria-selected="' + (profileSubTab === t[0]) + '" data-profile-tab="' + t[0] + '">' + t[1] + '</button>';
+    return '<div class="subnav profile-tabs" role="tablist">' + tabs.map(function (t) {
+      return '<button type="button" class="subnav-btn profile-tab-btn' + (profileSubTab === t[0] ? ' active' : '') + '" role="tab" aria-selected="' + (profileSubTab === t[0]) + '" data-profile-tab="' + t[0] + '">' + t[1] + '</button>';
     }).join('') + '</div>';
   }
 
@@ -3325,7 +3325,9 @@
     // and which achievements set applies differ between the two.
     var isNonRider = p.role === 'accompagnant' || p.role === 'organisateur';
     var followed = p.followedRiders || [];
-    var html = '<form id="profile-form">';
+    var html = renderClientPills('profil', [['identite', 'Identité'], ['role', 'Je suis'], ['moto', isNonRider ? 'Pilotes suivis' : 'Ma moto']]);
+    html += '<form id="profile-form">';
+    html += cpillSection('profil', 'identite');
     html += renderProfileAvatar(p);
     html += '<label for="profile-name">' + tr('pseudo_label') + '</label>';
     var renameBlockedUntil = renameAllowedAt(p);
@@ -3346,7 +3348,8 @@
       '<div style="flex:1;"><label for="profile-firstname">' + tr('firstname_label') + '</label><input type="text" id="profile-firstname" value="' + escapeHtml(p.firstName || '') + '"></div>' +
       '<div style="flex:1;"><label for="profile-lastname">' + tr('lastname_label') + '</label><input type="text" id="profile-lastname" value="' + escapeHtml(p.lastName || '') + '"></div>' +
       '</div>';
-    html += '<label style="margin-top:0.9rem;">' + tr('i_am_label') + '</label>';
+    html += '</div>' + cpillSection('profil', 'role');
+    html += '<label style="margin-top:0.2rem;">' + tr('i_am_label') + '</label>';
     html += '<div class="auth-role-choice">' +
       '<label><input type="radio" name="profile-role" value="pilote"' + (p.role !== 'accompagnant' && p.role !== 'organisateur' ? ' checked' : '') + '> ' + tr('pilote_option') + '</label>' +
       '<label><input type="radio" name="profile-role" value="accompagnant"' + (p.role === 'accompagnant' ? ' checked' : '') + '> ' + tr('accompagnant_option') + '</label>' +
@@ -3361,6 +3364,7 @@
     html += renderRoleInfoCard('pilote', currentRole);
     html += renderRoleInfoCard('accompagnant', currentRole);
     html += renderRoleInfoCard('organisateur', currentRole);
+    html += '</div>' + cpillSection('profil', 'moto');
     html += '<div id="profile-bike-wrap" style="display:' + (isNonRider ? 'none' : 'block') + '; margin-top:0.9rem;">' +
       '<label for="profile-bike">' + tr('my_bike_label') + '</label><input type="text" id="profile-bike" placeholder="Ex. ST 765 RS" value="' + escapeHtml(p.bike || '') + '">' +
       '<div class="help-text">' + tr('bike_suggested_help') + '</div>' +
@@ -3380,6 +3384,7 @@
         return '<label class="checklist-item"><input type="checkbox" name="profile-follow-rider" value="' + escapeHtml(r) + '"' + (followed.indexOf(r) !== -1 ? ' checked' : '') + '> ' + escapeHtml(r) + '</label>';
       }).join('') + '</div>';
     }
+    html += '</div>';
     html += '</div>';
     html += '<div style="margin-top:1rem; display:flex; gap:0.6rem;"><button type="submit" class="primary">' + tr('save') + '</button>' +
       '<button type="button" class="ghost" id="profile-cancel">' + tr('close_label') + '</button></div>';
@@ -3464,17 +3469,17 @@
       '<div><label style="margin-bottom:0.4rem; display:block;">' + tr('profile_theme') + '</label>' + renderThemeToggle() + '</div></div>';
     html += '<label class="checklist-item" style="margin-top:0.8rem;"><input type="checkbox" id="profile-feeling-enabled"' + (p.sessionFeelingEnabled !== false ? ' checked' : '') + '> ' + tr('enable_feeling') + '</label>';
     html += '</div>';
-    html += collapsibleSection('settings-notifications', tr('notifications_heading'), renderNotificationsSettings(p).replace('<div style="margin-top:1.2rem; border-top:1px solid var(--border); padding-top:0.9rem;">', '<div>'), false);
+    var sections = { affichage: html };
+    sections.notifications = (renderNotificationsSettings(p).replace('<div style="margin-top:1.2rem; border-top:1px solid var(--border); padding-top:0.9rem;">', '<div>'));
     if (currentMode !== 'solo') {
       var privacy = '<div class="help-text">Tes chronos et roulages sont visibles des autres pilotes de l\'appli ; repères et débriefs ne sont affichés qu\'à toi ; ton email reste privé.</div>' +
         '<div class="help-text" style="margin-top:0.4rem;">' + tr('social_settings_help') + '</div>' +
         '<label class="checklist-item" style="margin-top:0.6rem;"><input type="checkbox" id="profile-share-sorties"' + (p.shareSorties !== false ? ' checked' : '') + '> ' + tr('share_events_chronos') + '</label>' +
         '<label class="checklist-item" style="margin-top:0.4rem;"><input type="checkbox" id="profile-share-trophees"' + (p.shareTrophees !== false ? ' checked' : '') + '> ' + tr('share_trophies') + '</label>' +
         '<label class="checklist-item" style="margin-top:0.4rem;"><input type="checkbox" id="profile-share-travel-info"' + (p.shareTravelInfo !== false ? ' checked' : '') + '> ' + tr('share_travel_info') + '</label>';
-      html += collapsibleSection('settings-privacy', 'Confidentialité', privacy, false);
+      sections.confidentialite = privacy;
     }
-    if (!advancedHidden()) html += collapsibleSection('settings-travel', 'Infos de voyage par défaut', renderMyTravelDefaultsSection(), false);
-    if (isAdmin()) html += collapsibleSection('settings-self-badges', 'Mes badges (admin)', renderSelfBadges(p), false);
+    if (!advancedHidden()) sections.affichage += '<div style="margin-top:1rem;">' + renderMyTravelDefaultsSection() + '</div>';
     var accountHtml = '';
     // Separate form -- changing the sign-in email needs the current
     // password (Firebase requires a recent reauthentication for it), which
@@ -3517,8 +3522,13 @@
       accountHtml += '</form>';
     }
     accountHtml += '</div>';
-    html += collapsibleSection('settings-account', 'Compte (email, mot de passe, suppression)', accountHtml, !!(profileEmailMessage || profilePasswordMessage || profileDeleteConfirmOpen));
-    return html;
+    sections.compte = accountHtml + (isAdmin() ? '<div style="margin-top:1.2rem;">' + renderSelfBadges(p) + '</div>' : '');
+    var items = [['affichage', 'Général'], ['notifications', 'Notifications']];
+    if (sections.confidentialite) items.push(['confidentialite', 'Vie privée']);
+    items.push(['compte', 'Compte']);
+    if (profileEmailMessage || profilePasswordMessage || profileDeleteConfirmOpen) pillState.settings = 'compte';
+    var pillsHtml = renderPills('settings', items);
+    return pillsHtml + (sections[pillState.settings] || sections.affichage);
   }
 
   // Sharing this link and someone signing up through it makes p the
@@ -6710,8 +6720,13 @@
     }
 
     function editNote(note, isNew) {
+      // Une seule fiche à la fois, et au-dessus de l'écran des repères (le
+      // plan est en z-index 350) -- sinon la fiche s'ouvrait derrière, invisible,
+      // et chaque toucher en empilait une nouvelle.
+      if (document.querySelector('.track-note-sheet')) return;
       var sheet = document.createElement('div');
-      sheet.className = 'crop-modal-overlay';
+      sheet.className = 'crop-modal-overlay track-note-sheet';
+      sheet.style.zIndex = 450;
       var gears = ['', '1', '2', '3', '4', '5', '6'];
       sheet.innerHTML = '<div class="crop-modal" style="max-width:420px; max-height:90vh; overflow-y:auto;">' +
         '<h2 class="section-title">' + (isNew ? 'Nouveau repère' : 'Repère') + '</h2>' +
@@ -8878,13 +8893,25 @@
   }
   // Pastilles (3e niveau, à l'intérieur d'un sous-onglet) : même style que
   // le filtre Passés/À venir du carnet. État mémorisé par groupe.
-  var pillState = { social: 'fil', events: 'avenir', circuit: 'plan', stats: 'records', teams: 'mine', team: 'fil', coach: 'demandes' };
+  var pillState = { profil: 'identite', settings: 'affichage', social: 'fil', events: 'avenir', circuit: 'plan', stats: 'records', teams: 'mine', team: 'fil', coach: 'demandes' };
   function renderPills(group, items) {
     var cur = pillState[group];
     if (!items.some(function (it) { return it[0] === cur; })) cur = pillState[group] = items[0][0];
     return '<div class="pill-tabs">' + items.map(function (it) {
       return '<button type="button" class="pill-btn' + (it[0] === cur ? ' active' : '') + '" data-pill-group="' + group + '" data-pill="' + it[0] + '">' + it[1] + '</button>';
     }).join('') + '</div>';
+  }
+  // Variante sans re-rendu, pour un formulaire (Profil) : les sections
+  // restent dans la page, seule leur visibilité change.
+  function renderClientPills(group, items) {
+    var cur = pillState[group];
+    if (!items.some(function (it) { return it[0] === cur; })) cur = pillState[group] = items[0][0];
+    return '<div class="pill-tabs">' + items.map(function (it) {
+      return '<button type="button" class="pill-btn' + (it[0] === cur ? ' active' : '') + '" data-cpill-group="' + group + '" data-cpill="' + it[0] + '">' + it[1] + '</button>';
+    }).join('') + '</div>';
+  }
+  function cpillSection(group, key) {
+    return '<div data-cpill-section="' + group + ':' + key + '"' + (pillState[group] === key ? '' : ' style="display:none;"') + '>';
   }
   function communauteSubItems() {
     var items = [['social', 'Amis & fil']];
@@ -16089,6 +16116,21 @@
     var carnetCancel = document.getElementById('carnet-cancel-add');
     if (carnetCancel) carnetCancel.addEventListener('click', function () { addChronoOpen = false; renderRoot(); });
     bindQuickOutingForms();
+    document.querySelectorAll('[data-cpill-group]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        var g = b.getAttribute('data-cpill-group'), k = b.getAttribute('data-cpill');
+        pillState[g] = k;
+        document.querySelectorAll('[data-cpill-group="' + g + '"]').forEach(function (x) { x.classList.toggle('active', x === b); });
+        document.querySelectorAll('[data-cpill-section^="' + g + ':"]').forEach(function (sec) {
+          sec.style.display = sec.getAttribute('data-cpill-section') === g + ':' + k ? '' : 'none';
+        });
+      });
+    });
+    // Pastille active toujours visible si la rangée défile (petits écrans).
+    document.querySelectorAll('.pill-tabs .pill-btn.active').forEach(function (el) {
+      var row = el.parentNode;
+      if (row.scrollWidth > row.clientWidth) row.scrollLeft = Math.max(0, el.offsetLeft - row.offsetLeft - 24);
+    });
     document.querySelectorAll('[data-pill-group]').forEach(function (b) {
       b.addEventListener('click', function () { pillState[b.getAttribute('data-pill-group')] = b.getAttribute('data-pill'); renderRoot(); });
     });
