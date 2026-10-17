@@ -3325,8 +3325,8 @@
     // and which achievements set applies differ between the two.
     var isNonRider = p.role === 'accompagnant' || p.role === 'organisateur';
     var followed = p.followedRiders || [];
-    var html = renderClientPills('profil', [['identite', 'Identité'], ['role', 'Je suis'], ['moto', isNonRider ? 'Pilotes suivis' : 'Ma moto']]);
-    html += '<form id="profile-form">';
+    var pills = renderClientPills('profil', [['identite', 'Identité'], ['role', 'Je suis'], ['moto', isNonRider ? 'Pilotes suivis' : 'Ma moto']]);
+    var html = '<form id="profile-form">';
     html += cpillSection('profil', 'identite');
     html += renderProfileAvatar(p);
     html += '<label for="profile-name">' + tr('pseudo_label') + '</label>';
@@ -3390,7 +3390,7 @@
       '<button type="button" class="ghost" id="profile-cancel">' + tr('close_label') + '</button></div>';
     if (profileSaveMessage) html += '<div class="help-text" style="margin-top:0.6rem;">' + escapeHtml(profileSaveMessage) + '</div>';
     html += '</form>';
-    return html;
+    return pills + '<div class="card">' + html + '</div>';
   }
 
   // Admin-only: self-service badges. Every other account gets these from
@@ -3522,13 +3522,13 @@
       accountHtml += '</form>';
     }
     accountHtml += '</div>';
-    sections.compte = accountHtml + (isAdmin() ? '<div style="margin-top:1.2rem;">' + renderSelfBadges(p) + '</div>' : '');
+    sections.compte = renderAccountBar(p) + accountHtml + (isAdmin() ? '<div style="margin-top:1.2rem;">' + renderSelfBadges(p) + '</div>' : '');
     var items = [['affichage', 'Général'], ['notifications', 'Notifications']];
     if (sections.confidentialite) items.push(['confidentialite', 'Vie privée']);
     items.push(['compte', 'Compte']);
     if (profileEmailMessage || profilePasswordMessage || profileDeleteConfirmOpen) pillState.settings = 'compte';
     var pillsHtml = renderPills('settings', items);
-    return pillsHtml + (sections[pillState.settings] || sections.affichage);
+    return pillsHtml + '<div class="card">' + (sections[pillState.settings] || sections.affichage) + '</div>';
   }
 
   // Sharing this link and someone signing up through it makes p the
@@ -3626,24 +3626,29 @@
   // up here instead, right when the header's profile-badge avatar is
   // clicked -- the fixed header itself only carries the avatar (see
   // renderRootUnsafe), not this whole bandeau.
-  function renderProfilePanel() {
-    if (!profilePanelOpen) return '';
-    var p = currentUserProfile;
-    var html = '<div class="card profile-panel">';
-    html += '<div class="account-bar">' +
+  function renderAccountBar(p) {
+    return '<div class="account-bar" style="border-bottom:none; padding-bottom:0;">' +
       '<span class="account-bar-identity">' + escapeHtml(p.name) + badgesHtml(p) + ' · ' + roleLabel(p.role) + '</span>' +
       '<span class="account-bar-actions">' +
         (isAdmin() ? '<button type="button" class="ghost account-bar-btn" id="account-manager-toggle">' + tr('account_management_label') + '</button>' : '') +
         '<button type="button" class="ghost account-bar-btn" id="logout-btn">' + tr('logout_label') + '</button>' +
       '</span>' +
     '</div>';
-    html += '<div class="section-title">' + tr('my_profile_label') + '</div>';
+  }
+
+  function renderProfilePanel() {
+    if (!profilePanelOpen) return '';
+    var p = currentUserProfile;
+    // Same layout as every other page: tabs right under the header, then
+    // the pills, then the content card -- the identity/logout bar lives in
+    // Réglages -> Compte.
+    var html = '<div class="profile-panel">';
     html += renderProfileTabBar();
     html += '<div class="profile-tab-body">';
     if (profileSubTab === 'parrainage') profileSubTab = 'profil'; // fusionné dans le QR d'invitation
     if (profileSubTab === 'reglages') html += renderProfileReglagesTab(p);
-    else if (profileSubTab === 'aide') html += renderProfileAideTab(p);
-    else if (profileSubTab === 'suggestion') html += renderProfileSuggestionTab(p);
+    else if (profileSubTab === 'aide') html += '<div class="card">' + renderProfileAideTab(p) + '</div>';
+    else if (profileSubTab === 'suggestion') html += '<div class="card">' + renderProfileSuggestionTab(p) + '</div>';
     else html += renderProfileProfilTab(p);
     html += '</div>';
     html += '</div>';
@@ -8893,7 +8898,7 @@
   }
   // Pastilles (3e niveau, à l'intérieur d'un sous-onglet) : même style que
   // le filtre Passés/À venir du carnet. État mémorisé par groupe.
-  var pillState = { profil: 'identite', settings: 'affichage', social: 'fil', events: 'avenir', circuit: 'plan', stats: 'records', teams: 'mine', team: 'fil', coach: 'demandes' };
+  var pillState = { profil: 'identite', settings: 'affichage', social: 'fil', events: 'avenir', circuit: 'plan', stats: 'records', teams: 'mine', team: 'fil', coach: 'demandes', planning: 'programme' };
   function renderPills(group, items) {
     var cur = pillState[group];
     if (!items.some(function (it) { return it[0] === cur; })) cur = pillState[group] = items[0][0];
@@ -9979,7 +9984,7 @@
     past.sort(function (a, b) { return a.dateStart < b.dateStart ? 1 : a.dateStart > b.dateStart ? -1 : 0; });
     var html = '';
     var discovery = renderProEventDiscovery(me);
-    var pills = [['avenir', 'À venir' + ((ongoing.length + upcoming.length) ? ' (' + (ongoing.length + upcoming.length) + ')' : '')], ['passes', 'Passés'], ['calendrier', 'Calendrier']];
+    var pills = [['avenir', 'À venir' + ((ongoing.length + upcoming.length) ? ' (' + (ongoing.length + upcoming.length) + ')' : '')], ['passes', 'Passés'], ['calendrier', 'Mon calendrier']];
     if (discovery) pills.push(['decouvrir', 'Découvrir']);
     html += renderPills('events', pills);
     if (editingEventId === 'new') {
@@ -9993,8 +9998,13 @@
       if (!ongoing.length && !upcoming.length) {
         html += '<div class="card"><div class="empty-state">' + (coreDataLoading() ? tr('loading') : 'Aucun roulage à venir.') + '</div></div>';
       } else {
-        if (ongoing.length) html += renderEventGroupCard(tr('ongoing_label'), ongoing, { collapseKey: 'events-ongoing', defaultOpen: true });
-        if (upcoming.length) html += renderEventGroupCard(tr('upcoming_label'), upcoming, { collapseKey: 'events-upcoming', defaultOpen: true });
+        if (ongoing.length) {
+          html += renderEventGroupCard(tr('ongoing_label'), ongoing, { collapseKey: 'events-ongoing', defaultOpen: true });
+          if (upcoming.length) html += renderEventGroupCard(tr('upcoming_label'), upcoming, { collapseKey: 'events-upcoming', defaultOpen: true });
+        } else {
+          // The pill already says "À venir" -- no repeated title.
+          html += '<div class="card events-list-card">' + upcoming.map(function (ev) { return renderEventRow(ev, {}); }).join('') + '</div>';
+        }
       }
     } else if (cur === 'passes') {
       html += past.length ? renderPastEventsCard(past) : '<div class="card"><div class="empty-state">Aucun roulage passé.</div></div>';
@@ -10504,12 +10514,13 @@
     // whichever one happens to be selected in Chronos. Its own
     // margin-top:1rem (see renderChronoGoalsCard) already gives it clean
     // breathing room below the orange card.
-    html += renderChronoGoalsCard(ev.circuit);
+    var goalsHtml = renderChronoGoalsCard(ev.circuit).replace('<div class="card" style="margin-top:1rem;">', '<div class="card">');
 
     // Grey card: this account's own personal info for the sortie -- never
     // something the Team orga fills in for everyone.
+    var jourjHtml = '';
     if (isOngoing && (ev.riders || []).indexOf(currentUserProfile && currentUserProfile.name) !== -1) {
-      html = '<button type="button" class="primary jourj-launch" data-action="open-jourj">🏁 Mode jour J — prochaine session en grand</button>' + html;
+      jourjHtml = '<button type="button" class="primary jourj-launch" data-action="open-jourj">🏁 Mode jour J — prochaine session en grand</button>';
     }
     var personal = '<div class="card personal-info-card">';
     personal += renderTrackNotesReminder(ev.circuit);
@@ -10522,7 +10533,11 @@
     }
     personal += '</div>';
 
-    return html + personal;
+    // Same pills as the other pages: what the orga provides (Programme)
+    // vs. this rider's own prep (Ma prépa).
+    return jourjHtml + renderClientPills('planning', [['programme', 'Programme'], ['prepa', 'Ma prépa']]) +
+      cpillSection('planning', 'programme') + html + '</div>' +
+      cpillSection('planning', 'prepa') + goalsHtml + personal + '</div>';
   }
 
   // The connected pilote's own group for a given date -- pm takes
