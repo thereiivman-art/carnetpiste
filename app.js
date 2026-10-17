@@ -8945,7 +8945,7 @@
   }
   // Pastilles (3e niveau, à l'intérieur d'un sous-onglet) : même style que
   // le filtre Passés/À venir du carnet. État mémorisé par groupe.
-  var pillState = { profil: 'identite', settings: 'affichage', social: 'fil', events: 'avenir', circuit: 'plan', stats: 'records', teams: 'mine', team: 'fil', coach: 'demandes', planning: 'programme', outing: 'chronos' };
+  var pillState = { profil: 'identite', settings: 'affichage', social: 'fil', events: 'avenir', circuit: 'plan', stats: 'records', teams: 'mine', team: 'fil', coach: 'demandes', planning: 'programme', outing: 'chronos', evmanage: 'participants' };
   function renderPills(group, items) {
     var cur = pillState[group];
     if (!items.some(function (it) { return it[0] === cur; })) cur = pillState[group] = items[0][0];
@@ -9395,7 +9395,7 @@
     // of being stuck invisible in ev.riderGroups forever.
     var orphanNames = Object.keys(ev.riderGroups || {}).filter(function (r) { return riders.indexOf(r) === -1; });
     var allNames = riders.concat(orphanNames);
-    if (!allNames.length) return '<div class="section-title" style="margin-top:1rem;">' + tr('groups_heading') + '</div><div class="help-text">' + tr('add_riders_to_group_hint') + '</div>';
+    if (!allNames.length) return '<div class="help-text">' + tr('add_riders_to_group_hint') + '</div>';
     var rosterLetters = rosterGroupLettersFor(ev.circuit);
     var byGroup = {};
     rosterLetters.forEach(function (g) { byGroup[g] = []; });
@@ -9420,7 +9420,7 @@
       return '<div class="friend-row"' + dragAttrs + '><div class="friend-row-main">' + nameLinkHtml(name) + badgesHtml(u) + timeHtml + orphanHtml + '</div><div class="friend-row-actions">' + removeBtn + '</div></div>' + maybeFicheHtml(name);
     }
     var assignedCount = allNames.length - unassigned.length;
-    var html = '<div class="section-title" style="margin-top:1rem;">' + tr('groups_heading') + ' (' + assignedCount + ')</div>';
+    var html = '<div class="help-text">' + assignedCount + ' pilote(s) réparti(s) dans un groupe.</div>';
     // .groups-board: on desktop (see style.css) this becomes a row of
     // columns -- Non attribués + every group side by side, like a board,
     // instead of one long vertical stack of accordions. That's exactly
@@ -12574,7 +12574,7 @@
     // long stack of sections, easy to lose track of and easy to confuse
     // with the collapsible headers just above it.
     if (canEdit) {
-      html += '<div style="margin:0.6rem 0 1rem;"><button type="button" class="ghost" data-action="team-event-edit" data-id="' + ev.id + '">' + tr('edit_event_btn') + '</button></div>';
+      html += '<div style="margin:0.6rem 0 0;"><button type="button" class="ghost" data-action="team-event-edit" data-id="' + ev.id + '">' + tr('edit_event_btn') + '</button></div>';
       if (editingEventId === ev.id) html += renderEventForm();
     }
     // Résumé -- no dates here, already in the title above.
@@ -12582,7 +12582,8 @@
     var evTeamVis = { public: tr('ev_vis_public'), adherent: tr('ev_vis_adherent_only'), membre: tr('ev_vis_membre_only'), follower: tr('ev_vis_follower_only'), ouvert: tr('ev_vis_ouvert') };
     if (orgTeam.teamPro) html += infoRow(tr('visibility_label'), evTeamVis[ev.eventVisibility] || tr('ev_vis_membre_only'));
     if (ev.bookingUrl) html += '<div style="margin:0.6rem 0;"><button type="button" class="ghost" data-action="open-external-url" data-url="' + escapeHtml(ev.bookingUrl) + '">' + tr('book_register_btn') + '</button></div>';
-    html += renderEventAnnouncements(ev, canEdit);
+    html += '</div>';
+    var announcementsHtml = flatSections(renderEventAnnouncements(ev, canEdit));
     // Badges + rôle Team (Membre/Adhérent/Team Leader/Suivi) right on each
     // participant row -- a quick read for the Team orga without having to
     // open every fiche one by one. Always the organizing Team's own roster,
@@ -12637,14 +12638,14 @@
           '<button type="submit" class="ghost">' + tr('add_aria') + '</button></form>';
       }
     }
-    html += collapsibleSection('event-manage-riders-' + ev.id, tr('participants_heading') + ' (' + riders.length + ')', riderRows, true);
+    var participantsHtml = '<div class="card">' + riderRows + '</div>';
     // Easy per-rider chrono check right here, next to the roster --
     // renderEventCertificationSection already lets the leader verify (✓)
     // or un-verify a rider's best chrono for this sortie whenever they
     // want, not just right after the event. Self-gated on isLeaderOfTeam
     // (ev.teamId) already, so it naturally stays empty here for a viewer
     // who isn't the organizing Team's leader.
-    html += renderEventCertificationSection(ev);
+    var chronosHtml = flatSections(renderEventCertificationSection(ev));
     if (canEdit && reqs.length) {
       var reqRows = reqs.map(function (r) {
         var u = (STATE.usersByName || {})[r.from] || {};
@@ -12654,11 +12655,25 @@
           '<button type="button" class="ghost" data-action="event-join-request-remove" data-id="' + r.id + '">' + tr('refuse_generic') + '</button>' +
           '</div></div>';
       }).join('');
-      html += collapsibleSection('event-manage-requests-' + ev.id, tr('requests_to_accept_heading') + ' (' + reqs.length + ')', reqRows, true);
+      participantsHtml = '<div class="card"><h2 class="section-title">' + tr('requests_to_accept_heading') + ' (' + reqs.length + ')</h2>' + reqRows + '</div>' + participantsHtml;
     }
-    html += renderGroupsSection(ev, canEdit);
-    html += '</div>';
+    // Same pills as everywhere: header card, then one topic at a time.
+    var pills = [['participants', tr('participants_heading') + ' (' + riders.length + (reqs.length && canEdit ? ' +' + reqs.length : '') + ')'], ['groupes', tr('groups_heading').replace(/\s*\(.*$/, '')]];
+    if (announcementsHtml) pills.push(['annonces', tr('announcements_heading')]);
+    if (chronosHtml) pills.push(['chronos', 'Chronos']);
+    html += renderPills('evmanage', pills);
+    var cur = pillState.evmanage;
+    if (cur === 'groupes') html += '<div class="card">' + renderGroupsSection(ev, canEdit) + '</div>';
+    else if (cur === 'annonces') html += '<div class="card">' + announcementsHtml + '</div>';
+    else if (cur === 'chronos') html += '<div class="card">' + chronosHtml + '</div>';
+    else html += participantsHtml;
     return html;
+  }
+
+  // Under a pill the pill already names the section: show a collapsible
+  // section open, without its own toggle header.
+  function flatSections(html) {
+    return (html || '').replace(/<details class="planning-section"( data-planning-section="[^"]*")( open)?>/, '<details class="planning-section flat"$1 open>');
   }
 
   function renderTeamCard(team, me) {
@@ -15054,6 +15069,7 @@
     document.querySelectorAll('[data-action="team-event-manage-open"]').forEach(function (btn) {
       btn.addEventListener('click', function () {
         managingEventId = btn.getAttribute('data-id');
+        pillState.evmanage = 'participants';
         editingEventId = null;
         renderRoot();
         window.scrollTo(0, 0);

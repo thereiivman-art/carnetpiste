@@ -2966,3 +2966,6 @@
 .outing-page .card + .card { margin-top: 0.9rem; }
 .team-card + .team-card, .add-chrono-btn + .team-card { margin-top: 0.9rem; }
 .team-card .danger-zone { border-top: none; padding-top: 0; margin-top: 0; }
+.planning-section.flat { margin-top: 0; border-top: none; padding-top: 0; }
+.planning-section.flat > summary { display: none; }
+.planning-section.flat > .planning-section-body { margin-top: 0; }
