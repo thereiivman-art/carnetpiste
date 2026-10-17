@@ -3111,3 +3111,14 @@ body { min-height: 100%; min-height: 100dvh; }
 .outing-underline { display: none; }
 .outing-date-chip { border: 1px solid var(--border); color: var(--text); background: var(--surface); }
 .carnet-add-help .inline-link { width: auto; }
+/* Lien public d'un roulage */
+.public-roulage { width: 100%; max-width: 560px; }
+.public-roulage-going { margin-top: 0.6rem; font-size: 0.95rem; }
+.public-roulage-day { font-weight: 700; margin: 0.8rem 0 0.3rem; text-transform: capitalize; }
+.public-roulage-group { display: flex; align-items: center; gap: 0.6rem; padding: 0.45rem 0; border-top: 1px solid var(--border); font-family: var(--font-display); font-size: 1.1rem; font-weight: 600; }
+.public-roulage-group:first-child { border-top: none; }
+.share-roulage-btn { margin: 0 0 0.9rem; }
+.join-banner { border: 1px solid var(--accent); margin-bottom: 0.9rem; }
+.join-banner-actions { display: flex; gap: 0.6rem; flex-wrap: wrap; margin-top: 0.6rem; }
+.public-roulage a.add-chrono-btn { display: block; background: var(--accent); color: var(--accent-ink); border-radius: 12px; padding: 0.9rem 1rem; font-weight: 700; font-size: 1.05rem; text-decoration: none; }
+.public-roulage a.ghost { border: 1px solid var(--border); border-radius: 10px; padding: 0.45rem 0.8rem; color: var(--text); font-weight: 600; background: var(--surface); }

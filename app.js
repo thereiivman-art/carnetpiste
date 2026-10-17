@@ -2053,12 +2053,17 @@
   // before the auth screen even renders, and the query string is then
   // dropped from the address bar so it doesn't linger through reloads.
   var pendingReferrer = null;
+  // ?roulage=<eventId>: a public roulage link (see publishPublicRoulage).
+  var pendingRoulageId = null;
   (function captureReferrer() {
     try {
       var params = new URLSearchParams(window.location.search);
       var ref = params.get('ref');
-      if (ref) {
-        pendingReferrer = ref;
+      var roulage = params.get('roulage');
+      if (roulage) { pendingRoulageId = roulage; params.delete('roulage'); try { sessionStorage.setItem('cdp-pending-roulage', roulage); } catch (e) {} }
+      else { try { pendingRoulageId = sessionStorage.getItem('cdp-pending-roulage') || null; } catch (e) {} }
+      if (ref || roulage) {
+        if (ref) pendingReferrer = ref;
         params.delete('ref');
         var qs = params.toString();
         var newUrl = window.location.pathname + (qs ? '?' + qs : '') + window.location.hash;
@@ -6204,6 +6209,15 @@
       '<span class="help-text">🕒 ' + (slotsAll.length ? escapeHtml(slotsAll.map(function (sl) { return sl.label; }).join(', ')) : (group ? 'Horaires non communiqués' : 'Groupe pas encore attribué')) + '</span></div>' +
       '<div class="outing-group-status">' + statusHtml + '</div></div>';
 
+    var meName = currentUserProfile && currentUserProfile.name;
+    if (ev && joinBannerEventId === ev.id && (ev.riders || []).indexOf(meName) === -1) {
+      html += '<div class="card join-banner"><strong>Tu y vas aussi ?</strong><div class="help-text">« J\'y vais » te met sur la liste du roulage dans Carnet de Piste. L\'inscription et le paiement se font chez l\'orga.</div>' +
+        '<div class="join-banner-actions">' + (ev.bookingUrl ? '<button type="button" class="primary" data-action="open-external-url" data-url="' + escapeHtml(ev.bookingUrl) + '">Réserver chez l\'orga ↗</button>' : '') +
+        '<button type="button" class="' + (ev.bookingUrl ? 'ghost' : 'primary') + '" data-action="join-roulage-link" data-id="' + escapeHtml(ev.id) + '">J\'y vais</button></div></div>';
+    }
+    if (ev && ((ev.riders || []).indexOf(meName) !== -1 || (ev.teamId && isLeaderOfTeam(ev.teamId)))) {
+      html += '<button type="button" class="ghost share-roulage-btn" data-action="share-roulage" data-id="' + escapeHtml(ev.id) + '">🔗 Inviter des pistards (lien public)</button>';
+    }
     // Same pills as everywhere else: Chronos / Infos / Repères.
     var notes = myTrackNotes(circuit);
     html += renderPills('outing', [['chronos', 'Chronos' + (sessions.length ? ' (' + sessions.length + ')' : '')], ['infos', 'Infos'], ['reperes', 'Repères' + (notes.length ? ' (' + notes.length + ')' : '')]]);
@@ -10633,6 +10647,9 @@
     // Raccourci vers Modifier l'événement, uniquement pour le Team Leader
     // du Team qui gère cet event -- pas besoin d'aller jusqu'à Team ->
     // Gestion des événements pour un ajustement rapide.
+    if ((ev.riders || []).indexOf(currentUserProfile && currentUserProfile.name) !== -1 || isLeader) {
+      html += '<div style="margin:0.5rem 0;"><button type="button" class="ghost" data-action="share-roulage" data-id="' + ev.id + '">🔗 Inviter des pistards (lien public)</button></div>';
+    }
     if (isLeader) {
       if (editingEventId === ev.id) html += renderEventForm();
       else html += '<div style="margin:0.5rem 0;"><button type="button" class="ghost" data-action="team-event-edit" data-id="' + ev.id + '">✎ Modifier le roulage</button></div>';
@@ -13676,12 +13693,17 @@
     document.body.classList.toggle('has-bottom-nav', authState === 'signed-in');
     if (authState !== 'signed-in') {
       var authBody;
-      if (authState === 'loading') authBody = '<div class="card auth-card"><div class="empty-state">Connexion...</div></div>';
+      if (authState === 'loading' && !pendingRoulageId) authBody = '<div class="card auth-card"><div class="empty-state">Connexion...</div></div>';
       else if (authState === 'verify-email') authBody = renderVerifyEmailScreen();
+      else if (pendingRoulageId && !publicRoulageDismissed && authState !== 'verify-email') authBody = renderPublicRoulage();
       else authBody = renderAuthScreen();
       root.innerHTML =
         '<header class="page-head"><div class="page-head-inner"><h1 class="title">Carnet de Piste</h1></div></header>' +
         '<div class="auth-screen">' + authBody + '</div>';
+      var prSignup = document.getElementById('public-roulage-signup');
+      if (prSignup) prSignup.addEventListener('click', function () { publicRoulageDismissed = true; authMode = 'signup'; renderRoot(); window.scrollTo(0, 0); });
+      var prLogin = document.getElementById('public-roulage-login');
+      if (prLogin) prLogin.addEventListener('click', function () { publicRoulageDismissed = true; authMode = 'login'; renderRoot(); window.scrollTo(0, 0); });
       attachAuthHandlers();
       updateFixedHeaderOffset();
       return;
@@ -13710,6 +13732,7 @@
     } else {
       if ((activeView === 'team' && isSimplifiedModeOn(currentUserProfile)) || (activeView === 'coach' && !(canAccessCoachSpace() && !advancedHidden()))) activeView = 'social';
       if (navTabFor(activeView) === 'communaute' && isSoloModeOn(currentUserProfile)) activeView = 'carnet';
+      handlePendingRoulageSignedIn();
       if (activeView === 'outing' && !outingView) activeView = 'carnet';
       if (activeView !== 'outing') lastSubView[navTabFor(activeView)] = activeView;
       var carnetSub = renderSubNav([['carnet', 'Chronos'], ['circuit', 'Circuits'], ['stats', 'Stats']]);
@@ -13812,6 +13835,139 @@
     html += '<div class="help-text" style="margin-top:0.9rem;"><button type="button" class="auth-link" id="verify-logout-btn">Se déconnecter</button></div>';
     html += '</div>';
     return html;
+  }
+
+  // ---- Lien public d'un roulage ----
+  // publicRoulages/{eventId} is a read-only snapshot anyone can open
+  // without an account (see firestore.rules): circuit, dates, orga,
+  // horaires, links to the orga's booking and live timing, and only a
+  // participant COUNT -- never the riders' names. Written by a rider (or
+  // the Team leader) when they share the link.
+  var publicRoulage = null;        // the loaded snapshot
+  var publicRoulageState = '';     // '' | 'loading' | 'ready' | 'missing'
+  var publicRoulageDismissed = false; // visitor chose to sign up / log in
+  var joinBannerEventId = null;    // signed-in arrival: offer "J'y vais"
+
+  function publicRoulageLink(id) {
+    var me = currentUserProfile && currentUserProfile.name;
+    return window.location.origin + window.location.pathname + '?roulage=' + encodeURIComponent(id) + (me ? '&ref=' + encodeURIComponent(me) : '');
+  }
+  function publicRoulageSnapshot(ev) {
+    var info = circuitInfo(ev.circuit);
+    var team = ev.teamId ? teamById(ev.teamId) : null;
+    var days = datesInRange(ev.dateStart, ev.dateEnd || ev.dateStart).map(function (d) {
+      var h = eventHoraires(ev, d) || {};
+      var groups = {};
+      HORAIRES_GROUPS.forEach(function (g) { if (h[g.key]) groups[g.key.replace(/^group/, '')] = String(h[g.key]); });
+      return { date: d, groups: groups };
+    });
+    return {
+      eventId: ev.id,
+      circuit: ev.circuit || '',
+      dateStart: ev.dateStart || '',
+      dateEnd: ev.dateEnd || ev.dateStart || '',
+      organizer: team ? team.name : (ev.organizerNote || ''),
+      bookingUrl: ev.bookingUrl || '',
+      liveTimingUrl: info.liveTimingUrl || '',
+      briefing: info.briefing || '',
+      days: days,
+      going: (ev.riders || []).length,
+      sharedBy: (currentUserProfile && currentUserProfile.name) || '',
+      updatedAt: Date.now(),
+      updatedByUid: myUid()
+    };
+  }
+  function shareRoulage(eventId) {
+    var ev = eventsList().filter(function (e) { return e.id === eventId; })[0];
+    if (!ev) return;
+    var url = publicRoulageLink(ev.id);
+    var text = 'Qui roule à ' + ev.circuit + ' le ' + formatEventRange(ev, true) + ' ? Horaires et infos ici :';
+    db.collection('publicRoulages').doc(ev.id).set(publicRoulageSnapshot(ev)).then(function () {
+      if (navigator.share) return navigator.share({ title: ev.circuit, text: text, url: url }).catch(function () {});
+      if (navigator.clipboard) return navigator.clipboard.writeText(text + ' ' + url).then(function () { showToast('Lien copié : colle-le dans ton groupe WhatsApp.', 'success'); });
+      window.prompt('Copie ce lien :', url);
+    }).catch(function (err) {
+      showToast('Impossible de créer le lien : ' + ((err && err.message) || err));
+    });
+  }
+  function loadPublicRoulage() {
+    if (!pendingRoulageId || publicRoulageState) return;
+    publicRoulageState = 'loading';
+    db.collection('publicRoulages').doc(pendingRoulageId).get().then(function (doc) {
+      publicRoulage = doc.exists ? doc.data() : null;
+      publicRoulageState = doc.exists ? 'ready' : 'missing';
+      renderRoot();
+    }).catch(function () { publicRoulageState = 'missing'; renderRoot(); });
+  }
+  function renderPublicRoulage() {
+    loadPublicRoulage();
+    var r = publicRoulage;
+    var html = '<div class="public-roulage">';
+    html += '<div class="section-heading"><span class="section-heading-kerb" aria-hidden="true"></span><h1 class="section-heading-title">Roulage</h1></div>';
+    if (publicRoulageState !== 'ready' || !r) {
+      html += '<div class="card"><div class="empty-state">' + (publicRoulageState === 'missing' ? 'Ce lien de roulage n\'existe plus.' : 'Chargement…') + '</div></div>';
+    } else {
+      var range = r.dateEnd && r.dateEnd !== r.dateStart ? formatDate(r.dateStart) + ' → ' + formatDate(r.dateEnd) : formatDate(r.dateStart);
+      html += '<div class="card today-schedule-card"><div class="today-schedule-title"><div class="eyebrow">' + escapeHtml(range) + '</div>' +
+        '<div class="today-schedule-circuit">' + escapeHtml(r.circuit) + '</div></div>' +
+        (r.organizer ? '<div class="help-text" style="margin-top:0.4rem;">Organisé par <strong>' + escapeHtml(r.organizer) + '</strong></div>' : '') +
+        '<div class="public-roulage-going">' + (r.going > 0 ? '<strong>' + r.going + ' pilote' + (r.going > 1 ? 's' : '') + '</strong> y vont déjà' : 'Sois le premier à y aller') +
+        (r.sharedBy ? ' · partagé par ' + escapeHtml(r.sharedBy) : '') + '</div>';
+      if (r.bookingUrl) html += '<a class="primary add-chrono-btn" style="margin-top:0.8rem; text-align:center; text-decoration:none;" href="' + escapeHtml(r.bookingUrl) + '" target="_blank" rel="noopener">Réserver chez l\'orga ↗</a><div class="help-text carnet-add-help">Inscription et paiement chez l\'organisateur.</div>';
+      html += '</div>';
+      var dayHtml = (r.days || []).filter(function (d) { return d.groups && Object.keys(d.groups).length; }).map(function (d) {
+        return ((r.days || []).length > 1 ? '<div class="public-roulage-day">' + escapeHtml(weekdayName(d.date) + ' ' + formatDate(d.date)) + '</div>' : '') +
+          ['R', 'A', 'B', 'C', 'D'].filter(function (g) { return d.groups[g]; }).map(function (g) {
+            return '<div class="public-roulage-group">' + groupChip(g) + '<span>' + escapeHtml(d.groups[g]) + '</span></div>';
+          }).join('');
+      }).join('');
+      html += '<div class="card"><h2 class="section-title">Horaires</h2>' +
+        (r.briefing ? '<div class="help-text" style="margin-bottom:0.6rem; color:var(--accent); font-weight:600;">Briefing ' + escapeHtml(r.briefing) + '</div>' : '') +
+        (dayHtml || '<div class="help-text">Pas encore d\'horaires pour ce roulage.</div>') +
+        (r.liveTimingUrl ? '<a class="ghost" style="display:inline-block; margin-top:0.8rem; text-decoration:none;" href="' + escapeHtml(r.liveTimingUrl) + '" target="_blank" rel="noopener">Live timing de l\'orga ↗</a>' : '') + '</div>';
+    }
+    html += '<div class="card public-roulage-cta"><h2 class="section-title">Ton carnet de pilote, gratuit</h2>' +
+      '<div class="help-text">Horaires de ton groupe, chronos importés depuis ta feuille de temps, records, repères sur le plan, copains du roulage. Il complète l\'appli de ton orga, il ne la remplace pas.</div>' +
+      '<button type="button" class="primary add-chrono-btn" id="public-roulage-signup" style="margin-top:0.8rem;">Créer mon carnet</button>' +
+      '<div class="carnet-add-help"><button type="button" class="link-btn inline-link" id="public-roulage-login">J\'ai déjà un compte</button></div></div>';
+    html += '</div>';
+    return html;
+  }
+  // Signed-in arrival through a roulage link: open that roulage's page
+  // (offering "J'y vais" if not on it yet), once core data has loaded.
+  function handlePendingRoulageSignedIn() {
+    if (!pendingRoulageId || coreDataLoading()) return;
+    var id = pendingRoulageId;
+    pendingRoulageId = null;
+    try { sessionStorage.removeItem('cdp-pending-roulage'); } catch (e) {}
+    var ev = eventsList().filter(function (e) { return e.id === id; })[0];
+    if (!ev) { showToast('Ce roulage n\'est plus disponible.'); return; }
+    var me = currentUserProfile && currentUserProfile.name;
+    if ((ev.riders || []).indexOf(me) === -1) joinBannerEventId = ev.id;
+    selectEvent(ev.id);
+    var today = dateKey(new Date());
+    var day = (today >= ev.dateStart && today <= (ev.dateEnd || ev.dateStart)) ? today : ev.dateStart;
+    outingView = { circuit: ev.circuit, date: day, eventId: ev.id, from: 'event' };
+    pillState.outing = 'infos';
+    activeView = 'outing';
+  }
+  function joinRoulageFromLink(eventId) {
+    var ev = eventsList().filter(function (e) { return e.id === eventId; })[0];
+    var me = currentUserProfile && currentUserProfile.name;
+    if (!ev || !me) return;
+    joinBannerEventId = null;
+    if ((ev.riders || []).indexOf(me) !== -1) { renderRoot(); return; }
+    if (!ev.teamId || ev.eventVisibility === 'ouvert') {
+      var prevState = JSON.parse(JSON.stringify(STATE));
+      ev.riders = (ev.riders || []).concat([me]);
+      persist(prevState);
+      showToast('Tu es sur la liste de ' + ev.circuit + '.', 'success');
+    } else {
+      db.collection('eventJoinRequests').doc(ev.id + '_' + me).set({ eventId: ev.id, from: me, status: 'pending', fromUid: myUid() }).then(function () {
+        showToast('C\'est noté : le Team doit valider.', 'success');
+      }).catch(function () { showToast('Impossible d\'envoyer la demande.'); });
+    }
+    renderRoot();
   }
 
   function renderAuthScreen() {
@@ -15203,6 +15359,12 @@
         renderRoot();
         window.scrollTo(0, 0);
       });
+    });
+    document.querySelectorAll('[data-action="share-roulage"]').forEach(function (btn) {
+      btn.addEventListener('click', function () { shareRoulage(btn.getAttribute('data-id')); });
+    });
+    document.querySelectorAll('[data-action="join-roulage-link"]').forEach(function (btn) {
+      btn.addEventListener('click', function () { joinRoulageFromLink(btn.getAttribute('data-id')); });
     });
     document.querySelectorAll('[data-action="feedback-delete"]').forEach(function (btn) {
       btn.addEventListener('click', function () { pendingDeleteFeedbackId = btn.getAttribute('data-id'); renderRoot(); });
