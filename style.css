@@ -19,9 +19,10 @@
     --series-4: #0e8f8f;
     --shadow: 0 1px 2px rgba(22,33,44,0.07), 0 6px 16px rgba(22,33,44,0.06);
     --radius: 10px;
-    --font-display: 'Titillium Web', 'Segoe UI', sans-serif;
-    --font-body: 'IBM Plex Sans', 'Segoe UI', sans-serif;
-    --font-mono: 'IBM Plex Mono', 'SFMono-Regular', Consolas, monospace;
+    --font-display: 'Barlow Condensed', 'Arial Narrow', sans-serif;
+    --font-body: 'Barlow', 'Segoe UI', sans-serif;
+    /* Chiffres (chronos, horaires) : même police haute et serrée que les titres, chiffres à chasse fixe */
+    --font-mono: 'Barlow Condensed', 'Arial Narrow', sans-serif;
     /* --header-h is a fallback for the first paint only -- app.js measures
        the real header and overwrites this via updateFixedHeaderOffset()
        on every render, since the header's height isn't constant (it wraps
@@ -2611,7 +2612,7 @@
     border: 1.5px dashed var(--accent);
     border-radius: 4px;
     padding: 0.15rem 0.4rem;
-    font-family: 'IBM Plex Sans', sans-serif;
+    font-family: var(--font-body);
     font-weight: 600;
     font-size: 1.1rem;
     min-width: 140px;
@@ -2621,7 +2622,7 @@
     position: absolute;
     transform: translateY(-50%);
     z-index: 6;
-    font-family: 'IBM Plex Sans', sans-serif;
+    font-family: var(--font-body);
     font-weight: 600;
     font-size: 1.1rem;
     padding: 0.1rem 0.3rem;
@@ -2834,7 +2835,7 @@
 .bike-under { font-size: 0.78rem; color: var(--text-muted); margin-top: 0.2rem; }
 .session-table-compact .row-actions { white-space: nowrap; text-align: right; width: 1%; }
 .lap-delta-line { white-space: nowrap; }
-.bike-under { font-family: inherit; font-family: -apple-system, "Segoe UI", Roboto, sans-serif; }
+.bike-under { font-family: var(--font-body); }
 .session-table-compact .row-actions .icon-btn { margin-left: 0.15rem; }
 .session-table-compact .date-cell { min-width: 5.6rem; }
 .session-table-compact .row-actions .icon-btn { padding: 0.3rem 0.45rem; min-width: 0; width: auto; height: auto; }
@@ -2895,7 +2896,7 @@
 /* Bande de vibreur (rouge/blanc) sur le bord gauche : un clin d'œil piste, pas un drapeau à damier */
 .outing-best-card::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 7px; background: repeating-linear-gradient(180deg, #e3262b 0 12px, #ffffff 12px 24px); }
 .outing-label.light { color: rgba(255,255,255,0.85); }
-.outing-best-time { font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace); font-weight: 700; font-size: 2.4rem; line-height: 1.15; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; color: #fff; }
+.outing-best-time { font-family: var(--font-mono); font-weight: 700; font-size: 2.8rem; line-height: 1.15; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; color: #fff; }
 .outing-best-delta { font-size: 0.85rem; opacity: 0.95; }
 .outing-best-arrow { position: absolute; right: 1rem; top: 50%; transform: translateY(-50%); font-size: 1.6rem; z-index: 1; }
 .outing-tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 0.7rem; margin-bottom: 0.8rem; }
@@ -3028,3 +3029,14 @@ div.outing-best-card { cursor: default; }
 /* Carte du prochain roulage : filet fin + liseré vibreur, comme les autres cartes clés */
 .today-schedule-card { border: 1px solid var(--border); position: relative; overflow: hidden; padding-top: 1.45rem; }
 .today-schedule-card::before { content: ''; position: absolute; left: 0; right: 0; top: 0; height: 5px; background: repeating-linear-gradient(90deg, #c8261f 0 14px, #ffffff 14px 28px); }
+
+/* Polices Paddock : chiffres à chasse fixe partout pour que les chronos s'alignent */
+body { font-variant-numeric: tabular-nums; }
+/* Couleurs de groupe : une par niveau, les mêmes partout */
+:root { --grp-A: #1d8a4e; --grp-B: #2f6fd6; --grp-C: #c98a12; --grp-D: #7b4fd0; --grp-R: #0e8f8f; --grp-ORGA: #6a6e76; --grp-X: #6a6e76; }
+.grp-chip { display: inline-flex; align-items: center; justify-content: center; min-width: 1.5em; padding: 0.05em 0.45em; margin-right: 0.15em; border-radius: 6px; color: #fff; font-family: var(--font-display); font-weight: 700; font-size: 0.95em; line-height: 1.35; vertical-align: middle; }
+.grp-chip-big { font-size: 1.6rem; padding: 0.05em 0.5em; border-radius: 9px; }
+.grp-A { background: var(--grp-A); } .grp-B { background: var(--grp-B); } .grp-C { background: var(--grp-C); } .grp-D { background: var(--grp-D); } .grp-R { background: var(--grp-R); } .grp-ORGA, .grp-X { background: var(--grp-ORGA); }
+.planning-group-check .grp-chip { font-size: 1rem; }
+.planning-group-check input:not(:checked) + .grp-chip { background: transparent; color: var(--text-muted); box-shadow: inset 0 0 0 1.5px var(--border); }
+.today-schedule-group-label .grp-chip { font-size: 1.05rem; }

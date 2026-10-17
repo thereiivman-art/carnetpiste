@@ -5277,7 +5277,7 @@
   function fitText(ctx, text, maxWidth, size, weight) {
     var fs = size;
     do {
-      ctx.font = weight + ' ' + fs + 'px -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
+      ctx.font = weight + ' ' + fs + 'px "Barlow", -apple-system, "Segoe UI", sans-serif';
       if (ctx.measureText(text).width <= maxWidth) break;
       fs -= 4;
     } while (fs > 24);
@@ -5302,25 +5302,25 @@
       ctx.textBaseline = 'alphabetic';
       // en-tête
       if (icon) { ctx.save(); roundRect(ctx, 80, 90, 110, 110, 24); ctx.clip(); ctx.drawImage(icon, 80, 90, 110, 110); ctx.restore(); }
-      ctx.fillStyle = INK; ctx.font = '800 44px -apple-system, "Segoe UI", Roboto, sans-serif';
+      ctx.fillStyle = INK; ctx.font = '800 44px "Barlow", -apple-system, "Segoe UI", sans-serif';
       ctx.fillText('CARNET DE PISTE', 220, 160);
       // circuit + date
       ctx.fillStyle = INK; fitText(ctx, session.circuit || '', W - 160, 110, '800');
       ctx.fillText(session.circuit || '', 80, 380);
-      ctx.fillStyle = MUTED; ctx.font = '500 46px -apple-system, "Segoe UI", Roboto, sans-serif';
+      ctx.fillStyle = MUTED; ctx.font = '500 46px "Barlow", -apple-system, "Segoe UI", sans-serif';
       var sub = formatDate(session.date) + (session.group ? '  ·  Groupe ' + session.group : '');
       ctx.fillText(sub, 80, 450);
       ctx.fillStyle = INK; fitText(ctx, session.rider + (session.bike ? '  ·  ' + session.bike : ''), W - 160, 50, '600');
       ctx.fillText(session.rider + (session.bike ? '  ·  ' + session.bike : ''), 80, 520);
       // meilleur tour
       var info = sessionRecordInfo(session);
-      ctx.fillStyle = MUTED; ctx.font = '600 44px -apple-system, "Segoe UI", Roboto, sans-serif';
+      ctx.fillStyle = MUTED; ctx.font = '600 44px "Barlow", -apple-system, "Segoe UI", sans-serif';
       ctx.fillText('MEILLEUR TOUR', 80, 700);
       ctx.fillStyle = ACCENT; fitText(ctx, formatTime(info.best), W - 160, 230, '800');
       ctx.fillText(formatTime(info.best), 72, 900);
       // badge record
       var badge = info.first ? 'Premier chrono sur ce circuit' : (info.isRecord ? 'Nouveau record perso  −' + formatGap(info.prevBest - info.best) : 'Record perso : ' + formatTime(info.prevBest));
-      ctx.font = '700 44px -apple-system, "Segoe UI", Roboto, sans-serif';
+      ctx.font = '700 44px "Barlow", -apple-system, "Segoe UI", sans-serif';
       var badgeText = (info.isRecord && !info.first ? '🏆 ' : '') + badge;
       var bw = ctx.measureText(badgeText).width + 70;
       ctx.fillStyle = info.isRecord && !info.first ? ACCENT : 'rgba(255,255,255,0.12)';
@@ -5343,11 +5343,11 @@
           ctx.fillStyle = v === minL ? ACCENT : 'rgba(255,255,255,0.28)';
           roundRect(ctx, x, top + chartH - h, bwid, h, Math.min(12, bwid / 3)); ctx.fill();
         });
-        ctx.fillStyle = MUTED; ctx.font = '500 38px -apple-system, "Segoe UI", Roboto, sans-serif';
+        ctx.fillStyle = MUTED; ctx.font = '500 38px "Barlow", -apple-system, "Segoe UI", sans-serif';
         ctx.fillText(laps.length + ' tour' + (laps.length > 1 ? 's' : '') + '  ·  barre haute = tour rapide', left, top + chartH + 65);
       }
       // pied : invitation
-      ctx.fillStyle = INK; ctx.font = '700 46px -apple-system, "Segoe UI", Roboto, sans-serif';
+      ctx.fillStyle = INK; ctx.font = '700 46px "Barlow", -apple-system, "Segoe UI", sans-serif';
       ctx.fillText('Mon carnet de piste, gratuit :', 80, H - 230);
       ctx.fillStyle = ACCENT; fitText(ctx, 'thereiivman-art.github.io/carnetpiste', W - 160, 46, '700');
       ctx.fillText('thereiivman-art.github.io/carnetpiste', 80, H - 160);
@@ -6119,6 +6119,17 @@
     });
   }
 
+  // One fixed colour per level group (A green, B blue, C ochre, D violet,
+  // R rookies teal, ORGA grey), same everywhere a group is shown.
+  function groupChip(letter, big) {
+    var l = String(letter || '').trim().toUpperCase();
+    if (!l) return '';
+    return l.split(/[\/,\s]+/).filter(Boolean).map(function (g) {
+      var key = /^(A|B|C|D|R|ORGA)$/.test(g) ? g : 'X';
+      return '<span class="grp-chip grp-' + key + (big ? ' grp-chip-big' : '') + '">' + escapeHtml(g === 'ORGA' ? 'Orga' : g) + '</span>';
+    }).join('');
+  }
+
   function renderOutingPage() {
     if (!outingView) return renderCarnetTab();
     var me = currentUserProfile && currentUserProfile.name;
@@ -6159,7 +6170,7 @@
       statusHtml = '<span class="outing-label">Aujourd\'hui</span><strong>' + (next ? 'Prochaine : ' + escapeHtml(next.label) : 'Plus de session') + '</strong>';
     }
     var slotsAll = group ? todaysGroupSlots(circuit, group) : [];
-    html += '<div class="outing-group-card"><div class="outing-group-main"><span class="outing-label">Mon groupe</span><span class="outing-group-value">' + escapeHtml(group || '—') + '</span>' +
+    html += '<div class="outing-group-card"><div class="outing-group-main"><span class="outing-label">Mon groupe</span><span class="outing-group-value">' + (group ? groupChip(group, true) : '—') + '</span>' +
       '<span class="help-text">🕒 ' + (slotsAll.length ? escapeHtml(slotsAll.map(function (sl) { return sl.label; }).join(', ')) : (group ? 'Horaires non communiqués' : 'Groupe pas encore attribué')) + '</span></div>' +
       '<div class="outing-group-status">' + statusHtml + '</div></div>';
 
@@ -6669,7 +6680,7 @@
         var myBest = riderCircuitBest(currentUserProfile.name, ev.circuit);
         html += '<button type="button" class="outing-row" data-open-outing="' + escapeHtml(ev.circuit) + '" data-outing-date="' + escapeHtml(ev.dateStart) + '" data-outing-event="' + escapeHtml(ev.id) + '">' +
           '<span class="outing-thumb">' + circuitThumbHtml(ev.circuit) + '</span>' +
-          '<span class="outing-row-main"><strong>' + escapeHtml(ev.circuit) + '</strong><span class="help-text">' + escapeHtml(formatEventRange(ev, true)) + (grp ? ' · Gr. ' + escapeHtml(grp) : '') + '</span></span>' +
+          '<span class="outing-row-main"><strong>' + escapeHtml(ev.circuit) + '</strong><span class="help-text">' + escapeHtml(formatEventRange(ev, true)) + (grp ? ' · ' + groupChip(grp) : '') + '</span></span>' +
           '<span class="outing-row-right"><span class="carnet-time">' + (myBest !== null ? formatTime(myBest) : '—') + '</span><span class="help-text">record</span></span></button>';
       });
     } else {
@@ -6683,7 +6694,7 @@
         } else delta = '<span class="help-text">1re fois</span>';
         html += '<button type="button" class="outing-row" data-open-outing="' + escapeHtml(o.circuit) + '" data-outing-date="' + escapeHtml(o.date) + '" data-outing-event="' + escapeHtml(o.eventId || '') + '">' +
           '<span class="outing-thumb">' + circuitThumbHtml(o.circuit) + '</span>' +
-          '<span class="outing-row-main"><strong>' + escapeHtml(o.circuit) + (o.isRecord && o.prevBest !== null ? ' 🏆' : '') + '</strong><span class="help-text">' + escapeHtml(formatDate(o.date)) + (grp ? ' · Gr. ' + escapeHtml(grp) : '') + ' · ' + o.laps + ' t.</span></span>' +
+          '<span class="outing-row-main"><strong>' + escapeHtml(o.circuit) + (o.isRecord && o.prevBest !== null ? ' 🏆' : '') + '</strong><span class="help-text">' + escapeHtml(formatDate(o.date)) + (grp ? ' · ' + groupChip(grp) : '') + ' · ' + o.laps + ' t.</span></span>' +
           '<span class="outing-row-right"><span class="carnet-time">' + formatTime(o.best) + '</span>' + delta + '</span></button>';
       });
       if (outings.length > 6) {
@@ -7447,7 +7458,7 @@
     } else if (obj.type === 'text') {
       ctx.save();
       ctx.fillStyle = obj.color;
-      ctx.font = '600 ' + (obj.fontSizeFrac * canvas.width) + 'px "IBM Plex Sans", sans-serif';
+      ctx.font = '600 ' + (obj.fontSizeFrac * canvas.width) + 'px "Barlow", sans-serif';
       ctx.textBaseline = 'middle';
       ctx.fillText(obj.text, obj.nx * canvas.width, obj.ny * canvas.height);
       ctx.restore();
@@ -7473,7 +7484,7 @@
       if (obj.type === 'text') {
         var ctx = canvas.getContext('2d');
         ctx.save();
-        ctx.font = '600 ' + (obj.fontSizeFrac * canvas.width) + 'px "IBM Plex Sans", sans-serif';
+        ctx.font = '600 ' + (obj.fontSizeFrac * canvas.width) + 'px "Barlow", sans-serif';
         var width = ctx.measureText(obj.text).width;
         ctx.restore();
         var height = obj.fontSizeFrac * canvas.width * 1.3;
@@ -8108,16 +8119,16 @@
       ctx.fillRect(0, 0, W, H);
       var y = padding;
       ctx.fillStyle = '#16212c';
-      ctx.font = '700 30px "Titillium Web", sans-serif';
+      ctx.font = '700 32px "Barlow Condensed", sans-serif';
       ctx.fillText(ev.circuit, padding, y + 24); y += 50;
-      ctx.font = '400 18px "IBM Plex Sans", sans-serif';
+      ctx.font = '400 18px "Barlow", sans-serif';
       ctx.fillStyle = '#5c6b78';
       ctx.fillText(formatEventRange(ev, true) + (teamName ? '  ·  ' + teamName : ''), padding, y); y += 40;
       if (weatherLine) { ctx.fillText(weatherLine, padding, y); y += lineH; }
-      ctx.font = '700 20px "IBM Plex Sans", sans-serif';
+      ctx.font = '700 20px "Barlow", sans-serif';
       ctx.fillStyle = '#16212c';
       ctx.fillText(tr('my_chronos_export_heading'), padding, y); y += 36;
-      ctx.font = '400 18px "IBM Plex Mono", monospace';
+      ctx.font = '600 20px "Barlow Condensed", sans-serif';
       if (!mySessions.length) {
         ctx.fillStyle = '#5c6b78';
         ctx.fillText(tr('no_chrono_this_outing'), padding, y); y += lineH;
@@ -10275,7 +10286,7 @@
         escapeHtml(briefing.trim()) + ' (30 min)</span></div></div>';
     }
     groups.forEach(function (g) {
-      html += '<div class="today-schedule-group"><div class="today-schedule-group-label">' + escapeHtml(g.label) + '</div>';
+      html += '<div class="today-schedule-group"><div class="today-schedule-group-label" data-label="' + escapeHtml(g.label) + '">' + groupChip(g.key.replace(/^group/, '')) + ' ' + escapeHtml(g.label.replace(/^Groupe [A-Z]\s*/, '')) + '</div>';
       if (ev) {
         var letter = g.key.replace('group', '');
         var names = ridersInGroup(ev, letter);
@@ -10610,7 +10621,7 @@
       horairesInner += '<div class="planning-group-filter">';
       availableGroups.forEach(function (g) {
         var checked = activeKeys.indexOf(g.key) !== -1;
-        horairesInner += '<label class="planning-group-check"><input type="checkbox" data-planning-group="' + g.key + '"' + (checked ? ' checked' : '') + '> ' + escapeHtml(g.key.replace(/^group/, '')) + '</label>';
+        horairesInner += '<label class="planning-group-check"><input type="checkbox" data-planning-group="' + g.key + '"' + (checked ? ' checked' : '') + '> ' + groupChip(g.key.replace(/^group/, '')) + '</label>';
       });
       horairesInner += '</div>';
       horairesInner += renderHoraireGroups(horaires, activeKeys, ev, info.briefing);
@@ -11090,7 +11101,7 @@
     document.querySelectorAll('[data-slot-start="' + minStart + '"]').forEach(function (el) {
       var groupContainer = el.closest('.today-schedule-group');
       var labelEl = groupContainer && groupContainer.querySelector('.today-schedule-group-label');
-      if (labelEl && labels.indexOf(labelEl.textContent) === -1) labels.push(labelEl.textContent);
+      var lbl = labelEl && (labelEl.getAttribute('data-label') || labelEl.textContent); if (lbl && labels.indexOf(lbl) === -1) labels.push(lbl);
     });
     return labels;
   }
@@ -11120,7 +11131,7 @@
     document.querySelectorAll('.today-schedule-group').forEach(function (container) {
       if (!container.querySelector('.slot-current')) return;
       var labelEl = container.querySelector('.today-schedule-group-label');
-      if (labelEl && labels.indexOf(labelEl.textContent) === -1) labels.push(labelEl.textContent);
+      var lbl = labelEl && (labelEl.getAttribute('data-label') || labelEl.textContent); if (lbl && labels.indexOf(lbl) === -1) labels.push(lbl);
     });
     return labels;
   }
