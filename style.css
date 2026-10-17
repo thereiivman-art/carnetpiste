@@ -2934,3 +2934,8 @@
 .settings-block { padding-bottom: 0.9rem; margin-bottom: 0.6rem; border-bottom: 1px solid var(--border); }
 .settings-inline { display: flex; flex-wrap: wrap; gap: 1rem; margin-top: 0.9rem; }
 .invite-qr-stats { margin-top: 0.6rem; font-size: 0.82rem; color: var(--text-muted); }
+
+.first-outing-card { border-left: 4px solid var(--accent); }
+.quick-outing { margin-top: 0.6rem; }
+.quick-outing-more { margin-top: 0.6rem; }
+.quick-outing-more summary { cursor: pointer; color: var(--text-muted); font-size: 0.88rem; }

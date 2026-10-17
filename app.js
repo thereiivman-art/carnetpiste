@@ -6082,6 +6082,97 @@
     return html;
   }
 
+  // ---- Sortie en 10 secondes ----
+  // Circuit + date (+ lien de réservation de l'organisateur, facultatif).
+  // Si une sortie existe déjà sur ce circuit à cette date, on propose de la
+  // rejoindre plutôt que d'en créer une deuxième.
+  function quickOutingFormHtml(prefix) {
+    var circuits = allCircuits();
+    return '<div class="quick-outing" data-quick-prefix="' + prefix + '">' +
+      '<div class="field-row"><div><label for="' + prefix + '-circuit">Circuit</label><select id="' + prefix + '-circuit">' +
+      '<option value="">Choisir…</option>' + circuits.map(function (c) { return '<option value="' + escapeHtml(c) + '">' + escapeHtml(c) + '</option>'; }).join('') +
+      '<option value="__other__">Autre circuit…</option></select>' +
+      '<input type="text" id="' + prefix + '-circuit-other" placeholder="Nom du circuit" style="display:none; margin-top:0.4rem;"></div>' +
+      '<div><label for="' + prefix + '-date">Date</label><input type="date" id="' + prefix + '-date" min="' + dateKey(new Date()) + '"></div></div>' +
+      '<details class="quick-outing-more"><summary>Plus d\'options</summary>' +
+      '<label for="' + prefix + '-date-end" style="display:block; margin-top:0.5rem;">Dernier jour (si plusieurs jours)</label><input type="date" id="' + prefix + '-date-end">' +
+      '<label for="' + prefix + '-booking" style="display:block; margin-top:0.5rem;">Lien de réservation de l\'organisateur</label><input type="url" id="' + prefix + '-booking" placeholder="https://…"></details>' +
+      '<div class="field-error" id="' + prefix + '-error"></div>' +
+      '<button type="button" class="primary" data-quick-save="' + prefix + '" style="margin-top:0.6rem; width:100%;">Ajouter ma sortie</button></div>';
+  }
+  function bindQuickOutingForms() {
+    document.querySelectorAll('#root .quick-outing').forEach(function (box) {
+      var prefix = box.getAttribute('data-quick-prefix');
+      var sel = document.getElementById(prefix + '-circuit');
+      var other = document.getElementById(prefix + '-circuit-other');
+      if (sel && other) sel.addEventListener('change', function () { other.style.display = sel.value === '__other__' ? '' : 'none'; });
+      var btn = box.querySelector('[data-quick-save]');
+      if (btn) btn.addEventListener('click', function () { saveQuickOuting(prefix); });
+    });
+  }
+  // -> true si la sortie a été ajoutée/rejointe, false si le formulaire est incomplet.
+  function saveQuickOuting(prefix) {
+    var me = currentUserProfile && currentUserProfile.name;
+    var err = document.getElementById(prefix + '-error');
+    var circuit = (document.getElementById(prefix + '-circuit') || {}).value || '';
+    if (circuit === '__other__') circuit = ((document.getElementById(prefix + '-circuit-other') || {}).value || '').trim().replace(/\s+/g, ' ');
+    var known = allCircuits().filter(function (c) { return c.toLowerCase() === circuit.toLowerCase(); })[0];
+    if (known) circuit = known;
+    var dateStart = (document.getElementById(prefix + '-date') || {}).value || '';
+    var dateEnd = (document.getElementById(prefix + '-date-end') || {}).value || dateStart;
+    if (dateEnd < dateStart) dateEnd = dateStart;
+    var booking = ((document.getElementById(prefix + '-booking') || {}).value || '').trim();
+    function fail(msg) { if (err) { err.textContent = msg; err.classList.add('visible'); } return false; }
+    if (!me) return fail('Connecte-toi d\'abord.');
+    if (!circuit) return fail('Choisis le circuit.');
+    if (!dateStart) return fail('Indique la date.');
+    // Sortie déjà existante sur ce circuit ces jours-là ?
+    var existing = eventsList().filter(function (ev) {
+      return ev.circuit === circuit && ev.dateStart <= dateEnd && (ev.dateEnd || ev.dateStart) >= dateStart;
+    })[0];
+    var prevState = JSON.parse(JSON.stringify(STATE));
+    if (existing) {
+      if ((existing.riders || []).indexOf(me) !== -1) {
+        showToast('Tu es déjà inscrit à cette sortie.', 'success');
+      } else if (!existing.teamId || existing.eventVisibility === 'ouvert') {
+        existing.riders = (existing.riders || []).concat([me]);
+        persist(prevState);
+        showToast('Ajouté à la sortie ' + circuit + ' déjà créée' + (existing.teamId && teamById(existing.teamId) ? ' par ' + teamById(existing.teamId).name : '') + '.', 'success');
+      } else {
+        // Sortie d'un organisateur fermée : demande pour la rejoindre.
+        db.collection('eventJoinRequests').doc(existing.id + '_' + me).set({ eventId: existing.id, from: me, status: 'pending', fromUid: myUid() }).then(function () {
+          showToast('Cette sortie est gérée par son organisateur : demande envoyée pour la rejoindre.', 'success');
+        }).catch(function () { showToast('Impossible d\'envoyer la demande.'); });
+      }
+      selectedEventId = existing.id;
+    } else {
+      var ev = { id: genId(), circuit: circuit, dateStart: dateStart, dateEnd: dateEnd, riders: [me], note: '' };
+      if (booking) ev.bookingUrl = booking;
+      STATE.events.push(ev);
+      selectedEventId = ev.id;
+      persist(prevState);
+      showToast('Sortie ajoutée : ' + circuit + ' le ' + formatDate(dateStart) + '.', 'success');
+    }
+    carnetCardsMode = 'avenir';
+    activeView = 'planning';
+    renderRoot();
+    window.scrollTo(0, 0);
+    return true;
+  }
+  function openQuickOutingModal() {
+    var overlay = document.createElement('div');
+    overlay.className = 'crop-modal-overlay';
+    overlay.innerHTML = '<div class="crop-modal" style="max-width:420px;"><h2 class="section-title">Nouvelle sortie</h2>' + quickOutingFormHtml('qom') +
+      '<button type="button" class="ghost" data-qom-close style="margin-top:0.5rem; width:100%;">Annuler</button></div>';
+    document.body.appendChild(overlay);
+    overlay.querySelector('[data-qom-close]').addEventListener('click', function () { overlay.remove(); });
+    var sel = overlay.querySelector('#qom-circuit'), other = overlay.querySelector('#qom-circuit-other');
+    sel.addEventListener('change', function () { other.style.display = sel.value === '__other__' ? '' : 'none'; });
+    overlay.querySelector('[data-quick-save]').addEventListener('click', function () {
+      if (saveQuickOuting('qom')) overlay.remove();
+    });
+  }
+
   var carnetCardsMode = null; // 'passees' | 'avenir'
   function circuitThumbHtml(circuit) {
     var info = circuitInfo(circuit);
@@ -6105,7 +6196,7 @@
       '<button type="button" class="pill-btn' + (carnetCardsMode === 'passees' ? ' active' : '') + '" data-cards-mode="passees">Passées</button>' +
       '<button type="button" class="pill-btn' + (carnetCardsMode === 'avenir' ? ' active' : '') + '" data-cards-mode="avenir">À venir</button></div></div>';
     if (carnetCardsMode === 'avenir') {
-      if (!upcoming.length) html += '<div class="help-text" style="padding:0.4rem 0;">Aucune sortie à venir. <button type="button" class="link-btn inline-link" data-view="event">Planifier une sortie</button></div>';
+      if (!upcoming.length) html += '<div class="help-text" style="padding:0.4rem 0;">Aucune sortie à venir. <button type="button" class="link-btn inline-link" data-action="quick-outing">Ajouter une sortie</button></div>';
       upcoming.forEach(function (ev) {
         var grp = riderGroupFor(ev, currentUserProfile.name, ev.dateStart, 'matin') || riderGroupFor(ev, currentUserProfile.name, ev.dateStart, 'apres-midi') || '';
         var myBest = riderCircuitBest(currentUserProfile.name, ev.circuit);
@@ -6154,6 +6245,11 @@
 
     var outings = myOutings();
     if (!outings.length) {
+      if (!myUpcomingEvents().length) {
+        html += '<div class="card first-outing-card"><h2 class="section-title">Quelle est ta prochaine sortie ?</h2>' +
+          '<div class="help-text">Ajoute-la : tu auras ses horaires, ton groupe, un compte à rebours et tes repères le jour J.</div>' +
+          quickOutingFormHtml('fo') + '</div>';
+      }
       html += '<div class="card carnet-welcome"><h2 class="section-title">Ton carnet de piste</h2>' +
         '<div class="carnet-step"><span class="track-pin static">1</span><span><strong>Ajoute ton premier chrono</strong><br><span class="help-text">À la main, ou en photographiant ta feuille de temps.</span></span></div>' +
         '<div class="carnet-step"><span class="track-pin static">2</span><span><strong>Retrouve ton historique ici</strong><br><span class="help-text">Tes sorties et ta progression ; tes records sont dans « Stats ».</span></span></div>' +
@@ -9909,7 +10005,10 @@
   function renderPlanningTab() {
     var target = targetPlanningEvent();
     if (!target) {
-      return '<div class="card"><div class="empty-state">' + (coreDataLoading() ? 'Chargement...' : 'Aucun événement en cours ou à venir — planifiez-en un dans l\'onglet Événements.') + '</div></div>';
+      if (coreDataLoading()) return '<div class="card"><div class="empty-state">Chargement...</div></div>';
+      return '<div class="card first-outing-card"><h2 class="section-title">Aucune sortie prévue</h2>' +
+        '<div class="help-text">Ajoute ta prochaine sortie en 10 secondes : horaires, groupe et repères seront prêts pour le jour J.</div>' +
+        quickOutingFormHtml('sq') + '</div>';
     }
     var ev = target.ev, isOngoing = target.mode === 'ongoing';
     // Read by updateLiveClock() so it knows whether "now" actually falls
@@ -15612,6 +15711,8 @@
     });
     var carnetCancel = document.getElementById('carnet-cancel-add');
     if (carnetCancel) carnetCancel.addEventListener('click', function () { addChronoOpen = false; renderRoot(); });
+    bindQuickOutingForms();
+    document.querySelectorAll('[data-action="quick-outing"]').forEach(function (b) { b.addEventListener('click', openQuickOutingModal); });
     document.querySelectorAll('[data-cards-mode]').forEach(function (b) {
       b.addEventListener('click', function () { carnetCardsMode = b.getAttribute('data-cards-mode'); renderRoot(); });
     });
