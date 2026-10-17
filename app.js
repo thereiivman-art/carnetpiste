@@ -968,7 +968,8 @@
 "Remplacer": "Replace",
 "Retirer": "Remove",
 "Supprimer la catégorie": "Delete category",
-"Rien de nouveau.": "Nothing new.", "Modifier mes réglages": "Edit my setup", "🔧 Noter mes réglages": "🔧 Note my setup", "🔧 Mes réglages": "🔧 My setup",
+"Rien de nouveau.": "Nothing new.", "Entre potes": "Between friends", "⤴ Partager": "⤴ Share", "Inviter des potes": "Invite friends", "Le plus rapide": "Fastest", "Toi": "You",
+"Aucun de tes amis n'a encore importé ses chronos de ce jour-là. Défie-les : ils importent leur feuille de temps et vous comparez.": "None of your friends has imported their lap times from that day yet. Challenge them: they import their timesheet and you compare.", "Modifier mes réglages": "Edit my setup", "🔧 Noter mes réglages": "🔧 Note my setup", "🔧 Mes réglages": "🔧 My setup",
 "Pression AV à froid (bar)": "Front pressure cold (bar)", "Pression AR à froid (bar)": "Rear pressure cold (bar)", "Pression AV à chaud (bar)": "Front pressure hot (bar)", "Pression AR à chaud (bar)": "Rear pressure hot (bar)",
 "Pneus": "Tyres", "Fourche": "Fork", "Amortisseur": "Shock", "Transmission": "Gearing", "Note": "Note", "Effacer": "Clear",
 "Ex. 2.1": "E.g. 2.1", "Ex. 1.8": "E.g. 1.8", "Ex. 2.3": "E.g. 2.3", "Ex. 2.0": "E.g. 2.0", "Ex. Pirelli SC1 / SC0, 3e session": "E.g. Pirelli SC1 / SC0, 3rd session",
@@ -1242,6 +1243,8 @@
     [/^J-(\d+)$/, 'D-$1'],
     [/^Ex\. (.+)$/, 'E.g. $1'],
     [/^invité par (.+)$/, 'invited by $1'],
+    [/^Tu es devant tout le monde, de (.+) sur (.+)\.$/, 'You\'re ahead of everyone, by $1 over $2.'],
+    [/^Tu es à (.+) de (.+)\.$/, 'You\'re $1 behind $2.'],
     [/^🔧 Réglages de ton record ici · (.+) le (.+)$/, '🔧 Setup of your record here · $1 on $2'],
     [/^(.+) · meilleur tour (.+)Visible par toi seul\.$/, '$1 · best lap $2Visible to you only.'],
     [/^indique venir à (.+)$/, 'says they\'re going to $1'],
@@ -6666,6 +6669,110 @@
     }).join('');
   }
 
+  // ---- Entre potes : classement du jour avec mes amis ----
+  // Me + my friends who logged a lap time on this circuit that day (and
+  // share their trackdays), fastest first, with the gap to the leader and
+  // to me. Lap times are already visible to every signed-in account, so
+  // this only puts friends' ones side by side.
+  function friendsBattleRows(circuit, date) {
+    var me = currentUserProfile && currentUserProfile.name;
+    if (!me) return [];
+    var names = [me].concat(friendsOf(me).map(function (f) { return f.name; }));
+    var byRider = {};
+    (STATE.sessions || []).forEach(function (x) {
+      if (x.circuit !== circuit || x.date !== date || !x.laps || !x.laps.length) return;
+      if (names.indexOf(x.rider) === -1) return;
+      var u = (STATE.usersByName || {})[x.rider] || {};
+      if (x.rider !== me && u.shareSorties === false) return;
+      var b = sessionBest(x);
+      if (!byRider[x.rider] || b < byRider[x.rider].best) byRider[x.rider] = { rider: x.rider, best: b, group: x.group || '' };
+    });
+    return Object.keys(byRider).map(function (k) { return byRider[k]; }).sort(function (a, b) { return a.best - b.best; });
+  }
+  function renderFriendsBattle(circuit, date, iRode) {
+    if (!iRode) return '';
+    var me = currentUserProfile && currentUserProfile.name;
+    var rows = friendsBattleRows(circuit, date);
+    var html = '<div class="card battle-card"><div class="battle-head"><h2 class="section-title">Entre potes</h2>' +
+      (rows.length > 1 ? '<button type="button" class="ghost" data-action="share-battle" data-circuit="' + escapeHtml(circuit) + '" data-date="' + escapeHtml(date) + '">⤴ Partager</button>' : '') + '</div>';
+    if (rows.length < 2) {
+      return html + '<div class="help-text">Aucun de tes amis n\'a encore importé ses chronos de ce jour-là. Défie-les : ils importent leur feuille de temps et vous comparez.</div>' +
+        '<button type="button" class="ghost" id="battle-invite-btn" style="margin-top:0.6rem;">Inviter des potes</button></div>';
+    }
+    var leader = rows[0].best;
+    var mine = rows.filter(function (r) { return r.rider === me; })[0];
+    html += rows.map(function (r, i) {
+      var gap = i === 0 ? '<span class="battle-gap lead">Le plus rapide</span>' : '<span class="battle-gap">+' + formatGap(r.best - leader) + '</span>';
+      return '<div class="battle-row' + (r.rider === me ? ' me' : '') + '"><span class="battle-rank">' + (i + 1) + '</span>' +
+        '<span class="battle-name">' + escapeHtml(r.rider === me ? 'Toi' : r.rider) + (r.group ? ' ' + groupChip(r.group) : '') + '</span>' +
+        '<span class="battle-time">' + formatTime(r.best) + gap + '</span></div>';
+    }).join('');
+    if (mine) {
+      var idx = rows.indexOf(mine);
+      var line = idx === 0 ? 'Tu es devant tout le monde, de ' + formatGap(rows[1].best - mine.best) + ' sur ' + rows[1].rider + '.'
+        : 'Tu es à ' + formatGap(mine.best - rows[idx - 1].best) + ' de ' + rows[idx - 1].rider + '.';
+      html += '<div class="battle-line">' + escapeHtml(line) + '</div>';
+    }
+    return html + '</div>';
+  }
+  function buildBattleCard(circuit, date, rows) {
+    var W = 1080, H = 1920, C = SHARE_COLORS, EN = currentLang() === 'en';
+    var me = currentUserProfile && currentUserProfile.name;
+    var canvas = document.createElement('canvas');
+    canvas.width = W; canvas.height = H;
+    var ctx = canvas.getContext('2d');
+    return shareFontsReady().then(function () {
+      ctx.fillStyle = C.bg; ctx.fillRect(0, 0, W, H);
+      drawShareMark(ctx, 80, 112, 64);
+      ctx.fillStyle = C.ink; ctx.font = 'italic 800 56px ' + CONDENSED;
+      ctx.fillText(EN ? 'BETWEEN FRIENDS' : 'ENTRE POTES', 150, 166);
+      var title = String(circuit).toUpperCase();
+      fitText(ctx, title, W - 160, 170, 'italic 800', CONDENSED);
+      ctx.fillText(title, 76, 400);
+      ctx.fillStyle = C.muted; ctx.font = '600 46px "Barlow", sans-serif';
+      ctx.fillText(formatDate(date), 80, 470);
+      var top = 560, rowH = 128, leader = rows[0].best;
+      rows.slice(0, 8).forEach(function (r, i) {
+        var y = top + i * rowH, isMe = r.rider === me;
+        ctx.fillStyle = isMe ? '#ffffff' : 'rgba(255,255,255,0.6)';
+        roundRect(ctx, 60, y, W - 120, rowH - 18, 28); ctx.fill();
+        if (isMe) { ctx.save(); roundRect(ctx, 60, y, W - 120, rowH - 18, 28); ctx.clip(); ctx.fillStyle = C.red; ctx.fillRect(60, y, 12, rowH - 18); ctx.restore(); }
+        ctx.fillStyle = i === 0 ? C.red : C.ink; ctx.font = 'italic 800 64px ' + CONDENSED;
+        ctx.fillText(String(i + 1), 100, y + 78);
+        ctx.fillStyle = C.ink; fitText(ctx, isMe ? (EN ? 'Me' : 'Moi') : r.rider, 430, 50, '700');
+        ctx.fillText(isMe ? (EN ? 'Me' : 'Moi') : r.rider, 180, y + 74);
+        ctx.font = 'italic 800 64px ' + CONDENSED; ctx.textAlign = 'right';
+        ctx.fillText(formatTime(r.best), W - 300, y + 78);
+        ctx.fillStyle = i === 0 ? C.red : C.muted; ctx.font = '700 38px "Barlow", sans-serif';
+        ctx.fillText(i === 0 ? (EN ? 'fastest' : 'devant') : '+' + formatGap(r.best - leader), W - 100, y + 74);
+        ctx.textAlign = 'left';
+      });
+      ctx.fillStyle = C.line; ctx.fillRect(80, H - 250, W - 160, 2);
+      ctx.fillStyle = C.ink; ctx.font = '700 46px "Barlow", sans-serif';
+      ctx.fillText(EN ? 'Compare your lap times with your friends:' : 'Compare tes chronos avec tes potes :', 80, H - 175);
+      ctx.fillStyle = C.red; fitText(ctx, 'thereiivman-art.github.io/carnetpiste', W - 160, 46, '700');
+      ctx.fillText('thereiivman-art.github.io/carnetpiste', 80, H - 105);
+      return new Promise(function (resolve) { canvas.toBlob(function (b) { resolve(b); }, 'image/png'); });
+    });
+  }
+  function shareBattle(circuit, date) {
+    var rows = friendsBattleRows(circuit, date);
+    if (rows.length < 2) return;
+    showToast('Préparation de l\'image…');
+    buildBattleCard(circuit, date, rows).then(function (blob) {
+      var fileName = 'entre-potes-' + String(circuit).replace(/[^\w-]+/g, '-') + '-' + date + '.png';
+      var file = new File([blob], fileName, { type: 'image/png' });
+      var link = currentUserProfile ? referralLinkFor(currentUserProfile.name) : '';
+      var text = (currentLang() === 'en' ? 'Between friends at ' : 'Entre potes à ') + circuit + ' — ' + link;
+      if (navigator.canShare && navigator.canShare({ files: [file] })) return navigator.share({ files: [file], text: text }).catch(function () {});
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a'); a.href = url; a.download = fileName;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
+      showToast('Image enregistrée -- publie-la en story !', 'success');
+    }).catch(function () { showToast('Impossible de créer l\'image sur cet appareil.'); });
+  }
+
   // ---- Mes réglages par session ----
   // Pressions, pneus, suspensions, transmission notés après une session et
   // rattachés à son chrono. Stockés dans userPrivate/{uid}.setups
@@ -6852,6 +6959,7 @@
           (best !== null && prevBest !== null ? '<span class="outing-best-delta">' + (best < prevBest ? '🏆 Nouveau record (−' + formatGap(prevBest - best) + ')' : '+' + formatGap(best - prevBest) + ' vs record') + '</span>' : (best !== null ? '<span class="outing-best-delta">1er roulage ici</span>' : '<span class="outing-best-delta">Pas encore de chrono pour ce jour</span>')) +
           '<span class="outing-best-arrow">›</span></button>';
       }
+      html += renderFriendsBattle(circuit, date, sessions.length > 0);
       html += renderRecordSetupCard(circuit);
       if (status !== 'avenir') html += '<button type="button" class="primary add-chrono-btn" id="outing-add-chrono">+ Ajouter un chrono pour ce jour</button>';
       // Mes sessions du jour
@@ -15976,6 +16084,11 @@
         window.scrollTo(0, 0);
       });
     });
+    document.querySelectorAll('[data-action="share-battle"]').forEach(function (btn) {
+      btn.addEventListener('click', function () { shareBattle(btn.getAttribute('data-circuit'), btn.getAttribute('data-date')); });
+    });
+    var battleInvite = document.getElementById('battle-invite-btn');
+    if (battleInvite) battleInvite.addEventListener('click', openInviteQr);
     document.querySelectorAll('[data-action="session-setup"]').forEach(function (btn) {
       btn.addEventListener('click', function () { openSetupSheet(btn.getAttribute('data-id')); });
     });
