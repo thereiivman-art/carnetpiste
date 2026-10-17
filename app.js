@@ -145,7 +145,7 @@
       poll_question_placeholder: 'Créer un sondage : la question', add_option: '+ Ajouter une option',
       publish_poll: 'Publier le sondage', write_message_btn: '✎ Écrire un message', poll_btn: '📊 Sondage',
       no_one_else_to_invite: 'Personne d’autre à inviter pour l’instant.',
-      all_friends_in_team: 'Tous tes amis sont déjà dans ce team, ou aucun ami à inviter -- vois Social.',
+      all_friends_in_team: 'Tous tes amis sont déjà dans ce team, ou tu n’as pas encore d’amis à inviter : ajoute-les dans Communauté → Amis & fil.',
       teampro_invite_help: 'Team PRO : tu peux inviter n’importe quel compte, ami ou non.',
       invite_btn: 'Inviter', cancel_invite: 'Annuler', settings_label: 'Réglages',
       join_requests_label: 'Demandes pour rejoindre (', sent_invites_label: 'Invitations envoyées (',
@@ -535,7 +535,7 @@
       poll_question_placeholder: 'Create a poll: the question', add_option: '+ Add an option',
       publish_poll: 'Post the poll', write_message_btn: '✎ Write a message', poll_btn: '📊 Poll',
       no_one_else_to_invite: 'No one else to invite right now.',
-      all_friends_in_team: 'All your friends are already in this team, or none to invite -- see Social.',
+      all_friends_in_team: 'All your friends are already in this team, or you have no friends to invite yet: add them in Community → Friends & feed.',
       teampro_invite_help: 'Team PRO: you can invite any account, friend or not.',
       invite_btn: 'Invite', cancel_invite: 'Cancel', settings_label: 'Settings',
       join_requests_label: 'Requests to join (', sent_invites_label: 'Sent invites (',
@@ -1717,9 +1717,9 @@
   function renderTeamPartnersSection(team, isLeader) {
     var partners = team.partners || [];
     var body;
-    if (!partners.length && !isLeader) return '';
+    if (!isLeader) return '';
     if (!partners.length) {
-      body = '<div class="empty-state">' + tr('no_partner_yet') + '</div>';
+      body = '<div class="help-text">' + tr('no_partner_yet') + '</div>';
     } else {
       body = '<div class="team-links-row">' + partners.map(function (p) {
         return p.url
@@ -1734,7 +1734,7 @@
         escapeHtml(partners.map(function (p) { return p.url ? p.name + ' | ' + p.url : p.name; }).join('\n')) + '</textarea>' +
         '<button type="submit" class="primary" style="margin-top:0.6rem;">Enregistrer</button></form>';
     }
-    return collapsibleSection('team-partners-' + team.id, 'Partenaires', body, false);
+    return teamCard('Partenaires', body);
   }
   function saveTeamLinks(teamId, raw) {
     var links = (raw || '').split('\n').map(function (line) { return line.trim(); }).filter(Boolean).map(function (line) {
@@ -12327,6 +12327,12 @@
   // that sets expandedTeamId) so a leftover query never silently hides a
   // newly-opened Team's whole roster.
   var teamMemberSearch = '';
+  // One card per topic inside a Team's pills (Membres, Roulages, Réglages).
+  function teamCard(title, inner) {
+    return '<div class="card team-card">' + (title ? '<h2 class="section-title">' + title + '</h2>' : '') + inner + '</div>';
+  }
+  var teamInviteOpen = false;
+
   function renderTeamMembersSection(team, members, teamFollowers, me, isLeader) {
     var followByName = {};
     teamFollowers.forEach(function (f) { followByName[f.follower] = f; });
@@ -12346,7 +12352,7 @@
           var memberDoc = members.filter(function (m) { return m.name === name; })[0];
           return renderTeamPersonRow(team, name, memberDoc, followByName[name] || null, me, isLeader);
         }).join('')) + (isLeader ? '<datalist id="team-role-suggestions"><option value="' + tr('mecano_option') + '"><option value="' + tr('assistant_option') + '"><option value="' + tr('photographe_option') + '"><option value="' + tr('logistique_option') + '"></datalist>' : '');
-    return collapsibleSection('team-members-' + team.id, tr('members_label') + members.length + ')', body);
+    return teamCard(tr('members_label') + members.length + ')', body);
   }
 
   // Follows the Team without (yet) being a member of its roster -- Geoff,
@@ -12363,24 +12369,25 @@
         var followDoc = followersOnly.filter(function (f) { return f.follower === name; })[0];
         return renderTeamPersonRow(team, name, null, followDoc, me, isLeader);
       }).join('');
-    return collapsibleSection('team-followers-' + team.id, tr('followers_label') + names.length + ')', body);
+    return teamCard(tr('followers_label') + names.length + ')', body);
   }
 
   function renderTeamSettings(team, isLeader) {
     if (!isLeader) {
-      return '<div class="team-settings-disabled"><div class="help-text">' + tr('leaders_only_reserved') + '</div></div>';
+      return teamCard('', '<div class="help-text">' + tr('leaders_only_reserved') + '</div>');
     }
     var visibility = team.visibility || 'private';
-    var html = '<div><label for="team-description-' + team.id + '">' + tr('presentation_label') + '</label>' +
-      '<textarea id="team-description-' + team.id + '" rows="2" placeholder="' + tr('presentation_placeholder') + '">' + escapeHtml(team.description || '') + '</textarea>' +
-      '<div style="margin-top:0.5rem; display:flex; align-items:center; gap:0.6rem;">' +
-      '<button type="button" class="ghost" data-action="team-description-save" data-team="' + team.id + '">' + tr('save_presentation_btn') + '</button>' +
+    var html = '<div><label>Photo (badge rond)</label>' +
+      '<div style="margin-top:0.3rem; display:flex; align-items:center; gap:0.6rem; flex-wrap:wrap;">' +
       '<button type="button" class="ghost" data-action="team-photo-btn" data-team="' + team.id + '">' + (team.photoURL ? tr('change_badge_photo') : tr('add_badge_photo')) + '</button>' +
       (team.photoURL ? '<button type="button" class="ghost" data-action="team-photo-recrop" data-team="' + team.id + '">' + tr('edit_crop') + '</button>' : '') +
       (team.photoURL ? '<button type="button" class="ghost" data-action="team-photo-remove" data-team="' + team.id + '">' + tr('remove_generic') + '</button>' : '') +
       '</div>' +
       '<div class="help-text" style="margin-top:0.3rem;">' + tr('photo_round_help') + '</div>' +
       '</div>';
+    var presentationHtml = '<div style="margin-top:0.9rem;"><label for="team-description-' + team.id + '">' + tr('presentation_label') + '</label>' +
+      '<textarea id="team-description-' + team.id + '" rows="2" placeholder="' + tr('presentation_placeholder') + '">' + escapeHtml(team.description || '') + '</textarea>' +
+      '<button type="button" class="ghost" data-action="team-description-save" data-team="' + team.id + '" style="margin-top:0.4rem;">' + tr('save_presentation_btn') + '</button></div>';
     html += '<div style="margin-top:0.9rem;"><label>' + tr('logo_label') + '</label>' +
       '<div style="margin-top:0.3rem; display:flex; align-items:center; gap:0.6rem;">' +
       '<button type="button" class="ghost" data-action="team-logo-btn" data-team="' + team.id + '">' + (team.logoURL ? tr('change_logo') : tr('add_logo')) + '</button>' +
@@ -12388,13 +12395,14 @@
       (team.logoURL ? '<button type="button" class="ghost" data-action="team-logo-remove" data-team="' + team.id + '">' + tr('remove_generic') + '</button>' : '') +
       '</div>' +
       '<div class="help-text" style="margin-top:0.3rem;">' + tr('logo_help') + '</div>' +
-      '</div>';
+      '</div>' + presentationHtml;
     html += '<div style="margin-top:0.9rem;"><form data-action="team-links-form" data-team="' + team.id + '">' +
       '<label for="team-links-' + team.id + '">' + tr('links_label') + '</label>' +
       '<textarea id="team-links-' + team.id + '" data-team-links-input rows="3" placeholder="Site internet | https://...\nBoutique | https://...\nPhotographe | https://...">' +
       escapeHtml((team.links || []).map(function (l) { return l.label + ' | ' + l.url; }).join('\n')) + '</textarea>' +
       '<button type="submit" class="ghost" style="margin-top:0.4rem;">' + tr('save_links_btn') + '</button></form></div>';
-    html += '<label for="team-visibility-select-' + team.id + '" style="margin-top:0.9rem;">' + tr('visibility_who_label') + '</label>' +
+    var profileCard = teamCard('Profil du team', html);
+    html = '<label for="team-visibility-select-' + team.id + '">' + tr('visibility_who_label') + '</label>' +
       '<select id="team-visibility-select-' + team.id + '" data-action="team-visibility" data-team="' + team.id + '">' +
       '<option value="private"' + (visibility === 'private' ? ' selected' : '') + '>' + tr('vis_invite_only') + '</option>' +
       '<option value="all"' + (visibility === 'all' ? ' selected' : '') + '>' + tr('vis_all') + '</option>' +
@@ -12406,7 +12414,8 @@
       '<option value="leaders"' + (team.postPolicy !== 'members' ? ' selected' : '') + '>' + tr('leaders_only_option') + '</option>' +
       '<option value="members"' + (team.postPolicy === 'members' ? ' selected' : '') + '>' + tr('all_members_option') + '</option>' +
       '</select>';
-    html += '<div class="danger-zone" style="margin-top:1rem;">';
+    var privacyCard = teamCard('Confidentialité', html);
+    html = '<div class="danger-zone">';
     if (pendingDeleteTeamId !== team.id) {
       html += '<button type="button" class="ghost danger" data-action="team-delete-request" data-team="' + team.id + '">' + tr('delete_team_btn') + '</button>';
     } else {
@@ -12421,7 +12430,7 @@
         '</form>';
     }
     html += '</div>';
-    return html;
+    return profileCard + renderTeamPartnersSection(team, true) + privacyCard + teamCard('Zone sensible', html);
   }
 
   // A Team PRO's own Team Leader can attribute Coach/Photographe officiel
@@ -12440,7 +12449,7 @@
       '<button type="button" class="ghost" data-action="team-pro-badge-toggle" data-team="' + team.id + '" data-field="coach">' + tr('coach_toggle_btn') + '</button>' +
       '<button type="button" class="ghost" data-action="team-pro-badge-toggle" data-team="' + team.id + '" data-field="photographer">' + tr('photographer_toggle_btn') + '</button>' +
       '</div>';
-    return collapsibleSection('team-pro-badges-' + team.id, tr('grant_coach_photographer_heading'), body);
+    return teamCard(tr('grant_coach_photographer_heading'), body);
   }
 
   // A Team Leader's own "Gestion des événements" -- create/modify a
@@ -12511,21 +12520,19 @@
     ongoing.sort(function (a, b) { return a.dateStart < b.dateStart ? -1 : 1; });
     upcoming.sort(function (a, b) { return a.dateStart < b.dateStart ? -1 : 1; });
     past.sort(function (a, b) { return a.dateStart < b.dateStart ? 1 : -1; });
-    var body = '';
+    // Big "+ Ajouter" first (or the form once open), then one card per
+    // period -- only the ones that have something in them.
+    var body = (editingEventId === 'new' && prefillEventTeamId === team.id)
+      ? teamCard('', renderEventForm())
+      : '<button type="button" class="primary add-chrono-btn" data-action="team-event-add" data-team="' + team.id + '">+ ' + tr('add_event_heading') + '</button>';
     if (!all.length) {
-      body = '<div class="empty-state">' + tr('no_events_team') + '</div>';
+      body += teamCard('', '<div class="empty-state">' + tr('no_events_team') + '</div>');
     } else {
-      // Toutes rétractées, sauf En cours s'il y en a -- et à défaut, À
-      // venir (le prochain), pour toujours ouvrir sur ce qui compte
-      // maintenant plutôt que sur du passé.
-      body += collapsibleSection('team-events-ongoing-' + team.id, tr('ongoing_label') + ' (' + ongoing.length + ')',
-        ongoing.length ? ongoing.map(eventRow).join('') : '<div class="help-text">' + tr('nothing_now') + '</div>', true);
-      body += collapsibleSection('team-events-upcoming-' + team.id, tr('upcoming_label') + ' (' + upcoming.length + ')',
-        upcoming.length ? upcoming.map(eventRow).join('') : '<div class="help-text">' + tr('nothing_planned') + '</div>', !ongoing.length);
-      body += collapsibleSection('team-events-past-' + team.id, tr('past_label') + ' (' + past.length + ')',
-        past.length ? past.map(eventRow).join('') : '<div class="help-text">' + tr('no_past_events') + '</div>', false);
+      if (ongoing.length) body += teamCard(tr('ongoing_label') + ' (' + ongoing.length + ')', ongoing.map(eventRow).join(''));
+      body += teamCard(tr('upcoming_label') + ' (' + upcoming.length + ')', upcoming.length ? upcoming.map(eventRow).join('') : '<div class="help-text">' + tr('nothing_planned') + '</div>');
+      if (past.length) body += teamCard(tr('past_label') + ' (' + past.length + ')', past.map(eventRow).join(''));
     }
-    if (editingEventId === 'new' && prefillEventTeamId === team.id) body += renderEventForm();
+    return body;
     // Same collapsibleSection style as every other sub-section of this
     // Team's own fiche (Fil d'actualité/Membres/Followers/Inviter/
     // Réglages) -- used to be its own full collapsibleCard, which looked
@@ -12561,7 +12568,7 @@
     var reqs = (STATE.eventJoinRequests || []).filter(function (r) { return r.status === 'pending' && r.eventId === ev.id; });
     var riders = ev.riders || [];
     var html = '<div class="card">';
-    html += '<h2 class="section-title">' + escapeHtml(ev.circuit) + ' — ' + escapeHtml(formatEventRange(ev, true)) + '</h2>';
+    html += '<div class="section-title page-title-row"><button type="button" class="back-chevron" data-action="event-manage-close" aria-label="' + escapeHtml(tr('back_to_team') + orgTeam.name) + '">‹</button><span>' + escapeHtml(ev.circuit) + ' — ' + escapeHtml(formatEventRange(ev, true)) + '</span></div>';
     if (!canEdit && orgTeam !== team) html += '<div class="help-text" style="margin-bottom:0.6rem;">' + tr('organized_by_prefix') + escapeHtml(orgTeam.name) + tr('readonly_leader_can_edit_suffix') + escapeHtml(orgTeam.name) + tr('readonly_can_edit_suffix2') + '</div>';
     // Modifier right under the title -- it used to sit at the bottom of a
     // long stack of sections, easy to lose track of and easy to confuse
@@ -12686,6 +12693,13 @@
         return '<a class="team-link-chip" href="' + escapeHtml(l.url) + '" target="_blank" rel="noopener">' + escapeHtml(l.label) + '</a>';
       }).join('') + '</div>';
     }
+    if (team.partners && team.partners.length) {
+      html += '<div class="help-text" style="margin-top:0.5rem;">Partenaires</div><div class="team-links-row">' + team.partners.map(function (p) {
+        return p.url
+          ? '<a class="team-link-chip" href="' + escapeHtml(p.url) + '" target="_blank" rel="noopener">' + escapeHtml(p.name) + '</a>'
+          : '<span class="team-link-chip">' + escapeHtml(p.name) + '</span>';
+      }).join('') + '</div>';
+    }
     // Gestion des événements right under the profile (header/logo/
     // présentation/liens) -- it's the main reason a Team Leader opens
     // this screen, not something to scroll past Fil d'actualité/Membres
@@ -12693,7 +12707,6 @@
     var headHtml = html; html = '';
     var bRoulages = '';
     if (isLeader) bRoulages += renderTeamEventsManagement(team);
-    if (isLeader && team.teamPro) bRoulages += renderTeamProBadgeGrantSection(team);
 
     var feedBody = !feed.length
       ? '<div class="empty-state">' + (teamFeedSynced ? tr('nothing_yet') : tr('loading')) + '</div>'
@@ -12747,9 +12760,9 @@
     var bFil = feedBody;
 
     var teamFollowers = (STATE.teamFollowersByTeam || {})[team.id] || [];
-    html += renderTeamMembersSection(team, members, teamFollowers, me, isLeader);
-    html += renderTeamFollowersSection(team, members, teamFollowers, me, isLeader);
-    html += renderTeamPartnersSection(team, isLeader);
+    var membersCards = renderTeamMembersSection(team, members, teamFollowers, me, isLeader) +
+      renderTeamFollowersSection(team, members, teamFollowers, me, isLeader);
+    var inviteCta = '', sentInvitesCard = '';
 
     if (isLeader) {
       var memberNames = members.map(function (m) { return m.name; });
@@ -12776,37 +12789,41 @@
             var roleSuffix = cu.role === 'accompagnant' ? ' (Accompagnant)' : (cu.role === 'organisateur' ? ' (Organisateur)' : '');
             return '<option value="' + escapeHtml(n) + '">' + escapeHtml(n) + escapeHtml(roleSuffix) + '</option>';
           }).join('') + '</select>' +
-          '<button type="submit" class="ghost">' + tr('invite_btn') + '</button></form>';
+          '<button type="submit" class="primary" style="margin-top:0.6rem;">' + tr('invite_btn') + '</button></form>';
       if (outgoingInvites.length) {
         var outgoingBody = outgoingInvites.map(function (r) {
           return '<div class="friend-row"><div class="friend-row-main">' + personNameHtml(r.to) + '</div>' +
             '<div class="friend-row-actions"><button type="button" class="ghost" data-action="team-invite-remove" data-id="' + r.id + '">' + tr('cancel_invite') + '</button></div></div>';
         }).join('');
-        inviteBody += collapsibleSection('team-invites-out-' + team.id, tr('sent_invites_label') + outgoingInvites.length + ')', outgoingBody);
+        sentInvitesCard = teamCard(tr('sent_invites_label') + outgoingInvites.length + ')', outgoingBody);
       }
-      html += collapsibleSection('team-invite-' + team.id, tr('invite_btn'), inviteBody);
+      inviteCta = teamInviteOpen
+        ? teamCard('Inviter dans le team', inviteBody + '<button type="button" class="ghost" data-action="team-invite-toggle" style="margin-top:0.6rem;">' + tr('close_label') + '</button>')
+        : '<button type="button" class="primary add-chrono-btn" data-action="team-invite-toggle">+ Inviter des membres</button>';
     }
 
     if (isLeader) {
       var joinRequests = (STATE.teamJoinRequests || []).filter(function (r) { return r.teamId === team.id && r.status === 'pending'; });
       if (joinRequests.length) {
         var joinReqBody = joinRequests.map(renderTeamJoinRequestRow).join('');
-        html += collapsibleSection('team-join-requests-' + team.id, tr('join_requests_label') + joinRequests.length + ')', joinReqBody, true);
+        html += teamCard(tr('join_requests_label') + joinRequests.length + ')', joinReqBody);
       }
     }
 
-    var bMembres = html;
+    // Membres: action first, then what needs an answer, then the lists.
+    var proBadges = (isLeader && team.teamPro) ? renderTeamProBadgeGrantSection(team) : '';
+    var bMembres = inviteCta + html + membersCards + sentInvitesCard + proBadges;
     var bReglages = renderTeamSettings(team, isLeader);
     // "Ne plus suivre" lives in Réglages (was a bare × in the header).
-    if (!isMember) bReglages = '<div style="margin-bottom:0.8rem;"><button type="button" class="ghost" data-action="unfollow-team" data-team="' + team.id + '">' + tr('unfollow') + '</button></div>' + (bReglages || '');
+    if (!isMember && !isLeader) bReglages = teamCard('', '<button type="button" class="ghost" data-action="unfollow-team" data-team="' + team.id + '">' + tr('unfollow') + '</button>') + (bReglages || '');
     var teamPills = [['fil', 'Fil'], ['membres', 'Membres (' + members.length + ')']];
     if (isLeader) teamPills.push(['roulages', 'Roulages']);
     teamPills.push(['reglages', 'Réglages']);
     var pillsHtml = renderPills('team', teamPills);
-    var body = pillState.team === 'membres' ? bMembres : pillState.team === 'roulages' ? bRoulages : pillState.team === 'reglages' ? bReglages : bFil;
+    var body = pillState.team === 'membres' ? bMembres : pillState.team === 'roulages' ? bRoulages : pillState.team === 'reglages' ? bReglages : teamCard('', bFil);
     // Team header in its own card, then the pills outside it like on every
-    // other page, then the chosen section in a second card.
-    return headHtml + '</div>' + pillsHtml + '<div class="card team-card">' + body + '</div>';
+    // other page, then one card per topic.
+    return headHtml + '</div>' + pillsHtml + body;
   }
 
   function renderCreateTeamCard() {
@@ -13354,8 +13371,7 @@
           ? (STATE.events || []).filter(function (e) { return e.id === managingEventId; })[0]
           : null;
         if (managingEvent) {
-          html += '<div style="margin-top:1rem;">' +
-            '<button type="button" class="link-btn back-link" data-action="event-manage-close">' + tr('back_to_team') + escapeHtml(expandedTeam.name) + '</button>' +
+          html += '<div>' +
             renderEventManagementScreen(managingEvent, expandedTeam) +
             '</div>';
         } else {
@@ -15021,6 +15037,9 @@
         renderRoot();
         window.scrollTo(0, 0);
       });
+    });
+    document.querySelectorAll('[data-action="team-invite-toggle"]').forEach(function (btn) {
+      btn.addEventListener('click', function () { teamInviteOpen = !teamInviteOpen; renderRoot(); });
     });
     document.querySelectorAll('[data-action="team-tile-close"]').forEach(function (btn) {
       btn.addEventListener('click', function () { expandedTeamId = null; managingEventId = null; teamMemberSearch = ''; renderRoot(); });

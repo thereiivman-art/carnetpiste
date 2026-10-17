@@ -2964,3 +2964,5 @@
 .back-chevron { flex: 0 0 auto; width: 2.2rem; height: 2.2rem; padding: 0; border: 1px solid var(--border); border-radius: 50%; background: var(--surface); color: var(--text); font-size: 1.5rem; line-height: 1; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; }
 .back-chevron:hover { color: var(--accent); border-color: var(--accent); }
 .outing-page .card + .card { margin-top: 0.9rem; }
+.team-card + .team-card, .add-chrono-btn + .team-card { margin-top: 0.9rem; }
+.team-card .danger-zone { border-top: none; padding-top: 0; margin-top: 0; }
