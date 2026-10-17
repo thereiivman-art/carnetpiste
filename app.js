@@ -5981,6 +5981,99 @@
     return html + '</div>';
   }
 
+  // ---- Page d'une sortie (ouverte depuis une carte de sortie) ----
+  // Un jour sur un circuit : mon groupe, le statut, mon meilleur tour, accès
+  // aux infos de la sortie, au plan/repères et au chrono en direct, puis mes
+  // sessions du jour.
+  var outingView = null; // { circuit, date, eventId }
+  function openOuting(circuit, date, eventId) {
+    outingView = { circuit: circuit, date: date, eventId: eventId || null };
+    activeView = 'outing';
+    renderRoot();
+    window.scrollTo(0, 0);
+  }
+  function renderOutingPage() {
+    if (!outingView) return renderCarnetTab();
+    var me = currentUserProfile && currentUserProfile.name;
+    var circuit = outingView.circuit, date = outingView.date;
+    var ev = outingView.eventId ? eventsList().filter(function (e) { return e.id === outingView.eventId; })[0] : null;
+    if (!ev) ev = candidateEventsForCircuitDate(circuit, date)[0] || null;
+    var info = circuitInfo(circuit);
+    var team = ev && ev.teamId ? teamById(ev.teamId) : (info.organizerTeamId ? teamById(info.organizerTeamId) : null);
+    var sessions = (STATE.sessions || []).filter(function (x) { return x.rider === me && x.circuit === circuit && x.date === date && x.laps && x.laps.length; });
+    var group = ev ? (riderGroupFor(ev, me, date, 'matin') || riderGroupFor(ev, me, date, 'apres-midi') || '') : '';
+    if (!group) sessions.forEach(function (x) { if (x.group && !group) group = x.group; });
+    var today = dateKey(new Date());
+    var endDate = ev ? (ev.dateEnd || ev.dateStart) : date;
+    var status = date > today ? 'avenir' : (endDate >= today && (ev ? ev.dateStart : date) <= today ? 'encours' : 'terminee');
+    var best = null;
+    sessions.forEach(function (x) { var b = sessionBest(x); if (best === null || b < best) best = b; });
+    var prevBest = null;
+    (STATE.sessions || []).forEach(function (x) {
+      if (x.rider === me && x.circuit === circuit && x.date < date && x.laps && x.laps.length) { var b = sessionBest(x); if (prevBest === null || b < prevBest) prevBest = b; }
+    });
+
+    var html = '<div class="outing-page">';
+    html += '<button type="button" class="link-btn back-link" data-view="carnet">← Retour</button>';
+    html += '<div class="outing-hero"><h1 class="outing-title">' + escapeHtml(circuit) + '</h1><div class="outing-underline"></div>' +
+      '<div class="outing-hero-row"><span class="outing-date-chip">📅 ' + escapeHtml(ev ? formatEventRange(ev, true) : formatDate(date)) + '</span>' +
+      (team ? '<span class="outing-org">' + (team.logoURL ? '<img src="' + escapeHtml(team.logoURL) + '" alt="">' : '') + '<span><span class="outing-label">Organisé par</span><br><strong>' + escapeHtml(team.name || '') + '</strong></span></span>' : '') +
+      '</div></div>';
+
+    // Groupe + statut
+    var statusHtml;
+    if (status === 'terminee') statusHtml = '<span class="outing-label">Journée terminée</span><span class="outing-status-dash">—</span>';
+    else if (status === 'avenir') {
+      var days = Math.round((parseLocalDate(date) - parseLocalDate(today)) / 86400000);
+      statusHtml = '<span class="outing-label">À venir</span><strong>' + (days <= 1 ? 'Demain' : 'Dans ' + days + ' jours') + '</strong>';
+    } else {
+      var slots = todaysGroupSlots(circuit, group);
+      var nowMin = new Date().getHours() * 60 + new Date().getMinutes();
+      var next = slots.filter(function (sl) { return sl.start >= nowMin; })[0];
+      statusHtml = '<span class="outing-label">Aujourd\'hui</span><strong>' + (next ? 'Prochaine : ' + escapeHtml(next.label) : 'Plus de session') + '</strong>';
+    }
+    var slotsAll = group ? todaysGroupSlots(circuit, group) : [];
+    html += '<div class="outing-group-card"><div class="outing-group-main"><span class="outing-label">Mon groupe</span><span class="outing-group-value">' + escapeHtml(group || '—') + '</span>' +
+      '<span class="help-text">🕒 ' + (slotsAll.length ? escapeHtml(slotsAll.map(function (sl) { return sl.label; }).join(', ')) : 'Horaires non communiqués') + '</span></div>' +
+      '<div class="outing-group-status">' + statusHtml + '</div></div>';
+
+    // Meilleur tour
+    if (status === 'avenir') {
+      html += '<button type="button" class="outing-best-card" data-carnet-circuit="' + escapeHtml(circuit) + '"><span class="outing-label light">Mon record à battre</span>' +
+        '<span class="outing-best-time">' + (prevBest !== null ? formatTime(prevBest) : '—') + '</span>' +
+        '<span class="outing-best-delta">' + (prevBest !== null ? 'Objectif : faire mieux !' : 'Première sortie sur ce circuit') + '</span><span class="outing-best-arrow">›</span></button>';
+    } else
+    html += '<button type="button" class="outing-best-card" data-carnet-circuit="' + escapeHtml(circuit) + '"><span class="outing-label light">Meilleur tour</span>' +
+      '<span class="outing-best-time">' + (best !== null ? formatTime(best) : '—') + '</span>' +
+      (best !== null && prevBest !== null ? '<span class="outing-best-delta">' + (best < prevBest ? '🏆 Nouveau record (−' + (prevBest - best).toFixed(3) + ')' : '+' + (best - prevBest).toFixed(3) + ' vs record') + '</span>' : (best !== null ? '<span class="outing-best-delta">1re sortie ici</span>' : '<span class="outing-best-delta">Pas encore de chrono pour ce jour</span>')) +
+      '<span class="outing-best-arrow">›</span></button>';
+
+    // Tuiles
+    html += '<div class="outing-tiles">' +
+      '<button type="button" class="outing-tile" ' + (ev ? 'data-open-event="' + escapeHtml(ev.id) + '"' : 'data-carnet-circuit="' + escapeHtml(circuit) + '"') + '><span class="outing-tile-icon">ℹ️</span><strong>Informations</strong><span class="help-text">Horaires, groupes, infos pratiques</span></button>' +
+      '<button type="button" class="outing-tile" data-action="open-track-notes" data-circuit="' + escapeHtml(circuit) + '"><span class="outing-tile-icon">📍</span><strong>Plan &amp; repères</strong><span class="help-text">' + myTrackNotes(circuit).length + ' repère(s) sur le plan</span></button>' +
+      '</div>';
+    if (info.liveTimingUrl) {
+      html += '<a class="outing-live" href="' + escapeHtml(info.liveTimingUrl) + '" target="_blank" rel="noopener"><span class="outing-live-dot">((•))</span><span><strong>Chrono en direct</strong><br><span>Sur le site du chronométreur</span></span><span class="outing-live-arrow">→</span></a>';
+    }
+
+    // Mes sessions du jour
+    html += '<div class="card"><h2 class="section-title">Mes sessions</h2>';
+    if (!sessions.length) {
+      html += '<div class="help-text">Aucun chrono enregistré ce jour-là.</div>';
+    } else {
+      sessions.slice().sort(function (a, b) { return (a.slotStart || 0) - (b.slotStart || 0); }).forEach(function (x) {
+        var b = sessionBest(x);
+        html += '<div class="outing-session"><div><strong>' + escapeHtml(x.slotLabel || (x.group ? 'Groupe ' + x.group : 'Session')) + '</strong>' +
+          '<div class="outing-session-laps">' + x.laps.map(function (l) { return l === b ? '<span class="best-lap">' + formatTime(l) + '</span>' : '<span class="other-lap">' + formatTime(l) + '</span>'; }).join(' ') + '</div></div>' +
+          shareControl(x) + '</div>';
+      });
+    }
+    html += '<button type="button" class="ghost" id="outing-add-chrono" style="margin-top:0.6rem;">+ Ajouter un chrono pour ce jour</button></div>';
+    html += '</div>';
+    return html;
+  }
+
   var carnetCardsMode = null; // 'passees' | 'avenir'
   function circuitThumbHtml(circuit) {
     var info = circuitInfo(circuit);
@@ -6007,7 +6100,7 @@
       upcoming.forEach(function (ev) {
         var grp = riderGroupFor(ev, currentUserProfile.name, ev.dateStart, 'matin') || riderGroupFor(ev, currentUserProfile.name, ev.dateStart, 'apres-midi') || '';
         var myBest = riderCircuitBest(currentUserProfile.name, ev.circuit);
-        html += '<button type="button" class="outing-card" data-open-event="' + escapeHtml(ev.id) + '">' +
+        html += '<button type="button" class="outing-card" data-open-outing="' + escapeHtml(ev.circuit) + '" data-outing-date="' + escapeHtml(ev.dateStart) + '" data-outing-event="' + escapeHtml(ev.id) + '">' +
           '<span class="outing-card-top"><span class="outing-badges"><span class="outing-badge accent">À venir</span></span><span class="outing-thumb">' + circuitThumbHtml(ev.circuit) + '</span></span>' +
           '<span class="outing-date">' + escapeHtml(formatEventRange(ev, true)) + '</span><span class="outing-circuit">' + escapeHtml(ev.circuit) + '</span>' +
           '<span class="outing-foot"><span><span class="outing-label">Groupe</span><span class="outing-value">' + escapeHtml(grp || '—') + '</span></span>' +
@@ -6021,7 +6114,7 @@
           var d = o.best - o.prevBest;
           delta = d < 0 ? '<span class="daily-recap-better">−' + Math.abs(d).toFixed(3) + '</span>' : '<span class="daily-recap-worse">+' + d.toFixed(3) + '</span>';
         }
-        html += '<button type="button" class="outing-card" data-carnet-circuit="' + escapeHtml(o.circuit) + '">' +
+        html += '<button type="button" class="outing-card" data-open-outing="' + escapeHtml(o.circuit) + '" data-outing-date="' + escapeHtml(o.date) + '" data-outing-event="' + escapeHtml(o.eventId || '') + '">' +
           '<span class="outing-card-top"><span class="outing-badges"><span class="outing-badge">Terminé</span>' + (o.isRecord && o.prevBest !== null ? '<span class="outing-badge accent">🏆 Record</span>' : '') + '</span><span class="outing-thumb">' + circuitThumbHtml(o.circuit) + '</span></span>' +
           '<span class="outing-date">' + escapeHtml(formatDate(o.date)) + '</span><span class="outing-circuit">' + escapeHtml(o.circuit) + '</span>' +
           '<span class="outing-foot"><span><span class="outing-label">Groupe</span><span class="outing-value">' + escapeHtml(grp || '—') + '</span></span>' +
@@ -6067,7 +6160,7 @@
           var d = o.best - o.prevBest;
           delta = d < 0 ? '<span class="daily-recap-better">−' + Math.abs(d).toFixed(3) + '</span>' : '<span class="daily-recap-worse">+' + d.toFixed(3) + '</span>';
         }
-        html += '<button type="button" class="carnet-row" data-carnet-circuit="' + escapeHtml(o.circuit) + '"><span class="carnet-row-main"><strong>' + escapeHtml(formatDate(o.date)) + ' · ' + escapeHtml(o.circuit) + '</strong>' +
+        html += '<button type="button" class="carnet-row" data-open-outing="' + escapeHtml(o.circuit) + '" data-outing-date="' + escapeHtml(o.date) + '" data-outing-event="' + escapeHtml(o.eventId || '') + '"><span class="carnet-row-main"><strong>' + escapeHtml(formatDate(o.date)) + ' · ' + escapeHtml(o.circuit) + '</strong>' +
           '<span class="help-text">' + o.laps + ' tour' + (o.laps > 1 ? 's' : '') + (o.sessions > 1 ? ' · ' + o.sessions + ' sessions' : '') + (o.isRecord && o.prevBest !== null ? ' · 🏆 record' : (o.prevBest === null ? ' · 1re sortie ici' : '')) + '</span></span>' +
           '<span class="carnet-time">' + formatTime(o.best) + (delta ? '<br>' + delta : '') + '</span></button>';
       });
@@ -8342,6 +8435,8 @@
     return 'carnet';
   }
   var lastSubView = { carnet: 'carnet', sorties: 'planning', communaute: 'social' };
+  // (la page d'une sortie est rattachée à l'onglet Carnet mais n'est pas
+  // mémorisée comme sous-onglet : revenir à Carnet ramène à la liste)
   function renderSubNav(items) {
     if (items.length < 2) return '';
     return '<div class="subnav" role="tablist">' + items.map(function (it) {
@@ -12869,9 +12964,11 @@
     } else {
       if ((activeView === 'team' && isSimplifiedModeOn(currentUserProfile)) || (activeView === 'coach' && !(canAccessCoachSpace() && !advancedHidden()))) activeView = 'social';
       if (navTabFor(activeView) === 'communaute' && isSoloModeOn(currentUserProfile)) activeView = 'carnet';
-      lastSubView[navTabFor(activeView)] = activeView;
+      if (activeView === 'outing' && !outingView) activeView = 'carnet';
+      if (activeView !== 'outing') lastSubView[navTabFor(activeView)] = activeView;
       var carnetSub = renderSubNav([['carnet', 'Chronos'], ['circuit', 'Circuits'], ['stats', 'Stats']]);
-      if (activeView === 'carnet') body = carnetSub + renderCarnetTab();
+      if (activeView === 'outing') body = renderOutingPage();
+      else if (activeView === 'carnet') body = carnetSub + renderCarnetTab();
       else if (activeView === 'circuit') body = carnetSub + renderCircuitTab();
       else if (activeView === 'stats') body = carnetSub + renderMyRecordsCard() + renderStatsTab();
       else if (activeView === 'planning') body = renderSubNav([['planning', 'Prochaine sortie'], ['event', 'Calendrier']]) + renderPlanningTab();
@@ -15521,6 +15618,16 @@
     if (carnetCancel) carnetCancel.addEventListener('click', function () { addChronoOpen = false; renderRoot(); });
     document.querySelectorAll('[data-cards-mode]').forEach(function (b) {
       b.addEventListener('click', function () { carnetCardsMode = b.getAttribute('data-cards-mode'); renderRoot(); });
+    });
+    document.querySelectorAll('[data-open-outing]').forEach(function (b) {
+      b.addEventListener('click', function () { openOuting(b.getAttribute('data-open-outing'), b.getAttribute('data-outing-date'), b.getAttribute('data-outing-event')); });
+    });
+    var outingAdd = document.getElementById('outing-add-chrono');
+    if (outingAdd && outingView) outingAdd.addEventListener('click', function () {
+      selectedCircuit = outingView.circuit; addChronoOpen = true; activeView = 'carnet'; renderRoot();
+      var d = document.getElementById('f-date'); if (d) { d.value = isoToFrDate(outingView.date); d.dispatchEvent(new Event('input', { bubbles: true })); }
+      var c = document.getElementById('f-circuit'); if (c) { c.value = outingView.circuit; c.dispatchEvent(new Event('change', { bubbles: true })); }
+      window.scrollTo(0, 0);
     });
     document.querySelectorAll('[data-open-event]').forEach(function (b) {
       b.addEventListener('click', function () { activeView = 'event'; selectEvent(b.getAttribute('data-open-event')); renderRoot(); window.scrollTo(0, 0); });

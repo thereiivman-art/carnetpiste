@@ -2905,3 +2905,35 @@
 .header-hello .mini-avatar { width: 40px; height: 40px; border-radius: 12px; overflow: hidden; flex-shrink: 0; display: inline-flex; }
 .header-hello .mini-avatar img { width: 100%; height: 100%; object-fit: cover; border-radius: 12px; }
 .header-hello .mini-avatar-placeholder { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; border-radius: 12px; }
+
+/* ---- Page d'une sortie ---- */
+.outing-hero { margin-bottom: 0.9rem; }
+.outing-title { font-family: var(--font-display); font-weight: 800; font-size: 2rem; text-transform: uppercase; margin: 0.2rem 0 0.3rem; letter-spacing: -0.01em; }
+.outing-underline { width: 54px; height: 4px; border-radius: 2px; background: var(--accent); margin-bottom: 0.8rem; }
+.outing-hero-row { display: flex; flex-wrap: wrap; gap: 0.8rem; align-items: center; }
+.outing-date-chip { border: 1px solid var(--accent); color: var(--accent); border-radius: 10px; padding: 0.4rem 0.7rem; font-weight: 600; }
+.outing-org { display: flex; align-items: center; gap: 0.5rem; }
+.outing-org img { height: 32px; max-width: 70px; object-fit: contain; }
+.outing-group-card { display: flex; background: var(--surface); border: 1px solid var(--border); border-radius: 18px; overflow: hidden; margin-bottom: 0.8rem; }
+.outing-group-main { flex: 1; padding: 0.9rem; display: flex; flex-direction: column; gap: 0.2rem; }
+.outing-group-value { font-family: var(--font-display); font-weight: 800; font-size: 1.6rem; }
+.outing-group-status { width: 38%; background: var(--surface-alt); padding: 0.9rem; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 0.3rem; }
+.outing-status-dash { font-size: 1.5rem; color: var(--text-muted); }
+.outing-best-card { position: relative; display: flex; flex-direction: column; width: 100%; text-align: left; border: none; border-radius: 20px; padding: 1.1rem 1.2rem; margin-bottom: 0.8rem; color: #fff; cursor: pointer; background: linear-gradient(135deg, #f47a2c, #e3591c); box-shadow: 0 6px 18px rgba(227, 89, 28, 0.3); }
+.outing-best-card::after { content: ''; position: absolute; inset: 0 0 0 45%; border-radius: 0 20px 20px 0; background-image: linear-gradient(45deg, rgba(255,255,255,0.08) 25%, transparent 25%, transparent 75%, rgba(255,255,255,0.08) 75%), linear-gradient(45deg, rgba(255,255,255,0.08) 25%, transparent 25%, transparent 75%, rgba(255,255,255,0.08) 75%); background-size: 28px 28px; background-position: 0 0, 14px 14px; pointer-events: none; }
+.outing-label.light { color: rgba(255,255,255,0.85); }
+.outing-best-time { font-family: var(--font-display); font-weight: 800; font-size: 2.6rem; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.outing-best-delta { font-size: 0.85rem; opacity: 0.95; }
+.outing-best-arrow { position: absolute; right: 1rem; top: 50%; transform: translateY(-50%); font-size: 1.6rem; z-index: 1; }
+.outing-tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 0.7rem; margin-bottom: 0.8rem; }
+.outing-tile { display: flex; flex-direction: column; gap: 0.3rem; text-align: left; background: var(--surface); border: 1px solid var(--border); border-radius: 18px; padding: 0.9rem; color: inherit; cursor: pointer; }
+.outing-tile-icon { width: 42px; height: 42px; border: 1px solid var(--border); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; margin-bottom: 0.3rem; }
+.outing-live { display: flex; align-items: center; gap: 0.8rem; background: #16191d; color: #fff; border-radius: 18px; padding: 0.9rem 1rem; margin-bottom: 0.8rem; text-decoration: none; }
+.outing-live-dot { width: 42px; height: 42px; border-radius: 50%; background: var(--accent); display: flex; align-items: center; justify-content: center; font-size: 0.7rem; font-weight: 800; flex-shrink: 0; }
+.outing-live span span { color: rgba(255,255,255,0.75); font-size: 0.85rem; }
+.outing-live-arrow { margin-left: auto; font-size: 1.3rem; }
+.outing-session { display: flex; justify-content: space-between; align-items: flex-start; gap: 0.5rem; padding: 0.6rem 0; border-bottom: 1px solid var(--border); }
+.outing-session:last-of-type { border-bottom: none; }
+.outing-session-laps { margin-top: 0.25rem; }
+.outing-session-laps .best-lap, .outing-session-laps .other-lap { display: inline-block; margin: 0.1rem 0.3rem 0.1rem 0; font-variant-numeric: tabular-nums; }
+.outing-session-laps .other-lap { color: var(--text-muted); font-size: 0.88em; }
