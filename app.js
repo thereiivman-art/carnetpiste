@@ -223,8 +223,8 @@
       notify_event_ended: 'Un event auquel j\'ai participé vient de se terminer',
       ui_mode_label: 'Niveau d\'affichage', show_advanced_options: 'Afficher plus d\'options',
       ui_mode_complet_option: 'Complet', ui_mode_simplifie_option: 'Simplifié', ui_mode_solo_option: 'Solo',
-      ui_mode_help_complet: 'Tout est affiché : Team, Coaching, Social, météo, checklists, comparaison de progression, infos de voyage...',
-      ui_mode_help_simplifie: 'Masque Team, Coaching, météo, checklists, comparaison de progression et infos de voyage pour ne garder que l\'essentiel (prochain événement, horaires, saisie de chrono). Social reste visible.',
+      ui_mode_help_complet: 'Tout est affiché : Communauté avec Teams et Coaching, météo, checklists, comparaison de progression, infos de voyage...',
+      ui_mode_help_simplifie: 'Garde l\'essentiel (carnet, sorties, horaires) et Communauté > Amis & fil ; masque Teams, Coaching, météo, checklists et infos de voyage.',
       ui_mode_help_solo: 'Comme Simplifié, en retirant en plus tout l\'aspect social (onglet Communauté, amis sur un événement, comparaison de progression) -- ne garde que Carnet et Sorties.',
       feeling_after_session_heading: 'Ressenti après chaque session',
       enable_feeling: 'Activer le ressenti à ton retour de chaque session',
@@ -3250,7 +3250,7 @@
   // signup (see resolveUniquePseudo) if the new pseudo collides with
   // someone else's.
   function renderProfileTabBar() {
-    var tabs = [['profil', tr('tab_profil')], ['parrainage', tr('tab_parrainage')], ['reglages', tr('tab_reglages')], ['aide', tr('tab_aide')], ['suggestion', tr('tab_suggestion')]];
+    var tabs = [['profil', tr('tab_profil')], ['reglages', tr('tab_reglages')], ['aide', tr('tab_aide')], ['suggestion', tr('tab_suggestion')]];
     return '<div class="profile-tabs" role="tablist">' + tabs.map(function (t) {
       return '<button type="button" class="profile-tab-btn' + (profileSubTab === t[0] ? ' active' : '') + '" role="tab" aria-selected="' + (profileSubTab === t[0]) + '" data-profile-tab="' + t[0] + '">' + t[1] + '</button>';
     }).join('') + '</div>';
@@ -3450,80 +3450,73 @@
     // (see advancedRevealed) without touching this setting; Solo has no
     // such reveal, it's a deliberate choice.
     var currentMode = uiMode(p);
-    var html = '<div style="padding-bottom:0.9rem; margin-bottom:1.1rem; border-bottom:1px solid var(--border);">';
+    // Regroupé en sections repliables : l'essentiel (affichage) visible, le
+    // reste (notifications, confidentialité, voyage, compte) replié.
+    var html = '<div class="settings-block">';
+    html += '<div class="section-title" style="font-size:0.95rem;">Affichage</div>';
     html += '<label for="profile-ui-mode">' + tr('ui_mode_label') + '</label>';
     html += '<select id="profile-ui-mode">' +
       ['complet', 'simplifie', 'solo'].map(function (m) {
         return '<option value="' + m + '"' + (currentMode === m ? ' selected' : '') + '>' + tr('ui_mode_' + m + '_option') + '</option>';
       }).join('') + '</select>';
     html += '<div class="help-text" style="margin-top:0.3rem;">' + tr('ui_mode_help_' + currentMode) + '</div>';
+    html += '<div class="settings-inline"><div><label style="margin-bottom:0.4rem; display:block;">' + tr('profile_lang') + '</label>' + renderLangToggle() + '</div>' +
+      '<div><label style="margin-bottom:0.4rem; display:block;">' + tr('profile_theme') + '</label>' + renderThemeToggle() + '</div></div>';
+    html += '<label class="checklist-item" style="margin-top:0.8rem;"><input type="checkbox" id="profile-feeling-enabled"' + (p.sessionFeelingEnabled !== false ? ' checked' : '') + '> ' + tr('enable_feeling') + '</label>';
     html += '</div>';
-    html += renderNotificationsSettings(p);
-    html += '<div style="margin-top:1.1rem;"><label style="margin-bottom:0.4rem; display:block;">' + tr('profile_lang') + '</label>' + renderLangToggle() + '</div>';
-    html += '<div style="margin-top:1.1rem;"><label style="margin-bottom:0.4rem; display:block;">' + tr('profile_theme') + '</label>' + renderThemeToggle() + '</div>';
-    // Opt-out, on by default -- a quick "comment c'était ?" prompt after
-    // every chrono enregistré, until an account explicitly turns it off
-    // (see onSubmit's success handler and renderFeelingModal, both gated
-    // on !== false rather than === true).
-    html += '<div style="margin-top:1.2rem; border-top:1px solid var(--border); padding-top:0.9rem;">';
-    html += '<div class="section-title" style="font-size:0.95rem;">' + tr('feeling_after_session_heading') + '</div>';
-    html += '<label class="checklist-item"><input type="checkbox" id="profile-feeling-enabled"' + (p.sessionFeelingEnabled !== false ? ' checked' : '') + '> ' + tr('enable_feeling') + '</label>';
-    html += '<div class="help-text" style="margin-top:0.3rem;">' + tr('feeling_help') + '</div>';
-    html += '</div>';
-    // What a friend can see when they open your fiche from Social (Mes
-    // amis) -- both on by default. Purely a display-level courtesy: every
-    // signed-in account can already read sessions/events/users directly,
-    // this only controls what shows up in that one card.
-    html += '<div style="margin-top:1.2rem; border-top:1px solid var(--border); padding-top:0.9rem;">';
-    html += '<div class="section-title" style="font-size:0.95rem;">' + tr('social_settings_heading') + '</div>';
-    html += '<div class="help-text">' + tr('social_settings_help') + '</div>';
-    html += '<label class="checklist-item" style="margin-top:0.6rem;"><input type="checkbox" id="profile-share-sorties"' + (p.shareSorties !== false ? ' checked' : '') + '> ' + tr('share_events_chronos') + '</label>';
-    html += '<label class="checklist-item" style="margin-top:0.4rem;"><input type="checkbox" id="profile-share-trophees"' + (p.shareTrophees !== false ? ' checked' : '') + '> ' + tr('share_trophies') + '</label>';
-    html += '<label class="checklist-item" style="margin-top:0.4rem;"><input type="checkbox" id="profile-share-travel-info"' + (p.shareTravelInfo !== false ? ' checked' : '') + '> ' + tr('share_travel_info') + '</label>';
-    html += '</div>';
-    html += '<div style="margin-top:1.2rem; border-top:1px solid var(--border); padding-top:0.9rem;">' + renderMyTravelDefaultsSection() + '</div>';
-    if (isAdmin()) html += renderSelfBadges(p);
+    html += collapsibleSection('settings-notifications', tr('notifications_heading'), renderNotificationsSettings(p).replace('<div style="margin-top:1.2rem; border-top:1px solid var(--border); padding-top:0.9rem;">', '<div>'), false);
+    if (currentMode !== 'solo') {
+      var privacy = '<div class="help-text">' + tr('social_settings_help') + '</div>' +
+        '<label class="checklist-item" style="margin-top:0.6rem;"><input type="checkbox" id="profile-share-sorties"' + (p.shareSorties !== false ? ' checked' : '') + '> ' + tr('share_events_chronos') + '</label>' +
+        '<label class="checklist-item" style="margin-top:0.4rem;"><input type="checkbox" id="profile-share-trophees"' + (p.shareTrophees !== false ? ' checked' : '') + '> ' + tr('share_trophies') + '</label>' +
+        '<label class="checklist-item" style="margin-top:0.4rem;"><input type="checkbox" id="profile-share-travel-info"' + (p.shareTravelInfo !== false ? ' checked' : '') + '> ' + tr('share_travel_info') + '</label>';
+      html += collapsibleSection('settings-privacy', 'Confidentialité', privacy, false);
+    }
+    if (!advancedHidden()) html += collapsibleSection('settings-travel', 'Infos de voyage par défaut', renderMyTravelDefaultsSection(), false);
+    if (isAdmin()) html += collapsibleSection('settings-self-badges', 'Mes badges (admin)', renderSelfBadges(p), false);
+    var accountHtml = '';
     // Separate form -- changing the sign-in email needs the current
     // password (Firebase requires a recent reauthentication for it), which
     // has nothing to do with the notify/theme settings above.
-    html += '<div style="margin-top:1.2rem; border-top:1px solid var(--border); padding-top:0.9rem;">';
-    html += '<div class="section-title" style="font-size:0.95rem;">' + tr('account_heading') + '</div>';
-    html += '<form id="profile-email-form">';
-    html += '<label>' + tr('current_email_label') + '<input type="text" value="' + escapeHtml(p.email || (auth.currentUser && auth.currentUser.email) || '') + '" disabled></label>';
-    html += '<label for="profile-new-email" style="margin-top:0.6rem;">' + tr('new_email_label') + '</label><input type="email" id="profile-new-email" autocomplete="username">';
-    html += '<label for="profile-current-password" style="margin-top:0.6rem;">' + tr('current_password_label') + '</label><input type="password" id="profile-current-password" autocomplete="current-password">';
-    html += '<div style="margin-top:0.7rem;"><button type="submit" class="ghost">' + tr('change_email_btn') + '</button></div>';
-    if (profileEmailMessage) html += '<div class="help-text" style="margin-top:0.6rem;">' + escapeHtml(profileEmailMessage) + '</div>';
-    html += '</form>';
-    html += '</div>';
+    accountHtml += '<div style="margin-top:1.2rem; border-top:1px solid var(--border); padding-top:0.9rem;">';
+    accountHtml += '<div class="section-title" style="font-size:0.95rem;">' + tr('account_heading') + '</div>';
+    accountHtml += '<form id="profile-email-form">';
+    accountHtml += '<label>' + tr('current_email_label') + '<input type="text" value="' + escapeHtml(p.email || (auth.currentUser && auth.currentUser.email) || '') + '" disabled></label>';
+    accountHtml += '<label for="profile-new-email" style="margin-top:0.6rem;">' + tr('new_email_label') + '</label><input type="email" id="profile-new-email" autocomplete="username">';
+    accountHtml += '<label for="profile-current-password" style="margin-top:0.6rem;">' + tr('current_password_label') + '</label><input type="password" id="profile-current-password" autocomplete="current-password">';
+    accountHtml += '<div style="margin-top:0.7rem;"><button type="submit" class="ghost">' + tr('change_email_btn') + '</button></div>';
+    if (profileEmailMessage) accountHtml += '<div class="help-text" style="margin-top:0.6rem;">' + escapeHtml(profileEmailMessage) + '</div>';
+    accountHtml += '</form>';
+    accountHtml += '</div>';
     // Same reauthentication pattern as the email form just above, kept as
     // its own separate form/submit so the two never accidentally
     // interfere (e.g. hitting Enter in one shouldn't submit the other).
-    html += '<div style="margin-top:1.2rem; border-top:1px solid var(--border); padding-top:0.9rem;">';
-    html += '<div class="section-title" style="font-size:0.95rem;">' + tr('change_password_heading') + '</div>';
-    html += '<form id="profile-password-form">';
-    html += '<label for="profile-password-current" style="margin-top:0.6rem;">' + tr('current_password_label') + '</label><input type="password" id="profile-password-current" autocomplete="current-password">';
-    html += '<label for="profile-password-new" style="margin-top:0.6rem;">' + tr('new_password_label') + '</label><input type="password" id="profile-password-new" autocomplete="new-password">';
-    html += '<label for="profile-password-confirm" style="margin-top:0.6rem;">' + tr('confirm_new_password_label') + '</label><input type="password" id="profile-password-confirm" autocomplete="new-password">';
-    html += '<div style="margin-top:0.7rem;"><button type="submit" class="ghost">' + tr('change_password_btn') + '</button></div>';
-    if (profilePasswordMessage) html += '<div class="help-text" style="margin-top:0.6rem;">' + escapeHtml(profilePasswordMessage) + '</div>';
-    html += '</form>';
-    html += '</div>';
-    html += '<div class="danger-zone">';
-    html += '<div class="section-title" style="font-size:0.95rem;">' + tr('delete_account_heading') + '</div>';
+    accountHtml += '<div style="margin-top:1.2rem; border-top:1px solid var(--border); padding-top:0.9rem;">';
+    accountHtml += '<div class="section-title" style="font-size:0.95rem;">' + tr('change_password_heading') + '</div>';
+    accountHtml += '<form id="profile-password-form">';
+    accountHtml += '<label for="profile-password-current" style="margin-top:0.6rem;">' + tr('current_password_label') + '</label><input type="password" id="profile-password-current" autocomplete="current-password">';
+    accountHtml += '<label for="profile-password-new" style="margin-top:0.6rem;">' + tr('new_password_label') + '</label><input type="password" id="profile-password-new" autocomplete="new-password">';
+    accountHtml += '<label for="profile-password-confirm" style="margin-top:0.6rem;">' + tr('confirm_new_password_label') + '</label><input type="password" id="profile-password-confirm" autocomplete="new-password">';
+    accountHtml += '<div style="margin-top:0.7rem;"><button type="submit" class="ghost">' + tr('change_password_btn') + '</button></div>';
+    if (profilePasswordMessage) accountHtml += '<div class="help-text" style="margin-top:0.6rem;">' + escapeHtml(profilePasswordMessage) + '</div>';
+    accountHtml += '</form>';
+    accountHtml += '</div>';
+    accountHtml += '<div class="danger-zone">';
+    accountHtml += '<div class="section-title" style="font-size:0.95rem;">' + tr('delete_account_heading') + '</div>';
     if (!profileDeleteConfirmOpen) {
-      html += '<div class="help-text">' + tr('delete_account_help') + '</div>';
-      html += '<div style="margin-top:0.7rem;"><button type="button" class="ghost danger" id="delete-account-request-btn">' + tr('delete_account_btn') + '</button></div>';
+      accountHtml += '<div class="help-text">' + tr('delete_account_help') + '</div>';
+      accountHtml += '<div style="margin-top:0.7rem;"><button type="button" class="ghost danger" id="delete-account-request-btn">' + tr('delete_account_btn') + '</button></div>';
     } else {
-      html += '<form id="profile-delete-account-form">';
-      html += '<div class="help-text">' + tr('delete_irreversible_help') + '</div>';
-      html += '<label for="profile-delete-password" style="margin-top:0.6rem;">' + tr('current_password_label') + '</label><input type="password" id="profile-delete-password" autocomplete="current-password">';
-      html += '<div style="margin-top:0.7rem; display:flex; gap:0.6rem;"><button type="submit" class="ghost danger">' + tr('confirm_deletion_btn') + '</button>' +
+      accountHtml += '<form id="profile-delete-account-form">';
+      accountHtml += '<div class="help-text">' + tr('delete_irreversible_help') + '</div>';
+      accountHtml += '<label for="profile-delete-password" style="margin-top:0.6rem;">' + tr('current_password_label') + '</label><input type="password" id="profile-delete-password" autocomplete="current-password">';
+      accountHtml += '<div style="margin-top:0.7rem; display:flex; gap:0.6rem;"><button type="submit" class="ghost danger">' + tr('confirm_deletion_btn') + '</button>' +
         '<button type="button" class="ghost" id="delete-account-cancel-btn">' + tr('cancel') + '</button></div>';
-      if (profileDeleteMessage) html += '<div class="help-text" style="margin-top:0.6rem;">' + escapeHtml(profileDeleteMessage) + '</div>';
-      html += '</form>';
+      if (profileDeleteMessage) accountHtml += '<div class="help-text" style="margin-top:0.6rem;">' + escapeHtml(profileDeleteMessage) + '</div>';
+      accountHtml += '</form>';
     }
-    html += '</div>';
+    accountHtml += '</div>';
+    html += collapsibleSection('settings-account', 'Compte (email, mot de passe, suppression)', accountHtml, !!(profileEmailMessage || profilePasswordMessage || profileDeleteConfirmOpen));
     return html;
   }
 
@@ -3636,8 +3629,8 @@
     html += '<div class="section-title">' + tr('my_profile_label') + '</div>';
     html += renderProfileTabBar();
     html += '<div class="profile-tab-body">';
-    if (profileSubTab === 'parrainage') html += renderProfileParrainageTab(p);
-    else if (profileSubTab === 'reglages') html += renderProfileReglagesTab(p);
+    if (profileSubTab === 'parrainage') profileSubTab = 'profil'; // fusionné dans le QR d'invitation
+    if (profileSubTab === 'reglages') html += renderProfileReglagesTab(p);
     else if (profileSubTab === 'aide') html += renderProfileAideTab(p);
     else if (profileSubTab === 'suggestion') html += renderProfileSuggestionTab(p);
     else html += renderProfileProfilTab(p);
@@ -5940,6 +5933,7 @@
       '<div class="help-text">Fais scanner ce code : il s\'inscrit avec ton lien et devient ton filleul.</div>' +
       '<div class="invite-qr-box" id="invite-qr-box">Chargement…</div>' +
       '<div class="invite-qr-link">' + escapeHtml(link) + '</div>' +
+      '<div class="invite-qr-stats" id="invite-qr-stats"></div>' +
       '<div style="margin-top:0.8rem; display:flex; gap:0.5rem; flex-wrap:wrap;">' +
       (navigator.share ? '<button type="button" class="primary" data-q="share">Partager le lien</button>' : '') +
       '<button type="button" class="ghost" data-q="copy">Copier</button>' +
@@ -5955,6 +5949,20 @@
     overlay.querySelector('[data-q="copy"]').addEventListener('click', function () {
       if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(link).then(function () { showToast('Lien copié', 'success'); }).catch(function () {});
     });
+    // Filleuls et badges de parrainage (ex-onglet Parrainage du profil).
+    function refreshStats() {
+      var el = overlay.querySelector('#invite-qr-stats');
+      if (!el) return;
+      var n = filleulCounts[currentUserProfile.name];
+      var txt = (n == null ? '…' : n) + (n === 1 ? tr('filleul_singular') : tr('filleul_plural'));
+      [[1, tr('parrain_badge')], [5, tr('grand_parrain_badge')]].forEach(function (m) {
+        txt += ' · ' + (n != null && n >= m[0] ? '✓ ' : m[0] + ' filleul' + (m[0] > 1 ? 's' : '') + ' → ') + m[1];
+      });
+      el.textContent = txt;
+    }
+    loadFilleulCount(currentUserProfile.name);
+    refreshStats();
+    setTimeout(refreshStats, 1200);
     loadQrLib().then(function (qrcode) {
       var qr = qrcode(0, 'M');
       qr.addData(link);

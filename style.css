@@ -2937,3 +2937,7 @@
 .outing-session-laps { margin-top: 0.25rem; }
 .outing-session-laps .best-lap, .outing-session-laps .other-lap { display: inline-block; margin: 0.1rem 0.3rem 0.1rem 0; font-variant-numeric: tabular-nums; }
 .outing-session-laps .other-lap { color: var(--text-muted); font-size: 0.88em; }
+
+.settings-block { padding-bottom: 0.9rem; margin-bottom: 0.6rem; border-bottom: 1px solid var(--border); }
+.settings-inline { display: flex; flex-wrap: wrap; gap: 1rem; margin-top: 0.9rem; }
+.invite-qr-stats { margin-top: 0.6rem; font-size: 0.82rem; color: var(--text-muted); }
