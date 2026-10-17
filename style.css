@@ -2832,7 +2832,7 @@
 .track-note-line { display: flex; gap: 0.5rem; align-items: flex-start; margin: 0.35rem 0; }
 
 /* ---- Mon carnet ---- */
-.carnet-add-help { text-align: center; margin: 0.3rem 0 0.9rem; }
+.carnet-add-help { text-align: center; margin: 0.3rem 0 0.7rem; }
 .carnet-row { display: flex; align-items: center; justify-content: space-between; gap: 0.6rem; width: 100%; text-align: left; background: none; border: none; border-bottom: 1px solid var(--border); padding: 0.6rem 0; color: inherit; cursor: pointer; }
 .carnet-row:last-of-type { border-bottom: none; }
 .carnet-row-main { display: flex; flex-direction: column; gap: 0.1rem; }
@@ -2878,30 +2878,23 @@
 .invite-qr-box svg { width: 100%; height: 100%; }
 .invite-qr-link { font-size: 0.75rem; color: var(--text-muted); word-break: break-all; }
 
-/* Cartes de sorties */
-.outings-head { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; margin: 0.4rem 0 0.5rem; }
+/* Mes sorties : liste compacte */
+.outings-card { padding-bottom: 0.4rem; }
+.outings-head { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; margin-bottom: 0.3rem; }
 .outings-head .section-title { margin: 0; }
-.outings-toggle { display: flex; gap: 0.35rem; }
-.pill-btn { border: 1px solid var(--border); background: var(--surface); color: var(--text-muted); border-radius: 999px; padding: 0.35rem 0.8rem; font-weight: 600; cursor: pointer; }
-.pill-btn.active { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
-.outing-cards { display: flex; gap: 0.7rem; overflow-x: auto; scroll-snap-type: x mandatory; padding: 0.2rem 0.1rem 0.6rem; margin: 0 -1rem; padding-left: 1rem; padding-right: 1rem; -webkit-overflow-scrolling: touch; }
-.outing-card { flex: 0 0 78%; max-width: 320px; scroll-snap-align: start; display: flex; flex-direction: column; text-align: left; gap: 0.15rem; background: var(--surface); border: 1px solid var(--border); border-radius: 18px; padding: 0.9rem; color: inherit; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
-.outing-card.empty { align-items: center; justify-content: center; text-align: center; color: var(--text-muted); cursor: default; min-height: 9rem; }
-.outing-card-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 0.5rem; }
-.outing-badges { display: flex; flex-wrap: wrap; gap: 0.3rem; }
-.outing-badge { font-size: 0.68rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; background: var(--surface-alt); color: var(--text-muted); border-radius: 6px; padding: 0.2rem 0.45rem; }
-.outing-badge.accent { background: var(--accent); color: var(--accent-ink); }
-.outing-thumb { width: 64px; height: 64px; border-radius: 12px; background: #fff; border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; overflow: hidden; flex-shrink: 0; }
+.outings-toggle { display: flex; gap: 0.3rem; }
+.pill-btn { border: 1px solid var(--border); background: var(--surface); color: var(--text-muted); border-radius: 999px; padding: 0.25rem 0.65rem; font-size: 0.82rem; font-weight: 600; cursor: pointer; }
+.pill-btn.active { background: var(--text); border-color: var(--text); color: var(--surface); }
+.outing-row { display: flex; align-items: center; gap: 0.65rem; width: 100%; text-align: left; background: none; border: none; border-bottom: 1px solid var(--border); padding: 0.55rem 0; color: inherit; cursor: pointer; }
+.outing-row:last-of-type { border-bottom: none; }
+.outing-thumb { width: 40px; height: 40px; border-radius: 8px; background: #fff; border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; overflow: hidden; flex-shrink: 0; }
 .outing-thumb img { width: 100%; height: 100%; object-fit: contain; }
-.outing-thumb-letter { font-weight: 800; font-size: 1.6rem; color: var(--accent); }
-.outing-date { font-size: 0.85rem; color: var(--text-muted); margin-top: 0.2rem; }
-.outing-circuit { font-family: var(--font-display); font-weight: 700; font-size: 1.25rem; }
-.outing-foot { display: flex; gap: 1.2rem; border-top: 1px solid var(--border); margin-top: 0.6rem; padding-top: 0.55rem; }
-.outing-foot > span { display: flex; flex-direction: column; }
-.outing-label { font-size: 0.66rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-muted); }
-.outing-value { font-weight: 700; font-variant-numeric: tabular-nums; }
-.outings-more { text-align: right; margin: -0.2rem 0 0.8rem; }
-.outings-more .link-btn { width: auto; text-decoration: none; font-weight: 600; }
+.outing-thumb-letter { font-weight: 800; font-size: 1rem; color: var(--accent); }
+.outing-row-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 0.1rem; }
+.outing-row-main strong { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.outing-row-right { display: flex; flex-direction: column; align-items: flex-end; gap: 0.1rem; font-size: 0.85rem; }
+.outings-more-btn { width: 100%; text-align: center; text-decoration: none; font-weight: 600; padding: 0.6rem 0 0.3rem; font-family: inherit; }
+.inline-link { width: auto; display: inline; padding: 0; font-family: inherit; }
 .header-hello .mini-avatar { width: 40px; height: 40px; border-radius: 12px; overflow: hidden; flex-shrink: 0; display: inline-flex; }
 .header-hello .mini-avatar img { width: 100%; height: 100%; object-fit: cover; border-radius: 12px; }
 .header-hello .mini-avatar-placeholder { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; border-radius: 12px; }

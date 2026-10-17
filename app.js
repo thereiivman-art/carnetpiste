@@ -6096,38 +6096,41 @@
       return me && (ev.riders || []).indexOf(me) !== -1 && (ev.dateEnd || ev.dateStart) >= today;
     }).sort(function (a, b) { return a.dateStart < b.dateStart ? -1 : 1; });
   }
+  // Liste compacte des sorties (une ligne par sortie, petit tracé du
+  // circuit) -- volontairement sobre et dense, pas de grandes cartes.
   function renderOutingCards(outings) {
     var upcoming = myUpcomingEvents();
     if (!carnetCardsMode) carnetCardsMode = outings.length ? 'passees' : 'avenir';
-    var html = '<div class="outings-head"><h2 class="section-title">Mes sorties</h2><div class="outings-toggle">' +
-      '<button type="button" class="pill-btn' + (carnetCardsMode === 'avenir' ? ' active' : '') + '" data-cards-mode="avenir">À venir</button>' +
-      '<button type="button" class="pill-btn' + (carnetCardsMode === 'passees' ? ' active' : '') + '" data-cards-mode="passees">Passées</button></div></div>';
-    html += '<div class="outing-cards">';
+    var html = '<div class="card outings-card"><div class="outings-head"><h2 class="section-title">Mes sorties</h2><div class="outings-toggle">' +
+      '<button type="button" class="pill-btn' + (carnetCardsMode === 'passees' ? ' active' : '') + '" data-cards-mode="passees">Passées</button>' +
+      '<button type="button" class="pill-btn' + (carnetCardsMode === 'avenir' ? ' active' : '') + '" data-cards-mode="avenir">À venir</button></div></div>';
     if (carnetCardsMode === 'avenir') {
-      if (!upcoming.length) html += '<div class="outing-card empty">Aucune sortie à venir.<br><button type="button" class="link-btn" data-view="event">Planifier une sortie</button></div>';
+      if (!upcoming.length) html += '<div class="help-text" style="padding:0.4rem 0;">Aucune sortie à venir. <button type="button" class="link-btn inline-link" data-view="event">Planifier une sortie</button></div>';
       upcoming.forEach(function (ev) {
         var grp = riderGroupFor(ev, currentUserProfile.name, ev.dateStart, 'matin') || riderGroupFor(ev, currentUserProfile.name, ev.dateStart, 'apres-midi') || '';
         var myBest = riderCircuitBest(currentUserProfile.name, ev.circuit);
-        html += '<button type="button" class="outing-card" data-open-outing="' + escapeHtml(ev.circuit) + '" data-outing-date="' + escapeHtml(ev.dateStart) + '" data-outing-event="' + escapeHtml(ev.id) + '">' +
-          '<span class="outing-card-top"><span class="outing-badges"><span class="outing-badge accent">À venir</span></span><span class="outing-thumb">' + circuitThumbHtml(ev.circuit) + '</span></span>' +
-          '<span class="outing-date">' + escapeHtml(formatEventRange(ev, true)) + '</span><span class="outing-circuit">' + escapeHtml(ev.circuit) + '</span>' +
-          '<span class="outing-foot"><span><span class="outing-label">Groupe</span><span class="outing-value">' + escapeHtml(grp || '—') + '</span></span>' +
-          '<span><span class="outing-label">Mon record</span><span class="outing-value">' + (myBest !== null ? formatTime(myBest) : '—') + '</span></span></span></button>';
+        html += '<button type="button" class="outing-row" data-open-outing="' + escapeHtml(ev.circuit) + '" data-outing-date="' + escapeHtml(ev.dateStart) + '" data-outing-event="' + escapeHtml(ev.id) + '">' +
+          '<span class="outing-thumb">' + circuitThumbHtml(ev.circuit) + '</span>' +
+          '<span class="outing-row-main"><strong>' + escapeHtml(ev.circuit) + '</strong><span class="help-text">' + escapeHtml(formatEventRange(ev, true)) + (grp ? ' · Gr. ' + escapeHtml(grp) : '') + '</span></span>' +
+          '<span class="outing-row-right"><span class="carnet-time">' + (myBest !== null ? formatTime(myBest) : '—') + '</span><span class="help-text">record</span></span></button>';
       });
     } else {
-      outings.slice(0, 12).forEach(function (o) {
-        var grp = Object.keys(o.groups).join(' / ');
+      var shown = carnetHistoryAll ? outings : outings.slice(0, 6);
+      shown.forEach(function (o) {
+        var grp = Object.keys(o.groups).join('/');
         var delta = '';
         if (o.prevBest !== null) {
           var d = o.best - o.prevBest;
           delta = d < 0 ? '<span class="daily-recap-better">−' + Math.abs(d).toFixed(3) + '</span>' : '<span class="daily-recap-worse">+' + d.toFixed(3) + '</span>';
-        }
-        html += '<button type="button" class="outing-card" data-open-outing="' + escapeHtml(o.circuit) + '" data-outing-date="' + escapeHtml(o.date) + '" data-outing-event="' + escapeHtml(o.eventId || '') + '">' +
-          '<span class="outing-card-top"><span class="outing-badges"><span class="outing-badge">Terminé</span>' + (o.isRecord && o.prevBest !== null ? '<span class="outing-badge accent">🏆 Record</span>' : '') + '</span><span class="outing-thumb">' + circuitThumbHtml(o.circuit) + '</span></span>' +
-          '<span class="outing-date">' + escapeHtml(formatDate(o.date)) + '</span><span class="outing-circuit">' + escapeHtml(o.circuit) + '</span>' +
-          '<span class="outing-foot"><span><span class="outing-label">Groupe</span><span class="outing-value">' + escapeHtml(grp || '—') + '</span></span>' +
-          '<span><span class="outing-label">Meilleur tour</span><span class="outing-value">' + formatTime(o.best) + (delta ? ' ' + delta : '') + '</span></span></span></button>';
+        } else delta = '<span class="help-text">1re fois</span>';
+        html += '<button type="button" class="outing-row" data-open-outing="' + escapeHtml(o.circuit) + '" data-outing-date="' + escapeHtml(o.date) + '" data-outing-event="' + escapeHtml(o.eventId || '') + '">' +
+          '<span class="outing-thumb">' + circuitThumbHtml(o.circuit) + '</span>' +
+          '<span class="outing-row-main"><strong>' + escapeHtml(o.circuit) + (o.isRecord && o.prevBest !== null ? ' 🏆' : '') + '</strong><span class="help-text">' + escapeHtml(formatDate(o.date)) + (grp ? ' · Gr. ' + escapeHtml(grp) : '') + ' · ' + o.laps + ' t.</span></span>' +
+          '<span class="outing-row-right"><span class="carnet-time">' + formatTime(o.best) + '</span>' + delta + '</span></button>';
       });
+      if (outings.length > 6) {
+        html += '<button type="button" class="link-btn outings-more-btn" id="carnet-history-toggle">' + (carnetHistoryAll ? 'Réduire' : 'Voir les ' + outings.length + ' sorties') + '</button>';
+      }
     }
     html += '</div>';
     return html;
@@ -6159,21 +6162,6 @@
       if (myUpcomingEvents().length) { carnetCardsMode = 'avenir'; html += renderOutingCards(outings); }
     } else {
       html += renderOutingCards(outings);
-      html += '<div class="outings-more"><button type="button" class="link-btn" id="carnet-history-toggle">' + (carnetHistoryAll ? 'Masquer la liste' : 'Voir tout (' + outings.length + ') →') + '</button></div>';
-      if (carnetHistoryAll) {
-      html += '<div class="card"><h2 class="section-title">Mon historique</h2>';
-      outings.forEach(function (o) {
-        var delta = '';
-        if (o.prevBest !== null) {
-          var d = o.best - o.prevBest;
-          delta = d < 0 ? '<span class="daily-recap-better">−' + Math.abs(d).toFixed(3) + '</span>' : '<span class="daily-recap-worse">+' + d.toFixed(3) + '</span>';
-        }
-        html += '<button type="button" class="carnet-row" data-open-outing="' + escapeHtml(o.circuit) + '" data-outing-date="' + escapeHtml(o.date) + '" data-outing-event="' + escapeHtml(o.eventId || '') + '"><span class="carnet-row-main"><strong>' + escapeHtml(formatDate(o.date)) + ' · ' + escapeHtml(o.circuit) + '</strong>' +
-          '<span class="help-text">' + o.laps + ' tour' + (o.laps > 1 ? 's' : '') + (o.sessions > 1 ? ' · ' + o.sessions + ' sessions' : '') + (o.isRecord && o.prevBest !== null ? ' · 🏆 record' : (o.prevBest === null ? ' · 1re sortie ici' : '')) + '</span></span>' +
-          '<span class="carnet-time">' + formatTime(o.best) + (delta ? '<br>' + delta : '') + '</span></button>';
-      });
-      html += '</div>';
-      }
     }
 
     return html;
