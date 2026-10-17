@@ -968,7 +968,12 @@
 "Remplacer": "Replace",
 "Retirer": "Remove",
 "Supprimer la catégorie": "Delete category",
-"Rien de nouveau.": "Nothing new.",
+"Rien de nouveau.": "Nothing new.", "Modifier mes réglages": "Edit my setup", "🔧 Noter mes réglages": "🔧 Note my setup", "🔧 Mes réglages": "🔧 My setup",
+"Pression AV à froid (bar)": "Front pressure cold (bar)", "Pression AR à froid (bar)": "Rear pressure cold (bar)", "Pression AV à chaud (bar)": "Front pressure hot (bar)", "Pression AR à chaud (bar)": "Rear pressure hot (bar)",
+"Pneus": "Tyres", "Fourche": "Fork", "Amortisseur": "Shock", "Transmission": "Gearing", "Note": "Note", "Effacer": "Clear",
+"Ex. 2.1": "E.g. 2.1", "Ex. 1.8": "E.g. 1.8", "Ex. 2.3": "E.g. 2.3", "Ex. 2.0": "E.g. 2.0", "Ex. Pirelli SC1 / SC0, 3e session": "E.g. Pirelli SC1 / SC0, 3rd session",
+"Ex. compression 8 clics, détente 10": "E.g. compression 8 clicks, rebound 10", "Ex. précharge +2 tours, détente 12": "E.g. preload +2 turns, rebound 12", "Ex. 16/43": "E.g. 16/43",
+"Ex. avant qui chatte en sortie du 3": "E.g. front chattering on the exit of turn 3", "Réglages enregistrés.": "Setup saved.", "Réglages effacés.": "Setup cleared.",
 "Connexion": "Sign in", "Mot de passe": "Password", "Se souvenir de moi": "Remember me", "Se connecter": "Sign in",
 "Pas encore de compte ?": "No account yet?", "Créer un compte": "Create an account", "Mot de passe oublié ?": "Forgot your password?",
 "Pseudo": "Username", "C'est le pseudo que verront les autres pilotes -- en cas de doublon, ajoute ton numéro de course (ex. \"Julien #12\").": "This is the username others will see -- if it's taken, add your race number (e.g. \"Julien #12\").",
@@ -1237,6 +1242,8 @@
     [/^J-(\d+)$/, 'D-$1'],
     [/^Ex\. (.+)$/, 'E.g. $1'],
     [/^invité par (.+)$/, 'invited by $1'],
+    [/^🔧 Réglages de ton record ici · (.+) le (.+)$/, '🔧 Setup of your record here · $1 on $2'],
+    [/^(.+) · meilleur tour (.+)Visible par toi seul\.$/, '$1 · best lap $2Visible to you only.'],
     [/^indique venir à (.+)$/, 'says they\'re going to $1'],
     [/^souhaite rejoindre (.+)$/, 'wants to join $1'],
     [/^(.*) · (\d+) pilotes?$/, '$1 · $2 rider(s)'], [/^(\d+) pilotes?$/, '$1 rider(s)'],
@@ -6659,6 +6666,114 @@
     }).join('');
   }
 
+  // ---- Mes réglages par session ----
+  // Pressions, pneus, suspensions, transmission notés après une session et
+  // rattachés à son chrono. Stockés dans userPrivate/{uid}.setups
+  // ({sessionId: setup}) : visibles par le pilote seul, jamais par les
+  // autres comptes (contrairement aux chronos eux-mêmes).
+  var mySetups = null; // null = pas encore chargé
+  var SETUP_FIELDS = [
+    ['pFrontCold', 'Pression AV à froid', 'bar', 'Ex. 2.1'], ['pRearCold', 'Pression AR à froid', 'bar', 'Ex. 1.8'],
+    ['pFrontHot', 'Pression AV à chaud', 'bar', 'Ex. 2.3'], ['pRearHot', 'Pression AR à chaud', 'bar', 'Ex. 2.0'],
+    ['tyres', 'Pneus', '', 'Ex. Pirelli SC1 / SC0, 3e session'], ['fork', 'Fourche', '', 'Ex. compression 8 clics, détente 10'],
+    ['shock', 'Amortisseur', '', 'Ex. précharge +2 tours, détente 12'], ['gearing', 'Transmission', '', 'Ex. 16/43'],
+    ['note', 'Note', '', 'Ex. avant qui chatte en sortie du 3']
+  ];
+  function ensureSetupsLoaded() {
+    if (mySetups !== null || !auth.currentUser) return;
+    mySetups = {};
+    db.collection('userPrivate').doc(auth.currentUser.uid).get().then(function (doc) {
+      mySetups = (doc.exists && doc.data().setups) || {};
+      renderRoot();
+    }).catch(function () {});
+  }
+  function mySetupFor(sessionId) {
+    ensureSetupsLoaded();
+    return (mySetups && mySetups[sessionId]) || null;
+  }
+  function setupSummary(su) {
+    var parts = [];
+    if (su.pFrontCold || su.pRearCold) parts.push('AV ' + (su.pFrontCold || '–') + ' / AR ' + (su.pRearCold || '–') + ' à froid');
+    if (su.pFrontHot || su.pRearHot) parts.push('AV ' + (su.pFrontHot || '–') + ' / AR ' + (su.pRearHot || '–') + ' à chaud');
+    if (su.tyres) parts.push(su.tyres);
+    if (su.gearing) parts.push(su.gearing);
+    if (su.fork) parts.push('Fourche : ' + su.fork);
+    if (su.shock) parts.push('Amorto : ' + su.shock);
+    if (su.note) parts.push(su.note);
+    return parts.join(' · ');
+  }
+  // The most recent setup I noted, to prefill the next one (same circuit
+  // first -- pressures and gearing are usually circuit-specific).
+  function lastSetupFor(circuit, exceptId) {
+    var me = currentUserProfile && currentUserProfile.name;
+    var mine = (STATE.sessions || []).filter(function (x) { return x.rider === me && x.id !== exceptId && mySetups && mySetups[x.id]; })
+      .sort(function (a, b) { return (b.date || '').localeCompare(a.date || '') || (b.slotStart || 0) - (a.slotStart || 0); });
+    var same = mine.filter(function (x) { return x.circuit === circuit; })[0];
+    var pick = same || mine[0];
+    return pick ? mySetups[pick.id] : null;
+  }
+  // "À quelle pression j'ai fait mon record ici ?"
+  function renderRecordSetupCard(circuit) {
+    var me = currentUserProfile && currentUserProfile.name;
+    if (!me) return '';
+    ensureSetupsLoaded();
+    var best = null;
+    (STATE.sessions || []).forEach(function (x) {
+      if (x.rider === me && x.circuit === circuit && x.laps && x.laps.length && (!best || sessionBest(x) < sessionBest(best))) best = x;
+    });
+    if (!best || !mySetups || !mySetups[best.id]) return '';
+    return '<div class="card setup-record-card"><div class="setup-record-title">🔧 Réglages de ton record ici · ' + formatTime(sessionBest(best)) + ' le ' + escapeHtml(formatDate(best.date)) + '</div>' +
+      '<div class="help-text">' + escapeHtml(setupSummary(mySetups[best.id])) + '</div></div>';
+  }
+  function openSetupSheet(sessionId) {
+    var x = (STATE.sessions || []).filter(function (s) { return s.id === sessionId; })[0];
+    if (!x || !auth.currentUser || document.querySelector('.setup-sheet')) return;
+    var current = (mySetups && mySetups[sessionId]) || null;
+    var prefill = current || lastSetupFor(x.circuit, sessionId) || {};
+    var sheet = document.createElement('div');
+    sheet.className = 'crop-modal-overlay setup-sheet';
+    var fields = SETUP_FIELDS.map(function (f) {
+      var val = prefill[f[0]] != null ? String(prefill[f[0]]) : '';
+      var input = f[0] === 'note'
+        ? '<textarea data-setup="' + f[0] + '" rows="2" placeholder="' + escapeHtml(f[3]) + '">' + escapeHtml(val) + '</textarea>'
+        : '<input type="text" data-setup="' + f[0] + '"' + (f[2] === 'bar' ? ' inputmode="decimal"' : '') + ' value="' + escapeHtml(val) + '" placeholder="' + escapeHtml(f[3]) + '">';
+      return '<label class="setup-field' + (f[2] === 'bar' ? ' setup-half' : '') + '"><span>' + escapeHtml(f[1]) + (f[2] ? ' (' + f[2] + ')' : '') + '</span>' + input + '</label>';
+    }).join('');
+    sheet.innerHTML = '<div class="crop-modal setup-modal"><h2 class="section-title">🔧 Mes réglages</h2>' +
+      '<div class="help-text">' + escapeHtml(x.circuit + ' · ' + formatDate(x.date) + (x.slotLabel ? ' · ' + x.slotLabel : '') + ' · meilleur tour ' + formatTime(sessionBest(x))) +
+      (current ? '' : (prefill && Object.keys(prefill).length ? '<br>Pré-rempli avec tes derniers réglages : modifie ce qui a changé.' : '')) +
+      '<br>Visible par toi seul.</div>' +
+      '<div class="setup-grid">' + fields + '</div>' +
+      '<div style="margin-top:0.8rem; display:flex; gap:0.5rem; flex-wrap:wrap;"><button type="button" class="primary" data-s="save">Enregistrer</button>' +
+      '<button type="button" class="ghost" data-s="cancel">Annuler</button>' +
+      (current ? '<button type="button" class="ghost danger" data-s="clear">Effacer</button>' : '') + '</div></div>';
+    document.body.appendChild(sheet);
+    function close() { if (sheet.parentNode) sheet.parentNode.removeChild(sheet); }
+    sheet.addEventListener('click', function (e) { if (e.target === sheet) close(); });
+    sheet.querySelector('[data-s="cancel"]').addEventListener('click', close);
+    function write(value) {
+      mySetups = mySetups || {};
+      var patch = {}; patch[sessionId] = value === null ? firebase.firestore.FieldValue.delete() : value;
+      if (value === null) delete mySetups[sessionId]; else mySetups[sessionId] = value;
+      close(); renderRoot();
+      return db.collection('userPrivate').doc(auth.currentUser.uid).set({ setups: patch }, { merge: true }).then(function () {
+        showToast(value === null ? 'Réglages effacés.' : 'Réglages enregistrés.', 'success');
+      }).catch(function (err) { showToast('Réglages non enregistrés : ' + ((err && err.message) || err)); });
+    }
+    sheet.querySelector('[data-s="save"]').addEventListener('click', function () {
+      var value = {};
+      sheet.querySelectorAll('[data-setup]').forEach(function (el) {
+        var v = el.value.trim();
+        if (v) value[el.getAttribute('data-setup')] = v.slice(0, 200);
+      });
+      if (!Object.keys(value).length) { close(); return; }
+      value.savedAt = Date.now();
+      write(value);
+    });
+    var clearBtn = sheet.querySelector('[data-s="clear"]');
+    if (clearBtn) clearBtn.addEventListener('click', function () { write(null); });
+  }
+
   function renderOutingPage() {
     if (!outingView) return renderCarnetTab();
     var me = currentUserProfile && currentUserProfile.name;
@@ -6737,6 +6852,7 @@
           (best !== null && prevBest !== null ? '<span class="outing-best-delta">' + (best < prevBest ? '🏆 Nouveau record (−' + formatGap(prevBest - best) + ')' : '+' + formatGap(best - prevBest) + ' vs record') + '</span>' : (best !== null ? '<span class="outing-best-delta">1er roulage ici</span>' : '<span class="outing-best-delta">Pas encore de chrono pour ce jour</span>')) +
           '<span class="outing-best-arrow">›</span></button>';
       }
+      html += renderRecordSetupCard(circuit);
       if (status !== 'avenir') html += '<button type="button" class="primary add-chrono-btn" id="outing-add-chrono">+ Ajouter un chrono pour ce jour</button>';
       // Mes sessions du jour
       html += '<div class="card">';
@@ -6745,8 +6861,11 @@
       } else {
         sessions.slice().sort(function (a, b) { return (a.slotStart || 0) - (b.slotStart || 0); }).forEach(function (x) {
           var b = sessionBest(x);
+          var su = mySetupFor(x.id);
           html += '<div class="outing-session"><div><strong>' + escapeHtml(x.slotLabel || (x.group ? 'Groupe ' + x.group : 'Session')) + '</strong>' +
-            '<div class="outing-session-laps">' + x.laps.map(function (l) { return l === b ? '<span class="best-lap">' + formatTime(l) + '</span>' : '<span class="other-lap">' + formatTime(l) + '</span>'; }).join(' ') + '</div></div>' +
+            '<div class="outing-session-laps">' + x.laps.map(function (l) { return l === b ? '<span class="best-lap">' + formatTime(l) + '</span>' : '<span class="other-lap">' + formatTime(l) + '</span>'; }).join(' ') + '</div>' +
+            (su ? '<div class="setup-summary">🔧 ' + escapeHtml(setupSummary(su)) + '</div>' : '') +
+            '<button type="button" class="link-btn inline-link setup-link" data-action="session-setup" data-id="' + escapeHtml(x.id) + '">' + (su ? 'Modifier mes réglages' : '🔧 Noter mes réglages') + '</button></div>' +
             shareControl(x) + '</div>';
         });
       }
@@ -15857,6 +15976,9 @@
         window.scrollTo(0, 0);
       });
     });
+    document.querySelectorAll('[data-action="session-setup"]').forEach(function (btn) {
+      btn.addEventListener('click', function () { openSetupSheet(btn.getAttribute('data-id')); });
+    });
     document.querySelectorAll('[data-action="share-roulage"]').forEach(function (btn) {
       btn.addEventListener('click', function () { shareRoulage(btn.getAttribute('data-id')); });
     });
@@ -17558,6 +17680,7 @@
   }
 
   function startSync() {
+    mySetups = null; // reload this account's private setups
     coreSyncPending = new Set(CORE_SYNC_KEYS);
     unsubscribers.push(db.collection('sessions').onSnapshot(function (snap) {
       STATE.sessions = snap.docs.map(function (d) { return d.data(); });
