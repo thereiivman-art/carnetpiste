@@ -3100,3 +3100,10 @@ body { min-height: 100%; min-height: 100dvh; }
 .grp-sub-D { --grp-c: #3f8f9c; } .grp-sub-R { --grp-c: #4f8f99; }
 .sub-pill-btn.grp-sub-D.active { background: var(--grp-D); border-color: var(--grp-D); color: #0d3b47; }
 .sub-pill-btn.grp-sub-R.active { background: var(--grp-R); border-color: #8cc3cc; color: #0d3b47; }
+/* Groupes : dégradé de bleu franc (opposé au rouge) — A marine = rapide, D bleu clair */
+:root { --grp-A: #142a6b; --grp-B: #1f49c2; --grp-C: #3f78ea; --grp-D: #9cbcf6; --grp-R: #e1eafd; --grp-ORGA: #6a6e76; }
+.grp-D, .grp-R { color: #142a6b; }
+.grp-R { box-shadow: inset 0 0 0 1.5px #9cbcf6; }
+.grp-sub-D { --grp-c: #4f7fd8; } .grp-sub-R { --grp-c: #5b7fc4; }
+.sub-pill-btn.grp-sub-D.active { background: var(--grp-D); border-color: var(--grp-D); color: #142a6b; }
+.sub-pill-btn.grp-sub-R.active { background: var(--grp-R); border-color: #9cbcf6; color: #142a6b; }
