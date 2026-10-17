@@ -2880,8 +2880,8 @@
 .outing-underline { width: 54px; height: 4px; border-radius: 2px; background: var(--accent); margin-bottom: 0.8rem; }
 .outing-hero-row { display: flex; flex-wrap: wrap; gap: 0.8rem; align-items: center; }
 .outing-date-chip { border: 1px solid var(--accent); color: var(--accent); border-radius: 10px; padding: 0.4rem 0.7rem; font-weight: 600; }
-.outing-org { display: flex; align-items: center; gap: 0.8rem; flex: 1 0 100%; }
-.outing-org img { height: 72px; width: auto; max-width: 55%; object-fit: contain; border-radius: 10px; }
+.outing-org { display: flex; align-items: center; gap: 0.9rem; flex: 1 0 100%; background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 0.6rem 0.8rem; }
+.outing-org .outing-org-logo { display: block; height: 64px; width: auto; max-width: 62%; object-fit: contain; object-position: left center; border-radius: 6px; flex-shrink: 0; }
 .outing-group-card { display: flex; background: var(--surface); border: 1px solid var(--border); border-radius: 18px; overflow: hidden; margin-bottom: 0.8rem; }
 .outing-group-main { flex: 1; padding: 0.9rem; display: flex; flex-direction: column; gap: 0.2rem; }
 .outing-group-value { font-family: var(--font-display); font-weight: 800; font-size: 1.6rem; }

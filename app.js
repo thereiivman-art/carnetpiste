@@ -6076,6 +6076,43 @@
     openOuting(ev.circuit, day, ev.id);
   }
 
+  // Team logos are often uploaded with wide transparent/white margins,
+  // which made them render tiny: crop to the visible pixels once, then
+  // reuse the cropped version.
+  var trimmedImages = {};
+  function autotrimImages() {
+    document.querySelectorAll('img[data-autotrim]').forEach(function (img) {
+      var src = img.getAttribute('src');
+      if (!src || src.indexOf('data:') !== 0) return;
+      if (trimmedImages[src]) { img.src = trimmedImages[src]; return; }
+      var probe = new Image();
+      probe.onload = function () {
+        try {
+          var w = probe.naturalWidth, h = probe.naturalHeight;
+          var c = document.createElement('canvas'); c.width = w; c.height = h;
+          var ctx = c.getContext('2d'); ctx.drawImage(probe, 0, 0);
+          var d = ctx.getImageData(0, 0, w, h).data;
+          var minX = w, minY = h, maxX = -1, maxY = -1;
+          for (var y = 0; y < h; y++) for (var x = 0; x < w; x++) {
+            var i = (y * w + x) * 4;
+            var blank = d[i + 3] < 16 || (d[i] > 245 && d[i + 1] > 245 && d[i + 2] > 245);
+            if (!blank) { if (x < minX) minX = x; if (x > maxX) maxX = x; if (y < minY) minY = y; if (y > maxY) maxY = y; }
+          }
+          if (maxX < 0) return;
+          var pad = 2;
+          minX = Math.max(0, minX - pad); minY = Math.max(0, minY - pad); maxX = Math.min(w - 1, maxX + pad); maxY = Math.min(h - 1, maxY + pad);
+          var cw = maxX - minX + 1, ch = maxY - minY + 1;
+          if (cw >= w * 0.95 && ch >= h * 0.95) { trimmedImages[src] = src; return; }
+          var out = document.createElement('canvas'); out.width = cw; out.height = ch;
+          out.getContext('2d').drawImage(c, minX, minY, cw, ch, 0, 0, cw, ch);
+          trimmedImages[src] = out.toDataURL('image/png');
+          document.querySelectorAll('img[data-autotrim]').forEach(function (el) { if (el.getAttribute('src') === src) el.src = trimmedImages[src]; });
+        } catch (e) { trimmedImages[src] = src; }
+      };
+      probe.src = src;
+    });
+  }
+
   function renderOutingPage() {
     if (!outingView) return renderCarnetTab();
     var me = currentUserProfile && currentUserProfile.name;
@@ -6100,7 +6137,7 @@
     var html = '<div class="outing-page">';
     html += '<div class="outing-hero"><div class="page-title-row"><button type="button" class="back-chevron" data-view="' + escapeHtml(outingView.from || 'carnet') + '" aria-label="Retour">‹</button><h1 class="outing-title">' + escapeHtml(circuit) + '</h1></div><div class="outing-underline"></div>' +
       '<div class="outing-hero-row"><span class="outing-date-chip">📅 ' + escapeHtml(ev ? formatEventRange(ev, true) : formatDate(date)) + '</span>' +
-      (team ? '<span class="outing-org">' + (team.logoURL ? '<img src="' + escapeHtml(team.logoURL) + '" alt="">' : '') + '<span><span class="outing-label">Organisé par</span><br><strong>' + escapeHtml(team.name || '') + '</strong></span></span>' : '') +
+      (team ? '<span class="outing-org">' + (team.logoURL ? '<img class="outing-org-logo" data-autotrim src="' + escapeHtml(team.logoURL) + '" alt="Logo ' + escapeHtml(team.name || '') + '">' : '') + '<span><span class="outing-label">Organisé par</span><br><strong>' + escapeHtml(team.name || '') + '</strong></span></span>' : '') +
       '</div></div>';
 
     // Groupe + statut
@@ -16289,6 +16326,7 @@
       b.addEventListener('click', function () { openHorairesImport(b.getAttribute('data-event-id')); });
     });
     document.querySelectorAll('[data-action="quick-outing"]').forEach(function (b) { b.addEventListener('click', openQuickOutingModal); });
+    autotrimImages();
     document.querySelectorAll('[data-cards-mode]').forEach(function (b) {
       b.addEventListener('click', function () { carnetCardsMode = b.getAttribute('data-cards-mode'); renderRoot(); });
     });
