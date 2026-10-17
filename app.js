@@ -6078,8 +6078,204 @@
       });
     }
     html += '<button type="button" class="ghost" id="outing-add-chrono" style="margin-top:0.6rem;">+ Ajouter un chrono pour ce jour</button></div>';
+    var debs = myDebriefs(circuit, date);
+    if (debs.length) {
+      html += '<div class="card"><h2 class="section-title">Mes débriefs</h2>' + debs.map(function (d) {
+        return '<div class="outing-session"><div><strong>' + (d.feeling || '') + ' ' + escapeHtml(d.time || '') + '</strong><div>' + escapeHtml(d.note || '') + '</div></div></div>';
+      }).join('') + '</div>';
+    }
     html += '</div>';
     return html;
+  }
+
+  // ---- Mode jour J ----
+  // Écran plein, lisible avec des gants entre deux sessions : prochaine
+  // session en très grand avec compte à rebours, mon groupe, mes repères,
+  // débrief rapide, chrono en direct. S'ouvre tout seul le jour d'une
+  // sortie (une fois par jour, refermable), et à tout moment depuis la
+  // sortie. Fonctionne hors réseau (données déjà synchronisées).
+  var jourjTimer = null;
+  function todaysOutingForMe() {
+    var me = currentUserProfile && currentUserProfile.name;
+    if (!me) return null;
+    var today = dateKey(new Date());
+    return eventsList().filter(function (ev) {
+      return (ev.riders || []).indexOf(me) !== -1 && ev.dateStart <= today && (ev.dateEnd || ev.dateStart) >= today;
+    })[0] || null;
+  }
+  // Créneaux du jour pour mon groupe (le groupe du matin peut différer de
+  // celui de l'après-midi), triés.
+  function myDaySlots(ev, day) {
+    var me = currentUserProfile.name;
+    var gAm = riderGroupFor(ev, me, day, 'matin') || '';
+    var gPm = riderGroupFor(ev, me, day, 'apres-midi') || gAm;
+    if (!gAm) gAm = gPm;
+    var horaires = eventHoraires(ev, day) || {};
+    var out = [];
+    [[gAm, function (sl) { return sl.start < 13 * 60; }], [gPm, function (sl) { return sl.start >= 13 * 60; }]].forEach(function (pair) {
+      var g = pair[0];
+      if (!g || !horaires['group' + g]) return;
+      parseHoraireLine(horaires['group' + g]).forEach(function (sl) {
+        if (sl.start != null && pair[1](sl)) out.push({ start: sl.start, end: sl.end != null ? sl.end : sl.start + 20, label: sl.label, group: g });
+      });
+    });
+    out.sort(function (a, b) { return a.start - b.start; });
+    return { slots: out, group: gAm === gPm ? gAm : (gAm + ' / ' + gPm) };
+  }
+  function fmtCountdown(sec) {
+    if (sec < 0) sec = 0;
+    var h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60), s2 = sec % 60;
+    return h > 0 ? h + ' h ' + (m < 10 ? '0' : '') + m : m + ':' + (s2 < 10 ? '0' : '') + s2;
+  }
+  function openJourJ(ev) {
+    ev = ev || todaysOutingForMe();
+    if (!ev) return;
+    closeJourJ();
+    var day = dateKey(new Date());
+    var info = circuitInfo(ev.circuit);
+    var overlay = document.createElement('div');
+    overlay.className = 'jourj-overlay';
+    overlay.id = 'jourj-overlay';
+    document.body.appendChild(overlay);
+    function render() {
+      var data = myDaySlots(ev, day);
+      var now = new Date();
+      var nowSec = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
+      var current = data.slots.filter(function (sl) { return nowSec >= sl.start * 60 && nowSec < sl.end * 60; })[0];
+      var next = data.slots.filter(function (sl) { return sl.start * 60 > nowSec; })[0];
+      var h = '<div class="jourj-top"><div><div class="jourj-circuit">' + escapeHtml(ev.circuit) + '</div>' +
+        '<div class="jourj-group">' + (data.group ? 'Groupe ' + escapeHtml(data.group) : 'Groupe non renseigné') + '</div></div>' +
+        '<button type="button" class="jourj-close" data-jj="close" aria-label="Fermer">✕</button></div>';
+      if (!data.slots.length) {
+        h += '<div class="jourj-main"><div class="jourj-label">Horaires</div><div class="jourj-sub">Pas encore d\'horaires pour ton groupe.</div>' +
+          (canEditEventHoraires(ev) ? '<button type="button" class="jourj-btn" data-action="import-horaires" data-event-id="' + escapeHtml(ev.id) + '">📷 Importer les horaires</button>' : '') + '</div>';
+      } else if (current) {
+        h += '<div class="jourj-main on-track"><div class="jourj-label">En piste maintenant</div><div class="jourj-big">' + fmtCountdown(current.end * 60 - nowSec) + '</div>' +
+          '<div class="jourj-sub">Fin à ' + escapeHtml(current.label.split('-')[1] || '') + '</div></div>';
+      } else if (next) {
+        h += '<div class="jourj-main' + (next.start * 60 - nowSec <= 600 ? ' soon' : '') + '"><div class="jourj-label">Prochaine session</div><div class="jourj-big">' + fmtCountdown(next.start * 60 - nowSec) + '</div>' +
+          '<div class="jourj-sub">' + escapeHtml(next.label) + '</div></div>';
+      } else {
+        h += '<div class="jourj-main"><div class="jourj-label">Journée terminée</div><div class="jourj-sub">Importe ta feuille de temps pour garder tes chronos.</div>' +
+          '<button type="button" class="jourj-btn primary" data-jj="import">📷 Importer ma feuille de temps</button></div>';
+      }
+      if (data.slots.length) {
+        h += '<div class="jourj-slots">' + data.slots.map(function (sl) {
+          var past = sl.end * 60 <= nowSec, cur = sl === current;
+          return '<span class="jourj-slot' + (past ? ' past' : '') + (cur ? ' current' : '') + '">' + escapeHtml(sl.label) + '</span>';
+        }).join('') + '</div>';
+      }
+      h += '<div class="jourj-actions">' +
+        '<button type="button" class="jourj-btn" data-jj="notes">📍 Mes repères<span>' + myTrackNotes(ev.circuit).length + '</span></button>' +
+        '<button type="button" class="jourj-btn" data-jj="debrief">📝 Débrief</button>' +
+        (info.liveTimingUrl ? '<a class="jourj-btn" href="' + escapeHtml(info.liveTimingUrl) + '" target="_blank" rel="noopener">((•)) Chrono live</a>' : '') +
+        '<button type="button" class="jourj-btn" data-jj="chrono">⏱️ Ajouter un chrono</button></div>';
+      var deb = myDebriefs(ev.circuit, day);
+      if (deb.length) {
+        h += '<div class="jourj-debriefs"><div class="jourj-label">Mes débriefs</div>' + deb.map(function (d) {
+          return '<div class="jourj-debrief"><span>' + (d.feeling || '') + '</span> <strong>' + escapeHtml(d.time || '') + '</strong> ' + escapeHtml(d.note || '') + '</div>';
+        }).join('') + '</div>';
+      }
+      overlay.innerHTML = h;
+      overlay.querySelector('[data-jj="close"]').addEventListener('click', function () { dismissJourJForToday(); closeJourJ(); });
+      var b;
+      if ((b = overlay.querySelector('[data-jj="notes"]'))) b.addEventListener('click', function () { openTrackNotes(ev.circuit); });
+      if ((b = overlay.querySelector('[data-jj="debrief"]'))) b.addEventListener('click', function () { openDebrief(ev, day, render); });
+      if ((b = overlay.querySelector('[data-jj="chrono"]')) || (b = null)) b.addEventListener('click', function () { goAddChronoFor(ev.circuit, day, false); });
+      if ((b = overlay.querySelector('[data-jj="import"]'))) b.addEventListener('click', function () { goAddChronoFor(ev.circuit, day, true); });
+      overlay.querySelectorAll('[data-action="import-horaires"]').forEach(function (x) { x.addEventListener('click', function () { openHorairesImport(x.getAttribute('data-event-id')); }); });
+    }
+    // État courant (session en cours / prochaine / fin) et texte du compte à
+    // rebours : chaque seconde on ne met à jour que le chiffre, la page
+    // n'est reconstruite qu'au changement de session (un bouton touché au
+    // même moment n'est donc jamais remplacé sous le doigt).
+    function stateNow() {
+      var data = myDaySlots(ev, day);
+      var n = new Date(), sec = n.getHours() * 3600 + n.getMinutes() * 60 + n.getSeconds();
+      var cur = data.slots.filter(function (sl) { return sec >= sl.start * 60 && sec < sl.end * 60; })[0];
+      var nx = data.slots.filter(function (sl) { return sl.start * 60 > sec; })[0];
+      if (cur) return { key: 'c' + cur.label, text: fmtCountdown(cur.end * 60 - sec), soon: false };
+      if (nx) return { key: 'n' + nx.label + (nx.start * 60 - sec <= 600 ? 's' : ''), text: fmtCountdown(nx.start * 60 - sec) };
+      return { key: 'done' + data.slots.length, text: '' };
+    }
+    render();
+    var lastKey = stateNow().key;
+    jourjTimer = setInterval(function () {
+      if (!document.getElementById('jourj-overlay')) { clearInterval(jourjTimer); jourjTimer = null; return; }
+      var st = stateNow();
+      if (st.key !== lastKey) { lastKey = st.key; render(); return; }
+      var big = overlay.querySelector('.jourj-big');
+      if (big && st.text) big.textContent = st.text;
+    }, 1000);
+  }
+  function closeJourJ() {
+    if (jourjTimer) { clearInterval(jourjTimer); jourjTimer = null; }
+    var o = document.getElementById('jourj-overlay');
+    if (o) o.remove();
+  }
+  function dismissJourJForToday() {
+    try { localStorage.setItem('cdp-jourj-dismissed', dateKey(new Date())); } catch (e) {}
+  }
+  var jourjAutoChecked = false;
+  function maybeAutoOpenJourJ() {
+    if (jourjAutoChecked || authState !== 'signed-in' || !currentUserProfile) return;
+    var ev = todaysOutingForMe();
+    if (!ev) return;
+    jourjAutoChecked = true;
+    var dismissed = null;
+    try { dismissed = localStorage.getItem('cdp-jourj-dismissed'); } catch (e) {}
+    if (dismissed === dateKey(new Date())) return;
+    openJourJ(ev);
+  }
+  function goAddChronoFor(circuit, day, withImport) {
+    closeJourJ();
+    selectedCircuit = circuit; addChronoOpen = true; activeView = 'carnet';
+    renderRoot();
+    var d = document.getElementById('f-date'); if (d) { d.value = isoToFrDate(day); d.dispatchEvent(new Event('input', { bubbles: true })); }
+    var c = document.getElementById('f-circuit'); if (c) { c.value = circuit; c.dispatchEvent(new Event('change', { bubbles: true })); }
+    window.scrollTo(0, 0);
+    if (withImport) { var inp = document.getElementById('import-photo-input'); if (inp) inp.click(); }
+  }
+
+  // Débriefs rapides (ressenti + une phrase), sur le profil du pilote :
+  // users/{uid}.debriefs["date|circuit"] = [{ time, feeling, note }].
+  function myDebriefs(circuit, day) {
+    var all = (currentUserProfile && currentUserProfile.debriefs) || {};
+    return (all[day + '|' + circuit] || []).slice();
+  }
+  function openDebrief(ev, day, onDone) {
+    var overlay = document.createElement('div');
+    overlay.className = 'crop-modal-overlay';
+    overlay.style.zIndex = 400;
+    var feelings = ['😀', '🙂', '😐', '😕', '😣'];
+    overlay.innerHTML = '<div class="crop-modal" style="max-width:420px;"><h2 class="section-title">Débrief de la session</h2>' +
+      '<div class="debrief-feelings">' + feelings.map(function (f) { return '<button type="button" class="debrief-feel" data-f="' + f + '">' + f + '</button>'; }).join('') + '</div>' +
+      '<textarea id="debrief-note" rows="3" style="width:100%; margin-top:0.6rem;" placeholder="Ex. freiner plus tard au virage 1, bien en sortie de la 3"></textarea>' +
+      '<div style="margin-top:0.7rem; display:flex; gap:0.5rem;"><button type="button" class="primary" data-d="save">Enregistrer</button><button type="button" class="ghost" data-d="cancel">Annuler</button></div></div>';
+    document.body.appendChild(overlay);
+    var chosen = '';
+    overlay.querySelectorAll('.debrief-feel').forEach(function (b) {
+      b.addEventListener('click', function () {
+        chosen = b.getAttribute('data-f');
+        overlay.querySelectorAll('.debrief-feel').forEach(function (x) { x.classList.toggle('active', x === b); });
+      });
+    });
+    overlay.querySelector('[data-d="cancel"]').addEventListener('click', function () { overlay.remove(); });
+    overlay.querySelector('[data-d="save"]').addEventListener('click', function () {
+      var note = overlay.querySelector('#debrief-note').value.trim();
+      if (!chosen && !note) { overlay.remove(); return; }
+      var key = day + '|' + ev.circuit;
+      var now = new Date();
+      var entry = { time: now.getHours() + 'h' + (now.getMinutes() < 10 ? '0' : '') + now.getMinutes(), feeling: chosen, note: note };
+      var all = Object.assign({}, currentUserProfile.debriefs || {});
+      all[key] = (all[key] || []).concat([entry]);
+      currentUserProfile.debriefs = all;
+      var patch = {}; patch[key] = all[key];
+      if (auth.currentUser) db.collection('users').doc(auth.currentUser.uid).set({ debriefs: patch }, { merge: true }).catch(function () {});
+      overlay.remove();
+      showToast('Débrief enregistré', 'success');
+      if (onDone) onDone();
+    });
   }
 
   // ---- Import des horaires depuis une photo / un PDF ----
@@ -6109,6 +6305,7 @@
       if (!file) return;
       var overlay = document.createElement('div');
       overlay.className = 'crop-modal-overlay';
+      overlay.style.zIndex = 400; // au-dessus du mode jour J
       overlay.innerHTML = '<div class="crop-modal" style="max-width:440px; max-height:90vh; overflow-y:auto;"><h2 class="section-title">Lecture des horaires…</h2><p class="help-text" id="hi-progress">Préparation…</p></div>';
       document.body.appendChild(overlay);
       var box = overlay.querySelector('.crop-modal');
@@ -6144,6 +6341,7 @@
           persist(prevState);
           close();
           renderRoot();
+          if (document.getElementById('jourj-overlay')) openJourJ(ev);
           showToast('Horaires enregistrés pour la sortie ' + ev.circuit + '.', 'success');
         });
       }).catch(function (err) {
@@ -6304,8 +6502,8 @@
     var target = targetPlanningEvent();
     if (target && target.mode === 'ongoing') {
       html += '<div class="card carnet-today-card"><strong>🏍️ Tu roules aujourd\'hui à ' + escapeHtml(target.ev.circuit) + '</strong>' +
-        '<div class="help-text">Horaires, ton groupe et tes repères sont dans Sorties.</div>' +
-        '<button type="button" class="primary" data-view="planning" style="margin-top:0.5rem;">Ouvrir la sortie</button></div>';
+        '<div class="help-text">Prochaine session, ton groupe, tes repères et ton débrief en plein écran.</div>' +
+        '<button type="button" class="primary" data-action="open-jourj" style="margin-top:0.5rem;">🏁 Mode jour J</button></div>';
     }
     if (addChronoOpen) {
       html += renderForm();
@@ -10197,6 +10395,9 @@
 
     // Grey card: this account's own personal info for the sortie -- never
     // something the Team orga fills in for everyone.
+    if (isOngoing && (ev.riders || []).indexOf(currentUserProfile && currentUserProfile.name) !== -1) {
+      html = '<button type="button" class="primary jourj-launch" data-action="open-jourj">🏁 Mode jour J — prochaine session en grand</button>' + html;
+    }
     var personal = '<div class="card personal-info-card">';
     personal += renderTrackNotesReminder(ev.circuit);
     personal += renderFriendsGroupSection(ev);
@@ -15787,6 +15988,8 @@
     var carnetCancel = document.getElementById('carnet-cancel-add');
     if (carnetCancel) carnetCancel.addEventListener('click', function () { addChronoOpen = false; renderRoot(); });
     bindQuickOutingForms();
+    document.querySelectorAll('[data-action="open-jourj"]').forEach(function (b) { b.addEventListener('click', function () { openJourJ(); }); });
+    setTimeout(maybeAutoOpenJourJ, 0);
     document.querySelectorAll('[data-action="import-horaires"]').forEach(function (b) {
       b.addEventListener('click', function () { openHorairesImport(b.getAttribute('data-event-id')); });
     });
