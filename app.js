@@ -968,7 +968,7 @@
 "Remplacer": "Replace",
 "Retirer": "Remove",
 "Supprimer la catégorie": "Delete category",
-"Rien de nouveau.": "Nothing new.", "Entre potes": "Between friends", "⤴ Partager": "⤴ Share", "Inviter des potes": "Invite friends", "Le plus rapide": "Fastest", "Toi": "You",
+"Rien de nouveau.": "Nothing new.", "Entre potes": "Between friends", "Ajoute ton chrono de ce roulage pour te comparer.": "Add your lap time from this trackday to compare.", "⤴ Partager": "⤴ Share", "Inviter des potes": "Invite friends", "Le plus rapide": "Fastest", "Toi": "You",
 "Aucun de tes amis n'a encore importé ses chronos de ce jour-là. Défie-les : ils importent leur feuille de temps et vous comparez.": "None of your friends has imported their lap times from that day yet. Challenge them: they import their timesheet and you compare.", "Modifier mes réglages": "Edit my setup", "🔧 Noter mes réglages": "🔧 Note my setup", "🔧 Mes réglages": "🔧 My setup",
 "Pression AV à froid (bar)": "Front pressure cold (bar)", "Pression AR à froid (bar)": "Rear pressure cold (bar)", "Pression AV à chaud (bar)": "Front pressure hot (bar)", "Pression AR à chaud (bar)": "Rear pressure hot (bar)",
 "Pneus": "Tyres", "Fourche": "Fork", "Amortisseur": "Shock", "Transmission": "Gearing", "Note": "Note", "Effacer": "Clear",
@@ -6674,13 +6674,14 @@
   // share their trackdays), fastest first, with the gap to the leader and
   // to me. Lap times are already visible to every signed-in account, so
   // this only puts friends' ones side by side.
-  function friendsBattleRows(circuit, date) {
+  function friendsBattleRows(circuit, dates) {
     var me = currentUserProfile && currentUserProfile.name;
     if (!me) return [];
     var names = [me].concat(friendsOf(me).map(function (f) { return f.name; }));
+    var ckey = String(circuit || '').trim().toLowerCase();
     var byRider = {};
     (STATE.sessions || []).forEach(function (x) {
-      if (x.circuit !== circuit || x.date !== date || !x.laps || !x.laps.length) return;
+      if (String(x.circuit || '').trim().toLowerCase() !== ckey || dates.indexOf(x.date) === -1 || !x.laps || !x.laps.length) return;
       if (names.indexOf(x.rider) === -1) return;
       var u = (STATE.usersByName || {})[x.rider] || {};
       if (x.rider !== me && u.shareSorties === false) return;
@@ -6689,13 +6690,13 @@
     });
     return Object.keys(byRider).map(function (k) { return byRider[k]; }).sort(function (a, b) { return a.best - b.best; });
   }
-  function renderFriendsBattle(circuit, date, iRode) {
-    if (!iRode) return '';
+  function renderFriendsBattle(circuit, dates) {
     var me = currentUserProfile && currentUserProfile.name;
-    var rows = friendsBattleRows(circuit, date);
+    var rows = friendsBattleRows(circuit, dates);
+    if (!rows.length) return '';
     var html = '<div class="card battle-card"><div class="battle-head"><h2 class="section-title">Entre potes</h2>' +
-      (rows.length > 1 ? '<button type="button" class="ghost" data-action="share-battle" data-circuit="' + escapeHtml(circuit) + '" data-date="' + escapeHtml(date) + '">⤴ Partager</button>' : '') + '</div>';
-    if (rows.length < 2) {
+      (rows.length > 1 ? '<button type="button" class="ghost" data-action="share-battle" data-circuit="' + escapeHtml(circuit) + '" data-date="' + escapeHtml(dates.join(',')) + '">⤴ Partager</button>' : '') + '</div>';
+    if (rows.length < 2 && rows[0].rider === me) {
       return html + '<div class="help-text">Aucun de tes amis n\'a encore importé ses chronos de ce jour-là. Défie-les : ils importent leur feuille de temps et vous comparez.</div>' +
         '<button type="button" class="ghost" id="battle-invite-btn" style="margin-top:0.6rem;">Inviter des potes</button></div>';
     }
@@ -6712,6 +6713,8 @@
       var line = idx === 0 ? 'Tu es devant tout le monde, de ' + formatGap(rows[1].best - mine.best) + ' sur ' + rows[1].rider + '.'
         : 'Tu es à ' + formatGap(mine.best - rows[idx - 1].best) + ' de ' + rows[idx - 1].rider + '.';
       html += '<div class="battle-line">' + escapeHtml(line) + '</div>';
+    } else {
+      html += '<div class="battle-line">Ajoute ton chrono de ce roulage pour te comparer.</div>';
     }
     return html + '</div>';
   }
@@ -6756,7 +6759,9 @@
     });
   }
   function shareBattle(circuit, date) {
-    var rows = friendsBattleRows(circuit, date);
+    var dates = String(date).split(',');
+    date = dates[0];
+    var rows = friendsBattleRows(circuit, dates);
     if (rows.length < 2) return;
     showToast('Préparation de l\'image…');
     buildBattleCard(circuit, date, rows).then(function (blob) {
@@ -6959,7 +6964,9 @@
           (best !== null && prevBest !== null ? '<span class="outing-best-delta">' + (best < prevBest ? '🏆 Nouveau record (−' + formatGap(prevBest - best) + ')' : '+' + formatGap(best - prevBest) + ' vs record') + '</span>' : (best !== null ? '<span class="outing-best-delta">1er roulage ici</span>' : '<span class="outing-best-delta">Pas encore de chrono pour ce jour</span>')) +
           '<span class="outing-best-arrow">›</span></button>';
       }
-      html += renderFriendsBattle(circuit, date, sessions.length > 0);
+      // Whole roulage (every day of the event), not only the day opened --
+      // friends often ride the other day of a 2-day trackday.
+      html += renderFriendsBattle(circuit, ev ? datesInRange(ev.dateStart, ev.dateEnd || ev.dateStart) : [date]);
       html += renderRecordSetupCard(circuit);
       if (status !== 'avenir') html += '<button type="button" class="primary add-chrono-btn" id="outing-add-chrono">+ Ajouter un chrono pour ce jour</button>';
       // Mes sessions du jour
