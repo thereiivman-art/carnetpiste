@@ -3058,3 +3058,26 @@ body { font-variant-numeric: tabular-nums; }
 .sub-pill-btn.grp-sub { color: var(--grp-c); border-color: var(--grp-c); font-weight: 700; }
 .sub-pill-btn.grp-sub.active { background: var(--grp-c); border-color: var(--grp-c); color: #fff; }
 .grp-sub-A { --grp-c: var(--grp-A); } .grp-sub-B { --grp-c: var(--grp-B); } .grp-sub-C { --grp-c: var(--grp-C); } .grp-sub-D { --grp-c: var(--grp-D); } .grp-sub-R { --grp-c: var(--grp-R); } .grp-sub-ORGA { --grp-c: var(--grp-ORGA); }
+/* Harmonisation : lignes de stats, lignes du calendrier, carte programme, navigation du calendrier */
+.stat-summary-category { background: none; border-radius: 0; padding: 0.7rem 0.1rem; border-bottom: 1px solid var(--border); }
+.stat-summary-category:last-child { border-bottom: none; }
+.rider-stat-summaries { gap: 0; }
+.stat-summary-category summary { align-items: center; }
+.stat-summary-label { font-size: 0.98rem; text-transform: none; letter-spacing: 0; color: var(--text); font-weight: 600; }
+.stat-summary-label::before { content: none; }
+.stat-summary-value { font-family: var(--font-display); font-size: 1.5rem; font-weight: 700; }
+.stat-summary-value::after { content: '›'; margin-left: 0.6rem; color: var(--text-muted); font-family: var(--font-body); font-weight: 400; font-size: 1.2rem; display: inline-block; transition: transform 0.15s ease; }
+.stat-summary-category[open] .stat-summary-value::after { transform: rotate(90deg); }
+.event-row { padding: 0.8rem 0.2rem; }
+.event-row-main { align-items: center; }
+.event-row-text { display: flex; flex-direction: column; gap: 0.1rem; min-width: 0; }
+.event-row-circuit { font-size: 1.02rem; font-weight: 700; }
+.event-row-dates { font-size: 0.85rem; }
+.event-row-right { display: flex; align-items: center; gap: 0.5rem; flex-shrink: 0; }
+.event-row-when { font-family: var(--font-display); font-weight: 700; font-size: 1.25rem; }
+.event-row-when.live { color: var(--accent); font-size: 1rem; }
+.event-row-chevron { color: var(--text-muted); font-size: 1.3rem; }
+.today-schedule-title { display: flex; flex-direction: column; gap: 0.1rem; }
+.today-schedule-circuit { font-family: var(--font-display); font-style: italic; font-weight: 800; font-size: 2rem; line-height: 1; text-transform: uppercase; }
+.calendar-nav-card { gap: 0.5rem; }
+.calendar-year-label { flex: 1; font-size: 1.05rem; line-height: 1.2; }

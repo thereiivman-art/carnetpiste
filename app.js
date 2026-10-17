@@ -229,7 +229,7 @@
       feeling_after_session_heading: 'Ressenti après chaque session',
       enable_feeling: 'Activer le ressenti à ton retour de chaque session',
       feeling_help: 'Une fois activé, un chrono enregistré te proposera de dire en un clic comment s\'est passée la session (forme, fatigue...).',
-      social_settings_heading: 'Réglages social', social_settings_help: 'Ce que tes amis voient quand ils ouvrent ta fiche depuis Social.',
+      social_settings_heading: 'Réglages social', social_settings_help: 'Ce que tes amis voient quand ils ouvrent ta fiche depuis Communauté.',
       share_events_chronos: 'Partager mes roulages/chronos', share_trophies: 'Partager mes trophées',
       share_travel_info: 'Partager mes infos de voyage (avec les amis qui te suivent)',
       travel_defaults_heading: 'Mes infos de voyage par défaut', travel_defaults_help: 'Pré-remplit "Mes infos de voyage" sur chaque nouveau roulage -- à ajuster ensuite si un déplacement particulier diffère.',
@@ -619,7 +619,7 @@
       feeling_after_session_heading: 'Feeling after each session',
       enable_feeling: 'Turn on the feeling check when you get back from each session',
       feeling_help: 'Once turned on, a saved lap time will offer to say in one click how the session went (shape, fatigue...).',
-      social_settings_heading: 'Social settings', social_settings_help: 'What your friends see when they open your card from Social.',
+      social_settings_heading: 'Social settings', social_settings_help: 'What your friends see when they open your card from Community.',
       share_events_chronos: 'Share my trackdays/lap times', share_trophies: 'Share my trophies',
       share_travel_info: 'Share my travel info (with friends who follow you)',
       travel_defaults_heading: 'My default travel info', travel_defaults_help: 'Pre-fills "My travel info" on every new trackday -- adjust it afterward if a specific trip differs.',
@@ -3662,6 +3662,7 @@
     // the pills, then the content card -- the identity/logout bar lives in
     // Réglages -> Compte.
     var html = '<div class="profile-panel">';
+    html += '<div class="section-heading"><span class="section-heading-kerb" aria-hidden="true"></span><h1 class="section-heading-title">' + tr('my_profile_label') + '</h1></div>';
     html += renderProfileTabBar();
     html += '<div class="profile-tab-body">';
     if (profileSubTab === 'parrainage') profileSubTab = 'profil'; // fusionné dans le QR d'invitation
@@ -6681,7 +6682,9 @@
         html += '<button type="button" class="outing-row" data-open-outing="' + escapeHtml(ev.circuit) + '" data-outing-date="' + escapeHtml(ev.dateStart) + '" data-outing-event="' + escapeHtml(ev.id) + '">' +
           '<span class="outing-thumb">' + circuitThumbHtml(ev.circuit) + '</span>' +
           '<span class="outing-row-main"><strong>' + escapeHtml(ev.circuit) + '</strong><span class="help-text">' + escapeHtml(formatEventRange(ev, true)) + (grp ? ' · ' + groupChip(grp) : '') + '</span></span>' +
-          '<span class="outing-row-right"><span class="carnet-time">' + (myBest !== null ? formatTime(myBest) : '—') + '</span><span class="help-text">record</span></span></button>';
+          '<span class="outing-row-right">' + (myBest !== null
+            ? '<span class="carnet-time">' + formatTime(myBest) + '</span><span class="help-text">record à battre</span>'
+            : '<span class="carnet-time">J-' + Math.max(0, Math.round((parseLocalDate(ev.dateStart) - parseLocalDate(dateKey(new Date()))) / 86400000)) + '</span><span class="help-text">1re fois ici</span>') + '</span></button>';
       });
     } else {
       var shown = carnetHistoryAll ? outings : outings.slice(0, 6);
@@ -9076,7 +9079,8 @@
     var visibleTabs = MAIN_TABS.filter(function (tab) {
       return !(tab[0] === 'communaute' && isSoloModeOn(currentUserProfile));
     });
-    var current = navTabFor(activeView);
+    // Profile and notifications aren't one of the 3 tabs: none lit up then.
+    var current = (profilePanelOpen || notificationsPanelOpen) ? null : navTabFor(activeView);
     visibleTabs.forEach(function (tab) {
       html += '<button type="button" class="bottom-nav-btn' + (current === tab[0] ? ' active' : '') + '" data-view="' + (lastSubView[tab[0]] || tab[0]) + '">' +
         '<span class="bottom-nav-icon">' + tab[2] + '</span><span class="bottom-nav-label">' + tr(tab[1]) + '</span></button>';
@@ -10019,14 +10023,15 @@
     opts = opts || {};
     var isOpen = false; // a roulage opens its own page (openEventPage), lists never expand in place
     var html = '<div class="event-row event-row-toggle' + (isOpen ? ' selected' : '') + '" data-event-id="' + ev.id + '" aria-expanded="' + (isOpen ? 'true' : 'false') + '">';
-    html += '<div class="event-row-main"><span class="event-row-circuit">' + escapeHtml(ev.circuit) + '</span>';
-    // The équipement count lives only in Planning now (with the actual
-    // checklist to act on) -- it added nothing here, least of all for a
-    // past sortie where it's just a stale "0/43".
-    html += '<span class="event-row-dates">' + escapeHtml(formatEventRange(ev)) + '</span></div>';
-    if (!opts.hideRiders) {
-      html += '<div class="event-row-riders">' + ((ev.riders && ev.riders.length) ? escapeHtml(ev.riders.join(', ')) : tr('riders_unspecified')) + '</div>';
-    }
+    // Same shape as the Carnet roulage rows: circuit + date/participants on
+    // the left, how far away it is (or my group) on the right.
+    var nRiders = (ev.riders || []).length;
+    var meta = escapeHtml(formatEventRange(ev)) + (!opts.hideRiders && nRiders ? ' · ' + nRiders + ' pilote' + (nRiders > 1 ? 's' : '') : '');
+    var daysTo = Math.round((parseLocalDate(ev.dateStart) - parseLocalDate(dateKey(new Date()))) / 86400000);
+    var myGrp = currentUserProfile ? (riderGroupFor(ev, currentUserProfile.name, ev.dateStart, 'matin') || riderGroupFor(ev, currentUserProfile.name, ev.dateStart, 'apres-midi') || '') : '';
+    var right = daysTo > 0 ? '<span class="event-row-when">J-' + daysTo + '</span>' : (daysTo === 0 || (ev.dateEnd && ev.dateEnd >= dateKey(new Date())) ? '<span class="event-row-when live">En cours</span>' : '');
+    html += '<div class="event-row-main"><span class="event-row-text"><span class="event-row-circuit">' + escapeHtml(ev.circuit) + '</span><span class="event-row-dates">' + meta + '</span></span>' +
+      '<span class="event-row-right">' + (myGrp ? groupChip(myGrp) : '') + right + '<span class="event-row-chevron" aria-hidden="true">›</span></span></div>';
     html += '</div>';
     if (isOpen) {
       html += '<div class="event-accordion-panel">' + ((editingEventId === ev.id) ? renderEventForm() : renderEventSummaryCard(ev, opts)) + '</div>';
@@ -10572,7 +10577,7 @@
     var orgTeam = ev.teamId ? teamById(ev.teamId) : null;
     var html = '<div class="card today-schedule-card">';
     html += '<div class="today-schedule-head">';
-    html += '<div class="eyebrow">' + (isOngoing ? 'En ce moment — ' : 'Prochain roulage — ') + escapeHtml(ev.circuit) + '</div>';
+    html += '<div class="today-schedule-title"><div class="eyebrow">' + (isOngoing ? 'En ce moment' : 'Prochain roulage') + '</div><div class="today-schedule-circuit">' + escapeHtml(ev.circuit) + '</div></div>';
     html += '<div class="today-schedule-head-right">';
     if (orgTeam) html += '<span class="event-team-badge">' + escapeHtml(orgTeam.name) + teamBadgesHtml(orgTeam) + '</span>';
     if (isOngoing) html += '<div class="planning-big-clock" id="planning-big-clock">--h--</div>';
