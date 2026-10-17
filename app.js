@@ -9025,6 +9025,10 @@
   var lastSubView = { carnet: 'carnet', sorties: 'planning', communaute: 'social' };
   // (la page d'une sortie est rattachée à l'onglet Carnet mais n'est pas
   // mémorisée comme sous-onglet : revenir à Carnet ramène à la liste)
+  function renderSectionHeading(tab) {
+    var label = { carnet: tr('nav_carnet'), sorties: tr('nav_sorties'), communaute: tr('nav_communaute') }[tab] || '';
+    return '<div class="section-heading"><span class="section-heading-kerb" aria-hidden="true"></span><h1 class="section-heading-title">' + escapeHtml(label) + '</h1></div>';
+  }
   function renderSubNav(items) {
     if (items.length < 2) return '';
     return '<div class="subnav" role="tablist">' + items.map(function (it) {
@@ -13675,6 +13679,8 @@
       else if (activeView === 'team') body = renderSubNav(communauteSubItems()) + renderTeamTab();
       else if (activeView === 'coach') body = renderSubNav(communauteSubItems()) + renderCoachTab();
       else body = renderSubNav([['planning', 'Prochain roulage'], ['event', 'Calendrier']]) + renderEventTab(); // 'event' and safety fallback
+      // Big section title so it's always clear which main tab you're in.
+      if (activeView !== 'outing') body = renderSectionHeading(navTabFor(activeView)) + body;
     }
     var notifCount = pendingNotificationCount();
     root.innerHTML =
