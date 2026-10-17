@@ -109,7 +109,7 @@
       months: ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'],
       weekday_letters: ['L', 'M', 'M', 'J', 'V', 'S', 'D'],
       weekday_names: ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'],
-      my_calendar_heading: 'Mon calendrier', zoom_hint: 'Astuce : glissez à gauche/droite (ou flèches ← →) pour changer de période, pincez à deux doigts ou Ctrl + molette pour zoomer.',
+      my_calendar_heading: 'Mon calendrier', zoom_hint: 'Glisse à gauche ou à droite pour changer de période.',
       previous: 'Précédent', next: 'Suivant', today: 'Aujourd\'hui',
       zoom_year: 'Année', zoom_6month: '6 mois', zoom_3month: '3 mois', zoom_2month: '2 mois', zoom_month: 'Mois', zoom_week: 'Semaine', zoom_day: 'Jour',
       add_event_heading: 'Ajouter un roulage', edit_event_heading: 'Modifier le roulage',
@@ -153,7 +153,9 @@
       invite_btn: 'Inviter', cancel_invite: 'Annuler', settings_label: 'Réglages',
       join_requests_label: 'Demandes pour rejoindre (', sent_invites_label: 'Invitations envoyées (',
       // Social tab
-      no_friends_yet: 'Pas encore d’amis — ajoutes-en un avec le bouton ci-dessus.', my_friends_label: 'Mes amis (',
+      no_friends_yet: 'Pas encore d’amis. Ajoutes-en un avec le bouton ci-dessus, ou fais scanner ton QR code au paddock.',
+      invite_qr_btn: 'Inviter un pote (QR code)', share_last_chrono_btn: '⤴ Partager mon dernier chrono',
+      feed_empty_help: 'Ton fil se remplit avec les chronos et les messages de tes amis et de tes teams.', my_friends_label: 'Mes amis (',
       received_requests_label: 'Demandes reçues (', sent_requests_label: 'Demandes envoyées (',
       add_friend_btn: '+ Ajouter un ami', no_one_else_to_add: 'Personne d’autre à ajouter pour l’instant.',
       search_by_username: 'Rechercher par pseudo', username_placeholder: 'Pseudo', send_request_btn: 'Envoyer une demande',
@@ -502,7 +504,7 @@
       months: ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'],
       weekday_letters: ['M', 'T', 'W', 'T', 'F', 'S', 'S'],
       weekday_names: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'],
-      my_calendar_heading: 'My calendar', zoom_hint: 'Tip: swipe left/right (or ← → arrows) to change period, pinch with two fingers or Ctrl + wheel to zoom.',
+      my_calendar_heading: 'My calendar', zoom_hint: 'Swipe left or right to change period.',
       previous: 'Previous', next: 'Next', today: 'Today',
       zoom_year: 'Year', zoom_6month: '6 months', zoom_3month: '3 months', zoom_2month: '2 months', zoom_month: 'Month', zoom_week: 'Week', zoom_day: 'Day',
       add_event_heading: 'Add a trackday', edit_event_heading: 'Edit trackday',
@@ -546,7 +548,9 @@
       invite_btn: 'Invite', cancel_invite: 'Cancel', settings_label: 'Settings',
       join_requests_label: 'Requests to join (', sent_invites_label: 'Sent invites (',
       // Social tab
-      no_friends_yet: 'No friends yet — add one with the button above.', my_friends_label: 'My friends (',
+      no_friends_yet: 'No friends yet. Add one with the button above, or have them scan your QR code in the paddock.',
+      invite_qr_btn: 'Invite a friend (QR code)', share_last_chrono_btn: '⤴ Share my last lap time',
+      feed_empty_help: 'Your feed fills up with lap times and messages from your friends and teams.', my_friends_label: 'My friends (',
       received_requests_label: 'Received requests (', sent_requests_label: 'Sent requests (',
       add_friend_btn: '+ Add a friend', no_one_else_to_add: 'No one else to add right now.',
       search_by_username: 'Search by username', username_placeholder: 'Username', send_request_btn: 'Send request',
@@ -908,7 +912,9 @@
 "Chronos validés par le team": "Team-validated lap times",
 "Aucune donnée.": "No data.",
 "Records": "Records",
-"Record par circuit": "Record per circuit",
+"Record par circuit": "Record per circuit", "Ce soir": "Tonight", "Plus tard": "Later", "📷 Importer ma feuille de temps": "📷 Import my timesheet",
+"Photo de la feuille de temps, capture ou PDF : ton record, ta courbe et ta place « Entre potes » tout de suite.": "Timesheet photo, screenshot or PDF: your record, your progress chart and your place in “Between friends” right away.",
+"Semaine": "Week", "Mois": "Month", "Année": "Year", "Créer le team": "Create the team",
 "Roulages": "Trackdays",
 "Meilleurs temps par circuit": "Best times per circuit",
 "Records battus en 2026": "Records broken in 2026",
@@ -1240,6 +1246,8 @@
     [/^Non attribués \((\d+)\)$/, 'Unassigned ($1)'], [/^Chronos \((\d+)\)$/, 'Lap times ($1)'], [/^Repères \((\d+)\)$/, 'Marks ($1)'], [/^Repères · (\d+)$/, 'Marks · $1'],
     [/^À traiter \((\d+)\)$/, 'To handle ($1)'], [/^En attente \((\d+)\)$/, 'Waiting ($1)'], [/^Demandes \((\d+)\)$/, 'Requests ($1)'], [/^En cours \((\d+)\)$/, 'Ongoing ($1)'],
     [/^Équipement (\d+\/\d+)$/, 'Gear $1'],
+    [/^Session (\d+)$/, 'Session $1'], [/^Du calendrier \((\d+)\)$/, 'From the calendar ($1)'], [/^De mon carnet \((\d+)\)$/, 'From my logbook ($1)'],
+    [/^Ajoute ton chrono de (.+)$/, 'Add your lap time from $1'],
     [/^🏆 Trophées — (\d+)\/(\d+) débloqués$/, '🏆 Trophies — $1/$2 unlocked'],
     [/^([\d\/]+) s gagnées$/, '$1 s gained'],
     [/^([\d\/]+) (jours|roulages|chronos|filleul\(s\)|filleuls|ami\(s\)|amis|team\(s\)|message\(s\)|messages)$/, function (m, n, w) { return n + ' ' + EN_COUNT_WORDS[w]; }],
@@ -2855,7 +2863,10 @@
   // saved tab, on any device, keeps landing on itself as before.
   var activeView = (_rawSavedView === 'sessions' || _rawSavedView === 'chronos') ? 'circuit' : (_rawSavedView === 'calendar' ? 'event' : (_rawSavedView || 'carnet')); // 'event' | 'circuit' | 'stats'
   var calendarAnchor = _savedUiState.calendarAnchor || dateKey(new Date()); // 'YYYY-MM-DD'
-  var calendarViewMode = _savedUiState.calendarViewMode || '2month'; // one of ZOOM_LEVELS below — base view is 2 months (current + next)
+  // One of ZOOM_LEVELS below. Only Semaine / Mois / Année get a button now
+  // (the other levels stay reachable by pinch/Ctrl+wheel), so a saved
+  // in-between level falls back to Mois on load.
+  var calendarViewMode = ['week', 'month', 'year'].indexOf(_savedUiState.calendarViewMode) !== -1 ? _savedUiState.calendarViewMode : 'month';
   var selectedEventId = _savedUiState.selectedEventId || null; // which sortie the Événement tab (and Calendrier's detail card) shows
   var editingEventId = null; // null | 'new' | an event id — never restored (don't reopen a form after reload)
   var prefillEventCircuit = null; // one-shot pre-fill for the "Ajouter une sortie" form's circuit field
@@ -5586,6 +5597,9 @@
 
     var W = 640, H = 260;
     var marginL = 64, marginR = 16, marginT = 34, marginB = 38;
+    // Labels of the first/last points would spill past the chart's edges
+    // (« 05”471 », « 59”98 ») -- anchor them inward instead of centred.
+    var edgeAnchor = function (x) { return x < marginL + 40 ? 'start' : x > W - marginR - 40 ? 'end' : 'middle'; };
     var plotW = W - marginL - marginR, plotH = H - marginT - marginB;
 
     var allTimes = [], allStamps = [];
@@ -5666,13 +5680,13 @@
           '<title>' + (isMulti ? escapeHtml(s.rider) + ' — ' : '') + escapeHtml(formatDate(p.date)) + ' — ' + formatTime(p.time) + (p.isBest ? ' (record)' : '') + '</title>' +
           '</circle>';
         if (chosen[i]) {
-          pointsSvg += '<text class="progression-value-label' + (p.isBest ? ' is-best' : '') + '" style="' + (p.isBest ? '' : 'fill:' + s.color + ';') + '" x="' + p.x.toFixed(1) + '" y="' + (p.y - 16).toFixed(1) + '" text-anchor="middle">' + formatSecondsOnly(p.time) + '</text>';
+          pointsSvg += '<text class="progression-value-label' + (p.isBest ? ' is-best' : '') + '" style="' + (p.isBest ? '' : 'fill:' + s.color + ';') + '" x="' + p.x.toFixed(1) + '" y="' + (p.y - 16).toFixed(1) + '" text-anchor="' + edgeAnchor(p.x) + '">' + formatSecondsOnly(p.time) + '</text>';
         }
         if (i === 0 || i === lastIdx) {
           var clearDate = dateLabelReservedX.every(function (rx) { return Math.abs(p.x - rx) >= MIN_LABEL_GAP; });
           if (clearDate) {
             dateLabelReservedX.push(p.x);
-            dateLabelsSvg += '<text class="progression-axis-label" x="' + p.x.toFixed(1) + '" y="' + (H - marginB + 18).toFixed(1) + '" text-anchor="middle">' + shortDayMonth(parseLocalDate(p.date)) + '</text>';
+            dateLabelsSvg += '<text class="progression-axis-label" x="' + p.x.toFixed(1) + '" y="' + (H - marginB + 18).toFixed(1) + '" text-anchor="' + edgeAnchor(p.x) + '">' + shortDayMonth(parseLocalDate(p.date)) + '</text>';
           }
         }
       });
@@ -6146,6 +6160,14 @@
   // Paired with a read-only reminder of how the rider felt last time out
   // (any circuit -- "la dernière session", not specifically this one) so
   // setting a goal for next time has that context right above it.
+  // Fil vide : dire ce qui va le remplir, et proposer de quoi l'amorcer.
+  function emptyFeedHtml() {
+    var me = currentUserProfile;
+    var last = me ? mostRecentSessionForRider(me.name) : null;
+    return '<div class="empty-state">' + tr('feed_empty_help') + '<div class="empty-actions">' +
+      (last && last.id ? '<button type="button" class="ghost" data-action="share-session" data-id="' + escapeHtml(String(last.id)) + '">' + tr('share_last_chrono_btn') + '</button>' : '') +
+      '<button type="button" class="ghost" data-action="invite-qr">' + tr('invite_qr_btn') + '</button></div></div>';
+  }
   function mostRecentSessionForRider(riderName) {
     var mine = (STATE.sessions || []).filter(function (s) { return s.rider === riderName; });
     mine.sort(function (a, b) { return (b.date || '').localeCompare(a.date || ''); });
@@ -6640,6 +6662,26 @@
     openOuting(ev.circuit, day, ev.id);
   }
 
+  // Vignettes des circuits : le tracé par défaut (trait gris fin sur
+  // fond blanc, illisible en 40 px) redessiné en ruban encre + ombre
+  // rouge, comme sur la story. Les photos importées restent telles quelles.
+  var styledThumbs = {};
+  function styleTrackThumbs() {
+    document.querySelectorAll('img[data-track-thumb]').forEach(function (img) {
+      var src = img.getAttribute('data-track-thumb');
+      if (styledThumbs[src]) { if (styledThumbs[src] !== 'x' && img.getAttribute('src') !== styledThumbs[src]) img.src = styledThumbs[src]; return; }
+      styledThumbs[src] = 'x';
+      loadImageEl(src).then(function (probe) {
+        if (!probe || !probe.width) return;
+        var box = 360, k = Math.min(box / probe.width, box / probe.height);
+        var out = styledTrack(probe, Math.round(probe.width * k), Math.round(probe.height * k), SHARE_COLORS, { radii: [2, 4, 6], shadow: 7, pad: 20 });
+        if (!out) return;
+        styledThumbs[src] = out.toDataURL('image/png');
+        document.querySelectorAll('img[data-track-thumb]').forEach(function (el) { if (el.getAttribute('data-track-thumb') === src) el.src = styledThumbs[src]; });
+      });
+    });
+  }
+
   // Team logos are often uploaded with wide transparent/white margins,
   // which made them render tiny: crop to the visible pixels once, then
   // reuse the cropped version.
@@ -6760,9 +6802,11 @@
   }
   // Tracé (trait sombre sur fond clair) redessiné aux couleurs de la
   // charte : piste épaisse couleur encre, filet rouge au centre.
-  function styledTrack(img, w, h, C) {
+  function styledTrack(img, w, h, C, opts) {
+    opts = opts || {};
+    var radii = opts.radii || [3, 6, 8], shadow = opts.shadow == null ? 7 : opts.shadow;
     try {
-      var pad = 24, src = document.createElement('canvas');
+      var pad = opts.pad || 24, src = document.createElement('canvas');
       src.width = w; src.height = h;
       var sctx = src.getContext('2d');
       sctx.drawImage(img, 0, 0, w, h);
@@ -6782,7 +6826,7 @@
       // Les deux bords du tracé fusionnent en un ruban plein.
       var ribbon = function (color, dx, dy, o) {
         var t = tint(color);
-        [3, 6, 8].forEach(function (rr) {
+        radii.forEach(function (rr) {
           for (var a = 0; a < 360; a += 15) {
             var rad = a * Math.PI / 180;
             o.drawImage(t, pad + dx + Math.cos(rad) * rr, pad + dy + Math.sin(rad) * rr);
@@ -6791,7 +6835,7 @@
       };
       var out = document.createElement('canvas'); out.width = w + pad * 2; out.height = h + pad * 2;
       var o = out.getContext('2d');
-      ribbon(C.red, 7, 7, o);
+      ribbon(C.red, shadow, shadow, o);
       ribbon(C.ink, 0, 0, o);
       return out;
     } catch (e) { return null; }
@@ -7142,7 +7186,7 @@
       datesInRange(ev.dateStart, ev.dateEnd || ev.dateStart).forEach(function (d) {
         if (d < limitKey || d > today) return;
         if (d === today && now.getHours() < 16) return;
-        var has = (STATE.sessions || []).some(function (x) { return x.rider === me && x.date === d && x.circuit === ev.circuit; });
+        var has = (STATE.sessions || []).some(function (x) { return x.rider === me && x.date === d && sameCircuit(x.circuit, ev.circuit); });
         if (has) return;
         var dismissed = null;
         try { dismissed = localStorage.getItem('cdp-ts-dismiss-' + ev.id + '-' + d); } catch (e) {}
@@ -7161,11 +7205,12 @@
       timesheetNotified[key] = true;
       try { sendAppNotification('Importe ta feuille de temps de ' + r.ev.circuit + ' pour garder tes chronos.'); } catch (e) {}
     }
-    var when = r.date === dateKey(new Date()) ? 'd\'aujourd\'hui' : 'du ' + formatDate(r.date);
-    return '<div class="card timesheet-reminder"><strong>📷 Ton roulage ' + escapeHtml(r.ev.circuit) + ' ' + when + '</strong>' +
-      '<div class="help-text">Importe ta feuille de temps (photo, capture ou PDF) pour garder tes chronos et suivre ta progression.</div>' +
-      '<div style="display:flex; gap:0.5rem; margin-top:0.5rem;"><button type="button" class="primary" data-ts-import="' + escapeHtml(r.ev.circuit) + '" data-ts-date="' + r.date + '">Importer maintenant</button>' +
-      '<button type="button" class="ghost" data-ts-later="' + escapeHtml(key) + '">Plus tard</button></div></div>';
+    var when = r.date === dateKey(new Date()) ? 'Ce soir' : formatDate(r.date);
+    return '<div class="card timesheet-reminder"><div class="ts-head"><span class="outing-thumb">' + circuitThumbHtml(r.ev.circuit) + '</span>' +
+      '<div><div class="eyebrow">' + escapeHtml(when) + '</div><strong>Ajoute ton chrono de ' + escapeHtml(r.ev.circuit) + '</strong></div></div>' +
+      '<div class="help-text">Photo de la feuille de temps, capture ou PDF : ton record, ta courbe et ta place « Entre potes » tout de suite.</div>' +
+      '<button type="button" class="primary add-chrono-btn" data-ts-import="' + escapeHtml(r.ev.circuit) + '" data-ts-date="' + r.date + '">📷 Importer ma feuille de temps</button>' +
+      '<button type="button" class="link-btn ts-later" data-ts-later="' + escapeHtml(key) + '">Plus tard</button></div>';
   }
 
   // ---- Mode jour J ----
@@ -7534,7 +7579,9 @@
     var info = circuitInfo(circuit);
     var src = info.mapImage || outlineImageFor(info, circuit);
     var letter = escapeHtml((circuit || '?').charAt(0).toUpperCase());
-    return src ? '<img src="' + src + '" alt="" onerror="this.outerHTML=\'<span class=&quot;outing-thumb-letter&quot;>' + letter + '</span>\'">' : '<span class="outing-thumb-letter">' + letter + '</span>';
+    var styledAttr = src && !info.mapImage && src.indexOf('data:') !== 0 ? ' data-track-thumb="' + escapeHtml(src) + '"' : '';
+    if (styledAttr && styledThumbs[src] && styledThumbs[src] !== 'x') src = styledThumbs[src];
+    return src ? '<img src="' + src + '" alt=""' + styledAttr + ' onerror="this.outerHTML=\'<span class=&quot;outing-thumb-letter&quot;>' + letter + '</span>\'">' : '<span class="outing-thumb-letter">' + letter + '</span>';
   }
   function myUpcomingEvents() {
     var me = currentUserProfile && currentUserProfile.name;
@@ -10009,7 +10056,7 @@
   // discoverable on their own, especially for someone without a trackpad.
   function renderCalendarViewSwitcher() {
     var html = '<div class="calendar-view-switcher">';
-    ZOOM_LEVELS.forEach(function (mode) {
+    ['week', 'month', 'year'].forEach(function (mode) {
       html += '<button type="button" class="calendar-view-btn' + (calendarViewMode === mode ? ' active' : '') + '" data-calendar-view="' + mode + '">' + ZOOM_LEVEL_LABELS()[mode] + '</button>';
     });
     html += '</div>';
@@ -13061,7 +13108,7 @@
     // (and every reaction/edit re-diffing it) up front.
     var visible = items.slice(0, wallFeedVisibleCount);
     var body = !items.length
-      ? '<div class="empty-state">' + (coreDataLoading() ? tr('loading') : tr('nothing_yet')) + '</div>'
+      ? (coreDataLoading() ? '<div class="empty-state">' + tr('loading') + '</div>' : emptyFeedHtml())
       : visible.map(function (it) {
         if (it.kind === 'wall') return renderWallPost(it.data);
         if (it.kind === 'activity') return renderFeedEntry(it.data);
@@ -13137,7 +13184,7 @@
     // renderFriendFiche), plus un bare × sur la ligne -- chaque ligne
     // n'a donc plus d'action, juste le nom cliquable pour l'ouvrir.
     var friendsBody = !friends.length
-      ? '<div class="empty-state">' + tr('no_friends_yet') + '</div>'
+      ? '<div class="empty-state">' + tr('no_friends_yet') + '<div class="empty-actions"><button type="button" class="ghost" data-action="invite-qr">' + tr('invite_qr_btn') + '</button></div></div>'
       : friends.map(function (f) { return renderFriendRow(f.name, '', true); }).join('');
     var amisItems = [['liste', 'Mes amis (' + friends.length + ')', friendsBody]];
 
@@ -14590,7 +14637,7 @@
       else if (activeView === 'carnet') body = carnetSub + renderCarnetTab();
       else if (activeView === 'circuit') body = carnetSub + renderCircuitTab();
       else if (activeView === 'stats') body = carnetSub + renderPills('stats', [['records', 'Records'], ['trophees', 'Trophées'], ['donnees', 'Mes données']]) + renderStatsTab();
-      else if (activeView === 'planning') body = renderSubNav([['planning', 'Prochain roulage'], ['event', 'Calendrier']]) + renderPlanningTab();
+      else if (activeView === 'planning') body = renderSubNav([['planning', 'Prochain roulage'], ['event', 'Calendrier']]) + renderTimesheetReminder() + renderPlanningTab();
       else if (activeView === 'social') body = renderSubNav(communauteSubItems()) + renderSocialTab();
       else if (activeView === 'team') body = renderSubNav(communauteSubItems()) + renderTeamTab();
       else if (activeView === 'coach') body = renderSubNav(communauteSubItems()) + renderCoachTab();
@@ -16218,6 +16265,7 @@
     });
     var battleInvite = document.getElementById('battle-invite-btn');
     if (battleInvite) battleInvite.addEventListener('click', openInviteQr);
+    document.querySelectorAll('[data-action="invite-qr"]').forEach(function (btn) { btn.addEventListener('click', openInviteQr); });
     document.querySelectorAll('[data-action="session-setup"]').forEach(function (btn) {
       btn.addEventListener('click', function () { openSetupSheet(btn.getAttribute('data-id')); });
     });
@@ -17434,6 +17482,7 @@
     });
     document.querySelectorAll('[data-action="quick-outing"]').forEach(function (b) { b.addEventListener('click', openQuickOutingModal); });
     autotrimImages();
+    styleTrackThumbs();
     document.querySelectorAll('[data-cards-mode]').forEach(function (b) {
       b.addEventListener('click', function () { carnetCardsMode = b.getAttribute('data-cards-mode'); renderRoot(); });
     });

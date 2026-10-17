@@ -3196,3 +3196,14 @@ body { min-height: 100%; min-height: 100dvh; }
 .schedule-slot.sched-row.slot-avail-coaching { background: color-mix(in srgb, #1d7fd6 22%, var(--surface-alt)); }
 .schedule-slot.sched-row.slot-avail-bapteme { background: color-mix(in srgb, var(--accent) 22%, var(--surface-alt)); }
 .schedule-slot.sched-row.slot-avail-both { background: color-mix(in srgb, var(--series-3) 22%, var(--surface-alt)); }
+
+/* Actions proposées sous un écran vide */
+.empty-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 0.5rem; margin-top: 0.9rem; }
+
+/* Rappel du soir : ajouter le chrono du roulage */
+.timesheet-reminder .ts-head { display: flex; align-items: center; gap: 0.8rem; margin-bottom: 0.4rem; }
+.timesheet-reminder .ts-head strong { display: block; font-family: var(--font-display); font-size: 1.35rem; font-weight: 700; line-height: 1.1; }
+.timesheet-reminder .outing-thumb { width: 52px; height: 52px; }
+.timesheet-reminder .add-chrono-btn { margin-top: 0.8rem; }
+.timesheet-reminder .ts-later { display: block; margin: 0.5rem auto 0; }
+.timesheet-reminder .ts-later { color: var(--text-muted); text-decoration: none; font-weight: 600; }
