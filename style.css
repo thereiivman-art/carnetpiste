@@ -3107,3 +3107,7 @@ body { min-height: 100%; min-height: 100dvh; }
 .grp-sub-D { --grp-c: #4f7fd8; } .grp-sub-R { --grp-c: #5b7fc4; }
 .sub-pill-btn.grp-sub-D.active { background: var(--grp-D); border-color: var(--grp-D); color: #142a6b; }
 .sub-pill-btn.grp-sub-R.active { background: var(--grp-R); border-color: #9cbcf6; color: #142a6b; }
+/* Page d'un roulage : même grammaire que les titres de section (pas de trait sous le titre, date neutre) */
+.outing-underline { display: none; }
+.outing-date-chip { border: 1px solid var(--border); color: var(--text); background: var(--surface); }
+.carnet-add-help .inline-link { width: auto; }

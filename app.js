@@ -5044,17 +5044,17 @@
 
     if (!series.length) {
       html += '<div class="empty-state">Aucun chrono enregistré sur ' + escapeHtml(circuit) + (riders.length === 1 ? ' pour ' + escapeHtml(riders[0]) : '') + '.</div>';
-      return flatCard(collapsibleCard(progressionKey, 'Progression', html, true));
+      return '<div class="card"><h2 class="section-title">Progression — ' + escapeHtml(circuit) + '</h2>' + html + '</div>';
     }
     if (series.length === 1 && series[0].raw.length === 1) {
       var only = series[0].raw[0];
       html += '<div class="empty-state">Un seul chrono enregistré — ' + formatTime(only.time) + ' le ' + escapeHtml(formatDate(only.date)) + '. La courbe apparaîtra au prochain chrono.</div>';
-      return flatCard(collapsibleCard(progressionKey, 'Progression', html, true));
+      return '<div class="card"><h2 class="section-title">Progression — ' + escapeHtml(circuit) + '</h2>' + html + '</div>';
     }
     var totalPoints = series.reduce(function (sum, s) { return sum + s.raw.length; }, 0);
     if (totalPoints < 2) {
       html += '<div class="empty-state">Pas encore assez de chronos pour tracer une courbe.</div>';
-      return flatCard(collapsibleCard(progressionKey, 'Progression', html, true));
+      return '<div class="card"><h2 class="section-title">Progression — ' + escapeHtml(circuit) + '</h2>' + html + '</div>';
     }
 
     var W = 640, H = 260;
@@ -5173,7 +5173,7 @@
 
     PROGRESSION_POINTS = flatPoints;
     PROGRESSION_MULTI = isMulti;
-    return flatCard(collapsibleCard(progressionKey, 'Progression', html, true));
+    return '<div class="card"><h2 class="section-title">Progression — ' + escapeHtml(circuit) + '</h2>' + html + '</div>';
   }
 
   function circuitDatalist() {
@@ -12835,6 +12835,7 @@
     var feedBody = !feed.length
       ? '<div class="empty-state">' + (teamFeedSynced ? tr('nothing_yet') : tr('loading')) + '</div>'
       : feed.map(function (f) { return renderTeamFeedEntry(f, me); }).join('');
+    var composerHtml = '', composerCta = '';
     if (canPost) {
       // The Adhérents-only audience option only makes sense for a Team PRO
       // ("club", see renderTeamMembersManagement) and only the leader hands
@@ -12848,7 +12849,7 @@
           '</select>'
         : '';
       if (teamComposerMode === 'message') {
-        feedBody += '<form class="team-feed-form" data-action="team-feed-form" data-team="' + team.id + '">' +
+        composerHtml += '<form class="team-feed-form" data-action="team-feed-form" data-team="' + team.id + '">' +
           '<input type="text" placeholder="' + tr('write_to_team_placeholder') + '" data-team-feed-input autofocus>' +
           '<input type="url" placeholder="' + tr('link_optional_placeholder') + '" data-team-feed-link>' +
           (teamPostDraftPhotoTeamId === team.id && teamPostDraftPhotoURL
@@ -12865,7 +12866,7 @@
         var optionInputs = pollDraftOptions.map(function (val, pi) {
           return '<input type="text" placeholder="' + tr('poll_option_placeholder') + (pi + 1) + (pi >= 2 ? tr('poll_option_optional') : '') + '" value="' + escapeHtml(val) + '" data-poll-option>';
         }).join('');
-        feedBody += '<form class="team-poll-form" data-action="team-poll-form" data-team="' + team.id + '">' +
+        composerHtml += '<form class="team-poll-form" data-action="team-poll-form" data-team="' + team.id + '">' +
           '<input type="text" placeholder="' + tr('poll_question_placeholder') + '" value="' + escapeHtml(pollDraftQuestion) + '" data-poll-question autofocus>' +
           optionInputs +
           '<button type="button" class="ghost" data-action="team-poll-add-option">' + tr('add_option') + '</button>' +
@@ -12875,13 +12876,13 @@
           '<button type="button" class="ghost" data-action="team-composer-close">' + tr('cancel') + '</button>' +
           '</div></form>';
       } else {
-        feedBody += '<div style="display:flex; gap:0.5rem; margin-top:0.6rem;">' +
-          '<button type="button" class="ghost" data-action="team-composer-open" data-mode="message">' + tr('write_message_btn') + '</button>' +
-          '<button type="button" class="ghost" data-action="team-composer-open" data-mode="poll">' + tr('poll_btn') + '</button>' +
-          '</div>';
+        // Same pattern as everywhere: the main action as a big button on
+        // top, the secondary one (poll) as a quiet link under it.
+        composerCta = '<button type="button" class="primary add-chrono-btn" data-action="team-composer-open" data-mode="message">+ Écrire au team</button>' +
+          '<div class="carnet-add-help"><button type="button" class="link-btn inline-link" data-action="team-composer-open" data-mode="poll">ou lancer un sondage</button></div>';
       }
     }
-    var bFil = feedBody;
+    var bFil = (composerHtml ? teamCard('', composerHtml) : composerCta) + teamCard('', feedBody);
 
     var teamFollowers = (STATE.teamFollowersByTeam || {})[team.id] || [];
     var membersCards = renderTeamMembersSection(team, members, teamFollowers, me, isLeader) +
@@ -12944,7 +12945,7 @@
     if (isLeader) teamPills.push(['roulages', 'Roulages']);
     teamPills.push(['reglages', 'Réglages']);
     var pillsHtml = renderPills('team', teamPills);
-    var body = pillState.team === 'membres' ? bMembres : pillState.team === 'roulages' ? bRoulages : pillState.team === 'reglages' ? bReglages : teamCard('', bFil);
+    var body = pillState.team === 'membres' ? bMembres : pillState.team === 'roulages' ? bRoulages : pillState.team === 'reglages' ? bReglages : bFil;
     // Team header in its own card, then the pills outside it like on every
     // other page, then one card per topic.
     return headHtml + '</div>' + pillsHtml + body;
