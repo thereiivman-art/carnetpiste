@@ -5275,62 +5275,89 @@
     ctx.closePath();
   }
 
-  function fitText(ctx, text, maxWidth, size, weight) {
+  function fitText(ctx, text, maxWidth, size, weight, family) {
     var fs = size;
     do {
-      ctx.font = weight + ' ' + fs + 'px "Barlow", -apple-system, "Segoe UI", sans-serif';
+      ctx.font = weight + ' ' + fs + 'px ' + (family || '"Barlow", -apple-system, "Segoe UI", sans-serif');
       if (ctx.measureText(text).width <= maxWidth) break;
       fs -= 4;
     } while (fs > 24);
     return fs;
   }
 
+  // Charte Paddock pour les images exportées : fond blanc cassé, encre,
+  // rouge pour l'accent, bleu pour les groupes, Barlow / Barlow Condensed.
+  var SHARE_COLORS = { bg: '#f4f3ef', card: '#ffffff', ink: '#14161a', muted: '#6a6e76', line: '#e1dfd8', red: '#c8261f', best: '#1d8a4e' };
+  var SHARE_GROUP_COLORS = { A: ['#142a6b', '#fff'], B: ['#1f49c2', '#fff'], C: ['#3f78ea', '#fff'], D: ['#9cbcf6', '#142a6b'], R: ['#e1eafd', '#142a6b'] };
+  var CONDENSED = '"Barlow Condensed", "Arial Narrow", sans-serif';
+  function shareFontsReady() {
+    if (!document.fonts || !document.fonts.load) return Promise.resolve();
+    return Promise.all([
+      document.fonts.load('italic 800 100px "Barlow Condensed"'),
+      document.fonts.load('700 100px "Barlow Condensed"'),
+      document.fonts.load('600 40px "Barlow"'),
+      document.fonts.load('700 40px "Barlow"')
+    ]).catch(function () {});
+  }
+  // Slanted red bar, the section-heading mark.
+  function drawShareMark(ctx, x, y, h) {
+    ctx.save(); ctx.fillStyle = SHARE_COLORS.red;
+    ctx.beginPath(); ctx.moveTo(x + h * 0.3, y); ctx.lineTo(x + h * 0.3 + h * 0.38, y); ctx.lineTo(x + h * 0.38, y + h); ctx.lineTo(x, y + h); ctx.closePath(); ctx.fill();
+    ctx.restore();
+  }
+  function drawShareGroupChip(ctx, letter, x, y, size) {
+    var c = SHARE_GROUP_COLORS[letter] || ['#6a6e76', '#fff'];
+    ctx.font = 'italic 800 ' + Math.round(size * 0.72) + 'px ' + CONDENSED;
+    var w = Math.max(size, ctx.measureText(letter).width + size * 0.6);
+    ctx.fillStyle = c[0]; roundRect(ctx, x, y, w, size, size * 0.22); ctx.fill();
+    ctx.fillStyle = c[1]; ctx.textAlign = 'center'; ctx.fillText(letter, x + w / 2, y + size * 0.76); ctx.textAlign = 'left';
+    return w;
+  }
+
   function buildShareCard(session) {
-    var W = 1080, H = 1920, ACCENT = '#ef8b3a', INK = '#f3f5f7', MUTED = '#9aa7b4';
+    var W = 1080, H = 1920, C = SHARE_COLORS;
     var canvas = document.createElement('canvas');
     canvas.width = W; canvas.height = H;
     var ctx = canvas.getContext('2d');
-    return loadImageEl('icons/icon-192.png').then(function (icon) {
-      var g = ctx.createLinearGradient(0, 0, 0, H);
-      g.addColorStop(0, '#10151b'); g.addColorStop(1, '#1f2a35');
-      ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
-      // bande damier
-      var sq = 36;
-      for (var cx = 0; cx < W; cx += sq) for (var cy = 0; cy < 2; cy++) {
-        ctx.fillStyle = ((cx / sq + cy) % 2) ? '#ffffff' : '#16212c';
-        ctx.fillRect(cx, H - 2 * sq + cy * sq, sq, sq);
-      }
+    return shareFontsReady().then(function () {
+      ctx.fillStyle = C.bg; ctx.fillRect(0, 0, W, H);
       ctx.textBaseline = 'alphabetic';
-      // en-tête
-      if (icon) { ctx.save(); roundRect(ctx, 80, 90, 110, 110, 24); ctx.clip(); ctx.drawImage(icon, 80, 90, 110, 110); ctx.restore(); }
-      ctx.fillStyle = INK; ctx.font = '800 44px "Barlow", -apple-system, "Segoe UI", sans-serif';
-      ctx.fillText('CARNET DE PISTE', 220, 160);
-      // circuit + date
-      ctx.fillStyle = INK; fitText(ctx, session.circuit || '', W - 160, 110, '800');
-      ctx.fillText(session.circuit || '', 80, 380);
-      ctx.fillStyle = MUTED; ctx.font = '500 46px "Barlow", -apple-system, "Segoe UI", sans-serif';
-      var sub = formatDate(session.date) + (session.group ? '  ·  Groupe ' + session.group : '');
-      ctx.fillText(sub, 80, 450);
-      ctx.fillStyle = INK; fitText(ctx, session.rider + (session.bike ? '  ·  ' + session.bike : ''), W - 160, 50, '600');
-      ctx.fillText(session.rider + (session.bike ? '  ·  ' + session.bike : ''), 80, 520);
-      // meilleur tour
+      // en-tête : marque + nom de l'app
+      drawShareMark(ctx, 80, 112, 64);
+      ctx.fillStyle = C.ink; ctx.font = 'italic 800 56px ' + CONDENSED;
+      ctx.fillText('CARNET DE PISTE', 150, 166);
+      // circuit + date + groupe + pilote
+      var circuit = String(session.circuit || '').toUpperCase();
+      ctx.fillStyle = C.ink; fitText(ctx, circuit, W - 160, 170, 'italic 800', CONDENSED);
+      ctx.fillText(circuit, 76, 400);
+      ctx.fillStyle = C.muted; ctx.font = '600 46px "Barlow", sans-serif';
+      var dateTxt = formatDate(session.date);
+      ctx.fillText(dateTxt, 80, 470);
+      if (session.group) {
+        var gx = 80 + ctx.measureText(dateTxt).width + 30;
+        String(session.group).split(/[\/,\s]+/).filter(Boolean).forEach(function (g) { gx += drawShareGroupChip(ctx, g.toUpperCase(), gx, 425, 60) + 12; });
+      }
+      ctx.fillStyle = C.ink; fitText(ctx, session.rider + (session.bike ? '  ·  ' + session.bike : ''), W - 160, 48, '700');
+      ctx.fillText(session.rider + (session.bike ? '  ·  ' + session.bike : ''), 80, 545);
+      // carte du meilleur tour
       var info = sessionRecordInfo(session);
-      ctx.fillStyle = MUTED; ctx.font = '600 44px "Barlow", -apple-system, "Segoe UI", sans-serif';
-      ctx.fillText('MEILLEUR TOUR', 80, 700);
-      ctx.fillStyle = ACCENT; fitText(ctx, formatTime(info.best), W - 160, 230, '800');
-      ctx.fillText(formatTime(info.best), 72, 900);
-      // badge record
+      var cardY = 620, cardH = 520;
+      ctx.save(); ctx.shadowColor = 'rgba(20,22,26,0.08)'; ctx.shadowBlur = 30; ctx.shadowOffsetY = 8;
+      ctx.fillStyle = C.card; roundRect(ctx, 60, cardY, W - 120, cardH, 36); ctx.fill(); ctx.restore();
+      ctx.save(); roundRect(ctx, 60, cardY, W - 120, cardH, 36); ctx.clip(); ctx.fillStyle = C.red; ctx.fillRect(60, cardY, W - 120, 16); ctx.restore();
+      ctx.fillStyle = C.red; ctx.font = '700 42px "Barlow", sans-serif';
+      ctx.fillText('MEILLEUR TOUR', 120, cardY + 110);
+      ctx.fillStyle = C.ink; fitText(ctx, formatTime(info.best), W - 240, 250, 'italic 800', CONDENSED);
+      ctx.fillText(formatTime(info.best), 108, cardY + 345);
       var badge = info.first ? 'Premier chrono sur ce circuit' : (info.isRecord ? 'Nouveau record perso  −' + formatGap(info.prevBest - info.best) : 'Record perso : ' + formatTime(info.prevBest));
-      ctx.font = '700 44px "Barlow", -apple-system, "Segoe UI", sans-serif';
-      var badgeText = (info.isRecord && !info.first ? '🏆 ' : '') + badge;
-      var bw = ctx.measureText(badgeText).width + 70;
-      ctx.fillStyle = info.isRecord && !info.first ? ACCENT : 'rgba(255,255,255,0.12)';
-      roundRect(ctx, 80, 960, bw, 90, 45); ctx.fill();
-      ctx.fillStyle = info.isRecord && !info.first ? '#16120b' : INK;
-      ctx.fillText(badgeText, 115, 1020);
+      ctx.font = '700 42px "Barlow", sans-serif';
+      var bw = ctx.measureText(badge).width + 70;
+      var hot = info.isRecord && !info.first;
+      ctx.fillStyle = hot ? C.red : C.bg; roundRect(ctx, 120, cardY + 390, bw, 84, 42); ctx.fill();
+      ctx.fillStyle = hot ? '#ffffff' : C.ink; ctx.fillText(badge, 155, cardY + 446);
       // barres des tours
       var laps = (session.laps || []).slice(0, 30);
-      var top = 1150, chartH = 360, left = 80, right = W - 80;
+      var top = 1220, chartH = 300, left = 80, right = W - 80;
       if (laps.length) {
         var minL = Math.min.apply(null, laps);
         var cap = minL * 1.25; // tour de rentrée écrêté
@@ -5341,17 +5368,18 @@
           var t = (Math.min(v, cap) - minL) / span;      // 0 = meilleur
           var h = chartH * (1 - 0.75 * t);               // meilleur = barre la plus haute
           var x = left + i * (bwid + gap);
-          ctx.fillStyle = v === minL ? ACCENT : 'rgba(255,255,255,0.28)';
+          ctx.fillStyle = v === minL ? C.red : 'rgba(20,22,26,0.16)';
           roundRect(ctx, x, top + chartH - h, bwid, h, Math.min(12, bwid / 3)); ctx.fill();
         });
-        ctx.fillStyle = MUTED; ctx.font = '500 38px "Barlow", -apple-system, "Segoe UI", sans-serif';
+        ctx.fillStyle = C.muted; ctx.font = '600 38px "Barlow", sans-serif';
         ctx.fillText(laps.length + ' tour' + (laps.length > 1 ? 's' : '') + '  ·  barre haute = tour rapide', left, top + chartH + 65);
       }
       // pied : invitation
-      ctx.fillStyle = INK; ctx.font = '700 46px "Barlow", -apple-system, "Segoe UI", sans-serif';
-      ctx.fillText('Mon carnet de piste, gratuit :', 80, H - 230);
-      ctx.fillStyle = ACCENT; fitText(ctx, 'thereiivman-art.github.io/carnetpiste', W - 160, 46, '700');
-      ctx.fillText('thereiivman-art.github.io/carnetpiste', 80, H - 160);
+      ctx.fillStyle = C.line; ctx.fillRect(80, H - 250, W - 160, 2);
+      ctx.fillStyle = C.ink; ctx.font = '700 46px "Barlow", sans-serif';
+      ctx.fillText('Mon carnet de piste, gratuit :', 80, H - 175);
+      ctx.fillStyle = C.red; fitText(ctx, 'thereiivman-art.github.io/carnetpiste', W - 160, 46, '700');
+      ctx.fillText('thereiivman-art.github.io/carnetpiste', 80, H - 105);
       return new Promise(function (resolve) { canvas.toBlob(function (b) { resolve(b); }, 'image/png'); });
     });
   }
@@ -8113,31 +8141,35 @@
       var weatherLine = weatherSummaryLine(ev);
       var chronoLines = Math.max(1, mySessions.length);
       var planH = planImg ? Math.round(planImg.height * ((W - padding * 2) / planImg.width)) : 0;
-      var H = padding + 50 + 40 + (weatherLine ? lineH : 0) + 36 + chronoLines * lineH + (planImg ? 20 + planH : 0) + padding;
+      var H = padding + 16 + 60 + 40 + (weatherLine ? lineH : 0) + 36 + chronoLines * lineH + (planImg ? 20 + planH : 0) + padding;
       var canvas = document.createElement('canvas');
       canvas.width = W;
       canvas.height = H;
       var ctx = canvas.getContext('2d');
-      ctx.fillStyle = '#ffffff';
+      // Charte Paddock (voir buildShareCard).
+      ctx.fillStyle = SHARE_COLORS.bg;
       ctx.fillRect(0, 0, W, H);
-      var y = padding;
-      ctx.fillStyle = '#16212c';
-      ctx.font = '700 32px "Barlow Condensed", sans-serif';
-      ctx.fillText(ev.circuit, padding, y + 24); y += 50;
-      ctx.font = '400 18px "Barlow", sans-serif';
-      ctx.fillStyle = '#5c6b78';
+      ctx.fillStyle = SHARE_COLORS.red;
+      ctx.fillRect(0, 0, W, 8);
+      var y = padding + 16;
+      drawShareMark(ctx, padding, y - 4, 36);
+      ctx.fillStyle = SHARE_COLORS.ink;
+      ctx.font = 'italic 800 40px ' + CONDENSED;
+      ctx.fillText(String(ev.circuit).toUpperCase(), padding + 34, y + 28); y += 60;
+      ctx.font = '600 18px "Barlow", sans-serif';
+      ctx.fillStyle = SHARE_COLORS.muted;
       ctx.fillText(formatEventRange(ev, true) + (teamName ? '  ·  ' + teamName : ''), padding, y); y += 40;
       if (weatherLine) { ctx.fillText(weatherLine, padding, y); y += lineH; }
       ctx.font = '700 20px "Barlow", sans-serif';
-      ctx.fillStyle = '#16212c';
-      ctx.fillText(tr('my_chronos_export_heading'), padding, y); y += 36;
+      ctx.fillStyle = SHARE_COLORS.red;
+      ctx.fillText(tr('my_chronos_export_heading').toUpperCase(), padding, y); y += 36;
       ctx.font = '600 20px "Barlow Condensed", sans-serif';
       if (!mySessions.length) {
-        ctx.fillStyle = '#5c6b78';
+        ctx.fillStyle = SHARE_COLORS.muted;
         ctx.fillText(tr('no_chrono_this_outing'), padding, y); y += lineH;
       } else {
         mySessions.forEach(function (s) {
-          ctx.fillStyle = '#16212c';
+          ctx.fillStyle = SHARE_COLORS.ink;
           ctx.fillText(formatDate(s.date) + '  —  ' + formatTime(sessionBest(s)) + '  (' + s.laps.length + (s.laps.length > 1 ? tr('laps_suffix') : tr('lap_suffix')) + ')', padding, y);
           y += lineH;
         });
@@ -8149,14 +8181,16 @@
       showAnnotImagePreview(canvas.toDataURL('image/png'), ev.circuit + ' — ' + tr('recap_export_caption'));
     }
 
-    if (planDataUrl) {
-      var img = new Image();
-      img.onload = function () { finish(img); };
-      img.onerror = function () { finish(null); };
-      img.src = planDataUrl;
-    } else {
-      finish(null);
-    }
+    shareFontsReady().then(function () {
+      if (planDataUrl) {
+        var img = new Image();
+        img.onload = function () { finish(img); };
+        img.onerror = function () { finish(null); };
+        img.src = planDataUrl;
+      } else {
+        finish(null);
+      }
+    });
   }
 
   function exportAnnotationPng() {
@@ -10138,7 +10172,7 @@
     html += renderPills('events', pills);
     if (editingEventId === 'new') {
       html += renderEventForm();
-    } else {
+    } else if (pillState.events !== 'passes') {
       html += '<button type="button" class="primary add-chrono-btn" data-action="quick-outing">+ Ajouter un roulage</button>';
       html += '<div class="help-text carnet-add-help">Circuit et date suffisent ; horaires et groupes peuvent venir après (photo de l\'affiche).</div>';
     }
