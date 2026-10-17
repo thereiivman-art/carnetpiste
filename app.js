@@ -10509,34 +10509,23 @@
       else html += '<div style="margin:0.5rem 0;"><button type="button" class="ghost" data-action="team-event-edit" data-id="' + ev.id + '">✎ Modifier le roulage</button></div>';
     }
     if (ev.teamId) html += renderEventAnnouncements(ev, false);
-    if (!advancedHidden()) {
-      if (featureEnabled('weather')) html += renderWeatherSection(ev, isLeader);
-      if (featureEnabled('specialActivities')) html += renderSpecialActivitiesSection(ev, isLeader);
-      if (featureEnabled('rental')) {
-        html += renderRentalMotosSection(ev, isLeader);
-        html += renderRentalEquipementSection(ev, isLeader);
-      }
-    }
     // Briefing lives with Horaires (above the group filter) now, not up
     // here -- it's schedule information, same family as the slot times.
     var briefingLine = info.briefing ? '<div class="help-text" style="margin-bottom:0.6rem; color:var(--accent); font-weight:600;">Briefing ' + escapeHtml(info.briefing) + '</div>' : '';
 
     html += renderMyGroupSection(ev);
 
-    // Groupes/Équipement/Infos pratiques are the same three rubriques
-    // whether or not this circuit has horaires recorded -- only the
-    // Horaires rubrique itself (and the countdown/recap that depend on
-    // slot times) differs between the two cases, so that's the only part
-    // built conditionally below.
+    // Each rubrique is a sub-pill below the orange card now, not a
+    // collapsible inside it. Only the Horaires content itself (and the
+    // countdown/recap that depend on slot times) differs with or without
+    // horaires recorded.
     var availableGroups = horaires ? HORAIRES_GROUPS.filter(function (g) { return horaires[g.key]; }) : [];
+    var horairesInner = briefingLine;
     if (!availableGroups.length) {
-      html += briefingLine;
-      html += '<div class="help-text">Pas encore d\'horaires pour ce roulage.</div>';
-      html += renderHorairesImportButton(ev, false);
-      html += renderHorairesPhotoSection(ev);
+      horairesInner += '<div class="help-text">Pas encore d\'horaires pour ce roulage.</div>';
+      horairesInner += renderHorairesImportButton(ev, false);
+      horairesInner += renderHorairesPhotoSection(ev);
     } else {
-      if (ev.horairesBy) html += '<div class="help-text">Horaires ajoutés par ' + escapeHtml(ev.horairesBy) + '</div>';
-      html += renderHorairesImportButton(ev, true);
       var activeKeys = (planningGroupFilter && planningGroupFilter.length)
         ? planningGroupFilter.filter(function (k) { return availableGroups.some(function (g) { return g.key === k; }); })
         : availableGroups.map(function (g) { return g.key; });
@@ -10545,7 +10534,6 @@
       html += '<div id="planning-countdown" class="planning-countdown"></div>';
       if (isOngoing) html += renderFollowedRidersStatus(ev, horaires, dateKey(new Date()));
 
-      var horairesInner = briefingLine;
       horairesInner += '<div class="planning-group-filter">';
       availableGroups.forEach(function (g) {
         var checked = activeKeys.indexOf(g.key) !== -1;
@@ -10553,10 +10541,10 @@
       });
       horairesInner += '</div>';
       horairesInner += renderHoraireGroups(horaires, activeKeys, ev, info.briefing);
+      if (ev.horairesBy) horairesInner += '<div class="help-text" style="margin-top:0.6rem;">Horaires ajoutés par ' + escapeHtml(ev.horairesBy) + '</div>';
+      horairesInner += renderHorairesImportButton(ev, true);
       horairesInner += renderHorairesPhotoSection(ev);
-      html += collapsibleSection('horaires', 'Horaires', horairesInner, false);
     }
-    if (!advancedHidden()) html += renderPracticalInfoSection(ev, isLeader);
     if (isOngoing && availableGroups.length) {
       var todayKey = dateKey(new Date());
       if (myGroupFinishedToday(ev, horaires, todayKey)) {
@@ -10566,36 +10554,50 @@
     }
     html += '</div>';
 
-    // Objectif pour la prochaine session -- moved here from the Circuit
-    // tab (Chronos) so it sits right where a rider is actually planning
-    // that next outing, keyed off this event's own circuit rather than
-    // whichever one happens to be selected in Chronos. Its own
-    // margin-top:1rem (see renderChronoGoalsCard) already gives it clean
-    // breathing room below the orange card.
+    var progItems = [['horaires', 'Horaires', horairesInner]];
+    if (!advancedHidden()) {
+      progItems.push(['infos', 'Infos pratiques', flatSections(renderPracticalInfoSection(ev, isLeader))]);
+      if (featureEnabled('weather')) progItems.push(['meteo', 'Météo', flatSections(renderWeatherSection(ev, isLeader))]);
+      if (featureEnabled('specialActivities')) progItems.push(['activites', 'Activités', flatSections(renderSpecialActivitiesSection(ev, isLeader))]);
+      if (featureEnabled('rental')) progItems.push(['location', 'Location', flatSections(renderRentalMotosSection(ev, isLeader)) + flatSections(renderRentalEquipementSection(ev, isLeader))]);
+    }
 
-    // Grey card: this account's own personal info for the sortie -- never
-    // something the Team orga fills in for everyone.
     var jourjHtml = '';
     if (isOngoing && (ev.riders || []).indexOf(currentUserProfile && currentUserProfile.name) !== -1) {
       jourjHtml = '<button type="button" class="primary jourj-launch" data-action="open-jourj">🏁 Mode jour J — prochaine session en grand</button>';
     }
-    var personal = '<div class="card prep-card">';
-    personal += renderChronoGoalsCard(ev.circuit, true);
-    personal += renderTrackNotesReminder(ev.circuit);
-    personal += renderFriendsGroupSection(ev);
+    // Ma prépa: this account's own prep, one sub-pill per rubrique.
+    var nNotes = myTrackNotes(ev.circuit).length;
+    var prepItems = [
+      ['objectif', 'Objectif', flatSections(renderChronoGoalsCard(ev.circuit, true))],
+      ['reperes', 'Repères' + (nNotes ? ' (' + nNotes + ')' : ''), flatSections(renderTrackNotesReminder(ev.circuit))],
+      ['amis', 'Amis', flatSections(renderFriendsGroupSection(ev))]
+    ];
     if (!advancedHidden()) {
-      personal += collapsibleSection('avant-session-section', avantSessionChecklistLabel(ev), renderAvantSessionChecklist(ev));
-      personal += collapsibleSection('equipement', checklistCountLabel(ev), renderPlanningChecklist(ev));
-      personal += renderMyTravelInfoSection(ev);
-      personal += renderFollowedTravelInfoSection(ev);
+      prepItems.push(['checklist', 'Checklist ' + avantSessionChecklistLabel(ev).replace(/^.*—\s*/, ''), renderAvantSessionChecklist(ev)]);
+      prepItems.push(['equipement', 'Équipement ' + checklistCountLabel(ev).replace(/^.*—\s*/, ''), renderPlanningChecklist(ev)]);
+      prepItems.push(['voyage', 'Voyage', flatSections(renderMyTravelInfoSection(ev)) + renderFollowedTravelInfoSection(ev)]);
     }
-    personal += '</div>';
 
     // Same pills as the other pages: what the orga provides (Programme)
-    // vs. this rider's own prep (Ma prépa).
+    // vs. this rider's own prep (Ma prépa), then sub-pills for each rubrique.
     return jourjHtml + renderClientPills('planning', [['programme', 'Programme'], ['prepa', 'Ma prépa']]) +
-      cpillSection('planning', 'programme') + html + '</div>' +
-      cpillSection('planning', 'prepa') + personal + '</div>';
+      cpillSection('planning', 'programme') + html + renderSubPills('progsub', progItems) + '</div>' +
+      cpillSection('planning', 'prepa') + renderSubPills('prepsub', prepItems) + '</div>';
+  }
+
+  // Third level of navigation, below a pill: small chips, each showing its
+  // rubrique in one card (no re-render, like renderClientPills).
+  function renderSubPills(group, items) {
+    items = items.filter(function (it) { return it[2]; });
+    if (!items.length) return '';
+    var cur = pillState[group];
+    if (!items.some(function (it) { return it[0] === cur; })) cur = pillState[group] = items[0][0];
+    var html = '<div class="sub-pills">' + items.map(function (it) {
+      return '<button type="button" class="sub-pill-btn' + (it[0] === cur ? ' active' : '') + '" data-cpill-group="' + group + '" data-cpill="' + it[0] + '">' + escapeHtml(it[1]) + '</button>';
+    }).join('') + '</div>';
+    items.forEach(function (it) { html += cpillSection(group, it[0]) + '<div class="card">' + it[2] + '</div></div>'; });
+    return html;
   }
 
   // The connected pilote's own group for a given date -- pm takes
@@ -16231,7 +16233,7 @@
       });
     });
     // Pastille active toujours visible si la rangée défile (petits écrans).
-    document.querySelectorAll('.pill-tabs .pill-btn.active').forEach(function (el) {
+    document.querySelectorAll('.pill-tabs .pill-btn.active, .sub-pills .sub-pill-btn.active').forEach(function (el) {
       var row = el.parentNode;
       if (row.scrollWidth > row.clientWidth) row.scrollLeft = Math.max(0, el.offsetLeft - row.offsetLeft - 24);
     });
