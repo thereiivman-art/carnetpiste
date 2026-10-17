@@ -2858,9 +2858,6 @@
 
 /* Mes sorties : liste compacte */
 .outings-card { padding-bottom: 0.4rem; }
-.outings-head { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; margin-bottom: 0.3rem; }
-.outings-head .section-title { margin: 0; }
-.outings-toggle { display: flex; gap: 0.3rem; }
 .pill-btn { border: 1px solid var(--border); background: var(--surface); color: var(--text-muted); border-radius: 999px; padding: 0.25rem 0.65rem; font-size: 0.82rem; font-weight: 600; cursor: pointer; }
 .pill-btn.active { background: var(--text); border-color: var(--text); color: var(--surface); }
 .outing-row { display: flex; align-items: center; gap: 0.65rem; width: 100%; text-align: left; background: none; border: none; border-bottom: 1px solid var(--border); padding: 0.55rem 0; color: inherit; cursor: pointer; }

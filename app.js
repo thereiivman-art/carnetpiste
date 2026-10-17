@@ -6547,9 +6547,9 @@
   function renderOutingCards(outings) {
     var upcoming = myUpcomingEvents();
     if (!carnetCardsMode) carnetCardsMode = outings.length ? 'passees' : 'avenir';
-    var html = '<div class="card outings-card"><div class="outings-head"><h2 class="section-title">Mes roulages</h2><div class="outings-toggle">' +
-      '<button type="button" class="pill-btn' + (carnetCardsMode === 'passees' ? ' active' : '') + '" data-cards-mode="passees">Passés</button>' +
-      '<button type="button" class="pill-btn' + (carnetCardsMode === 'avenir' ? ' active' : '') + '" data-cards-mode="avenir">À venir</button></div></div>';
+    // Passés / À venir are the page's pills now (see carnetPillsHtml),
+    // not a small toggle inside the card.
+    var html = '<div class="card outings-card">';
     if (carnetCardsMode === 'avenir') {
       if (!upcoming.length) html += '<div class="help-text" style="padding:0.4rem 0;">Aucun roulage à venir. <button type="button" class="link-btn inline-link" data-action="quick-outing">Ajouter un roulage</button></div>';
       upcoming.forEach(function (ev) {
@@ -6582,8 +6582,20 @@
     return html;
   }
 
+  function carnetPillsHtml(outings) {
+    var upcoming = myUpcomingEvents();
+    if (!outings.length && !upcoming.length) return '';
+    if (!carnetCardsMode) carnetCardsMode = outings.length ? 'passees' : 'avenir';
+    if (!outings.length) carnetCardsMode = 'avenir';
+    var items = [['passees', 'Mes roulages' + (outings.length ? ' (' + outings.length + ')' : '')], ['avenir', 'À venir' + (upcoming.length ? ' (' + upcoming.length + ')' : '')]];
+    return '<div class="pill-tabs">' + items.map(function (it) {
+      return '<button type="button" class="pill-btn' + (carnetCardsMode === it[0] ? ' active' : '') + '" data-cards-mode="' + it[0] + '">' + it[1] + '</button>';
+    }).join('') + '</div>';
+  }
+
   function renderCarnetTab() {
-    var html = '';
+    var outings = myOutings();
+    var html = carnetPillsHtml(outings);
     var target = targetPlanningEvent();
     if (target && target.mode === 'ongoing') {
       html += '<div class="card carnet-today-card"><strong>🏍️ Tu roules aujourd\'hui à ' + escapeHtml(target.ev.circuit) + '</strong>' +
@@ -6599,7 +6611,6 @@
       html += '<div class="help-text carnet-add-help">Saisie, photo de la feuille de temps, capture d\'écran ou PDF.</div>';
     }
 
-    var outings = myOutings();
     if (!outings.length) {
       if (!myUpcomingEvents().length) {
         html += '<div class="card first-outing-card"><h2 class="section-title">Quel est ton prochain roulage ?</h2>' +
