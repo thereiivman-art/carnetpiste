@@ -6032,13 +6032,25 @@
   // sessions du jour.
   var outingView = null; // { circuit, date, eventId }
   function openOuting(circuit, date, eventId) {
-    outingView = { circuit: circuit, date: date, eventId: eventId || null };
+    var from = activeView === 'outing' && outingView ? outingView.from : activeView;
+    outingView = { circuit: circuit, date: date, eventId: eventId || null, from: from || 'carnet' };
     // A roulage still to come opens on its infos; a past one on its chronos.
     pillState.outing = date > dateKey(new Date()) ? 'infos' : 'chronos';
     activeView = 'outing';
     renderRoot();
     window.scrollTo(0, 0);
   }
+  // Every place that shows a roulage (Calendrier, notifications, liens)
+  // opens this same page.
+  function openEventPage(id) {
+    var ev = eventsList().filter(function (e) { return e.id === id; })[0];
+    if (!ev) return;
+    selectEvent(id);
+    var today = dateKey(new Date());
+    var day = (today >= ev.dateStart && today <= (ev.dateEnd || ev.dateStart)) ? today : ev.dateStart;
+    openOuting(ev.circuit, day, ev.id);
+  }
+
   function renderOutingPage() {
     if (!outingView) return renderCarnetTab();
     var me = currentUserProfile && currentUserProfile.name;
@@ -6061,8 +6073,7 @@
     });
 
     var html = '<div class="outing-page">';
-    html += '<button type="button" class="link-btn back-link" data-view="carnet">← Retour</button>';
-    html += '<div class="outing-hero"><h1 class="outing-title">' + escapeHtml(circuit) + '</h1><div class="outing-underline"></div>' +
+    html += '<div class="outing-hero"><div class="page-title-row"><button type="button" class="back-chevron" data-view="' + escapeHtml(outingView.from || 'carnet') + '" aria-label="Retour">‹</button><h1 class="outing-title">' + escapeHtml(circuit) + '</h1></div><div class="outing-underline"></div>' +
       '<div class="outing-hero-row"><span class="outing-date-chip">📅 ' + escapeHtml(ev ? formatEventRange(ev, true) : formatDate(date)) + '</span>' +
       (team ? '<span class="outing-org">' + (team.logoURL ? '<img src="' + escapeHtml(team.logoURL) + '" alt="">' : '') + '<span><span class="outing-label">Organisé par</span><br><strong>' + escapeHtml(team.name || '') + '</strong></span></span>' : '') +
       '</div></div>';
@@ -6135,8 +6146,8 @@
         html += '<div class="empty-state">Pas encore d\'horaires pour ce roulage.</div>';
         if (ev) html += renderHorairesImportButton(ev, false);
       }
-      if (ev) html += '<button type="button" class="ghost" data-open-event="' + escapeHtml(ev.id) + '" style="margin-top:0.8rem;">Fiche complète du roulage ›</button>';
       html += '</div>';
+      if (ev) html += (editingEventId === ev.id) ? renderEventForm() : renderEventSummaryCard(ev, { hideGroups: true, inPage: true });
     } else {
       html += '<button type="button" class="primary add-chrono-btn" data-action="open-track-notes" data-circuit="' + escapeHtml(circuit) + '">📍 ' + (notes.length ? 'Voir le plan et mes repères' : 'Noter mes repères sur le plan') + '</button>';
       html += '<div class="card">' + (notes.length ? notes.map(function (n, i) {
@@ -8918,6 +8929,7 @@
   // Le dernier sous-onglet ouvert dans chaque onglet est mémorisé pour y
   // revenir directement.
   function navTabFor(view) {
+    if (view === 'outing' && outingView && outingView.from) return navTabFor(outingView.from);
     if (view === 'event' || view === 'planning') return 'sorties';
     if (view === 'social' || view === 'team' || view === 'coach') return 'communaute';
     return 'carnet';
@@ -9547,7 +9559,7 @@
   function renderEventSummaryCard(ev, opts) {
     opts = opts || {};
     var html = '<div class="card event-detail-card">';
-    html += '<div class="event-detail-header"><h3>' + escapeHtml(ev.circuit) + '</h3><button type="button" class="ghost icon-btn" id="close-event-detail" aria-label="' + tr('close') + '">×</button></div>';
+    if (!opts.inPage) html += '<div class="event-detail-header"><h3>' + escapeHtml(ev.circuit) + '</h3><button type="button" class="ghost icon-btn" id="close-event-detail" aria-label="' + tr('close') + '">×</button></div>';
     if (ev.teamId) {
       var evTeam = teamById(ev.teamId);
       var visLabels = { public: tr('vis_public'), adherent: tr('vis_adherent'), membre: tr('vis_membre'), follower: tr('vis_follower'), ouvert: tr('vis_ouvert') };
@@ -9556,8 +9568,10 @@
     } else if (ev.organizerNote) {
       html += infoRow(tr('organizer_label'), escapeHtml(ev.organizerNote));
     }
-    html += infoRow(tr('circuit_label'), escapeHtml(ev.circuit));
-    html += infoRow(tr('dates_label'), escapeHtml(formatEventRange(ev, true)));
+    if (!opts.inPage) {
+      html += infoRow(tr('circuit_label'), escapeHtml(ev.circuit));
+      html += infoRow(tr('dates_label'), escapeHtml(formatEventRange(ev, true)));
+    }
     if (ev.note) html += infoRow(tr('note_label'), escapeHtml(ev.note));
     // Read-only here (editing happens from EN PISTE, see renderWeatherSection)
     // -- just a quick reminder of the day's conditions for whoever opens
@@ -9591,7 +9605,7 @@
     // par défaut (ce n'est plus l'info qu'on vient chercher en premier une
     // fois la sortie terminée) ; live=false, pas de mise en avant du
     // créneau "en cours" qui n'aurait plus de sens pour une date passée.
-    if (eventTemporalStatus(ev, dateKey(new Date())) === 'past') {
+    if (!opts.inPage && eventTemporalStatus(ev, dateKey(new Date())) === 'past') {
       var pastInfo = circuitInfo(ev.circuit);
       var pastHoraires = eventHoraires(ev);
       if (pastHoraires) {
@@ -9615,7 +9629,7 @@
     html += renderPersonalMediaLinksSection(ev);
     // The circuit's own interactive map, so the annotated track is one tap
     // away from the sortie it belongs to, not just reachable from Circuit.
-    html += '<div class="event-circuit-map"><div class="event-checklist-title">' + tr('circuit_map_heading') + '</div>' + renderCircuitVisual(circuitInfo(ev.circuit), ev.circuit) + '</div>';
+    if (!opts.inPage) html += '<div class="event-circuit-map"><div class="event-checklist-title">' + tr('circuit_map_heading') + '</div>' + renderCircuitVisual(circuitInfo(ev.circuit), ev.circuit) + '</div>';
     // The équipement checklist (with its count) lives entirely in
     // Planning now -- Événements stays simple and informative.
     // "Modifier" was shown unconditionally here (unlike every other edit
@@ -9908,7 +9922,7 @@
   // so the row markup and its open/edit behavior stay in exactly one place.
   function renderEventRow(ev, opts) {
     opts = opts || {};
-    var isOpen = ev.id === selectedEventId;
+    var isOpen = false; // a roulage opens its own page (openEventPage), lists never expand in place
     var html = '<div class="event-row event-row-toggle' + (isOpen ? ' selected' : '') + '" data-event-id="' + ev.id + '" aria-expanded="' + (isOpen ? 'true' : 'false') + '">';
     html += '<div class="event-row-main"><span class="event-row-circuit">' + escapeHtml(ev.circuit) + '</span>';
     // The équipement count lives only in Planning now (with the actual
@@ -12654,9 +12668,9 @@
     var canPost = isLeader || (isMember && team.postPolicy === 'members');
     var feed = (STATE.teamFeed || []).filter(function (f) { return f.teamId === team.id; });
     var html = '<div class="card team-card">';
-    html += '<div class="section-title" style="display:flex; align-items:center; gap:0.6rem;">' + avatarHtml(team, team.name) +
+    html += '<div class="section-title" style="display:flex; align-items:center; gap:0.6rem;">' +
+      '<button type="button" class="back-chevron" data-action="team-tile-close" aria-label="' + escapeHtml(tr('back_to_teams').replace(/^←\s*/, '')) + '">‹</button>' + avatarHtml(team, team.name) +
       '<span style="flex:1;">' + escapeHtml(team.name) + teamBadgesHtml(team) + '</span>' +
-      (!isMember ? '<button type="button" class="ghost icon-btn" data-action="unfollow-team" data-team="' + team.id + '" aria-label="' + tr('unfollow') + '" title="' + tr('unfollow') + '">×</button>' : '') +
       '<span class="friend-role-badge">' + (isLeader ? tr('team_leader_label') : (isMember ? tr('member_label') : tr('follower_label'))) + '</span></div>';
     var teamLikeCount = (STATE.teamLikes || []).filter(function (l) { return l.teamId === team.id; }).length;
     var teamFollowCount = ((STATE.teamFollowersByTeam || {})[team.id] || []).length;
@@ -12783,6 +12797,8 @@
 
     var bMembres = html;
     var bReglages = renderTeamSettings(team, isLeader);
+    // "Ne plus suivre" lives in Réglages (was a bare × in the header).
+    if (!isMember) bReglages = '<div style="margin-bottom:0.8rem;"><button type="button" class="ghost" data-action="unfollow-team" data-team="' + team.id + '">' + tr('unfollow') + '</button></div>' + (bReglages || '');
     var teamPills = [['fil', 'Fil'], ['membres', 'Membres (' + members.length + ')']];
     if (isLeader) teamPills.push(['roulages', 'Roulages']);
     teamPills.push(['reglages', 'Réglages']);
@@ -13343,8 +13359,7 @@
             renderEventManagementScreen(managingEvent, expandedTeam) +
             '</div>';
         } else {
-          html += '<div style="margin-top:1rem;">' +
-            '<button type="button" class="link-btn back-link" data-action="team-tile-close">' + tr('back_to_teams') + '</button>' +
+          html += '<div>' +
             renderTeamCard(expandedTeam, me) +
             '</div>';
         }
@@ -15583,10 +15598,8 @@
       nextOutingLink.addEventListener('click', function () {
         var ev = eventsList().filter(function (e) { return e.id === nextOutingLink.getAttribute('data-event-id'); })[0];
         if (!ev) return;
-        activeView = 'event';
-        selectEvent(ev.id);
         calendarAnchor = ev.dateStart;
-        renderRoot();
+        openEventPage(ev.id);
       });
     }
     var planOutingLink = document.getElementById('plan-outing-link');
@@ -15638,7 +15651,9 @@
 
     document.querySelectorAll('[data-view]').forEach(function (btn) {
       btn.addEventListener('click', function () {
-        activeView = btn.getAttribute('data-view');
+        var nextView = btn.getAttribute('data-view');
+        if (nextView === 'team' && activeView === 'team') { expandedTeamId = null; managingEventId = null; teamMemberSearch = ''; }
+        activeView = nextView;
         profilePanelOpen = false;
         notificationsPanelOpen = false;
         editingEventId = null;
@@ -15676,8 +15691,7 @@
         var evId = el.getAttribute('data-event-id');
         var dateStr = el.getAttribute('data-date');
         if (evId) {
-          selectEvent(evId);
-          renderRoot();
+          openEventPage(evId);
           return;
         }
         var sessionsHere = sessionsOnDate(dateStr);
@@ -15690,13 +15704,7 @@
     // it, clicking another row switches to it — nothing here navigates tabs.
     document.querySelectorAll('.event-row-toggle[data-event-id]').forEach(function (row) {
       row.addEventListener('click', function () {
-        var id = row.getAttribute('data-event-id');
-        if (selectedEventId === id) {
-          selectedEventId = null;
-        } else {
-          selectEvent(id);
-        }
-        renderRoot();
+        openEventPage(row.getAttribute('data-event-id'));
       });
     });
     document.querySelectorAll('.past-year-toggle[data-past-year]').forEach(function (btn) {
@@ -16212,7 +16220,7 @@
       window.scrollTo(0, 0);
     });
     document.querySelectorAll('[data-open-event]').forEach(function (b) {
-      b.addEventListener('click', function () { activeView = 'event'; selectEvent(b.getAttribute('data-open-event')); renderRoot(); window.scrollTo(0, 0); });
+      b.addEventListener('click', function () { openEventPage(b.getAttribute('data-open-event')); });
     });
     var carnetHist = document.getElementById('carnet-history-toggle');
     if (carnetHist) carnetHist.addEventListener('click', function () { carnetHistoryAll = !carnetHistoryAll; renderRoot(); });

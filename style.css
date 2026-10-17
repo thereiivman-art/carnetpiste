@@ -2959,3 +2959,8 @@
 .add-chrono-btn + .card, .cta-btn + .card { margin-top: 0.9rem; }
 .card + .pill-tabs { margin-top: 0.9rem; }
 .card > .planning-section:first-child { margin-top: 0; border-top: none; padding-top: 0; }
+/* Retour compact : un chevron à gauche du titre, au lieu d'un lien « ← Retour » sur sa propre ligne */
+.page-title-row { display: flex; align-items: center; gap: 0.5rem; }
+.back-chevron { flex: 0 0 auto; width: 2.2rem; height: 2.2rem; padding: 0; border: 1px solid var(--border); border-radius: 50%; background: var(--surface); color: var(--text); font-size: 1.5rem; line-height: 1; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; }
+.back-chevron:hover { color: var(--accent); border-color: var(--accent); }
+.outing-page .card + .card { margin-top: 0.9rem; }
