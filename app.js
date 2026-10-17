@@ -6479,9 +6479,15 @@
     var overlay = document.createElement('div');
     overlay.className = 'crop-modal-overlay';
     overlay.innerHTML = '<div class="crop-modal" style="max-width:420px;"><h2 class="section-title">Nouveau roulage</h2>' + quickOutingFormHtml('qom') +
+      '<button type="button" class="link-btn inline-link" data-qom-full style="margin-top:0.6rem; display:block;">Formulaire complet (organisateur, pilotes, horaires…)</button>' +
       '<button type="button" class="ghost" data-qom-close style="margin-top:0.5rem; width:100%;">Annuler</button></div>';
     document.body.appendChild(overlay);
     overlay.querySelector('[data-qom-close]').addEventListener('click', function () { overlay.remove(); });
+    overlay.querySelector('[data-qom-full]').addEventListener('click', function () {
+      overlay.remove();
+      editingEventId = 'new'; selectedEventId = null; activeView = 'event';
+      renderRoot(); window.scrollTo(0, 0);
+    });
     var sel = overlay.querySelector('#qom-circuit'), other = overlay.querySelector('#qom-circuit-other');
     sel.addEventListener('change', function () { other.style.display = sel.value === '__other__' ? '' : 'none'; });
     overlay.querySelector('[data-quick-save]').addEventListener('click', function () {
@@ -8852,6 +8858,16 @@
       return '<button type="button" role="tab" class="subnav-btn' + (activeView === it[0] ? ' active' : '') + '" data-view="' + it[0] + '">' + it[1] + '</button>';
     }).join('') + '</div>';
   }
+  // Pastilles (3e niveau, à l'intérieur d'un sous-onglet) : même style que
+  // le filtre Passés/À venir du carnet. État mémorisé par groupe.
+  var pillState = { social: 'fil', events: 'avenir' };
+  function renderPills(group, items) {
+    var cur = pillState[group];
+    if (!items.some(function (it) { return it[0] === cur; })) cur = pillState[group] = items[0][0];
+    return '<div class="pill-tabs">' + items.map(function (it) {
+      return '<button type="button" class="pill-btn' + (it[0] === cur ? ' active' : '') + '" data-pill-group="' + group + '" data-pill="' + it[0] + '">' + it[1] + '</button>';
+    }).join('') + '</div>';
+  }
   function communauteSubItems() {
     var items = [['social', 'Amis & fil']];
     if (!isSimplifiedModeOn(currentUserProfile)) items.push(['team', 'Teams']);
@@ -8904,7 +8920,7 @@
     else if (calendarViewMode === '2month') html += renderMultiMonthGrid(2, eventInfo, sessionsMap);
     else html += renderYearGrid(eventInfo, sessionsMap);
     if (selectedSessionDate) html += renderSessionDayCard(selectedSessionDate);
-    return collapsibleCard('events-calendar', tr('my_calendar_heading'), html, false);
+    return '<div class="card">' + html + '</div>'; // affiché directement (pastille Calendrier)
   }
 
   function ZOOM_LEVEL_LABELS() {
@@ -9850,7 +9866,7 @@
   // first) instead of one long flat list -- opening a year reveals its
   // sorties in place, same accordion row as everywhere else.
   function renderPastEventsCard(past) {
-    if (!past.length) return collapsibleCard('events-past', tr('past_label'), '<div class="empty-state">' + tr('no_event') + '</div>', false);
+    if (!past.length) return collapsibleCard('events-past', tr('past_label'), '<div class="empty-state">' + tr('no_event') + '</div>', true);
     var searchHtml = past.length > 6
       ? '<input type="text" id="past-event-search" placeholder="' + tr('search_past_event_placeholder') + '" value="' + escapeHtml(pastEventSearch) + '" style="margin-bottom:0.6rem;">'
       : '';
@@ -9862,7 +9878,7 @@
       var matchBody = !matches.length
         ? '<div class="help-text">' + tr('no_results_for_prefix') + escapeHtml(pastEventSearch) + tr('no_results_for_suffix') + '</div>'
         : matches.map(function (ev) { return renderEventRow(ev, { hideGroups: false }); }).join('');
-      return collapsibleCard('events-past', tr('past_label'), searchHtml + matchBody, false);
+      return collapsibleCard('events-past', tr('past_label'), searchHtml + matchBody, true);
     }
     var byYear = {};
     past.forEach(function (ev) {
@@ -9888,7 +9904,7 @@
       }
       body += '</div>';
     });
-    return collapsibleCard('events-past', tr('past_label'), body, false);
+    return collapsibleCard('events-past', tr('past_label'), body, true);
   }
 
   // Two clear categories now: "Mes Événements" (En cours/À venir/Mon
@@ -9916,27 +9932,32 @@
     ongoing.sort(function (a, b) { return a.dateStart < b.dateStart ? -1 : a.dateStart > b.dateStart ? 1 : 0; });
     upcoming.sort(function (a, b) { return a.dateStart < b.dateStart ? -1 : a.dateStart > b.dateStart ? 1 : 0; });
     past.sort(function (a, b) { return a.dateStart < b.dateStart ? 1 : a.dateStart > b.dateStart ? -1 : 0; });
-    var html = '<h2 class="section-title">' + tr('my_events_heading') + '</h2>';
-    if (!ongoing.length && !upcoming.length && !past.length) {
-      html += '<div class="card"><div class="empty-state">' + (coreDataLoading() ? tr('loading') : tr('no_event_yet')) + '</div></div>';
+    var html = '';
+    if (editingEventId === 'new') {
+      html += renderEventForm();
     } else {
-      if (ongoing.length) html += renderEventGroupCard(tr('ongoing_label'), ongoing, { collapseKey: 'events-ongoing', defaultOpen: true });
-      // Upcoming defaults open only when nothing's ongoing -- whichever of
-      // the two actually has something to show for right now is the one
-      // that shouldn't need an extra click.
-      html += renderEventGroupCard(tr('upcoming_label'), upcoming, { collapseKey: 'events-upcoming', defaultOpen: !ongoing.length });
+      html += '<button type="button" class="primary add-chrono-btn" data-action="quick-outing">+ Ajouter un roulage</button>';
+      html += '<div class="help-text carnet-add-help">Circuit et date suffisent ; horaires et groupes peuvent venir après (photo de l\'affiche).</div>';
     }
-    html += renderCalendarSection();
-    // Only the "+ Ajouter" prompt (or its own open form, editingEventId
-    // 'new') lives in this standing slot -- editing an EXISTING event
-    // (editingEventId set to a real id, from "Modifier" inside its own
-    // row's accordion below) must never also open the form again here:
-    // that duplicated the whole edit card and jumped the page's scroll
-    // to this spot, above whatever event the click was actually on.
-    html += (editingEventId === null || editingEventId === 'new') ? renderEventForm() : addEventTeaserCard();
-    html += renderPastEventsCard(past);
     var discovery = renderProEventDiscovery(me);
-    if (discovery) html += '<h2 class="section-title" style="margin-top:1.4rem;">' + tr('discover_events_heading') + '</h2>' + discovery;
+    var pills = [['avenir', 'À venir' + ((ongoing.length + upcoming.length) ? ' (' + (ongoing.length + upcoming.length) + ')' : '')], ['passes', 'Passés'], ['calendrier', 'Calendrier']];
+    if (discovery) pills.push(['decouvrir', 'Découvrir']);
+    html += renderPills('events', pills);
+    var cur = pillState.events;
+    if (cur === 'avenir') {
+      if (!ongoing.length && !upcoming.length) {
+        html += '<div class="card"><div class="empty-state">' + (coreDataLoading() ? tr('loading') : 'Aucun roulage à venir.') + '</div></div>';
+      } else {
+        if (ongoing.length) html += renderEventGroupCard(tr('ongoing_label'), ongoing, { collapseKey: 'events-ongoing', defaultOpen: true });
+        if (upcoming.length) html += renderEventGroupCard(tr('upcoming_label'), upcoming, { collapseKey: 'events-upcoming', defaultOpen: true });
+      }
+    } else if (cur === 'passes') {
+      html += past.length ? renderPastEventsCard(past) : '<div class="card"><div class="empty-state">Aucun roulage passé.</div></div>';
+    } else if (cur === 'calendrier') {
+      html += renderCalendarSection();
+    } else if (cur === 'decouvrir') {
+      html += discovery;
+    }
     return html;
   }
 
@@ -12034,9 +12055,9 @@
     }
     amisHtml += renderPersonalitiesSection(me);
 
-    var html = collapsibleCard('social-amis', tr('connections_label'), amisHtml, true);
-    html += renderWallFeed(me);
-    html += renderWallComposer();
+    var html = renderPills('social', [['fil', 'Fil d\'actualité'], ['amis', 'Amis' + (incoming.length ? ' (' + incoming.length + ')' : '')]]);
+    if (pillState.social === 'amis') html += '<div class="card">' + amisHtml + '</div>';
+    else { html += renderWallComposer(); html += renderWallFeed(me); }
     return html;
   }
 
@@ -16035,6 +16056,9 @@
     var carnetCancel = document.getElementById('carnet-cancel-add');
     if (carnetCancel) carnetCancel.addEventListener('click', function () { addChronoOpen = false; renderRoot(); });
     bindQuickOutingForms();
+    document.querySelectorAll('[data-pill-group]').forEach(function (b) {
+      b.addEventListener('click', function () { pillState[b.getAttribute('data-pill-group')] = b.getAttribute('data-pill'); renderRoot(); });
+    });
     document.querySelectorAll('[data-ts-import]').forEach(function (b) {
       b.addEventListener('click', function () { goAddChronoFor(b.getAttribute('data-ts-import'), b.getAttribute('data-ts-date'), true); });
     });

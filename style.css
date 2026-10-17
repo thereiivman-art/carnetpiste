@@ -2970,3 +2970,6 @@
 .track-notes-overlay { z-index: 350; }
 
 .timesheet-reminder { border-left: 4px solid var(--accent); }
+
+.pill-tabs { display: flex; gap: 0.35rem; flex-wrap: wrap; margin: 0.2rem 0 0.8rem; }
+.pill-tabs .pill-btn { font-size: 0.88rem; padding: 0.35rem 0.85rem; }
