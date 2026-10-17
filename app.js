@@ -5512,6 +5512,7 @@
     });
     html += '</select></div>';
     html += renderCircuitInfoCard();
+    html += '<div class="card">' + renderTrackNotesReminder(selectedCircuit) + '</div>';
     // Objectif pour la prochaine session lives in EN PISTE now (see
     // renderPlanningTab), keyed off the current/next event's own circuit --
     // not repeated here.
@@ -5910,6 +5911,20 @@
     return list.reverse();
   }
 
+  function renderMyRecordsCard() {
+    var outings = myOutings();
+    if (!outings.length) return '';
+    var records = {};
+    outings.forEach(function (o) { if (!records[o.circuit] || o.best < records[o.circuit].best) records[o.circuit] = o; });
+    var html = '<div class="card"><h2 class="section-title">Mes records</h2>';
+    Object.keys(records).sort().forEach(function (c) {
+      var r = records[c];
+      html += '<button type="button" class="carnet-row" data-carnet-circuit="' + escapeHtml(r.circuit) + '"><span class="carnet-row-main"><strong>' + escapeHtml(r.circuit) + '</strong>' +
+        '<span class="help-text">' + escapeHtml(formatDate(r.date)) + '</span></span><span class="carnet-time">' + formatTime(r.best) + '</span></button>';
+    });
+    return html + '</div>';
+  }
+
   function renderCarnetTab() {
     var html = '';
     var target = targetPlanningEvent();
@@ -5930,24 +5945,15 @@
     if (!outings.length) {
       html += '<div class="card carnet-welcome"><h2 class="section-title">Ton carnet de piste</h2>' +
         '<div class="carnet-step"><span class="track-pin static">1</span><span><strong>Ajoute ton premier chrono</strong><br><span class="help-text">À la main, ou en photographiant ta feuille de temps.</span></span></div>' +
-        '<div class="carnet-step"><span class="track-pin static">2</span><span><strong>Retrouve ton historique ici</strong><br><span class="help-text">Tes sorties, tes records par circuit, ta progression.</span></span></div>' +
-        '<div class="carnet-step"><span class="track-pin static">3</span><span><strong>Note tes repères</strong><br><span class="help-text">Freinage, déclenchement, corde, sortie… épinglés sur le plan du circuit.</span></span></div>' +
+        '<div class="carnet-step"><span class="track-pin static">2</span><span><strong>Retrouve ton historique ici</strong><br><span class="help-text">Tes sorties et ta progression ; tes records sont dans « Stats ».</span></span></div>' +
+        '<div class="carnet-step"><span class="track-pin static">3</span><span><strong>Note tes repères</strong><br><span class="help-text">Dans « Circuits » : freinage, déclenchement, corde, sortie… épinglés sur le plan.</span></span></div>' +
         '</div>';
     } else {
-      // Records par circuit
-      var records = {};
-      outings.forEach(function (o) { if (!records[o.circuit] || o.best < records[o.circuit].best) records[o.circuit] = o; });
-      var recList = Object.keys(records).sort().map(function (c) { return records[c]; });
-      html += '<div class="card"><h2 class="section-title">Mes records</h2>';
-      recList.forEach(function (r) {
-        html += '<button type="button" class="carnet-row" data-carnet-circuit="' + escapeHtml(r.circuit) + '"><span class="carnet-row-main"><strong>' + escapeHtml(r.circuit) + '</strong>' +
-          '<span class="help-text">' + escapeHtml(formatDate(r.date)) + '</span></span><span class="carnet-time">' + formatTime(r.best) + '</span></button>';
-      });
-      html += '</div>';
       // Historique
       var shown = carnetHistoryAll ? outings : outings.slice(0, 8);
       html += '<div class="card"><h2 class="section-title">Mon historique</h2>';
       shown.forEach(function (o) {
+        // (une ligne = une sortie ; la toucher ouvre le circuit)
         var delta = '';
         if (o.prevBest !== null) {
           var d = o.best - o.prevBest;
@@ -5963,21 +5969,6 @@
       html += '</div>';
     }
 
-    html += '<div class="carnet-links"><button type="button" class="ghost" data-view="circuit">⏱️ Tous les circuits</button>' +
-      '<button type="button" class="ghost" data-view="stats">📊 Mes stats et trophées</button></div>';
-    // Mes repères
-    var notesAll = (currentUserProfile && currentUserProfile.trackNotes) || {};
-    var noteCircuits = Object.keys(notesAll).filter(function (c) { return (notesAll[c] || []).length; }).sort();
-    html += '<div class="card"><h2 class="section-title">Mes repères</h2>';
-    noteCircuits.forEach(function (c) {
-      var n = notesAll[c].length;
-      html += '<button type="button" class="carnet-row" data-action="open-track-notes" data-circuit="' + escapeHtml(c) + '"><span class="carnet-row-main"><strong>' + escapeHtml(c) + '</strong></span>' +
-        '<span class="help-text">' + n + ' repère' + (n > 1 ? 's' : '') + ' ›</span></button>';
-    });
-    var circuitsForNotes = allCircuits();
-    html += '<div class="field-row" style="margin-top:0.5rem;"><select id="carnet-notes-circuit" aria-label="Circuit"><option value="">Noter des repères pour…</option>' +
-      circuitsForNotes.map(function (c) { return '<option value="' + escapeHtml(c) + '">' + escapeHtml(c) + '</option>'; }).join('') + '</select></div>';
-    html += '</div>';
     return html;
   }
 
@@ -12773,10 +12764,10 @@
       if ((activeView === 'team' && isSimplifiedModeOn(currentUserProfile)) || (activeView === 'coach' && !(canAccessCoachSpace() && !advancedHidden()))) activeView = 'social';
       if (navTabFor(activeView) === 'communaute' && isSoloModeOn(currentUserProfile)) activeView = 'carnet';
       lastSubView[navTabFor(activeView)] = activeView;
-      var backToCarnet = '<button type="button" class="link-btn back-link" data-view="carnet">← Carnet</button>';
-      if (activeView === 'carnet') body = renderCarnetTab();
-      else if (activeView === 'circuit') body = backToCarnet + renderCircuitTab();
-      else if (activeView === 'stats') body = backToCarnet + renderStatsTab();
+      var carnetSub = renderSubNav([['carnet', 'Chronos'], ['circuit', 'Circuits'], ['stats', 'Stats']]);
+      if (activeView === 'carnet') body = carnetSub + renderCarnetTab();
+      else if (activeView === 'circuit') body = carnetSub + renderCircuitTab();
+      else if (activeView === 'stats') body = carnetSub + renderMyRecordsCard() + renderStatsTab();
       else if (activeView === 'planning') body = renderSubNav([['planning', 'Prochaine sortie'], ['event', 'Calendrier']]) + renderPlanningTab();
       else if (activeView === 'social') body = renderSubNav(communauteSubItems()) + renderSocialTab();
       else if (activeView === 'team') body = renderSubNav(communauteSubItems()) + renderTeamTab();
