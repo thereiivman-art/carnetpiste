@@ -52,7 +52,7 @@
   // not-yet-translated EN key never renders blank.
   var TRANSLATIONS = {
     fr: {
-      nav_events: 'Événements', nav_chronos: 'Chronos', nav_planning: 'EN PISTE', nav_social: 'Social', nav_team: 'Team',
+      nav_carnet: 'Mon carnet', nav_events: 'Événements', nav_chronos: 'Circuits', nav_planning: 'EN PISTE', nav_social: 'Social', nav_team: 'Team',
       coach_label: 'Coach', stats_label: 'Stats', notifications_label: 'Notifications', my_profile_label: 'Mon profil',
       profile_theme: 'Thème', profile_theme_light: 'clair', profile_theme_dark: 'sombre', profile_theme_system: 'système',
       profile_lang: 'Langue', save: 'Enregistrer', cancel: 'Annuler',
@@ -64,7 +64,7 @@
       goal_no_feeling: 'Pas encore de ressenti enregistré (voir Réglages pour l\'activer).',
       goal_placeholder: 'Ex. Travailler le point de corde en 3, être plus fluide au freinage...',
       distance_label: 'Distance', turns_label: 'Virages (D / G)', last_event_label: 'Dernier événement',
-      circuit_record_label: 'Record circuit', next_event_label: 'Prochain événement',
+      circuit_record_label: 'Record (tous pilotes)', next_event_label: 'Prochain événement',
       not_planned_plan_it: 'Non planifiée — planifier', edit_info: 'Modifier les infos',
       ci_distance_km: 'Distance (km)', ci_turns_right: 'Virages à droite', ci_turns_left: 'Virages à gauche',
       ci_organizer: 'Organisateur', ci_briefing: 'Briefing', ci_usual_horaires: 'Horaires habituels par groupe',
@@ -254,10 +254,10 @@
       profile_photo_alt: 'Photo de profil', change_photo: 'Changer la photo', add_photo_plain: 'Ajouter une photo',
       edit_crop: 'Modifier le cadrage',
       role_info_pilote_title: 'Espace pilote',
-      role_info_pilote_1: 'Enregistrer tes chronos événement par événement et suivre tes meilleurs temps par circuit',
-      role_info_pilote_2: 'Faire certifier tes chronos par un Team Leader ("Chrono vérifié")',
+      role_info_pilote_1: 'Enregistrer tes chronos (à la main ou depuis une photo de ta feuille de temps) et retrouver ton historique et tes records par circuit',
+      role_info_pilote_2: 'Noter tes repères (freinage, déclenchement, corde, sortie) sur le plan de chaque circuit',
       role_info_pilote_3: 'Retrouver les horaires, groupes et infos pratiques de chaque événement dans EN PISTE',
-      role_info_pilote_4: 'Partager tes infos de voyage (hôtel, vols) avec tes amis, et voir les leurs',
+      role_info_pilote_4: 'En bonus : partager tes infos de voyage, faire vérifier tes chronos par l\'organisateur',
       role_info_pilote_5: 'Suivre tes amis, réagir sur leur Journal et sur le fil d\'actualité de ton Team',
       role_info_pilote_6: 'Rejoindre un Team (amateur ou PRO) et participer à ses événements',
       role_info_accompagnant_title: 'Espace accompagnant',
@@ -442,7 +442,7 @@
       save_unavailable_banner: 'Sauvegarde indisponible dans cette vue : vos modifications ne seront pas conservées.'
     },
     en: {
-      nav_events: 'Events', nav_chronos: 'Chronos', nav_planning: 'ON TRACK', nav_social: 'Social', nav_team: 'Team',
+      nav_carnet: 'My logbook', nav_events: 'Events', nav_chronos: 'Tracks', nav_planning: 'ON TRACK', nav_social: 'Social', nav_team: 'Team',
       coach_label: 'Coach', stats_label: 'Stats', notifications_label: 'Notifications', my_profile_label: 'My profile',
       profile_theme: 'Theme', profile_theme_light: 'light', profile_theme_dark: 'dark', profile_theme_system: 'system',
       profile_lang: 'Language', save: 'Save', cancel: 'Cancel',
@@ -1787,14 +1787,11 @@
   var tutorialOpen = false;
   var tutorialStep = 0;
   var TUTORIAL_STEPS = [
-    { icon: '🏍️', title: 'Bienvenue sur Carnet de Piste', body: 'Un tour rapide de ce que chaque onglet t\'apporte -- tu peux le refaire à tout moment depuis Profil → Réglages → Aide.' },
-    { icon: '📅', title: 'Événements', body: 'Le calendrier de tes sorties : crée-en une, consulte les prochaines/passées, rejoins un event partagé par un Team.' },
-    { icon: '⏱️', title: 'Chronos', body: 'Choisis un circuit, enregistre tes temps au tour sortie par sortie, suis ton meilleur temps et ta progression.' },
-    { icon: '🏍️', title: 'EN PISTE', body: 'Le jour J : horaires par groupe, ton groupe du jour, infos pratiques et annonces du Team organisateur, ta checklist d\'équipement, tes infos de voyage.' },
-    { icon: '👥', title: 'Social', body: 'Suis tes amis, réagis à leur Journal et au fil d\'actualité des Teams que tu suis, retrouve ton propre Journal.' },
-    { icon: '🤝', title: 'Team', body: 'Rejoins ou gère un Team (amateur ou PRO) : membres, fil d\'actualité, gestion des événements.' },
-    { icon: '📊', title: 'Stats & 🔔 Notifications', body: 'En haut à droite : tes statistiques et trophées (📊), et tes demandes en attente (🔔) -- amis, invitations Team, coaching.' }
+    { icon: '📒', title: 'Ton carnet de piste', body: 'Dans « Mon carnet », ajoute tes chronos -- à la main ou en photographiant ta feuille de temps -- et retrouve ton historique et tes records par circuit.' },
+    { icon: '📍', title: 'Tes repères sur le plan', body: 'Touche le plan d\'un circuit pour épingler tes points de freinage, de déclenchement, de corde et de sortie. Ils sont enregistrés tout de suite.' },
+    { icon: '🏍️', title: 'Le jour J', body: '« EN PISTE » affiche les horaires, ton groupe et tes repères ; « Événements » est ton calendrier de sorties. Tu peux revoir ce guide depuis Profil → Aide.' }
   ];
+
   function openTutorial() {
     tutorialOpen = true;
     tutorialStep = 0;
@@ -2263,6 +2260,13 @@
     eventsList().forEach(function (e) {
       if (!seen[e.circuit]) { seen[e.circuit] = true; out.push(e.circuit); }
     });
+    // Circuits de référence (fiches circuit) : disponibles même si personne
+    // n'y a encore roulé -- un nouveau pilote peut y entrer un chrono ou y
+    // noter ses repères sans créer d'événement.
+    Object.keys(STATE.circuits || {}).forEach(function (c) {
+      var name = (STATE.circuits[c] && STATE.circuits[c].name) || c;
+      if (name && !seen[name]) { seen[name] = true; out.push(name); }
+    });
     out.sort(function (a, b) { return a.localeCompare(b); });
     return out;
   }
@@ -2348,7 +2352,7 @@
   // Home page is EN PISTE (Planning) -- the fallback below only kicks in
   // with no saved state at all (a new browser/account); any previously
   // saved tab, on any device, keeps landing on itself as before.
-  var activeView = (_rawSavedView === 'sessions' || _rawSavedView === 'chronos') ? 'circuit' : (_rawSavedView === 'calendar' ? 'event' : (_rawSavedView || 'planning')); // 'event' | 'circuit' | 'stats'
+  var activeView = (_rawSavedView === 'sessions' || _rawSavedView === 'chronos') ? 'circuit' : (_rawSavedView === 'calendar' ? 'event' : (_rawSavedView || 'carnet')); // 'event' | 'circuit' | 'stats'
   var calendarAnchor = _savedUiState.calendarAnchor || dateKey(new Date()); // 'YYYY-MM-DD'
   var calendarViewMode = _savedUiState.calendarViewMode || '2month'; // one of ZOOM_LEVELS below — base view is 2 months (current + next)
   var selectedEventId = _savedUiState.selectedEventId || null; // which sortie the Événement tab (and Calendrier's detail card) shows
@@ -3074,7 +3078,8 @@
     }
     html += '</div>';
     if (!sessions.length) {
-      html += '<div class="empty-state">' + tr('no_sessions_for_riders') + '</div>';
+      var onlyMe = currentUserProfile && selectedRiders && selectedRiders.size === 1 && selectedRiders.has(currentUserProfile.name);
+      html += '<div class="empty-state">' + (onlyMe ? 'Tu n\'as pas encore de chrono sur ce circuit.' : 'Aucun chrono sur ce circuit pour les pilotes affichés.') + '</div>';
     } else {
       var colCount = 4 + (showRider ? 1 : 0);
       var tableHtml = '<div class="table-scroll"><table class="session-table"><thead><tr><th>' + tr('table_date') + '</th>' + (showRider ? '<th>' + tr('table_rider') + '</th>' : '') + '<th>' + tr('table_chronos') + '</th><th>' + tr('table_bike') + '</th><th></th></tr></thead><tbody>';
@@ -4644,9 +4649,6 @@
   }
 
   function renderForm() {
-    if (!selectedCircuit) {
-      return '<div class="card"><div class="empty-state">' + tr('choose_circuit_first') + '</div></div>';
-    }
     var admin = isAdmin();
     var teamPiloteChoices = myTeamPiloteChoices(); // name -> teamId, for pilotes on a team this account leads
     var teamPiloteNames = Object.keys(teamPiloteChoices);
@@ -4699,9 +4701,12 @@
     }
     html += '<div><label for="f-date">' + tr('date_label') + '</label>' +
       '<input type="text" id="f-date" inputmode="numeric" placeholder="JJ/MM/AAAA" value="' + isoToFrDate(todayStr) + '" required></div>';
+    var formCircuits = allCircuits();
     html += '<div><label for="f-circuit">' + tr('circuit_label') + '</label><select id="f-circuit" required>' +
-      allCircuits().map(function (c) { return '<option value="' + escapeHtml(c) + '"' + (c === selectedCircuit ? ' selected' : '') + '>' + escapeHtml(c) + '</option>'; }).join('') +
-      '</select></div>';
+      formCircuits.map(function (c) { return '<option value="' + escapeHtml(c) + '"' + (c === selectedCircuit ? ' selected' : '') + '>' + escapeHtml(c) + '</option>'; }).join('') +
+      '<option value="__other__"' + (!formCircuits.length ? ' selected' : '') + '>Autre circuit…</option>' +
+      '</select>' +
+      '<input type="text" id="f-circuit-other" placeholder="Nom du circuit" style="margin-top:0.4rem;' + (formCircuits.length ? ' display:none;' : '') + '"></div>';
     html += '<div><label for="f-bike">' + tr('bike_label') + '</label>' +
       '<input type="text" id="f-bike" list="bike-options" placeholder="Ex. ST 765 RS" value="' + escapeHtml((rider && riderBikeMap[rider]) || '') + '">' +
       '<datalist id="bike-options">' + bikeDatalist() + '</datalist></div>';
@@ -5588,6 +5593,16 @@
     var html = '<div class="card circuit-info-card">';
     html += '<div class="circuit-info-map-full">' + renderCircuitVisual(info) + '</div>';
     html += '<div class="circuit-info-list">';
+    // Mes données d'abord : mon record et mes sorties sur ce circuit.
+    var meName = currentUserProfile && currentUserProfile.name;
+    if (meName) {
+      var mine = (STATE.sessions || []).filter(function (s) { return s.rider === meName && s.circuit === selectedCircuit && s.laps && s.laps.length; });
+      var myBestS = null;
+      mine.forEach(function (s) { if (!myBestS || sessionBest(s) < sessionBest(myBestS)) myBestS = s; });
+      var myDays = {}; mine.forEach(function (s) { myDays[s.date] = true; });
+      html += infoRow('Mon record', myBestS ? '<strong>' + formatTime(sessionBest(myBestS)) + '</strong> (' + escapeHtml(formatDate(myBestS.date)) + ')' : 'Pas encore de chrono');
+      html += infoRow('Mes sorties ici', String(Object.keys(myDays).length));
+    }
     html += infoRow(tr('distance_label'), info.km != null ? (escapeHtml(String(info.km)) + ' km') : '—');
     html += infoRow(tr('turns_label'), turnsHtml);
     var lastOutingText = lastSession ? (escapeHtml(formatDate(lastSession.date)) + ' — ' + formatTime(sessionBest(lastSession))) : '—';
@@ -5857,6 +5872,109 @@
         '<button type="button" class="circuit-visual-btn circuit-visual-placeholder" data-action="open-track-notes" data-circuit="' + escapeHtml(circuitName) + '">' + tr('no_map_imported') + '<br>Toucher pour noter tes repères</button>' +
       '</div>'
     );
+  }
+
+  // ---- Mon carnet (accueil) ----
+  // Le cœur de l'appli pour un pilote : ajouter un chrono, retrouver son
+  // historique et ses records, accéder à ses repères. Le reste (sorties,
+  // social, clubs) est accessible ailleurs.
+  var carnetHistoryAll = false;
+  function mySessions() {
+    var me = currentUserProfile && currentUserProfile.name;
+    if (!me) return [];
+    return (STATE.sessions || []).filter(function (s) { return s.rider === me && s.laps && s.laps.length; });
+  }
+  // Une "sortie" de l'historique = un jour sur un circuit (plusieurs
+  // sessions possibles), avec son meilleur tour et l'écart au record
+  // d'avant.
+  function myOutings() {
+    var byKey = {};
+    mySessions().forEach(function (s) {
+      var k = s.date + '|' + s.circuit;
+      var o = byKey[k] || (byKey[k] = { date: s.date, circuit: s.circuit, sessions: 0, laps: 0, best: null });
+      o.sessions++; o.laps += s.laps.length;
+      var b = sessionBest(s);
+      if (o.best === null || b < o.best) o.best = b;
+    });
+    var list = Object.keys(byKey).map(function (k) { return byKey[k]; });
+    list.sort(function (a, b) { return a.date < b.date ? -1 : (a.date > b.date ? 1 : 0); });
+    var bestSoFar = {};
+    list.forEach(function (o) {
+      var prev = bestSoFar[o.circuit];
+      o.prevBest = prev === undefined ? null : prev;
+      o.isRecord = prev === undefined || o.best < prev;
+      if (prev === undefined || o.best < prev) bestSoFar[o.circuit] = o.best;
+    });
+    return list.reverse();
+  }
+
+  function renderCarnetTab() {
+    var html = '';
+    var target = targetPlanningEvent();
+    if (target && target.mode === 'ongoing') {
+      html += '<div class="card carnet-today-card"><strong>🏍️ Tu roules aujourd\'hui à ' + escapeHtml(target.ev.circuit) + '</strong>' +
+        '<div class="help-text">Horaires, ton groupe et tes repères sont dans EN PISTE.</div>' +
+        '<button type="button" class="primary" data-view="planning" style="margin-top:0.5rem;">Ouvrir EN PISTE</button></div>';
+    }
+    if (addChronoOpen) {
+      html += renderForm();
+      html += '<div style="margin:0.4rem 0 1rem;"><button type="button" class="ghost" id="carnet-cancel-add">Annuler</button></div>';
+    } else {
+      html += '<button type="button" class="primary add-chrono-btn" id="carnet-add-chrono">+ Ajouter un chrono</button>';
+      html += '<div class="help-text carnet-add-help">Saisie, photo de la feuille de temps, capture d\'écran ou PDF.</div>';
+    }
+
+    var outings = myOutings();
+    if (!outings.length) {
+      html += '<div class="card carnet-welcome"><h2 class="section-title">Ton carnet de piste</h2>' +
+        '<div class="carnet-step"><span class="track-pin static">1</span><span><strong>Ajoute ton premier chrono</strong><br><span class="help-text">À la main, ou en photographiant ta feuille de temps.</span></span></div>' +
+        '<div class="carnet-step"><span class="track-pin static">2</span><span><strong>Retrouve ton historique ici</strong><br><span class="help-text">Tes sorties, tes records par circuit, ta progression.</span></span></div>' +
+        '<div class="carnet-step"><span class="track-pin static">3</span><span><strong>Note tes repères</strong><br><span class="help-text">Freinage, déclenchement, corde, sortie… épinglés sur le plan du circuit.</span></span></div>' +
+        '</div>';
+    } else {
+      // Records par circuit
+      var records = {};
+      outings.forEach(function (o) { if (!records[o.circuit] || o.best < records[o.circuit].best) records[o.circuit] = o; });
+      var recList = Object.keys(records).sort().map(function (c) { return records[c]; });
+      html += '<div class="card"><h2 class="section-title">Mes records</h2>';
+      recList.forEach(function (r) {
+        html += '<button type="button" class="carnet-row" data-carnet-circuit="' + escapeHtml(r.circuit) + '"><span class="carnet-row-main"><strong>' + escapeHtml(r.circuit) + '</strong>' +
+          '<span class="help-text">' + escapeHtml(formatDate(r.date)) + '</span></span><span class="carnet-time">' + formatTime(r.best) + '</span></button>';
+      });
+      html += '</div>';
+      // Historique
+      var shown = carnetHistoryAll ? outings : outings.slice(0, 8);
+      html += '<div class="card"><h2 class="section-title">Mon historique</h2>';
+      shown.forEach(function (o) {
+        var delta = '';
+        if (o.prevBest !== null) {
+          var d = o.best - o.prevBest;
+          delta = d < 0 ? '<span class="daily-recap-better">−' + Math.abs(d).toFixed(3) + '</span>' : '<span class="daily-recap-worse">+' + d.toFixed(3) + '</span>';
+        }
+        html += '<button type="button" class="carnet-row" data-carnet-circuit="' + escapeHtml(o.circuit) + '"><span class="carnet-row-main"><strong>' + escapeHtml(formatDate(o.date)) + ' · ' + escapeHtml(o.circuit) + '</strong>' +
+          '<span class="help-text">' + o.laps + ' tour' + (o.laps > 1 ? 's' : '') + (o.sessions > 1 ? ' · ' + o.sessions + ' sessions' : '') + (o.isRecord && o.prevBest !== null ? ' · 🏆 record' : (o.prevBest === null ? ' · 1re sortie ici' : '')) + '</span></span>' +
+          '<span class="carnet-time">' + formatTime(o.best) + (delta ? '<br>' + delta : '') + '</span></button>';
+      });
+      if (outings.length > 8) {
+        html += '<button type="button" class="ghost" id="carnet-history-toggle" style="margin-top:0.5rem;">' + (carnetHistoryAll ? 'Réduire' : 'Tout afficher (' + outings.length + ')') + '</button>';
+      }
+      html += '</div>';
+    }
+
+    // Mes repères
+    var notesAll = (currentUserProfile && currentUserProfile.trackNotes) || {};
+    var noteCircuits = Object.keys(notesAll).filter(function (c) { return (notesAll[c] || []).length; }).sort();
+    html += '<div class="card"><h2 class="section-title">Mes repères</h2>';
+    noteCircuits.forEach(function (c) {
+      var n = notesAll[c].length;
+      html += '<button type="button" class="carnet-row" data-action="open-track-notes" data-circuit="' + escapeHtml(c) + '"><span class="carnet-row-main"><strong>' + escapeHtml(c) + '</strong></span>' +
+        '<span class="help-text">' + n + ' repère' + (n > 1 ? 's' : '') + ' ›</span></button>';
+    });
+    var circuitsForNotes = allCircuits();
+    html += '<div class="field-row" style="margin-top:0.5rem;"><select id="carnet-notes-circuit" aria-label="Circuit"><option value="">Noter des repères pour…</option>' +
+      circuitsForNotes.map(function (c) { return '<option value="' + escapeHtml(c) + '">' + escapeHtml(c) + '</option>'; }).join('') + '</select></div>';
+    html += '</div>';
+    return html;
   }
 
   // ---- Mes repères (notes par virage, épinglées sur le plan) ----
@@ -8110,6 +8228,7 @@
   // Stats has its own header icon now (see renderRootUnsafe), not a
   // bottom-nav slot -- only these 5 make up the bottom nav, in this order.
   var MAIN_TABS = [
+    ['carnet', 'nav_carnet', '📒'],
     ['event', 'nav_events', '📅'],
     ['circuit', 'nav_chronos', '⏱️'],
     ['planning', 'nav_planning', '🏍️'],
@@ -12632,7 +12751,8 @@
       body = accountManagerOpen ? renderAccountManagerPanel() : renderProfilePanel();
     } else if (notificationsPanelOpen) {
       body = renderNotificationsPanel();
-    } else if (activeView === 'circuit') body = renderCircuitTab();
+    } else if (activeView === 'carnet') body = renderCarnetTab();
+    else if (activeView === 'circuit') body = renderCircuitTab();
     else if (activeView === 'stats') body = renderStatsTab();
     else if (activeView === 'planning') body = renderPlanningTab();
     else if (activeView === 'social') body = renderSocialTab();
@@ -12895,7 +13015,7 @@
           if (doc.exists) currentUserProfile = doc.data();
           authState = 'signed-in';
           canPersist = true;
-          activeView = 'planning';
+          activeView = 'carnet';
           profilePanelOpen = false;
           justAuthenticated = false;
           startSync();
@@ -14631,6 +14751,10 @@
     if (fDateEl) fDateEl.addEventListener('input', refreshChronoFormAux);
     if (fRiderEl) fRiderEl.addEventListener('change', refreshChronoFormAux);
     if (fCircuitEl) fCircuitEl.addEventListener('change', refreshChronoFormAux);
+    if (fCircuitEl) fCircuitEl.addEventListener('change', function () {
+      var other = document.getElementById('f-circuit-other');
+      if (other) { other.style.display = fCircuitEl.value === '__other__' ? '' : 'none'; if (fCircuitEl.value === '__other__') other.focus(); }
+    });
     var fGroupEl = document.getElementById('f-group');
     if (fGroupEl) {
       fGroupEl.addEventListener('change', function () {
@@ -15252,6 +15376,26 @@
     if (cancelInfoBtn) cancelInfoBtn.addEventListener('click', function () { editingCircuitInfo = false; renderRoot(); });
     var saveInfoBtn = document.getElementById('save-circuit-info-btn');
     if (saveInfoBtn) saveInfoBtn.addEventListener('click', saveCircuitInfo);
+    var carnetAdd = document.getElementById('carnet-add-chrono');
+    if (carnetAdd) carnetAdd.addEventListener('click', function () {
+      if (!selectedCircuit) selectedCircuit = allCircuits()[0] || null;
+      addChronoOpen = true; renderRoot();
+    });
+    var carnetCancel = document.getElementById('carnet-cancel-add');
+    if (carnetCancel) carnetCancel.addEventListener('click', function () { addChronoOpen = false; renderRoot(); });
+    var carnetHist = document.getElementById('carnet-history-toggle');
+    if (carnetHist) carnetHist.addEventListener('click', function () { carnetHistoryAll = !carnetHistoryAll; renderRoot(); });
+    document.querySelectorAll('[data-carnet-circuit]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        selectedCircuit = btn.getAttribute('data-carnet-circuit');
+        userPickedCircuit = true;
+        activeView = 'circuit';
+        renderRoot();
+        window.scrollTo(0, 0);
+      });
+    });
+    var carnetNotesSel = document.getElementById('carnet-notes-circuit');
+    if (carnetNotesSel) carnetNotesSel.addEventListener('change', function () { if (carnetNotesSel.value) openTrackNotes(carnetNotesSel.value); });
     document.querySelectorAll('[data-action="open-track-notes"]').forEach(function (btn) {
       btn.addEventListener('click', function () { openTrackNotes(btn.getAttribute('data-circuit') || selectedCircuit); });
     });
@@ -15539,6 +15683,13 @@
     var rider = riderEl ? riderEl.value.trim() : ((currentUserProfile && currentUserProfile.name) || '');
     var date = frDateToIso(dateEl.value);
     var circuit = circuitEl ? circuitEl.value : selectedCircuit;
+    if (circuit === '__other__') {
+      var otherEl = document.getElementById('f-circuit-other');
+      circuit = otherEl ? otherEl.value.trim().replace(/\s+/g, ' ') : '';
+      // Même circuit qu'un existant à la casse près : on réutilise son nom.
+      var known = allCircuits().filter(function (c) { return c.toLowerCase() === circuit.toLowerCase(); })[0];
+      if (known) circuit = known;
+    }
     var bike = bikeEl.value.trim();
     var note = noteEl.value.trim();
     var group = groupEl ? groupEl.value : '';
@@ -16340,7 +16491,7 @@
           authState = 'signed-in';
           canPersist = true;
           if (justAuthenticated) {
-            activeView = 'planning';
+            activeView = 'carnet';
             profilePanelOpen = false;
             justAuthenticated = false;
           }
