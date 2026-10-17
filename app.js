@@ -6092,9 +6092,9 @@
     var status = date > today ? 'avenir' : (endDate >= today && (ev ? ev.dateStart : date) <= today ? 'encours' : 'terminee');
     var best = null;
     sessions.forEach(function (x) { var b = sessionBest(x); if (best === null || b < best) best = b; });
-    var prevBest = null;
+    var prevBest = null, prevBestSession = null;
     (STATE.sessions || []).forEach(function (x) {
-      if (x.rider === me && x.circuit === circuit && x.date < date && x.laps && x.laps.length) { var b = sessionBest(x); if (prevBest === null || b < prevBest) prevBest = b; }
+      if (x.rider === me && x.circuit === circuit && x.date < date && x.laps && x.laps.length) { var b = sessionBest(x); if (prevBest === null || b < prevBest) { prevBest = b; prevBestSession = x; } }
     });
 
     var html = '<div class="outing-page">';
@@ -6128,11 +6128,19 @@
     if (cur === 'chronos') {
       // Meilleur tour
       if (status === 'avenir') {
-        html += '<button type="button" class="outing-best-card" data-carnet-circuit="' + escapeHtml(circuit) + '"><span class="outing-label light">Mon record à battre</span>' +
-          '<span class="outing-best-time">' + (prevBest !== null ? formatTime(prevBest) : '—') + '</span>' +
-          '<span class="outing-best-delta">' + (prevBest !== null ? 'Objectif : faire mieux !' : 'Premier roulage sur ce circuit') + '</span><span class="outing-best-arrow">›</span></button>';
+        // The record to beat opens the roulage where it was set; with no
+        // record yet there's nothing to open.
+        if (prevBestSession) {
+          html += '<button type="button" class="outing-best-card" data-open-outing="' + escapeHtml(circuit) + '" data-outing-date="' + escapeHtml(prevBestSession.date) + '" data-outing-event="' + escapeHtml(prevBestSession.eventId || '') + '"><span class="outing-label light">Mon record à battre</span>' +
+            '<span class="outing-best-time">' + formatTime(prevBest) + '</span>' +
+            '<span class="outing-best-delta">Établi le ' + escapeHtml(formatDate(prevBestSession.date)) + ' — voir ce roulage</span><span class="outing-best-arrow">›</span></button>';
+        } else {
+          html += '<div class="outing-best-card"><span class="outing-label light">Mon record à battre</span>' +
+            '<span class="outing-best-time">—</span><span class="outing-best-delta">Premier roulage sur ce circuit : ton premier chrono sera ton record.</span></div>';
+        }
       } else {
-        html += '<button type="button" class="outing-best-card" data-carnet-circuit="' + escapeHtml(circuit) + '"><span class="outing-label light">Meilleur tour</span>' +
+        // Opens this circuit's chronos history and progression curve.
+        html += '<button type="button" class="outing-best-card" data-carnet-circuit="' + escapeHtml(circuit) + '" data-circuit-pill="chronos"><span class="outing-label light">Meilleur tour</span>' +
           '<span class="outing-best-time">' + (best !== null ? formatTime(best) : '—') + '</span>' +
           (best !== null && prevBest !== null ? '<span class="outing-best-delta">' + (best < prevBest ? '🏆 Nouveau record (−' + formatGap(prevBest - best) + ')' : '+' + formatGap(best - prevBest) + ' vs record') + '</span>' : (best !== null ? '<span class="outing-best-delta">1er roulage ici</span>' : '<span class="outing-best-delta">Pas encore de chrono pour ce jour</span>')) +
           '<span class="outing-best-arrow">›</span></button>';
@@ -16303,6 +16311,7 @@
       btn.addEventListener('click', function () {
         selectedCircuit = btn.getAttribute('data-carnet-circuit');
         userPickedCircuit = true;
+        if (btn.getAttribute('data-circuit-pill')) pillState.circuit = btn.getAttribute('data-circuit-pill');
         activeView = 'circuit';
         renderRoot();
         window.scrollTo(0, 0);

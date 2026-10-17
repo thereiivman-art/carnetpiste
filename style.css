@@ -2880,8 +2880,8 @@
 .outing-underline { width: 54px; height: 4px; border-radius: 2px; background: var(--accent); margin-bottom: 0.8rem; }
 .outing-hero-row { display: flex; flex-wrap: wrap; gap: 0.8rem; align-items: center; }
 .outing-date-chip { border: 1px solid var(--accent); color: var(--accent); border-radius: 10px; padding: 0.4rem 0.7rem; font-weight: 600; }
-.outing-org { display: flex; align-items: center; gap: 0.5rem; }
-.outing-org img { height: 56px; max-width: 120px; object-fit: contain; border-radius: 8px; }
+.outing-org { display: flex; align-items: center; gap: 0.8rem; flex: 1 0 100%; }
+.outing-org img { height: 72px; width: auto; max-width: 55%; object-fit: contain; border-radius: 10px; }
 .outing-group-card { display: flex; background: var(--surface); border: 1px solid var(--border); border-radius: 18px; overflow: hidden; margin-bottom: 0.8rem; }
 .outing-group-main { flex: 1; padding: 0.9rem; display: flex; flex-direction: column; gap: 0.2rem; }
 .outing-group-value { font-family: var(--font-display); font-weight: 800; font-size: 1.6rem; }
@@ -2999,3 +2999,4 @@
 .card > .settings-block:last-child, [data-cpill-section] .settings-block { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
 .outing-best-card .outing-best-delta { color: #9ca3af; }
 .outing-best-card .outing-best-arrow { color: #9ca3af; }
+div.outing-best-card { cursor: default; }
