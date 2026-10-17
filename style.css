@@ -2968,3 +2968,5 @@
 .debrief-feel { font-size: 2rem; background: none; border: 2px solid transparent; border-radius: 14px; padding: 0.2rem 0.4rem; cursor: pointer; }
 .debrief-feel.active { border-color: var(--accent); background: var(--surface-alt); }
 .track-notes-overlay { z-index: 350; }
+
+.timesheet-reminder { border-left: 4px solid var(--accent); }
