@@ -953,7 +953,7 @@
 "Calendrier": "Calendar",
 "Programme": "Schedule",
 "Ma prépa": "My prep",
-"🔗 Inviter des pistards (lien public)": "🔗 Invite riders (public link)",
+"🔗 Inviter des pistards (lien public)": "🔗 Invite riders (public link)", "🔗 Inviter des pistards": "🔗 Invite riders",
 "✎ Modifier le roulage": "✎ Edit trackday",
 "Horaires": "Times",
 "Infos pratiques": "Practical info",
@@ -4268,8 +4268,8 @@
   function renderNotificationsPanel() {
     if (!notificationsPanelOpen) return '';
     var me = currentUserProfile;
-    var html = '<div class="card notifications-panel">';
-    html += '<div class="section-title">🔔 Notifications</div>';
+    var html = '<div class="section-heading"><span class="section-heading-kerb" aria-hidden="true"></span><h1 class="section-heading-title">Notifications</h1></div>';
+    html += '<div class="card notifications-panel">';
     if (!me) { html += '</div>'; return html; }
     var friendReqs = (STATE.friendRequests || []).filter(function (r) { return r.status === 'pending' && r.to === me.name; });
     var teamInvs = (STATE.teamInvites || []).filter(function (r) { return r.status === 'pending' && r.to === me.name; });
@@ -11136,17 +11136,17 @@
     // to "Mon groupe" below (see renderMyGroupSection) for whoever's
     // already looking there to check their group.
     if (info.liveTimingUrl) {
-      html += '<div style="margin:0.5rem 0;"><button type="button" class="ghost" data-action="open-external-url" data-url="' + escapeHtml(info.liveTimingUrl) + '">⏱️ ' + tr('live_timing_link_label') + ' ↗</button></div>';
+      html += '<div class="card-action-inline"><button type="button" class="ghost" data-action="open-external-url" data-url="' + escapeHtml(info.liveTimingUrl) + '">⏱️ ' + tr('live_timing_link_label') + ' ↗</button></div>';
     }
     // Raccourci vers Modifier l'événement, uniquement pour le Team Leader
     // du Team qui gère cet event -- pas besoin d'aller jusqu'à Team ->
     // Gestion des événements pour un ajustement rapide.
     if ((ev.riders || []).indexOf(currentUserProfile && currentUserProfile.name) !== -1 || isLeader) {
-      html += '<div style="margin:0.5rem 0;"><button type="button" class="ghost" data-action="share-roulage" data-id="' + ev.id + '">🔗 Inviter des pistards (lien public)</button></div>';
+      html += '<div class="card-action-inline"><button type="button" class="ghost" data-action="share-roulage" data-id="' + ev.id + '">🔗 Inviter des pistards</button></div>';
     }
     if (isLeader) {
       if (editingEventId === ev.id) html += renderEventForm();
-      else html += '<div style="margin:0.5rem 0;"><button type="button" class="ghost" data-action="team-event-edit" data-id="' + ev.id + '">✎ Modifier le roulage</button></div>';
+      else html += '<div class="card-action-inline"><button type="button" class="ghost" data-action="team-event-edit" data-id="' + ev.id + '">✎ Modifier le roulage</button></div>';
     }
     if (ev.teamId) html += renderEventAnnouncements(ev, false);
     // Briefing lives with Horaires (above the group filter) now, not up

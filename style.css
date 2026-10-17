@@ -3126,3 +3126,5 @@ body { min-height: 100%; min-height: 100dvh; }
 .lang-stats-row span:not(:first-child) { text-align: right; font-family: var(--font-display); font-weight: 700; font-size: 1.1rem; }
 .lang-stats-head { border-top: none; color: var(--text-muted); font-size: 0.85rem; }
 .lang-stats-head span:not(:first-child) { font-family: var(--font-body); font-size: 0.85rem; font-weight: 600; }
+.card-action-inline { display: inline-block; margin: 0.5rem 0.4rem 0 0; }
+.notifications-panel .friend-row + .help-text { margin: 0.1rem 0 0.6rem !important; }
