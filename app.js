@@ -613,7 +613,7 @@
       notify_event_ended: 'A trackday I took part in just ended',
       ui_mode_label: 'Display level', show_advanced_options: 'Show more options',
       ui_mode_complet_option: 'Full', ui_mode_simplifie_option: 'Simplified', ui_mode_solo_option: 'Solo',
-      ui_mode_help_complet: 'Everything is shown: Team, Coaching, Social, weather, checklists, progression comparison, travel info...',
+      ui_mode_help_complet: 'Everything is shown: Teams, Coaching, Community, weather, checklists, progression comparison, travel info...',
       ui_mode_help_simplifie: 'Keeps the essentials (logbook, trackdays, schedules) and Community > Friends & feed; hides Teams, Coaching, weather, checklists and travel info.',
       ui_mode_help_solo: 'Like Simplified, plus dropping the social side too (Social tab, friends on a trackday, progression comparison) -- keeps only Logbook and Trackdays.',
       feeling_after_session_heading: 'Feeling after each session',
@@ -645,9 +645,9 @@
       edit_crop: 'Edit crop',
       role_info_pilote_title: 'Rider space',
       role_info_pilote_1: 'Log your lap times trackday by trackday and track your best times per circuit',
-      role_info_pilote_2: 'Get your lap times certified by a Team Leader ("Verified lap time")',
+      role_info_pilote_2: 'Note your marks (braking, turn-in, apex, exit) on each circuit map',
       role_info_pilote_3: 'Find each trackday\'s schedule, groups, and practical info in the Trackdays tab',
-      role_info_pilote_4: 'Share your travel info (hotel, flights) with your friends, and see theirs',
+      role_info_pilote_4: 'Bonus: share your travel info and get your lap times validated by your team (unofficial)',
       role_info_pilote_5: 'Follow your friends, react on their Journal and on your Team\'s news feed',
       role_info_pilote_6: 'Join a Team (amateur or PRO) and take part in its trackdays',
       role_info_accompagnant_title: 'Companion space',
@@ -688,8 +688,8 @@
       partners_input_label: 'One per line: Name | URL (URL optional)',
       our_partners_heading: 'Our Carnet de Piste partners',
       optional_features_heading: 'Optional features',
-      optional_features_help: 'Hidden for everyone by default (even in Mode complet/Organisateur) -- turn on only if a Team actually needs it.',
-      feature_weather_label: 'Weather & track', feature_special_activities_label: 'Track days, coaching...', feature_rental_label: 'Rental (bikes and gear)',
+      optional_features_help: 'Hidden for everyone by default (even in Full/Organizer mode) -- turn on only if a Team actually needs it.',
+      feature_weather_label: 'Weather & track', feature_special_activities_label: 'Track intros, coaching...', feature_rental_label: 'Rental (bikes and gear)',
       feedback_heading: 'A remark, an idea?',
       feedback_help: 'Tell us what\'s missing, what\'s blocking you, or what you\'d like to see -- it goes straight to the development team.',
       feedback_placeholder: 'Your feedback...',
@@ -744,7 +744,7 @@
       weather_label: 'Weather & track', weather_condition_unset: 'Condition —', track_direction_label: 'Direction:', track_direction_unset: 'Direction —', weather_temp_placeholder: 'E.g. 18°C in the morning, 25°C in the afternoon',
       my_chronos_export_heading: 'My chronos', no_chrono_this_outing: 'No chrono recorded for this trackday.', laps_suffix: ' laps', lap_suffix: ' lap', recap_export_caption: 'Trackday recap', export_recap_btn: 'Export recap',
       practical_info_label: 'Practical info', practical_info_placeholder: 'E.g. Parking, paddock access, catering...',
-      special_activities_label: 'Track days, coaching...', special_activities_placeholder: 'E.g. Track days 12pm-2pm, coaching by sign-up...',
+      special_activities_label: 'Track intros, coaching...', special_activities_placeholder: 'E.g. Track intros 12pm-2pm, coaching by sign-up...',
       rental_motos_label: 'Rental — Bikes', rental_motos_placeholder: 'E.g. 2 CBR600 available for track days, 1 for a rider -- contact Marc',
       rental_equipement_label: 'Rental — Gear', rental_equipement_placeholder: 'E.g. Suits and helmets, all sizes, riders and track days',
       badge_certified_label: 'Certified', badge_certified_desc: 'Certified — account verified by the administrator.',
@@ -841,6 +841,431 @@
     if (TRANSLATIONS.fr[key] != null) return TRANSLATIONS.fr[key];
     return key;
   }
+
+  // ---- Anglais : traduction des textes écrits en dur en français ----
+  // Most screens build their copy as French literals rather than tr()
+  // keys. In English mode, every text node / placeholder / title /
+  // aria-label added to the page is looked up here (exact match first,
+  // then a few patterns with numbers or names in them) and swapped for
+  // its English version. French mode never touches the DOM.
+  var EN_LITERALS = {
+"+ Ajouter un chrono": "+ Add a lap time",
+"Saisie, photo de la feuille de temps, capture d'écran ou PDF.": "Type it in, or snap your timesheet, a screenshot or a PDF.",
+"Inviter un pilote": "Invite a rider",
+"Inviter un pilote (QR code)": "Invite a rider (QR code)",
+"Paramètres": "Settings",
+"Bonjour": "Hi",
+"Plan & repères": "Map & marks",
+"Toucher pour noter tes repères": "Tap to note your marks",
+"Mes repères": "My marks",
+"Noter mes repères": "Note my marks",
+"Voir sur le plan": "See on the map",
+"Tu n'as pas encore de chrono sur ce circuit.": "You don't have a lap time on this circuit yet.",
+"Aucun chrono sur ce circuit pour les pilotes affichés.": "No lap time on this circuit for the riders shown.",
+"Progression des chronos": "Lap time progress",
+"Mon record": "My record",
+"Pas encore de chrono": "No lap time yet",
+"Mes roulages ici": "My trackdays here",
+"Trophées": "Trophies",
+"Mes données": "My data",
+"Mes chiffres": "My numbers",
+"Dernier roulage": "Last trackday",
+"Circuits visités": "Circuits visited",
+"Jours sur piste": "Days on track",
+"Chronos validés par le team": "Team-validated lap times",
+"Aucune donnée.": "No data.",
+"Records": "Records",
+"Record par circuit": "Record per circuit",
+"Roulages": "Trackdays",
+"Meilleurs temps par circuit": "Best times per circuit",
+"Records battus en 2026": "Records broken in 2026",
+"Nouveau temps": "New time",
+"Gain": "Gain",
+"Historique": "History",
+"Premier chrono": "First lap time",
+"Enregistrer un premier chrono.": "Log your first lap time.",
+"Globe-trotter": "Globetrotter",
+"Rouler sur 5 circuits différents.": "Ride 5 different circuits.",
+"Grand voyageur": "Great traveller",
+"Rouler sur 10 circuits différents.": "Ride 10 different circuits.",
+"Habitué": "Regular",
+"Cumuler 10 jours sur piste.": "Reach 10 days on track.",
+"Vétéran": "Veteran",
+"Cumuler 30 jours sur piste.": "Reach 30 days on track.",
+"Régulier": "Loyal",
+"Revenir 3 fois ou plus sur le même circuit.": "Come back 3 times or more to the same circuit.",
+"Assidu": "Dedicated",
+"Enregistrer 20 chronos.": "Log 20 lap times.",
+"Grosse progression": "Big progress",
+"Gagner au moins 1 seconde sur un circuit depuis son premier roulage là-bas.": "Gain at least 1 second on a circuit since your first trackday there.",
+"Éclair": "Lightning",
+"Gagner au moins 3 secondes sur un circuit depuis son premier roulage là-bas.": "Gain at least 3 seconds on a circuit since your first trackday there.",
+"Recordman": "Record holder",
+"Détenir le record du groupe sur au moins un circuit.": "Hold the group record on at least one circuit.",
+"Multi-recordman": "Multi record holder",
+"Détenir le record du groupe sur 3 circuits ou plus.": "Hold the group record on 3 circuits or more.",
+"Parrain": "Sponsor",
+"Faire signer un premier filleul avec ton lien de parrainage.": "Get a first friend to sign up with your invite link.",
+"Grand parrain": "Super sponsor",
+"Faire signer 5 filleuls avec ton lien de parrainage.": "Get 5 friends to sign up with your invite link.",
+"Premier ami": "First friend",
+"Avoir un premier ami accepté (Communauté → Amis & fil).": "Have a first accepted friend (Community → Friends & feed).",
+"Cercle fidèle": "Inner circle",
+"Avoir 5 amis acceptés ou plus.": "Have 5 accepted friends or more.",
+"Fondateur": "Founder",
+"Créer un Team.": "Create a Team.",
+"Fonder un Team certifié PRO.": "Found a certified PRO Team.",
+"Voix du Journal": "Journal voice",
+"Publier un premier message sur ton Journal.": "Post a first message on your Journal.",
+"Chroniqueur": "Columnist",
+"Publier 5 messages sur ton Journal.": "Post 5 messages on your Journal.",
+"⬇ Exporter mes chronos (tableur CSV)": "⬇ Export my lap times (CSV spreadsheet)",
+"Qui voit quoi": "Who sees what",
+"Tes chronos et tes roulages sont visibles des autres pilotes de l'appli (classements, roulages en commun) -- tu peux les retirer de ta fiche dans Réglages → Vie privée. Tes repères et tes débriefs ne sont affichés qu'à toi. Ton email reste privé.": "Your lap times and trackdays are visible to other riders in the app (rankings, shared trackdays) -- you can hide them from your card in Settings → Privacy. Your marks and debriefs are only shown to you. Your email stays private.",
+"Prochain roulage": "Next trackday",
+"Calendrier": "Calendar",
+"Programme": "Schedule",
+"Ma prépa": "My prep",
+"🔗 Inviter des pistards (lien public)": "🔗 Invite riders (public link)",
+"✎ Modifier le roulage": "✎ Edit trackday",
+"Horaires": "Times",
+"Infos pratiques": "Practical info",
+"Météo": "Weather",
+"Activités": "Activities",
+"Location": "Rental",
+"📷 Remplacer les horaires (photo ou PDF)": "📷 Replace the times (photo or PDF)",
+"📷 Importer les horaires (photo ou PDF)": "📷 Import the times (photo or PDF)",
+"📷 Photo des horaires de l'organisateur": "📷 Organiser's timetable photo",
+"Pour vérifier les horaires ci-dessus par rapport à ce qui a été partagé dans le groupe WhatsApp.": "To check the times above against what was shared in the WhatsApp group.",
+"Ajouter la photo de l'organisateur": "Add the organiser's photo",
+"Remplacer": "Replace",
+"Retirer": "Remove",
+"Supprimer la catégorie": "Delete category",
+"Pas encore d'horaires pour ce roulage.": "No times for this trackday yet.",
+"Objectif": "Goal",
+"Repères": "Marks",
+"Amis": "Friends",
+"Voyage": "Travel",
+"Objectifs pour la prochaine session": "Goals for the next session",
+"Enregistrer": "Save",
+"Ajouter": "Add",
+"Annuler": "Cancel",
+"Fermer": "Close",
+"Supprimer": "Delete",
+"+ ajouter un objet": "+ add an item",
+"+ nouvelle catégorie": "+ new category",
+"Moto": "Bike",
+"Pneus": "Tyres",
+"Pression": "Pressure",
+"État": "Condition",
+"Couverture": "Tyre warmers on",
+"Freinage": "Brakes",
+"Plaquettes": "Pads",
+"Levier": "Lever",
+"Liquide": "Fluid",
+"Mécanique": "Mechanics",
+"Chaîne": "Chain",
+"Huile": "Oil",
+"Eau": "Coolant",
+"Serrage": "Tightening",
+"Fuite": "Leaks",
+"Pilote": "Rider",
+"Équipement": "Gear",
+"Casque / visière propre": "Helmet / clean visor",
+"Dorsale / airbag chargé (racing)": "Back protector / airbag charged (racing)",
+"Physique": "Physical",
+"S'hydrater": "Hydrate",
+"S'échauffer": "Warm up",
+"Pas forcer si fatigué": "Don't push if tired",
+"Mental": "Mental",
+"Respiration calme": "Calm breathing",
+"Objectif de session": "Session goal",
+"Concentration": "Focus",
+"Équipement du pistard": "Rider gear",
+"Casque": "Helmet",
+"Visières": "Visors",
+"Combi": "Leathers",
+"Sous combi": "Base layer",
+"Airbag": "Airbag",
+"Gants": "Gloves",
+"Sous gants": "Glove liners",
+"Bottes": "Boots",
+"Sliders": "Sliders",
+"Équipement de la moto": "Bike gear",
+"Pneus de rechange": "Spare tyres",
+"Couvertures chauffantes": "Tyre warmers",
+"Béquilles AV et AR": "Front and rear stands",
+"Chicane": "Wheel chock",
+"Gonfleur": "Pump",
+"Équipement transport": "Transport gear",
+"Mamo": "Bike lift",
+"Sangles": "Straps",
+"Rampe": "Ramp",
+"Caisses": "Crates",
+"Papiers administratifs": "Paperwork",
+"Accès circuit": "Circuit pass",
+"Déclaration": "Waiver",
+"Assurance": "Insurance",
+"Carte grise moto": "Bike registration",
+"Permis de conduire": "Driving licence",
+"Équipement consommable": "Consumables",
+"Bidons": "Fuel cans",
+"Bec verseur": "Spout",
+"Essence": "Fuel",
+"Bouteilles eau": "Water bottles",
+"Nettoyage": "Cleaning",
+"Éponge": "Sponge",
+"Serviette": "Towel",
+"Sacs poubelles": "Bin bags",
+"Équipement bricole": "Tools",
+"Boîte à outils": "Toolbox",
+"Dynamo": "Generator",
+"Équipement confort": "Comfort",
+"Chaises": "Chairs",
+"Armoire": "Wardrobe",
+"Porte-manteau": "Coat stand",
+"Ventilo": "Fan",
+"Équipement aide": "Helpers",
+"Caméra": "Camera",
+"3DMS": "3DMS",
+"PC": "Laptop",
+"Autres": "Other",
+"Autocollant": "Sticker",
+"Application téléphone": "Phone app",
+"Plan circuit": "Circuit map",
+"Visible par toi et par les comptes Accompagnant qui te suivent.": "Visible to you and to the Companion accounts that follow you.",
+"Hôtel — nom": "Hotel — name",
+"Hôtel — adresse": "Hotel — address",
+"Hôtel — lien": "Hotel — link",
+"Lien de réservation": "Booking link",
+"Avion": "Flight",
+"Aller — départ": "Outbound — departure",
+"Aller — arrivée": "Outbound — arrival",
+"Retour — départ": "Return — departure",
+"Retour — arrivée": "Return — arrival",
+"Aéroport — départ": "Airport — departure",
+"Aéroport — arrivée": "Airport — arrival",
+"Billet d'avion — lien": "Flight ticket — link",
+"Notes": "Notes",
+"Ex. Ibis Le Mans": "E.g. Ibis Le Mans",
+"Ex. 12 rue de la Sarthe, 72100 Le Mans": "E.g. 12 rue de la Sarthe, 72100 Le Mans",
+"Ex. Aéroport de Bologne": "E.g. Bologna Airport",
+"Ex. Paris Beauvais": "E.g. Paris Beauvais",
+"Toute autre info utile (location de voiture, covoiturage, code du logement...)": "Any other useful info (car rental, car-sharing, door code...)",
+"Passés": "Past",
+"Mon calendrier": "My calendar",
+"+ Ajouter un roulage": "+ Add a trackday",
+"Circuit et date suffisent ; horaires et groupes peuvent venir après (photo de l'affiche).": "Circuit and date are enough; times and groups can come later (photo of the poster).",
+"Aucun roulage passé.": "No past trackday.",
+"Aucun roulage à venir.": "No upcoming trackday.",
+"Amis & fil": "Friends & feed",
+"Fil d'actualité": "News feed",
+"Personnalités": "Personalities",
+"Reçues": "Received",
+"Envoyées": "Sent",
+"Découvrir": "Discover",
+"Créer un team": "Create a team",
+"Aucun team à découvrir pour l'instant.": "No team to discover yet.",
+"Demandes": "Requests",
+"En cours": "Ongoing",
+"Planning": "Planning",
+"Proposer": "Offer",
+"Demander": "Ask",
+"Aucune demande en attente.": "No pending request.",
+"Aucun coaching en cours.": "No ongoing coaching.",
+"À traiter": "To handle",
+"En attente": "Waiting",
+"Organisé par": "Organised by",
+"Mon groupe": "My group",
+"🕒 Groupe pas encore attribué": "🕒 No group assigned yet",
+"🕒 Horaires non communiqués": "🕒 Times not announced yet",
+"À venir": "Upcoming",
+"Journée terminée": "Day over",
+"Aujourd'hui": "Today",
+"Demain": "Tomorrow",
+"Mon record à battre": "My record to beat",
+"Record à battre": "Record to beat",
+"Meilleur tour": "Best lap",
+"Premier roulage sur ce circuit : ton premier chrono sera ton record.": "First trackday on this circuit: your first lap time will be your record.",
+"Tes chronos de ce roulage apparaîtront ici.": "Your lap times from this trackday will show up here.",
+"Aucun chrono enregistré ce jour-là.": "No lap time logged that day.",
+"+ Ajouter un chrono pour ce jour": "+ Add a lap time for this day",
+"Sur le site du chronométreur": "On the timekeeper's website",
+"Validation interne au team, pour vos classements entre vous. La référence officielle reste le chronométrage de l'organisateur.": "Internal team validation, for your own rankings. The official reference remains the organiser's timing.",
+"Mes infos de voyage": "My travel info",
+"📷 Ajouter un lien photos/vidéos": "📷 Add a photos/videos link",
+"📷 Ajouter mon lien photos perso": "📷 Add my personal photos link",
+"📍 Noter mes repères sur le plan": "📍 Note my marks on the map",
+"📍 Voir le plan et mes repères": "📍 See the map and my marks",
+"Chronos": "Lap times",
+"Infos": "Info",
+"Réglages": "Settings",
+"Fil": "Feed",
+"Membres": "Members",
+"+ Écrire au team": "+ Write to the team",
+"ou lancer un sondage": "or start a poll",
+"+ Inviter des membres": "+ Invite members",
+"Inviter dans le team": "Invite to the team",
+"Profil du team": "Team profile",
+"Partenaires": "Partners",
+"Confidentialité": "Privacy",
+"Zone sensible": "Danger zone",
+"Photo (badge rond)": "Photo (round badge)",
+"Un par ligne : Nom | URL (URL optionnelle)": "One per line: Name | URL (URL optional)",
+"Ne plus suivre": "Unfollow",
+"Identité": "Identity",
+"Rôle": "Role",
+"Ma moto": "My bike",
+"Pilotes suivis": "Followed riders",
+"Général": "General",
+"Vie privée": "Privacy",
+"Compte": "Account",
+"Affichage": "Display",
+"Voyage par défaut": "Default travel",
+"Français": "French",
+"Tes chronos et roulages sont visibles des autres pilotes de l'appli ; repères et débriefs ne sont affichés qu'à toi ; ton email reste privé.": "Your lap times and trackdays are visible to other riders in the app; marks and debriefs are only shown to you; your email stays private.",
+"À propos": "About",
+"Aide": "Help",
+"Nom": "Name",
+"Mots de passe temporaires (comptes de test)": "Temporary passwords (test accounts)",
+"Remplace le mot de passe de plusieurs comptes d'un coup. Il faut connaître leur mot de passe actuel.": "Replaces the password of several accounts at once. You need to know their current password.",
+"Pseudos (séparés par des virgules)": "Usernames (comma-separated)",
+"Mot de passe actuel de ces comptes": "Current password of these accounts",
+"Nouveau mot de passe temporaire (6 caractères min.)": "New temporary password (min. 6 characters)",
+"Remplacer les mots de passe": "Replace the passwords",
+"1re fois": "1st time",
+"1re fois ici": "1st time here",
+"record à battre": "record to beat",
+"record": "record",
+"Mes amis": "My friends",
+"Mon profil": "My profile",
+"Retour": "Back",
+"Réserver chez l'orga ↗": "Book with the organiser ↗",
+"Inscription et paiement chez l'organisateur.": "Registration and payment with the organiser.",
+"J'y vais": "I'm going",
+"En attente du Team": "Waiting for the Team",
+"Tu y vas aussi ?": "Are you going too?",
+"« J'y vais » te met sur la liste du roulage dans Carnet de Piste. L'inscription et le paiement se font chez l'orga.": "\"I'm going\" puts you on this trackday's list in Carnet de Piste. Registration and payment are with the organiser.",
+"Roulage": "Trackday",
+"Créer mon carnet": "Create my logbook",
+"J'ai déjà un compte": "I already have an account",
+"Ton carnet de pilote, gratuit": "Your rider logbook, free",
+"Ce lien de roulage n'existe plus.": "This trackday link no longer exists.",
+"Horaires de ton groupe, chronos importés depuis ta feuille de temps, records, repères sur le plan, copains du roulage. Il complète l'appli de ton orga, il ne la remplace pas.": "Your group's times, lap times imported from your timesheet, records, marks on the map, friends at the trackday. It complements your organiser's app, it doesn't replace it.",
+"Live timing de l'orga ↗": "Organiser's live timing ↗",
+"Suggestion supprimée.": "Feedback deleted.",
+"Confirmer la suppression": "Confirm deletion",
+"Préparation de l'image…": "Preparing the image…",
+"Image enregistrée -- publie-la en story !": "Image saved -- post it as a story!",
+"Lien copié : colle-le dans ton groupe WhatsApp.": "Link copied: paste it into your WhatsApp group.",
+"Chargement…": "Loading…",
+"Chargement...": "Loading...",
+"Connexion...": "Signing in...",
+"Mode jour J": "Race-day mode",
+"🏁 Mode jour J": "🏁 Race-day mode",
+"🏁 Mode jour J — prochaine session en grand": "🏁 Race-day mode — next session in big",
+"Progression": "Progress",
+"Session": "Session",
+"Mes débriefs": "My debriefs",
+"Mes sessions": "My sessions",
+"Programme du jour": "Today's schedule",
+"Prochaine session": "Next session",
+"Plus de session": "No more sessions",
+"En ce moment": "Right now",
+"Chronos en direct ↗": "Live timing ↗",
+"Briefing": "Briefing",
+"Groupe pas encore attribué": "No group assigned yet"
+};
+  var EN_COUNT_WORDS = { 'jours': 'days', 'roulages': 'trackdays', 'chronos': 'lap times', 'filleul(s)': 'referral(s)', 'filleuls': 'referrals', 'ami(s)': 'friend(s)', 'amis': 'friends', 'team(s)': 'team(s)', 'message(s)': 'message(s)', 'messages': 'messages', 'circuits': 'circuits', 'record(s)': 'record(s)', 'records': 'records' };
+  var EN_PATTERNS = [
+    [/^(\d+) pilote\(s\) réparti\(s\) dans un groupe\.( Reporte ici .*)?$/, function (m, n, extra) { return n + ' rider(s) placed in a group.' + (extra ? ' Copy the organiser\'s groups here (or your team\'s) so everyone finds their times.' : ''); }],
+    [/^Mes roulages \((\d+)\)$/, 'My trackdays ($1)'], [/^À venir \((\d+)\)$/, 'Upcoming ($1)'], [/^Mes amis \((\d+)\)$/, 'My friends ($1)'],
+    [/^Mes teams \((\d+)\)$/, 'My teams ($1)'], [/^Membres \((\d+)\)$/, 'Members ($1)'], [/^Reçues \((\d+)\)$/, 'Received ($1)'], [/^Envoyées \((\d+)\)$/, 'Sent ($1)'],
+    [/^Non attribués \((\d+)\)$/, 'Unassigned ($1)'], [/^Chronos \((\d+)\)$/, 'Lap times ($1)'], [/^Repères \((\d+)\)$/, 'Marks ($1)'], [/^Repères · (\d+)$/, 'Marks · $1'],
+    [/^À traiter \((\d+)\)$/, 'To handle ($1)'], [/^En attente \((\d+)\)$/, 'Waiting ($1)'], [/^Demandes \((\d+)\)$/, 'Requests ($1)'], [/^En cours \((\d+)\)$/, 'Ongoing ($1)'],
+    [/^Équipement (\d+\/\d+)$/, 'Gear $1'],
+    [/^🏆 Trophées — (\d+)\/(\d+) débloqués$/, '🏆 Trophies — $1/$2 unlocked'],
+    [/^([\d\/]+) s gagnées$/, '$1 s gained'],
+    [/^([\d\/]+) (jours|roulages|chronos|filleul\(s\)|filleuls|ami\(s\)|amis|team\(s\)|message\(s\)|messages)$/, function (m, n, w) { return n + ' ' + EN_COUNT_WORDS[w]; }],
+    [/^(.*)· (\d+) t\.$/, '$1· $2 laps'],
+    [/^(\d+) membres · ❤ (\d+)$/, '$1 members · ❤ $2'],
+    [/^Dans (\d+) jours? — Groupe (.+)$/, 'In $1 days — Group $2'], [/^Dans 1 jour$/, 'Tomorrow'], [/^Dans (\d+) jours?$/, 'In $1 days'],
+    [/^J-(\d+)$/, 'D-$1'],
+    [/^Ex\. (.+)$/, 'E.g. $1'],
+    [/^(.*) · (\d+) pilotes?$/, '$1 · $2 rider(s)'], [/^(\d+) pilotes?$/, '$1 rider(s)'],
+    [/^y vont déjà · partagé par (.+)$/, 'already going · shared by $1'], [/^y vont déjà$/, 'already going'], [/^Sois le premier à y aller(.*)$/, 'Be the first to go$1'],
+    [/^Progression — (.+)$/, 'Progress — $1'],
+    [/^Aucun repère noté pour (.+)\.$/, 'No marks yet for $1.'],
+    [/^Aucun repère pour (.+) : freinage, déclenchement, corde, sortie… touche le plan pour les épingler\.$/, 'No marks for $1: braking, turn-in, apex, exit… tap the map to pin them.'],
+    [/^Mes repères sur (.+)$/, 'My marks on $1'],
+    [/^\((\d+) roulages?\)$/, '($1 trackdays)'],
+    [/^Établi le (.+) — voir ce roulage$/, 'Set on $1 — see this trackday'],
+    [/^Roulage ajouté : (.+) le (.+)\.$/, 'Trackday added: $1 on $2.'],
+    [/^Tu es sur la liste de (.+)\.$/, 'You\'re on the list for $1.'],
+    [/^Retirer (.+)$/, function (m, x) { return 'Remove ' + (enText(x) || x); }],
+    [/^Supprimer la catégorie (.+)$/, function (m, x) { return 'Delete category ' + (enText(x) || x); }],
+    [/^(.+) — (\d+\/\d+)$/, function (m, x, n) { var t = EN_LITERALS[x]; return t ? t + ' — ' + n : null; }],
+    [/^· (.+)$/, function (m, x) { var t = EN_LITERALS[x]; return t ? '· ' + t : null; }]
+  ];
+  var EN_MONTHS = /\b(january|february|march|april|may|june|july|august|september|october|november|december)\b/g;
+  function enText(s) {
+    var t = enTextRaw(s);
+    var base = t == null ? s : t;
+    if (EN_MONTHS.test(base)) { EN_MONTHS.lastIndex = 0; base = base.replace(EN_MONTHS, function (m) { return m.charAt(0).toUpperCase() + m.slice(1); }); }
+    EN_MONTHS.lastIndex = 0;
+    // 9h20 -> 9:20 (French time notation)
+    if (/\b\d{1,2}h\d{2}\b/.test(base)) base = base.replace(/\b0?(\d{1,2})h(\d{2})\b/g, '$1:$2');
+    return base === s ? null : base;
+  }
+  function enTextRaw(s) {
+    if (EN_LITERALS[s] != null) return EN_LITERALS[s];
+    for (var i = 0; i < EN_PATTERNS.length; i++) {
+      var p = EN_PATTERNS[i];
+      if (!p[0].test(s)) continue;
+      var out = typeof p[1] === 'function' ? s.replace(p[0], p[1]) : s.replace(p[0], p[1]);
+      if (out && out !== s && out !== 'null') return out;
+    }
+    return null;
+  }
+  function translateTreeToEnglish(root) {
+    if (!root || currentLang() !== 'en') return;
+    if (root.nodeType === 3) { translateTextNode(root); return; }
+    if (root.nodeType !== 1) return;
+    var w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT), n;
+    var nodes = [];
+    while ((n = w.nextNode())) nodes.push(n);
+    nodes.forEach(translateTextNode);
+    var els = root.querySelectorAll ? Array.prototype.slice.call(root.querySelectorAll('[placeholder],[title],[aria-label]')) : [];
+    if (root.hasAttribute && (root.hasAttribute('placeholder') || root.hasAttribute('title') || root.hasAttribute('aria-label'))) els.push(root);
+    els.forEach(function (el) {
+      ['placeholder', 'title', 'aria-label'].forEach(function (a) {
+        var v = el.getAttribute(a);
+        if (!v) return;
+        var t = enText(v.trim());
+        if (t != null && t !== v) el.setAttribute(a, t);
+      });
+    });
+  }
+  function translateTextNode(node) {
+    var v = node.nodeValue;
+    if (!v || !/[A-Za-zÀ-ÿ]/.test(v)) return;
+    var p = node.parentNode;
+    if (p && (p.nodeName === 'SCRIPT' || p.nodeName === 'STYLE' || p.nodeName === 'TEXTAREA')) return;
+    var trimmed = v.replace(/\s+/g, ' ').trim();
+    var t = enText(trimmed);
+    if (t == null || t === trimmed) return;
+    var lead = v.match(/^\s*/)[0], trail = v.match(/\s*$/)[0];
+    node.nodeValue = lead + t + trail;
+  }
+  (function watchForEnglish() {
+    if (typeof MutationObserver === 'undefined') return;
+    var obs = new MutationObserver(function (muts) {
+      if (currentLang() !== 'en') return;
+      muts.forEach(function (m) { Array.prototype.forEach.call(m.addedNodes, translateTreeToEnglish); });
+    });
+    function start() { obs.observe(document.body, { childList: true, subtree: true }); }
+    if (document.body) start(); else document.addEventListener('DOMContentLoaded', start);
+  })();
 
   // Real accounts (email/password), not anonymous sign-in -- gates the
   // whole app behind a login/signup screen (see renderAuthScreen()).
@@ -5320,7 +5745,7 @@
   }
 
   function buildShareCard(session) {
-    var W = 1080, H = 1920, C = SHARE_COLORS;
+    var W = 1080, H = 1920, C = SHARE_COLORS, EN = currentLang() === 'en';
     var canvas = document.createElement('canvas');
     canvas.width = W; canvas.height = H;
     var ctx = canvas.getContext('2d');
@@ -5351,10 +5776,10 @@
       ctx.fillStyle = C.card; roundRect(ctx, 60, cardY, W - 120, cardH, 36); ctx.fill(); ctx.restore();
       ctx.save(); roundRect(ctx, 60, cardY, W - 120, cardH, 36); ctx.clip(); ctx.fillStyle = C.red; ctx.fillRect(60, cardY, W - 120, 16); ctx.restore();
       ctx.fillStyle = C.red; ctx.font = '700 42px "Barlow", sans-serif';
-      ctx.fillText('MEILLEUR TOUR', 120, cardY + 110);
+      ctx.fillText(EN ? 'BEST LAP' : 'MEILLEUR TOUR', 120, cardY + 110);
       ctx.fillStyle = C.ink; fitText(ctx, formatTime(info.best), W - 240, 250, 'italic 800', CONDENSED);
       ctx.fillText(formatTime(info.best), 108, cardY + 345);
-      var badge = info.first ? 'Premier chrono sur ce circuit' : (info.isRecord ? 'Nouveau record perso  −' + formatGap(info.prevBest - info.best) : 'Record perso : ' + formatTime(info.prevBest));
+      var badge = info.first ? (EN ? 'First lap time on this circuit' : 'Premier chrono sur ce circuit') : (info.isRecord ? (EN ? 'New personal best  −' : 'Nouveau record perso  −') + formatGap(info.prevBest - info.best) : (EN ? 'Personal best: ' : 'Record perso : ') + formatTime(info.prevBest));
       ctx.font = '700 42px "Barlow", sans-serif';
       var bw = ctx.measureText(badge).width + 70;
       var hot = info.isRecord && !info.first;
@@ -5377,12 +5802,12 @@
           roundRect(ctx, x, top + chartH - h, bwid, h, Math.min(12, bwid / 3)); ctx.fill();
         });
         ctx.fillStyle = C.muted; ctx.font = '600 38px "Barlow", sans-serif';
-        ctx.fillText(laps.length + ' tour' + (laps.length > 1 ? 's' : '') + '  ·  barre haute = tour rapide', left, top + chartH + 65);
+        ctx.fillText(EN ? laps.length + ' lap' + (laps.length > 1 ? 's' : '') + '  ·  taller bar = faster lap' : laps.length + ' tour' + (laps.length > 1 ? 's' : '') + '  ·  barre haute = tour rapide', left, top + chartH + 65);
       }
       // pied : invitation
       ctx.fillStyle = C.line; ctx.fillRect(80, H - 250, W - 160, 2);
       ctx.fillStyle = C.ink; ctx.font = '700 46px "Barlow", sans-serif';
-      ctx.fillText('Mon carnet de piste, gratuit :', 80, H - 175);
+      ctx.fillText(EN ? 'My rider logbook, free:' : 'Mon carnet de piste, gratuit :', 80, H - 175);
       ctx.fillStyle = C.red; fitText(ctx, 'thereiivman-art.github.io/carnetpiste', W - 160, 46, '700');
       ctx.fillText('thereiivman-art.github.io/carnetpiste', 80, H - 105);
       return new Promise(function (resolve) { canvas.toBlob(function (b) { resolve(b); }, 'image/png'); });
