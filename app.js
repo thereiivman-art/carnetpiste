@@ -3081,8 +3081,10 @@
       var onlyMe = currentUserProfile && selectedRiders && selectedRiders.size === 1 && selectedRiders.has(currentUserProfile.name);
       html += '<div class="empty-state">' + (onlyMe ? 'Tu n\'as pas encore de chrono sur ce circuit.' : 'Aucun chrono sur ce circuit pour les pilotes affichés.') + '</div>';
     } else {
-      var colCount = 4 + (showRider ? 1 : 0);
-      var tableHtml = '<div class="table-scroll"><table class="session-table"><thead><tr><th>' + tr('table_date') + '</th>' + (showRider ? '<th>' + tr('table_rider') + '</th>' : '') + '<th>' + tr('table_chronos') + '</th><th>' + tr('table_bike') + '</th><th></th></tr></thead><tbody>';
+      // 3 colonnes seulement (date + détails | chronos + moto | actions) :
+      // tient en largeur sur un téléphone, boutons visibles à droite.
+      var colCount = 3 + (showRider ? 1 : 0);
+      var tableHtml = '<div class="table-scroll"><table class="session-table session-table-compact"><thead><tr><th>' + tr('table_date') + '</th>' + (showRider ? '<th>' + tr('table_rider') + '</th>' : '') + '<th>' + tr('table_chronos') + '</th><th></th></tr></thead><tbody>';
       sessions.forEach(function (s) {
         if (s.id === editingSessionId) {
           tableHtml += renderSessionEditRow(s, colCount);
@@ -3093,12 +3095,12 @@
         var personalBest = riderCircuitBest(s.rider, s.circuit);
         var lapsHtml = s.laps.map(function (l) {
           var t = formatTime(l);
-          var span = (l === best) ? '<span class="best-lap">' + t + '</span>' : t;
-          if (personalBest !== null && l > personalBest) {
-            span += '<span class="lap-delta">+' + (l - personalBest).toFixed(3) + '</span>';
-          }
-          return span;
-        }).join(', ');
+          return (l === best) ? '<span class="best-lap">' + t + '</span>' : '<span class="other-lap">' + t + '</span>';
+        }).join(' ');
+        // Écart du meilleur tour de la session au record perso, sous la date.
+        var deltaHtml = (personalBest !== null && best > personalBest)
+          ? '<div class="lap-delta-line" title="Écart à ton record perso">+' + (best - personalBest).toFixed(3) + '</div>'
+          : (personalBest !== null && best === personalBest && !isRecord ? '<div class="lap-delta-line best">Record perso</div>' : '');
         var noteHtml = s.note ? '<div class="note-text">' + escapeHtml(s.note) + '</div>' : '';
         var periodLabel = s.period === 'matin' ? tr('period_morning') : s.period === 'apres-midi' ? tr('period_afternoon') : '';
         var sessionTagParts = [];
@@ -3110,10 +3112,10 @@
         var feelingTitle = feelingOpt ? tr('feeling_prefix') + feelingOpt.label + (s.feelingComment ? ' — ' + s.feelingComment : '') : '';
         var feelingHtml = feelingOpt ? ' <span class="feeling-tag" title="' + escapeHtml(feelingTitle) + '">' + feelingOpt.icon + '</span>' : '';
         tableHtml += '<tr data-session-id="' + s.id + '">';
-        tableHtml += '<td>' + formatDate(s.date) + feelingHtml + sessionTagHtml + noteHtml + '</td>';
+        tableHtml += '<td class="date-cell">' + formatDate(s.date) + feelingHtml + sessionTagHtml + deltaHtml + noteHtml + '</td>';
         if (showRider) tableHtml += '<td class="rider-cell">' + (s.rider ? renderRiderLink(s.rider) : '—') + '</td>';
-        tableHtml += '<td class="laps-cell">' + lapsHtml + (isRecord ? '<span class="record-pill">' + tr('record_pill') + '</span>' : '') + '</td>';
-        tableHtml += '<td class="bike-cell">' + (s.bike ? escapeHtml(s.bike) : '—') + '</td>';
+        tableHtml += '<td class="laps-cell">' + lapsHtml + (isRecord ? '<span class="record-pill">' + tr('record_pill') + '</span>' : '') +
+          (s.bike ? '<div class="bike-under">' + escapeHtml(s.bike) + '</div>' : '') + '</td>';
         tableHtml += '<td class="row-actions">' + certifyControl(s) + shareControl(s) + editControl(s) + deleteControl(s) + '</td>';
         tableHtml += '</tr>';
       });

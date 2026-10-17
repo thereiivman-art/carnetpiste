@@ -2840,3 +2840,20 @@
 .carnet-step { display: flex; gap: 0.6rem; align-items: flex-start; margin: 0.6rem 0; }
 .carnet-today-card { border-left: 4px solid var(--accent); }
 #carnet-add-chrono { width: 100%; padding: 0.9rem; font-size: 1.05rem; }
+
+/* Historique des chronos compact (3 colonnes) */
+.session-table-compact { width: 100%; table-layout: auto; }
+.session-table-compact .date-cell { white-space: normal; min-width: 6.5rem; }
+.session-table-compact .laps-cell { white-space: normal; }
+.session-table-compact .other-lap { display: inline-block; margin: 0.1rem 0.25rem 0.1rem 0; font-size: 0.85em; color: var(--text-muted); }
+.session-table-compact .best-lap { display: inline-block; margin: 0.1rem 0.25rem 0.1rem 0; }
+.lap-delta-line { font-size: 0.8rem; color: var(--text-muted); margin-top: 0.15rem; font-variant-numeric: tabular-nums; }
+.lap-delta-line.best { color: var(--accent); font-weight: 600; }
+.bike-under { font-size: 0.78rem; color: var(--text-muted); margin-top: 0.2rem; }
+.session-table-compact .row-actions { white-space: nowrap; text-align: right; width: 1%; }
+.lap-delta-line { white-space: nowrap; }
+.bike-under { font-family: inherit; font-family: -apple-system, "Segoe UI", Roboto, sans-serif; }
+.session-table-compact .row-actions .icon-btn { margin-left: 0.15rem; }
+.session-table-compact .date-cell { min-width: 5.6rem; }
+.session-table-compact .row-actions .icon-btn { padding: 0.3rem 0.45rem; min-width: 0; width: auto; height: auto; }
+.session-table-compact td, .session-table-compact th { padding-left: 0.3rem; padding-right: 0.3rem; }
