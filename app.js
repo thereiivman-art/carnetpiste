@@ -5386,11 +5386,11 @@
     if (selectedRiders && selectedRiders.size) {
       var progressionRiders = Array.from(selectedRiders);
       var progressionCircuits = circuitsWithChronosFor(progressionRiders);
-      if (progressionCircuits.length) {
-        var progressionCircuit = (progressionCircuitPick && progressionCircuits.indexOf(progressionCircuitPick) !== -1)
-          ? progressionCircuitPick
-          : (progressionCircuits.indexOf(selectedCircuit) !== -1 ? selectedCircuit : progressionCircuits[0]);
-        html += renderProgressionChart(progressionRiders, progressionCircuit, progressionCircuits);
+      // Sur la page d'un circuit, la courbe suit le circuit choisi en haut
+      // de page -- jamais un autre circuit en repli (« Progression —
+      // Misano » affiché sous Mugello).
+      if (progressionCircuits.indexOf(selectedCircuit) !== -1) {
+        html += renderProgressionChart(progressionRiders, selectedCircuit, null);
       }
     }
     return html;

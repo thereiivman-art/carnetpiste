@@ -2819,7 +2819,7 @@
 .carnet-row { display: flex; align-items: center; justify-content: space-between; gap: 0.6rem; width: 100%; text-align: left; background: none; border: none; border-bottom: 1px solid var(--border); padding: 0.6rem 0; color: inherit; cursor: pointer; }
 .carnet-row:last-of-type { border-bottom: none; }
 .carnet-row-main { display: flex; flex-direction: column; gap: 0.1rem; }
-.carnet-time { font-family: ui-monospace, Menlo, monospace; font-weight: 700; text-align: right; white-space: nowrap; }
+.carnet-time { font-family: var(--font-mono); font-weight: 700; font-size: 1.15rem; font-style: italic; text-align: right; white-space: nowrap; }
 .carnet-step { display: flex; gap: 0.6rem; align-items: flex-start; margin: 0.6rem 0; }
 .carnet-today-card { border-left: 4px solid var(--accent); }
 #carnet-add-chrono { width: 100%; padding: 0.9rem; font-size: 1.05rem; }
