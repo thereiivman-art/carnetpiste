@@ -5894,8 +5894,10 @@
     var byKey = {};
     mySessions().forEach(function (s) {
       var k = s.date + '|' + s.circuit;
-      var o = byKey[k] || (byKey[k] = { date: s.date, circuit: s.circuit, sessions: 0, laps: 0, best: null });
+      var o = byKey[k] || (byKey[k] = { date: s.date, circuit: s.circuit, sessions: 0, laps: 0, best: null, groups: {}, eventId: null });
       o.sessions++; o.laps += s.laps.length;
+      if (s.group) o.groups[s.group] = true;
+      if (s.eventId) o.eventId = s.eventId;
       var b = sessionBest(s);
       if (o.best === null || b < o.best) o.best = b;
     });
@@ -5911,6 +5913,60 @@
     return list.reverse();
   }
 
+  // ---- QR code d'invitation (lien de parrainage) ----
+  // Bibliothèque qrcode-generator chargée à la demande (version figée) ;
+  // sans réseau on affiche quand même le lien à partager/copier.
+  var qrLibPromise = null;
+  function loadQrLib() {
+    if (window.qrcode) return Promise.resolve(window.qrcode);
+    if (qrLibPromise) return qrLibPromise;
+    qrLibPromise = new Promise(function (resolve, reject) {
+      var sc = document.createElement('script');
+      sc.src = 'https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js';
+      sc.crossOrigin = 'anonymous';
+      sc.onload = function () { window.qrcode ? resolve(window.qrcode) : reject(new Error('qr')); };
+      sc.onerror = function () { qrLibPromise = null; reject(new Error('qr')); };
+      document.head.appendChild(sc);
+    });
+    return qrLibPromise;
+  }
+  function openInviteQr() {
+    if (!currentUserProfile) return;
+    var link = referralLinkFor(currentUserProfile.name);
+    var overlay = document.createElement('div');
+    overlay.className = 'crop-modal-overlay';
+    overlay.innerHTML = '<div class="crop-modal invite-qr-modal">' +
+      '<h2 class="section-title">Invite un pilote</h2>' +
+      '<div class="help-text">Fais scanner ce code : il s\'inscrit avec ton lien et devient ton filleul.</div>' +
+      '<div class="invite-qr-box" id="invite-qr-box">Chargement…</div>' +
+      '<div class="invite-qr-link">' + escapeHtml(link) + '</div>' +
+      '<div style="margin-top:0.8rem; display:flex; gap:0.5rem; flex-wrap:wrap;">' +
+      (navigator.share ? '<button type="button" class="primary" data-q="share">Partager le lien</button>' : '') +
+      '<button type="button" class="ghost" data-q="copy">Copier</button>' +
+      '<button type="button" class="ghost" data-q="close">Fermer</button></div></div>';
+    document.body.appendChild(overlay);
+    function close() { if (overlay.parentNode) overlay.parentNode.removeChild(overlay); }
+    overlay.addEventListener('click', function (e) { if (e.target === overlay) close(); });
+    overlay.querySelector('[data-q="close"]').addEventListener('click', close);
+    var shareBtn = overlay.querySelector('[data-q="share"]');
+    if (shareBtn) shareBtn.addEventListener('click', function () {
+      navigator.share({ text: 'Rejoins-moi sur Carnet de Piste, mon carnet de chronos et de repères : ' + link }).catch(function () {});
+    });
+    overlay.querySelector('[data-q="copy"]').addEventListener('click', function () {
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(link).then(function () { showToast('Lien copié', 'success'); }).catch(function () {});
+    });
+    loadQrLib().then(function (qrcode) {
+      var qr = qrcode(0, 'M');
+      qr.addData(link);
+      qr.make();
+      var box = overlay.querySelector('#invite-qr-box');
+      if (box) box.innerHTML = qr.createSvgTag({ cellSize: 6, margin: 2, scalable: true });
+    }).catch(function () {
+      var box = overlay.querySelector('#invite-qr-box');
+      if (box) box.textContent = 'QR code indisponible hors connexion -- partage le lien ci-dessous.';
+    });
+  }
+
   function renderMyRecordsCard() {
     var outings = myOutings();
     if (!outings.length) return '';
@@ -5923,6 +5979,57 @@
         '<span class="help-text">' + escapeHtml(formatDate(r.date)) + '</span></span><span class="carnet-time">' + formatTime(r.best) + '</span></button>';
     });
     return html + '</div>';
+  }
+
+  var carnetCardsMode = null; // 'passees' | 'avenir'
+  function circuitThumbHtml(circuit) {
+    var info = circuitInfo(circuit);
+    var src = info.mapImage || outlineImageFor(info, circuit);
+    var letter = escapeHtml((circuit || '?').charAt(0).toUpperCase());
+    return src ? '<img src="' + src + '" alt="" onerror="this.outerHTML=\'<span class=&quot;outing-thumb-letter&quot;>' + letter + '</span>\'">' : '<span class="outing-thumb-letter">' + letter + '</span>';
+  }
+  function myUpcomingEvents() {
+    var me = currentUserProfile && currentUserProfile.name;
+    var today = dateKey(new Date());
+    return eventsList().filter(function (ev) {
+      return me && (ev.riders || []).indexOf(me) !== -1 && (ev.dateEnd || ev.dateStart) >= today;
+    }).sort(function (a, b) { return a.dateStart < b.dateStart ? -1 : 1; });
+  }
+  function renderOutingCards(outings) {
+    var upcoming = myUpcomingEvents();
+    if (!carnetCardsMode) carnetCardsMode = outings.length ? 'passees' : 'avenir';
+    var html = '<div class="outings-head"><h2 class="section-title">Mes sorties</h2><div class="outings-toggle">' +
+      '<button type="button" class="pill-btn' + (carnetCardsMode === 'avenir' ? ' active' : '') + '" data-cards-mode="avenir">À venir</button>' +
+      '<button type="button" class="pill-btn' + (carnetCardsMode === 'passees' ? ' active' : '') + '" data-cards-mode="passees">Passées</button></div></div>';
+    html += '<div class="outing-cards">';
+    if (carnetCardsMode === 'avenir') {
+      if (!upcoming.length) html += '<div class="outing-card empty">Aucune sortie à venir.<br><button type="button" class="link-btn" data-view="event">Planifier une sortie</button></div>';
+      upcoming.forEach(function (ev) {
+        var grp = riderGroupFor(ev, currentUserProfile.name, ev.dateStart, 'matin') || riderGroupFor(ev, currentUserProfile.name, ev.dateStart, 'apres-midi') || '';
+        var myBest = riderCircuitBest(currentUserProfile.name, ev.circuit);
+        html += '<button type="button" class="outing-card" data-open-event="' + escapeHtml(ev.id) + '">' +
+          '<span class="outing-card-top"><span class="outing-badges"><span class="outing-badge accent">À venir</span></span><span class="outing-thumb">' + circuitThumbHtml(ev.circuit) + '</span></span>' +
+          '<span class="outing-date">' + escapeHtml(formatEventRange(ev, true)) + '</span><span class="outing-circuit">' + escapeHtml(ev.circuit) + '</span>' +
+          '<span class="outing-foot"><span><span class="outing-label">Groupe</span><span class="outing-value">' + escapeHtml(grp || '—') + '</span></span>' +
+          '<span><span class="outing-label">Mon record</span><span class="outing-value">' + (myBest !== null ? formatTime(myBest) : '—') + '</span></span></span></button>';
+      });
+    } else {
+      outings.slice(0, 12).forEach(function (o) {
+        var grp = Object.keys(o.groups).join(' / ');
+        var delta = '';
+        if (o.prevBest !== null) {
+          var d = o.best - o.prevBest;
+          delta = d < 0 ? '<span class="daily-recap-better">−' + Math.abs(d).toFixed(3) + '</span>' : '<span class="daily-recap-worse">+' + d.toFixed(3) + '</span>';
+        }
+        html += '<button type="button" class="outing-card" data-carnet-circuit="' + escapeHtml(o.circuit) + '">' +
+          '<span class="outing-card-top"><span class="outing-badges"><span class="outing-badge">Terminé</span>' + (o.isRecord && o.prevBest !== null ? '<span class="outing-badge accent">🏆 Record</span>' : '') + '</span><span class="outing-thumb">' + circuitThumbHtml(o.circuit) + '</span></span>' +
+          '<span class="outing-date">' + escapeHtml(formatDate(o.date)) + '</span><span class="outing-circuit">' + escapeHtml(o.circuit) + '</span>' +
+          '<span class="outing-foot"><span><span class="outing-label">Groupe</span><span class="outing-value">' + escapeHtml(grp || '—') + '</span></span>' +
+          '<span><span class="outing-label">Meilleur tour</span><span class="outing-value">' + formatTime(o.best) + (delta ? ' ' + delta : '') + '</span></span></span></button>';
+      });
+    }
+    html += '</div>';
+    return html;
   }
 
   function renderCarnetTab() {
@@ -5948,12 +6055,13 @@
         '<div class="carnet-step"><span class="track-pin static">2</span><span><strong>Retrouve ton historique ici</strong><br><span class="help-text">Tes sorties et ta progression ; tes records sont dans « Stats ».</span></span></div>' +
         '<div class="carnet-step"><span class="track-pin static">3</span><span><strong>Note tes repères</strong><br><span class="help-text">Dans « Circuits » : freinage, déclenchement, corde, sortie… épinglés sur le plan.</span></span></div>' +
         '</div>';
+      if (myUpcomingEvents().length) { carnetCardsMode = 'avenir'; html += renderOutingCards(outings); }
     } else {
-      // Historique
-      var shown = carnetHistoryAll ? outings : outings.slice(0, 8);
+      html += renderOutingCards(outings);
+      html += '<div class="outings-more"><button type="button" class="link-btn" id="carnet-history-toggle">' + (carnetHistoryAll ? 'Masquer la liste' : 'Voir tout (' + outings.length + ') →') + '</button></div>';
+      if (carnetHistoryAll) {
       html += '<div class="card"><h2 class="section-title">Mon historique</h2>';
-      shown.forEach(function (o) {
-        // (une ligne = une sortie ; la toucher ouvre le circuit)
+      outings.forEach(function (o) {
         var delta = '';
         if (o.prevBest !== null) {
           var d = o.best - o.prevBest;
@@ -5963,10 +6071,8 @@
           '<span class="help-text">' + o.laps + ' tour' + (o.laps > 1 ? 's' : '') + (o.sessions > 1 ? ' · ' + o.sessions + ' sessions' : '') + (o.isRecord && o.prevBest !== null ? ' · 🏆 record' : (o.prevBest === null ? ' · 1re sortie ici' : '')) + '</span></span>' +
           '<span class="carnet-time">' + formatTime(o.best) + (delta ? '<br>' + delta : '') + '</span></button>';
       });
-      if (outings.length > 8) {
-        html += '<button type="button" class="ghost" id="carnet-history-toggle" style="margin-top:0.5rem;">' + (carnetHistoryAll ? 'Réduire' : 'Tout afficher (' + outings.length + ')') + '</button>';
-      }
       html += '</div>';
+      }
     }
 
     return html;
@@ -12779,12 +12885,16 @@
       '<header class="page-head">' +
         '<div class="page-head-inner">' +
           '<div class="page-head-row">' +
-            '<h1 class="title">Carnet de Piste</h1>' +
+            '<button type="button" class="header-hello" id="profile-toggle" aria-label="' + tr('my_profile_label') + '" title="' + tr('my_profile_label') + '">' + avatarHtml(currentUserProfile, currentUserProfile.name) +
+              '<span class="hello-text"><span class="hello-small">Bonjour</span><span class="hello-name">' + escapeHtml(currentUserProfile.firstName || currentUserProfile.name || '') + '</span></span></button>' +
             '<div class="header-controls">' +
+              '<button type="button" class="header-icon-btn" id="invite-qr-btn" aria-label="Inviter un pilote (QR code)" title="Inviter un pilote">' +
+                '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3zM20 14v.01M14 20h.01M17 20h4v-3"/></svg></button>' +
+              '<button type="button" class="header-icon-btn" id="settings-toggle" aria-label="Paramètres" title="Paramètres">' +
+                '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>' +
               '<button type="button" class="header-icon-btn" id="notifications-toggle" aria-label="' + tr('notifications_label') + '" title="' + tr('notifications_label') + '">🔔' +
                 (notifCount ? '<span class="notif-count">' + (notifCount > 9 ? '9+' : notifCount) + '</span>' : '') +
               '</button>' +
-              '<button type="button" class="profile-badge-btn" id="profile-toggle" aria-label="' + tr('my_profile_label') + '" title="' + tr('my_profile_label') + '">' + avatarHtml(currentUserProfile, currentUserProfile.name) + '</button>' +
             '</div>' +
           '</div>' +
           '<div class="banner" id="status-banner"></div>' +
@@ -13143,13 +13253,26 @@
     var profileToggle = document.getElementById('profile-toggle');
     if (profileToggle) {
       profileToggle.addEventListener('click', function () {
-        profilePanelOpen = !profilePanelOpen;
+        var onProfil = profilePanelOpen && profileSubTab === 'profil';
+        profilePanelOpen = !onProfil;
+        profileSubTab = 'profil';
         notificationsPanelOpen = false;
         if (!profilePanelOpen) accountManagerOpen = false;
         profileSaveMessage = '';
         renderRoot();
       });
     }
+    var settingsToggle = document.getElementById('settings-toggle');
+    if (settingsToggle) settingsToggle.addEventListener('click', function () {
+      var alreadyOn = profilePanelOpen && profileSubTab === 'reglages';
+      profilePanelOpen = !alreadyOn;
+      profileSubTab = 'reglages';
+      notificationsPanelOpen = false;
+      accountManagerOpen = false;
+      renderRoot();
+    });
+    var inviteQrBtn = document.getElementById('invite-qr-btn');
+    if (inviteQrBtn) inviteQrBtn.addEventListener('click', openInviteQr);
     var notificationsToggle = document.getElementById('notifications-toggle');
     if (notificationsToggle) {
       notificationsToggle.addEventListener('click', function () {
@@ -15396,6 +15519,12 @@
     });
     var carnetCancel = document.getElementById('carnet-cancel-add');
     if (carnetCancel) carnetCancel.addEventListener('click', function () { addChronoOpen = false; renderRoot(); });
+    document.querySelectorAll('[data-cards-mode]').forEach(function (b) {
+      b.addEventListener('click', function () { carnetCardsMode = b.getAttribute('data-cards-mode'); renderRoot(); });
+    });
+    document.querySelectorAll('[data-open-event]').forEach(function (b) {
+      b.addEventListener('click', function () { activeView = 'event'; selectEvent(b.getAttribute('data-open-event')); renderRoot(); window.scrollTo(0, 0); });
+    });
     var carnetHist = document.getElementById('carnet-history-toggle');
     if (carnetHist) carnetHist.addEventListener('click', function () { carnetHistoryAll = !carnetHistoryAll; renderRoot(); });
     document.querySelectorAll('[data-carnet-circuit]').forEach(function (btn) {
