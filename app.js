@@ -61,7 +61,7 @@
       loading: 'Chargement...', chronos_heading: 'Chronos',
       goal_heading: 'Objectifs pour la prochaine session',
       goal_last_feeling: 'Ressenti à ta dernière session : ',
-      goal_no_feeling: 'Pas encore de ressenti enregistré (voir Réglages pour l\'activer).',
+      goal_no_feeling: 'Note ce que tu veux travailler à {c} : un point précis par roulage suffit (freinage, point de corde, regard…).',
       goal_placeholder: 'Ex. Travailler le point de corde en 3, être plus fluide au freinage...',
       distance_label: 'Distance', turns_label: 'Virages (D / G)', last_event_label: 'Dernier roulage',
       circuit_record_label: 'Record (tous pilotes)', next_event_label: 'Prochain roulage',
@@ -133,6 +133,9 @@
       back_to_team: '← Retour à ', back_to_teams: '← Retour aux Teams',
       create_team_heading: 'Créer un Team',
       create_team_help: '<strong>Team amateur</strong> : entre amis, ouvert tout de suite, tu en es le premier Team Leader -- membres, fil d\'actualité et roulages, sans plus.<br><strong>Team PRO</strong> (coche bleue ✓) : club officiel validé -- en plus de l\'amateur, gère des adhérents, peut attribuer les badges Coach et Photographe officiel, proposer coaching/baptêmes piste, et choisir la visibilité de ses roulages (public, adhérents, sur demande...).',
+      create_team_btn: 'Créer le team',
+      create_team_short: 'Ton team est ouvert tout de suite, entre amis : membres, fil d\'actualité et roulages. Tu en es le Team Leader.',
+      create_team_more: 'Team amateur ou PRO ?',
       create_team_help_organizer_suffix: ' En tant qu\'Organisateur, tu peux directement le créer en Team PRO ci-dessous.',
       create_team_help_non_organizer_suffix: ' Un Team PRO ne se crée pas directement : contacte l\'administrateur une fois ton Team amateur créé pour le faire valider et passer PRO, ou passe ton profil en Organisateur pour pouvoir le créer directement PRO.',
       team_name_label: 'Nom du team', create_as_pro: 'Créer directement comme Team PRO ✓', create_btn: 'Créer',
@@ -200,7 +203,7 @@
       now_label: 'En ce moment — ', next_event_dash_label: 'Prochain roulage — ',
       done_label: 'Terminé', set_my_availability: '✎ Définir mes disponibilités',
       drag_to_mark_available: 'Clique ou fais glisser (doigt ou souris) sur les créneaux pour les marquer disponibles.',
-      availability_legend: '🔵 disponible pour du coaching · 🟠 pour un baptême piste · 🟣 les deux.',
+      availability_legend: '<span class="avail-sw sw-coaching"></span>Coaching <span class="avail-sw sw-bapteme"></span>Baptême piste <span class="avail-sw sw-both"></span>Les deux',
       slot_type_locked_help: 'Aucun coach n\'a proposé l\'autre type sur ce créneau.',
       planning_horaires_label: 'Planning (horaires par groupe)',
       ask_for_slot_heading: 'Demander pour ', coaching_riders_only: 'Le coaching est réservé aux pilotes -- choisis "Baptême piste" ci-dessous.',
@@ -287,7 +290,7 @@
       my_badges_admin_help: 'Pour tout autre compte, ces badges se gèrent depuis Gestion des comptes.',
       // Aide / Suggestion tabs
       about_heading: 'À propos',
-      about_text: 'Carnet de Piste centralise le planning des roulages, les groupes/horaires, tes chronos et ta progression entre pilotes et accompagnants — le tout à jour en temps réel pour tout le monde.',
+      about_text: 'Carnet de Piste, c\'est ton carnet de pilote : avant le roulage (prépa, horaires, repères), pendant (jour J, live timing de l\'orga), après (chronos, progression, partage). Il complète l\'appli de ton organisateur, il ne la remplace pas : la réservation, le paiement et le chronométrage officiel restent chez lui.',
       review_tutorial_btn: 'Revoir le tutoriel',
       badges_legend_heading: 'Que veulent dire ces badges ?',
       team_pro_legend: 'Team PRO — club officiel certifié par l\'administrateur.',
@@ -451,7 +454,7 @@
       loading: 'Loading...', chronos_heading: 'Chronos',
       goal_heading: 'Goals for the next session',
       goal_last_feeling: 'Feeling at your last session: ',
-      goal_no_feeling: 'No feeling recorded yet (see Settings to turn it on).',
+      goal_no_feeling: 'Write down what you want to work on at {c}: one precise point per trackday is enough (braking, apex, vision…).',
       goal_placeholder: 'E.g. Work on the apex in turn 3, smoother braking...',
       distance_label: 'Distance', turns_label: 'Turns (R / L)', last_event_label: 'Last trackday',
       circuit_record_label: 'Circuit record', next_event_label: 'Next trackday',
@@ -523,6 +526,9 @@
       back_to_team: '← Back to ', back_to_teams: '← Back to Teams',
       create_team_heading: 'Create a Team',
       create_team_help: '<strong>Amateur Team</strong>: among friends, open right away, you\'re its first Team Leader -- members, a news feed and trackdays, nothing more.<br><strong>Team PRO</strong> (blue check ✓): an officially validated club -- on top of amateur features, it manages adherents, can grant the Coach and Official Photographer badges, offer coaching/track intros, and choose its trackdays\' visibility (public, adherents, on request...).',
+      create_team_btn: 'Create the team',
+      create_team_short: 'Your team is open right away, among friends: members, news feed and trackdays. You are its Team Leader.',
+      create_team_more: 'Amateur or PRO team?',
       create_team_help_organizer_suffix: ' As an Organizer, you can create it directly as a Team PRO below.',
       create_team_help_non_organizer_suffix: ' A Team PRO can\'t be created directly: contact the admin once your amateur Team is created to have it validated and upgraded to PRO, or switch your profile to Organizer to create it directly as PRO.',
       team_name_label: 'Team name', create_as_pro: 'Create directly as a Team PRO ✓', create_btn: 'Create',
@@ -590,7 +596,7 @@
       now_label: 'Right now — ', next_event_dash_label: 'Next trackday — ',
       done_label: 'Done', set_my_availability: '✎ Set my availability',
       drag_to_mark_available: 'Tap or drag (finger or mouse) across slots to mark them available.',
-      availability_legend: '🔵 available for coaching · 🟠 for a track intro · 🟣 both.',
+      availability_legend: '<span class="avail-sw sw-coaching"></span>Coaching <span class="avail-sw sw-bapteme"></span>Track intro <span class="avail-sw sw-both"></span>Both',
       slot_type_locked_help: 'No coach has offered the other type for this slot.',
       planning_horaires_label: 'Schedule (per group)',
       ask_for_slot_heading: 'Request for ', coaching_riders_only: 'Coaching is for riders only -- pick "Track intro" below.',
@@ -677,7 +683,7 @@
       my_badges_admin_help: 'For every other account, these badges are managed from Account management.',
       // Aide / Suggestion tabs
       about_heading: 'About',
-      about_text: 'Carnet de Piste centralizes trackday scheduling, groups/timetables, your lap times and progress between riders and companions — all kept up to date in real time for everyone.',
+      about_text: 'Carnet de Piste is your rider\'s logbook: before the trackday (prep, timetable, notes), during (race day, the organiser\'s live timing), after (lap times, progress, sharing). It complements your organiser\'s app, it doesn\'t replace it: booking, payment and official timing stay with them.',
       review_tutorial_btn: 'Replay the tutorial',
       badges_legend_heading: 'What do these badges mean?',
       team_pro_legend: 'Team PRO — official club certified by the admin.',
@@ -2066,10 +2072,11 @@
       showToast(tr('error_prefix') + (err && err.message ? err.message : err));
     });
   }
-  function renderPartnersSection() {
+  // editable: the admin form (Aide → Admin only); À propos shows the list.
+  function renderPartnersSection(editable) {
     var partners = STATE.partners || [];
     var body;
-    if (!partners.length && !isAdmin()) return '';
+    if (!partners.length && !editable) return '';
     if (!partners.length) {
       body = '<div class="empty-state">' + tr('no_partner_yet') + '</div>';
     } else {
@@ -2079,7 +2086,7 @@
           : '<span class="team-link-chip">' + escapeHtml(p.name) + '</span>';
       }).join('') + '</div>';
     }
-    if (isAdmin()) {
+    if (editable && isAdmin()) {
       body += '<form id="partners-form" style="margin-top:0.8rem;">' +
         '<label for="partners-input">' + tr('partners_input_label') + '</label>' +
         '<textarea id="partners-input" rows="3" placeholder="Mototeam95 | https://...\nAccimoto\nDepamoto | https://...">' +
@@ -3882,8 +3889,7 @@
     }
     html += '</div>';
     html += '</div>';
-    html += '<div style="margin-top:1rem; display:flex; gap:0.6rem;"><button type="submit" class="primary">' + tr('save') + '</button>' +
-      '<button type="button" class="ghost" id="profile-cancel">' + tr('close_label') + '</button></div>';
+    html += '<button type="submit" class="primary add-chrono-btn" style="margin-top:1rem;">' + tr('save') + '</button>';
     if (profileSaveMessage) html += '<div class="help-text" style="margin-top:0.6rem;">' + escapeHtml(profileSaveMessage) + '</div>';
     html += '</form>';
     return pills + '<div class="card">' + html + '</div>';
@@ -4106,7 +4112,9 @@
     // Admin tools get their own pill instead of trailing under the help.
     if (!pillState.aide) pillState.aide = 'aide';
     var pills = renderPills('aide', [['aide', 'Aide'], ['admin', 'Admin']]);
-    if (pillState.aide === 'admin') return pills + renderLangStatsCard() + '<div class="card">' + renderPartnersSection().replace('margin-top:1.2rem; border-top:1px solid var(--border); padding-top:0.9rem;', '') + renderOptionalFeaturesSection() + renderPasswordResetSection() + '</div>';
+    // Une carte par outil d'admin.
+    var asCard = function (h) { return h ? '<div class="card">' + h.replace('margin-top:1.2rem; border-top:1px solid var(--border); padding-top:0.9rem;', '') + '</div>' : ''; };
+    if (pillState.aide === 'admin') return pills + renderLangStatsCard() + asCard(renderPartnersSection(true)) + asCard(renderOptionalFeaturesSection()) + asCard(renderPasswordResetSection());
     return pills + html;
   }
 
@@ -4122,7 +4130,7 @@
     html += '<div class="help-text">' + tr('feedback_help') + '</div>';
     html += '<form id="feedback-form">' +
       '<textarea id="feedback-text" rows="4" placeholder="' + tr('feedback_placeholder') + '" required></textarea>' +
-      '<button type="submit" class="primary" style="margin-top:0.6rem;">' + tr('send_btn') + '</button>' +
+      '<button type="submit" class="primary add-chrono-btn" style="margin-top:0.8rem;">' + tr('send_btn') + '</button>' +
       (feedbackMessage ? '<div class="help-text">' + escapeHtml(feedbackMessage) + '</div>' : '') +
       '</form>';
     if (isAdmin()) {
@@ -6176,9 +6184,10 @@
     var html = asSection ? '' : '<div class="card" style="margin-top:1rem;"><h2 class="section-title">' + tr('goal_heading') + '</h2>';
     html += feelingOpt
       ? '<div class="help-text">' + tr('goal_last_feeling') + feelingOpt.icon + ' ' + escapeHtml(feelingOpt.label) + (last.feelingComment ? ' — ' + escapeHtml(last.feelingComment) : '') + '</div>'
-      : '<div class="help-text">' + tr('goal_no_feeling') + '</div>';
+      : '';
+    html += '<div class="help-text">' + escapeHtml(tr('goal_no_feeling').replace('{c}', circuit)) + '</div>';
     html += '<textarea id="chrono-goals-input" rows="4" style="margin-top:0.6rem;" placeholder="' + tr('goal_placeholder') + '">' + escapeHtml(goals) + '</textarea>';
-    html += '<button type="button" class="ghost" id="chrono-goals-save-btn" data-circuit="' + escapeHtml(circuit) + '" style="margin-top:0.5rem;">' + tr('save') + '</button>';
+    html += '<button type="button" class="primary add-chrono-btn" id="chrono-goals-save-btn" data-circuit="' + escapeHtml(circuit) + '" style="margin-top:0.7rem;">' + tr('save') + '</button>';
     if (chronoGoalsMessage) html += '<div class="help-text" style="margin-top:0.4rem;">' + escapeHtml(chronoGoalsMessage) + '</div>';
     if (asSection) return collapsibleSection('objectif-session', tr('goal_heading') + (goals ? ' ✓' : ''), html, !goals);
     html += '</div>';
@@ -7362,7 +7371,7 @@
   }
   function renderHorairesImportButton(ev, hasHoraires) {
     if (!canEditEventHoraires(ev)) return '';
-    return '<div style="margin:0.5rem 0;"><button type="button" class="' + (hasHoraires ? 'link-btn inline-link' : 'primary') + '" data-action="import-horaires" data-event-id="' + escapeHtml(ev.id) + '">' +
+    return '<div style="margin:0.7rem 0 0.5rem;"><button type="button" class="' + (hasHoraires ? 'ghost' : 'primary add-chrono-btn') + '" data-action="import-horaires" data-event-id="' + escapeHtml(ev.id) + '">' +
       (hasHoraires ? '📷 Remplacer les horaires (photo ou PDF)' : '📷 Importer les horaires (photo ou PDF)') + '</button></div>';
   }
   function openHorairesImport(eventId) {
@@ -7536,6 +7545,18 @@
   }
   // Liste compacte des sorties (une ligne par sortie, petit tracé du
   // circuit) -- volontairement sobre et dense, pas de grandes cartes.
+  function outingRowHtml(o) {
+    var grp = Object.keys(o.groups).join('/');
+    var delta = '';
+    if (o.prevBest !== null) {
+      var d = o.best - o.prevBest;
+      delta = d < 0 ? '<span class="daily-recap-better">−' + formatGap(d) + '</span>' : '<span class="daily-recap-worse">+' + formatGap(d) + '</span>';
+    } else delta = '<span class="help-text">1re fois</span>';
+    return '<button type="button" class="outing-row" data-open-outing="' + escapeHtml(o.circuit) + '" data-outing-date="' + escapeHtml(o.date) + '" data-outing-event="' + escapeHtml(o.eventId || '') + '">' +
+      '<span class="outing-thumb">' + circuitThumbHtml(o.circuit) + '</span>' +
+      '<span class="outing-row-main"><strong>' + escapeHtml(o.circuit) + (o.isRecord && o.prevBest !== null ? ' 🏆' : '') + '</strong><span class="help-text">' + escapeHtml(formatDate(o.date)) + (grp ? ' · ' + groupChip(grp) : '') + ' · ' + o.laps + ' t.</span></span>' +
+      '<span class="outing-row-right"><span class="carnet-time">' + formatTime(o.best) + '</span>' + delta + '</span></button>';
+  }
   function renderOutingCards(outings) {
     var upcoming = myUpcomingEvents();
     if (!carnetCardsMode) carnetCardsMode = outings.length ? 'passees' : 'avenir';
@@ -7556,18 +7577,7 @@
       });
     } else {
       var shown = carnetHistoryAll ? outings : outings.slice(0, 6);
-      shown.forEach(function (o) {
-        var grp = Object.keys(o.groups).join('/');
-        var delta = '';
-        if (o.prevBest !== null) {
-          var d = o.best - o.prevBest;
-          delta = d < 0 ? '<span class="daily-recap-better">−' + formatGap(d) + '</span>' : '<span class="daily-recap-worse">+' + formatGap(d) + '</span>';
-        } else delta = '<span class="help-text">1re fois</span>';
-        html += '<button type="button" class="outing-row" data-open-outing="' + escapeHtml(o.circuit) + '" data-outing-date="' + escapeHtml(o.date) + '" data-outing-event="' + escapeHtml(o.eventId || '') + '">' +
-          '<span class="outing-thumb">' + circuitThumbHtml(o.circuit) + '</span>' +
-          '<span class="outing-row-main"><strong>' + escapeHtml(o.circuit) + (o.isRecord && o.prevBest !== null ? ' 🏆' : '') + '</strong><span class="help-text">' + escapeHtml(formatDate(o.date)) + (grp ? ' · ' + groupChip(grp) : '') + ' · ' + o.laps + ' t.</span></span>' +
-          '<span class="outing-row-right"><span class="carnet-time">' + formatTime(o.best) + '</span>' + delta + '</span></button>';
-      });
+      shown.forEach(function (o) { html += outingRowHtml(o); });
       if (outings.length > 6) {
         html += '<button type="button" class="link-btn outings-more-btn" id="carnet-history-toggle">' + (carnetHistoryAll ? 'Réduire' : 'Voir les ' + outings.length + ' roulages') + '</button>';
       }
@@ -9914,7 +9924,7 @@
   }
   // Pastilles (3e niveau, à l'intérieur d'un sous-onglet) : même style que
   // le filtre Passés/À venir du carnet. État mémorisé par groupe.
-  var pillState = { profil: 'identite', settings: 'affichage', social: 'fil', events: 'avenir', circuit: 'plan', stats: 'records', teams: 'mine', team: 'fil', coach: 'demandes', planning: 'programme', outing: 'chronos', evmanage: 'participants', statsrec: 'circuits' };
+  var pillState = { profil: 'identite', settings: 'affichage', social: 'fil', events: 'avenir', circuit: 'plan', stats: 'records', teams: 'mine', team: 'fil', coach: 'demandes', planning: 'programme', outing: 'chronos', evmanage: 'participants', statsrec: 'circuits', passub: 'calendrier' };
   function renderPills(group, items) {
     var cur = pillState[group];
     if (!items.some(function (it) { return it[0] === cur; })) cur = pillState[group] = items[0][0];
@@ -11033,7 +11043,17 @@
         }
       }
     } else if (cur === 'passes') {
-      html += past.length ? flatCard(renderPastEventsCard(past)) : '<div class="card"><div class="empty-state">Aucun roulage passé.</div></div>';
+      // Les roulages notés directement dans le Carnet (sans roulage créé
+      // au calendrier) sont aussi des roulages passés.
+      var pastIds = past.map(function (ev) { return ev.id; });
+      var solo = currentUserProfile ? myOutings().filter(function (o) { return !o.eventId || pastIds.indexOf(o.eventId) === -1; }) : [];
+      var soloHtml = solo.length ? '<div class="card outings-card">' + solo.map(outingRowHtml).join('') + '</div>' : '';
+      if (past.length && solo.length) {
+        html += renderSubPills('passub', [
+          ['calendrier', 'Du calendrier (' + past.length + ')', flatCard(renderPastEventsCard(past))],
+          ['carnet', 'De mon carnet (' + solo.length + ')', soloHtml]
+        ], { noCard: true });
+      } else html += past.length ? flatCard(renderPastEventsCard(past)) : (soloHtml || '<div class="card"><div class="empty-state">Aucun roulage passé.</div></div>');
     } else if (cur === 'calendrier') {
       html += renderCalendarSection();
     } else if (cur === 'decouvrir') {
@@ -11155,6 +11175,7 @@
   // timed slot's span -- used by the Coach tab to mark availability
   // (see renderCoachPlanningSection) without this function needing to
   // know anything about coaching/baptême itself.
+  function schedClock(min) { return Math.floor(min / 60) + 'h' + pad2(min % 60); }
   function renderHoraireGroups(horaires, allowedKeys, ev, briefing, live, slotClassFn) {
     if (live == null) live = true;
     var groups = HORAIRES_GROUPS.filter(function (g) {
@@ -11165,9 +11186,9 @@
     var html = '<div class="today-schedule-groups">';
     if (briefingSlot) {
       var briefingAttrs = live ? ' data-slot-start="' + briefingSlot.start + '" data-slot-end="' + (briefingSlot.start + 30) + '"' : '';
-      html += '<div class="today-schedule-group today-schedule-briefing"><div class="today-schedule-group-label">Briefing</div>' +
-        '<div class="today-schedule-slots"><span class="schedule-slot"' + briefingAttrs + '>' +
-        escapeHtml(briefing.trim()) + ' (30 min)</span></div></div>';
+      html += '<div class="today-schedule-group today-schedule-briefing"><div class="today-schedule-slots">' +
+        '<span class="schedule-slot sched-row"' + briefingAttrs + '><span class="sched-bar" style="background:var(--accent)"></span><span class="sched-name">Briefing</span>' +
+        '<span class="sched-time">' + schedClock(briefingSlot.start) + '</span></span></div></div>';
     }
     groups.forEach(function (g) {
       html += '<div class="today-schedule-group"><div class="today-schedule-group-label" data-label="' + escapeHtml(g.label) + '">' + groupChip(g.key.replace(/^group/, '')) + ' ' + escapeHtml(g.label.replace(/^Groupe [A-Z]\s*/, '')) + '</div>';
@@ -11179,13 +11200,20 @@
         }
       }
       html += '<div class="today-schedule-slots">';
+      // Style « Le Mans » : barre à la couleur du groupe, Session N,
+      // horaire en gros à droite.
+      var n = 0, grpLetter = g.key.replace(/^group/, '');
       parseHoraireLine(horaires[g.key]).forEach(function (slot) {
         if (slot.start == null) {
           html += '<span class="schedule-slot schedule-slot-label">' + escapeHtml(slot.label) + '</span>';
         } else {
           var attrs = live ? ' data-slot-start="' + slot.start + '" data-slot-end="' + slot.end + '"' : '';
           var extraCls = slotClassFn ? slotClassFn(slot.label) : '';
-          html += '<span class="schedule-slot' + (extraCls || '') + '"' + attrs + '>' + escapeHtml(slot.label) + '</span>';
+          n++;
+          html += '<span class="schedule-slot sched-row' + (extraCls || '') + '"' + attrs + ' title="' + escapeHtml(slot.label) + '">' +
+            '<span class="sched-bar" style="background:var(--grp-' + grpLetter + ', var(--accent))"></span>' +
+            '<span class="sched-name">Session ' + n + '</span>' +
+            '<span class="sched-time">' + schedClock(slot.start) + (slot.end != null ? ' – ' + schedClock(slot.end) : '') + '</span></span>';
         }
       });
       html += '</div></div>';
@@ -11505,7 +11533,7 @@
       html += '<div id="planning-countdown" class="planning-countdown"></div>';
       if (isOngoing) html += renderFollowedRidersStatus(ev, horaires, dateKey(new Date()));
 
-      horairesInner += '<div class="planning-group-filter">';
+      horairesInner += '<div class="planning-group-filter"' + (availableGroups.length < 2 ? ' hidden' : '') + '>';
       availableGroups.forEach(function (g) {
         var checked = activeKeys.indexOf(g.key) !== -1;
         horairesInner += '<label class="planning-group-check"><input type="checkbox" data-planning-group="' + g.key + '"' + (checked ? ' checked' : '') + '> ' + groupChip(g.key.replace(/^group/, '')) + '</label>';
@@ -13832,21 +13860,18 @@
   function renderCreateTeamCard() {
     var me = currentUserProfile;
     var isOrganisateur = !!(me && me.role === 'organisateur');
-    var html = '<div class="card"><h2 class="section-title">' + tr('create_team_heading') + '</h2>' +
-      '<div class="help-text">' + tr('create_team_help');
-    if (isOrganisateur) {
-      html += tr('create_team_help_organizer_suffix') + '</div>';
-    } else {
-      html += tr('create_team_help_non_organizer_suffix') + '</div>';
-    }
-    html += '<form id="create-team-form" style="margin-top:0.7rem;">' +
+    // La pastille « Créer un team » tient lieu de titre ; le formulaire
+    // d'abord, deux lignes d'explication, le détail PRO replié.
+    var html = '<div class="card"><form id="create-team-form">' +
       '<label for="new-team-name">' + tr('team_name_label') + '</label>' +
       '<input type="text" id="new-team-name" placeholder="Ex. Mototeam95" required>';
     if (isOrganisateur) {
       html += '<label class="checklist-item" style="margin-top:0.6rem;"><input type="checkbox" id="new-team-pro"> ' + tr('create_as_pro') + '</label>';
     }
-    html += '<button type="submit" class="primary" style="margin-top:0.7rem;">' + tr('create_btn') + '</button>' +
-      '</form></div>';
+    html += '<button type="submit" class="primary add-chrono-btn" style="margin-top:0.8rem;">' + tr('create_team_btn') + '</button></form>' +
+      '<div class="help-text" style="margin-top:0.7rem;">' + tr('create_team_short') + '</div>' +
+      '<details class="more-details"><summary>' + tr('create_team_more') + '</summary><div class="help-text">' + tr('create_team_help') +
+      (isOrganisateur ? tr('create_team_help_organizer_suffix') : tr('create_team_help_non_organizer_suffix')) + '</div></details></div>';
     return html;
   }
 
@@ -14004,7 +14029,7 @@
     if (editing) {
       body += '<div class="help-text" style="margin-bottom:0.4rem;">' + tr('drag_to_mark_available') + '</div>';
     } else {
-      body += '<div class="help-text" style="margin-bottom:0.4rem;">' + tr('availability_legend') + '</div>';
+      body += '<div class="help-text avail-legend">' + tr('availability_legend') + '</div>';
     }
     var wrapClass = editing ? 'coach-availability-painting' : 'coach-planning-clickable';
     body += '<div class="' + wrapClass + '" data-event-id="' + ev.id + '" data-circuit="' + escapeHtml(ev.circuit) + '">' + groupsHtml + '</div>';
@@ -14292,9 +14317,9 @@
           '<label for="coach-propose-input" style="margin-top:0.6rem;">' + (coachProposeType === 'bapteme' ? tr('search_rider_or_companion') : tr('search_rider')) + '</label>' +
           '<input type="text" id="coach-propose-input" list="coach-propose-list" placeholder="' + tr('name_placeholder') + '" autocomplete="off">' +
           '<datalist id="coach-propose-list">' + proposeCandidates.map(function (n) { return '<option value="' + escapeHtml(n) + '">'; }).join('') + '</datalist>' +
-          '<button type="submit" class="primary" style="margin-top:0.7rem;">' + (coachProposeType === 'bapteme' ? tr('propose_bapteme_btn') : tr('propose_coaching_btn')) + '</button></form>';
+          '<button type="submit" class="primary add-chrono-btn" style="margin-top:0.8rem;">' + (coachProposeType === 'bapteme' ? tr('propose_bapteme_btn') : tr('propose_coaching_btn')) + '</button></form>';
       }
-      html += '<div class="card"><h2 class="section-title">' + tr('propose_coaching_bapteme_heading') + '</h2>' + proposeBody + '</div>';
+      html += '<div class="card">' + proposeBody + '</div>';
     }
 
     // Self-service: ask any Coach for regular coaching, with no relation

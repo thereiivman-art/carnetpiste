@@ -3152,3 +3152,47 @@ body { min-height: 100%; min-height: 100dvh; }
 .battle-gap { font-family: var(--font-body); font-size: 0.8rem; font-weight: 600; color: var(--text-muted); }
 .battle-gap.lead { color: var(--accent); }
 .battle-line { margin-top: 0.6rem; font-weight: 600; }
+
+/* Détail replié sous une explication courte (ex. Team amateur ou PRO ?) */
+.more-details { margin-top: 0.5rem; }
+.more-details > summary { cursor: pointer; color: var(--accent); font-weight: 600; font-size: 0.88rem; list-style: none; }
+.more-details > summary::-webkit-details-marker { display: none; }
+.more-details > summary::after { content: ' ›'; }
+.more-details[open] > summary::after { content: ' ⌄'; }
+.more-details > .help-text { margin-top: 0.4rem; }
+
+/* Horaires style « Le Mans » : une ligne par session */
+.today-schedule-groups { grid-template-columns: 1fr; gap: 1rem; }
+.today-schedule-slots { gap: 0; }
+.schedule-slot.sched-row {
+  display: flex; align-items: center; gap: 0.75rem;
+  padding: 0.5rem 0.4rem; border-radius: 8px;
+  border-top: 1px solid var(--border); background: transparent;
+  font-family: var(--font-body);
+}
+.today-schedule-slots .schedule-slot.sched-row:first-child { border-top: 0; }
+.sched-bar { width: 4px; height: 22px; border-radius: 2px; flex-shrink: 0; }
+.sched-name { flex: 1; font-weight: 600; font-size: 0.95rem; }
+.sched-time { font-family: var(--font-display); font-weight: 700; font-size: 1.2rem; white-space: nowrap; }
+.schedule-slot.sched-row.slot-next { background: var(--best-bg); }
+.schedule-slot.sched-row.slot-current { background: var(--accent); color: var(--accent-ink); }
+.schedule-slot.sched-row.slot-current .sched-bar { background: var(--accent-ink) !important; }
+.schedule-slot-label { display: block; padding: 0.35rem 0.4rem; font-size: 0.8rem; color: var(--text-muted); font-style: normal; font-weight: 600; border-top: 1px solid var(--border); }
+.today-schedule-briefing .schedule-slot.sched-row { border-top: 0; }
+
+/* Filtre de groupes : les lettres elles-mêmes servent de boutons */
+.planning-group-filter[hidden] { display: none; }
+.planning-group-check { position: relative; cursor: pointer; }
+.planning-group-check input { position: absolute; opacity: 0; pointer-events: none; }
+.planning-group-check:has(input:not(:checked)) .grp-chip { background: transparent; color: var(--text-muted); box-shadow: inset 0 0 0 1px var(--border); }
+
+/* Légende des disponibilités du coach (mêmes couleurs que les créneaux) */
+.avail-legend { display: flex; flex-wrap: wrap; align-items: center; gap: 0.3rem 0.5rem; margin-bottom: 0.5rem; }
+.avail-sw { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-left: 0.3rem; vertical-align: -1px; }
+.avail-sw:first-child { margin-left: 0; }
+.avail-sw.sw-coaching { background: color-mix(in srgb, #1d7fd6 22%, var(--surface-alt)); box-shadow: inset 0 0 0 1px #1d7fd6; }
+.avail-sw.sw-bapteme { background: color-mix(in srgb, var(--accent) 22%, var(--surface-alt)); box-shadow: inset 0 0 0 1px var(--accent); }
+.avail-sw.sw-both { background: color-mix(in srgb, var(--series-3) 22%, var(--surface-alt)); box-shadow: inset 0 0 0 1px var(--series-3); }
+.schedule-slot.sched-row.slot-avail-coaching { background: color-mix(in srgb, #1d7fd6 22%, var(--surface-alt)); }
+.schedule-slot.sched-row.slot-avail-bapteme { background: color-mix(in srgb, var(--accent) 22%, var(--surface-alt)); }
+.schedule-slot.sched-row.slot-avail-both { background: color-mix(in srgb, var(--series-3) 22%, var(--surface-alt)); }
