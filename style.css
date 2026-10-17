@@ -2980,3 +2980,19 @@
 .sub-pill-btn { flex: 0 0 auto; white-space: nowrap; border: 1px solid var(--border); background: var(--surface); color: var(--text-muted); border-radius: 999px; padding: 0.45rem 0.9rem; font-size: 0.88rem; font-weight: 600; cursor: pointer; }
 .sub-pill-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
 .pill-tabs + .sub-pills, .sub-pills:first-child { margin-top: 0; }
+/* Cartes repliables affichées à plat sous une pastille */
+.events-list-card.flat > summary { display: none; }
+/* Groupes d'un roulage : titres de colonne seulement sur grand écran */
+.group-col-title { display: none; }
+@media (min-width: 960px) {
+  .groups-board.as-pills { display: flex; align-items: flex-start; gap: 0.9rem; overflow-x: auto; flex-wrap: nowrap; }
+  .groups-board.as-pills > .sub-pills { display: none; }
+  .groups-board.as-pills > [data-cpill-section] { display: block !important; flex: 0 0 260px; }
+  .groups-board.as-pills > [data-cpill-section] > .card { margin-top: 0; }
+  .group-col-title { display: block; font-weight: 700; margin-bottom: 0.5rem; }
+}
+/* Coches des groupes alignées sur une ligne */
+.planning-group-filter { display: flex; flex-wrap: nowrap; gap: 1.4rem; align-items: center; margin-top: 0; }
+.planning-group-check { display: inline-flex; align-items: center; gap: 0.4rem; margin: 0; font-size: 1rem; font-weight: 700; color: var(--text); }
+.planning-group-check input { margin: 0; }
+.card > .settings-block:last-child, [data-cpill-section] .settings-block { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }

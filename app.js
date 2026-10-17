@@ -3460,7 +3460,6 @@
     // Regroupé en sections repliables : l'essentiel (affichage) visible, le
     // reste (notifications, confidentialité, voyage, compte) replié.
     var html = '<div class="settings-block">';
-    html += '<div class="section-title" style="font-size:0.95rem;">Affichage</div>';
     html += '<label for="profile-ui-mode">' + tr('ui_mode_label') + '</label>';
     html += '<select id="profile-ui-mode">' +
       ['complet', 'simplifie', 'solo'].map(function (m) {
@@ -3481,7 +3480,9 @@
         '<label class="checklist-item" style="margin-top:0.4rem;"><input type="checkbox" id="profile-share-travel-info"' + (p.shareTravelInfo !== false ? ' checked' : '') + '> ' + tr('share_travel_info') + '</label>';
       sections.confidentialite = privacy;
     }
-    if (!advancedHidden()) sections.affichage += '<div class="no-top-rule">' + renderMyTravelDefaultsSection() + '</div>';
+    if (!advancedHidden()) {
+      sections.affichage = renderSubPills('generalsub', [['affichage', 'Affichage', sections.affichage], ['voyage', 'Voyage par défaut', flatSections(renderMyTravelDefaultsSection())]]);
+    }
     var accountHtml = '';
     // Separate form -- changing the sign-in email needs the current
     // password (Firebase requires a recent reauthentication for it), which
@@ -3530,7 +3531,8 @@
     items.push(['compte', 'Compte']);
     if (profileEmailMessage || profilePasswordMessage || profileDeleteConfirmOpen) pillState.settings = 'compte';
     var pillsHtml = renderPills('settings', items);
-    return pillsHtml + '<div class="card">' + (sections[pillState.settings] || sections.affichage) + '</div>';
+    var sec = sections[pillState.settings] || sections.affichage;
+    return pillsHtml + (sec.indexOf('<div class="sub-pills">') === 0 ? sec : '<div class="card">' + sec + '</div>');
   }
 
   // Sharing this link and someone signing up through it makes p the
@@ -3580,16 +3582,16 @@
   }
 
   function renderProfileAideTab(p) {
-    var html = '<div class="section-title" style="font-size:0.95rem;">' + tr('about_heading') + '</div>';
+    var html = '';
     html += '<div class="help-text">' + tr('about_text') + '</div>';
     html += '<div style="margin-top:1.1rem;"><button type="button" class="ghost" id="tutorial-open-btn">' + tr('review_tutorial_btn') + '</button></div>';
-    html += '<div style="margin-top:0.9rem;">' + renderBadgesLegend() + '</div>';
-    if (!isAdmin()) return '<div class="card">' + html + renderPartnersSection() + '</div>';
+    html = renderSubPills('aidesub', [['apropos', 'À propos', html + renderPartnersSection()], ['badges', 'Badges', flatSections(renderBadgesLegend())]]);
+    if (!isAdmin()) return html;
     // Admin tools get their own pill instead of trailing under the help.
     if (!pillState.aide) pillState.aide = 'aide';
     var pills = renderPills('aide', [['aide', 'Aide'], ['admin', 'Admin']]);
     if (pillState.aide === 'admin') return pills + '<div class="card">' + renderPartnersSection().replace('margin-top:1.2rem; border-top:1px solid var(--border); padding-top:0.9rem;', '') + renderOptionalFeaturesSection() + renderPasswordResetSection() + '</div>';
-    return pills + '<div class="card">' + html + '</div>';
+    return pills + html;
   }
 
   // Retour d'expérience libre vers l'équipe de dev -- pas de backend/mail
@@ -5021,17 +5023,17 @@
 
     if (!series.length) {
       html += '<div class="empty-state">Aucun chrono enregistré sur ' + escapeHtml(circuit) + (riders.length === 1 ? ' pour ' + escapeHtml(riders[0]) : '') + '.</div>';
-      return collapsibleCard(progressionKey, 'Visualisation de la progression', html, true);
+      return flatCard(collapsibleCard(progressionKey, 'Progression', html, true));
     }
     if (series.length === 1 && series[0].raw.length === 1) {
       var only = series[0].raw[0];
       html += '<div class="empty-state">Un seul chrono enregistré — ' + formatTime(only.time) + ' le ' + escapeHtml(formatDate(only.date)) + '. La courbe apparaîtra au prochain chrono.</div>';
-      return collapsibleCard(progressionKey, 'Visualisation de la progression', html, true);
+      return flatCard(collapsibleCard(progressionKey, 'Progression', html, true));
     }
     var totalPoints = series.reduce(function (sum, s) { return sum + s.raw.length; }, 0);
     if (totalPoints < 2) {
       html += '<div class="empty-state">Pas encore assez de chronos pour tracer une courbe.</div>';
-      return collapsibleCard(progressionKey, 'Visualisation de la progression', html, true);
+      return flatCard(collapsibleCard(progressionKey, 'Progression', html, true));
     }
 
     var W = 640, H = 260;
@@ -5150,7 +5152,7 @@
 
     PROGRESSION_POINTS = flatPoints;
     PROGRESSION_MULTI = isMulti;
-    return collapsibleCard(progressionKey, 'Visualisation de la progression', html, true);
+    return flatCard(collapsibleCard(progressionKey, 'Progression', html, true));
   }
 
   function circuitDatalist() {
@@ -8798,7 +8800,7 @@
         body += collapsibleSection('event-discovery-pro-past', tr('past_label') + ' (' + pastCandidates.length + ')', renderCandidateList(pastCandidates), false);
       }
     }
-    return collapsibleCard('event-discovery-pro', 'Roulages de Teams PRO', body, false);
+    return '<div class="card"><h2 class="section-title">Roulages de Teams PRO</h2>' + body + '</div>';
   }
 
   function pad2(n) {
@@ -9404,7 +9406,7 @@
     // of being stuck invisible in ev.riderGroups forever.
     var orphanNames = Object.keys(ev.riderGroups || {}).filter(function (r) { return riders.indexOf(r) === -1; });
     var allNames = riders.concat(orphanNames);
-    if (!allNames.length) return '<div class="help-text">' + tr('add_riders_to_group_hint') + '</div>';
+    if (!allNames.length) return '<div class="card"><div class="help-text">' + tr('add_riders_to_group_hint') + '</div></div>';
     var rosterLetters = rosterGroupLettersFor(ev.circuit);
     var byGroup = {};
     rosterLetters.forEach(function (g) { byGroup[g] = []; });
@@ -9429,7 +9431,7 @@
       return '<div class="friend-row"' + dragAttrs + '><div class="friend-row-main">' + nameLinkHtml(name) + badgesHtml(u) + timeHtml + orphanHtml + '</div><div class="friend-row-actions">' + removeBtn + '</div></div>' + maybeFicheHtml(name);
     }
     var assignedCount = allNames.length - unassigned.length;
-    var html = '<div class="help-text">' + assignedCount + ' pilote(s) réparti(s) dans un groupe.</div>';
+    var html = '<div class="help-text" style="margin:-0.3rem 0 0.6rem;">' + assignedCount + ' pilote(s) réparti(s) dans un groupe.</div>';
     // .groups-board: on desktop (see style.css) this becomes a row of
     // columns -- Non attribués + every group side by side, like a board,
     // instead of one long vertical stack of accordions. That's exactly
@@ -9440,12 +9442,15 @@
     // canEdit-only drop zones -- data-drop-group="" is "Non attribués"
     // (removeRiderFromGroup), a letter is assignRiderToGroup (see the
     // dragstart/dragover/drop wiring in attachHandlers).
-    html += '<div class="groups-board">';
+    // Mobile: one sub-pill per group. Desktop (see style.css): every
+    // group side by side as a board, for drag & drop between columns.
+    var groupItems = [];
+    function groupCol(title, body) { return '<div class="group-col-title">' + escapeHtml(title) + '</div>' + body; }
     if (unassigned.length) {
       var unassignedBody = canEdit
         ? '<div class="group-drop-zone" data-drop-group="" data-event-id="' + ev.id + '">' + unassigned.map(function (r) { return riderRow(r, false); }).join('') + '</div>'
         : unassigned.map(function (r) { return riderRow(r, false); }).join('');
-      html += collapsibleSection('event-group-unassigned-' + ev.id, tr('unassigned_label') + ' (' + unassigned.length + ')', unassignedBody, true);
+      groupItems.push(['none', 'Non attribués (' + unassigned.length + ')', groupCol(tr('unassigned_label') + ' (' + unassigned.length + ')', unassignedBody)]);
     }
     rosterLetters.forEach(function (g) {
       var members = byGroup[g];
@@ -9474,9 +9479,9 @@
           '<button type="submit" class="ghost">' + tr('add_aria') + '</button></form>';
       }
       var groupLabel = g === 'ORGA' ? tr('group_orga_staff') : g === 'R' ? tr('group_r_rookies_label') : tr('group_prefix') + g;
-      html += collapsibleSection('event-group-' + g + '-' + ev.id, groupLabel + ' (' + members.length + ')', body, true);
+      groupItems.push([g, (g === 'ORGA' ? 'Orga' : g) + ' (' + members.length + ')', groupCol(groupLabel + ' (' + members.length + ')', body)]);
     });
-    html += '</div>';
+    html += '<div class="groups-board as-pills">' + renderSubPills('evgroups', groupItems) + '</div>';
     return html;
   }
 
@@ -10057,15 +10062,17 @@
         html += '<div class="card"><div class="empty-state">' + (coreDataLoading() ? tr('loading') : 'Aucun roulage à venir.') + '</div></div>';
       } else {
         if (ongoing.length) {
-          html += renderEventGroupCard(tr('ongoing_label'), ongoing, { collapseKey: 'events-ongoing', defaultOpen: true });
-          if (upcoming.length) html += renderEventGroupCard(tr('upcoming_label'), upcoming, { collapseKey: 'events-upcoming', defaultOpen: true });
+          html += renderSubPills('evlist', [
+            ['encours', tr('ongoing_label') + ' (' + ongoing.length + ')', ongoing.map(function (ev) { return renderEventRow(ev, {}); }).join('')],
+            ['avenir', tr('upcoming_label') + ' (' + upcoming.length + ')', upcoming.map(function (ev) { return renderEventRow(ev, {}); }).join('')]
+          ]);
         } else {
           // The pill already says "À venir" -- no repeated title.
           html += '<div class="card events-list-card">' + upcoming.map(function (ev) { return renderEventRow(ev, {}); }).join('') + '</div>';
         }
       }
     } else if (cur === 'passes') {
-      html += past.length ? renderPastEventsCard(past) : '<div class="card"><div class="empty-state">Aucun roulage passé.</div></div>';
+      html += past.length ? flatCard(renderPastEventsCard(past)) : '<div class="card"><div class="empty-state">Aucun roulage passé.</div></div>';
     } else if (cur === 'calendrier') {
       html += renderCalendarSection();
     } else if (cur === 'decouvrir') {
@@ -10513,7 +10520,7 @@
     // here -- it's schedule information, same family as the slot times.
     var briefingLine = info.briefing ? '<div class="help-text" style="margin-bottom:0.6rem; color:var(--accent); font-weight:600;">Briefing ' + escapeHtml(info.briefing) + '</div>' : '';
 
-    html += renderMyGroupSection(ev);
+    html += flatSections(renderMyGroupSection(ev));
 
     // Each rubrique is a sub-pill below the orange card now, not a
     // collapsible inside it. Only the Horaires content itself (and the
@@ -10537,7 +10544,7 @@
       horairesInner += '<div class="planning-group-filter">';
       availableGroups.forEach(function (g) {
         var checked = activeKeys.indexOf(g.key) !== -1;
-        horairesInner += '<label class="planning-group-check"><input type="checkbox" data-planning-group="' + g.key + '"' + (checked ? ' checked' : '') + '> ' + escapeHtml(g.label) + '</label>';
+        horairesInner += '<label class="planning-group-check"><input type="checkbox" data-planning-group="' + g.key + '"' + (checked ? ' checked' : '') + '> ' + escapeHtml(g.key.replace(/^group/, '')) + '</label>';
       });
       horairesInner += '</div>';
       horairesInner += renderHoraireGroups(horaires, activeKeys, ev, info.briefing);
@@ -10588,7 +10595,8 @@
 
   // Third level of navigation, below a pill: small chips, each showing its
   // rubrique in one card (no re-render, like renderClientPills).
-  function renderSubPills(group, items) {
+  function renderSubPills(group, items, opts) {
+    opts = opts || {};
     items = items.filter(function (it) { return it[2]; });
     if (!items.length) return '';
     var cur = pillState[group];
@@ -10596,8 +10604,12 @@
     var html = '<div class="sub-pills">' + items.map(function (it) {
       return '<button type="button" class="sub-pill-btn' + (it[0] === cur ? ' active' : '') + '" data-cpill-group="' + group + '" data-cpill="' + it[0] + '">' + escapeHtml(it[1]) + '</button>';
     }).join('') + '</div>';
-    items.forEach(function (it) { html += cpillSection(group, it[0]) + '<div class="card">' + it[2] + '</div></div>'; });
+    items.forEach(function (it) { html += cpillSection(group, it[0]) + (opts.noCard ? it[2] : '<div class="card">' + it[2] + '</div>') + '</div>'; });
     return html;
+  }
+  // collapsibleCard counterpart of flatSections: open, no toggle header.
+  function flatCard(html) {
+    return (html || '').replace(/<details class="card events-list-card"( data-planning-section="[^"]*")( open)?>/, '<details class="card events-list-card flat"$1 open>');
   }
 
   // The connected pilote's own group for a given date -- pm takes
@@ -12135,7 +12147,7 @@
     var friendsBody = !friends.length
       ? '<div class="empty-state">' + tr('no_friends_yet') + '</div>'
       : friends.map(function (f) { return renderFriendRow(f.name, '', true); }).join('');
-    var amisHtml = '<h2 class="section-title">' + tr('my_friends_label') + friends.length + ')</h2>' + friendsBody;
+    var amisItems = [['liste', 'Mes amis (' + friends.length + ')', friendsBody]];
 
     if (incoming.length) {
       var incomingBody = incoming.map(function (r) {
@@ -12143,13 +12155,13 @@
           '<button type="button" class="primary" data-action="accept-friend" data-id="' + r.id + '">' + tr('accept') + '</button>' +
           '<button type="button" class="ghost" data-action="remove-friend" data-id="' + r.id + '">' + tr('decline') + '</button>');
       }).join('');
-      amisHtml += collapsibleSection('social-demandes-recues', tr('received_requests_label') + incoming.length + ')', incomingBody, true);
+      amisItems.push(['recues', 'Reçues (' + incoming.length + ')', incomingBody]);
     }
     if (outgoing.length) {
       var outgoingBody = outgoing.map(function (r) {
         return renderFriendRow(r.to, '<button type="button" class="ghost" data-action="cancel-friend-request" data-id="' + r.id + '">' + tr('cancel') + '</button>');
       }).join('');
-      amisHtml += collapsibleSection('social-demandes-envoyees', tr('sent_requests_label') + outgoing.length + ')', outgoingBody);
+      amisItems.push(['envoyees', 'Envoyées (' + outgoing.length + ')', outgoingBody]);
     }
     // Retracté par défaut, juste un bouton -- le formulaire (avec ses
     // suggestions) n'apparaît qu'une fois cliqué, même logique que
@@ -12174,10 +12186,10 @@
           friendSuggestionChips(candidates);
       addFriendCta = '<div class="card"><h2 class="section-title">' + escapeHtml(tr('add_friend_btn').replace(/^\+\s*/, '')) + '</h2>' + addFriendBody + '</div>';
     }
-    amisHtml += renderPersonalitiesSection(me);
+    amisItems.push(['perso', 'Personnalités', flatSections(renderPersonalitiesSection(me))]);
 
     var html = renderPills('social', [['fil', 'Fil d\'actualité'], ['amis', 'Amis' + (incoming.length ? ' (' + incoming.length + ')' : '')]]);
-    if (pillState.social === 'amis') html += addFriendCta + '<div class="card">' + amisHtml + '</div>';
+    if (pillState.social === 'amis') html += addFriendCta + renderSubPills('amis', amisItems);
     else { html += renderWallComposer(); html += renderWallFeed(me); }
     return html;
   }
@@ -12674,7 +12686,7 @@
     if (chronosHtml) pills.push(['chronos', 'Chronos']);
     html += renderPills('evmanage', pills);
     var cur = pillState.evmanage;
-    if (cur === 'groupes') html += '<div class="card">' + renderGroupsSection(ev, canEdit) + '</div>';
+    if (cur === 'groupes') html += renderGroupsSection(ev, canEdit);
     else if (cur === 'annonces') html += '<div class="card">' + announcementsHtml + '</div>';
     else if (cur === 'chronos') html += '<div class="card">' + chronosHtml + '</div>';
     else html += participantsHtml;
@@ -13248,12 +13260,13 @@
     }
     var startLen = html.length;
 
+    var coachReqItems = null;
     var needsAction = myRequests.filter(function (r) { return r.status === 'pending' && coachRequestAwaitingMe(r, me); });
     if (cpill === 'demandes' && needsAction.length) {
       var needsActionBody = needsAction.map(function (r) {
         return renderCoachActionRow(r, r.from === me.name ? r.to : r.from);
       }).join('');
-      html += collapsibleCard('coach-requests-in', tr('requests_to_handle_label') + needsAction.length + ')', needsActionBody, true);
+      coachReqItems = [['traiter', 'À traiter (' + needsAction.length + ')', needsActionBody]];
     }
 
     var waiting = myRequests.filter(function (r) { return r.status === 'pending' && !coachRequestAwaitingMe(r, me); });
@@ -13261,8 +13274,9 @@
       var waitingBody = waiting.map(function (r) {
         return renderCoachWaitingRow(r, r.from === me.name ? r.to : r.from);
       }).join('');
-      html += collapsibleCard('coach-requests-waiting', tr('waiting_for_reply_label') + waiting.length + ')', waitingBody, true);
+      (coachReqItems = coachReqItems || []).push(['attente', 'En attente (' + waiting.length + ')', waitingBody]);
     }
+    if (cpill === 'demandes' && coachReqItems) html += renderSubPills('coachreq', coachReqItems);
 
     var active = myRequests.filter(function (r) { return r.status === 'accepted'; });
     if (cpill === 'suivis' && active.length) {
@@ -13356,7 +13370,7 @@
           '<button type="button" class="ghost" data-action="team-invite-remove" data-id="' + r.id + '">' + tr('decline') + '</button>' +
           '</div></div>';
       }).join('');
-      html += collapsibleCard('team-invites-in', tr('received_invites_label') + incoming.length + ')', incomingBody, true);
+      html += '<div class="card"><h2 class="section-title">' + tr('received_invites_label') + incoming.length + ')</h2>' + incomingBody + '</div>';
     }
     // "Invitations envoyées" (this account inviting others into a team it
     // leads) moved into that team's own "Inviter" section (renderTeamCard)
