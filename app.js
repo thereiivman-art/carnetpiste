@@ -9535,7 +9535,7 @@
       var unassignedBody = canEdit
         ? '<div class="group-drop-zone" data-drop-group="" data-event-id="' + ev.id + '">' + unassigned.map(function (r) { return riderRow(r, false); }).join('') + '</div>'
         : unassigned.map(function (r) { return riderRow(r, false); }).join('');
-      groupItems.push(['none', 'Non attribués (' + unassigned.length + ')', groupCol(tr('unassigned_label') + ' (' + unassigned.length + ')', unassignedBody)]);
+      groupItems.push(['none', 'Non attribués (' + unassigned.length + ')', groupCol(tr('unassigned_label') + ' (' + unassigned.length + ')', unassignedBody), 'grp-sub grp-sub-ORGA']);
     }
     rosterLetters.forEach(function (g) {
       var members = byGroup[g];

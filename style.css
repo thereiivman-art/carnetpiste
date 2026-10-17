@@ -3081,3 +3081,14 @@ body { font-variant-numeric: tabular-nums; }
 .today-schedule-circuit { font-family: var(--font-display); font-style: italic; font-weight: 800; font-size: 2rem; line-height: 1; text-transform: uppercase; }
 .calendar-nav-card { gap: 0.5rem; }
 .calendar-year-label { flex: 1; font-size: 1.05rem; line-height: 1.2; }
+/* La barre du bas reste collée en bas même quand la page est courte (iPhone) */
+html { height: 100%; }
+body { min-height: 100%; min-height: 100dvh; }
+
+/* Groupes en dégradé de niveau : du rouge profond (A, le plus rapide) au sable clair (D), R débutants en pointillé */
+:root { --grp-A: #8e1b16; --grp-B: #c8261f; --grp-C: #e0602f; --grp-D: #efa25e; --grp-R: #f6dcc0; --grp-ORGA: #6a6e76; }
+.grp-D, .grp-R { color: #14161a; }
+.grp-R { box-shadow: inset 0 0 0 1.5px #d9a877; }
+.grp-sub-D { --grp-c: #c67a2f; } .grp-sub-R { --grp-c: #b07a45; }
+.sub-pill-btn.grp-sub-D.active { background: var(--grp-D); border-color: var(--grp-D); color: #14161a; }
+.sub-pill-btn.grp-sub-R.active { background: var(--grp-R); border-color: #d9a877; color: #14161a; }
