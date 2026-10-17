@@ -3050,3 +3050,11 @@ body { font-variant-numeric: tabular-nums; }
 .outing-best-time, .outing-title { font-style: italic; font-weight: 800; }
 .grp-chip-big { font-style: italic; }
 .bottom-nav-btn { margin: 0 0.2rem; }
+/* Plus de filet rouge/blanc : un aplat rouge franc, bien visible */
+.pill-tabs .pill-btn.active::after { background: var(--accent); height: 4px; box-shadow: none; }
+.today-schedule-card::before, .outing-best-card::before { background: var(--accent); height: 5px; }
+.section-heading-kerb { width: 12px; height: 32px; border-radius: 3px; background: var(--accent); box-shadow: none; transform: skewX(-16deg); }
+/* Sous-pastilles de groupes (gestion d'un roulage) : la couleur du groupe */
+.sub-pill-btn.grp-sub { color: var(--grp-c); border-color: var(--grp-c); font-weight: 700; }
+.sub-pill-btn.grp-sub.active { background: var(--grp-c); border-color: var(--grp-c); color: #fff; }
+.grp-sub-A { --grp-c: var(--grp-A); } .grp-sub-B { --grp-c: var(--grp-B); } .grp-sub-C { --grp-c: var(--grp-C); } .grp-sub-D { --grp-c: var(--grp-D); } .grp-sub-R { --grp-c: var(--grp-R); } .grp-sub-ORGA { --grp-c: var(--grp-ORGA); }

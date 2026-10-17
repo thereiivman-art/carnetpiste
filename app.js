@@ -9560,7 +9560,7 @@
           '<button type="submit" class="ghost">' + tr('add_aria') + '</button></form>';
       }
       var groupLabel = g === 'ORGA' ? tr('group_orga_staff') : g === 'R' ? tr('group_r_rookies_label') : tr('group_prefix') + g;
-      groupItems.push([g, (g === 'ORGA' ? 'Orga' : g) + ' (' + members.length + ')', groupCol(groupLabel + ' (' + members.length + ')', body)]);
+      groupItems.push([g, (g === 'ORGA' ? 'Orga' : g) + ' (' + members.length + ')', groupCol(groupLabel + ' (' + members.length + ')', body), 'grp-sub grp-sub-' + g]);
     });
     html += '<div class="groups-board as-pills">' + renderSubPills('evgroups', groupItems) + '</div>';
     return html;
@@ -10683,7 +10683,7 @@
     var cur = pillState[group];
     if (!items.some(function (it) { return it[0] === cur; })) cur = pillState[group] = items[0][0];
     var html = '<div class="sub-pills">' + items.map(function (it) {
-      return '<button type="button" class="sub-pill-btn' + (it[0] === cur ? ' active' : '') + '" data-cpill-group="' + group + '" data-cpill="' + it[0] + '">' + escapeHtml(it[1]) + '</button>';
+      return '<button type="button" class="sub-pill-btn' + (it[3] ? ' ' + it[3] : '') + (it[0] === cur ? ' active' : '') + '" data-cpill-group="' + group + '" data-cpill="' + it[0] + '">' + escapeHtml(it[1]) + '</button>';
     }).join('') + '</div>';
     items.forEach(function (it) { html += cpillSection(group, it[0]) + (opts.noCard ? it[2] : '<div class="card">' + it[2] + '</div>') + '</div>'; });
     return html;
