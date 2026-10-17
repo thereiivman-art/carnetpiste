@@ -3000,3 +3000,13 @@
 .outing-best-card .outing-best-delta { color: #9ca3af; }
 .outing-best-card .outing-best-arrow { color: #9ca3af; }
 div.outing-best-card { cursor: default; }
+/* Cartes « record » et « live timing » en clair : plus de noir, le vibreur en liseré du haut */
+.outing-best-card { background: var(--surface); color: var(--text); border: 1px solid var(--border); box-shadow: var(--shadow); padding: 1.1rem 1.2rem 1rem; border-radius: 16px; }
+.outing-best-card::before { left: 0; right: 0; top: 0; bottom: auto; width: auto; height: 5px; background: repeating-linear-gradient(90deg, #e3262b 0 14px, #ffffff 14px 28px); }
+.outing-best-card .outing-label.light { color: var(--accent); font-weight: 700; font-size: 0.8rem; letter-spacing: 0.06em; text-transform: uppercase; }
+.outing-best-time { color: var(--text); }
+.outing-best-card .outing-best-delta { color: var(--text-muted); }
+.outing-best-card .outing-best-arrow { color: var(--text-muted); }
+.outing-live { background: var(--surface); color: var(--text); border: 1px solid var(--border); box-shadow: var(--shadow); }
+.outing-live-dot { color: #fff; }
+.outing-live span span { color: var(--text-muted); }
