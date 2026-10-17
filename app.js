@@ -52,7 +52,7 @@
   // not-yet-translated EN key never renders blank.
   var TRANSLATIONS = {
     fr: {
-      nav_carnet: 'Mon carnet', nav_events: 'Événements', nav_chronos: 'Circuits', nav_planning: 'EN PISTE', nav_social: 'Social', nav_team: 'Team',
+      nav_carnet: 'Carnet', nav_sorties: 'Sorties', nav_communaute: 'Communauté', nav_events: 'Événements', nav_chronos: 'Circuits', nav_planning: 'EN PISTE', nav_social: 'Social', nav_team: 'Team',
       coach_label: 'Coach', stats_label: 'Stats', notifications_label: 'Notifications', my_profile_label: 'Mon profil',
       profile_theme: 'Thème', profile_theme_light: 'clair', profile_theme_dark: 'sombre', profile_theme_system: 'système',
       profile_lang: 'Langue', save: 'Enregistrer', cancel: 'Annuler',
@@ -225,7 +225,7 @@
       ui_mode_complet_option: 'Complet', ui_mode_simplifie_option: 'Simplifié', ui_mode_solo_option: 'Solo',
       ui_mode_help_complet: 'Tout est affiché : Team, Coaching, Social, météo, checklists, comparaison de progression, infos de voyage...',
       ui_mode_help_simplifie: 'Masque Team, Coaching, météo, checklists, comparaison de progression et infos de voyage pour ne garder que l\'essentiel (prochain événement, horaires, saisie de chrono). Social reste visible.',
-      ui_mode_help_solo: 'Comme Simplifié, en retirant en plus tout l\'aspect social (onglet Social, amis sur un événement, comparaison de progression) -- ne garde que Événements, EN PISTE et Chronos.',
+      ui_mode_help_solo: 'Comme Simplifié, en retirant en plus tout l\'aspect social (onglet Communauté, amis sur un événement, comparaison de progression) -- ne garde que Carnet et Sorties.',
       feeling_after_session_heading: 'Ressenti après chaque session',
       enable_feeling: 'Activer le ressenti à ton retour de chaque session',
       feeling_help: 'Une fois activé, un chrono enregistré te proposera de dire en un clic comment s\'est passée la session (forme, fatigue...).',
@@ -256,7 +256,7 @@
       role_info_pilote_title: 'Espace pilote',
       role_info_pilote_1: 'Enregistrer tes chronos (à la main ou depuis une photo de ta feuille de temps) et retrouver ton historique et tes records par circuit',
       role_info_pilote_2: 'Noter tes repères (freinage, déclenchement, corde, sortie) sur le plan de chaque circuit',
-      role_info_pilote_3: 'Retrouver les horaires, groupes et infos pratiques de chaque événement dans EN PISTE',
+      role_info_pilote_3: 'Retrouver les horaires, groupes et infos pratiques de chaque sortie dans l\'onglet Sorties',
       role_info_pilote_4: 'En bonus : partager tes infos de voyage, faire vérifier tes chronos par l\'organisateur',
       role_info_pilote_5: 'Suivre tes amis, réagir sur leur Journal et sur le fil d\'actualité de ton Team',
       role_info_pilote_6: 'Rejoindre un Team (amateur ou PRO) et participer à ses événements',
@@ -442,7 +442,7 @@
       save_unavailable_banner: 'Sauvegarde indisponible dans cette vue : vos modifications ne seront pas conservées.'
     },
     en: {
-      nav_carnet: 'My logbook', nav_events: 'Events', nav_chronos: 'Tracks', nav_planning: 'ON TRACK', nav_social: 'Social', nav_team: 'Team',
+      nav_carnet: 'Logbook', nav_sorties: 'Outings', nav_communaute: 'Community', nav_events: 'Events', nav_chronos: 'Tracks', nav_planning: 'ON TRACK', nav_social: 'Social', nav_team: 'Team',
       coach_label: 'Coach', stats_label: 'Stats', notifications_label: 'Notifications', my_profile_label: 'My profile',
       profile_theme: 'Theme', profile_theme_light: 'light', profile_theme_dark: 'dark', profile_theme_system: 'system',
       profile_lang: 'Language', save: 'Save', cancel: 'Cancel',
@@ -1789,7 +1789,7 @@
   var TUTORIAL_STEPS = [
     { icon: '📒', title: 'Ton carnet de piste', body: 'Dans « Mon carnet », ajoute tes chronos -- à la main ou en photographiant ta feuille de temps -- et retrouve ton historique et tes records par circuit.' },
     { icon: '📍', title: 'Tes repères sur le plan', body: 'Touche le plan d\'un circuit pour épingler tes points de freinage, de déclenchement, de corde et de sortie. Ils sont enregistrés tout de suite.' },
-    { icon: '🏍️', title: 'Le jour J', body: '« EN PISTE » affiche les horaires, ton groupe et tes repères ; « Événements » est ton calendrier de sorties. Tu peux revoir ce guide depuis Profil → Aide.' }
+    { icon: '🏍️', title: 'Le jour J', body: 'L\'onglet « Sorties » affiche la prochaine sortie (horaires, ton groupe, tes repères) et ton calendrier. Tu peux revoir ce guide depuis Profil → Aide.' }
   ];
 
   function openTutorial() {
@@ -5915,8 +5915,8 @@
     var target = targetPlanningEvent();
     if (target && target.mode === 'ongoing') {
       html += '<div class="card carnet-today-card"><strong>🏍️ Tu roules aujourd\'hui à ' + escapeHtml(target.ev.circuit) + '</strong>' +
-        '<div class="help-text">Horaires, ton groupe et tes repères sont dans EN PISTE.</div>' +
-        '<button type="button" class="primary" data-view="planning" style="margin-top:0.5rem;">Ouvrir EN PISTE</button></div>';
+        '<div class="help-text">Horaires, ton groupe et tes repères sont dans Sorties.</div>' +
+        '<button type="button" class="primary" data-view="planning" style="margin-top:0.5rem;">Ouvrir la sortie</button></div>';
     }
     if (addChronoOpen) {
       html += renderForm();
@@ -5963,6 +5963,8 @@
       html += '</div>';
     }
 
+    html += '<div class="carnet-links"><button type="button" class="ghost" data-view="circuit">⏱️ Tous les circuits</button>' +
+      '<button type="button" class="ghost" data-view="stats">📊 Mes stats et trophées</button></div>';
     // Mes repères
     var notesAll = (currentUserProfile && currentUserProfile.trackNotes) || {};
     var noteCircuits = Object.keys(notesAll).filter(function (c) { return (notesAll[c] || []).length; }).sort();
@@ -8231,12 +8233,30 @@
   // bottom-nav slot -- only these 5 make up the bottom nav, in this order.
   var MAIN_TABS = [
     ['carnet', 'nav_carnet', '📒'],
-    ['event', 'nav_events', '📅'],
-    ['circuit', 'nav_chronos', '⏱️'],
-    ['planning', 'nav_planning', '🏍️'],
-    ['social', 'nav_social', '👥'],
-    ['team', 'nav_team', '🤝']
+    ['sorties', 'nav_sorties', '🏁'],
+    ['communaute', 'nav_communaute', '👥']
   ];
+  // 3 onglets ; chacun regroupe plusieurs vues existantes (sous-onglets).
+  // Le dernier sous-onglet ouvert dans chaque onglet est mémorisé pour y
+  // revenir directement.
+  function navTabFor(view) {
+    if (view === 'event' || view === 'planning') return 'sorties';
+    if (view === 'social' || view === 'team' || view === 'coach') return 'communaute';
+    return 'carnet';
+  }
+  var lastSubView = { carnet: 'carnet', sorties: 'planning', communaute: 'social' };
+  function renderSubNav(items) {
+    if (items.length < 2) return '';
+    return '<div class="subnav" role="tablist">' + items.map(function (it) {
+      return '<button type="button" role="tab" class="subnav-btn' + (activeView === it[0] ? ' active' : '') + '" data-view="' + it[0] + '">' + it[1] + '</button>';
+    }).join('') + '</div>';
+  }
+  function communauteSubItems() {
+    var items = [['social', 'Amis & fil']];
+    if (!isSimplifiedModeOn(currentUserProfile)) items.push(['team', 'Teams']);
+    if (canAccessCoachSpace() && !advancedHidden()) items.push(['coach', 'Coaching']);
+    return items;
+  }
 
   // Fixed to the bottom of the viewport (see .bottom-nav), like a native
   // app's tab bar -- rendered as the very last thing in renderRoot()'s
@@ -8245,18 +8265,14 @@
   // pins it, this ordering is just for readability of the source.
   function renderBottomNav() {
     var html = '<nav class="bottom-nav">';
-    // Mode simplifié (Réglages) hides Team from the nav -- Team feed/
-    // gestion is the one whole area of the app a solo/casual rider never
-    // touches. Mode solo goes further and also drops Social, leaving just
-    // Événements/Chronos/EN PISTE. Reversible any time from Réglages, so
-    // hiding either outright (not just collapsing) is safe.
-    var hideTeamTab = isSimplifiedModeOn(currentUserProfile);
-    var hideSocialTab = isSoloModeOn(currentUserProfile);
+    // Communauté (amis, Teams, coaching) est masquée en mode solo -- un
+    // pilote seul n'a alors que Carnet et Sorties.
     var visibleTabs = MAIN_TABS.filter(function (tab) {
-      return !((tab[0] === 'team' && hideTeamTab) || (tab[0] === 'social' && hideSocialTab));
+      return !(tab[0] === 'communaute' && isSoloModeOn(currentUserProfile));
     });
+    var current = navTabFor(activeView);
     visibleTabs.forEach(function (tab) {
-      html += '<button type="button" class="bottom-nav-btn' + (activeView === tab[0] ? ' active' : '') + '" data-view="' + tab[0] + '">' +
+      html += '<button type="button" class="bottom-nav-btn' + (current === tab[0] ? ' active' : '') + '" data-view="' + (lastSubView[tab[0]] || tab[0]) + '">' +
         '<span class="bottom-nav-icon">' + tab[2] + '</span><span class="bottom-nav-label">' + tr(tab[1]) + '</span></button>';
     });
     html += '</nav>';
@@ -12753,14 +12769,20 @@
       body = accountManagerOpen ? renderAccountManagerPanel() : renderProfilePanel();
     } else if (notificationsPanelOpen) {
       body = renderNotificationsPanel();
-    } else if (activeView === 'carnet') body = renderCarnetTab();
-    else if (activeView === 'circuit') body = renderCircuitTab();
-    else if (activeView === 'stats') body = renderStatsTab();
-    else if (activeView === 'planning') body = renderPlanningTab();
-    else if (activeView === 'social') body = renderSocialTab();
-    else if (activeView === 'team') body = renderTeamTab();
-    else if (activeView === 'coach') body = renderCoachTab();
-    else body = renderEventTab(); // 'event' and safety fallback
+    } else {
+      if ((activeView === 'team' && isSimplifiedModeOn(currentUserProfile)) || (activeView === 'coach' && !(canAccessCoachSpace() && !advancedHidden()))) activeView = 'social';
+      if (navTabFor(activeView) === 'communaute' && isSoloModeOn(currentUserProfile)) activeView = 'carnet';
+      lastSubView[navTabFor(activeView)] = activeView;
+      var backToCarnet = '<button type="button" class="link-btn back-link" data-view="carnet">← Carnet</button>';
+      if (activeView === 'carnet') body = renderCarnetTab();
+      else if (activeView === 'circuit') body = backToCarnet + renderCircuitTab();
+      else if (activeView === 'stats') body = backToCarnet + renderStatsTab();
+      else if (activeView === 'planning') body = renderSubNav([['planning', 'Prochaine sortie'], ['event', 'Calendrier']]) + renderPlanningTab();
+      else if (activeView === 'social') body = renderSubNav(communauteSubItems()) + renderSocialTab();
+      else if (activeView === 'team') body = renderSubNav(communauteSubItems()) + renderTeamTab();
+      else if (activeView === 'coach') body = renderSubNav(communauteSubItems()) + renderCoachTab();
+      else body = renderSubNav([['planning', 'Prochaine sortie'], ['event', 'Calendrier']]) + renderEventTab(); // 'event' and safety fallback
+    }
     var notifCount = pendingNotificationCount();
     root.innerHTML =
       '<header class="page-head">' +
@@ -12768,8 +12790,6 @@
           '<div class="page-head-row">' +
             '<h1 class="title">Carnet de Piste</h1>' +
             '<div class="header-controls">' +
-              (canAccessCoachSpace() && !advancedHidden() ? '<button type="button" class="header-icon-btn' + (activeView === 'coach' ? ' active' : '') + '" data-view="coach" aria-label="' + tr('coach_label') + '" title="' + tr('coach_label') + '">🎓</button>' : '') +
-              '<button type="button" class="header-icon-btn' + (activeView === 'stats' ? ' active' : '') + '" data-view="stats" aria-label="' + tr('stats_label') + '" title="' + tr('stats_label') + '">📊</button>' +
               '<button type="button" class="header-icon-btn" id="notifications-toggle" aria-label="' + tr('notifications_label') + '" title="' + tr('notifications_label') + '">🔔' +
                 (notifCount ? '<span class="notif-count">' + (notifCount > 9 ? '9+' : notifCount) + '</span>' : '') +
               '</button>' +

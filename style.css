@@ -2857,3 +2857,11 @@
 .session-table-compact .date-cell { min-width: 5.6rem; }
 .session-table-compact .row-actions .icon-btn { padding: 0.3rem 0.45rem; min-width: 0; width: auto; height: auto; }
 .session-table-compact td, .session-table-compact th { padding-left: 0.3rem; padding-right: 0.3rem; }
+
+/* Sous-onglets (Sorties, Communauté) et retour au carnet */
+.subnav { display: flex; gap: 0.3rem; background: var(--surface-alt); border: 1px solid var(--border); border-radius: 12px; padding: 0.25rem; margin-bottom: 0.9rem; }
+.subnav-btn { flex: 1; border: none; background: none; padding: 0.55rem 0.4rem; border-radius: 9px; font-weight: 600; color: var(--text-muted); cursor: pointer; }
+.subnav-btn.active { background: var(--surface); color: var(--text); box-shadow: 0 1px 3px rgba(0,0,0,0.12); }
+.back-link { width: auto; text-decoration: none; font-weight: 600; margin: 0 0 0.6rem; display: inline-block; }
+.carnet-links { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 0.9rem; }
+.carnet-links button { flex: 1 1 10rem; }
