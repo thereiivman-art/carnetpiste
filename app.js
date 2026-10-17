@@ -5145,6 +5145,16 @@
       return html;
     }
     var soloMe = names.length === 1 && me && names[0] === me.name;
+    // Mes stats à moi : « Record par circuit » et « Mes chiffres » en
+    // sous-pastilles (la sous-pastille tient lieu de titre de carte).
+    if (soloMe) {
+      var noTitle = function (h) { return h.replace(/<h2 class="section-title">[^<]*<\/h2>/, ''); };
+      return html + renderSubPills('statsrec', [
+        ['circuits', 'Record par circuit', noTitle(renderMyRecordsCard())],
+        ['chiffres', 'Mes chiffres', noTitle(renderRiderStatsCard(me.name, true))]
+      ], { noCard: true });
+    }
+    html += renderMyRecordsCard();
     names.forEach(function (r) { html += renderRiderStatsCard(r, soloMe); });
     return html;
     html += '<div class="card"><h2 class="section-title">Mes données</h2>' +
@@ -6674,19 +6684,40 @@
   // share their trackdays), fastest first, with the gap to the leader and
   // to me. Lap times are already visible to every signed-in account, so
   // this only puts friends' ones side by side.
+  // The roulage's days, plus 2 days either side: a friend's chrono dated
+  // the other day of the weekend, or a trackday entered without its event,
+  // still counts as the same roulage.
+  function battleDates(ev, date) {
+    var start = ev ? ev.dateStart : date, end = ev ? (ev.dateEnd || ev.dateStart) : date;
+    if (date && date < start) start = date;
+    if (date && date > end) end = date;
+    function shift(d, n) { var x = parseLocalDate(d); x.setDate(x.getDate() + n); return dateKey(x); }
+    return datesInRange(shift(start, -2), shift(end, 2));
+  }
+  // "Mugello", "mugello ", "Mugello Circuit", "Autodromo del Mugello" are
+  // the same circuit.
+  function circuitKey(c) {
+    return String(c || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      .replace(/\b(circuit|circuito|autodromo|autodrome|international|internazionale|world|ring|de|del|di|du|the|la|le)\b/g, ' ')
+      .replace(/[^a-z0-9]+/g, ' ').trim();
+  }
+  function sameCircuit(a, b) {
+    var ka = circuitKey(a), kb = circuitKey(b);
+    if (!ka || !kb) return false;
+    return ka === kb || (ka.length >= 4 && kb.indexOf(ka) !== -1) || (kb.length >= 4 && ka.indexOf(kb) !== -1);
+  }
   function friendsBattleRows(circuit, dates) {
     var me = currentUserProfile && currentUserProfile.name;
     if (!me) return [];
     var names = [me].concat(friendsOf(me).map(function (f) { return f.name; }));
-    var ckey = String(circuit || '').trim().toLowerCase();
     var byRider = {};
     (STATE.sessions || []).forEach(function (x) {
-      if (String(x.circuit || '').trim().toLowerCase() !== ckey || dates.indexOf(x.date) === -1 || !x.laps || !x.laps.length) return;
+      if (!sameCircuit(x.circuit, circuit) || dates.indexOf(x.date) === -1 || !x.laps || !x.laps.length) return;
       if (names.indexOf(x.rider) === -1) return;
       var u = (STATE.usersByName || {})[x.rider] || {};
       if (x.rider !== me && u.shareSorties === false) return;
       var b = sessionBest(x);
-      if (!byRider[x.rider] || b < byRider[x.rider].best) byRider[x.rider] = { rider: x.rider, best: b, group: x.group || '' };
+      if (!byRider[x.rider] || b < byRider[x.rider].best) byRider[x.rider] = { rider: x.rider, best: b, group: x.group || '', date: x.date };
     });
     return Object.keys(byRider).map(function (k) { return byRider[k]; }).sort(function (a, b) { return a.best - b.best; });
   }
@@ -6705,7 +6736,7 @@
     html += rows.map(function (r, i) {
       var gap = i === 0 ? '<span class="battle-gap lead">Le plus rapide</span>' : '<span class="battle-gap">+' + formatGap(r.best - leader) + '</span>';
       return '<div class="battle-row' + (r.rider === me ? ' me' : '') + '"><span class="battle-rank">' + (i + 1) + '</span>' +
-        '<span class="battle-name">' + escapeHtml(r.rider === me ? 'Toi' : r.rider) + (r.group ? ' ' + groupChip(r.group) : '') + '</span>' +
+        '<span class="battle-name">' + escapeHtml(r.rider) + (r.group ? ' ' + groupChip(r.group) : '') + '</span>' +
         '<span class="battle-time">' + formatTime(r.best) + gap + '</span></div>';
     }).join('');
     if (mine) {
@@ -6718,14 +6749,79 @@
     }
     return html + '</div>';
   }
+  // Tracé (trait sombre sur fond clair) redessiné aux couleurs de la
+  // charte : piste épaisse couleur encre, filet rouge au centre.
+  function styledTrack(img, w, h, C) {
+    try {
+      var pad = 24, src = document.createElement('canvas');
+      src.width = w; src.height = h;
+      var sctx = src.getContext('2d');
+      sctx.drawImage(img, 0, 0, w, h);
+      var d = sctx.getImageData(0, 0, w, h), px = d.data;
+      for (var i = 0; i < px.length; i += 4) {
+        var lum = (px[i] * 0.3 + px[i + 1] * 0.59 + px[i + 2] * 0.11) * px[i + 3] / 255 + 255 * (1 - px[i + 3] / 255);
+        var a = lum < 200 ? 255 : 0;
+        px[i] = px[i + 1] = px[i + 2] = 0; px[i + 3] = a;
+      }
+      sctx.putImageData(d, 0, 0);
+      var tint = function (color) {
+        var c = document.createElement('canvas'); c.width = w; c.height = h;
+        var cc = c.getContext('2d'); cc.drawImage(src, 0, 0);
+        cc.globalCompositeOperation = 'source-in'; cc.fillStyle = color; cc.fillRect(0, 0, w, h);
+        return c;
+      };
+      // Les deux bords du tracé fusionnent en un ruban plein.
+      var ribbon = function (color, dx, dy, o) {
+        var t = tint(color);
+        [3, 6, 8].forEach(function (rr) {
+          for (var a = 0; a < 360; a += 15) {
+            var rad = a * Math.PI / 180;
+            o.drawImage(t, pad + dx + Math.cos(rad) * rr, pad + dy + Math.sin(rad) * rr);
+          }
+        });
+      };
+      var out = document.createElement('canvas'); out.width = w + pad * 2; out.height = h + pad * 2;
+      var o = out.getContext('2d');
+      ribbon(C.red, 7, 7, o);
+      ribbon(C.ink, 0, 0, o);
+      return out;
+    } catch (e) { return null; }
+  }
+  // Plan du circuit pour la story : photo importée, tracé par défaut, ou
+  // tracé d'un nom approchant (« Autodromo del Mugello » → « mugello »).
+  function battleTrackSrc(circuit) {
+    var info = circuitInfo(circuit);
+    var src = info.mapImage || outlineImageFor(info, circuit);
+    if (src) return src;
+    var key = Object.keys(DEFAULT_TRACK_OUTLINES).filter(function (k) { return sameCircuit(k, circuit); })[0];
+    return key ? DEFAULT_TRACK_OUTLINES[key] : null;
+  }
   function buildBattleCard(circuit, date, rows) {
     var W = 1080, H = 1920, C = SHARE_COLORS, EN = currentLang() === 'en';
     var me = currentUserProfile && currentUserProfile.name;
     var canvas = document.createElement('canvas');
     canvas.width = W; canvas.height = H;
     var ctx = canvas.getContext('2d');
-    return shareFontsReady().then(function () {
+    var shown = rows.slice(0, 8), rowsEnd = 560 + shown.length * 128;
+    var trackSrc = battleTrackSrc(circuit);
+    return Promise.all([shareFontsReady(), trackSrc ? loadImageEl(trackSrc) : null]).then(function (res) {
+      var track = res[1];
       ctx.fillStyle = C.bg; ctx.fillRect(0, 0, W, H);
+      // Le plan du circuit : en grand sous le classement s'il reste de la
+      // place, sinon en filigrane derrière le titre.
+      if (track && track.width) {
+        var free = { x: 110, y: rowsEnd + 50, w: W - 220, h: H - 320 - (rowsEnd + 50) };
+        var big = free.h >= 300;
+        var box = big ? free : { x: W - 520, y: 150, w: 460, h: 380 };
+        var k = Math.min(box.w / track.width, box.h / track.height);
+        var tw = Math.round(track.width * k), th = Math.round(track.height * k);
+        var tx = box.x + (box.w - tw) / 2, ty = box.y + (box.h - th) / 2;
+        ctx.save(); ctx.globalAlpha = big ? 1 : 0.22;
+        var styled = trackSrc.indexOf('data:') === 0 ? null : styledTrack(track, tw, th, C);
+        if (styled) ctx.drawImage(styled, tx - 24, ty - 24);
+        else ctx.drawImage(track, tx, ty, tw, th);
+        ctx.restore();
+      }
       drawShareMark(ctx, 80, 112, 64);
       ctx.fillStyle = C.ink; ctx.font = 'italic 800 56px ' + CONDENSED;
       ctx.fillText(EN ? 'BETWEEN FRIENDS' : 'ENTRE POTES', 150, 166);
@@ -6733,17 +6829,18 @@
       fitText(ctx, title, W - 160, 170, 'italic 800', CONDENSED);
       ctx.fillText(title, 76, 400);
       ctx.fillStyle = C.muted; ctx.font = '600 46px "Barlow", sans-serif';
-      ctx.fillText(formatDate(date), 80, 470);
+      var days = rows.map(function (r) { return r.date; }).filter(Boolean).sort();
+      ctx.fillText(days.length && days[0] !== days[days.length - 1] ? formatDate(days[0]) + ' → ' + formatDate(days[days.length - 1]) : formatDate(days[0] || date), 80, 470);
       var top = 560, rowH = 128, leader = rows[0].best;
-      rows.slice(0, 8).forEach(function (r, i) {
+      shown.forEach(function (r, i) {
         var y = top + i * rowH, isMe = r.rider === me;
         ctx.fillStyle = isMe ? '#ffffff' : 'rgba(255,255,255,0.6)';
         roundRect(ctx, 60, y, W - 120, rowH - 18, 28); ctx.fill();
         if (isMe) { ctx.save(); roundRect(ctx, 60, y, W - 120, rowH - 18, 28); ctx.clip(); ctx.fillStyle = C.red; ctx.fillRect(60, y, 12, rowH - 18); ctx.restore(); }
         ctx.fillStyle = i === 0 ? C.red : C.ink; ctx.font = 'italic 800 64px ' + CONDENSED;
         ctx.fillText(String(i + 1), 100, y + 78);
-        ctx.fillStyle = C.ink; fitText(ctx, isMe ? (EN ? 'Me' : 'Moi') : r.rider, 430, 50, '700');
-        ctx.fillText(isMe ? (EN ? 'Me' : 'Moi') : r.rider, 180, y + 74);
+        ctx.fillStyle = C.ink; fitText(ctx, r.rider, 310, 50, '700');
+        ctx.fillText(r.rider, 180, y + 74);
         ctx.font = 'italic 800 64px ' + CONDENSED; ctx.textAlign = 'right';
         ctx.fillText(formatTime(r.best), W - 300, y + 78);
         ctx.fillStyle = i === 0 ? C.red : C.muted; ctx.font = '700 38px "Barlow", sans-serif';
@@ -6752,7 +6849,7 @@
       });
       ctx.fillStyle = C.line; ctx.fillRect(80, H - 250, W - 160, 2);
       ctx.fillStyle = C.ink; ctx.font = '700 46px "Barlow", sans-serif';
-      ctx.fillText(EN ? 'Compare your lap times with your friends:' : 'Compare tes chronos avec tes potes :', 80, H - 175);
+      ctx.fillText(EN ? 'Ride with us, compare your lap times:' : 'Viens rouler, compare tes chronos :', 80, H - 175);
       ctx.fillStyle = C.red; fitText(ctx, 'thereiivman-art.github.io/carnetpiste', W - 160, 46, '700');
       ctx.fillText('thereiivman-art.github.io/carnetpiste', 80, H - 105);
       return new Promise(function (resolve) { canvas.toBlob(function (b) { resolve(b); }, 'image/png'); });
@@ -6966,7 +7063,7 @@
       }
       // Whole roulage (every day of the event), not only the day opened --
       // friends often ride the other day of a 2-day trackday.
-      html += renderFriendsBattle(circuit, ev ? datesInRange(ev.dateStart, ev.dateEnd || ev.dateStart) : [date]);
+      html += renderFriendsBattle(circuit, battleDates(ev, date));
       html += renderRecordSetupCard(circuit);
       if (status !== 'avenir') html += '<button type="button" class="primary add-chrono-btn" id="outing-add-chrono">+ Ajouter un chrono pour ce jour</button>';
       // Mes sessions du jour
@@ -9817,7 +9914,7 @@
   }
   // Pastilles (3e niveau, à l'intérieur d'un sous-onglet) : même style que
   // le filtre Passés/À venir du carnet. État mémorisé par groupe.
-  var pillState = { profil: 'identite', settings: 'affichage', social: 'fil', events: 'avenir', circuit: 'plan', stats: 'records', teams: 'mine', team: 'fil', coach: 'demandes', planning: 'programme', outing: 'chronos', evmanage: 'participants' };
+  var pillState = { profil: 'identite', settings: 'affichage', social: 'fil', events: 'avenir', circuit: 'plan', stats: 'records', teams: 'mine', team: 'fil', coach: 'demandes', planning: 'programme', outing: 'chronos', evmanage: 'participants', statsrec: 'circuits' };
   function renderPills(group, items) {
     var cur = pillState[group];
     if (!items.some(function (it) { return it[0] === cur; })) cur = pillState[group] = items[0][0];
@@ -14467,7 +14564,7 @@
       if (activeView === 'outing') body = renderOutingPage();
       else if (activeView === 'carnet') body = carnetSub + renderCarnetTab();
       else if (activeView === 'circuit') body = carnetSub + renderCircuitTab();
-      else if (activeView === 'stats') body = carnetSub + renderPills('stats', [['records', 'Records'], ['trophees', 'Trophées'], ['donnees', 'Mes données']]) + (pillState.stats === 'records' ? renderMyRecordsCard() : '') + renderStatsTab();
+      else if (activeView === 'stats') body = carnetSub + renderPills('stats', [['records', 'Records'], ['trophees', 'Trophées'], ['donnees', 'Mes données']]) + renderStatsTab();
       else if (activeView === 'planning') body = renderSubNav([['planning', 'Prochain roulage'], ['event', 'Calendrier']]) + renderPlanningTab();
       else if (activeView === 'social') body = renderSubNav(communauteSubItems()) + renderSocialTab();
       else if (activeView === 'team') body = renderSubNav(communauteSubItems()) + renderTeamTab();
