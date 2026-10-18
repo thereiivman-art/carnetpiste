@@ -962,7 +962,7 @@
 "Publier 5 messages sur ton Journal.": "Post 5 messages on your Journal.",
 "⬇ Exporter mes chronos (tableur CSV)": "⬇ Export my lap times (CSV spreadsheet)",
 "Qui voit quoi": "Who sees what",
-"Tes chronos et tes roulages sont visibles des autres pilotes de l'appli (classements, roulages en commun) – tu peux les retirer de ta fiche dans Réglages → Vie privée. Tes repères et tes débriefs ne sont affichés qu'à toi. Ton email reste privé.": "Your lap times and trackdays are visible to other riders in the app (rankings, shared trackdays) -- you can hide them from your card in Settings → Privacy. Your marks and debriefs are only shown to you. Your email stays private.",
+"Tes chronos et tes roulages sont visibles des autres pilotes de l'appli (classements, roulages en commun) – tu peux les retirer de ta fiche dans Réglages → Vie privée. Tes repères et tes débriefs ne sont affichés qu'à toi. Ton email reste privé.": "Your lap times and trackdays are visible to other riders in the app (rankings, shared trackdays) – you can hide them from your card in Settings → Privacy. Your marks and debriefs are only shown to you. Your email stays private.",
 "Prochain roulage": "Next trackday",
 "Calendrier": "Calendar",
 "Programme": "Schedule",
@@ -1000,7 +1000,7 @@
 "Cet email est déjà utilisé — connecte-toi plutôt.": "This email is already in use — sign in instead.", "Email invalide.": "Invalid email.", "Trop de tentatives — attends quelques minutes avant de renvoyer l'email.": "Too many attempts — wait a few minutes before resending the email.",
 "Mot de passe trop court (6 caractères minimum).": "Password too short (6 characters minimum).", "Email ou mot de passe incorrect.": "Wrong email or password.",
 "Connecte-toi avec ton adresse email (la connexion par pseudo a été retirée pour des raisons de sécurité).": "Sign in with your email address (username sign-in was removed for security reasons).",
-"Carnet de Piste": "Carnet de Piste", "QR code indisponible hors connexion -- partage le lien ci-dessous.": "QR code unavailable offline -- share the link below.", "Accepter": "Accept", "Refuser": "Decline", "Demande d'ami": "Friend request",
+"Carnet de Piste": "Carnet de Piste", "QR code indisponible hors connexion – partage le lien ci-dessous.": "QR code unavailable offline – share the link below.", "Accepter": "Accept", "Refuser": "Decline", "Demande d'ami": "Friend request",
 "Invite un pilote": "Invite a rider", "Fais scanner ce code : il s'inscrit avec ton lien et devient ton filleul.": "Have them scan this code: they sign up with your link and become your referral.",
 "Partager le lien": "Share the link", "Copier": "Copy", "Lien copié": "Link copied",
 "souhaite rejoindre": "wants to join", "Accepter comme membre": "Accept as member", "comme adhérent": "as adherent", "comme Team Leader": "as Team Leader",
@@ -1220,7 +1220,7 @@
 "Suggestion supprimée.": "Feedback deleted.",
 "Confirmer la suppression": "Confirm deletion",
 "Préparation de l'image…": "Preparing the image…",
-"Image enregistrée -- publie-la en story !": "Image saved -- post it as a story!",
+"Image enregistrée – publie-la en story !": "Image saved – post it as a story!",
 "Lien copié : colle-le dans ton groupe WhatsApp.": "Link copied: paste it into your WhatsApp group.",
 "Chargement…": "Loading…",
 "Chargement...": "Loading...",
@@ -9803,6 +9803,106 @@
   // "long-press to save" preview, not annotation-specific) for the actual
   // save step, same as exportAnnotationPng above.
 
+
+  // ---- Story « Mon roulage à… » (après le roulage) ----
+  // Best lap in big with what it means (new record or gap to it), the
+  // circuit outline, and the friends' ranking on the same roulage.
+  function buildRecapStoryCard(ev) {
+    var W = 1080, H = 1920, C = SHARE_COLORS;
+    var me = currentUserProfile && currentUserProfile.name;
+    var canvas = document.createElement('canvas');
+    canvas.width = W; canvas.height = H;
+    var ctx = canvas.getContext('2d');
+    var trackSrc = battleTrackSrc(ev.circuit);
+    var team = ev.teamId ? teamById(ev.teamId) : null;
+    var dates = battleDates(ev, ev.dateStart);
+    var rows = friendsBattleRows(ev.circuit, dates);
+    var mine = (STATE.sessions || []).filter(function (x) { return x.rider === me && x.laps && x.laps.length && (x.eventId === ev.id || (sameCircuit(x.circuit, ev.circuit) && x.date >= ev.dateStart && x.date <= (ev.dateEnd || ev.dateStart))); });
+    var best = null, laps = 0;
+    mine.forEach(function (x) { var b = sessionBest(x); if (best === null || b < best) best = b; laps += x.laps.length; });
+    var prev = me ? bestBefore(me, ev.circuit, ev.dateStart) : null;
+    return Promise.all([shareFontsReady(), trackSrc ? loadImageEl(trackSrc) : null, team && team.logoURL ? loadImageEl(team.logoURL) : null]).then(function (res) {
+      var track = res[1], logo = res[2];
+      ctx.fillStyle = C.bg; ctx.fillRect(0, 0, W, H);
+      drawShareMark(ctx, 80, 112, 64);
+      ctx.fillStyle = C.ink; ctx.font = 'italic 800 56px ' + CONDENSED;
+      ctx.fillText(meIsNonRider() || best === null ? L('ON ÉTAIT À', 'WE WERE AT') : L('MON ROULAGE À', 'MY TRACKDAY AT'), 150, 166);
+      if (logo && logo.width) { var lh = 90, lw = Math.min(260, logo.width * lh / logo.height); ctx.drawImage(logo, W - 80 - lw, 96, lw, lw * logo.height / logo.width); }
+      var title = String(ev.circuit).toUpperCase();
+      fitText(ctx, title, W - 160, 170, 'italic 800', CONDENSED);
+      ctx.fillText(title, 76, 380);
+      ctx.fillStyle = C.muted; ctx.font = '600 46px "Barlow", sans-serif';
+      ctx.fillText(formatEventRange(ev, true) + (team ? '  ·  ' + team.name : ''), 80, 450);
+      var y = 470;
+      if (best !== null) {
+        ctx.fillStyle = C.red; ctx.font = '800 36px "Barlow", sans-serif';
+        ctx.fillText(L('MEILLEUR TOUR', 'BEST LAP'), 80, y + 70);
+        ctx.fillStyle = C.ink; ctx.font = 'italic 800 190px ' + CONDENSED;
+        ctx.fillText(formatTime(best), 70, y + 250);
+        ctx.font = '700 44px "Barlow", sans-serif';
+        if (prev !== null && best < prev) { ctx.fillStyle = C.best; ctx.fillText(L('Nouveau record · −', 'New record · −') + formatGap(prev - best), 80, y + 320); }
+        else if (prev !== null) { ctx.fillStyle = C.muted; ctx.fillText('+' + formatGap(best - prev) + L(' sur mon record', ' off my record'), 80, y + 320); }
+        else { ctx.fillStyle = C.muted; ctx.fillText(L('Premier roulage ici', 'First time here'), 80, y + 320); }
+        ctx.fillStyle = C.muted; ctx.font = '600 38px "Barlow", sans-serif';
+        ctx.fillText(laps + (laps > 1 ? L(' tours', ' laps') : L(' tour', ' lap')), 80, y + 375);
+        y += 440;
+      } else y += 40;
+      var ranking = rows.length >= 2;
+      if (ranking) {
+        ctx.fillStyle = C.red; ctx.font = '800 38px "Barlow", sans-serif';
+        ctx.fillText(L('ENTRE POTES', 'BETWEEN FRIENDS'), 80, y + 40);
+        var leader = rows[0].best, rowH = 112;
+        rows.slice(0, 6).forEach(function (r, i) {
+          var ry = y + 70 + i * rowH, isMe = r.rider === me;
+          ctx.fillStyle = isMe ? '#ffffff' : 'rgba(255,255,255,0.6)';
+          roundRect(ctx, 60, ry, W - 120, rowH - 16, 24); ctx.fill();
+          if (isMe) { ctx.save(); roundRect(ctx, 60, ry, W - 120, rowH - 16, 24); ctx.clip(); ctx.fillStyle = C.red; ctx.fillRect(60, ry, 12, rowH - 16); ctx.restore(); }
+          ctx.fillStyle = i === 0 ? C.red : C.ink; ctx.font = 'italic 800 56px ' + CONDENSED;
+          ctx.fillText(String(i + 1), 100, ry + 68);
+          ctx.fillStyle = C.ink; fitText(ctx, r.rider, 300, 44, '700');
+          ctx.fillText(r.rider, 170, ry + 64);
+          if (r.group) drawShareGroupChip(ctx, r.group, 170 + Math.min(ctx.measureText(r.rider).width, 300) + 14, ry + 26, 42);
+          ctx.fillStyle = C.ink; ctx.font = 'italic 800 56px ' + CONDENSED; ctx.textAlign = 'right';
+          ctx.fillText(formatTime(r.best), W - 270, ry + 68);
+          ctx.fillStyle = i === 0 ? C.red : C.muted; ctx.font = '700 34px "Barlow", sans-serif';
+          ctx.fillText(i === 0 ? L('devant', 'fastest') : '+' + formatGap(r.best - leader), W - 90, ry + 64);
+          ctx.textAlign = 'left';
+        });
+        y += 70 + Math.min(rows.length, 6) * 112;
+      }
+      // The circuit outline fills whatever room is left above the footer.
+      var free = { x: 110, y: y + 40, w: W - 220, h: H - 300 - (y + 40) };
+      if (track && track.width && free.h >= 220) {
+        var k = Math.min(free.w / track.width, free.h / track.height);
+        var tw = Math.round(track.width * k), th = Math.round(track.height * k);
+        var styled = trackSrc.indexOf('data:') === 0 ? null : styledTrack(track, tw, th, C);
+        var tx = free.x + (free.w - tw) / 2, ty = free.y + (free.h - th) / 2;
+        if (styled) ctx.drawImage(styled, tx - 24, ty - 24); else ctx.drawImage(track, tx, ty, tw, th);
+      }
+      ctx.fillStyle = C.line; ctx.fillRect(80, H - 250, W - 160, 2);
+      ctx.fillStyle = C.ink; ctx.font = '700 44px "Barlow", sans-serif';
+      ctx.fillText(L('Compare tes chronos avec tes potes :', 'Compare lap times with your friends:'), 80, H - 175);
+      ctx.fillStyle = C.red; fitText(ctx, 'thereiivman-art.github.io/carnetpiste', W - 160, 46, '700');
+      ctx.fillText('thereiivman-art.github.io/carnetpiste', 80, H - 105);
+      return new Promise(function (resolve) { canvas.toBlob(function (b) { resolve(b); }, 'image/png'); });
+    });
+  }
+  function shareRecapStory(ev) {
+    showToast(L('Préparation de l\'image…', 'Preparing the image…'));
+    buildRecapStoryCard(ev).then(function (blob) {
+      var fileName = 'roulage-' + String(ev.circuit).replace(/[^\w-]+/g, '-') + '-' + ev.dateStart + '.png';
+      var file = new File([blob], fileName, { type: 'image/png' });
+      var link = currentUserProfile ? referralLinkFor(currentUserProfile.name) : '';
+      var text = L('Mon roulage à ', 'My trackday at ') + ev.circuit + ' — ' + link;
+      if (navigator.canShare && navigator.canShare({ files: [file] })) return navigator.share({ files: [file], text: text }).catch(function () {});
+      var dl = URL.createObjectURL(blob);
+      var a = document.createElement('a'); a.href = dl; a.download = fileName;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(function () { URL.revokeObjectURL(dl); }, 4000);
+      showToast(L('Image enregistrée – publie-la en story !', 'Image saved – post it as a story!'), 'success');
+    }).catch(function () { showToast(L('Impossible de créer l\'image sur cet appareil.', 'Could not create the image on this device.')); });
+  }
+
   // ---- Story « On roule à… » (avant le roulage) ----
   // What makes friends want to come: the circuit outline, the date and
   // countdown, who's already going (with their groups), my group and
@@ -10827,10 +10927,16 @@
   // anyway. See renderCircuitTab().
   // Stats has its own header icon now (see renderRootUnsafe), not a
   // bottom-nav slot -- only these 5 make up the bottom nav, in this order.
+  // Line icons (same family as the notifications), not emoji.
+  var NAV_SVG = {
+    carnet: '<rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 8h6M9 12h6M9 16h3"/>',
+    sorties: '<path d="M5 21V4M5 4h12l-2 4 2 4H5"/>',
+    communaute: '<circle cx="9" cy="8" r="3"/><circle cx="17" cy="9" r="2.5"/><path d="M3 20c0-3 3-5 6-5s6 2 6 5M15 15c3 0 6 1.5 6 4.5"/>'
+  };
   var MAIN_TABS = [
-    ['carnet', 'nav_carnet', '📒'],
-    ['sorties', 'nav_sorties', '🏁'],
-    ['communaute', 'nav_communaute', '👥']
+    ['carnet', 'nav_carnet', '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + NAV_SVG.carnet + '</svg>'],
+    ['sorties', 'nav_sorties', '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + NAV_SVG.sorties + '</svg>'],
+    ['communaute', 'nav_communaute', '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + NAV_SVG.communaute + '</svg>']
   ];
   // 3 onglets ; chacun regroupe plusieurs vues existantes (sous-onglets).
   // Le dernier sous-onglet ouvert dans chaque onglet est mémorisé pour y
@@ -15409,7 +15515,9 @@
     var html = renderPills('coach', coachPills);
     var cpill = pillState.coach;
     if (cpill === 'planning') {
-      return html + renderCoachPlanningSection(me, '<div class="help-text" style="margin-bottom:0.8rem;">' + tr('coaching_bapteme_help') + '</div>');
+      // One short line, the full explanation folded underneath.
+      return html + renderCoachPlanningSection(me, '<div class="help-text">' + L('Touche un créneau pour demander un coaching ou un baptême au coach.', 'Tap a slot to ask the coach for coaching or a track intro.') + '</div>' +
+        '<details class="more-details" style="margin-bottom:0.8rem;"><summary>' + L('Comment ça marche ?', 'How does it work?') + '</summary><div class="help-text">' + tr('coaching_bapteme_help') + '</div></details>');
     }
     var startLen = html.length;
 
@@ -18242,7 +18350,7 @@
       btn.addEventListener('click', function () {
         var ev = (STATE.events || []).filter(function (e) { return e.id === btn.getAttribute('data-id'); })[0];
         // Before the roulage: the « On roule à… » story; after: the recap.
-        if (ev) { if (ev.dateStart > dateKey(new Date())) shareRoulageStory(ev); else exportEventRecapPng(ev); }
+        if (ev) { if (ev.dateStart > dateKey(new Date())) shareRoulageStory(ev); else shareRecapStory(ev); }
       });
     });
     document.querySelectorAll('[data-action="edit-media-link"]').forEach(function (btn) {
