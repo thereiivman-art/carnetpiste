@@ -7086,8 +7086,17 @@
         '<div class="join-banner-actions">' + (ev.bookingUrl ? '<button type="button" class="primary" data-action="open-external-url" data-url="' + escapeHtml(ev.bookingUrl) + '">Réserver chez l\'orga ↗</button>' : '') +
         '<button type="button" class="' + (ev.bookingUrl ? 'ghost' : 'primary') + '" data-action="join-roulage-link" data-id="' + escapeHtml(ev.id) + '">J\'y vais</button></div></div>';
     }
-    if (ev && ((ev.riders || []).indexOf(meName) !== -1 || (ev.teamId && isLeaderOfTeam(ev.teamId)))) {
-      html += '<button type="button" class="ghost share-roulage-btn" data-action="share-roulage" data-id="' + escapeHtml(ev.id) + '">🔗 Inviter des pistards (lien public)</button>';
+    // Les actions du roulage, toutes ensemble sous le bloc groupe/statut
+    // (avant, Modifier et Exporter le récap étaient tout en bas d'Infos).
+    if (ev) {
+      var isRiderHere = (ev.riders || []).indexOf(meName) !== -1, leaderHere = !!(ev.teamId && isLeaderOfTeam(ev.teamId));
+      var acts = '';
+      if (ev.bookingUrl && !isRiderHere) acts += '<button type="button" class="primary" data-action="open-external-url" data-url="' + escapeHtml(ev.bookingUrl) + '">' + tr('book_register') + '</button>';
+      if (isRiderHere || leaderHere) acts += '<button type="button" class="ghost" data-action="share-roulage" data-id="' + escapeHtml(ev.id) + '">🔗 Inviter des pistards</button>';
+      if (!ev.teamId || leaderHere) acts += '<button type="button" class="ghost" id="edit-event-btn" data-id="' + ev.id + '">✎ ' + tr('modify') + '</button>';
+      acts += '<button type="button" class="ghost" data-action="export-event-recap" data-id="' + ev.id + '">⬇ ' + tr('export_recap_btn') + '</button>';
+      html += '<div class="outing-actions">' + acts + '</div>';
+      if (ev.bookingUrl && !isRiderHere) html += '<div class="help-text outing-actions-help">Inscription et paiement chez l\'organisateur.</div>';
     }
     // Same pills as everywhere else: Chronos / Infos / Repères.
     var notes = myTrackNotes(circuit);
@@ -7142,28 +7151,51 @@
         }).join('') + '</div>';
       }
     } else if (cur === 'infos') {
-      if (info.liveTimingUrl) {
-        html += '<a class="outing-live" href="' + escapeHtml(info.liveTimingUrl) + '" target="_blank" rel="noopener"><span class="outing-live-dot">((•))</span><span><strong>Live timing</strong><br><span>Sur le site du chronométreur</span></span><span class="outing-live-arrow">→</span></a>';
+      // Une sous-pastille par sujet, au lieu d'une longue carte (team,
+      // chronos validés, formulaire voyage, photos…) à faire défiler.
+      if (ev && editingEventId === ev.id) { html += renderEventForm(); }
+      else {
+        var hor = '';
+        if (info.liveTimingUrl) {
+          hor += '<a class="outing-live" href="' + escapeHtml(info.liveTimingUrl) + '" target="_blank" rel="noopener"><span class="outing-live-dot">((•))</span><span><strong>Live timing</strong><br><span>Sur le site du chronométreur</span></span><span class="outing-live-arrow">→</span></a>';
+        }
+        var horCard = '';
+        var horaires = ev ? eventHoraires(ev, date) : null;
+        var groupsAvail = horaires ? HORAIRES_GROUPS.filter(function (g) { return horaires[g.key]; }) : [];
+        if (groupsAvail.length) horCard += renderHoraireGroups(horaires, groupsAvail.map(function (g) { return g.key; }), ev, info.briefing);
+        else {
+          if (info.briefing) horCard += '<div class="help-text" style="margin-bottom:0.6rem; color:var(--accent); font-weight:600;">Briefing ' + escapeHtml(info.briefing) + '</div>';
+          horCard += '<div class="empty-state">Pas encore d\'horaires pour ce roulage.</div>';
+          if (ev) horCard += renderHorairesImportButton(ev, false);
+        }
+        if (ev) {
+          var evWeather = weatherSummaryLine(ev);
+          if (ev.note) horCard += infoRow(tr('note_label'), escapeHtml(ev.note));
+          if (evWeather) horCard += infoRow(tr('weather_label'), escapeHtml(evWeather));
+          horCard += renderHorairesPhotoSection(ev);
+        }
+        hor += '<div class="card">' + horCard + '</div>';
+        var items = [['horaires', 'Horaires', hor]];
+        if (ev) {
+          var isPast = eventTemporalStatus(ev, dateKey(new Date())) === 'past';
+          var mine = currentUserProfile && (ev.riders || []).indexOf(currentUserProfile.name) !== -1;
+          if (mine && !isPast) items.push(['voyage', 'Mon voyage', '<div class="card">' + flatSections(renderMyTravelInfoSection(ev)) + '</div>']);
+          var photos = renderMediaLinkSection(ev) + renderPersonalMediaLinksSection(ev);
+          if (mine && isPast) photos = '<div class="help-text">' + tr('how_was_it') + '</div>' + renderReactionBar(ev.reactions, 'react-event', ev.id) + photos;
+          if (photos) items.push(['photos', 'Photos', '<div class="card">' + photos + '</div>']);
+          var certif = renderEventCertificationSection(ev);
+          if (certif) items.push(['valides', 'Chronos validés', '<div class="card">' + flatSections(certif) + '</div>']);
+        }
+        html += items.length > 1 ? renderSubPills('outinfo', items, { noCard: true }) : hor;
       }
-      html += '<div class="card">';
-      var horaires = ev ? eventHoraires(ev, date) : null;
-      var groupsAvail = horaires ? HORAIRES_GROUPS.filter(function (g) { return horaires[g.key]; }) : [];
-      if (info.briefing) html += '<div class="help-text" style="margin-bottom:0.6rem; color:var(--accent); font-weight:600;">Briefing ' + escapeHtml(info.briefing) + '</div>';
-      if (groupsAvail.length) {
-        html += '<h2 class="section-title">Horaires</h2>' + renderHoraireGroups(horaires, groupsAvail.map(function (g) { return g.key; }), ev, info.briefing);
-      } else {
-        html += '<div class="empty-state">Pas encore d\'horaires pour ce roulage.</div>';
-        if (ev) html += renderHorairesImportButton(ev, false);
-      }
-      if (ev) html += renderHorairesPhotoSection(ev);
-      html += '</div>';
-      if (ev) html += (editingEventId === ev.id) ? renderEventForm() : renderEventSummaryCard(ev, { hideGroups: true, inPage: true });
     } else {
-      html += '<button type="button" class="primary add-chrono-btn" data-action="open-track-notes" data-circuit="' + escapeHtml(circuit) + '">📍 ' + (notes.length ? 'Voir le plan et mes repères' : 'Noter mes repères sur le plan') + '</button>';
-      html += '<div class="card">' + (notes.length ? notes.map(function (n, i) {
+      // Le plan tout de suite (avec mes repères épinglés) ; le toucher
+      // ouvre l'éditeur en grand -- plus de bouton intermédiaire.
+      html += '<div class="card circuit-info-card"><div class="circuit-info-map-full">' + renderCircuitVisual(info, circuit) + '</div></div>';
+      if (notes.length) html += '<div class="card">' + notes.map(function (n, i) {
         return '<div class="track-note-line"><span class="track-pin static">' + (i + 1) + '</span><span><strong>' + (n.turn ? 'Virage ' + escapeHtml(n.turn) : 'Repère ' + (i + 1)) + '</strong>' +
           (trackNoteSummary(n) ? ' — ' + escapeHtml(trackNoteSummary(n)) : '') + '</span></div>';
-      }).join('') : '<div class="empty-state">Aucun repère pour ' + escapeHtml(circuit) + ' : freinage, déclenchement, corde, sortie… touche le plan pour les épingler.</div>') + '</div>';
+      }).join('') + '</div>';
     }
     html += '</div>';
     return html;
@@ -9971,7 +10003,7 @@
   }
   // Pastilles (3e niveau, à l'intérieur d'un sous-onglet) : même style que
   // le filtre Passés/À venir du carnet. État mémorisé par groupe.
-  var pillState = { profil: 'identite', settings: 'affichage', social: 'fil', events: 'avenir', circuit: 'plan', stats: 'records', teams: 'mine', team: 'fil', coach: 'demandes', planning: 'programme', outing: 'chronos', evmanage: 'participants', statsrec: 'circuits', passub: 'calendrier' };
+  var pillState = { profil: 'identite', settings: 'affichage', social: 'fil', events: 'avenir', circuit: 'plan', stats: 'records', teams: 'mine', team: 'fil', coach: 'demandes', planning: 'programme', outing: 'chronos', evmanage: 'participants', statsrec: 'circuits', passub: 'calendrier', outinfo: 'horaires' };
   function renderPills(group, items) {
     var cur = pillState[group];
     if (!items.some(function (it) { return it[0] === cur; })) cur = pillState[group] = items[0][0];
@@ -17079,6 +17111,7 @@
       editEventBtn.addEventListener('click', function () {
         editingEventId = editEventBtn.getAttribute('data-id');
         pendingDeleteEvent = null;
+        if (activeView === 'outing') pillState.outing = 'infos'; // the form shows under Infos
         renderRoot();
       });
     }
