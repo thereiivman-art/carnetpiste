@@ -3913,7 +3913,7 @@
   function renderProfileAvatar(p) {
     var initial = escapeHtml((p.name || '?').trim().charAt(0).toUpperCase() || '?');
     return '<div class="profile-avatar-row">' +
-      '<div class="profile-avatar">' + (p.photoURL ? '<img src="' + escapeHtml(p.photoURL) + '" alt="' + tr('profile_photo_alt') + '">' : '<span class="profile-avatar-placeholder">' + initial + '</span>') + '</div>' +
+      '<div class="profile-avatar' + (!p.photoURL && p.nationality ? ' has-flag' : '') + '">' + (p.photoURL ? '<img src="' + escapeHtml(p.photoURL) + '" alt="' + tr('profile_photo_alt') + '">' : (p.nationality ? '<span class="avatar-flag" aria-hidden="true">' + flagEmoji(p.nationality) + '</span>' : '') + '<span class="profile-avatar-placeholder">' + initial + '</span>') + '</div>' +
       '<div class="profile-avatar-actions">' +
         '<button type="button" class="ghost" id="profile-photo-btn">' + (p.photoURL ? tr('change_photo') : tr('add_photo_plain')) + '</button>' +
         (p.photoURL ? '<button type="button" class="ghost" id="profile-photo-recrop-btn">' + tr('edit_crop') + '</button>' : '') +
@@ -4001,6 +4001,8 @@
     html += '<div style="display:flex; gap:0.6rem; margin-top:0.7rem;">' +
       '<div style="flex:1;"><label for="profile-firstname">' + tr('firstname_label') + '</label><input type="text" id="profile-firstname" value="' + escapeHtml(p.firstName || '') + '"></div>' +
       '<div style="flex:1;"><label for="profile-lastname">' + tr('lastname_label') + '</label><input type="text" id="profile-lastname" value="' + escapeHtml(p.lastName || '') + '"></div>' +
+      '</div><div style="margin-top:0.7rem;"><label for="profile-nationality">' + L('Nationalité', 'Nationality') + '</label>' + nationalitySelectHtml('profile-nationality', p.nationality || '', true) +
+      '<div class="help-text">' + L('Ton drapeau s\'affiche derrière ton initiale tant que tu n\'as pas de photo.', 'Your flag shows behind your initial while you have no photo.') + '</div>' +
       '</div>';
     html += '</div>' + cpillSection('profil', 'role');
     html += '<label style="margin-top:0.2rem;">' + tr('i_am_label') + '</label>';
@@ -4273,7 +4275,7 @@
     var pills = renderPills('aide', [['aide', 'Aide'], ['admin', 'Admin']]);
     // Une carte par outil d'admin.
     var asCard = function (h) { return h ? '<div class="card">' + h.replace('margin-top:1.2rem; border-top:1px solid var(--border); padding-top:0.9rem;', '') + '</div>' : ''; };
-    if (pillState.aide === 'admin') return pills + renderLangStatsCard() + asCard(renderPartnersSection(true)) + asCard(renderOptionalFeaturesSection()) + asCard(renderPasswordResetSection());
+    if (pillState.aide === 'admin') return pills + renderLangStatsCard() + renderNationalityStatsCard() + asCard(renderPartnersSection(true)) + asCard(renderOptionalFeaturesSection()) + asCard(renderPasswordResetSection());
     return pills + html;
   }
 
@@ -6711,7 +6713,8 @@
   // groups.
   function renderEventCertificationSection(ev) {
     if (!ev.teamId || !isLeaderOfTeam(ev.teamId)) return '';
-    var riders = (ev.riders || []).slice().sort();
+    // Only pilotes have chronos to validate (not accompagnants/organisateurs).
+    var riders = (ev.riders || []).filter(function (n) { return !isNonRiderName(n); }).sort();
     if (!riders.length) return '';
     var rows = riders.map(function (rider) {
       var sessions = STATE.sessions.filter(function (s) { return s.rider === rider && s.eventId === ev.id; });
@@ -9799,6 +9802,113 @@
   // showAnnotImagePreview (despite the name, a generic full-screen
   // "long-press to save" preview, not annotation-specific) for the actual
   // save step, same as exportAnnotationPng above.
+
+  // ---- Story « On roule à… » (avant le roulage) ----
+  // What makes friends want to come: the circuit outline, the date and
+  // countdown, who's already going (with their groups), my group and
+  // first session, the organiser -- and where to sign up.
+  function buildRoulageStoryCard(ev) {
+    var W = 1080, H = 1920, C = SHARE_COLORS;
+    var me = currentUserProfile && currentUserProfile.name;
+    var canvas = document.createElement('canvas');
+    canvas.width = W; canvas.height = H;
+    var ctx = canvas.getContext('2d');
+    var trackSrc = battleTrackSrc(ev.circuit);
+    var team = ev.teamId ? teamById(ev.teamId) : null;
+    var friends = me ? friendsOf(me).map(function (f) { return f.name; }) : [];
+    var riders = (ev.riders || []).filter(function (n) { return !isNonRiderName(n) && (n === me || friends.indexOf(n) !== -1); });
+    riders.sort(function (a, b) { return a === me ? -1 : b === me ? 1 : a.localeCompare(b); });
+    var companions = (ev.riders || []).filter(function (n) { return isNonRiderName(n) && (n === me || friends.indexOf(n) !== -1); });
+    var others = Math.max(0, (ev.riders || []).filter(function (n) { return !isNonRiderName(n); }).length - riders.length);
+    var groupOf = function (n) { return riderGroupFor(ev, n, ev.dateStart, 'matin') || riderGroupFor(ev, n, ev.dateStart, 'apres-midi') || ''; };
+    var days = Math.max(0, Math.round((parseLocalDate(ev.dateStart) - parseLocalDate(dateKey(new Date()))) / 86400000));
+    return Promise.all([shareFontsReady(), trackSrc ? loadImageEl(trackSrc) : null, team && team.logoURL ? loadImageEl(team.logoURL) : null]).then(function (res) {
+      var track = res[1], logo = res[2];
+      ctx.fillStyle = C.bg; ctx.fillRect(0, 0, W, H);
+      drawShareMark(ctx, 80, 112, 64);
+      ctx.fillStyle = C.ink; ctx.font = 'italic 800 56px ' + CONDENSED;
+      ctx.fillText(L('ON ROULE À', 'WE RIDE AT'), 150, 166);
+      if (logo && logo.width) {
+        var lh = 90, lw = Math.min(260, logo.width * lh / logo.height);
+        ctx.drawImage(logo, W - 80 - lw, 96, lw, lw * logo.height / logo.width);
+      }
+      var title = String(ev.circuit).toUpperCase();
+      fitText(ctx, title, W - 160, 170, 'italic 800', CONDENSED);
+      ctx.fillText(title, 76, 380);
+      ctx.fillStyle = C.muted; ctx.font = '600 46px "Barlow", sans-serif';
+      ctx.fillText(formatEventRange(ev, true) + (team ? '  ·  ' + team.name : ''), 80, 450);
+      // Countdown badge
+      ctx.fillStyle = C.red; roundRect(ctx, 80, 490, 230, 84, 18); ctx.fill();
+      ctx.fillStyle = '#fff'; ctx.font = 'italic 800 60px ' + CONDENSED; ctx.textAlign = 'center';
+      ctx.fillText(days === 0 ? L('JOUR J', 'TODAY') : 'J-' + days, 195, 553); ctx.textAlign = 'left';
+      var myG = me ? groupOf(me) : '';
+      if (myG) {
+        var slots = todaysGroupSlots(ev.circuit, myG);
+        ctx.fillStyle = C.ink; ctx.font = '700 40px "Barlow", sans-serif';
+        ctx.fillText(L('Mon groupe', 'My group'), 340, 547);
+        var gx = 340 + ctx.measureText(L('Mon groupe', 'My group')).width + 18;
+        var gw = drawShareGroupChip(ctx, myG, gx, 506, 58);
+        if (slots.length) { ctx.fillStyle = C.muted; ctx.font = '600 36px "Barlow", sans-serif'; ctx.fillText(L('1re session ', '1st session ') + slots[0].label.split(/\s*[-–]\s*/)[0].replace(/^0(\d)/, '$1'), gx + gw + 20, 547); }
+      }
+      // Track
+      var top = 620, trackH = riders.length > 4 ? 520 : 620;
+      if (track && track.width) {
+        var box = { x: 110, y: top, w: W - 220, h: trackH };
+        var k = Math.min(box.w / track.width, box.h / track.height);
+        var tw = Math.round(track.width * k), th = Math.round(track.height * k);
+        var styled = trackSrc.indexOf('data:') === 0 ? null : styledTrack(track, tw, th, C);
+        var tx = box.x + (box.w - tw) / 2, ty = box.y + (box.h - th) / 2;
+        if (styled) ctx.drawImage(styled, tx - 24, ty - 24); else ctx.drawImage(track, tx, ty, tw, th);
+      }
+      // Who's going
+      var y = top + trackH + 50;
+      ctx.fillStyle = C.red; ctx.font = '800 38px "Barlow", sans-serif';
+      ctx.fillText(riders.length > 1 ? L('LES POTES QUI Y VONT', 'FRIENDS GOING') : L('QUI VIENT ROULER ?', 'WHO\'S COMING?'), 80, y);
+      y += 30;
+      var shown = riders.slice(0, 6), colW = (W - 160) / 2;
+      shown.forEach(function (n, i) {
+        var cx = 80 + (i % 2) * colW, cy = y + Math.floor(i / 2) * 104;
+        ctx.fillStyle = n === me ? C.red : C.ink;
+        ctx.beginPath(); ctx.arc(cx + 38, cy + 46, 38, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#fff'; ctx.font = '800 38px "Barlow", sans-serif'; ctx.textAlign = 'center';
+        ctx.fillText(n.charAt(0).toUpperCase(), cx + 38, cy + 60); ctx.textAlign = 'left';
+        ctx.fillStyle = C.ink; fitText(ctx, n, colW - 190, 40, '700');
+        ctx.fillText(n, cx + 94, cy + 60);
+        var g = groupOf(n);
+        if (g) drawShareGroupChip(ctx, g, cx + 94 + Math.min(ctx.measureText(n).width, colW - 190) + 14, cy + 22, 46);
+      });
+      y += Math.ceil(shown.length / 2) * 104 + 20;
+      var extra = [];
+      if (riders.length > shown.length) extra.push('+' + (riders.length - shown.length) + L(' potes', ' friends'));
+      if (others) extra.push(others + L(' autre' + (others > 1 ? 's' : '') + ' pilote' + (others > 1 ? 's' : '') + ' inscrit' + (others > 1 ? 's' : ''), ' other rider' + (others > 1 ? 's' : '')));
+      if (companions.length) extra.push(companions.slice(0, 3).join(', ') + L(companions.length > 1 ? ' viennent aussi' : ' vient aussi', companions.length > 1 ? ' are coming too' : ' is coming too'));
+      if (extra.length) { ctx.fillStyle = C.muted; ctx.font = '600 36px "Barlow", sans-serif'; fitText(ctx, extra.join('  ·  '), W - 160, 36, '600'); ctx.fillText(extra.join('  ·  '), 80, y + 20); }
+      // Footer
+      ctx.fillStyle = C.line; ctx.fillRect(80, H - 250, W - 160, 2);
+      ctx.fillStyle = C.ink; ctx.font = '700 44px "Barlow", sans-serif';
+      ctx.fillText(L('Réserve chez l\'orga et rejoins-nous :', 'Book with the organiser and join us:'), 80, H - 175);
+      ctx.fillStyle = C.red; fitText(ctx, 'thereiivman-art.github.io/carnetpiste', W - 160, 46, '700');
+      ctx.fillText('thereiivman-art.github.io/carnetpiste', 80, H - 105);
+      return new Promise(function (resolve) { canvas.toBlob(function (b) { resolve(b); }, 'image/png'); });
+    });
+  }
+  function shareRoulageStory(ev) {
+    showToast(L('Préparation de l\'image…', 'Preparing the image…'));
+    var url = publicRoulageLink(ev.id);
+    db.collection('publicRoulages').doc(ev.id).set(publicRoulageSnapshot(ev)).catch(function () {});
+    buildRoulageStoryCard(ev).then(function (blob) {
+      var fileName = 'on-roule-' + String(ev.circuit).replace(/[^\w-]+/g, '-') + '-' + ev.dateStart + '.png';
+      var file = new File([blob], fileName, { type: 'image/png' });
+      var text = L('On roule à ' + ev.circuit + ' le ' + formatEventRange(ev, true) + '. Qui vient ? ', 'We ride at ' + ev.circuit + ' on ' + formatEventRange(ev, true) + '. Who\'s coming? ') + url;
+      if (navigator.canShare && navigator.canShare({ files: [file] })) return navigator.share({ files: [file], text: text }).catch(function () {});
+      var dl = URL.createObjectURL(blob);
+      var a = document.createElement('a'); a.href = dl; a.download = fileName;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(function () { URL.revokeObjectURL(dl); }, 4000);
+      showToast(L('Image enregistrée -- publie-la en story !', 'Image saved -- post it as a story!'), 'success');
+    }).catch(function () { showToast(L('Impossible de créer l\'image sur cet appareil.', 'Could not create the image on this device.')); });
+  }
+
   function exportEventRecapPng(ev) {
     var me = currentUserProfile;
     if (!me) return;
@@ -11732,7 +11842,7 @@
     var html = '<div class="event-row event-row-toggle' + (isOpen ? ' selected' : '') + '" data-event-id="' + ev.id + '" aria-expanded="' + (isOpen ? 'true' : 'false') + '">';
     // Same shape as the Carnet roulage rows: circuit + date/participants on
     // the left, how far away it is (or my group) on the right.
-    var nRiders = (ev.riders || []).length;
+    var nRiders = (ev.riders || []).filter(function (n) { return !isNonRiderName(n); }).length;
     var meta = escapeHtml(formatEventRange(ev)) + (!opts.hideRiders && nRiders ? ' · ' + nRiders + ' pilote' + (nRiders > 1 ? 's' : '') : '');
     var daysTo = Math.round((parseLocalDate(ev.dateStart) - parseLocalDate(dateKey(new Date()))) / 86400000);
     var myGrp = currentUserProfile ? (riderGroupFor(ev, currentUserProfile.name, ev.dateStart, 'matin') || riderGroupFor(ev, currentUserProfile.name, ev.dateStart, 'apres-midi') || '') : '';
@@ -13568,11 +13678,76 @@
   // A small round avatar (photoURL is already a resized data URL, see
   // savePhoto) with a first-initial placeholder when none is set --
   // shared by friend rows, team member rows, and the wall.
+
+  // ---- Nationalité ----
+  // ISO code on the profile (users/{uid}.nationality). Shown as the flag
+  // behind the initial when there's no photo, and counted for the admin
+  // (which languages are worth translating to).
+  var COUNTRIES = [
+    ['FR', 'France', 'France'], ['BE', 'Belgique', 'Belgium'], ['CH', 'Suisse', 'Switzerland'], ['LU', 'Luxembourg', 'Luxembourg'],
+    ['IT', 'Italie', 'Italy'], ['ES', 'Espagne', 'Spain'], ['PT', 'Portugal', 'Portugal'], ['DE', 'Allemagne', 'Germany'],
+    ['NL', 'Pays-Bas', 'Netherlands'], ['GB', 'Royaume-Uni', 'United Kingdom'], ['IE', 'Irlande', 'Ireland'], ['AT', 'Autriche', 'Austria'],
+    ['DK', 'Danemark', 'Denmark'], ['SE', 'Suède', 'Sweden'], ['NO', 'Norvège', 'Norway'], ['FI', 'Finlande', 'Finland'],
+    ['PL', 'Pologne', 'Poland'], ['CZ', 'Tchéquie', 'Czechia'], ['HU', 'Hongrie', 'Hungary'], ['RO', 'Roumanie', 'Romania'],
+    ['GR', 'Grèce', 'Greece'], ['HR', 'Croatie', 'Croatia'], ['SI', 'Slovénie', 'Slovenia'], ['MC', 'Monaco', 'Monaco'],
+    ['AD', 'Andorre', 'Andorra'], ['MA', 'Maroc', 'Morocco'], ['DZ', 'Algérie', 'Algeria'], ['TN', 'Tunisie', 'Tunisia'],
+    ['US', 'États-Unis', 'United States'], ['CA', 'Canada', 'Canada'], ['BR', 'Brésil', 'Brazil'], ['AR', 'Argentine', 'Argentina'],
+    ['AU', 'Australie', 'Australia'], ['NZ', 'Nouvelle-Zélande', 'New Zealand'], ['JP', 'Japon', 'Japan'], ['ZA', 'Afrique du Sud', 'South Africa']
+  ];
+  function countryName(code) {
+    var c = COUNTRIES.filter(function (x) { return x[0] === code; })[0];
+    return c ? (currentLang() === 'en' ? c[2] : c[1]) : (code || '');
+  }
+  function flagEmoji(code) {
+    if (!code || !/^[A-Z]{2}$/.test(code)) return '';
+    return String.fromCodePoint(0x1F1E6 + code.charCodeAt(0) - 65, 0x1F1E6 + code.charCodeAt(1) - 65);
+  }
+  // Region of the phone's language (fr-BE -> BE), to preselect at signup.
+  function deviceCountryCode() {
+    var tag = (navigator.languages && navigator.languages[0]) || navigator.language || '';
+    var m = tag.match(/[-_]([A-Za-z]{2})\b/);
+    var code = m ? m[1].toUpperCase() : '';
+    return COUNTRIES.some(function (c) { return c[0] === code; }) ? code : '';
+  }
+  function nationalitySelectHtml(id, value, withEmpty) {
+    var list = COUNTRIES.slice().sort(function (a, b) { return countryName(a[0]).localeCompare(countryName(b[0])); });
+    return '<select id="' + id + '">' + (withEmpty ? '<option value="">' + L('Non renseignée', 'Not set') + '</option>' : '') +
+      list.map(function (c) { return '<option value="' + c[0] + '"' + (value === c[0] ? ' selected' : '') + '>' + flagEmoji(c[0]) + ' ' + escapeHtml(countryName(c[0])) + '</option>'; }).join('') + '</select>';
+  }
+  function saveNationality(code) {
+    var uid = auth.currentUser && auth.currentUser.uid;
+    if (!uid || !currentUserProfile) return;
+    db.collection('users').doc(uid).set({ nationality: code || firebase.firestore.FieldValue.delete() }, { merge: true }).then(function () {
+      currentUserProfile.nationality = code || null;
+      showToast(L('Nationalité enregistrée.', 'Nationality saved.'), 'success');
+      renderRoot();
+    }).catch(function (err) { showToast(tr('error_prefix') + (err && err.message ? err.message : err)); });
+  }
+  // Admin: how many accounts per nationality.
+  function renderNationalityStatsCard() {
+    var by = {}, total = 0;
+    Object.keys(STATE.usersByName || {}).forEach(function (n) {
+      var u = STATE.usersByName[n] || {}; total++;
+      var k = u.nationality || '';
+      by[k] = (by[k] || 0) + 1;
+    });
+    var rows = Object.keys(by).sort(function (a, b) { return by[b] - by[a]; });
+    var html = '<div class="card"><h2 class="section-title">' + L('Nationalités des comptes', 'Account nationalities') + '</h2>' +
+      '<div class="help-text" style="margin-bottom:0.6rem;">' + total + L(' comptes. Renseignée dans le profil (préremplie à l\'inscription d\'après la langue du téléphone).', ' accounts. Set in the profile (prefilled at signup from the phone language).') + '</div>';
+    html += rows.map(function (k) {
+      var pct = total ? Math.round(by[k] * 100 / total) : 0;
+      return '<div class="nat-row"><span class="nat-flag">' + (k ? flagEmoji(k) : '–') + '</span><span class="nat-name">' + escapeHtml(k ? countryName(k) : L('Non renseignée', 'Not set')) + '</span>' +
+        '<span class="nat-bar"><span style="width:' + pct + '%"></span></span><span class="nat-count">' + by[k] + '</span></div>';
+    }).join('');
+    return html + '</div>';
+  }
+
   function avatarHtml(u, name) {
     var initial = escapeHtml((name || '?').trim().charAt(0).toUpperCase() || '?');
-    return '<span class="mini-avatar">' + (u && u.photoURL
+    var flag = u && !u.photoURL && u.nationality ? flagEmoji(u.nationality) : '';
+    return '<span class="mini-avatar' + (flag ? ' has-flag' : '') + '"' + (flag ? ' title="' + escapeHtml(countryName(u.nationality)) + '"' : '') + '>' + (u && u.photoURL
       ? '<img src="' + escapeHtml(u.photoURL) + '" alt="">'
-      : '<span class="mini-avatar-placeholder">' + initial + '</span>') + '</span>';
+      : (flag ? '<span class="avatar-flag" aria-hidden="true">' + flag + '</span>' : '') + '<span class="mini-avatar-placeholder">' + initial + '</span>') + '</span>';
   }
 
   function renderFriendRow(name, actionsHtml, expandable) {
@@ -15688,7 +15863,7 @@
       liveTimingUrl: info.liveTimingUrl || '',
       briefing: info.briefing || '',
       days: days,
-      going: (ev.riders || []).length,
+      going: (ev.riders || []).filter(function (n) { return !isNonRiderName(n); }).length,
       sharedBy: (currentUserProfile && currentUserProfile.name) || '',
       updatedAt: Date.now(),
       updatedByUid: myUid()
@@ -15801,6 +15976,7 @@
         '<label><input type="radio" name="au-role" value="organisateur"> Organisateur</label></div>';
       html += '<label for="au-email" style="margin-top:0.7rem;">Email</label><input type="email" id="au-email" name="email" autocomplete="username" required>';
       html += '<label for="au-password" style="margin-top:0.7rem;">Mot de passe</label><input type="password" id="au-password" name="new-password" autocomplete="new-password" required minlength="6">';
+      html += '<label for="au-nationality" style="margin-top:0.7rem;">Nationalité</label>' + nationalitySelectHtml('au-nationality', deviceCountryCode(), true);
       html += '<label class="checklist-item consent-check" style="margin-top:0.8rem;"><input type="checkbox" id="au-consent"> <span>J\'accepte la <button type="button" class="auth-link inline" data-action="open-legal" data-kind="privacy">politique de confidentialité</button> et les <button type="button" class="auth-link inline" data-action="open-legal" data-kind="notice">conditions d\'utilisation</button>.</span></label>';
       html += '<label class="checklist-item consent-check"><input type="checkbox" id="au-age"> <span>J\'ai 15 ans ou plus.</span></label>';
       html += '<div class="field-error' + (authError ? ' visible' : '') + '" id="auth-error">' + escapeHtml(authError) + '</div>';
@@ -15907,6 +16083,8 @@
       }
       name = rawName;
       var profileDoc = { name: name, role: role, notifyBeforeSession: true };
+      var natSel = document.getElementById('au-nationality');
+      if (natSel && natSel.value) profileDoc.nationality = natSel.value;
       if (deviceLangCode() !== 'fr') profileDoc.lang = 'en';
       countVisitorLang('signup');
       // A parrain can't refer themselves -- someone opening their own
@@ -16107,6 +16285,8 @@
     document.querySelectorAll('[data-action="open-legal"]').forEach(function (b) {
       b.addEventListener('click', function (e) { e.preventDefault(); openLegal(b.getAttribute('data-kind')); });
     });
+    var natEl = document.getElementById('profile-nationality');
+    if (natEl) natEl.addEventListener('change', function () { saveNationality(natEl.value); });
     document.querySelectorAll('[data-action="export-my-data"]').forEach(function (b) { b.addEventListener('click', exportMyData); });
     document.querySelectorAll('[data-notif-go]').forEach(function (el) {
       el.addEventListener('click', function () { followNotifGo(el); });
@@ -18039,7 +18219,8 @@
     document.querySelectorAll('[data-action="export-event-recap"]').forEach(function (btn) {
       btn.addEventListener('click', function () {
         var ev = (STATE.events || []).filter(function (e) { return e.id === btn.getAttribute('data-id'); })[0];
-        if (ev) exportEventRecapPng(ev);
+        // Before the roulage: the « On roule à… » story; after: the recap.
+        if (ev) { if (ev.dateStart > dateKey(new Date())) shareRoulageStory(ev); else exportEventRecapPng(ev); }
       });
     });
     document.querySelectorAll('[data-action="edit-media-link"]').forEach(function (btn) {

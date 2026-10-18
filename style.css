@@ -3386,3 +3386,22 @@ body { min-height: 100%; min-height: 100dvh; }
 .outing-actions { flex-wrap: nowrap; }
 .outing-actions > button { flex: 1 1 0; min-width: 0; padding-left: 0.4rem; padding-right: 0.4rem; white-space: nowrap; }
 .outing-actions > button.primary { flex: 1.7 1 0; }
+
+/* Drapeau en fond d'avatar (sans photo) */
+.mini-avatar.has-flag, .profile-avatar.has-flag { position: relative; overflow: hidden; }
+.avatar-flag { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 1.9em; line-height: 1; transform: scale(1.6); opacity: 0.9; pointer-events: none; }
+.mini-avatar.has-flag .avatar-flag { font-size: 1.6rem; }
+.header-hello .mini-avatar.has-flag .avatar-flag { font-size: 2.2rem; }
+.profile-avatar.has-flag .avatar-flag { font-size: 4.2rem; }
+.mini-avatar.has-flag .mini-avatar-placeholder, .profile-avatar.has-flag .profile-avatar-placeholder {
+  position: relative; color: #fff; font-weight: 800;
+  text-shadow: 0 0 3px rgba(0, 0, 0, 0.7), 0 1px 2px rgba(0, 0, 0, 0.6);
+}
+/* Statistiques des nationalités (admin) */
+.nat-row { display: flex; align-items: center; gap: 0.6rem; padding: 0.35rem 0; border-top: 1px solid var(--border); }
+.nat-flag { width: 1.6rem; font-size: 1.2rem; text-align: center; }
+.nat-name { flex: 0 0 9rem; font-weight: 600; font-size: 0.9rem; }
+.nat-bar { flex: 1; height: 6px; border-radius: 3px; background: var(--surface-alt); overflow: hidden; }
+.nat-bar > span { display: block; height: 100%; background: var(--accent); }
+.nat-count { width: 2.4rem; text-align: right; font-weight: 700; }
+.mini-avatar.has-flag .mini-avatar-placeholder, .profile-avatar.has-flag .profile-avatar-placeholder { text-shadow: 0 0 2px #000, 0 0 6px rgba(0, 0, 0, 0.85); }
