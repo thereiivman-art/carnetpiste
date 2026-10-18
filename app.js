@@ -3913,7 +3913,7 @@
   function renderProfileAvatar(p) {
     var initial = escapeHtml((p.name || '?').trim().charAt(0).toUpperCase() || '?');
     return '<div class="profile-avatar-row">' +
-      '<div class="profile-avatar' + (!p.photoURL && p.nationality ? ' has-flag' : '') + '">' + (p.photoURL ? '<img src="' + escapeHtml(p.photoURL) + '" alt="' + tr('profile_photo_alt') + '">' : (p.nationality ? '<span class="avatar-flag" aria-hidden="true">' + flagEmoji(p.nationality) + '</span>' : '') + '<span class="profile-avatar-placeholder">' + initial + '</span>') + '</div>' +
+      '<div class="profile-avatar' + (!p.photoURL && p.nationality ? ' has-flag' : '') + '">' + (p.photoURL ? '<img src="' + escapeHtml(p.photoURL) + '" alt="' + tr('profile_photo_alt') + '">' : (p.nationality ? '<span class="avatar-flag" aria-hidden="true">' + flagEmoji(p.nationality) + '</span>' : '<span class="profile-avatar-placeholder">' + initial + '</span>')) + '</div>' +
       '<div class="profile-avatar-actions">' +
         '<button type="button" class="ghost" id="profile-photo-btn">' + (p.photoURL ? tr('change_photo') : tr('add_photo_plain')) + '</button>' +
         (p.photoURL ? '<button type="button" class="ghost" id="profile-photo-recrop-btn">' + tr('edit_crop') + '</button>' : '') +
@@ -13896,7 +13896,8 @@
     var flag = u && !u.photoURL && u.nationality ? flagEmoji(u.nationality) : '';
     return '<span class="mini-avatar' + (flag ? ' has-flag' : '') + '"' + (flag ? ' title="' + escapeHtml(countryName(u.nationality)) + '"' : '') + '>' + (u && u.photoURL
       ? '<img src="' + escapeHtml(u.photoURL) + '" alt="">'
-      : (flag ? '<span class="avatar-flag" aria-hidden="true">' + flag + '</span>' : '') + '<span class="mini-avatar-placeholder">' + initial + '</span>') + '</span>';
+      // The flag alone (the pseudo is always shown next to it).
+      : (flag ? '<span class="avatar-flag" aria-hidden="true">' + flag + '</span>' : '<span class="mini-avatar-placeholder">' + initial + '</span>')) + '</span>';
   }
 
   function renderFriendRow(name, actionsHtml, expandable) {
