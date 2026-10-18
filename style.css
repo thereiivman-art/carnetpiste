@@ -3300,3 +3300,29 @@ body { min-height: 100%; min-height: 100dvh; }
 .feed-highlight.duel { padding: 0.55rem 0.7rem; border-radius: 10px; background: color-mix(in srgb, var(--accent) 8%, transparent); }
 .feed-highlight.duel .notif-ico { background: var(--accent); color: var(--accent-ink); }
 .feed-upcoming-j { font-family: var(--font-display); font-style: italic; font-size: 0.95rem; color: var(--accent); margin-left: 0.25rem; }
+
+/* Trophées : résumé, prochain objectif, médailles par famille */
+.trophy-summary { display: flex; align-items: center; gap: 0.9rem; }
+.trophy-count { font-family: var(--font-display); font-style: italic; font-weight: 800; font-size: 2.4rem; line-height: 1; color: var(--accent); }
+.trophy-count span { font-size: 1.2rem; color: var(--text-muted); }
+.trophy-summary-main { flex: 1; display: flex; flex-direction: column; gap: 0.35rem; }
+.trophy-summary-label { font-weight: 700; font-size: 0.9rem; }
+.trophy-bar { display: block; height: 6px; border-radius: 3px; background: var(--surface-alt); overflow: hidden; }
+.trophy-bar > span { display: block; height: 100%; background: var(--accent); border-radius: 3px; }
+.trophy-next { display: flex; gap: 0.8rem; align-items: flex-start; margin-top: 1rem; padding: 0.8rem; border-radius: 12px; background: color-mix(in srgb, var(--accent) 6%, transparent); border: 1px solid color-mix(in srgb, var(--accent) 25%, transparent); }
+.trophy-next-main { flex: 1; display: flex; flex-direction: column; gap: 0.2rem; min-width: 0; }
+.trophy-next-main strong { font-family: var(--font-display); font-size: 1.25rem; line-height: 1.05; }
+.trophy-next-main .trophy-bar { margin-top: 0.3rem; }
+.trophy-next-progress { font-size: 0.78rem; font-weight: 700; color: var(--accent); }
+.trophy-family { font-size: 0.72rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-muted); margin: 1.1rem 0 0.5rem; }
+.trophy-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.5rem; }
+.trophy-tile { display: flex; flex-direction: column; align-items: center; gap: 0.35rem; padding: 0.7rem 0.3rem; border-radius: 12px; border: 1px solid var(--border); background: var(--surface); color: var(--text-muted); font: inherit; cursor: pointer; text-align: center; }
+.trophy-tile.earned { color: var(--text); border-color: color-mix(in srgb, var(--accent) 35%, var(--border)); }
+.trophy-ico { width: 46px; height: 46px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: var(--surface-alt); color: var(--text-muted); flex-shrink: 0; }
+.trophy-ico.earned { background: var(--accent); color: var(--accent-ink); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 20%, transparent); }
+.trophy-next .trophy-ico { width: 52px; height: 52px; background: var(--surface); color: var(--accent); border: 2px dashed color-mix(in srgb, var(--accent) 50%, transparent); }
+.trophy-name { font-size: 0.78rem; font-weight: 700; line-height: 1.15; }
+.trophy-progress { font-size: 0.7rem; font-weight: 600; }
+.feed-month .feed-ride-circuit { display: block; margin: 0.15rem 0 0.2rem; }
+.feed-gain { color: #1d8a4e; }
+.feed-recap-name .help-text { font-weight: 500; }

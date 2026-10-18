@@ -2,13 +2,13 @@
 // any precached file changes (same convention as the ?v= on app.js/style.css
 // in index.html) so returning devices pick up the new files instead of
 // serving a stale cache forever.
-var CACHE_VERSION = 'cdp-2026101766';
+var CACHE_VERSION = 'cdp-2026101767';
 var PRECACHE_URLS = [
   './',
   './index.html',
-  './style.css?v=2026101766',
-  './chrono-import.js?v=2026101766',
-  './app.js?v=2026101766',
+  './style.css?v=2026101767',
+  './chrono-import.js?v=2026101767',
+  './app.js?v=2026101767',
   './manifest.json',
   './firebase-config.js',
   './icons/icon-192.png',

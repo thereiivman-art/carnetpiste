@@ -3355,8 +3355,35 @@
   function achievementEntry(icon, label, description, current, target, unit) {
     var earned = current >= target;
     var progressText = (earned ? current : current + '/' + target) + (unit ? ' ' + unit : '');
-    return { icon: icon, label: label, description: description, earned: earned, progressText: progressText };
+    return { icon: icon, label: label, description: description, earned: earned, progressText: progressText, current: current, target: target };
   }
+  // Trophies are drawn, not emoji: each old emoji maps to a line icon and
+  // a family (Piste / Progression / Communauté).
+  var TROPHY_ICONS = {
+    '🏁': ['flag', 'piste'], '🌍': ['globe', 'piste'], '🗺️': ['map', 'piste'], '📅': ['calendar', 'piste'], '🎖️': ['medal', 'piste'], '🔥': ['repeat', 'piste'],
+    '📈': ['chart', 'progression'], '🚀': ['rocket', 'progression'], '⚡': ['bolt', 'progression'], '🥇': ['trophy', 'progression'], '👑': ['crown', 'progression'],
+    '🤝': ['users', 'communaute'], '👨‍👩‍👧': ['users', 'communaute'], '🧑‍🤝‍🧑': ['users', 'communaute'], '👥': ['users', 'communaute'], '🏍️': ['flag', 'communaute'], '🏆': ['trophy', 'communaute'],
+    '📣': ['megaphone', 'communaute'], '📰': ['megaphone', 'communaute'], '👀': ['eye', 'suivi'], '🧭': ['eye', 'suivi'], '🔔': ['bell', 'suivi'], '📸': ['camera', 'suivi'], '🎬': ['camera', 'suivi'],
+    '📋': ['calendar', 'piste']
+  };
+  var TROPHY_EXTRA_SVG = {
+    globe: '<circle cx="12" cy="12" r="8"/><path d="M4 12h16M12 4c2.5 2.5 2.5 13.5 0 16M12 4c-2.5 2.5-2.5 13.5 0 16"/>',
+    map: '<path d="M4 6l5-2 6 2 5-2v14l-5 2-6-2-5 2V6zM9 4v14M15 6v14"/>',
+    repeat: '<path d="M4 12a8 8 0 0114-5l2 2M20 12a8 8 0 01-14 5l-2-2M18 4v5h-5M6 20v-5h5"/>',
+    rocket: '<path d="M12 3c3 2 5 6 4 11l-4 3-4-3c-1-5 1-9 4-11zM8 14l-3 2 1 4 3-2M16 14l3 2-1 4-3-2"/><circle cx="12" cy="9" r="1.5"/>',
+    bolt: '<path d="M13 3L5 13h6l-1 8 8-10h-6l1-8z"/>',
+    crown: '<path d="M4 8l4 4 4-7 4 7 4-4-2 11H6L4 8z"/>',
+    megaphone: '<path d="M4 10v4h3l7 4V6l-7 4H4zM18 9a4 4 0 010 6"/>',
+    eye: '<path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
+    bell: '<path d="M6 16V11a6 6 0 0112 0v5l1.5 2h-15L6 16z"/><path d="M10 20.5a2 2 0 004 0"/>'
+  };
+  function trophyIconHtml(a, big) {
+    var m = TROPHY_ICONS[a.icon] || ['medal', 'piste'];
+    var path = TROPHY_EXTRA_SVG[m[0]] || NOTIF_SVG[m[0]] || NOTIF_SVG.medal;
+    var sz = big ? 26 : 22;
+    return '<span class="trophy-ico' + (a.earned ? ' earned' : '') + '"><svg width="' + sz + '" height="' + sz + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + path + '</svg></span>';
+  }
+  function trophyFamily(a) { return (TROPHY_ICONS[a.icon] || [0, 'piste'])[1]; }
 
   // Social/Team trophies, shared by all three roles below (pilote,
   // accompagnant, organisateur) since none of this depends on riding --
@@ -3458,20 +3485,34 @@
   // (masquable) so it doesn't crowd out the profile itself -- key must be
   // unique per rider/profile so open/closed state doesn't bleed between them.
   var achievementsFlat = false;
+  // Summary + « prochain objectif » (closest unearned trophy) + medals
+  // grouped by family, earned in colour, the rest greyed with progress.
   function renderAchievementsCard(achievements, key) {
     var earnedCount = achievements.filter(function (a) { return a.earned; }).length;
-    var inner = '<div class="achievements-list">';
-    achievements.forEach(function (a) {
-      inner += '<div class="achievement-row' + (a.earned ? ' earned' : '') + '">' +
-        '<span class="achievement-icon">' + a.icon + '</span>' +
-        '<span class="achievement-body"><span class="achievement-title">' + escapeHtml(a.label) + '</span>' +
-        '<span class="achievement-desc">' + escapeHtml(a.description) + '</span></span>' +
-        '<span class="achievement-progress">' + escapeHtml(a.progressText) + '</span>' +
-        '</div>';
+    var pct = achievements.length ? Math.round(earnedCount * 100 / achievements.length) : 0;
+    var next = achievements.filter(function (a) { return !a.earned && a.target; })
+      .sort(function (a, b) { return (b.current / b.target) - (a.current / a.target); })[0];
+    var inner = '<div class="trophy-summary"><span class="trophy-count">' + earnedCount + '<span>/' + achievements.length + '</span></span>' +
+      '<span class="trophy-summary-main"><span class="trophy-summary-label">' + L('trophées débloqués', 'trophies unlocked') + '</span><span class="trophy-bar"><span style="width:' + pct + '%"></span></span></span></div>';
+    if (next) {
+      var np = Math.round(Math.min(1, next.current / next.target) * 100);
+      inner += '<div class="trophy-next">' + trophyIconHtml(next, true) + '<span class="trophy-next-main"><span class="feed-record-label">' + L('Prochain objectif', 'Next goal') + '</span>' +
+        '<strong>' + escapeHtml(next.label) + '</strong><span class="help-text">' + escapeHtml(next.description) + '</span>' +
+        '<span class="trophy-bar"><span style="width:' + np + '%"></span></span><span class="trophy-next-progress">' + escapeHtml(next.progressText) + '</span></span></div>';
+    }
+    var FAMILIES = [['piste', L('Sur la piste', 'On track')], ['progression', L('Progression', 'Progress')], ['suivi', L('Suivi', 'Following')], ['communaute', L('Communauté', 'Community')]];
+    FAMILIES.forEach(function (f) {
+      var list = achievements.filter(function (a) { return trophyFamily(a) === f[0]; });
+      if (!list.length) return;
+      list.sort(function (a, b) { return (b.earned ? 1 : 0) - (a.earned ? 1 : 0); });
+      inner += '<div class="trophy-family">' + escapeHtml(f[1]) + '</div><div class="trophy-grid">' + list.map(function (a) {
+        return '<button type="button" class="trophy-tile' + (a.earned ? ' earned' : '') + '" data-badge-info="' + escapeHtml(a.label + ' : ' + a.description + (a.earned ? '' : ' (' + a.progressText + ')')) + '">' +
+          trophyIconHtml(a) + '<span class="trophy-name">' + escapeHtml(a.label) + '</span>' +
+          (a.earned ? '' : '<span class="trophy-progress">' + escapeHtml(a.progressText) + '</span>') + '</button>';
+      }).join('') + '</div>';
     });
-    inner += '</div>';
-    var title = '🏆 Trophées — ' + earnedCount + '/' + achievements.length + ' débloqués';
-    if (achievementsFlat) return '<div class="card achievements-card"><h2 class="section-title">' + escapeHtml(title) + '</h2>' + inner + '</div>';
+    var title = L('Trophées', 'Trophies') + ' · ' + earnedCount + '/' + achievements.length;
+    if (achievementsFlat) return '<div class="card achievements-card">' + inner + '</div>';
     return '<div class="card achievements-card">' + collapsibleSection(key, title, inner) + '</div>';
   }
 
@@ -4394,6 +4435,47 @@
     });
     return out;
   }
+  // Classement du mois : who gained the most time this month, on any
+  // circuit, against their own best from before the month -- progress,
+  // not raw pace, so a slower rider can top it too.
+  function monthProgressRanking() {
+    var me = currentUserProfile && currentUserProfile.name;
+    if (!me) return [];
+    var now = new Date(), monthStart = dateKey(new Date(now.getFullYear(), now.getMonth(), 1));
+    var names = [me].concat(friendsOf(me).map(function (f) { return f.name; })).filter(function (n) { return n === me || !isNonRiderName(n); });
+    var out = [];
+    names.forEach(function (n) {
+      if (n !== me && ((STATE.usersByName || {})[n] || {}).shareSorties === false) return;
+      var bestGain = null;
+      var circuits = {};
+      (STATE.sessions || []).forEach(function (x) { if (x.rider === n && x.date >= monthStart && x.laps && x.laps.length) circuits[x.circuit] = 1; });
+      Object.keys(circuits).forEach(function (c) {
+        var before = bestBefore(n, c, monthStart), now2 = riderBestWhere(n, c, function (d) { return d >= monthStart; });
+        if (before === null || now2 === null || now2 >= before) return;
+        if (!bestGain || before - now2 > bestGain.gain) bestGain = { gain: before - now2, circuit: c };
+      });
+      if (bestGain) out.push({ rider: n, gain: bestGain.gain, circuit: bestGain.circuit });
+    });
+    return out.sort(function (a, b) { return b.gain - a.gain; });
+  }
+  function renderMonthRanking() {
+    var rows = monthProgressRanking();
+    if (rows.length < 2) return '';
+    var me = currentUserProfile && currentUserProfile.name;
+    var month = new Date().toLocaleDateString(currentLang() === 'en' ? 'en-GB' : 'fr-FR', { month: 'long' });
+    var shown = rows.slice(0, 3), myIdx = -1;
+    rows.forEach(function (r, i) { if (r.rider === me) myIdx = i; });
+    var line = function (r, i) {
+      var u = (STATE.usersByName || {})[r.rider] || {};
+      return '<div class="feed-recap-row' + (r.rider === me ? ' me' : '') + '"><span class="feed-recap-pos">' + (i + 1) + '</span>' + avatarHtml(u, r.rider) +
+        '<span class="feed-recap-name">' + escapeHtml(r.rider) + '<span class="help-text"> · ' + escapeHtml(r.circuit) + '</span></span>' +
+        '<span class="feed-recap-time feed-gain">−' + formatGap(r.gain) + '</span></div>';
+    };
+    return '<div class="card feed-month"><div class="feed-record-label">' + L('Classement du mois', 'This month\'s ranking') + '</div>' +
+      '<strong class="feed-ride-circuit">' + escapeHtml(month.charAt(0).toUpperCase() + month.slice(1)) + L(' : qui a le plus progressé ?', ': who improved most?') + '</strong>' +
+      '<div class="help-text">' + L('Temps gagné ce mois-ci sur son propre record, sur n\'importe quel circuit.', 'Time gained this month on their own record, on any circuit.') + '</div>' +
+      '<div class="feed-recap-rows">' + shown.map(line).join('') + (myIdx >= 3 ? line(rows[myIdx], myIdx) : '') + '</div></div>';
+  }
   // Circuit du moment: 3+ of us rode it in the last 30 days.
   function circuitOfTheMoment() {
     var me = currentUserProfile && currentUserProfile.name;
@@ -4410,15 +4492,24 @@
     return top;
   }
 
-  // Upcoming roulages with friends on them (next 45 days).
+  // Accompagnants and organisateurs are on a roulage's list but don't ride.
+  function isNonRiderName(n) {
+    var u = (STATE.usersByName || {})[n] || {};
+    return u.role === 'accompagnant' || u.role === 'organisateur';
+  }
+  // Upcoming roulages with friends on them (next 45 days): riders apart
+  // from companions (« Maymay vient », not « roule »).
   function friendsUpcoming() {
     var me = currentUserProfile && currentUserProfile.name;
     if (!me) return [];
     var friends = friendsOf(me).map(function (f) { return f.name; });
     var today = dateKey(new Date()), limit = dateKey(new Date(Date.now() + 45 * 86400000));
     return eventsList().filter(function (ev) { return (ev.dateEnd || ev.dateStart) >= today && ev.dateStart <= limit; })
-      .map(function (ev) { return { ev: ev, friends: (ev.riders || []).filter(function (n) { return friends.indexOf(n) !== -1; }), mine: (ev.riders || []).indexOf(me) !== -1 }; })
-      .filter(function (x) { return x.friends.length; })
+      .map(function (ev) {
+        var on = (ev.riders || []).filter(function (n) { return friends.indexOf(n) !== -1; });
+        return { ev: ev, friends: on.filter(function (n) { return !isNonRiderName(n); }), companions: on.filter(isNonRiderName), mine: (ev.riders || []).indexOf(me) !== -1 };
+      })
+      .filter(function (x) { return x.friends.length || x.companions.length; })
       .sort(function (a, b) { return a.ev.dateStart < b.ev.dateStart ? -1 : 1; });
   }
   function L(fr, en) { return currentLang() === 'en' ? en : fr; }
@@ -4479,15 +4570,20 @@
     // Amis qui roulent bientôt
     friendsUpcoming().forEach(function (x) {
       var ev = x.ev;
-      items.push({ key: 'going:' + ev.id + ':' + x.friends.slice().sort().join(','), kind: 'calendar', time: Date.now() - 1,
+      var who = x.friends.length ? x.friends : x.companions, riding = !!x.friends.length;
+      var verbFr = riding ? (who.length > 1 ? ' roulent' : ' roule') : (who.length > 1 ? ' viennent' : ' vient');
+      var verbEn = riding ? (who.length > 1 ? ' ride' : ' rides') : (who.length > 1 ? ' are coming' : ' is coming');
+      items.push({ key: 'going:' + ev.id + ':' + x.friends.concat(x.companions).sort().join(','), kind: 'calendar', time: Date.now() - 1,
         timeLabel: formatEventRange(ev, true),
-        html: namesList(x.friends) + L((x.friends.length > 1 ? ' roulent' : ' roule') + (x.mine ? ' aussi' : '') + ' à ', (x.mine ? ' also' : '') + (x.friends.length > 1 ? ' ride' : ' rides') + ' at ') + escapeHtml(ev.circuit),
+        html: namesList(who) + L(verbFr + (x.mine ? ' aussi' : '') + ' à ', (x.mine ? ' also' : '') + verbEn + (riding ? ' at ' : ' to ')) + escapeHtml(ev.circuit) +
+          (riding && x.companions.length ? L(', avec ', ', with ') + namesList(x.companions) : ''),
         go: { to: 'event', id: ev.id, join: !x.mine } });
     });
     // Mes trophées
-    if (me.role !== 'accompagnant' && me.role !== 'organisateur') {
+    {
       try {
-        riderAchievements(name, riderStats(name)).forEach(function (a) {
+        var myAch = me.role === 'organisateur' ? organisateurAchievements(me) : (me.role === 'accompagnant' ? accompagnantAchievements(me) : riderAchievements(name, riderStats(name)));
+        myAch.forEach(function (a) {
           if (!a.earned) return;
           // Only while new: the full list lives in Stats → Trophées.
           var tk = 'troph:' + a.label;
@@ -5476,7 +5572,9 @@
       var skipFor = isNonRider ? me.name : null;
       // Under the Trophées pill: shown open, the count as the card title.
       achievementsFlat = true;
-      names.forEach(function (r) { if (r !== skipFor) html += renderRiderAchievementsCard(r); });
+      // An accompagnant/organisateur doesn't ride: only their own trophies
+      // (supporter, reporter…), never the riders' ones.
+      if (!isNonRider) names.forEach(function (r) { if (r !== skipFor) html += renderRiderAchievementsCard(r); });
       if (isNonRider) html += renderAchievementsCard(nonRiderAch, 'achievements-profile-' + me.name);
       achievementsFlat = false;
       return html;
@@ -13555,7 +13653,7 @@
         if (it.kind === 'activity' && it.data.type === 'friend') return head + '<div class="feed-line">' + inner + '</div>';
         return head + '<div class="card feed-card">' + inner + '</div>';
       }).join('') + (items.length > visible.length ? '<div id="wall-feed-sentinel" class="empty-inline">' + tr('loading') + '</div>' : '');
-    return renderFeedUpcoming() + renderCircuitMoment() + body;
+    return renderFeedUpcoming() + renderMonthRanking() + renderCircuitMoment() + body;
   }
   // Duel / palier / record lines under a ride.
   function rideHighlightsHtml(r) {
@@ -13633,8 +13731,9 @@
       var ev = x.ev;
       return '<div class="feed-upcoming-row"><span class="outing-thumb">' + circuitThumbHtml(ev.circuit) + '</span>' +
         '<span class="feed-upcoming-main"><strong>' + escapeHtml(ev.circuit) + ' <span class="feed-upcoming-j">J-' + Math.max(0, Math.round((parseLocalDate(ev.dateStart) - parseLocalDate(dateKey(new Date()))) / 86400000)) + '</span></strong><span class="help-text">' + escapeHtml(formatEventRange(ev, true)) + '</span>' +
-        '<span class="feed-upcoming-who">' + x.friends.slice(0, 4).map(function (n) { return avatarHtml((STATE.usersByName || {})[n] || {}, n); }).join('') +
-        '<span class="help-text">' + x.friends.slice(0, 2).map(function (n) { var g = riderGroupFor(ev, n, ev.dateStart, 'matin') || riderGroupFor(ev, n, ev.dateStart, 'apres-midi'); return escapeHtml(n) + (g ? ' ' + groupChip(g) : ''); }).join(', ') + (x.friends.length > 2 ? ' +' + (x.friends.length - 2) : '') + '</span></span></span>' +
+        '<span class="feed-upcoming-who">' + x.friends.concat(x.companions).slice(0, 4).map(function (n) { return avatarHtml((STATE.usersByName || {})[n] || {}, n); }).join('') +
+        '<span class="help-text">' + x.friends.slice(0, 2).map(function (n) { var g = riderGroupFor(ev, n, ev.dateStart, 'matin') || riderGroupFor(ev, n, ev.dateStart, 'apres-midi'); return escapeHtml(n) + (g ? ' ' + groupChip(g) : ''); }).join(', ') + (x.friends.length > 2 ? ' +' + (x.friends.length - 2) : '') +
+          (x.companions.length ? (x.friends.length ? ' · ' : '') + escapeHtml(x.companions.join(', ')) + L(x.companions.length > 1 ? ' viennent' : ' vient', x.companions.length > 1 ? ' are coming' : ' is coming') : '') + '</span></span></span>' +
         (x.mine ? '<span class="feed-upcoming-tag">Tu y vas</span>' : '<button type="button" class="ghost" data-notif-go="event" data-id="' + escapeHtml(ev.id) + '" data-join="1">J\'y vais aussi</button>') +
         '</div>';
     }).join('') + '</div>';
