@@ -139,14 +139,14 @@
       create_team_help_organizer_suffix: ' En tant qu\'Organisateur, tu peux directement le créer en Team PRO ci-dessous.',
       create_team_help_non_organizer_suffix: ' Un Team PRO ne se crée pas directement : contacte l\'administrateur une fois ton Team amateur créé pour le faire valider et passer PRO, ou passe ton profil en Organisateur pour pouvoir le créer directement PRO.',
       team_name_label: 'Nom du team', create_as_pro: 'Créer directement comme Team PRO ✓', create_btn: 'Créer',
-      unfollow: 'Ne plus suivre', like_suffix: ' like', likes_suffix: ' likes', follow_suffix: ' follow', follows_suffix: ' follows',
+      unfollow: 'Ne plus suivre', like_suffix: ' j\'aime', likes_suffix: ' j\'aime', follow_suffix: ' abonné', follows_suffix: ' abonnés',
       feed_heading: 'Fil d\'actualité (', nothing_yet: 'Rien pour l\'instant.',
       visible_all: 'Visible par tous (membres + followers)', adherents_only: 'Adhérents seulement',
       write_to_team_placeholder: 'Écrire au team...', link_optional_placeholder: 'Lien (optionnel)',
       remove_photo: 'Retirer la photo', add_photo: 'Ajouter une photo', publish: 'Publier',
       poll_option_placeholder: 'Option ', poll_option_optional: ' (optionnel)',
       poll_question_placeholder: 'Créer un sondage : la question', add_option: '+ Ajouter une option',
-      publish_poll: 'Publier le sondage', write_message_btn: '✎ Écrire un message', poll_btn: '📊 Sondage',
+      publish_poll: 'Publier le sondage', write_message_btn: 'Écrire un message', poll_btn: 'Sondage',
       no_one_else_to_invite: 'Personne d’autre à inviter pour l’instant.',
       all_friends_in_team: 'Tous tes amis sont déjà dans ce team, ou tu n’as pas encore d’amis à inviter : ajoute-les dans Communauté → Amis & fil.',
       teampro_invite_help: 'Team PRO : tu peux inviter n’importe quel compte, ami ou non.',
@@ -154,7 +154,7 @@
       join_requests_label: 'Demandes pour rejoindre (', sent_invites_label: 'Invitations envoyées (',
       // Social tab
       no_friends_yet: 'Pas encore d’amis. Ajoutes-en un avec le bouton ci-dessus, ou fais scanner ton QR code au paddock.',
-      invite_qr_btn: 'Inviter un pote (QR code)', share_last_chrono_btn: '⤴ Partager mon dernier chrono',
+      invite_qr_btn: 'Inviter un pote (QR code)', share_last_chrono_btn: 'Partager mon dernier chrono',
       feed_empty_help: 'Ton fil se remplit avec les chronos et les messages de tes amis et de tes teams.', my_friends_label: 'Mes amis (',
       received_requests_label: 'Demandes reçues (', sent_requests_label: 'Demandes envoyées (',
       add_friend_btn: '+ Ajouter un ami', no_one_else_to_add: 'Personne d’autre à ajouter pour l’instant.',
@@ -169,7 +169,7 @@
       post_to_journal_btn: '+ Publier un message',
       post_to_journal_help: 'Ce que tu publies sera visible par tes amis (ou followers, selon ce que tu choisis ci-dessous).',
       visible_by_label: 'Visible par', my_friends_option: 'Mes amis', my_followers_option: 'Mes followers',
-      add_photo_btn: '📷 Ajouter une photo', adherents_badge: 'Adhérents',
+      add_photo_btn: 'Ajouter une photo', adherents_badge: 'Adhérents',
       just_now: 'à l\'instant', min_ago_prefix: 'il y a ', min_ago_suffix: ' min', hour_ago_suffix: ' h',
       events_label: 'Roulages', circuits_visited_label: 'Circuits visités', track_days_label: 'Jours sur piste',
       view_official_chronos: 'Voir ses chronos officiels ↗', verified_chronos_label: 'Chronos validés par le team (',
@@ -194,6 +194,7 @@
       ask_to_be_coached_by: 'Demander à être coaché par', send_request_generic: 'Envoyer la demande',
       ask_for_coaching_heading: 'Demander un coaching',
       proposed_slots_label: 'Créneaux proposés : ', slot_colon_label: 'Créneau : ',
+      bravo_btn: 'Bravo', photo_btn_short: 'Photo', see_photos_link: 'Voir les photos', see_link: 'Ouvrir le lien',
       send_generic: 'Envoyer', no_slot_to_propose: 'Aucun créneau disponible à proposer',
       no_slot_to_propose_check_avail: ' -- vérifie tes disponibilités ci-dessus.',
       accept_generic: 'Accepter ', propose_other_time: 'Proposer un autre horaire', refuse_generic: 'Refuser',
@@ -203,7 +204,7 @@
       no_message_yet: 'Aucun message pour l\'instant.', write_message_placeholder: 'Écrire un message...',
       send_btn: 'Envoyer', messages_label: 'Messages',
       now_label: 'En ce moment — ', next_event_dash_label: 'Prochain roulage — ',
-      done_label: 'Terminé', set_my_availability: '✎ Définir mes disponibilités',
+      done_label: 'Terminé', set_my_availability: 'Définir mes disponibilités',
       drag_to_mark_available: 'Clique ou fais glisser (doigt ou souris) sur les créneaux pour les marquer disponibles.',
       availability_legend: '<span class="avail-sw sw-coaching"></span>Coaching <span class="avail-sw sw-bapteme"></span>Baptême piste <span class="avail-sw sw-both"></span>Les deux',
       slot_type_locked_help: 'Aucun coach n\'a proposé l\'autre type sur ce créneau.',
@@ -318,7 +319,7 @@
       no_one_yet: 'Personne pour l\'instant.',
       mecano_option: 'Mécano', assistant_option: 'Assistant', photographe_option: 'Photographe', logistique_option: 'Logistique',
       members_label: 'Membres (', followers_label: 'Followers (',
-      leaders_only_reserved: '🔒 Réservé aux Team Leaders.',
+      leaders_only_reserved: 'Réservé aux Team Leaders.',
       presentation_label: 'Présentation', presentation_placeholder: 'Quelques mots sur le Team...',
       save_presentation_btn: 'Enregistrer la présentation',
       change_badge_photo: 'Changer la photo (badge)', add_badge_photo: 'Ajouter une photo (badge)',
@@ -335,7 +336,7 @@
       grant_coach_photographer_help: 'En tant que Team Leader d\'un Team PRO, attribue ou retire ces badges à n\'importe quel compte (pas seulement les membres du Team).',
       search_person_placeholder: 'Rechercher un pilote, accompagnant, organisateur...',
       search_past_event_placeholder: 'Rechercher un circuit, un Team...',
-      coach_toggle_btn: '🎓 Coach : attribuer/retirer', photographer_toggle_btn: '📷 Photographe : attribuer/retirer',
+      coach_toggle_btn: 'Coach : attribuer/retirer', photographer_toggle_btn: 'Photographe : attribuer/retirer',
       grant_coach_photographer_heading: 'Attribuer Coach / Photographe officiel',
       participant_word: 'participant', pending_request_word: 'demande', pending_suffix: ' en attente',
       manage_btn: 'Gérer', view_btn: 'Voir', no_events_team: 'Aucun roulage pour ce Team.',
@@ -541,7 +542,7 @@
       remove_photo: 'Remove photo', add_photo: 'Add a photo', publish: 'Post',
       poll_option_placeholder: 'Option ', poll_option_optional: ' (optional)',
       poll_question_placeholder: 'Create a poll: the question', add_option: '+ Add an option',
-      publish_poll: 'Post the poll', write_message_btn: '✎ Write a message', poll_btn: '📊 Poll',
+      publish_poll: 'Post the poll', write_message_btn: 'Write a message', poll_btn: 'Poll',
       no_one_else_to_invite: 'No one else to invite right now.',
       all_friends_in_team: 'All your friends are already in this team, or you have no friends to invite yet: add them in Community → Friends & feed.',
       teampro_invite_help: 'Team PRO: you can invite any account, friend or not.',
@@ -549,7 +550,7 @@
       join_requests_label: 'Requests to join (', sent_invites_label: 'Sent invites (',
       // Social tab
       no_friends_yet: 'No friends yet. Add one with the button above, or have them scan your QR code in the paddock.',
-      invite_qr_btn: 'Invite a friend (QR code)', share_last_chrono_btn: '⤴ Share my last lap time',
+      invite_qr_btn: 'Invite a friend (QR code)', share_last_chrono_btn: 'Share my last lap time',
       feed_empty_help: 'Your feed fills up with lap times and messages from your friends and teams.', my_friends_label: 'My friends (',
       received_requests_label: 'Received requests (', sent_requests_label: 'Sent requests (',
       add_friend_btn: '+ Add a friend', no_one_else_to_add: 'No one else to add right now.',
@@ -564,7 +565,7 @@
       post_to_journal_btn: '+ Post a message',
       post_to_journal_help: 'What you post will be visible to your friends (or followers, depending on what you pick below).',
       visible_by_label: 'Visible to', my_friends_option: 'My friends', my_followers_option: 'My followers',
-      add_photo_btn: '📷 Add a photo', adherents_badge: 'Adherents',
+      add_photo_btn: 'Add a photo', adherents_badge: 'Adherents',
       just_now: 'just now', min_ago_prefix: '', min_ago_suffix: ' min ago', hour_ago_suffix: ' h ago',
       events_label: 'Events', circuits_visited_label: 'Circuits visited', track_days_label: 'Track days',
       view_official_chronos: 'View official lap times ↗', verified_chronos_label: 'Team-validated lap times (',
@@ -589,6 +590,7 @@
       ask_to_be_coached_by: 'Ask to be coached by', send_request_generic: 'Send request',
       ask_for_coaching_heading: 'Ask for coaching',
       proposed_slots_label: 'Proposed slots: ', slot_colon_label: 'Slot: ',
+      bravo_btn: 'Kudos', photo_btn_short: 'Photo', see_photos_link: 'See the photos', see_link: 'Open the link',
       send_generic: 'Send', no_slot_to_propose: 'No slot available to propose',
       no_slot_to_propose_check_avail: ' -- check your availability above.',
       accept_generic: 'Accept ', propose_other_time: 'Propose another time', refuse_generic: 'Decline',
@@ -598,7 +600,7 @@
       no_message_yet: 'No message yet.', write_message_placeholder: 'Write a message...',
       send_btn: 'Send', messages_label: 'Messages',
       now_label: 'Right now — ', next_event_dash_label: 'Next trackday — ',
-      done_label: 'Done', set_my_availability: '✎ Set my availability',
+      done_label: 'Done', set_my_availability: 'Set my availability',
       drag_to_mark_available: 'Tap or drag (finger or mouse) across slots to mark them available.',
       availability_legend: '<span class="avail-sw sw-coaching"></span>Coaching <span class="avail-sw sw-bapteme"></span>Track intro <span class="avail-sw sw-both"></span>Both',
       slot_type_locked_help: 'No coach has offered the other type for this slot.',
@@ -713,7 +715,7 @@
       no_one_yet: 'No one yet.',
       mecano_option: 'Mechanic', assistant_option: 'Assistant', photographe_option: 'Photographer', logistique_option: 'Logistics',
       members_label: 'Members (', followers_label: 'Followers (',
-      leaders_only_reserved: '🔒 Reserved for Team Leaders.',
+      leaders_only_reserved: 'Reserved for Team Leaders.',
       presentation_label: 'About', presentation_placeholder: 'A few words about the Team...',
       save_presentation_btn: 'Save the description',
       change_badge_photo: 'Change photo (badge)', add_badge_photo: 'Add a photo (badge)',
@@ -730,7 +732,7 @@
       grant_coach_photographer_help: 'As the Leader of a Team PRO, grant or revoke these badges to any account (not just Team members).',
       search_person_placeholder: 'Search for a rider, companion, organizer...',
       search_past_event_placeholder: 'Search for a circuit, a Team...',
-      coach_toggle_btn: '🎓 Coach: grant/revoke', photographer_toggle_btn: '📷 Photographer: grant/revoke',
+      coach_toggle_btn: 'Coach: grant/revoke', photographer_toggle_btn: 'Photographer: grant/revoke',
       grant_coach_photographer_heading: 'Grant Coach / Official Photographer',
       participant_word: 'rider', pending_request_word: 'request', pending_suffix: ' pending',
       manage_btn: 'Manage', view_btn: 'View', no_events_team: 'No trackdays for this Team.',
@@ -6504,7 +6506,7 @@
       return (
         '<div class="circuit-visual-frame">' +
           '<button type="button" class="circuit-visual-btn" data-action="open-track-notes" data-circuit="' + escapeHtml(circuitName) + '" aria-label="Mes repères sur ' + escapeHtml(circuitName) + '">' +
-            '<span class="track-mini-wrap"><img src="' + base + '" alt="Tracé de ' + escapeHtml(circuitName) + '">' + pins + '</span>' +
+            '<span class="track-mini-wrap"><img src="' + styledPlanSrc(base) + '"' + styledPlanAttr(base, info) + ' alt="Tracé de ' + escapeHtml(circuitName) + '">' + pins + '</span>' +
           '</button>' +
           '<div class="circuit-visual-caption">' + (notes.length ? notes.length + ' repère' + (notes.length > 1 ? 's' : '') + ' · toucher pour voir' : 'Toucher pour noter tes repères') + '</div>' +
           (info.mapImage ? '<button type="button" class="link-btn circuit-visual-caption" id="open-annot-btn" data-circuit="' + escapeHtml(circuitName) + '">Dessin libre</button>' : '') +
@@ -6666,7 +6668,36 @@
   // fond blanc, illisible en 40 px) redessiné en ruban encre + ombre
   // rouge, comme sur la story. Les photos importées restent telles quelles.
   var styledThumbs = {};
+  // Same ribbon on the big plan (Circuits, Repères, editor), drawn at the
+  // image's own size with no padding so pins (x/y in % of the image)
+  // keep landing on the same spot.
+  function styledPlanAttr(base, info) {
+    return base && !(info && info.mapImage) && base.indexOf('data:') !== 0 ? ' data-track-plan="' + escapeHtml(base) + '"' : '';
+  }
+  function styledPlanSrc(base) {
+    var c = styledThumbs['plan:' + base];
+    return c && c !== 'x' ? c : base;
+  }
+  function styleTrackPlans() {
+    document.querySelectorAll('img[data-track-plan]').forEach(function (img) {
+      var src = img.getAttribute('data-track-plan'), key = 'plan:' + src;
+      if (styledThumbs[key]) { if (styledThumbs[key] !== 'x' && img.getAttribute('src') !== styledThumbs[key]) img.src = styledThumbs[key]; return; }
+      styledThumbs[key] = 'x';
+      loadImageEl(src).then(function (probe) {
+        if (!probe || !probe.width) return;
+        var k = Math.min(1, 900 / Math.max(probe.width, probe.height));
+        var w = Math.round(probe.width * k), h = Math.round(probe.height * k), f = Math.max(w, h) / 860;
+        var out = styledTrack(probe, w, h, SHARE_COLORS, { keepSize: true, radii: [1.5 * f, 3 * f, 4.5 * f], shadow: 5 * f });
+        if (!out) return;
+        var bg = document.createElement('canvas'); bg.width = w; bg.height = h;
+        var bctx = bg.getContext('2d'); bctx.fillStyle = '#ffffff'; bctx.fillRect(0, 0, w, h); bctx.drawImage(out, 0, 0);
+        styledThumbs[key] = bg.toDataURL('image/png');
+        document.querySelectorAll('img[data-track-plan]').forEach(function (el) { if (el.getAttribute('data-track-plan') === src) el.src = styledThumbs[key]; });
+      });
+    });
+  }
   function styleTrackThumbs() {
+    styleTrackPlans();
     document.querySelectorAll('img[data-track-thumb]').forEach(function (img) {
       var src = img.getAttribute('data-track-thumb');
       if (styledThumbs[src]) { if (styledThumbs[src] !== 'x' && img.getAttribute('src') !== styledThumbs[src]) img.src = styledThumbs[src]; return; }
@@ -6806,7 +6837,7 @@
     opts = opts || {};
     var radii = opts.radii || [3, 6, 8], shadow = opts.shadow == null ? 7 : opts.shadow;
     try {
-      var pad = opts.pad || 24, src = document.createElement('canvas');
+      var pad = opts.keepSize ? 0 : (opts.pad || 24), src = document.createElement('canvas');
       src.width = w; src.height = h;
       var sctx = src.getContext('2d');
       sctx.drawImage(img, 0, 0, w, h);
@@ -7765,7 +7796,7 @@
         (base ? '<button type="button" class="ghost" data-tn="zoom">' + (zoomed ? 'Réduire' : 'Agrandir') + '</button>' : '') + '</div>';
       h += '<div class="help-text track-notes-help">' + (movingId ? 'Touche le nouvel emplacement du repère.' : (base ? 'Touche le tracé pour poser un repère, touche un repère pour le modifier.' : 'Pas de plan pour ce circuit : ajoute tes repères en liste.')) + '</div>';
       if (base) {
-        h += '<div class="track-notes-scroll"><div class="track-notes-map' + (zoomed ? ' zoomed' : '') + '"><img src="' + base + '" alt="" draggable="false">';
+        h += '<div class="track-notes-scroll"><div class="track-notes-map' + (zoomed ? ' zoomed' : '') + '"><img src="' + styledPlanSrc(base) + '"' + styledPlanAttr(base, info) + ' alt="" draggable="false">';
         notes.forEach(function (n, i) {
           h += '<button type="button" class="track-pin" data-pin="' + n.id + '" style="left:' + (n.x * 100) + '%; top:' + (n.y * 100) + '%;">' + (i + 1) + '</button>';
         });
@@ -7782,6 +7813,7 @@
       });
       h += '</div>';
       overlay.innerHTML = h;
+      styleTrackPlans();
       bind();
     }
 
@@ -12787,10 +12819,10 @@
     return [
       { field: 'certified', icon: '✓', label: tr('badge_certified_label'), desc: tr('badge_certified_desc'), cssClass: 'certified-badge', check: isCertified },
       { field: 'personality', icon: '★', label: tr('badge_personality_label'), desc: tr('badge_personality_desc'), cssClass: 'personality-badge', check: isPersonality },
-      { field: 'pro', icon: '🏅', label: tr('badge_pro_label'), desc: tr('badge_pro_desc'), cssClass: 'pro-badge', check: isPro },
-      { field: 'organizer', icon: '👤', label: tr('badge_organizer_label'), desc: tr('badge_organizer_desc'), cssClass: 'organizer-badge', check: isOrganizerBadge },
-      { field: 'coach', icon: '🎓', label: tr('coach_label'), desc: tr('badge_coach_desc'), cssClass: 'coach-badge', check: isCoachBadge },
-      { field: 'photographer', icon: '📷', label: tr('badge_photographer_label'), desc: tr('badge_photographer_desc'), cssClass: 'photographer-badge', check: isPhotographerBadge }
+      { field: 'pro', icon: 'PRO', label: tr('badge_pro_label'), desc: tr('badge_pro_desc'), cssClass: 'pro-badge', check: isPro },
+      { field: 'organizer', icon: 'ORGA', label: tr('badge_organizer_label'), desc: tr('badge_organizer_desc'), cssClass: 'organizer-badge', check: isOrganizerBadge },
+      { field: 'coach', icon: 'COACH', label: tr('coach_label'), desc: tr('badge_coach_desc'), cssClass: 'coach-badge', check: isCoachBadge },
+      { field: 'photographer', icon: 'PHOTO', label: tr('badge_photographer_label'), desc: tr('badge_photographer_desc'), cssClass: 'photographer-badge', check: isPhotographerBadge }
     ];
   }
 
@@ -12801,7 +12833,7 @@
   // identically on touch and desktop.
   function badgesHtml(u) {
     return profileBadges().map(function (b) {
-      return b.check(u) ? ' <span class="' + b.cssClass + '" title="' + escapeHtml(b.desc) + '" data-badge-info="' + escapeHtml(b.desc) + '">' + b.icon + '</span>' : '';
+      return b.check(u) ? ' <span class="' + b.cssClass + (b.icon.length > 1 ? ' badge-text' : '') + '" title="' + escapeHtml(b.desc) + '" data-badge-info="' + escapeHtml(b.desc) + '">' + b.icon + '</span>' : '';
     }).join('');
   }
 
@@ -12927,31 +12959,46 @@
 
   // Positive-only, on purpose -- a news feed/team wall isn't the place for
   // a thumbs-down. Shared by Social's Actualités and the Team feed.
+  // One single « Bravo » now instead of four emoji buttons under every
+  // post (visually noisy). Same data: reactions.<name> = emoji; older
+  // 👍/💪/🎉 reactions still count in the total, and tapping removes
+  // whichever one I had left.
   var REACTION_EMOJIS = ['🔥', '👍', '💪', '🎉'];
   function renderReactionBar(reactions, dataAction, id) {
     reactions = reactions || {};
-    var counts = {};
-    REACTION_EMOJIS.forEach(function (em) { counts[em] = 0; });
     var mine = currentUserProfile ? reactions[currentUserProfile.name] : null;
-    Object.keys(reactions).forEach(function (n) { var em = reactions[n]; if (counts[em] != null) counts[em]++; });
-    return '<div class="reaction-bar">' + REACTION_EMOJIS.map(function (em) {
-      return '<button type="button" class="reaction-btn' + (mine === em ? ' active' : '') + '" data-action="' + dataAction + '" data-id="' + id + '" data-emoji="' + em + '">' +
-        em + (counts[em] ? ' ' + counts[em] : '') + '</button>';
-    }).join('') + '</div>';
+    var names = Object.keys(reactions).filter(function (n) { return reactions[n]; });
+    return '<div class="reaction-bar"><button type="button" class="reaction-btn' + (mine ? ' active' : '') + '" data-action="' + dataAction + '" data-id="' + id + '" data-emoji="' + (mine || '🔥') + '"' +
+      (names.length ? ' title="' + escapeHtml(names.join(', ')) + '"' : '') + '>' + tr('bravo_btn') + (names.length ? ' · ' + names.length : '') + '</button></div>';
+  }
+  // A link in a post: a short label + the site's name, not the raw URL.
+  function postLinkHtml(url) {
+    var host = '';
+    try { host = new URL(url).hostname.replace(/^www\./, ''); } catch (e) { host = url; }
+    var isPhotos = /photos|drive\.google|icloud|flickr|dropbox|wetransfer|smugmug|pixieset|instagram/i.test(url);
+    return '<a class="wall-post-link" href="' + escapeHtml(url) + '" target="_blank" rel="noopener">' + (isPhotos ? tr('see_photos_link') : tr('see_link')) + ' ↗<span class="wall-post-link-host">' + escapeHtml(host) + '</span></a>';
+  }
+  function postEditLinks(editAction, deleteAction, id, canEdit, canDelete) {
+    if (!canEdit && !canDelete) return '';
+    return '<div class="post-edit-links">' +
+      (canEdit ? '<button type="button" class="link-btn" data-action="' + editAction + '" data-id="' + id + '">' + tr('modify') + '</button>' : '') +
+      (canDelete ? '<button type="button" class="link-btn" data-action="' + deleteAction + '" data-id="' + id + '">' + tr('delete_label') + '</button>' : '') + '</div>';
   }
 
   function renderFeedEntry(e) {
     var text;
     if (e.type === 'friend') {
-      text = escapeHtml(e.actor) + ' et ' + escapeHtml(e.target) + ' sont maintenant amis 🤝';
+      // Discreet line, no « Bravo » -- not news worth a reaction.
+      return '<div class="feed-entry feed-entry-muted"><span class="feed-entry-text">' + escapeHtml(e.actor) + ' et ' + escapeHtml(e.target) + ' sont maintenant amis</span>' +
+        '<span class="feed-entry-time">' + escapeHtml(relativeTime(e.createdAt)) + '</span></div>';
     } else if (e.type === 'record') {
-      text = escapeHtml(e.actor) + ' a battu son record sur ' + escapeHtml(e.circuit) + ' : ' + formatTime(e.time) + ' 🏁';
+      text = '<span class="feed-record-label">Nouveau record</span><span class="feed-record-line">' + personNameHtml(e.actor) + ' · ' + escapeHtml(e.circuit) + '</span>';
+      return '<div class="feed-entry feed-entry-record"><div class="feed-entry-row"><span class="feed-entry-text">' + text + '</span>' +
+        '<span class="feed-record-time">' + formatTime(e.time) + '</span></div>' +
+        '<div class="feed-entry-foot">' + renderReactionBar(e.reactions, 'react-feed-event', e.id) + '<span class="feed-entry-time">' + escapeHtml(relativeTime(e.createdAt)) + '</span></div></div>';
     } else {
       return '';
     }
-    return '<div class="feed-entry"><div class="feed-entry-row"><span class="feed-entry-text">' + text + '</span>' +
-      '<span class="feed-entry-time">' + escapeHtml(relativeTime(e.createdAt)) + '</span></div>' +
-      renderReactionBar(e.reactions, 'react-feed-event', e.id) + '</div>';
   }
 
   // friendSuggestions() feeds both "Tes amis" (renderSocialTab) and the
@@ -13085,19 +13132,13 @@
     var html = '<div class="wall-post">';
     html += '<div class="wall-post-head">' + avatarHtml(u, p.author) +
       personNameHtml(p.author) + badgesHtml(u) +
-      '<span class="friend-role-badge">' + escapeHtml(audienceLabel) + '</span>' +
+      // Friends-only is the default: only flag the wider audiences.
+      (p.audience === 'all' || p.audience === 'followers' ? '<span class="friend-role-badge">' + escapeHtml(audienceLabel) + '</span>' : '') +
       '<span class="feed-entry-time">' + escapeHtml(relativeTime(p.editedAt || p.createdAt)) + (p.editedAt ? tr('edited_suffix') : '') + '</span></div>';
     if (p.text) html += '<div class="wall-post-text">' + escapeHtml(p.text) + '</div>';
-    if (p.linkUrl) html += '<a class="wall-post-link" href="' + escapeHtml(p.linkUrl) + '" target="_blank" rel="noopener">🔗 ' + escapeHtml(p.linkUrl) + '</a>';
+    if (p.linkUrl) html += postLinkHtml(p.linkUrl);
     if (p.photoURL) html += '<img class="wall-post-photo" src="' + escapeHtml(p.photoURL) + '" alt="">';
-    if (canEdit) {
-      html += '<button type="button" class="ghost icon-btn" data-action="wall-post-edit" data-id="' + p.id + '" aria-label="' + tr('modify') + '" title="' + tr('modify') + '">✎</button>' +
-        '<button type="button" class="ghost icon-btn" data-action="delete-wall-post" data-id="' + p.id + '" aria-label="' + tr('delete_label') + '" title="' + tr('delete_label') + '">×</button>';
-    }
-    // Same reaction bar as teamFeed -- was missing entirely here, so
-    // anyone who could see a wallPost (a follower included, not just a
-    // friend) had no way to react to it at all.
-    html += renderReactionBar(p.reactions, 'react-wall-post', p.id);
+    html += '<div class="feed-entry-foot">' + renderReactionBar(p.reactions, 'react-wall-post', p.id) + postEditLinks('wall-post-edit', 'delete-wall-post', p.id, canEdit, canEdit) + '</div>';
     html += '</div>';
     return html;
   }
@@ -13291,7 +13332,7 @@
       (teamName ? '<span class="friend-role-badge">' + escapeHtml(teamName) + '</span>' : '') +
       (f.audience === 'adherents' ? '<span class="friend-role-badge adherent-badge">' + tr('adherents_badge') + '</span>' : '') +
       '<span class="feed-entry-time">' + escapeHtml(relativeTime(f.createdAt)) + '</span></div>';
-    html += '<div class="wall-post-text">📊 ' + escapeHtml(f.question) + '</div>';
+    html += '<div class="wall-post-text"><span class="feed-record-label">Sondage</span> ' + escapeHtml(f.question) + '</div>';
     html += '<div class="poll-options">' + f.options.map(function (opt, i) {
       var pct = total ? Math.round(counts[i] / total * 100) : 0;
       return '<button type="button" class="poll-option-btn' + (myVote === i ? ' voted' : '') + '" data-action="team-poll-vote" data-id="' + f.id + '" data-option="' + i + '">' +
@@ -13324,13 +13365,11 @@
       (teamName ? '<span class="friend-role-badge">' + escapeHtml(teamName) + '</span>' : '') +
       (f.audience === 'adherents' ? '<span class="friend-role-badge adherent-badge">' + tr('adherents_badge') + '</span>' : '') +
       '<span class="feed-entry-time">' + escapeHtml(relativeTime(f.editedAt || f.createdAt)) + (f.editedAt ? tr('edited_suffix') : '') + '</span>' +
-      (canEdit ? '<button type="button" class="ghost icon-btn" data-action="team-post-edit" data-id="' + f.id + '" aria-label="' + tr('modify') + '" title="' + tr('modify') + '">✎</button>' : '') +
-      (canDelete ? '<button type="button" class="ghost icon-btn" data-action="team-post-delete" data-id="' + f.id + '" aria-label="' + tr('delete_label') + '" title="' + tr('delete_label') + '">×</button>' : '') +
       '</div>';
     if (f.text) html += '<div class="wall-post-text">' + escapeHtml(f.text) + '</div>';
-    if (f.linkUrl) html += '<a class="wall-post-link" href="' + escapeHtml(f.linkUrl) + '" target="_blank" rel="noopener">🔗 ' + escapeHtml(f.linkUrl) + '</a>';
+    if (f.linkUrl) html += postLinkHtml(f.linkUrl);
     if (f.photoURL) html += '<img class="wall-post-photo" src="' + escapeHtml(f.photoURL) + '" alt="">';
-    html += renderReactionBar(f.reactions, 'react-team-post', f.id);
+    html += '<div class="feed-entry-foot">' + renderReactionBar(f.reactions, 'react-team-post', f.id) + postEditLinks('team-post-edit', 'team-post-delete', f.id, canEdit, canDelete) + '</div>';
     html += '</div>';
     return html;
   }
@@ -13597,7 +13636,7 @@
       var likesHtml = '';
       if (isOwn && eventTemporalStatus(ev, todayKey) === 'past') {
         var likeCount = Object.keys(ev.reactions || {}).length;
-        if (likeCount) likesHtml = ' <span class="event-likes-badge">👍 ' + likeCount + '</span>';
+        if (likeCount) likesHtml = ' <span class="event-likes-badge">' + tr('bravo_btn') + ' · ' + likeCount + '</span>';
       }
       return '<div class="friend-row"><div class="friend-row-main"><span class="friend-name-plain">' + escapeHtml(ev.circuit) + '</span>' +
         (orgTeam ? '<span class="friend-role-badge">' + escapeHtml(orgTeam.name) + '</span>' : '') +
@@ -13790,8 +13829,9 @@
       '<span class="friend-role-badge">' + (isLeader ? tr('team_leader_label') : (isMember ? tr('member_label') : tr('follower_label'))) + '</span></div>';
     var teamLikeCount = (STATE.teamLikes || []).filter(function (l) { return l.teamId === team.id; }).length;
     var teamFollowCount = ((STATE.teamFollowersByTeam || {})[team.id] || []).length;
-    html += '<div class="team-stats-row"><span>❤ ' + teamLikeCount + (teamLikeCount > 1 ? tr('likes_suffix') : tr('like_suffix')) + '</span>' +
-      '<span>👥 ' + teamFollowCount + (teamFollowCount > 1 ? tr('follows_suffix') : tr('follow_suffix')) + '</span></div>';
+    // Counters only once there is something to count.
+    if (teamLikeCount || teamFollowCount) html += '<div class="team-stats-row">' + (teamLikeCount ? '<span>' + teamLikeCount + (teamLikeCount > 1 ? tr('likes_suffix') : tr('like_suffix')) + '</span>' : '') +
+      (teamFollowCount ? '<span>' + teamFollowCount + (teamFollowCount > 1 ? tr('follows_suffix') : tr('follow_suffix')) + '</span>' : '') + '</div>';
     // A wide logo (e.g. "Mototeam95") shown full-width, uncropped -- the
     // round avatar above is for badges everywhere else, this is the one
     // place it's shown properly.
@@ -13843,7 +13883,7 @@
             : '') +
           audienceSelect +
           '<div style="display:flex; gap:0.5rem;">' +
-          '<button type="button" class="ghost icon-btn" data-action="team-feed-photo-btn" data-team="' + team.id + '" aria-label="' + tr('add_photo') + '" title="' + tr('add_photo') + '">📷</button>' +
+          '<button type="button" class="ghost icon-btn" data-action="team-feed-photo-btn" data-team="' + team.id + '" aria-label="' + tr('add_photo') + '">' + tr('photo_btn_short') + '</button>' +
           '<button type="submit" class="primary">' + tr('publish') + '</button>' +
           '<button type="button" class="ghost" data-action="team-composer-close">' + tr('cancel') + '</button>' +
           '</div></form>';
@@ -13864,7 +13904,7 @@
         // Same pattern as everywhere: the main action as a big button on
         // top, the secondary one (poll) as a quiet link under it.
         composerCta = '<button type="button" class="primary add-chrono-btn" data-action="team-composer-open" data-mode="message">+ Écrire au team</button>' +
-          '<div class="carnet-add-help"><button type="button" class="link-btn inline-link" data-action="team-composer-open" data-mode="poll">ou lancer un sondage</button></div>';
+          '<div class="carnet-add-help team-composer-poll-link"><button type="button" class="link-btn" data-action="team-composer-open" data-mode="poll">ou lancer un sondage</button></div>';
       }
     }
     var bFil = (composerHtml ? teamCard('', composerHtml) : composerCta) + teamCard('', feedBody);
@@ -14523,7 +14563,7 @@
     var mainInner = avatarHtml(t, t.name) +
       '<div class="team-tile-name">' + escapeHtml(t.name) + teamBadgesHtml(t) + '</div>' +
       desc +
-      '<div class="team-tile-stats">' + memberCount + ' membre' + (memberCount === 1 ? '' : 's') + ' · ❤ ' + likeCount + '</div>';
+      '<div class="team-tile-stats">' + memberCount + ' membre' + (memberCount === 1 ? '' : 's') + (likeCount ? ' · ' + likeCount + ' j\'aime' : '') + '</div>';
     var main = clickable
       ? '<button type="button" class="team-tile-main" data-action="team-tile-open" data-team="' + t.id + '">' + mainInner + '</button>'
       : '<div class="team-tile-main">' + mainInner + '</div>';
@@ -14543,7 +14583,7 @@
   function renderTeamDiscoveryTile(t, me, showUnfollow) {
     var iLike = (STATE.teamLikes || []).some(function (l) { return l.teamId === t.id && l.name === me.name; });
     var myRequest = (STATE.teamJoinRequests || []).filter(function (r) { return r.teamId === t.id && r.from === me.name; })[0];
-    var actions = '<button type="button" class="ghost icon-btn' + (iLike ? ' liked' : '') + '" data-action="team-like-toggle" data-team="' + t.id + '" aria-label="' + (iLike ? 'Retirer le like' : 'Liker') + '" title="' + (iLike ? 'Retirer le like' : 'Liker') + '">❤</button>';
+    var actions = '<button type="button" class="ghost icon-btn' + (iLike ? ' liked' : '') + '" data-action="team-like-toggle" data-team="' + t.id + '" aria-pressed="' + (iLike ? 'true' : 'false') + '">' + (iLike ? 'Aimé' : 'J\'aime') + '</button>';
     actions += showUnfollow
       ? '<button type="button" class="ghost icon-btn" data-action="unfollow-team" data-team="' + t.id + '" aria-label="Ne plus suivre" title="Ne plus suivre">×</button>'
       : '<button type="button" class="ghost" data-action="follow-team" data-team="' + t.id + '">Suivre</button>';

@@ -3212,3 +3212,26 @@ body { min-height: 100%; min-height: 100dvh; }
 .outing-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; margin: 0 0 0.9rem; }
 .outing-actions > button { flex: 0 0 auto; }
 .outing-actions-help { margin: -0.5rem 0 0.9rem; }
+
+/* Communauté, version sobre : un seul « Bravo », pas d'emojis */
+.reaction-bar { display: flex; gap: 0.4rem; margin-top: 0; }
+.reaction-btn { font-size: 0.82rem; font-weight: 700; padding: 0.3rem 0.8rem; border-radius: 999px; background: transparent; border: 1px solid var(--border); color: var(--text-muted); }
+.reaction-btn.active { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.feed-entry-foot { display: flex; align-items: center; gap: 0.6rem; margin-top: 0.55rem; }
+.feed-entry-foot .reaction-bar { margin-right: auto; }
+.post-edit-links { display: flex; gap: 0.8rem; }
+.post-edit-links .link-btn { font-size: 0.8rem; color: var(--text-muted); text-decoration: none; font-weight: 600; padding: 0; }
+.wall-post-link { display: inline-flex; align-items: baseline; gap: 0.45rem; margin-top: 0.4rem; font-weight: 700; text-decoration: none; color: var(--accent); }
+.wall-post-link-host { font-weight: 500; font-size: 0.8rem; color: var(--text-muted); }
+.feed-entry-muted { display: flex; justify-content: space-between; gap: 0.6rem; font-size: 0.85rem; color: var(--text-muted); }
+.feed-entry-record .feed-entry-row { display: flex; align-items: center; justify-content: space-between; gap: 0.6rem; }
+.feed-record-label { display: inline-block; font-size: 0.72rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: var(--accent); margin-right: 0.3rem; }
+.feed-entry-record .feed-entry-text { display: flex; flex-direction: column; gap: 0.1rem; }
+.feed-record-line { font-weight: 600; }
+.feed-record-time { font-family: var(--font-display); font-style: italic; font-weight: 800; font-size: 1.5rem; white-space: nowrap; }
+.badge-text, .pro-badge.badge-text, .organizer-badge.badge-text, .coach-badge.badge-text, .photographer-badge.badge-text {
+  display: inline-block; width: auto; height: auto; font-size: 0.6rem; font-weight: 800; letter-spacing: 0.05em; padding: 0.12rem 0.35rem;
+  border-radius: 4px; background: var(--surface-alt); color: var(--text-muted); vertical-align: middle; line-height: 1.2; white-space: nowrap; flex-shrink: 0;
+}
+
+.team-composer-poll-link .link-btn { color: var(--text-muted); text-decoration: none; font-weight: 600; }
