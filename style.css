@@ -3320,7 +3320,7 @@ body { min-height: 100%; min-height: 100dvh; }
 .trophy-tile.earned { color: var(--text); border-color: color-mix(in srgb, var(--accent) 35%, var(--border)); }
 .trophy-ico { width: 46px; height: 46px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: var(--surface-alt); color: var(--text-muted); flex-shrink: 0; }
 .trophy-ico.earned { background: var(--accent); color: var(--accent-ink); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 20%, transparent); }
-.trophy-next .trophy-ico { width: 52px; height: 52px; background: var(--surface); color: var(--accent); border: 2px dashed color-mix(in srgb, var(--accent) 50%, transparent); }
+.trophy-next .trophy-ico { width: 52px; height: 52px; background: var(--surface); color: var(--accent); }
 .trophy-name { font-size: 0.78rem; font-weight: 700; line-height: 1.15; }
 .trophy-progress { font-size: 0.7rem; font-weight: 600; }
 .feed-month .feed-ride-circuit { display: block; margin: 0.15rem 0 0.2rem; }
@@ -3328,16 +3328,33 @@ body { min-height: 100%; min-height: 100dvh; }
 .feed-recap-name .help-text { font-weight: 500; }
 
 /* Paliers : Bronze, Argent, Or, Platine */
-:root { --tier-1: #b0743c; --tier-2: #8b95a1; --tier-3: #c9a227; --tier-4: #14161a; }
+:root { --tier-1: #b0743c; --tier-2: #8b95a1; --tier-3: #c9a227; --tier-4: #7b4fd6; --tier-5: #e8731a; --tier-6: #c8261f; }
 .trophy-ico.earned.tier-1 { background: var(--tier-1); color: #fff; box-shadow: 0 0 0 3px color-mix(in srgb, var(--tier-1) 25%, transparent); }
 .trophy-ico.earned.tier-2 { background: var(--tier-2); color: #fff; box-shadow: 0 0 0 3px color-mix(in srgb, var(--tier-2) 25%, transparent); }
 .trophy-ico.earned.tier-3 { background: var(--tier-3); color: #fff; box-shadow: 0 0 0 3px color-mix(in srgb, var(--tier-3) 30%, transparent); }
-.trophy-ico.earned.tier-4 { background: var(--tier-4); color: #fff; box-shadow: 0 0 0 3px var(--accent); }
+.trophy-ico.earned.tier-4 { background: var(--tier-4); color: #fff; box-shadow: 0 0 0 3px color-mix(in srgb, var(--tier-4) 25%, transparent); }
+.trophy-ico.earned.tier-5 { background: var(--tier-5); color: #fff; box-shadow: 0 0 0 3px color-mix(in srgb, var(--tier-5) 25%, transparent); }
+.trophy-ico.earned.tier-6 { background: var(--tier-6); color: #fff; box-shadow: 0 0 0 3px color-mix(in srgb, var(--tier-6) 25%, transparent); }
 .trophy-ico.earned.single { background: var(--accent); color: var(--accent-ink); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 20%, transparent); }
 .trophy-tier { font-size: 0.66rem; font-weight: 800; letter-spacing: 0.05em; text-transform: uppercase; }
-.trophy-tier.tier-1 { color: var(--tier-1); } .trophy-tier.tier-2 { color: var(--tier-2); } .trophy-tier.tier-3 { color: #a8860f; } .trophy-tier.tier-4 { color: var(--accent); }
+.trophy-tier.tier-1 { color: var(--tier-1); } .trophy-tier.tier-2 { color: var(--tier-2); } .trophy-tier.tier-3 { color: #a8860f; } .trophy-tier.tier-4 { color: var(--tier-4); } .trophy-tier.tier-5 { color: var(--tier-5); } .trophy-tier.tier-6 { color: var(--tier-6); }
 .tier-pips { display: flex; gap: 3px; }
-.tier-pips span { width: 14px; height: 4px; border-radius: 2px; background: var(--surface-alt); }
+.tier-pips span { width: 10px; height: 4px; border-radius: 2px; background: var(--surface-alt); }
 .tier-pips span.on.tier-1 { background: var(--tier-1); } .tier-pips span.on.tier-2 { background: var(--tier-2); }
 .tier-pips span.on.tier-3 { background: var(--tier-3); } .tier-pips span.on.tier-4 { background: var(--tier-4); }
+.tier-pips span.on.tier-5 { background: var(--tier-5); } .tier-pips span.on.tier-6 { background: var(--tier-6); }
 .trophy-tile.earned { border-color: var(--border); }
+
+/* Légende des niveaux */
+.tier-legend { display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem 0.75rem; margin-top: 0.8rem; font-size: 0.78rem; font-weight: 600; color: var(--text-muted); }
+.tier-legend-title { font-weight: 800; color: var(--text); margin-right: 0.1rem; }
+.tier-legend-item { display: inline-flex; align-items: center; gap: 0.3rem; }
+.tier-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+.tier-dot.tier-1 { background: var(--tier-1); } .tier-dot.tier-2 { background: var(--tier-2); } .tier-dot.tier-3 { background: var(--tier-3); }
+.tier-dot.tier-4 { background: var(--tier-4); } .tier-dot.tier-5 { background: var(--tier-5); } .tier-dot.tier-6 { background: var(--tier-6); }
+
+/* Filtre des groupes, expliqué */
+.planning-group-filter-label { display: flex; flex-direction: column; gap: 0.1rem; margin-bottom: 0.5rem; }
+.planning-group-filter-label strong { font-size: 0.85rem; }
+.planning-group-filter { gap: 0.6rem !important; }
+.planning-group-check .grp-chip { min-width: 2.2rem; text-align: center; padding: 0.3rem 0.6rem; font-size: 1rem; }

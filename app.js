@@ -3385,7 +3385,7 @@
     var m = a.iconKey ? [a.iconKey, a.family] : (TROPHY_ICONS[a.icon] || ['medal', 'piste']);
     var path = TROPHY_EXTRA_SVG[m[0]] || NOTIF_SVG[m[0]] || NOTIF_SVG.medal;
     var sz = big ? 26 : 22;
-    return '<span class="trophy-ico' + (a.earned ? ' earned tier-' + Math.min(a.level || 1, 4) + (a.maxLevel === 1 ? ' single' : '') : '') + '"><svg width="' + sz + '" height="' + sz + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + path + '</svg></span>';
+    return '<span class="trophy-ico' + (a.earned ? ' earned tier-' + Math.min(a.level || 1, 6) + (a.maxLevel === 1 ? ' single' : '') : '') + '"><svg width="' + sz + '" height="' + sz + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + path + '</svg></span>';
   }
   function trophyFamily(a) { return a.family || (TROPHY_ICONS[a.icon] || [0, 'piste'])[1]; }
   function tierPipsHtml(a) {
@@ -3402,7 +3402,7 @@
   // nouveau trophée (notification), et le prochain seuil est toujours
   // visible. Les seuils sont pensés pour un pistard : quelques roulages
   // par an pour le bronze, une vraie saison pour l'or.
-  var TIER_NAMES = ['Bronze', 'Argent', 'Or', 'Platine'];
+  var TIER_NAMES = ['Bronze', 'Argent', 'Or', 'Platine', 'Élite', 'Légende'];
   // icon: line icon key; fam: piste|progression|suivi|communaute;
   // unit: [singular, plural]; desc(n): what level n asks for.
   function tieredEntry(icon, fam, name, current, thresholds, unit, desc) {
@@ -3414,7 +3414,7 @@
       tiered: true, iconKey: icon, family: fam, name: name, level: level, maxLevel: max,
       label: name + (level > 1 ? ' · ' + L('niveau ', 'level ') + level : ''),
       earned: level > 0, current: current, target: next || thresholds[max - 1],
-      tierName: level ? TIER_NAMES[Math.min(level, 4) - 1] : '',
+      tierName: level ? TIER_NAMES[Math.min(level, 6) - 1] : '',
       description: next ? desc(next) : L('Niveau maximum atteint.', 'Top level reached.'),
       progressText: next ? current + '/' + next + ' ' + u(next) : current + ' ' + u(current)
     };
@@ -3475,15 +3475,15 @@
     loadFilleulCount(name);
     var filleuls = filleulCounts[name] || 0;
     return [
-      tieredEntry('users', 'communaute', L('Bande de potes', 'Crew'), friendsCount, [1, 5, 15, 30], [L('ami', 'friend'), L('amis', 'friends')],
+      tieredEntry('users', 'communaute', L('Bande de potes', 'Crew'), friendsCount, [1, 5, 15, 30, 50, 100], [L('ami', 'friend'), L('amis', 'friends')],
         function (t) { return L('Avoir ' + t + ' ami' + (t > 1 ? 's' : '') + ' dans l\'appli.', 'Have ' + t + ' friend' + (t > 1 ? 's' : '') + ' in the app.'); }),
-      tieredEntry('handshake', 'communaute', L('Parrain', 'Sponsor'), filleuls, [1, 3, 10, 25], [L('filleul', 'referral'), L('filleuls', 'referrals')],
+      tieredEntry('handshake', 'communaute', L('Parrain', 'Sponsor'), filleuls, [1, 3, 10, 25, 50, 100], [L('filleul', 'referral'), L('filleuls', 'referrals')],
         function (t) { return L('Faire inscrire ' + t + ' pistard' + (t > 1 ? 's' : '') + ' avec ton lien ou ton QR code.', 'Get ' + t + ' rider' + (t > 1 ? 's' : '') + ' to sign up with your link or QR code.'); }),
-      tieredEntry('flame', 'communaute', L('Plein gaz', 'Full gas'), gazReceivedCount(name), [5, 25, 100, 250], ['« Gaz ! »', '« Gaz ! »'],
+      tieredEntry('flame', 'communaute', L('Plein gaz', 'Full gas'), gazReceivedCount(name), [5, 25, 100, 250, 500, 1000], ['« Gaz ! »', '« Gaz ! »'],
         function (t) { return L('Recevoir ' + t + ' « Gaz ! » de tes potes.', 'Get ' + t + ' “Full gas!” from friends.'); }),
-      tieredEntry('megaphone', 'communaute', L('Plume du paddock', 'Paddock writer'), wallPostCount, [1, 5, 20, 50], ['message', 'messages'],
+      tieredEntry('megaphone', 'communaute', L('Plume du paddock', 'Paddock writer'), wallPostCount, [1, 5, 20, 50, 100, 200], ['message', 'messages'],
         function (t) { return L('Publier ' + t + ' message' + (t > 1 ? 's' : '') + ' dans le fil.', 'Post ' + t + ' message' + (t > 1 ? 's' : '') + ' in the feed.'); }),
-      tieredEntry('team', 'communaute', L('Bâtisseur de team', 'Team builder'), biggestTeam, [1, 5, 15, 30], [L('membre', 'member'), L('membres', 'members')],
+      tieredEntry('team', 'communaute', L('Bâtisseur de team', 'Team builder'), biggestTeam, [1, 5, 15, 30, 60, 100], [L('membre', 'member'), L('membres', 'members')],
         function (t) { return t === 1 ? L('Créer un team.', 'Create a team.') : L('Réunir ' + t + ' membres dans un team que tu as créé.', 'Gather ' + t + ' members in a team you created.'); }),
       singleEntry('check', 'communaute', 'Team PRO', founded.some(function (t) { return t.teamPro; }), L('Fonder un team certifié PRO.', 'Found a certified PRO team.'))
     ];
@@ -3505,19 +3505,19 @@
       mine.forEach(function (x) { days[x.date] = 1; });
       var nDays = Object.keys(days).length;
       return [
-        tieredEntry('calendar', 'piste', L('Jours de piste', 'Days on track'), nDays, [1, 10, 30, 75], [L('jour', 'day'), L('jours', 'days')],
+        tieredEntry('calendar', 'piste', L('Jours de piste', 'Days on track'), nDays, [1, 10, 30, 75, 150, 300], [L('jour', 'day'), L('jours', 'days')],
           function (t) { return L('Cumuler ' + t + ' jour' + (t > 1 ? 's' : '') + ' de piste.', 'Ride ' + t + ' day' + (t > 1 ? 's' : '') + ' on track.'); }),
-        tieredEntry('globe', 'piste', L('Globe-trotter', 'Globetrotter'), stats.circuitsVisited, [2, 5, 10, 20], ['circuit', 'circuits'],
+        tieredEntry('globe', 'piste', L('Globe-trotter', 'Globetrotter'), stats.circuitsVisited, [2, 5, 10, 20, 30, 50], ['circuit', 'circuits'],
           function (t) { return L('Rouler sur ' + t + ' circuits différents.', 'Ride ' + t + ' different circuits.'); }),
-        tieredEntry('repeat', 'piste', L('Fidèle', 'Regular'), maxOutingsOnOneCircuit, [3, 5, 10, 20], ['roulage', 'roulages'],
+        tieredEntry('repeat', 'piste', L('Fidèle', 'Regular'), maxOutingsOnOneCircuit, [3, 5, 10, 20, 35, 50], ['roulage', 'roulages'],
           function (t) { return L('Rouler ' + t + ' fois sur le même circuit.', 'Ride the same circuit ' + t + ' times.'); }),
-        tieredEntry('chart', 'piste', L('Carnet rempli', 'Full logbook'), mine.length, [1, 20, 50, 150], ['session', 'sessions'],
+        tieredEntry('chart', 'piste', L('Carnet rempli', 'Full logbook'), mine.length, [1, 20, 50, 150, 300, 600], ['session', 'sessions'],
           function (t) { return t === 1 ? L('Enregistrer un premier chrono.', 'Log a first lap time.') : L('Enregistrer ' + t + ' sessions chronométrées.', 'Log ' + t + ' timed sessions.'); }),
-        tieredEntry('rocket', 'progression', L('Progression', 'Progress'), Math.floor(maxGainSeconds * 10) / 10, [1, 3, 5, 10], ['s', 's'],
+        tieredEntry('rocket', 'progression', L('Progression', 'Progress'), Math.floor(maxGainSeconds * 10) / 10, [1, 3, 5, 10, 15, 20], ['s', 's'],
           function (t) { return L('Gagner ' + t + ' s sur un circuit depuis ton premier roulage là-bas.', 'Gain ' + t + ' s on a circuit since your first trackday there.'); }),
-        tieredEntry('trophy', 'progression', 'Recordman', recordCount, [1, 3, 5, 10], ['record', 'records'],
+        tieredEntry('trophy', 'progression', 'Recordman', recordCount, [1, 3, 5, 10, 15, 25], ['record', 'records'],
           function (t) { return L('Détenir le meilleur chrono de tes potes sur ' + t + ' circuit' + (t > 1 ? 's' : '') + '.', 'Hold your friends\' best lap on ' + t + ' circuit' + (t > 1 ? 's' : '') + '.'); }),
-        tieredEntry('bolt', 'progression', L('Duelliste', 'Duellist'), duelsWonCount(riderName), [1, 5, 15, 30], ['duel', 'duels'],
+        tieredEntry('bolt', 'progression', L('Duelliste', 'Duellist'), duelsWonCount(riderName), [1, 5, 15, 30, 60, 100], ['duel', 'duels'],
           function (t) { return L('Passer ' + t + ' fois devant un pote sur un circuit.', 'Overtake a friend\'s best ' + t + ' times on a circuit.'); })
       ].concat(socialTeamAchievements(riderName));
     });
@@ -3532,11 +3532,11 @@
       var today = dateKey(new Date());
       var accompanied = eventsList().filter(function (ev) { return (ev.riders || []).indexOf(profile.name) !== -1 && (ev.dateEnd || ev.dateStart) < today; }).length;
       return [
-        tieredEntry('flag', 'suivi', L('Fidèle du paddock', 'Paddock regular'), accompanied, [1, 5, 15, 30], ['roulage', 'roulages'],
+        tieredEntry('flag', 'suivi', L('Fidèle du paddock', 'Paddock regular'), accompanied, [1, 5, 15, 30, 50, 80], ['roulage', 'roulages'],
           function (t) { return L('Accompagner ' + t + ' roulage' + (t > 1 ? 's' : '') + '.', 'Come along to ' + t + ' trackday' + (t > 1 ? 's' : '') + '.'); }),
-        tieredEntry('eye', 'suivi', L('Supporter', 'Supporter'), followed, [1, 3, 5, 10], ['pilote', L('pilotes', 'riders')],
+        tieredEntry('eye', 'suivi', L('Supporter', 'Supporter'), followed, [1, 3, 5, 10, 15, 25], ['pilote', L('pilotes', 'riders')],
           function (t) { return L('Suivre ' + t + ' pilote' + (t > 1 ? 's' : '') + ' depuis Mon profil.', 'Follow ' + t + ' rider' + (t > 1 ? 's' : '') + ' from My profile.'); }),
-        tieredEntry('camera', 'suivi', L('Reporter', 'Reporter'), mediaLinksAdded, [1, 3, 10, 25], ['roulage', 'roulages'],
+        tieredEntry('camera', 'suivi', L('Reporter', 'Reporter'), mediaLinksAdded, [1, 3, 10, 25, 50, 100], ['roulage', 'roulages'],
           function (t) { return L('Partager les photos ou vidéos de ' + t + ' roulage' + (t > 1 ? 's' : '') + '.', 'Share photos or videos of ' + t + ' trackday' + (t > 1 ? 's' : '') + '.'); }),
         singleEntry('bell', 'suivi', L('Toujours alerte', 'Always alert'), !!profile.notifyBeforeSession, L('Activer les notifications de départ en piste.', 'Turn on session start notifications.'))
       ].concat(socialTeamAchievements(profile.name));
@@ -3556,11 +3556,11 @@
       organized.forEach(function (ev) { if (ev.circuit) circuitsOrganized[ev.circuit] = true; });
       var mediaLinksAdded = STATE.events.filter(function (ev) { return ev.mediaLinkAddedBy === profile.name; }).length;
       return [
-        tieredEntry('calendar', 'piste', L('Organisateur', 'Organiser'), organized.length, [1, 5, 15, 40], ['roulage', 'roulages'],
+        tieredEntry('calendar', 'piste', L('Organisateur', 'Organiser'), organized.length, [1, 5, 15, 40, 80, 150], ['roulage', 'roulages'],
           function (t) { return L('Organiser ' + t + ' roulage' + (t > 1 ? 's' : '') + '.', 'Organise ' + t + ' trackday' + (t > 1 ? 's' : '') + '.'); }),
-        tieredEntry('map', 'piste', L('Multi-circuits', 'Multi-circuit'), Object.keys(circuitsOrganized).length, [2, 3, 5, 10], ['circuit', 'circuits'],
+        tieredEntry('map', 'piste', L('Multi-circuits', 'Multi-circuit'), Object.keys(circuitsOrganized).length, [2, 3, 5, 10, 15, 20], ['circuit', 'circuits'],
           function (t) { return L('Organiser des roulages sur ' + t + ' circuits.', 'Organise trackdays on ' + t + ' circuits.'); }),
-        tieredEntry('camera', 'suivi', L('Reporter', 'Reporter'), mediaLinksAdded, [1, 3, 10, 25], ['roulage', 'roulages'],
+        tieredEntry('camera', 'suivi', L('Reporter', 'Reporter'), mediaLinksAdded, [1, 3, 10, 25, 50, 100], ['roulage', 'roulages'],
           function (t) { return L('Partager les photos ou vidéos de ' + t + ' roulage' + (t > 1 ? 's' : '') + '.', 'Share photos or videos of ' + t + ' trackday' + (t > 1 ? 's' : '') + '.'); }),
         singleEntry('bell', 'suivi', L('Toujours alerte', 'Always alert'), !!profile.notifyBeforeSession, L('Activer les notifications de départ en piste.', 'Turn on session start notifications.'))
       ].concat(socialTeamAchievements(profile.name));
@@ -3584,10 +3584,12 @@
     var next = achievements.filter(function (a) { return a.tiered ? a.level < a.maxLevel && a.maxLevel > 1 : !a.earned && a.target; })
       .sort(function (a, b) { return (b.current / b.target) - (a.current / a.target); })[0];
     var inner = '<div class="trophy-summary"><span class="trophy-count">' + earnedCount + '<span>/' + totalLevels + '</span></span>' +
-      '<span class="trophy-summary-main"><span class="trophy-summary-label">' + L('niveaux de trophées', 'trophy levels') + '</span><span class="trophy-bar"><span style="width:' + pct + '%"></span></span></span></div>';
+      '<span class="trophy-summary-main"><span class="trophy-summary-label">' + L('niveaux de trophées', 'trophy levels') + '</span><span class="trophy-bar"><span style="width:' + pct + '%"></span></span></span></div>' +
+      // What the colours mean: one colour per level, from Bronze to Légende.
+      '<div class="tier-legend"><span class="tier-legend-title">' + L('Les niveaux', 'Levels') + '</span>' + TIER_NAMES.map(function (t, i) { return '<span class="tier-legend-item"><span class="tier-dot tier-' + (i + 1) + '"></span>' + escapeHtml(t) + '</span>'; }).join('') + '</div>';
     if (next) {
       var np = Math.round(Math.min(1, next.current / next.target) * 100);
-      var nextName = next.tiered ? next.name + ' · ' + L('niveau ', 'level ') + (next.level + 1) + ' (' + TIER_NAMES[Math.min(next.level, 3)] + ')' : next.label;
+      var nextName = next.tiered ? next.name + ' · ' + L('niveau ', 'level ') + (next.level + 1) + ' (' + TIER_NAMES[Math.min(next.level, 5)] + ')' : next.label;
       inner += '<div class="trophy-next">' + trophyIconHtml(next, true) + '<span class="trophy-next-main"><span class="feed-record-label">' + L('Prochain objectif', 'Next goal') + '</span>' +
         '<strong>' + escapeHtml(nextName) + '</strong><span class="help-text">' + escapeHtml(next.description) + '</span>' +
         '<span class="trophy-bar"><span style="width:' + np + '%"></span></span><span class="trophy-next-progress">' + escapeHtml(next.progressText) + '</span></span></div>';
@@ -3598,7 +3600,7 @@
       if (!list.length) return;
       list.sort(function (a, b) { return (b.level || (b.earned ? 1 : 0)) - (a.level || (a.earned ? 1 : 0)); });
       inner += '<div class="trophy-family">' + escapeHtml(f[1]) + '</div><div class="trophy-grid">' + list.map(function (a) {
-        var lvl = a.tiered && a.maxLevel > 1 && a.level ? '<span class="trophy-tier tier-' + Math.min(a.level, 4) + '">' + escapeHtml(a.tierName) + '</span>' : '';
+        var lvl = a.tiered && a.maxLevel > 1 && a.level ? '<span class="trophy-tier tier-' + Math.min(a.level, 6) + '">' + escapeHtml(a.tierName) + '</span>' : '';
         var info = (a.name || a.label) + (a.level ? ' · ' + (a.tierName || '') : '') + ' — ' + a.description + (a.level < a.maxLevel || !a.tiered ? ' (' + a.progressText + ')' : '');
         return '<button type="button" class="trophy-tile' + (a.earned ? ' earned' : '') + '" data-badge-info="' + escapeHtml(info) + '">' +
           trophyIconHtml(a) + '<span class="trophy-name">' + escapeHtml(a.name || a.label) + '</span>' + lvl + tierPipsHtml(a) +
@@ -12152,6 +12154,9 @@
       html += '<div id="planning-countdown" class="planning-countdown"></div>';
       if (isOngoing) html += renderFollowedRidersStatus(ev, horaires, dateKey(new Date()));
 
+      // Say what the letters do -- tapping them wasn't obvious.
+      if (availableGroups.length >= 2) horairesInner += '<div class="planning-group-filter-label"><strong>' + L('Groupes affichés', 'Groups shown') + '</strong>' +
+        '<span class="help-text">' + L('Touche une lettre pour afficher ou masquer les horaires de ce groupe.', 'Tap a letter to show or hide that group\'s times.') + '</span></div>';
       horairesInner += '<div class="planning-group-filter"' + (availableGroups.length < 2 ? ' hidden' : '') + '>';
       availableGroups.forEach(function (g) {
         var checked = activeKeys.indexOf(g.key) !== -1;
