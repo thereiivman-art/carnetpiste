@@ -9804,6 +9804,32 @@
   // save step, same as exportAnnotationPng above.
 
 
+  // A team logo often comes with wide empty margins: crop to its visible
+  // pixels (same idea as autotrimImages) before drawing it on a story.
+  function trimmedLogoCanvas(img) {
+    try {
+      var w = img.naturalWidth || img.width, h = img.naturalHeight || img.height;
+      var c = document.createElement('canvas'); c.width = w; c.height = h;
+      var cx = c.getContext('2d'); cx.drawImage(img, 0, 0);
+      var d = cx.getImageData(0, 0, w, h).data, minX = w, minY = h, maxX = -1, maxY = -1;
+      for (var y = 0; y < h; y++) for (var x = 0; x < w; x++) {
+        var i = (y * w + x) * 4;
+        if (d[i + 3] > 16 && !(d[i] > 240 && d[i + 1] > 240 && d[i + 2] > 240)) { if (x < minX) minX = x; if (x > maxX) maxX = x; if (y < minY) minY = y; if (y > maxY) maxY = y; }
+      }
+      if (maxX < 0) return img;
+      var out = document.createElement('canvas'); out.width = maxX - minX + 1; out.height = maxY - minY + 1;
+      out.getContext('2d').drawImage(c, minX, minY, out.width, out.height, 0, 0, out.width, out.height);
+      return out;
+    } catch (e) { return img; }
+  }
+  // Logo top right of a story, as big as the corner allows.
+  function drawStoryLogo(ctx, logo, W) {
+    if (!logo || !logo.width) return;
+    var t = trimmedLogoCanvas(logo);
+    var maxW = 340, maxH = 150, k = Math.min(maxW / t.width, maxH / t.height);
+    var lw = t.width * k, lh = t.height * k;
+    ctx.drawImage(t, W - 80 - lw, 140 - lh / 2, lw, lh);
+  }
   // ---- Story « Mon roulage à… » (après le roulage) ----
   // Best lap in big with what it means (new record or gap to it), the
   // circuit outline, and the friends' ranking on the same roulage.
@@ -9827,7 +9853,7 @@
       drawShareMark(ctx, 80, 112, 64);
       ctx.fillStyle = C.ink; ctx.font = 'italic 800 56px ' + CONDENSED;
       ctx.fillText(meIsNonRider() || best === null ? L('ON ÉTAIT À', 'WE WERE AT') : L('MON ROULAGE À', 'MY TRACKDAY AT'), 150, 166);
-      if (logo && logo.width) { var lh = 90, lw = Math.min(260, logo.width * lh / logo.height); ctx.drawImage(logo, W - 80 - lw, 96, lw, lw * logo.height / logo.width); }
+      drawStoryLogo(ctx, logo, W);
       var title = String(ev.circuit).toUpperCase();
       fitText(ctx, title, W - 160, 170, 'italic 800', CONDENSED);
       ctx.fillText(title, 76, 380);
@@ -9928,10 +9954,7 @@
       drawShareMark(ctx, 80, 112, 64);
       ctx.fillStyle = C.ink; ctx.font = 'italic 800 56px ' + CONDENSED;
       ctx.fillText(L('ON ROULE À', 'WE RIDE AT'), 150, 166);
-      if (logo && logo.width) {
-        var lh = 90, lw = Math.min(260, logo.width * lh / logo.height);
-        ctx.drawImage(logo, W - 80 - lw, 96, lw, lw * logo.height / logo.width);
-      }
+      drawStoryLogo(ctx, logo, W);
       var title = String(ev.circuit).toUpperCase();
       fitText(ctx, title, W - 160, 170, 'italic 800', CONDENSED);
       ctx.fillText(title, 76, 380);
