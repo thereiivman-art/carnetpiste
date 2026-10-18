@@ -7781,7 +7781,11 @@
     var html = '<div class="outing-page">';
     html += '<div class="outing-hero"><div class="page-title-row"><button type="button" class="back-chevron" data-view="' + escapeHtml(outingView.from || 'carnet') + '" aria-label="Retour">‹</button><h1 class="outing-title">' + escapeHtml(circuit) + '</h1></div><div class="outing-underline"></div>' +
       '<div class="outing-hero-row"><span class="outing-date-chip">📅 ' + escapeHtml(ev ? formatEventRange(ev, true) : formatDate(date)) + '</span>' +
-      (team ? '<span class="outing-org">' + (team.logoURL ? '<img class="outing-org-logo" data-autotrim src="' + escapeHtml(team.logoURL) + '" alt="Logo ' + escapeHtml(team.name || '') + '">' : '') + '<span><span class="outing-label">Organisé par</span><br><strong>' + escapeHtml(team.name || '') + '</strong></span></span>' : '') +
+      // Organiser up here, on the date's line: the logo alone when there is
+      // one (its name as the label), else the name.
+      (team ? '<span class="outing-org" title="' + escapeHtml(L('Organisé par ', 'Organised by ') + (team.name || '')) + '">' +
+        (team.logoURL ? '<img class="outing-org-logo" data-autotrim src="' + escapeHtml(team.logoURL) + '" alt="' + escapeHtml(L('Organisé par ', 'Organised by ') + (team.name || '')) + '">'
+          : '<span><span class="outing-label">' + L('Organisé par', 'Organised by') + '</span><br><strong>' + escapeHtml(team.name || '') + '</strong></span>') + '</span>' : '') +
       '</div></div>';
 
     // Groupe + statut
@@ -7820,9 +7824,9 @@
       // horaires…) straight from here, not only from the team's page.
       if (leaderHere) acts += '<button type="button" class="primary" data-action="manage-from-outing" data-id="' + escapeHtml(ev.id) + '" data-team="' + escapeHtml(ev.teamId) + '">' + L('Gérer le roulage', 'Manage the trackday') + '</button>';
       if (ev.bookingUrl && !isRiderHere) acts += '<button type="button" class="primary" data-action="open-external-url" data-url="' + escapeHtml(ev.bookingUrl) + '">' + tr('book_register') + '</button>';
-      if (isRiderHere || leaderHere) acts += '<button type="button" class="ghost" data-action="share-roulage" data-id="' + escapeHtml(ev.id) + '">🔗 Inviter des pistards</button>';
+      if (isRiderHere || leaderHere) acts += '<button type="button" class="ghost" data-action="share-roulage" data-id="' + escapeHtml(ev.id) + '">' + L('Inviter', 'Invite') + '</button>';
       if (!ev.teamId) acts += '<button type="button" class="ghost" id="edit-event-btn" data-id="' + ev.id + '">✎ ' + tr('modify') + '</button>';
-      acts += '<button type="button" class="ghost" data-action="export-event-recap" data-id="' + ev.id + '">⬇ ' + tr('export_recap_btn') + '</button>';
+      acts += '<button type="button" class="ghost" data-action="export-event-recap" data-id="' + ev.id + '">' + L('Partager', 'Share') + '</button>';
       html += '<div class="outing-actions">' + acts + '</div>';
       if (ev.bookingUrl && !isRiderHere) html += '<div class="help-text outing-actions-help">Inscription et paiement chez l\'organisateur.</div>';
     }
