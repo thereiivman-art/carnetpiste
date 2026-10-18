@@ -267,8 +267,19 @@ service cloud.firestore {
         || (myName() in resource.data.get('riders', [])
             && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['personalMediaLinks'])
             && onlyOwnKeyChanged(resource.data.get('personalMediaLinks', {}), request.resource.data.personalMediaLinks))
+        // RGPD (droit à l'effacement) : anyone may take themselves off a
+        // roulage entirely -- their name out of riders, and only their own
+        // key out of the per-rider maps, nothing else touched.
+        || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['riders', 'riderGroups', 'personalMediaLinks', 'reactions', 'riderBikeNumbers'])
+            && request.resource.data.get('riders', []) == resource.data.get('riders', []).removeAll([myName()])
+            && request.resource.data.get('riderGroups', {}).diff(resource.data.get('riderGroups', {})).affectedKeys().hasOnly([myName()])
+            && request.resource.data.get('personalMediaLinks', {}).diff(resource.data.get('personalMediaLinks', {})).affectedKeys().hasOnly([myName()])
+            && request.resource.data.get('reactions', {}).diff(resource.data.get('reactions', {})).affectedKeys().hasOnly([myName()])
+            && request.resource.data.get('riderBikeNumbers', {}).diff(resource.data.get('riderBikeNumbers', {})).affectedKeys().hasOnly([myName()]))
       );
-      allow delete: if verified() && (isAdmin() || (resource.data.get('teamId', null) != null && isTeamLeader(resource.data.teamId)));
+      // A personal roulage (no team) that only lists me can go with my account.
+      allow delete: if verified() && (isAdmin() || (resource.data.get('teamId', null) != null && isTeamLeader(resource.data.teamId))
+        || (resource.data.get('teamId', null) == null && resource.data.get('riders', []).removeAll([myName()]).size() == 0));
     }
     // A 'public' Team Event needs the leader's OK to actually join (unlike
     // 'ouvert', which self-registers straight onto the event, see above)
@@ -445,7 +456,8 @@ service cloud.firestore {
       allow create: if verified() && request.resource.data.from == myName()
         && isPartyToCoachRequest(request.resource.data.requestId);
       allow update: if verified() && (canRenameField(resource, 'from', 'uid') || canBackfillUid(resource, 'from', 'uid'));
-      allow delete: if verified() && isAdmin();
+      // Own messages can be erased (RGPD).
+      allow delete: if verified() && (isAdmin() || resource.data.from == myName());
     }
     // Social feed -- append-only activity log (a new friendship, a new
     // personal record...). Whoever the entry is about writes it themselves
@@ -512,6 +524,8 @@ service cloud.firestore {
         isAdmin()
         || resource.data.follower == myName()
         || (resource.data.followeeType == 'team' && isTeamLeader(resource.data.followee))
+        // Someone following me: I can remove it when erasing my account.
+        || (resource.data.get('followeeType', 'user') != 'team' && resource.data.followee == myName())
       );
     }
     // Teams (an organisateur's squad of pilotes, or any group of friends
@@ -827,10 +841,13 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
     match /feedback/{id} {
-      allow read: if isAdmin();
+      // Its author can read and erase their own suggestions (RGPD access
+      // and erasure); otherwise admin-only, like a shared inbox.
+      allow read: if isAdmin() || (request.auth != null && resource.data.authorUid == request.auth.uid);
       allow create: if verified() && request.resource.data.authorUid == request.auth.uid
         && request.resource.data.author == myName();
-      allow update, delete: if isAdmin();
+      allow update: if isAdmin();
+      allow delete: if isAdmin() || (request.auth != null && resource.data.authorUid == request.auth.uid);
     }
   }
 }

@@ -248,7 +248,7 @@
       password_mismatch: 'Les deux mots de passe ne correspondent pas.',
       password_updated_success: 'Mot de passe mis à jour.',
       delete_account_heading: 'Supprimer mon compte',
-      delete_account_help: 'Supprime définitivement ton compte (accès et profil). Tes chronos déjà enregistrés restent visibles pour le groupe.',
+      delete_account_help: 'Supprime définitivement ton compte et toutes tes données : profil, chronos, roulages, messages, amis, réglages, infos de voyage, suggestions. Tu peux d\'abord les télécharger (Vie privée → Mes données).',
       delete_account_btn: 'Supprimer mon compte', delete_irreversible_help: 'Cette action est irréversible. Confirme avec ton mot de passe actuel.',
       confirm_deletion_btn: 'Confirmer la suppression',
       parrainage_heading: 'Parrainage', parrainage_help: 'Chaque inscription via ton lien ou ton QR code te compte automatiquement comme parrain.',
@@ -644,7 +644,7 @@
       password_mismatch: 'The two passwords don\'t match.',
       password_updated_success: 'Password updated.',
       delete_account_heading: 'Delete my account',
-      delete_account_help: 'Permanently deletes your account (access and profile). Your already-saved lap times stay visible to the group.',
+      delete_account_help: 'Permanently deletes your account and all your data: profile, lap times, trackdays, posts, friends, settings, travel info, suggestions. You can download it first (Privacy → My data).',
       delete_account_btn: 'Delete my account', delete_irreversible_help: 'This action is irreversible. Confirm with your current password.',
       confirm_deletion_btn: 'Confirm deletion',
       parrainage_heading: 'Referrals', parrainage_help: 'Every signup through your link or QR code automatically counts you as their referrer.',
@@ -4130,6 +4130,13 @@
         '<label class="checklist-item" style="margin-top:0.4rem;"><input type="checkbox" id="profile-share-travel-info"' + (p.shareTravelInfo !== false ? ' checked' : '') + '> ' + tr('share_travel_info') + '</label>';
       sections.confidentialite = privacy;
     }
+    // RGPD: access/portability and the policy, whatever the display mode.
+    var myDataHtml = '<div class="my-data-block"><div class="section-title" style="font-size:0.95rem;">' + L('Mes données', 'My data') + '</div>' +
+      '<div class="help-text">' + L('Récupère tout ce que l\'appli garde sur toi dans un fichier (profil, chronos, roulages, messages, réglages…). Pour tout effacer : Compte → Supprimer mon compte.', 'Get everything the app keeps about you in one file (profile, lap times, trackdays, posts, settings…). To erase it all: Account → Delete my account.') + '</div>' +
+      '<button type="button" class="primary add-chrono-btn" data-action="export-my-data" style="margin-top:0.7rem;">' + L('Télécharger toutes mes données', 'Download all my data') + '</button>' +
+      '<div class="my-data-links"><button type="button" class="link-btn" data-action="open-legal" data-kind="privacy">' + L('Politique de confidentialité', 'Privacy policy') + '</button>' +
+      '<button type="button" class="link-btn" data-action="open-legal" data-kind="notice">' + L('Mentions légales', 'Legal notice') + '</button></div></div>';
+    sections.confidentialite = (sections.confidentialite ? sections.confidentialite : '') + myDataHtml;
     if (!advancedHidden()) {
       sections.affichage = renderSubPills('generalsub', [['affichage', 'Affichage', sections.affichage], ['voyage', 'Voyage par défaut', flatSections(renderMyTravelDefaultsSection())]]);
     }
@@ -4177,7 +4184,7 @@
     accountHtml += '</div>';
     sections.compte = renderAccountBar(p) + accountHtml + (isAdmin() ? '<div style="margin-top:1.2rem;">' + renderSelfBadges(p) + '</div>' : '');
     var items = [['affichage', 'Général'], ['notifications', 'Notifications']];
-    if (sections.confidentialite) items.push(['confidentialite', 'Vie privée']);
+    items.push(['confidentialite', 'Vie privée']);
     items.push(['compte', 'Compte']);
     if (profileEmailMessage || profilePasswordMessage || profileDeleteConfirmOpen) pillState.settings = 'compte';
     var pillsHtml = renderPills('settings', items);
@@ -4257,7 +4264,8 @@
     var html = '';
     html += '<div class="help-text">' + tr('about_text') + '</div>';
     html += '<div style="margin-top:1.1rem;"><button type="button" class="ghost" id="tutorial-open-btn">' + tr('review_tutorial_btn') + '</button></div>';
-    html = renderSubPills('aidesub', [['apropos', 'À propos', html + renderPartnersSection()], ['badges', 'Badges', flatSections(renderBadgesLegend())]]);
+    html = renderSubPills('aidesub', [['apropos', 'À propos', html + renderPartnersSection()], ['badges', 'Badges', flatSections(renderBadgesLegend())],
+      ['confidentialite', L('Confidentialité', 'Privacy'), renderPrivacyPolicyHtml()], ['mentions', L('Mentions légales', 'Legal'), renderLegalNoticeHtml()]]);
     if (!isAdmin()) return html;
     // Admin tools get their own pill instead of trailing under the help.
     if (!pillState.aide) pillState.aide = 'aide';
@@ -5450,6 +5458,167 @@
   // and belong to the rider name, not the account). Requires the same
   // fresh reauthentication as an email change.
   var profileDeleteMessage = '';
+
+
+  // ---- Pages légales (RGPD, mentions légales, conditions) ----
+  // À compléter par l'éditeur : identité et contact, affichés dans les
+  // mentions légales et la politique de confidentialité.
+  var LEGAL_INFO = {
+    editor: '[Nom et prénom de l\'éditeur, ou raison sociale]',
+    address: '[Adresse postale de l\'éditeur]',
+    contact: '[Adresse e-mail de contact]',
+    updated: '19 octobre 2026'
+  };
+  function legalSection(title, body) { return '<h3 class="legal-h">' + title + '</h3>' + body; }
+  function renderPrivacyPolicyHtml() {
+    var c = escapeHtml(LEGAL_INFO.contact);
+    return '<div class="legal">' +
+      (currentLang() === 'en' ? '<p class="legal-note">Summary in English: Carnet de Piste only keeps what the app needs (account, lap times, trackdays, posts), never sells it, shows no ads and uses no trackers. You can download or erase all your data yourself from Settings. The full policy below is in French.</p>' : '') +
+      '<p class="help-text">Dernière mise à jour : ' + escapeHtml(LEGAL_INFO.updated) + '</p>' +
+      legalSection('Qui est responsable de tes données ?', '<p>' + escapeHtml(LEGAL_INFO.editor) + ', éditeur de Carnet de Piste. Contact : ' + c + ', ou Profil → Suggestion dans l\'appli.</p>') +
+      legalSection('Les données que l\'appli garde', '<ul>' +
+        '<li><strong>Ton compte</strong> : e-mail, pseudo, rôle (pilote, accompagnant, organisateur) et, si tu les remplis, prénom, nom, photo, moto et numéro.</li>' +
+        '<li><strong>Ta pratique</strong> : chronos, roulages, groupes, objectifs, repères sur les plans, débriefs, réglages de ta moto, infos de voyage.</li>' +
+        '<li><strong>La partie communauté</strong> : amis, teams, messages, « Gaz ! », demandes de coaching et leurs messages, liens photos.</li>' +
+        '<li><strong>Tes suggestions</strong> envoyées depuis Profil → Suggestion.</li>' +
+        '<li><strong>Sur ton téléphone seulement</strong> : tes préférences d\'affichage et ce que tu as déjà lu (stockage local, pas de cookie).</li>' +
+        '<li><strong>Un compteur anonyme</strong> des langues des visiteurs (une langue, un chiffre : ni nom, ni adresse IP, ni identifiant).</li>' +
+        '</ul><p>Les feuilles de temps et les photos d\'horaires que tu importes sont lues <strong>sur ton téléphone</strong> : l\'image n\'est envoyée nulle part, seuls les chronos ou horaires que tu valides sont enregistrés.</p>') +
+      legalSection('Pourquoi', '<ul><li>Faire fonctionner le carnet et la communauté que tu utilises (exécution du service).</li>' +
+        '<li>Protéger les comptes et l\'appli contre les abus (intérêt légitime).</li>' +
+        '<li>T\'envoyer des notifications, seulement si tu les as activées (consentement, réversible dans Réglages).</li></ul>' +
+        '<p>Aucune publicité, aucune revente, aucun pistage, aucun profilage.</p>') +
+      legalSection('Qui voit quoi', '<ul><li>Tes chronos, roulages et trophées sont visibles des autres pilotes de l\'appli (classements, roulages en commun). Tu peux les masquer dans Réglages → Vie privée.</li>' +
+        '<li>Tes repères, débriefs, objectifs et réglages moto ne sont visibles que de toi.</li>' +
+        '<li>Ton e-mail n\'est jamais affiché aux autres.</li>' +
+        '<li>Tes infos de voyage ne sont visibles que de toi et des accompagnants qui te suivent, si tu l\'as accepté.</li></ul>') +
+      legalSection('Où elles sont stockées', '<ul><li><strong>Google Firebase</strong> (Google Ireland Ltd / Google LLC) : comptes et base de données. Les transferts éventuels hors de l\'Union européenne sont encadrés par les clauses contractuelles types de la Commission européenne et le Data Privacy Framework.</li>' +
+        '<li><strong>GitHub Pages</strong> (GitHub Inc.) : hébergement des fichiers de l\'appli.</li>' +
+        '<li><strong>Google Fonts</strong> et <strong>jsDelivr</strong> : polices de caractères et générateur de QR code, chargés depuis leurs serveurs (ton adresse IP leur est transmise à cette occasion).</li></ul>') +
+      legalSection('Combien de temps', '<p>Tant que ton compte existe. Quand tu le supprimes, tes données sont effacées tout de suite (les sauvegardes techniques de l\'hébergeur disparaissent ensuite automatiquement). Un compte inactif depuis 3 ans peut être supprimé, après un e-mail de prévenance.</p>') +
+      legalSection('Tes droits', '<p>Tu peux à tout moment, directement dans l\'appli :</p><ul>' +
+        '<li><strong>Accéder à tes données et les récupérer</strong> : Réglages → Vie privée → Télécharger toutes mes données (fichier JSON).</li>' +
+        '<li><strong>Les corriger</strong> : Profil (pseudo, nom, photo, moto), et chaque chrono ou roulage se modifie.</li>' +
+        '<li><strong>Les effacer</strong> : Réglages → Compte → Supprimer mon compte. Tout est effacé, pas seulement l\'accès.</li>' +
+        '<li><strong>T\'opposer à leur affichage</strong> : Réglages → Vie privée, et Notifications.</li></ul>' +
+        '<p>Pour toute autre demande (limitation, question) : ' + c + '. Réponse sous un mois. Tu peux aussi saisir la CNIL (cnil.fr).</p>') +
+      legalSection('Âge minimum', '<p>Il faut avoir au moins 15 ans pour créer un compte.</p>') +
+      legalSection('Cookies et traceurs', '<p>Aucun cookie publicitaire ni de mesure d\'audience. L\'appli n\'utilise que le stockage strictement nécessaire à son fonctionnement (connexion, préférences), qui ne demande pas de consentement.</p>') +
+      '</div>';
+  }
+  function renderLegalNoticeHtml() {
+    return '<div class="legal">' +
+      legalSection('Éditeur', '<p>' + escapeHtml(LEGAL_INFO.editor) + '<br>' + escapeHtml(LEGAL_INFO.address) + '<br>Contact : ' + escapeHtml(LEGAL_INFO.contact) + '<br>Directeur de la publication : ' + escapeHtml(LEGAL_INFO.editor) + '</p>') +
+      legalSection('Hébergement', '<p>Fichiers de l\'appli : GitHub Inc., 88 Colin P. Kelly Jr. Street, San Francisco, CA 94107, États-Unis.<br>Données : Google Firebase, Google Ireland Ltd, Gordon House, Barrow Street, Dublin 4, Irlande.</p>') +
+      legalSection('Conditions d\'utilisation', '<ul>' +
+        '<li>Carnet de Piste est un carnet personnel de pilote. Il ne vend ni réservation ni créneau : l\'inscription, le paiement et le chronométrage officiel restent chez l\'organisateur.</li>' +
+        '<li>Les chronos saisis ou importés sont <strong>non officiels</strong>, y compris ceux « validés par le team ». La référence reste le chronométrage de l\'organisateur.</li>' +
+        '<li>Tu es responsable de ce que tu publies (messages, photos, liens). Pas de contenu illégal, injurieux ou portant atteinte aux droits d\'autrui ; l\'éditeur peut retirer un contenu signalé et suspendre un compte qui ne respecte pas ces règles.</li>' +
+        '<li>Les horaires, groupes et infos pratiques sont reportés par les utilisateurs : vérifie-les toujours auprès de l\'organisateur. La pratique de la moto sur circuit se fait sous ta responsabilité et selon les règles du circuit.</li>' +
+        '<li>Le service est fourni tel quel, sans garantie de disponibilité.</li></ul>') +
+      legalSection('Propriété intellectuelle', '<p>L\'appli, son nom et son design appartiennent à l\'éditeur. Tu gardes tes droits sur ce que tu publies et tu autorises son affichage aux personnes concernées dans l\'appli.</p>') +
+      '</div>';
+  }
+  // Full-screen reader, usable before signing in (signup form).
+  function openLegal(kind) {
+    var overlay = document.createElement('div');
+    overlay.className = 'legal-overlay';
+    overlay.innerHTML = '<div class="legal-sheet"><div class="legal-sheet-head"><button type="button" class="back-chevron" data-legal-close aria-label="Retour">‹</button>' +
+      '<strong>' + (kind === 'notice' ? L('Mentions légales et conditions', 'Legal notice and terms') : L('Politique de confidentialité', 'Privacy policy')) + '</strong></div>' +
+      (kind === 'notice' ? renderLegalNoticeHtml() : renderPrivacyPolicyHtml()) + '</div>';
+    overlay.addEventListener('click', function (e) { if (e.target === overlay || e.target.closest('[data-legal-close]')) overlay.remove(); });
+    document.body.appendChild(overlay);
+  }
+
+  // ---- RGPD : effacement et export ----
+  // Every collection where an account's own data lives, with the field
+  // that carries its pseudo (or uid). Used both to export everything
+  // (droit d'accès / portabilité) and to erase it (droit à l'effacement).
+  var PERSONAL_COLLECTIONS = [
+    ['sessions', 'rider'], ['wallPosts', 'author'], ['feedEvents', 'actor'], ['friendRequests', 'from'], ['friendRequests', 'to'],
+    ['follows', 'follower'], ['follows', 'followee'], ['teamMembers', 'name'], ['teamLikes', 'name'], ['teamFeed', 'author'],
+    ['teamJoinRequests', 'from'], ['teamInvites', 'to'], ['eventJoinRequests', 'from'], ['coachRequests', 'from'], ['coachRequests', 'to'],
+    ['coachMessages', 'from'], ['eventTravelInfo', 'rider']
+  ];
+  function queryMine(coll, field, value) {
+    return db.collection(coll).where(field, '==', value).get().then(function (snap) { return snap.docs; }).catch(function () { return []; });
+  }
+  // Droit d'accès / portabilité : one JSON file with everything stored
+  // about me (profile, private settings, chronos, messages, roulages…).
+  function exportMyData() {
+    var me = currentUserProfile, user = auth.currentUser;
+    if (!me || !user) return;
+    showToast(L('Préparation de tes données…', 'Preparing your data…'));
+    var out = { exportedAt: new Date().toISOString(), app: 'Carnet de Piste', account: { uid: user.uid, email: user.email }, profile: me };
+    var jobs = [db.collection('userPrivate').doc(user.uid).get().then(function (d) { out.private = d.exists ? d.data() : null; }).catch(function () {})];
+    PERSONAL_COLLECTIONS.forEach(function (c) {
+      jobs.push(queryMine(c[0], c[1], me.name).then(function (docs) {
+        var key = c[0] + (c[1] === 'to' || c[1] === 'followee' ? '_received' : '');
+        out[key] = (out[key] || []).concat(docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); }));
+      }));
+    });
+    jobs.push(queryMine('feedback', 'authorUid', user.uid).then(function (docs) { out.feedback = docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); }); }));
+    jobs.push(db.collection('eventTravelInfoDefaults').doc(me.name).get().then(function (d) { out.travelDefaults = d.exists ? d.data() : null; }).catch(function () {}));
+    out.roulages = eventsList().filter(function (ev) { return (ev.riders || []).indexOf(me.name) !== -1; }).map(function (ev) {
+      return { id: ev.id, circuit: ev.circuit, dateStart: ev.dateStart, dateEnd: ev.dateEnd || null, myGroups: (ev.riderGroups || {})[me.name] || null,
+        myPhotoLink: (ev.personalMediaLinks || {})[me.name] || null, myBikeNumber: (ev.riderBikeNumbers || {})[me.name] || null };
+    });
+    Promise.all(jobs).then(function () {
+      var blob = new Blob([JSON.stringify(out, null, 2)], { type: 'application/json' });
+      var url = URL.createObjectURL(blob), a = document.createElement('a');
+      a.href = url; a.download = 'carnet-de-piste-mes-donnees-' + dateKey(new Date()) + '.json';
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
+      showToast(L('Tes données ont été téléchargées.', 'Your data has been downloaded.'), 'success');
+    });
+  }
+  // Droit à l'effacement : everything is removed BEFORE the users doc,
+  // since the security rules identify me through it (myName()).
+  function eraseMyData(name, uid) {
+    var del = function (coll) {
+      return function (docs) { return Promise.all(docs.map(function (d) { return db.collection(coll).doc(d.id).delete().catch(function () {}); })); };
+    };
+    // 1. Teams I lead alone go away with me (needs my membership still).
+    var soloTeams = (STATE.teams || []).filter(function (t) {
+      return isLeaderOfTeam(t.id) && (t.memberCount || 1) <= 1;
+    });
+    return Promise.all(soloTeams.map(function (t) { return db.collection('teams').doc(t.id).delete().catch(function () {}); })).then(function () {
+      // 2. My own documents everywhere.
+      var jobs = PERSONAL_COLLECTIONS.map(function (c) { return queryMine(c[0], c[1], name).then(del(c[0])); });
+      jobs.push(queryMine('feedback', 'authorUid', uid).then(del('feedback')));
+      // 3. Off every roulage: my name and my keys in the per-rider maps.
+      eventsList().forEach(function (ev) {
+        var maps = ['riderGroups', 'personalMediaLinks', 'reactions', 'riderBikeNumbers'];
+        var listed = (ev.riders || []).indexOf(name) !== -1;
+        var inMaps = maps.some(function (m) { return ev[m] && Object.prototype.hasOwnProperty.call(ev[m], name); });
+        if (!listed && !inMaps) return;
+        var others = (ev.riders || []).filter(function (n) { return n !== name; });
+        if (!ev.teamId && !others.length) { jobs.push(db.collection('events').doc(ev.id).delete().catch(function () {})); return; }
+        var patch = {};
+        if (listed) patch.riders = others;
+        maps.forEach(function (m) {
+          if (ev[m] && Object.prototype.hasOwnProperty.call(ev[m], name)) { var copy = Object.assign({}, ev[m]); delete copy[name]; patch[m] = copy; }
+        });
+        jobs.push(db.collection('events').doc(ev.id).update(patch).catch(function () {}));
+      });
+      // 4. My « Gaz ! » on other people's posts.
+      [['wallPosts', STATE.wallPosts], ['feedEvents', STATE.feedEvents], ['teamFeed', STATE.teamFeed]].forEach(function (c) {
+        (c[1] || []).forEach(function (d) {
+          if (!d.reactions || !d.reactions[name] || !d.id) return;
+          jobs.push(db.collection(c[0]).doc(d.id).update(new firebase.firestore.FieldPath('reactions', name), firebase.firestore.FieldValue.delete()).catch(function () {}));
+        });
+      });
+      jobs.push(db.collection('eventTravelInfoDefaults').doc(name).delete().catch(function () {}));
+      jobs.push(db.collection('riders').doc(safeDocId(name)).delete().catch(function () {}));
+      jobs.push(db.collection('names').doc(nameKey(name)).delete().catch(function () {}));
+      return Promise.all(jobs);
+    }).then(function () {
+      return db.collection('userPrivate').doc(uid).delete().catch(function () {});
+    }).then(function () {
+      try { ['cdp-notif-seen', 'cdp-pending-roulage'].forEach(function (k) { localStorage.removeItem(k); sessionStorage.removeItem(k); }); } catch (e) {}
+    });
+  }
+
   function deleteMyAccount(currentPassword) {
     var user = auth.currentUser;
     if (!user || !currentUserProfile) return;
@@ -5460,7 +5629,11 @@
     }
     var cred = firebase.auth.EmailAuthProvider.credential(user.email, currentPassword);
     var uid = user.uid;
+    var name = currentUserProfile.name;
     user.reauthenticateWithCredential(cred).then(function () {
+      showToast(L('Effacement de tes données…', 'Erasing your data…'));
+      return eraseMyData(name, uid);
+    }).then(function () {
       return db.collection('users').doc(uid).delete();
     }).then(function () {
       return user.delete();
@@ -15600,6 +15773,8 @@
         '<label><input type="radio" name="au-role" value="organisateur"> Organisateur</label></div>';
       html += '<label for="au-email" style="margin-top:0.7rem;">Email</label><input type="email" id="au-email" name="email" autocomplete="username" required>';
       html += '<label for="au-password" style="margin-top:0.7rem;">Mot de passe</label><input type="password" id="au-password" name="new-password" autocomplete="new-password" required minlength="6">';
+      html += '<label class="checklist-item consent-check" style="margin-top:0.8rem;"><input type="checkbox" id="au-consent"> <span>J\'accepte la <button type="button" class="auth-link inline" data-action="open-legal" data-kind="privacy">politique de confidentialité</button> et les <button type="button" class="auth-link inline" data-action="open-legal" data-kind="notice">conditions d\'utilisation</button>.</span></label>';
+      html += '<label class="checklist-item consent-check"><input type="checkbox" id="au-age"> <span>J\'ai 15 ans ou plus.</span></label>';
       html += '<div class="field-error' + (authError ? ' visible' : '') + '" id="auth-error">' + escapeHtml(authError) + '</div>';
       html += '<button type="submit" class="primary" style="margin-top:0.9rem;">Créer mon compte</button>';
       html += '</form>';
@@ -15687,6 +15862,10 @@
       renderRoot();
       return;
     }
+    // RGPD: explicit consent to the policy/terms, and the minimum age.
+    var consentEl = document.getElementById('au-consent'), ageEl = document.getElementById('au-age');
+    if (consentEl && !consentEl.checked) { authError = L('Accepte la politique de confidentialité et les conditions pour créer ton compte.', 'Accept the privacy policy and terms to create your account.'); renderRoot(); return; }
+    if (ageEl && !ageEl.checked) { authError = L('Il faut avoir au moins 15 ans pour créer un compte.', 'You must be at least 15 to create an account.'); renderRoot(); return; }
     authError = '';
     var name = rawName;
     auth.createUserWithEmailAndPassword(email, password).then(function (cred) {
@@ -15709,7 +15888,8 @@
       signupBatch.set(db.collection('users').doc(cred.user.uid), profileDoc);
       signupBatch.set(db.collection('names').doc(nameKey(name)), { uid: cred.user.uid, name: name });
       // Email lives in a private doc, not in the world-readable profile.
-      signupBatch.set(db.collection('userPrivate').doc(cred.user.uid), { email: email });
+      // Proof of consent (date + version of the policy accepted).
+      signupBatch.set(db.collection('userPrivate').doc(cred.user.uid), { email: email, consentAt: Date.now(), consentVersion: LEGAL_INFO.updated });
       return signupBatch.commit().catch(function (err) {
         // The auth account already exists at this point -- back it out
         // rather than leave an orphaned, nameless account behind.
@@ -15775,6 +15955,9 @@
     if (loginForm) loginForm.addEventListener('submit', onLoginSubmit);
     var signupForm = document.getElementById('signup-form');
     if (signupForm) signupForm.addEventListener('submit', onSignupSubmit);
+    document.querySelectorAll('[data-action="open-legal"]').forEach(function (b) {
+      b.addEventListener('click', function (e) { e.preventDefault(); e.stopPropagation(); openLegal(b.getAttribute('data-kind')); });
+    });
     var toSignup = document.getElementById('switch-to-signup');
     if (toSignup) toSignup.addEventListener('click', function () { authMode = 'signup'; authError = ''; renderRoot(); });
     var toLogin = document.getElementById('switch-to-login');
@@ -15893,6 +16076,10 @@
     });
     var inviteQrBtn = document.getElementById('invite-qr-btn');
     if (inviteQrBtn) inviteQrBtn.addEventListener('click', openInviteQr);
+    document.querySelectorAll('[data-action="open-legal"]').forEach(function (b) {
+      b.addEventListener('click', function (e) { e.preventDefault(); openLegal(b.getAttribute('data-kind')); });
+    });
+    document.querySelectorAll('[data-action="export-my-data"]').forEach(function (b) { b.addEventListener('click', exportMyData); });
     document.querySelectorAll('[data-notif-go]').forEach(function (el) {
       el.addEventListener('click', function () { followNotifGo(el); });
     });
