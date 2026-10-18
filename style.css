@@ -3182,9 +3182,9 @@ body { min-height: 100%; min-height: 100dvh; }
 
 /* Filtre de groupes : les lettres elles-mêmes servent de boutons */
 .planning-group-filter[hidden] { display: none; }
-.planning-group-check { position: relative; cursor: pointer; }
-.planning-group-check input { position: absolute; opacity: 0; pointer-events: none; }
-.planning-group-check:has(input:not(:checked)) .grp-chip { background: transparent; color: var(--text-muted); box-shadow: inset 0 0 0 1px var(--border); }
+.planning-group-filter .planning-group-check { position: relative; cursor: pointer; }
+.planning-group-filter .planning-group-check input { position: absolute; opacity: 0; pointer-events: none; }
+.planning-group-filter .planning-group-check:has(input:not(:checked)) .grp-chip { background: transparent; color: var(--text-muted); box-shadow: inset 0 0 0 1px var(--border); }
 
 /* Légende des disponibilités du coach (mêmes couleurs que les créneaux) */
 .avail-legend { display: flex; flex-wrap: wrap; align-items: center; gap: 0.3rem 0.5rem; margin-bottom: 0.5rem; }

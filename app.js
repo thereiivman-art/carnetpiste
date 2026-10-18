@@ -77,7 +77,7 @@
       annotate_circuit_aria: 'Annoter le tracé du circuit',
       choose_circuit_first: 'Choisissez un circuit dans l\'onglet Circuit avant d\'enregistrer un chrono.',
       only_riders_can_log: 'Seuls les pilotes (et l\'administrateur) peuvent entrer des chronos',
-      only_riders_can_log_organizer_suffix: ' -- ou un Team Leader, pour un pilote de son team.',
+      only_riders_can_log_organizer_suffix: ' – ou un Team Leader, pour un pilote de son team.',
       add_chrono_btn: '+ Ajouter un chrono', new_chrono_heading: 'Entrer un nouveau chrono',
       rider_label: 'Pilote', date_label: 'Date', bike_label: 'Moto', group_label: 'Groupe', session_label: 'Session',
       no_specific_slot: 'Aucun créneau spécifique', chronos_field_label: 'Chronos',
@@ -113,26 +113,26 @@
       previous: 'Précédent', next: 'Suivant', today: 'Aujourd\'hui',
       zoom_year: 'Année', zoom_6month: '6 mois', zoom_3month: '3 mois', zoom_2month: '2 mois', zoom_month: 'Mois', zoom_week: 'Semaine', zoom_day: 'Jour',
       add_event_heading: 'Ajouter un roulage', edit_event_heading: 'Modifier le roulage',
-      new_circuit_warning: 'Nouveau circuit -- vérifie qu\'il n\'existe pas déjà sous un autre nom dans la liste (sinon son plan/historique resteront séparés).',
+      new_circuit_warning: 'Nouveau circuit – vérifie qu\'il n\'existe pas déjà sous un autre nom dans la liste (sinon son plan/historique resteront séparés).',
       date_start_label: 'Date de début', date_end_label: 'Date de fin (optionnel)',
       team_organizer_label: 'Team organisateur (optionnel)', none_personal_event: 'Aucun (roulage personnel)',
       visibility_label: 'Visibilité', vis_public_full: 'Public (visible par tous, invitation requise)', vis_ouvert_full: 'Ouvert (inscription libre)',
-      teampro_only_help: 'Réservé aux Teams PRO -- un Team amateur reste visible par ses membres et les pilotes invités.',
+      teampro_only_help: 'Réservé aux Teams PRO – un Team amateur reste visible par ses membres et les pilotes invités.',
       booking_url_label: 'Lien de réservation (optionnel)',
-      booking_url_help: 'Carnet de Piste ne gère pas les paiements -- ce lien renvoie vers ta billetterie (Billetweb ou autre) pour l\'inscription/le paiement.',
+      booking_url_help: 'Carnet de Piste ne gère pas les paiements – ce lien renvoie vers ta billetterie (Billetweb ou autre) pour l\'inscription/le paiement.',
       more_options_less: '− Moins d\'options', more_options_more: '+ Plus d\'options (horaires, pilotes, organisateur...)',
-      horaires_this_event_label: 'Horaires par groupe (ce roulage -- laisser vide pour utiliser les horaires habituels du circuit)',
+      horaires_this_event_label: 'Horaires par groupe (ce roulage – laisser vide pour utiliser les horaires habituels du circuit)',
       organizer_note_label: 'Organisateur (si absent de l\'app)', riders_label: 'Pilotes',
-      riders_search_help: 'Suggestions limitées à tes amis et aux membres de tes Teams -- choisis un nom dans la liste pour l\'ajouter.',
+      riders_search_help: 'Suggestions limitées à tes amis et aux membres de tes Teams – choisis un nom dans la liste pour l\'ajouter.',
       remove_label: 'Retirer', start_group_label: 'Groupe de départ',
       managed_from_team: 'Participants et groupes se gèrent depuis la Gestion des roulages du Team.',
       // Team tab
       accept: 'Accepter', decline: 'Refuser', invited_by: 'invité par ',
-      received_invites_label: 'Invitations reçues (', no_team_yet: 'Pas encore de team -- crée-en un, rejoins-en un depuis "Découvrir des Teams" ci-dessous, ou attends une invitation.',
+      received_invites_label: 'Invitations reçues (', no_team_yet: 'Pas encore de team – crée-en un, rejoins-en un depuis "Découvrir des Teams" ci-dessous, ou attends une invitation.',
       my_teams_heading: 'Mes Teams', team_leader_label: 'Team Leader', member_label: 'Membre', follower_label: 'Follower',
       back_to_team: '← Retour à ', back_to_teams: '← Retour aux Teams',
       create_team_heading: 'Créer un Team',
-      create_team_help: '<strong>Team amateur</strong> : entre amis, ouvert tout de suite, tu en es le premier Team Leader -- membres, fil d\'actualité et roulages, sans plus.<br><strong>Team PRO</strong> (coche bleue ✓) : club officiel validé -- en plus de l\'amateur, gère des adhérents, peut attribuer les badges Coach et Photographe officiel, proposer coaching/baptêmes piste, et choisir la visibilité de ses roulages (public, adhérents, sur demande...).',
+      create_team_help: '<strong>Team amateur</strong> : entre amis, ouvert tout de suite, tu en es le premier Team Leader – membres, fil d\'actualité et roulages, sans plus.<br><strong>Team PRO</strong> (coche bleue ✓) : club officiel validé – en plus de l\'amateur, gère des adhérents, peut attribuer les badges Coach et Photographe officiel, proposer coaching/baptêmes piste, et choisir la visibilité de ses roulages (public, adhérents, sur demande...).',
       create_team_btn: 'Créer le team',
       create_team_short: 'Ton team est ouvert tout de suite, entre amis : membres, fil d\'actualité et roulages. Tu en es le Team Leader.',
       create_team_more: 'Team amateur ou PRO ?',
@@ -178,7 +178,7 @@
       confirm_label: 'Confirmer', remove_this_friend: 'Retirer cet ami',
       // Coach tab
       coaching_bapteme_heading: 'Coaching &amp; baptêmes piste',
-      coaching_bapteme_help: 'Un Coach peut proposer un suivi de coaching (pilotes) ou un baptême piste, un tour passager (pilotes et accompagnants) -- clique un créneau du planning ci-dessous pour lui envoyer une demande. Rien n\'est réservé ni payé ici : vous confirmez ensemble, avec l\'organisateur si besoin.',
+      coaching_bapteme_help: 'Un Coach peut proposer un suivi de coaching (pilotes) ou un baptême piste, un tour passager (pilotes et accompagnants) – clique un créneau du planning ci-dessous pour lui envoyer une demande. Rien n\'est réservé ni payé ici : vous confirmez ensemble, avec l\'organisateur si besoin.',
       requests_to_handle_label: 'Demandes à traiter (', waiting_for_reply_label: 'En attente de réponse (',
       my_coached_riders_label: 'Mes pilotes coachés / baptisés', my_coaching_label: 'Mon coaching / baptême',
       type_label: 'Type', coaching_option: 'Coaching', bapteme_option: 'Baptême piste',
@@ -196,7 +196,7 @@
       proposed_slots_label: 'Créneaux proposés : ', slot_colon_label: 'Créneau : ',
       bravo_btn: 'Gaz !', photo_btn_short: 'Photo', see_photos_link: 'Voir les photos', see_link: 'Ouvrir le lien',
       send_generic: 'Envoyer', no_slot_to_propose: 'Aucun créneau disponible à proposer',
-      no_slot_to_propose_check_avail: ' -- vérifie tes disponibilités ci-dessus.',
+      no_slot_to_propose_check_avail: ' – vérifie tes disponibilités ci-dessus.',
       accept_generic: 'Accepter ', propose_other_time: 'Proposer un autre horaire', refuse_generic: 'Refuser',
       waiting_for_reply_from: 'En attente de la réponse de ', cancel_generic: 'Annuler',
       coaching_plan_notes_label: 'Planning / notes de coaching', remove_generic: 'Retirer',
@@ -209,10 +209,10 @@
       availability_legend: '<span class="avail-sw sw-coaching"></span>Coaching <span class="avail-sw sw-bapteme"></span>Baptême piste <span class="avail-sw sw-both"></span>Les deux',
       slot_type_locked_help: 'Aucun coach n\'a proposé l\'autre type sur ce créneau.',
       planning_horaires_label: 'Planning (horaires par groupe)',
-      ask_for_slot_heading: 'Demander pour ', coaching_riders_only: 'Le coaching est réservé aux pilotes -- choisis "Baptême piste" ci-dessous.',
+      ask_for_slot_heading: 'Demander pour ', coaching_riders_only: 'Le coaching est réservé aux pilotes – choisis "Baptême piste" ci-dessous.',
       proposed_slots_max: 'Créneaux proposés (3 maximum)',
       no_coach_available_prefix: 'Aucun Coach disponible sur ', these_slots: 'ces créneaux', this_slot: 'ce créneau',
-      no_coach_available_suffix: ' pour ce type -- essaie d\'autres créneaux ou l\'autre type.',
+      no_coach_available_suffix: ' pour ce type – essaie d\'autres créneaux ou l\'autre type.',
       coach_label_field: 'Coach',
       // Profile tab
       notifications_heading: 'Notifications',
@@ -231,15 +231,15 @@
       ui_mode_complet_option: 'Complet', ui_mode_simplifie_option: 'Simplifié', ui_mode_solo_option: 'Solo',
       ui_mode_help_complet: 'Tout est affiché : Communauté avec Teams et Coaching, météo, checklists, comparaison de progression, infos de voyage...',
       ui_mode_help_simplifie: 'Garde l\'essentiel (carnet, roulages, horaires) et Communauté > Amis & fil ; masque Teams, Coaching, météo, checklists et infos de voyage.',
-      ui_mode_help_solo: 'Comme Simplifié, en retirant en plus tout l\'aspect social (onglet Communauté, amis sur un roulage, comparaison de progression) -- ne garde que Carnet et Roulages.',
+      ui_mode_help_solo: 'Comme Simplifié, en retirant en plus tout l\'aspect social (onglet Communauté, amis sur un roulage, comparaison de progression) – ne garde que Carnet et Roulages.',
       feeling_after_session_heading: 'Ressenti après chaque session',
       enable_feeling: 'Activer le ressenti à ton retour de chaque session',
       feeling_help: 'Une fois activé, un chrono enregistré te proposera de dire en un clic comment s\'est passée la session (forme, fatigue...).',
       social_settings_heading: 'Réglages social', social_settings_help: 'Ce que tes amis voient quand ils ouvrent ta fiche depuis Communauté.',
       share_events_chronos: 'Partager mes roulages/chronos', share_trophies: 'Partager mes trophées',
       share_travel_info: 'Partager mes infos de voyage (avec les amis qui te suivent)',
-      travel_defaults_heading: 'Mes infos de voyage par défaut', travel_defaults_help: 'Pré-remplit "Mes infos de voyage" sur chaque nouveau roulage -- à ajuster ensuite si un déplacement particulier diffère.',
-      travel_prefilled_from_defaults: 'Pré-rempli depuis tes infos de voyage par défaut (Mon profil) -- modifie-les ici si ce roulage est différent.',
+      travel_defaults_heading: 'Mes infos de voyage par défaut', travel_defaults_help: 'Pré-remplit "Mes infos de voyage" sur chaque nouveau roulage – à ajuster ensuite si un déplacement particulier diffère.',
+      travel_prefilled_from_defaults: 'Pré-rempli depuis tes infos de voyage par défaut (Mon profil) – modifie-les ici si ce roulage est différent.',
       account_heading: 'Compte', current_email_label: 'Email actuel', new_email_label: 'Nouvel email',
       current_password_label: 'Mot de passe actuel', change_email_btn: 'Changer mon email',
       change_password_heading: 'Mot de passe', new_password_label: 'Nouveau mot de passe',
@@ -279,14 +279,14 @@
       role_info_organisateur_4: 'Suivre des pilotes et être notifié de leurs départs, comme un accompagnant',
       role_info_organisateur_5: 'Si tu es aussi Team Leader d\'un Team : gérer ses membres, son fil d\'actualité, ses roulages et certifier les chronos de tes pilotes',
       carnet_helps_you: 'Carnet de Piste t\'aide à :',
-      pseudo_label: 'Pseudo', rename_limit_prefix: '1 changement de pseudo par mois -- possible à nouveau le ',
+      pseudo_label: 'Pseudo', rename_limit_prefix: '1 changement de pseudo par mois – possible à nouveau le ',
       rename_warning: '⚠ Renommer va changer ton identité partout dans l\'app (chronos, roulages, teams, coaching, amis...).',
       edit_pseudo_btn: 'Modifier le pseudo', firstname_label: 'Prénom', lastname_label: 'Nom',
       i_am_label: 'Je suis', pilote_option: 'Pilote', accompagnant_option: 'Accompagnant', organisateur_option: 'Organisateur',
       my_bike_label: 'Ma moto', bike_suggested_help: 'Suggérée automatiquement quand tu entres un chrono.',
       bike_number_label: 'N° de moto', bike_number_help: '1 à 3 chiffres.',
       chrono_app_link_label: 'Lien vers ton appli de chrono (optionnel)',
-      chrono_app_link_help: 'Carnet de Piste reste déclaratif -- ce lien renvoie vers ton appli de chrono officielle (Superlaps ou autre) si tu en utilises une.',
+      chrono_app_link_help: 'Carnet de Piste reste déclaratif – ce lien renvoie vers ton appli de chrono officielle (Superlaps ou autre) si tu en utilises une.',
       followed_riders_label: 'Pilotes que je suis', no_rider_registered: 'Aucun pilote enregistré pour l\'instant.',
       close_label: 'Fermer',
       my_badges_admin_heading: 'Mes badges (admin)',
@@ -299,15 +299,15 @@
       team_pro_legend: 'Team PRO — club officiel certifié par l\'administrateur.',
       team_pro_leader_legend: 'Team Leader d\'un Team PRO.', coach_legend: 'Coach.',
       adherent_singular_badge: 'Adhérent', adherent_legend: 'Adhérent d\'un Team PRO — statut accordé par son Team Leader.',
-      follower_legend: 'Suit un Team sans en être membre -- droits limités (voir la fiche du Team).',
+      follower_legend: 'Suit un Team sans en être membre – droits limités (voir la fiche du Team).',
       no_partner_yet: 'Aucun partenaire pour l\'instant.',
       partners_input_label: 'Un par ligne : Nom | URL (URL optionnelle)',
       our_partners_heading: 'Nos partenaires de Carnet de Piste',
       optional_features_heading: 'Fonctionnalités optionnelles',
-      optional_features_help: 'Masquées pour tout le monde par défaut (même en Mode complet/Organisateur) -- à activer seulement si un Team en a besoin.',
+      optional_features_help: 'Masquées pour tout le monde par défaut (même en Mode complet/Organisateur) – à activer seulement si un Team en a besoin.',
       feature_weather_label: 'Météo & piste', feature_special_activities_label: 'Baptêmes, coaching...', feature_rental_label: 'Location (motos et équipement)',
       feedback_heading: 'Une remarque, une idée ?',
-      feedback_help: 'Dis-nous ce qui manque, ce qui bloque ou ce que tu aimerais voir -- ça part directement à l\'équipe de développement.',
+      feedback_help: 'Dis-nous ce qui manque, ce qui bloque ou ce que tu aimerais voir – ça part directement à l\'équipe de développement.',
       feedback_placeholder: 'Ton retour d\'expérience...',
       feedback_received_label: 'Suggestions reçues (',
       // Team advanced sections
@@ -323,7 +323,7 @@
       presentation_label: 'Présentation', presentation_placeholder: 'Quelques mots sur le Team...',
       save_presentation_btn: 'Enregistrer la présentation',
       change_badge_photo: 'Changer la photo (badge)', add_badge_photo: 'Ajouter une photo (badge)',
-      photo_round_help: 'S\'affiche partout en rond (fil d\'actu, membres, invitations...) -- le prochain écran te laisse choisir le cadrage.',
+      photo_round_help: 'S\'affiche partout en rond (fil d\'actu, membres, invitations...) – le prochain écran te laisse choisir le cadrage.',
       logo_label: 'Logo (affiché en largeur sur la fiche du Team)',
       change_logo: 'Changer le logo', add_logo: 'Ajouter un logo',
       logo_help: 'Utile pour un logo large (ex. "Mototeam95") que le badge rond couperait.',
@@ -361,7 +361,7 @@
       my_chronos_export_heading: 'Mes chronos', no_chrono_this_outing: 'Aucun chrono enregistré pour ce roulage.', laps_suffix: ' tours', lap_suffix: ' tour', recap_export_caption: 'Récap du roulage', export_recap_btn: 'Exporter le récap',
       practical_info_label: 'Infos pratiques', practical_info_placeholder: 'Ex. Parking, accès paddock, restauration...',
       special_activities_label: 'Baptêmes, coaching...', special_activities_placeholder: 'Ex. Baptêmes de piste 12h-14h, coaching sur inscription...',
-      rental_motos_label: 'Location — Motos', rental_motos_placeholder: 'Ex. 2 CBR600 dispo pour les baptêmes, 1 pour un pilote -- contacter Marc',
+      rental_motos_label: 'Location — Motos', rental_motos_placeholder: 'Ex. 2 CBR600 dispo pour les baptêmes, 1 pour un pilote – contacter Marc',
       rental_equipement_label: 'Location — Équipement', rental_equipement_placeholder: 'Ex. Combinaisons et casques toutes tailles, pilotes et baptêmes',
       badge_certified_label: 'Certifié', badge_certified_desc: 'Certifié — compte vérifié par l\'administrateur.',
       badge_personality_label: 'Personnalité', badge_personality_desc: 'Personnalité — pilote mis en avant par l\'administrateur.',
@@ -394,7 +394,7 @@
       poll_min_requirements: 'Une question et au moins 2 options sont nécessaires pour un sondage.',
       presentation_saved: 'Présentation enregistrée.', partners_saved: 'Partenaires enregistrés.',
       cannot_read_image: 'Impossible de lire cette image.',
-      image_too_large_detailed: 'Cette image reste trop volumineuse même compressée -- réessaie avec une image moins chargée en détails.',
+      image_too_large_detailed: 'Cette image reste trop volumineuse même compressée – réessaie avec une image moins chargée en détails.',
       team_deleted: 'Team supprimé.', chrono_modified: 'Chrono modifié.',
       team_migration_error_prefix: 'Erreur de migration Team : ', partial_migration_prefix: 'Migration partielle : ',
       email_updated_verify: 'Email mis à jour — vérifie ta boîte mail pour confirmer la nouvelle adresse.',
@@ -425,7 +425,7 @@
       db_connection_lost: 'Connexion à la base de données perdue — vérifie ta connexion et recharge la page.',
       save_failed_retry: 'La sauvegarde a échoué — réessayez.',
       indicate_current_password_confirm: 'Indique ton mot de passe actuel pour confirmer.',
-      pseudo_rename_once_month_prefix: 'Un seul changement de pseudo par mois -- possible à nouveau le ',
+      pseudo_rename_once_month_prefix: 'Un seul changement de pseudo par mois – possible à nouveau le ',
       profile_saved: 'Profil enregistré.', feedback_thanks: 'Merci, ton retour a bien été envoyé !',
       indicate_new_email_password: 'Indique le nouvel email et ton mot de passe actuel.',
       rider_already_exists: 'Ce pilote existe déjà.',
@@ -473,11 +473,11 @@
       annotate_circuit_aria: 'Annotate the circuit map',
       choose_circuit_first: 'Choose a circuit in the Circuit tab before logging a lap time.',
       only_riders_can_log: 'Only riders (and the admin) can log lap times',
-      only_riders_can_log_organizer_suffix: ' -- or a Team Leader, for a rider on their team.',
+      only_riders_can_log_organizer_suffix: ' – or a Team Leader, for a rider on their team.',
       add_chrono_btn: '+ Add a lap time', new_chrono_heading: 'Log a new lap time',
       rider_label: 'Rider', date_label: 'Date', bike_label: 'Bike', group_label: 'Group', session_label: 'Session',
       no_specific_slot: 'No specific slot', chronos_field_label: 'Lap times',
-      chronos_field_help: 'One lap time per line (or comma-separated) -- just type the digits, the : and . are added automatically. E.g. 1 54 104 for 1:54.104.',
+      chronos_field_help: 'One lap time per line (or comma-separated) – just type the digits, the : and . are added automatically. E.g. 1 54 104 for 1:54.104.',
       note_optional: 'Note (optional)', submit_chrono: 'Save lap time',
       granularity_day: 'Day', granularity_event: 'Event', granularity_all: 'All time',
       compare_with_friend_label: 'Compare with a friend', compare_none_option: 'None',
@@ -486,11 +486,11 @@
       history_label: 'History',
       linked_event_label: 'Linked trackday', none_option: 'None',
       group_hint_prefix: 'Group suggested from the linked trackday: ',
-      slot_hint: 'Slot suggested from the current time -- change if needed.',
+      slot_hint: 'Slot suggested from the current time – change if needed.',
       note_placeholder: 'E.g. Rain, new tires, setup changes…',
       record_prefix: 'Record ', period_morning: 'Morning', period_afternoon: 'Afternoon',
       group_prefix: 'Group ', record_pill: 'RECORD', feeling_prefix: 'Feeling: ',
-      session_edit_laps_help: 'One lap time per line (or comma-separated) -- format 1:23.456 or 83.456.',
+      session_edit_laps_help: 'One lap time per line (or comma-separated) – format 1:23.456 or 83.456.',
       // Événements tab
       my_events_heading: 'My Trackdays', no_event_yet: 'No trackday recorded yet — add one below.',
       ongoing_label: 'Ongoing', upcoming_label: 'Upcoming', past_label: 'Past', discover_events_heading: 'Discover Trackdays',
@@ -509,26 +509,26 @@
       previous: 'Previous', next: 'Next', today: 'Today',
       zoom_year: 'Year', zoom_6month: '6 months', zoom_3month: '3 months', zoom_2month: '2 months', zoom_month: 'Month', zoom_week: 'Week', zoom_day: 'Day',
       add_event_heading: 'Add a trackday', edit_event_heading: 'Edit trackday',
-      new_circuit_warning: 'New circuit -- check it doesn\'t already exist under another name in the list (otherwise its map/history will end up split).',
+      new_circuit_warning: 'New circuit – check it doesn\'t already exist under another name in the list (otherwise its map/history will end up split).',
       date_start_label: 'Start date', date_end_label: 'End date (optional)',
       team_organizer_label: 'Organizing Team (optional)', none_personal_event: 'None (personal trackday)',
       visibility_label: 'Visibility', vis_public_full: 'Public (visible to everyone, invitation required)', vis_ouvert_full: 'Open (free registration)',
-      teampro_only_help: 'Reserved for Team PRO -- an amateur Team stays visible to its members and invited riders.',
+      teampro_only_help: 'Reserved for Team PRO – an amateur Team stays visible to its members and invited riders.',
       booking_url_label: 'Booking link (optional)',
-      booking_url_help: 'Carnet de Piste doesn\'t handle payments -- this link goes to your ticketing site (Billetweb or other) for registration/payment.',
+      booking_url_help: 'Carnet de Piste doesn\'t handle payments – this link goes to your ticketing site (Billetweb or other) for registration/payment.',
       more_options_less: '− Fewer options', more_options_more: '+ More options (schedule, riders, organizer...)',
-      horaires_this_event_label: 'Schedule per group (this trackday only -- leave blank to use the circuit\'s usual schedule)',
+      horaires_this_event_label: 'Schedule per group (this trackday only – leave blank to use the circuit\'s usual schedule)',
       organizer_note_label: 'Organizer (if not on the app)', riders_label: 'Riders',
-      riders_search_help: 'Suggestions limited to your friends and your Teams\' members -- pick a name from the list to add it.',
+      riders_search_help: 'Suggestions limited to your friends and your Teams\' members – pick a name from the list to add it.',
       remove_label: 'Remove', start_group_label: 'Starting group',
       managed_from_team: 'Participants and groups are managed from the Team\'s trackday management screen.',
       // Team tab
       accept: 'Accept', decline: 'Decline', invited_by: 'invited by ',
-      received_invites_label: 'Received invites (', no_team_yet: 'No team yet -- create one, join one from "Discover Teams" below, or wait for an invite.',
+      received_invites_label: 'Received invites (', no_team_yet: 'No team yet – create one, join one from "Discover Teams" below, or wait for an invite.',
       my_teams_heading: 'My Teams', team_leader_label: 'Team Leader', member_label: 'Member', follower_label: 'Follower',
       back_to_team: '← Back to ', back_to_teams: '← Back to Teams',
       create_team_heading: 'Create a Team',
-      create_team_help: '<strong>Amateur Team</strong>: among friends, open right away, you\'re its first Team Leader -- members, a news feed and trackdays, nothing more.<br><strong>Team PRO</strong> (blue check ✓): an officially validated club -- on top of amateur features, it manages adherents, can grant the Coach and Official Photographer badges, offer coaching/track intros, and choose its trackdays\' visibility (public, adherents, on request...).',
+      create_team_help: '<strong>Amateur Team</strong>: among friends, open right away, you\'re its first Team Leader – members, a news feed and trackdays, nothing more.<br><strong>Team PRO</strong> (blue check ✓): an officially validated club – on top of amateur features, it manages adherents, can grant the Coach and Official Photographer badges, offer coaching/track intros, and choose its trackdays\' visibility (public, adherents, on request...).',
       create_team_btn: 'Create the team',
       create_team_short: 'Your team is open right away, among friends: members, news feed and trackdays. You are its Team Leader.',
       create_team_more: 'Amateur or PRO team?',
@@ -574,7 +574,7 @@
       confirm_label: 'Confirm', remove_this_friend: 'Remove this friend',
       // Coach tab
       coaching_bapteme_heading: 'Coaching &amp; track intros',
-      coaching_bapteme_help: 'A Coach can offer ongoing coaching (riders) or a track intro, a passenger lap (riders and companions) -- tap a slot in the schedule below to request it directly.',
+      coaching_bapteme_help: 'A Coach can offer ongoing coaching (riders) or a track intro, a passenger lap (riders and companions) – tap a slot in the schedule below to request it directly.',
       requests_to_handle_label: 'Requests to handle (', waiting_for_reply_label: 'Waiting for a reply (',
       my_coached_riders_label: 'My coached / intro riders', my_coaching_label: 'My coaching / intro',
       type_label: 'Type', coaching_option: 'Coaching', bapteme_option: 'Track intro',
@@ -592,7 +592,7 @@
       proposed_slots_label: 'Proposed slots: ', slot_colon_label: 'Slot: ',
       bravo_btn: 'Full gas!', photo_btn_short: 'Photo', see_photos_link: 'See the photos', see_link: 'Open the link',
       send_generic: 'Send', no_slot_to_propose: 'No slot available to propose',
-      no_slot_to_propose_check_avail: ' -- check your availability above.',
+      no_slot_to_propose_check_avail: ' – check your availability above.',
       accept_generic: 'Accept ', propose_other_time: 'Propose another time', refuse_generic: 'Decline',
       waiting_for_reply_from: 'Waiting for a reply from ', cancel_generic: 'Cancel',
       coaching_plan_notes_label: 'Coaching plan / notes', remove_generic: 'Remove',
@@ -605,10 +605,10 @@
       availability_legend: '<span class="avail-sw sw-coaching"></span>Coaching <span class="avail-sw sw-bapteme"></span>Track intro <span class="avail-sw sw-both"></span>Both',
       slot_type_locked_help: 'No coach has offered the other type for this slot.',
       planning_horaires_label: 'Schedule (per group)',
-      ask_for_slot_heading: 'Request for ', coaching_riders_only: 'Coaching is for riders only -- pick "Track intro" below.',
+      ask_for_slot_heading: 'Request for ', coaching_riders_only: 'Coaching is for riders only – pick "Track intro" below.',
       proposed_slots_max: 'Proposed slots (3 max)',
       no_coach_available_prefix: 'No Coach available for ', these_slots: 'these slots', this_slot: 'this slot',
-      no_coach_available_suffix: ' for this type -- try other slots or the other type.',
+      no_coach_available_suffix: ' for this type – try other slots or the other type.',
       coach_label_field: 'Coach',
       // Profile tab
       notifications_heading: 'Notifications',
@@ -627,15 +627,15 @@
       ui_mode_complet_option: 'Full', ui_mode_simplifie_option: 'Simplified', ui_mode_solo_option: 'Solo',
       ui_mode_help_complet: 'Everything is shown: Teams, Coaching, Community, weather, checklists, progression comparison, travel info...',
       ui_mode_help_simplifie: 'Keeps the essentials (logbook, trackdays, schedules) and Community > Friends & feed; hides Teams, Coaching, weather, checklists and travel info.',
-      ui_mode_help_solo: 'Like Simplified, plus dropping the social side too (Social tab, friends on a trackday, progression comparison) -- keeps only Logbook and Trackdays.',
+      ui_mode_help_solo: 'Like Simplified, plus dropping the social side too (Social tab, friends on a trackday, progression comparison) – keeps only Logbook and Trackdays.',
       feeling_after_session_heading: 'Feeling after each session',
       enable_feeling: 'Turn on the feeling check when you get back from each session',
       feeling_help: 'Once turned on, a saved lap time will offer to say in one click how the session went (shape, fatigue...).',
       social_settings_heading: 'Social settings', social_settings_help: 'What your friends see when they open your card from Community.',
       share_events_chronos: 'Share my trackdays/lap times', share_trophies: 'Share my trophies',
       share_travel_info: 'Share my travel info (with friends who follow you)',
-      travel_defaults_heading: 'My default travel info', travel_defaults_help: 'Pre-fills "My travel info" on every new trackday -- adjust it afterward if a specific trip differs.',
-      travel_prefilled_from_defaults: 'Pre-filled from your default travel info (My profile) -- edit it here if this trackday is different.',
+      travel_defaults_heading: 'My default travel info', travel_defaults_help: 'Pre-fills "My travel info" on every new trackday – adjust it afterward if a specific trip differs.',
+      travel_prefilled_from_defaults: 'Pre-filled from your default travel info (My profile) – edit it here if this trackday is different.',
       account_heading: 'Account', current_email_label: 'Current email', new_email_label: 'New email',
       current_password_label: 'Current password', change_email_btn: 'Change my email',
       change_password_heading: 'Password', new_password_label: 'New password',
@@ -675,14 +675,14 @@
       role_info_organisateur_4: 'Follow riders and get notified of their departures, like a companion',
       role_info_organisateur_5: 'If you\'re also a Team\'s Leader: manage its members, news feed, trackdays, and certify your riders\' lap times',
       carnet_helps_you: 'Carnet de Piste helps you:',
-      pseudo_label: 'Username', rename_limit_prefix: '1 username change per month -- possible again on ',
+      pseudo_label: 'Username', rename_limit_prefix: '1 username change per month – possible again on ',
       rename_warning: '⚠ Renaming will change your identity everywhere in the app (lap times, trackdays, teams, coaching, friends...).',
       edit_pseudo_btn: 'Edit username', firstname_label: 'First name', lastname_label: 'Last name',
       i_am_label: 'I am a', pilote_option: 'Rider', accompagnant_option: 'Companion', organisateur_option: 'Organizer',
       my_bike_label: 'My bike', bike_suggested_help: 'Suggested automatically when you log a lap time.',
       bike_number_label: 'Bike number', bike_number_help: '1 to 3 digits.',
       chrono_app_link_label: 'Link to your lap timing app (optional)',
-      chrono_app_link_help: 'Carnet de Piste stays declarative -- this link points to your official lap timing app (Superlaps or other) if you use one.',
+      chrono_app_link_help: 'Carnet de Piste stays declarative – this link points to your official lap timing app (Superlaps or other) if you use one.',
       followed_riders_label: 'Riders I follow', no_rider_registered: 'No rider registered yet.',
       close_label: 'Close',
       my_badges_admin_heading: 'My badges (admin)',
@@ -695,15 +695,15 @@
       team_pro_legend: 'Team PRO — official club certified by the admin.',
       team_pro_leader_legend: 'Leader of a Team PRO.', coach_legend: 'Coach.',
       adherent_singular_badge: 'Adherent', adherent_legend: 'Adherent of a Team PRO — status granted by its Team Leader.',
-      follower_legend: 'Follows a Team without being a member -- limited rights (see the Team\'s page).',
+      follower_legend: 'Follows a Team without being a member – limited rights (see the Team\'s page).',
       no_partner_yet: 'No partner yet.',
       partners_input_label: 'One per line: Name | URL (URL optional)',
       our_partners_heading: 'Our Carnet de Piste partners',
       optional_features_heading: 'Optional features',
-      optional_features_help: 'Hidden for everyone by default (even in Full/Organizer mode) -- turn on only if a Team actually needs it.',
+      optional_features_help: 'Hidden for everyone by default (even in Full/Organizer mode) – turn on only if a Team actually needs it.',
       feature_weather_label: 'Weather & track', feature_special_activities_label: 'Track intros, coaching...', feature_rental_label: 'Rental (bikes and gear)',
       feedback_heading: 'A remark, an idea?',
-      feedback_help: 'Tell us what\'s missing, what\'s blocking you, or what you\'d like to see -- it goes straight to the development team.',
+      feedback_help: 'Tell us what\'s missing, what\'s blocking you, or what you\'d like to see – it goes straight to the development team.',
       feedback_placeholder: 'Your feedback...',
       feedback_received_label: 'Feedback received (',
       // Team advanced sections
@@ -719,7 +719,7 @@
       presentation_label: 'About', presentation_placeholder: 'A few words about the Team...',
       save_presentation_btn: 'Save the description',
       change_badge_photo: 'Change photo (badge)', add_badge_photo: 'Add a photo (badge)',
-      photo_round_help: 'Shown everywhere as a circle (news feed, members, invites...) -- the next screen lets you choose the crop.',
+      photo_round_help: 'Shown everywhere as a circle (news feed, members, invites...) – the next screen lets you choose the crop.',
       logo_label: 'Logo (shown full-width on the Team\'s page)',
       change_logo: 'Change logo', add_logo: 'Add a logo',
       logo_help: 'Useful for a wide logo (e.g. "Mototeam95") that the round badge would crop.',
@@ -757,7 +757,7 @@
       my_chronos_export_heading: 'My chronos', no_chrono_this_outing: 'No chrono recorded for this trackday.', laps_suffix: ' laps', lap_suffix: ' lap', recap_export_caption: 'Trackday recap', export_recap_btn: 'Export recap',
       practical_info_label: 'Practical info', practical_info_placeholder: 'E.g. Parking, paddock access, catering...',
       special_activities_label: 'Track intros, coaching...', special_activities_placeholder: 'E.g. Track intros 12pm-2pm, coaching by sign-up...',
-      rental_motos_label: 'Rental — Bikes', rental_motos_placeholder: 'E.g. 2 CBR600 available for track days, 1 for a rider -- contact Marc',
+      rental_motos_label: 'Rental — Bikes', rental_motos_placeholder: 'E.g. 2 CBR600 available for track days, 1 for a rider – contact Marc',
       rental_equipement_label: 'Rental — Gear', rental_equipement_placeholder: 'E.g. Suits and helmets, all sizes, riders and track days',
       badge_certified_label: 'Certified', badge_certified_desc: 'Certified — account verified by the administrator.',
       badge_personality_label: 'Personality', badge_personality_desc: 'Personality — rider highlighted by the administrator.',
@@ -790,7 +790,7 @@
       poll_min_requirements: 'A question and at least 2 options are required for a poll.',
       presentation_saved: 'Presentation saved.', partners_saved: 'Partners saved.',
       cannot_read_image: 'Could not read this image.',
-      image_too_large_detailed: 'This image is still too large even compressed -- try an image with less detail.',
+      image_too_large_detailed: 'This image is still too large even compressed – try an image with less detail.',
       team_deleted: 'Team deleted.', chrono_modified: 'Lap time updated.',
       team_migration_error_prefix: 'Team migration error: ', partial_migration_prefix: 'Partial migration: ',
       email_updated_verify: 'Email updated — check your inbox to confirm the new address.',
@@ -821,7 +821,7 @@
       db_connection_lost: 'Database connection lost — check your connection and reload the page.',
       save_failed_retry: 'Save failed — please try again.',
       indicate_current_password_confirm: 'Enter your current password to confirm.',
-      pseudo_rename_once_month_prefix: 'Only one username change per month -- available again on ',
+      pseudo_rename_once_month_prefix: 'Only one username change per month – available again on ',
       profile_saved: 'Profile saved.', feedback_thanks: 'Thanks, your feedback has been sent!',
       indicate_new_email_password: 'Enter the new email and your current password.',
       rider_already_exists: 'This rider already exists.',
@@ -914,7 +914,7 @@
 "Chronos validés par le team": "Team-validated lap times",
 "Aucune donnée.": "No data.",
 "Records": "Records",
-"Record par circuit": "Record per circuit", "Bientôt sur la piste": "Soon on track", "A roulé à": "Rode at", "Tu y vas": "You're going", "J'y vais aussi": "I'm going too", "Nouveau record": "New record", "Aujourd'hui": "Today", "Hier": "Yesterday", "Cette semaine": "This week", "Plus tôt": "Earlier", "Sondage": "Poll", "Aimé": "Liked", "J'aime": "Like", "Ce soir": "Tonight", "Plus tard": "Later", "📷 Importer ma feuille de temps": "📷 Import my timesheet",
+"Record par circuit": "Record per circuit", "Bientôt sur la piste": "Soon on track", "A roulé à": "Rode at", "Tu y vas": "You're going", "J'y vais aussi": "I'm going too", "Nouveau record": "New record", "Aujourd'hui": "Today", "Hier": "Yesterday", "Cette semaine": "This week", "Plus tôt": "Earlier", "Sondage": "Poll", "Aimé": "Liked", "J'aime": "Like", "Ce soir": "Tonight", "Plus tard": "Later", "Importer ma feuille de temps": "Import my timesheet",
 "Photo de la feuille de temps, capture ou PDF : ton record, ta courbe et ta place « Entre potes » tout de suite.": "Timesheet photo, screenshot or PDF: your record, your progress chart and your place in “Between friends” right away.",
 "Semaine": "Week", "Mois": "Month", "Année": "Year", "Créer le team": "Create the team",
 "Roulages": "Trackdays",
@@ -962,7 +962,7 @@
 "Publier 5 messages sur ton Journal.": "Post 5 messages on your Journal.",
 "⬇ Exporter mes chronos (tableur CSV)": "⬇ Export my lap times (CSV spreadsheet)",
 "Qui voit quoi": "Who sees what",
-"Tes chronos et tes roulages sont visibles des autres pilotes de l'appli (classements, roulages en commun) -- tu peux les retirer de ta fiche dans Réglages → Vie privée. Tes repères et tes débriefs ne sont affichés qu'à toi. Ton email reste privé.": "Your lap times and trackdays are visible to other riders in the app (rankings, shared trackdays) -- you can hide them from your card in Settings → Privacy. Your marks and debriefs are only shown to you. Your email stays private.",
+"Tes chronos et tes roulages sont visibles des autres pilotes de l'appli (classements, roulages en commun) – tu peux les retirer de ta fiche dans Réglages → Vie privée. Tes repères et tes débriefs ne sont affichés qu'à toi. Ton email reste privé.": "Your lap times and trackdays are visible to other riders in the app (rankings, shared trackdays) -- you can hide them from your card in Settings → Privacy. Your marks and debriefs are only shown to you. Your email stays private.",
 "Prochain roulage": "Next trackday",
 "Calendrier": "Calendar",
 "Programme": "Schedule",
@@ -974,16 +974,16 @@
 "Météo": "Weather",
 "Activités": "Activities",
 "Location": "Rental",
-"📷 Remplacer les horaires (photo ou PDF)": "📷 Replace the times (photo or PDF)",
-"📷 Importer les horaires (photo ou PDF)": "📷 Import the times (photo or PDF)",
-"📷 Photo des horaires de l'organisateur": "📷 Organiser's timetable photo",
+"Remplacer les horaires (photo ou PDF)": "Replace the times (photo or PDF)",
+"Importer les horaires (photo ou PDF)": "Import the times (photo or PDF)",
+"Photo des horaires de l'organisateur": "Organiser's timetable photo",
 "Pour vérifier les horaires ci-dessus par rapport à ce qui a été partagé dans le groupe WhatsApp.": "To check the times above against what was shared in the WhatsApp group.",
 "Ajouter la photo de l'organisateur": "Add the organiser's photo",
 "Remplacer": "Replace",
 "Retirer": "Remove",
 "Supprimer la catégorie": "Delete category",
 "Rien de nouveau.": "Nothing new.", "Entre potes": "Between friends", "Ajoute ton chrono de ce roulage pour te comparer.": "Add your lap time from this trackday to compare.", "⤴ Partager": "⤴ Share", "Inviter des potes": "Invite friends", "Le plus rapide": "Fastest", "Toi": "You",
-"Aucun de tes amis n'a encore importé ses chronos de ce jour-là. Défie-les : ils importent leur feuille de temps et vous comparez.": "None of your friends has imported their lap times from that day yet. Challenge them: they import their timesheet and you compare.", "Modifier mes réglages": "Edit my setup", "🔧 Noter mes réglages": "🔧 Note my setup", "🔧 Mes réglages": "🔧 My setup",
+"Aucun de tes amis n'a encore importé ses chronos de ce jour-là. Défie-les : ils importent leur feuille de temps et vous comparez.": "None of your friends has imported their lap times from that day yet. Challenge them: they import their timesheet and you compare.", "Modifier mes réglages": "Edit my setup", "Noter mes réglages": "Note my setup", "Mes réglages": "My setup",
 "Pression AV à froid (bar)": "Front pressure cold (bar)", "Pression AR à froid (bar)": "Rear pressure cold (bar)", "Pression AV à chaud (bar)": "Front pressure hot (bar)", "Pression AR à chaud (bar)": "Rear pressure hot (bar)",
 "Pneus": "Tyres", "Fourche": "Fork", "Amortisseur": "Shock", "Transmission": "Gearing", "Note": "Note", "Effacer": "Clear",
 "Ex. 2.1": "E.g. 2.1", "Ex. 1.8": "E.g. 1.8", "Ex. 2.3": "E.g. 2.3", "Ex. 2.0": "E.g. 2.0", "Ex. Pirelli SC1 / SC0, 3e session": "E.g. Pirelli SC1 / SC0, 3rd session",
@@ -991,7 +991,7 @@
 "Ex. avant qui chatte en sortie du 3": "E.g. front chattering on the exit of turn 3", "Réglages enregistrés.": "Setup saved.", "Réglages effacés.": "Setup cleared.",
 "Connexion": "Sign in", "Mot de passe": "Password", "Se souvenir de moi": "Remember me", "Se connecter": "Sign in",
 "Pas encore de compte ?": "No account yet?", "Créer un compte": "Create an account", "Mot de passe oublié ?": "Forgot your password?",
-"Pseudo": "Username", "C'est le pseudo que verront les autres pilotes -- en cas de doublon, ajoute ton numéro de course (ex. \"Julien #12\").": "This is the username others will see -- if it's taken, add your race number (e.g. \"Julien #12\").",
+"Pseudo": "Username", "C'est le pseudo que verront les autres pilotes – en cas de doublon, ajoute ton numéro de course (ex. \"Julien #12\").": "This is the username others will see – if it's taken, add your race number (e.g. \"Julien #12\").",
 "Je suis": "I am a", "Pilote": "Rider", "Accompagnant": "Companion", "Organisateur": "Organiser", "Créer mon compte": "Create my account", "Déjà un compte ?": "Already have an account?",
 "Ex. Julien #12": "E.g. Julien #12", "Email": "Email",
 "Vérifie ton email": "Check your email", "Un email de vérification a été envoyé à": "A verification email was sent to",
@@ -1141,8 +1141,8 @@
 "En attente": "Waiting",
 "Organisé par": "Organised by",
 "Mon groupe": "My group",
-"🕒 Groupe pas encore attribué": "🕒 No group assigned yet",
-"🕒 Horaires non communiqués": "🕒 Times not announced yet",
+"Groupe pas encore attribué": "No group assigned yet",
+"Horaires non communiqués": "Times not announced yet",
 "À venir": "Upcoming",
 "Journée terminée": "Day over",
 "Aujourd'hui": "Today",
@@ -1157,10 +1157,10 @@
 "Sur le site du chronométreur": "On the timekeeper's website",
 "Validation interne au team, pour vos classements entre vous. La référence officielle reste le chronométrage de l'organisateur.": "Internal team validation, for your own rankings. The official reference remains the organiser's timing.",
 "Mes infos de voyage": "My travel info",
-"📷 Ajouter un lien photos/vidéos": "📷 Add a photos/videos link",
-"📷 Ajouter mon lien photos perso": "📷 Add my personal photos link",
-"📍 Noter mes repères sur le plan": "📍 Note my marks on the map",
-"📍 Voir le plan et mes repères": "📍 See the map and my marks",
+"Ajouter un lien photos/vidéos": "Add a photos/videos link",
+"Ajouter mon lien photos perso": "Add my personal photos link",
+"Noter mes repères sur le plan": "Note my marks on the map",
+"Voir le plan et mes repères": "See the map and my marks",
 "Chronos": "Lap times",
 "Infos": "Info",
 "Réglages": "Settings",
@@ -1226,8 +1226,8 @@
 "Chargement...": "Loading...",
 "Connexion...": "Signing in...",
 "Mode jour J": "Race-day mode",
-"🏁 Mode jour J": "🏁 Race-day mode",
-"🏁 Mode jour J — prochaine session en grand": "🏁 Race-day mode — next session in big",
+"Mode jour J": "Race-day mode",
+"Mode jour J — prochaine session en grand": "Race-day mode — next session in big",
 "Progression": "Progress",
 "Session": "Session",
 "Mes débriefs": "My debriefs",
@@ -1250,7 +1250,7 @@
     [/^Équipement (\d+\/\d+)$/, 'Gear $1'],
     [/^Session (\d+)$/, 'Session $1'], [/^(.+) devant toi$/, '$1 ahead of you'], [/^tu es (.+) devant$/, 'you are $1 ahead'], [/^(\d+) tours$/, '$1 laps'], [/^Du calendrier \((\d+)\)$/, 'From the calendar ($1)'], [/^De mon carnet \((\d+)\)$/, 'From my logbook ($1)'],
     [/^Ajoute ton chrono de (.+)$/, 'Add your lap time from $1'],
-    [/^🏆 Trophées — (\d+)\/(\d+) débloqués$/, '🏆 Trophies — $1/$2 unlocked'],
+    [/^Trophées — (\d+)\/(\d+) débloqués$/, 'Trophies — $1/$2 unlocked'],
     [/^([\d\/]+) s gagnées$/, '$1 s gained'],
     [/^([\d\/]+) (jours|roulages|chronos|filleul\(s\)|filleuls|ami\(s\)|amis|team\(s\)|message\(s\)|messages)$/, function (m, n, w) { return n + ' ' + EN_COUNT_WORDS[w]; }],
     [/^(.*)· (\d+) t\.$/, '$1· $2 laps'],
@@ -1261,7 +1261,7 @@
     [/^invité par (.+)$/, 'invited by $1'],
     [/^Tu es devant tout le monde, de (.+) sur (.+)\.$/, 'You\'re ahead of everyone, by $1 over $2.'],
     [/^Tu es à (.+) de (.+)\.$/, 'You\'re $1 behind $2.'],
-    [/^🔧 Réglages de ton record ici · (.+) le (.+)$/, '🔧 Setup of your record here · $1 on $2'],
+    [/^Réglages de ton record ici · (.+) le (.+)$/, 'Setup of your record here · $1 on $2'],
     [/^(.+) · meilleur tour (.+)Visible par toi seul\.$/, '$1 · best lap $2Visible to you only.'],
     [/^indique venir à (.+)$/, 'says they\'re going to $1'],
     [/^souhaite rejoindre (.+)$/, 'wants to join $1'],
@@ -2286,7 +2286,7 @@
   var tutorialOpen = false;
   var tutorialStep = 0;
   var TUTORIAL_STEPS = [
-    { icon: '📒', title: 'Ton carnet de piste', body: 'Dans « Mon carnet », ajoute tes chronos -- à la main ou en photographiant ta feuille de temps -- et retrouve ton historique et tes records par circuit.' },
+    { icon: '📒', title: 'Ton carnet de piste', body: 'Dans « Mon carnet », ajoute tes chronos – à la main ou en photographiant ta feuille de temps – et retrouve ton historique et tes records par circuit.' },
     { icon: '📍', title: 'Tes repères sur le plan', body: 'Touche le plan d\'un circuit pour épingler tes points de freinage, de déclenchement, de corde et de sortie. Ils sont enregistrés tout de suite.' },
     { icon: '🏍️', title: 'Le jour J', body: 'L\'onglet « Roulages » affiche le prochain roulage (horaires, ton groupe, tes repères) et ton calendrier. Tu peux revoir ce guide depuis Profil → Aide.' }
   ];
@@ -2438,8 +2438,8 @@
     var isLogo = cropModalKind === 'logo';
     var vp = cropViewportSize();
     var helpText = isLogo
-      ? 'Comme il apparaîtra en pleine largeur -- fais glisser l\'image (doigt ou souris), pince ou utilise la molette pour zoomer, ou passe par les curseurs.'
-      : 'Comme elle apparaîtra en badge rond -- fais glisser l\'image (doigt ou souris), pince ou utilise la molette pour zoomer, ou passe par les curseurs. Dézoome autant que tu veux, l\'image peut rester petite dans le cercle.';
+      ? 'Comme il apparaîtra en pleine largeur – fais glisser l\'image (doigt ou souris), pince ou utilise la molette pour zoomer, ou passe par les curseurs.'
+      : 'Comme elle apparaîtra en badge rond – fais glisser l\'image (doigt ou souris), pince ou utilise la molette pour zoomer, ou passe par les curseurs. Dézoome autant que tu veux, l\'image peut rester petite dans le cercle.';
     return '<div class="crop-modal-overlay">' +
       '<div class="crop-modal">' +
       '<h2 class="section-title">' + (isLogo ? 'Recadrer le logo' : 'Recadrer la photo') + '</h2>' +
@@ -5662,7 +5662,7 @@
     var name = (rawName || '').trim();
     if (!name) return { ok: false, error: 'Indique un pseudo.' };
     if (known.some(function (r) { return r !== excludeName && r.toLowerCase() === name.toLowerCase(); })) {
-      return { ok: false, error: 'Ce pseudo est déjà utilisé -- ajoute par exemple ton numéro de course (ex. "Julien #12").' };
+      return { ok: false, error: 'Ce pseudo est déjà utilisé – ajoute par exemple ton numéro de course (ex. "Julien #12").' };
     }
     return { ok: true, name: name };
   }
@@ -5839,7 +5839,7 @@
     var sp = pillState.stats;
     if (sp === 'donnees') return html + '<button type="button" class="primary add-chrono-btn" data-action="export-chronos-csv">⬇ Exporter mes chronos (tableur CSV)</button>' +
       '<div class="card"><h2 class="section-title">Qui voit quoi</h2>' +
-      '<div class="help-text">Tes chronos et tes roulages sont visibles des autres pilotes de l\'appli (classements, roulages en commun) -- tu peux les retirer de ta fiche dans Réglages → Vie privée. Tes repères et tes débriefs ne sont affichés qu\'à toi. Ton email reste privé.</div></div>';
+      '<div class="help-text">Tes chronos et tes roulages sont visibles des autres pilotes de l\'appli (classements, roulages en commun) – tu peux les retirer de ta fiche dans Réglages → Vie privée. Tes repères et tes débriefs ne sont affichés qu\'à toi. Ton email reste privé.</div></div>';
     if (sp === 'trophees') {
       var skipFor = isNonRider ? me.name : null;
       // Under the Trophées pill: shown open, the count as the card title.
@@ -5865,7 +5865,7 @@
     names.forEach(function (r) { html += renderRiderStatsCard(r, soloMe); });
     return html;
     html += '<div class="card"><h2 class="section-title">Mes données</h2>' +
-      '<div class="help-text"><strong>Qui voit quoi :</strong> tes chronos et tes roulages sont visibles des autres pilotes de l\'appli (classements, roulages en commun) -- tu peux les retirer de ta fiche dans Réglages → Confidentialité. Tes repères et tes débriefs ne sont affichés qu\'à toi. Ton email reste privé.</div>' +
+      '<div class="help-text"><strong>Qui voit quoi :</strong> tes chronos et tes roulages sont visibles des autres pilotes de l\'appli (classements, roulages en commun) – tu peux les retirer de ta fiche dans Réglages → Confidentialité. Tes repères et tes débriefs ne sont affichés qu\'à toi. Ton email reste privé.</div>' +
       '<div style="margin-top:0.6rem;"><button type="button" class="ghost" data-action="export-chronos-csv">⬇ Exporter mes chronos (tableur CSV)</button></div></div>';
     names.forEach(function (r) { html += renderRiderStatsCard(r); });
     // Un compte accompagnant/organisateur qui apparaît aussi dans
@@ -6013,7 +6013,7 @@
     html += '<div class="help-text" id="f-group-hint"' + (groupHint ? '' : ' style="display:none;"') + '>' + tr('group_hint_prefix') + escapeHtml(groupHint) + '.</div>';
     html += '<div class="help-text" id="f-slot-hint"' + (suggestedSlotIdx !== -1 ? '' : ' style="display:none;"') + '>' + tr('slot_hint') + '</div>';
     html += '<div class="import-chrono-row">' +
-      '<button type="button" class="ghost" id="import-photo-btn">📷 Importer photo / capture / PDF</button>' +
+      '<button type="button" class="ghost" id="import-photo-btn">Importer photo / capture / PDF</button>' +
       '<button type="button" class="ghost" id="import-paste-btn">📋 Coller une liste de temps</button>' +
       '<input type="file" id="import-photo-input" accept="image/*,application/pdf" hidden>' +
       '</div>';
@@ -6637,7 +6637,7 @@
       a.href = url; a.download = fileName;
       document.body.appendChild(a); a.click(); a.remove();
       setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
-      showToast('Image enregistrée -- publie-la en story !', 'success');
+      showToast('Image enregistrée – publie-la en story !', 'success');
     }).catch(function () {
       showToast('Impossible de créer l\'image sur cet appareil.');
     });
@@ -7007,9 +7007,9 @@
     var groupKeys = activeGroups.map(function (g) { return g.key; }).join(',');
     var id = function (suffix) { return prefix + '-gen-' + suffix; };
     var html = '<details class="horaires-generator">' +
-      '<summary>⚡ Générer les horaires</summary>' +
+      '<summary>Générer les horaires</summary>' +
       '<div class="horaires-generator-body">' +
-      '<div class="help-text">Calcule un tour de piste par groupe, à tour de rôle, et remplit les champs ci-dessous -- à ajuster ensuite si besoin.</div>';
+      '<div class="help-text">Calcule un tour de piste par groupe, à tour de rôle, et remplit les champs ci-dessous – à ajuster ensuite si besoin.</div>';
     html += '<div class="horaires-gen-row"><label for="' + id('start') + '">Premier départ</label><input type="time" id="' + id('start') + '" value="09:00"></div>';
     // Free-text order instead of always A, B, C... -- "Groupe C commence,
     // suivi de A, D, B" is just as common as the alphabetical rotation,
@@ -7314,7 +7314,7 @@
       if (box) box.innerHTML = qr.createSvgTag({ cellSize: 6, margin: 2, scalable: true });
     }).catch(function () {
       var box = overlay.querySelector('#invite-qr-box');
-      if (box) box.textContent = 'QR code indisponible hors connexion -- partage le lien ci-dessous.';
+      if (box) box.textContent = 'QR code indisponible hors connexion – partage le lien ci-dessous.';
     });
   }
 
@@ -7648,7 +7648,7 @@
       var a = document.createElement('a'); a.href = url; a.download = fileName;
       document.body.appendChild(a); a.click(); a.remove();
       setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
-      showToast('Image enregistrée -- publie-la en story !', 'success');
+      showToast('Image enregistrée – publie-la en story !', 'success');
     }).catch(function () { showToast('Impossible de créer l\'image sur cet appareil.'); });
   }
 
@@ -7708,7 +7708,7 @@
       if (x.rider === me && x.circuit === circuit && x.laps && x.laps.length && (!best || sessionBest(x) < sessionBest(best))) best = x;
     });
     if (!best || !mySetups || !mySetups[best.id]) return '';
-    return '<div class="card setup-record-card"><div class="setup-record-title">🔧 Réglages de ton record ici · ' + formatTime(sessionBest(best)) + ' le ' + escapeHtml(formatDate(best.date)) + '</div>' +
+    return '<div class="card setup-record-card"><div class="setup-record-title">Réglages de ton record ici · ' + formatTime(sessionBest(best)) + ' le ' + escapeHtml(formatDate(best.date)) + '</div>' +
       '<div class="help-text">' + escapeHtml(setupSummary(mySetups[best.id])) + '</div></div>';
   }
   function openSetupSheet(sessionId) {
@@ -7725,7 +7725,7 @@
         : '<input type="text" data-setup="' + f[0] + '"' + (f[2] === 'bar' ? ' inputmode="decimal"' : '') + ' value="' + escapeHtml(val) + '" placeholder="' + escapeHtml(f[3]) + '">';
       return '<label class="setup-field' + (f[2] === 'bar' ? ' setup-half' : '') + '"><span>' + escapeHtml(f[1]) + (f[2] ? ' (' + f[2] + ')' : '') + '</span>' + input + '</label>';
     }).join('');
-    sheet.innerHTML = '<div class="crop-modal setup-modal"><h2 class="section-title">🔧 Mes réglages</h2>' +
+    sheet.innerHTML = '<div class="crop-modal setup-modal"><h2 class="section-title">Mes réglages</h2>' +
       '<div class="help-text">' + escapeHtml(x.circuit + ' · ' + formatDate(x.date) + (x.slotLabel ? ' · ' + x.slotLabel : '') + ' · meilleur tour ' + formatTime(sessionBest(x))) +
       (current ? '' : (prefill && Object.keys(prefill).length ? '<br>Pré-rempli avec tes derniers réglages : modifie ce qui a changé.' : '')) +
       '<br>Visible par toi seul.</div>' +
@@ -7783,7 +7783,7 @@
 
     var html = '<div class="outing-page">';
     html += '<div class="outing-hero"><div class="page-title-row"><button type="button" class="back-chevron" data-view="' + escapeHtml(outingView.from || 'carnet') + '" aria-label="Retour">‹</button><h1 class="outing-title">' + escapeHtml(circuit) + '</h1></div><div class="outing-underline"></div>' +
-      '<div class="outing-hero-row"><span class="outing-date-chip">📅 ' + escapeHtml(ev ? formatEventRange(ev, true) : formatDate(date)) + '</span>' +
+      '<div class="outing-hero-row"><span class="outing-date-chip">' + escapeHtml(ev ? formatEventRange(ev, true) : formatDate(date)) + '</span>' +
       // Organiser up here, on the date's line: the logo alone when there is
       // one (its name as the label), else the name.
       (team ? '<span class="outing-org" title="' + escapeHtml(L('Organisé par ', 'Organised by ') + (team.name || '')) + '">' +
@@ -7808,7 +7808,7 @@
     var groupMain = meIsNonRider()
       ? '<span class="outing-label">' + L('Je viens en', 'I\'m coming as') + '</span><span class="outing-group-value outing-role-value">' + escapeHtml(currentUserProfile.role === 'organisateur' ? L('Organisateur', 'Organiser') : L('Accompagnant', 'Companion')) + '</span>'
       : '<span class="outing-label">Mon groupe</span><span class="outing-group-value">' + (group ? groupChip(group, true) : '—') + '</span>' +
-        '<span class="help-text">🕒 ' + (slotsAll.length ? escapeHtml(slotsAll.map(function (sl) { return sl.label; }).join(', ')) : (group ? 'Horaires non communiqués' : 'Groupe pas encore attribué')) + '</span>';
+        '<span class="help-text">' + (slotsAll.length ? escapeHtml(slotsAll.map(function (sl) { return sl.label; }).join(', ')) : (group ? 'Horaires non communiqués' : 'Groupe pas encore attribué')) + '</span>';
     html += '<div class="outing-group-card"><div class="outing-group-main">' + groupMain + '</div>' +
       '<div class="outing-group-status">' + statusHtml + '</div></div>';
 
@@ -7857,7 +7857,7 @@
         // Opens this circuit's chronos history and progression curve.
         html += '<button type="button" class="outing-best-card" data-carnet-circuit="' + escapeHtml(circuit) + '" data-circuit-pill="chronos"><span class="outing-label light">Meilleur tour</span>' +
           '<span class="outing-best-time">' + (best !== null ? formatTime(best) : '—') + '</span>' +
-          (best !== null && prevBest !== null ? '<span class="outing-best-delta">' + (best < prevBest ? '🏆 Nouveau record (−' + formatGap(prevBest - best) + ')' : '+' + formatGap(best - prevBest) + ' vs record') + '</span>' : (best !== null ? '<span class="outing-best-delta">1er roulage ici</span>' : '<span class="outing-best-delta">Pas encore de chrono pour ce jour</span>')) +
+          (best !== null && prevBest !== null ? '<span class="outing-best-delta">' + (best < prevBest ? 'Nouveau record (−' + formatGap(prevBest - best) + ')' : '+' + formatGap(best - prevBest) + ' vs record') + '</span>' : (best !== null ? '<span class="outing-best-delta">1er roulage ici</span>' : '<span class="outing-best-delta">Pas encore de chrono pour ce jour</span>')) +
           '<span class="outing-best-arrow">›</span></button>';
       }
       // Whole roulage (every day of the event), not only the day opened --
@@ -7876,8 +7876,8 @@
           var su = mySetupFor(x.id);
           html += '<div class="outing-session"><div><strong>' + escapeHtml(x.slotLabel || (x.group ? 'Groupe ' + x.group : 'Session')) + '</strong>' +
             '<div class="outing-session-laps">' + x.laps.map(function (l) { return l === b ? '<span class="best-lap">' + formatTime(l) + '</span>' : '<span class="other-lap">' + formatTime(l) + '</span>'; }).join(' ') + '</div>' +
-            (su ? '<div class="setup-summary">🔧 ' + escapeHtml(setupSummary(su)) + '</div>' : '') +
-            '<button type="button" class="link-btn inline-link setup-link" data-action="session-setup" data-id="' + escapeHtml(x.id) + '">' + (su ? 'Modifier mes réglages' : '🔧 Noter mes réglages') + '</button></div>' +
+            (su ? '<div class="setup-summary">' + escapeHtml(setupSummary(su)) + '</div>' : '') +
+            '<button type="button" class="link-btn inline-link setup-link" data-action="session-setup" data-id="' + escapeHtml(x.id) + '">' + (su ? 'Modifier mes réglages' : 'Noter mes réglages') + '</button></div>' +
             shareControl(x) + '</div>';
         });
       }
@@ -7982,7 +7982,7 @@
     return '<div class="card timesheet-reminder"><div class="ts-head"><span class="outing-thumb">' + circuitThumbHtml(r.ev.circuit) + '</span>' +
       '<div><div class="eyebrow">' + escapeHtml(when) + '</div><strong>Ajoute ton chrono de ' + escapeHtml(r.ev.circuit) + '</strong></div></div>' +
       '<div class="help-text">Photo de la feuille de temps, capture ou PDF : ton record, ta courbe et ta place « Entre potes » tout de suite.</div>' +
-      '<button type="button" class="primary add-chrono-btn" data-ts-import="' + escapeHtml(r.ev.circuit) + '" data-ts-date="' + r.date + '">📷 Importer ma feuille de temps</button>' +
+      '<button type="button" class="primary add-chrono-btn" data-ts-import="' + escapeHtml(r.ev.circuit) + '" data-ts-date="' + r.date + '">Importer ma feuille de temps</button>' +
       '<button type="button" class="link-btn ts-later" data-ts-later="' + escapeHtml(key) + '">Plus tard</button></div>';
   }
 
@@ -8046,7 +8046,7 @@
         '<button type="button" class="jourj-close" data-jj="close" aria-label="Fermer">✕</button></div>';
       if (!data.slots.length) {
         h += '<div class="jourj-main"><div class="jourj-label">Horaires</div><div class="jourj-sub">Pas encore d\'horaires pour ton groupe.</div>' +
-          (canEditEventHoraires(ev) ? '<button type="button" class="jourj-btn" data-action="import-horaires" data-event-id="' + escapeHtml(ev.id) + '">📷 Importer les horaires</button>' : '') + '</div>';
+          (canEditEventHoraires(ev) ? '<button type="button" class="jourj-btn" data-action="import-horaires" data-event-id="' + escapeHtml(ev.id) + '">Importer les horaires</button>' : '') + '</div>';
       } else if (current) {
         h += '<div class="jourj-main on-track"><div class="jourj-label">En piste maintenant</div><div class="jourj-big">' + fmtCountdown(current.end * 60 - nowSec) + '</div>' +
           '<div class="jourj-sub">Fin à ' + escapeHtml(current.label.split('-')[1] || '') + '</div></div>';
@@ -8055,7 +8055,7 @@
           '<div class="jourj-sub">' + escapeHtml(next.label) + '</div></div>';
       } else {
         h += '<div class="jourj-main"><div class="jourj-label">Journée terminée</div><div class="jourj-sub">Importe ta feuille de temps pour garder tes chronos.</div>' +
-          '<button type="button" class="jourj-btn primary" data-jj="import">📷 Importer ma feuille de temps</button></div>';
+          '<button type="button" class="jourj-btn primary" data-jj="import">Importer ma feuille de temps</button></div>';
       }
       if (data.slots.length) {
         h += '<div class="jourj-slots">' + data.slots.map(function (sl) {
@@ -8064,10 +8064,10 @@
         }).join('') + '</div>';
       }
       h += '<div class="jourj-actions">' +
-        '<button type="button" class="jourj-btn" data-jj="notes">📍 Mes repères<span>' + myTrackNotes(ev.circuit).length + '</span></button>' +
-        '<button type="button" class="jourj-btn" data-jj="debrief">📝 Débrief</button>' +
+        '<button type="button" class="jourj-btn" data-jj="notes">Mes repères<span>' + myTrackNotes(ev.circuit).length + '</span></button>' +
+        '<button type="button" class="jourj-btn" data-jj="debrief">Débrief</button>' +
         (info.liveTimingUrl ? '<a class="jourj-btn" href="' + escapeHtml(info.liveTimingUrl) + '" target="_blank" rel="noopener">((•)) Live timing</a>' : '') +
-        (meIsNonRider() ? '' : '<button type="button" class="jourj-btn" data-jj="chrono">⏱️ Ajouter un chrono</button>') + '</div>';
+        (meIsNonRider() ? '' : '<button type="button" class="jourj-btn" data-jj="chrono">Ajouter un chrono</button>') + '</div>';
       var deb = myDebriefs(ev.circuit, day);
       if (deb.length) {
         h += '<div class="jourj-debriefs"><div class="jourj-label">Mes débriefs</div>' + deb.map(function (d) {
@@ -8190,7 +8190,7 @@
   function renderHorairesImportButton(ev, hasHoraires) {
     if (!canEditEventHoraires(ev)) return '';
     return '<div style="margin:0.7rem 0 0.5rem;"><button type="button" class="' + (hasHoraires ? 'ghost' : 'primary add-chrono-btn') + '" data-action="import-horaires" data-event-id="' + escapeHtml(ev.id) + '">' +
-      (hasHoraires ? '📷 Remplacer les horaires (photo ou PDF)' : '📷 Importer les horaires (photo ou PDF)') + '</button></div>';
+      (hasHoraires ? 'Remplacer les horaires (photo ou PDF)' : 'Importer les horaires (photo ou PDF)') + '</button></div>';
   }
   function openHorairesImport(eventId) {
     var ev = eventsList().filter(function (e) { return e.id === eventId; })[0];
@@ -8424,7 +8424,7 @@
     if (target && target.mode === 'ongoing') {
       html += '<div class="card carnet-today-card"><strong>' + (meIsNonRider() ? 'Tu es au paddock aujourd\'hui à ' : 'Tu roules aujourd\'hui à ') + escapeHtml(target.ev.circuit) + '</strong>' +
         '<div class="help-text">Prochaine session, ton groupe, tes repères et ton débrief en plein écran.</div>' +
-        '<button type="button" class="primary" data-action="open-jourj" style="margin-top:0.5rem;">🏁 Mode jour J</button></div>';
+        '<button type="button" class="primary" data-action="open-jourj" style="margin-top:0.5rem;">Mode jour J</button></div>';
     }
     if (!addChronoOpen) html += renderTimesheetReminder();
     if (addChronoOpen) {
@@ -8877,14 +8877,14 @@
     Object.keys(info.drawings || {}).filter(function (name) { return name !== myAnnotName; }).sort().forEach(function (name) {
       var vId = viewLevelSessionId('circuit', name);
       options += '<option value="' + vId + '"' + (annot.sessionId === vId ? ' selected' : '') + '>' +
-        '👁 Plan général de ' + escapeHtml(name) + '</option>';
+        'Plan général de ' + escapeHtml(name) + '</option>';
     });
     options += '<option value="' + ANNOT_OUTLINE_LEVEL + '"' + (annot.sessionId === ANNOT_OUTLINE_LEVEL ? ' selected' : '') + '>' +
       'Contour du tracé' + (myAnnotName && info.outlineDrawings && info.outlineDrawings[myAnnotName] ? ' ✎' : '') + '</option>';
     Object.keys(info.outlineDrawings || {}).filter(function (name) { return name !== myAnnotName; }).sort().forEach(function (name) {
       var vId2 = viewLevelSessionId('outline', name);
       options += '<option value="' + vId2 + '"' + (annot.sessionId === vId2 ? ' selected' : '') + '>' +
-        '👁 Contour du tracé de ' + escapeHtml(name) + '</option>';
+        'Contour du tracé de ' + escapeHtml(name) + '</option>';
     });
 
     var html = '';
@@ -8916,7 +8916,7 @@
     // per-account plan -- no drawing tools, no save, just look/zoom/export,
     // since editing it would edit THEIR layer, not the viewer's.
     if (annot.viewOnly) {
-      html += '<span class="help-text annot-viewonly-badge">👁 Plan de ' + escapeHtml(annot.viewOnlyName || '') + ' (lecture seule)</span>';
+      html += '<span class="help-text annot-viewonly-badge">Plan de ' + escapeHtml(annot.viewOnlyName || '') + ' (lecture seule)</span>';
     } else {
       html += '<button type="button" class="annot-tool-btn" data-tool="brush" aria-label="Pinceau" title="Pinceau">' + svgBrush + '</button>';
       html += '<button type="button" class="annot-tool-btn" data-tool="eraser" aria-label="Gomme" title="Gomme">' + svgEraser + '</button>';
@@ -9905,7 +9905,7 @@
       var a = document.createElement('a'); a.href = dl; a.download = fileName;
       document.body.appendChild(a); a.click(); a.remove();
       setTimeout(function () { URL.revokeObjectURL(dl); }, 4000);
-      showToast(L('Image enregistrée -- publie-la en story !', 'Image saved -- post it as a story!'), 'success');
+      showToast(L('Image enregistrée – publie-la en story !', 'Image saved – post it as a story!'), 'success');
     }).catch(function () { showToast(L('Impossible de créer l\'image sur cet appareil.', 'Could not create the image on this device.')); });
   }
 
@@ -10628,7 +10628,7 @@
         ? '<button type="button" class="' + (ev.bookingUrl ? 'ghost' : 'primary') + '" data-action="event-join-ouvert" data-id="' + ev.id + '">J\'y vais</button>'
         : (myRequest
           ? '<span class="help-text">En attente du Team</span>'
-          : '<button type="button" class="ghost" data-action="event-join-request" data-id="' + ev.id + '" title="Te signale au Team sur Carnet de Piste -- ne réserve ni ne paie rien.">J\'y vais</button>');
+          : '<button type="button" class="ghost" data-action="event-join-request" data-id="' + ev.id + '" title="Te signale au Team sur Carnet de Piste – ne réserve ni ne paie rien.">J\'y vais</button>');
       var actionHtml = (ev.bookingUrl ? '<button type="button" class="primary" data-action="open-external-url" data-url="' + escapeHtml(ev.bookingUrl) + '">Réserver chez l\'orga ↗</button> ' : '') + goHtml;
       // The Team leads here (avatar, name, ✓ badge) rather than a bare
       // name in the help-text -- the whole point of this card is "which
@@ -11407,7 +11407,7 @@
     // same moment you'd want to go check your live chrono.
     var liveTimingUrl = circuitInfo(ev.circuit).liveTimingUrl;
     if (liveTimingUrl) {
-      row += '<div style="margin-top:0.5rem;"><button type="button" class="ghost" data-action="open-external-url" data-url="' + escapeHtml(liveTimingUrl) + '">⏱️ ' + tr('live_timing_link_label') + ' ↗</button></div>';
+      row += '<div style="margin-top:0.5rem;"><button type="button" class="ghost" data-action="open-external-url" data-url="' + escapeHtml(liveTimingUrl) + '">' + tr('live_timing_link_label') + ' ↗</button></div>';
     }
     return collapsibleSection('my-group-' + ev.id, 'Mon groupe', row, true);
   }
@@ -11753,11 +11753,11 @@
         '<button type="button" class="ghost" data-action="cancel-media-link">Annuler</button></div></div>';
     }
     if (ev.mediaLink) {
-      return infoRow('Photos/vidéos', '<a class="ghost" href="' + escapeHtml(ev.mediaLink) + '" target="_blank" rel="noopener">📷 Ouvrir</a>' +
+      return infoRow('Photos/vidéos', '<a class="ghost" href="' + escapeHtml(ev.mediaLink) + '" target="_blank" rel="noopener">Ouvrir</a>' +
         (ev.mediaLinkAddedBy ? ' <span class="help-text" style="display:inline;">— ajouté par ' + escapeHtml(ev.mediaLinkAddedBy) + '</span>' : '') +
         ' <button type="button" class="ghost icon-btn" data-action="edit-media-link" data-id="' + ev.id + '" aria-label="Modifier le lien" title="Modifier">✎</button>');
     }
-    return '<div style="margin-top:0.6rem;"><button type="button" class="ghost" data-action="edit-media-link" data-id="' + ev.id + '">📷 Ajouter un lien photos/vidéos</button></div>';
+    return '<div style="margin-top:0.6rem;"><button type="button" class="ghost" data-action="edit-media-link" data-id="' + ev.id + '">Ajouter un lien photos/vidéos</button></div>';
   }
 
   function saveMediaLink(eventId, url) {
@@ -11800,16 +11800,16 @@
           '<button type="button" class="primary" data-action="save-personal-media-link" data-id="' + ev.id + '">Enregistrer</button>' +
           '<button type="button" class="ghost" data-action="cancel-personal-media-link">Annuler</button></div></div>';
       } else if (links[myName]) {
-        html += infoRow('Mon lien photos perso', '<a class="ghost" href="' + escapeHtml(links[myName]) + '" target="_blank" rel="noopener">📷 Ouvrir</a>' +
+        html += infoRow('Mon lien photos perso', '<a class="ghost" href="' + escapeHtml(links[myName]) + '" target="_blank" rel="noopener">Ouvrir</a>' +
           ' <button type="button" class="ghost icon-btn" data-action="edit-personal-media-link" data-id="' + ev.id + '" aria-label="Modifier mon lien" title="Modifier">✎</button>');
       } else {
-        html += '<div style="margin-top:0.6rem;"><button type="button" class="ghost" data-action="edit-personal-media-link" data-id="' + ev.id + '">📷 Ajouter mon lien photos perso</button></div>';
+        html += '<div style="margin-top:0.6rem;"><button type="button" class="ghost" data-action="edit-personal-media-link" data-id="' + ev.id + '">Ajouter mon lien photos perso</button></div>';
       }
     }
     if (others.length) {
       html += collapsibleSection('personal-media-links-' + ev.id, 'Liens photos perso des autres (' + others.length + ')',
         others.sort().map(function (n) {
-          return infoRow(n, '<a class="ghost" href="' + escapeHtml(links[n]) + '" target="_blank" rel="noopener">📷 Ouvrir</a>');
+          return infoRow(n, '<a class="ghost" href="' + escapeHtml(links[n]) + '" target="_blank" rel="noopener">Ouvrir</a>');
         }).join(''));
     }
     return html;
@@ -12362,7 +12362,7 @@
     var isLeader = ev.teamId && isLeaderOfTeam(ev.teamId);
     if (!ev.horairesPhotoURL && !isLeader) return '';
     var html = '<div class="horaires-photo-block">';
-    html += '<div class="horaires-photo-title">📷 Photo des horaires de l\'organisateur</div>';
+    html += '<div class="horaires-photo-title">Photo des horaires de l\'organisateur</div>';
     html += '<div class="help-text">Pour vérifier les horaires ci-dessus par rapport à ce qui a été partagé dans le groupe WhatsApp.</div>';
     if (ev.horairesPhotoURL) {
       html += '<img class="horaires-photo-thumb" src="' + escapeHtml(ev.horairesPhotoURL) + '" alt="Photo des horaires" data-action="open-photo-lightbox" data-url="' + escapeHtml(ev.horairesPhotoURL) + '">';
@@ -12427,18 +12427,19 @@
     // to "Mon groupe" below (see renderMyGroupSection) for whoever's
     // already looking there to check their group.
     if (info.liveTimingUrl) {
-      html += '<div class="card-action-inline"><button type="button" class="ghost" data-action="open-external-url" data-url="' + escapeHtml(info.liveTimingUrl) + '">⏱️ ' + tr('live_timing_link_label') + ' ↗</button></div>';
+      html += '<div class="card-action-inline"><button type="button" class="ghost" data-action="open-external-url" data-url="' + escapeHtml(info.liveTimingUrl) + '">' + tr('live_timing_link_label') + ' ↗</button></div>';
     }
     // Raccourci vers Modifier l'événement, uniquement pour le Team Leader
     // du Team qui gère cet event -- pas besoin d'aller jusqu'à Team ->
     // Gestion des événements pour un ajustement rapide.
-    if ((ev.riders || []).indexOf(currentUserProfile && currentUserProfile.name) !== -1 || isLeader) {
-      html += '<div class="card-action-inline"><button type="button" class="ghost" data-action="share-roulage" data-id="' + ev.id + '">🔗 Inviter des pistards</button></div>';
-    }
-    if (isLeader) {
-      if (editingEventId === ev.id) html += renderEventForm();
-      else html += '<div class="card-action-inline"><button type="button" class="ghost" data-action="team-event-edit" data-id="' + ev.id + '">✎ Modifier le roulage</button></div>';
-    }
+    // Same action row as the roulage's own page: Gérer / Inviter / Partager.
+    var onIt = (ev.riders || []).indexOf(currentUserProfile && currentUserProfile.name) !== -1;
+    var pActs = '';
+    if (isLeader) pActs += '<button type="button" class="primary" data-action="manage-from-outing" data-id="' + escapeHtml(ev.id) + '" data-team="' + escapeHtml(ev.teamId) + '">' + L('Gérer le roulage', 'Manage the trackday') + '</button>';
+    if (onIt || isLeader) pActs += '<button type="button" class="ghost" data-action="share-roulage" data-id="' + escapeHtml(ev.id) + '">' + L('Inviter', 'Invite') + '</button>';
+    pActs += '<button type="button" class="ghost" data-action="export-event-recap" data-id="' + escapeHtml(ev.id) + '">' + L('Partager', 'Share') + '</button>';
+    html += '<div class="outing-actions planning-actions">' + pActs + '</div>';
+    if (isLeader && editingEventId === ev.id) html += renderEventForm();
     if (ev.teamId) html += renderEventAnnouncements(ev, false);
     // Briefing lives with Horaires (above the group filter) now, not up
     // here -- it's schedule information, same family as the slot times.
@@ -12498,7 +12499,7 @@
 
     var jourjHtml = '';
     if (isOngoing && (ev.riders || []).indexOf(currentUserProfile && currentUserProfile.name) !== -1) {
-      jourjHtml = '<button type="button" class="primary jourj-launch" data-action="open-jourj">🏁 Mode jour J — prochaine session en grand</button>';
+      jourjHtml = '<button type="button" class="primary jourj-launch" data-action="open-jourj">Mode jour J — prochaine session en grand</button>';
     }
     // Ma prépa: this account's own prep, one sub-pill per rubrique.
     var nNotes = myTrackNotes(ev.circuit).length;
@@ -12632,7 +12633,7 @@
   }
 
   function dailyRecapShareText(circuit, dateStr, rows) {
-    var lines = ['🏁 Récap ' + circuit + ' — ' + formatDate(dateStr)];
+    var lines = ['Récap ' + circuit + ' — ' + formatDate(dateStr)];
     rows.forEach(function (r) {
       var deltaText = r.delta == null ? '' : r.delta < 0 ? ' (−' + formatGap(r.delta) + ')' : r.delta > 0 ? ' (+' + formatGap(r.delta) + ')' : ' (=)';
       lines.push(r.rider + ' — ' + formatTime(r.best) + deltaText + ' · ' + r.laps + ' tour' + (r.laps > 1 ? 's' : ''));
@@ -13723,6 +13724,23 @@
       renderRoot();
     }).catch(function (err) { showToast(tr('error_prefix') + (err && err.message ? err.message : err)); });
   }
+  // Admin: give every account without a nationality this one.
+  function setMissingNationalities(code, silent) {
+    var users = STATE.usersByName || {};
+    var uids = Object.keys(users).filter(function (n) { return !users[n].nationality && users[n].uid; }).map(function (n) { return users[n].uid; });
+    if (!uids.length) { if (!silent) showToast(L('Tous les comptes ont déjà une nationalité.', 'Every account already has a nationality.')); return; }
+    var chunks = [];
+    for (var i = 0; i < uids.length; i += 400) chunks.push(uids.slice(i, i + 400));
+    Promise.all(chunks.map(function (chunk) {
+      var batch = db.batch();
+      chunk.forEach(function (uid) { batch.set(db.collection('users').doc(uid), { nationality: code }, { merge: true }); });
+      return batch.commit();
+    })).then(function () {
+      var myUid = auth.currentUser && auth.currentUser.uid;
+      if (currentUserProfile && myUid && uids.indexOf(myUid) !== -1 && !currentUserProfile.nationality) { currentUserProfile.nationality = code; renderRoot(); }
+      showToast(uids.length + L(' compte' + (uids.length > 1 ? 's' : '') + ' passé' + (uids.length > 1 ? 's' : '') + ' en ', ' account' + (uids.length > 1 ? 's' : '') + ' set to ') + countryName(code) + '.', 'success');
+    }).catch(function (err) { showToast(tr('error_prefix') + (err && err.message ? err.message : err)); });
+  }
   // Admin: how many accounts per nationality.
   function renderNationalityStatsCard() {
     var by = {}, total = 0;
@@ -13732,6 +13750,7 @@
       by[k] = (by[k] || 0) + 1;
     });
     var rows = Object.keys(by).sort(function (a, b) { return by[b] - by[a]; });
+    var missing = by[''] || 0;
     var html = '<div class="card"><h2 class="section-title">' + L('Nationalités des comptes', 'Account nationalities') + '</h2>' +
       '<div class="help-text" style="margin-bottom:0.6rem;">' + total + L(' comptes. Renseignée dans le profil (préremplie à l\'inscription d\'après la langue du téléphone).', ' accounts. Set in the profile (prefilled at signup from the phone language).') + '</div>';
     html += rows.map(function (k) {
@@ -13739,6 +13758,7 @@
       return '<div class="nat-row"><span class="nat-flag">' + (k ? flagEmoji(k) : '–') + '</span><span class="nat-name">' + escapeHtml(k ? countryName(k) : L('Non renseignée', 'Not set')) + '</span>' +
         '<span class="nat-bar"><span style="width:' + pct + '%"></span></span><span class="nat-count">' + by[k] + '</span></div>';
     }).join('');
+    if (missing) html += '<button type="button" class="ghost" data-action="nat-fill-fr" style="margin-top:0.7rem;">' + L('Mettre en France les ' + missing + ' compte' + (missing > 1 ? 's' : '') + ' non renseigné' + (missing > 1 ? 's' : ''), 'Set the ' + missing + ' unset account' + (missing > 1 ? 's' : '') + ' to France') + '</button>';
     return html + '</div>';
   }
 
@@ -15582,6 +15602,7 @@
     // fall back to t.memberCount, a denormalized counter kept in sync via
     // atomic increments/decrements (see bumpTeamMemberCount).
     var memberCount = ((STATE.teamMembersByTeam || {})[t.id] || []).length || t.memberCount || 0;
+    if (!memberCount && myRoleInTeam(t.id)) memberCount = 1; // at least me
     var desc = t.description ? '<div class="team-tile-desc">' + escapeHtml(t.description) + '</div>' : '';
     var mainInner = avatarHtml(t, t.name) +
       '<div class="team-tile-name">' + escapeHtml(t.name) + teamBadgesHtml(t) + '</div>' +
@@ -15767,7 +15788,7 @@
       // exactly as long as the connection actually is down, and disappear
       // the moment the 'online' listener above fires, not before.
       (!isOnline
-        ? '<div class="offline-banner">📡 Hors ligne — tu vois les dernières données synchronisées. Tes changements seront envoyés dès que la connexion reviendra.</div>'
+        ? '<div class="offline-banner">Hors ligne — tu vois les dernières données synchronisées. Tes changements seront envoyés dès que la connexion reviendra.</div>'
         : '') +
       // A compte créé par un admin sans email réel (compte de démo/test,
       // voir create-accounts.html) porte needsEmailUpdate:true jusqu'à ce
@@ -15776,7 +15797,7 @@
       // dans Réglages. Se referme tout seul (voir changeProfileEmail) une
       // fois l'email changé.
       (currentUserProfile && currentUserProfile.needsEmailUpdate
-        ? '<div class="email-reminder-banner"><span>📧 Pense à renseigner ton propre email dans Réglages.</span>' +
+        ? '<div class="email-reminder-banner"><span>Pense à renseigner ton propre email dans Réglages.</span>' +
           '<button type="button" class="ghost" data-action="open-email-reminder">Ajouter mon email</button></div>'
         : '') +
       body +
@@ -15969,7 +15990,7 @@
       html += '<h2 class="section-title">Créer un compte</h2>';
       html += '<form id="signup-form" novalidate>';
       html += '<label for="au-name">Pseudo</label><input type="text" id="au-name" name="name" autocomplete="username" placeholder="Ex. Julien #12" required>';
-      html += '<div class="help-text" style="margin-top:0.2rem;">C\'est le pseudo que verront les autres pilotes -- en cas de doublon, ajoute ton numéro de course (ex. "Julien #12").</div>';
+      html += '<div class="help-text" style="margin-top:0.2rem;">C\'est le pseudo que verront les autres pilotes – en cas de doublon, ajoute ton numéro de course (ex. "Julien #12").</div>';
       html += '<label style="margin-top:0.7rem;">Je suis</label><div class="auth-role-choice">' +
         '<label><input type="radio" name="au-role" value="pilote" checked> Pilote</label>' +
         '<label><input type="radio" name="au-role" value="accompagnant"> Accompagnant</label>' +
@@ -16100,7 +16121,7 @@
         // The auth account already exists at this point -- back it out
         // rather than leave an orphaned, nameless account behind.
         return cred.user.delete().catch(function () {}).then(function () {
-          return Promise.reject({ code: 'custom/name-collision', message: 'Ce pseudo est déjà utilisé -- ajoute par exemple ton numéro de course (ex. "Julien #12").' });
+          return Promise.reject({ code: 'custom/name-collision', message: 'Ce pseudo est déjà utilisé – ajoute par exemple ton numéro de course (ex. "Julien #12").' });
         });
       }).then(function () {
         if (role === 'pilote') {
@@ -16285,6 +16306,7 @@
     document.querySelectorAll('[data-action="open-legal"]').forEach(function (b) {
       b.addEventListener('click', function (e) { e.preventDefault(); openLegal(b.getAttribute('data-kind')); });
     });
+    document.querySelectorAll('[data-action="nat-fill-fr"]').forEach(function (b) { b.addEventListener('click', function () { setMissingNationalities('FR', false); }); });
     var natEl = document.getElementById('profile-nationality');
     if (natEl) natEl.addEventListener('change', function () { saveNationality(natEl.value); });
     document.querySelectorAll('[data-action="export-my-data"]').forEach(function (b) { b.addEventListener('click', exportMyData); });
@@ -17438,7 +17460,7 @@
         managingEventId = null;
         editingEventId = null;
         // Opened from a roulage's page: go back there.
-        if (manageReturnToOuting && outingView) { manageReturnToOuting = false; expandedTeamId = null; activeView = 'outing'; }
+        if (manageReturnToOuting) { var back = manageReturnToOuting; manageReturnToOuting = false; expandedTeamId = null; activeView = back === 'outing' && !outingView ? 'planning' : back; }
         renderRoot();
       });
     });
@@ -17448,7 +17470,7 @@
         managingEventId = btn.getAttribute('data-id');
         pillState.evmanage = 'participants';
         editingEventId = null;
-        manageReturnToOuting = true;
+        manageReturnToOuting = activeView === 'planning' ? 'planning' : 'outing';
         activeView = 'team';
         renderRoot();
         window.scrollTo(0, 0);
@@ -18741,7 +18763,7 @@
 
   function openChronoImport(mode, file) {
     var CI = window.ChronoImport;
-    if (!CI) { showToast('Import indisponible (fichier non chargé) -- recharge la page.'); return; }
+    if (!CI) { showToast('Import indisponible (fichier non chargé) – recharge la page.'); return; }
     var overlay = document.createElement('div');
     overlay.className = 'crop-modal-overlay';
     var box = document.createElement('div');
@@ -18806,7 +18828,7 @@
           ') : relis chaque temps, surtout ceux marqués ⚠, avant de continuer.</div>';
       }
       if (cands.length > 1 || sel === -1) {
-        h += '<div class="help-text" style="margin-top:0.6rem;">' + (sel === -1 ? 'Je n\'ai pas reconnu ta ligne -- choisis-la :' : 'Plusieurs lignes détectées -- vérifie que c\'est la tienne :') + '</div>';
+        h += '<div class="help-text" style="margin-top:0.6rem;">' + (sel === -1 ? 'Je n\'ai pas reconnu ta ligne – choisis-la :' : 'Plusieurs lignes détectées – vérifie que c\'est la tienne :') + '</div>';
         cands.forEach(function (c, i) {
           var valid = c.laps.filter(function (v) { return v != null; });
           var best = valid.length ? Math.min.apply(null, valid) : null;
@@ -18864,7 +18886,7 @@
         refreshFlags();
         var note = box.querySelector('#imp-rebuilt');
         if (note) note.textContent = (c && c.rebuilt && c.rebuilt.length)
-          ? 'Tour' + (c.rebuilt.length > 1 ? 's' : '') + ' ' + c.rebuilt.map(function (i) { return i + 1; }).join(', ') + ' : temps non lu, reconstitué en additionnant les 4 secteurs -- à vérifier.'
+          ? 'Tour' + (c.rebuilt.length > 1 ? 's' : '') + ' ' + c.rebuilt.map(function (i) { return i + 1; }).join(', ') + ' : temps non lu, reconstitué en additionnant les 4 secteurs – à vérifier.'
           : '';
       }
       loadCandidate(sel === -1 ? -1 : sel);
@@ -18887,7 +18909,7 @@
         var circuitField = box.querySelector('#imp-circuit').value;
         if (fCircuit && circuitField) { fCircuit.value = circuitField; fCircuit.dispatchEvent(new Event('change', { bubbles: true })); }
         close();
-        showToast('Tours importés -- vérifie puis enregistre le chrono.', 'success');
+        showToast('Tours importés – vérifie puis enregistre le chrono.', 'success');
       });
     }
 
@@ -18982,7 +19004,7 @@
     }
 
     if (findDuplicateSession(rider, date, circuit, laps)) {
-      errEl.textContent = 'Ce chrono existe déjà (même pilote, même date, même circuit et mêmes tours) -- rien n\'a été ajouté.';
+      errEl.textContent = 'Ce chrono existe déjà (même pilote, même date, même circuit et mêmes tours) – rien n\'a été ajouté.';
       errEl.classList.add('visible');
       return;
     }
@@ -19173,6 +19195,13 @@
       riderBikeMap = bikeMap;
       STATE.usersByName = usersByName;
       markCoreSynced('users');
+      // One-off: every account created before the nationality field is
+      // French -- set it once, from the admin's session.
+      if (isAdmin()) {
+        var natDone = null;
+        try { natDone = localStorage.getItem('cdp-nat-fr-2026'); } catch (e) {}
+        if (!natDone) { try { localStorage.setItem('cdp-nat-fr-2026', '1'); } catch (e) {} setMissingNationalities('FR', true); }
+      }
       renderRoot();
     }, handleSyncError));
     // Social/amis: two live queries (Firestore can't OR across fields in
