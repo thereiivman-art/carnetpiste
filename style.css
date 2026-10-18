@@ -3409,3 +3409,13 @@ body { min-height: 100%; min-height: 100dvh; }
 /* Barre du bas : icônes dessinées */
 .bottom-nav-icon { display: flex; align-items: center; justify-content: center; }
 .bottom-nav-icon svg { display: block; }
+
+/* Compteurs d'usage (admin) */
+.usage-kpis { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.6rem; margin-bottom: 0.9rem; }
+.usage-kpis > div { background: var(--surface-alt); border-radius: 10px; padding: 0.6rem 0.7rem; display: flex; flex-direction: column; gap: 0.15rem; }
+.usage-kpis strong { font-family: var(--font-display); font-style: italic; font-size: 1.6rem; font-weight: 800; color: var(--accent); line-height: 1; }
+.usage-kpis span { font-size: 0.78rem; color: var(--text-muted); line-height: 1.25; }
+.usage-row { display: grid; grid-template-columns: 1fr 3rem 3rem 3.4rem; gap: 0.4rem; align-items: center; padding: 0.35rem 0; border-top: 1px solid var(--border); font-size: 0.85rem; }
+.usage-row > span:not(:first-child) { text-align: right; }
+.usage-row.sub > span:first-child { padding-left: 0.8rem; color: var(--text-muted); }
+.usage-head { font-size: 0.72rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted); border-top: 0; }

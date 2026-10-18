@@ -840,6 +840,21 @@ service cloud.firestore {
                 && isTeamLeader(get(/databases/$(database)/documents/events/$(id)).data.teamId)));
       allow delete: if isAdmin();
     }
+    // Anonymous usage counters (usageStats/{metric}): any signed-in account
+    // may only add exactly 1 to the total and to the current month's
+    // counter (m<year>_<month>) -- nothing else. Admin reads them.
+    match /usageStats/{metric} {
+      function monthKey() { return 'm' + string(request.time.year()) + '_' + string(request.time.month()); }
+      allow read: if isAdmin();
+      allow create: if request.auth != null && metric.matches('^[a-z0-9_]{1,40}$')
+        && request.resource.data.keys().hasOnly(['count', monthKey()])
+        && request.resource.data.count == 1 && request.resource.data[monthKey()] == 1;
+      allow update: if request.auth != null
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['count', monthKey()])
+        && request.resource.data.count == resource.data.get('count', 0) + 1
+        && request.resource.data[monthKey()] == resource.data.get(monthKey(), 0) + 1;
+      allow delete: if isAdmin();
+    }
     match /feedback/{id} {
       // Its author can read and erase their own suggestions (RGPD access
       // and erasure); otherwise admin-only, like a shared inbox.

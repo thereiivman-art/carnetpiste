@@ -4275,7 +4275,7 @@
     var pills = renderPills('aide', [['aide', 'Aide'], ['admin', 'Admin']]);
     // Une carte par outil d'admin.
     var asCard = function (h) { return h ? '<div class="card">' + h.replace('margin-top:1.2rem; border-top:1px solid var(--border); padding-top:0.9rem;', '') + '</div>' : ''; };
-    if (pillState.aide === 'admin') return pills + renderLangStatsCard() + renderNationalityStatsCard() + asCard(renderPartnersSection(true)) + asCard(renderOptionalFeaturesSection()) + asCard(renderPasswordResetSection());
+    if (pillState.aide === 'admin') return pills + renderUsageStatsCard() + renderLangStatsCard() + renderNationalityStatsCard() + asCard(renderPartnersSection(true)) + asCard(renderOptionalFeaturesSection()) + asCard(renderPasswordResetSection());
     return pills + html;
   }
 
@@ -6627,6 +6627,7 @@
       if (!blob) throw new Error('image');
       var fileName = 'carnet-de-piste-' + (session.circuit || 'circuit').replace(/[^\w-]+/g, '-') + '-' + session.date + '.png';
       var file = new File([blob], fileName, { type: 'image/png' });
+      countUsage('story'); countUsage('story_session');
       var text = formatTime(sessionBest(session)) + ' à ' + session.circuit + ' — mon carnet de piste : ' +
         (currentUserProfile && currentUserProfile.name ? referralLinkFor(currentUserProfile.name) : 'https://thereiivman-art.github.io/carnetpiste/');
       if (navigator.canShare && navigator.canShare({ files: [file] })) {
@@ -7641,6 +7642,7 @@
     buildBattleCard(circuit, date, rows).then(function (blob) {
       var fileName = 'entre-potes-' + String(circuit).replace(/[^\w-]+/g, '-') + '-' + date + '.png';
       var file = new File([blob], fileName, { type: 'image/png' });
+      countUsage('story'); countUsage('story_battle');
       var link = currentUserProfile ? referralLinkFor(currentUserProfile.name) : '';
       var text = (currentLang() === 'en' ? 'Between friends at ' : 'Entre potes à ') + circuit + ' — ' + link;
       if (navigator.canShare && navigator.canShare({ files: [file] })) return navigator.share({ files: [file], text: text }).catch(function () {});
@@ -9918,6 +9920,7 @@
     buildRecapStoryCard(ev).then(function (blob) {
       var fileName = 'roulage-' + String(ev.circuit).replace(/[^\w-]+/g, '-') + '-' + ev.dateStart + '.png';
       var file = new File([blob], fileName, { type: 'image/png' });
+      countUsage('story'); countUsage('story_recap');
       var link = currentUserProfile ? referralLinkFor(currentUserProfile.name) : '';
       var text = L('Mon roulage à ', 'My trackday at ') + ev.circuit + ' — ' + link;
       if (navigator.canShare && navigator.canShare({ files: [file] })) return navigator.share({ files: [file], text: text }).catch(function () {});
@@ -10022,6 +10025,7 @@
     buildRoulageStoryCard(ev).then(function (blob) {
       var fileName = 'on-roule-' + String(ev.circuit).replace(/[^\w-]+/g, '-') + '-' + ev.dateStart + '.png';
       var file = new File([blob], fileName, { type: 'image/png' });
+      countUsage('story'); countUsage('story_roulage');
       var text = L('On roule à ' + ev.circuit + ' le ' + formatEventRange(ev, true) + '. Qui vient ? ', 'We ride at ' + ev.circuit + ' on ' + formatEventRange(ev, true) + '. Who\'s coming? ') + url;
       if (navigator.canShare && navigator.canShare({ files: [file] })) return navigator.share({ files: [file], text: text }).catch(function () {});
       var dl = URL.createObjectURL(blob);
@@ -13809,6 +13813,98 @@
   // savePhoto) with a first-initial placeholder when none is set --
   // shared by friend rows, team member rows, and the wall.
 
+
+  // ---- Compteurs d'usage (anonymes) ----
+  // One document per measure in usageStats/{metric}: a running total and
+  // one counter per month (mYYYY_M). +1 only, no name, no id -- the
+  // firestore.rules allow nothing else. Read by the admin (Aide → Admin)
+  // to know whether the loop « chrono → potes → story → nouveau pote »
+  // works.
+  var USAGE_METRICS = [
+    ['active', 'Comptes actifs (sur le mois)'],
+    ['signup', 'Comptes créés'],
+    ['signup_referral', '… via un parrainage ou un QR'],
+    ['signup_roulage', '… via un lien de roulage'],
+    ['first_chrono', 'Premier chrono enregistré'],
+    ['second_roulage', 'Chronos sur un 2e roulage'],
+    ['chrono', 'Sessions enregistrées'],
+    ['import_photo', 'Imports de feuille lancés'],
+    ['import_read', '… lus (texte reconnu)'],
+    ['import_ok', '… validés (tours importés)'],
+    ['import_fail', '… en échec'],
+    ['story', 'Stories partagées (toutes)'],
+    ['story_session', '… chrono'], ['story_battle', '… Entre potes'], ['story_roulage', '… « On roule à »'], ['story_recap', '… « Mon roulage à »'],
+    ['link_roulage', 'Liens de roulage partagés']
+  ];
+  // UTC, like the server-side check in firestore.rules (request.time).
+  function usageMonthKey(d) { d = d || new Date(); return 'm' + d.getUTCFullYear() + '_' + (d.getUTCMonth() + 1); }
+  function countUsage(metric) {
+    try {
+      if (!auth.currentUser) return;
+      var mk = usageMonthKey(), upd = { count: firebase.firestore.FieldValue.increment(1) };
+      upd[mk] = firebase.firestore.FieldValue.increment(1);
+      db.collection('usageStats').doc(metric).set(upd, { merge: true }).catch(function () {});
+    } catch (e) {}
+  }
+  // Once per account (first chrono, second roulage…): remembered in the
+  // account's private doc so it's never counted twice, even on another
+  // phone.
+  function countUsageOnce(flag, metric) {
+    var uid = auth.currentUser && auth.currentUser.uid;
+    if (!uid) return;
+    var ref = db.collection('userPrivate').doc(uid);
+    ref.get().then(function (doc) {
+      var u = (doc.exists && doc.data().usage) || {};
+      if (u[flag]) return;
+      var patch = {}; patch[flag] = Date.now();
+      return ref.set({ usage: patch }, { merge: true }).then(function () { countUsage(metric); });
+    }).catch(function () {});
+  }
+  // After a chrono of mine is saved: first ever, and first on a 2nd roulage.
+  function countChronoMilestones() {
+    var me = currentUserProfile && currentUserProfile.name;
+    if (!me) return;
+    var days = {};
+    (STATE.sessions || []).forEach(function (x) { if (x.rider === me && x.laps && x.laps.length) days[x.date + '|' + x.circuit] = 1; });
+    var n = Object.keys(days).length;
+    if (n >= 1) countUsageOnce('firstChrono', 'first_chrono');
+    if (n >= 2) countUsageOnce('secondRoulage', 'second_roulage');
+  }
+  // Active this month (once per account per month).
+  function countActiveMonth() {
+    var mk = usageMonthKey(), key = 'cdp-active-' + mk;
+    try { if (localStorage.getItem(key)) return; localStorage.setItem(key, '1'); } catch (e) {}
+    countUsageOnce('active_' + mk, 'active');
+  }
+  var usageStats = null;
+  function renderUsageStatsCard() {
+    if (usageStats === null) {
+      usageStats = [];
+      db.collection('usageStats').get().then(function (snap) {
+        usageStats = snap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); });
+        renderRoot();
+      }).catch(function () {});
+    }
+    var by = {};
+    usageStats.forEach(function (d) { by[d.id] = d; });
+    var now = new Date(), cur = usageMonthKey(now), prev = usageMonthKey(new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 15)));
+    var monthName = function (d) { return d.toLocaleDateString(currentLang() === 'en' ? 'en-GB' : 'fr-FR', { month: 'short' }); };
+    var v = function (id, k) { return (by[id] && by[id][k || 'count']) || 0; };
+    var pct = function (a, b) { return b ? Math.round(a * 100 / b) + ' %' : '–'; };
+    var html = '<div class="card"><h2 class="section-title">' + L('Usage de l\'appli', 'App usage') + '</h2>' +
+      '<div class="help-text" style="margin-bottom:0.6rem;">' + L('Compteurs anonymes (un chiffre par mesure, sans nom ni identifiant), depuis leur mise en place le 19 octobre 2026.', 'Anonymous counters (one number per measure, no name or id), since 19 October 2026.') + '</div>';
+    html += '<div class="usage-kpis">' +
+      '<div><strong>' + pct(v('first_chrono'), v('signup')) + '</strong><span>' + L('des inscrits ont enregistré un 1er chrono', 'of sign-ups logged a 1st lap time') + '</span></div>' +
+      '<div><strong>' + pct(v('second_roulage'), v('first_chrono')) + '</strong><span>' + L('reviennent sur un 2e roulage', 'come back for a 2nd trackday') + '</span></div>' +
+      '<div><strong>' + pct(v('import_ok'), v('import_read')) + '</strong><span>' + L('des feuilles lues sont validées', 'of read timesheets are validated') + '</span></div>' +
+      '<div><strong>' + pct(v('signup_referral') + v('signup_roulage'), v('signup')) + '</strong><span>' + L('des inscriptions viennent d\'un partage', 'of sign-ups come from a share') + '</span></div></div>';
+    html += '<div class="usage-row usage-head"><span></span><span>' + monthName(new Date(now.getFullYear(), now.getMonth() - 1, 1)) + '</span><span>' + monthName(now) + '</span><span>Total</span></div>';
+    html += USAGE_METRICS.map(function (m) {
+      return '<div class="usage-row' + (m[1].indexOf('…') === 0 ? ' sub' : '') + '"><span>' + escapeHtml(m[1]) + '</span><span>' + v(m[0], prev) + '</span><span>' + v(m[0], cur) + '</span><span><strong>' + v(m[0]) + '</strong></span></div>';
+    }).join('');
+    return html + '</div>';
+  }
+
   // ---- Nationalité ----
   // ISO code on the profile (users/{uid}.nationality). Shown as the flag
   // behind the initial when there's no photo, and counted for the admin
@@ -16027,6 +16123,7 @@
     if (!ev) return;
     var url = publicRoulageLink(ev.id);
     var text = 'Qui roule à ' + ev.circuit + ' le ' + formatEventRange(ev, true) + ' ? Horaires et infos ici :';
+    countUsage('link_roulage');
     db.collection('publicRoulages').doc(ev.id).set(publicRoulageSnapshot(ev)).then(function () {
       if (navigator.share) return navigator.share({ title: ev.circuit, text: text, url: url }).catch(function () {});
       if (navigator.clipboard) return navigator.clipboard.writeText(text + ' ' + url).then(function () { showToast('Lien copié : colle-le dans ton groupe WhatsApp.', 'success'); });
@@ -16238,6 +16335,7 @@
       var profileDoc = { name: name, role: role, notifyBeforeSession: true };
       var natSel = document.getElementById('au-nationality');
       if (natSel && natSel.value) profileDoc.nationality = natSel.value;
+      var viaReferral = !!profileDoc.referredBy || !!pendingReferrer, viaRoulage = !!pendingRoulageId;
       if (deviceLangCode() !== 'fr') profileDoc.lang = 'en';
       countVisitorLang('signup');
       // A parrain can't refer themselves -- someone opening their own
@@ -16256,6 +16354,9 @@
           return Promise.reject({ code: 'custom/name-collision', message: 'Ce pseudo est déjà utilisé – ajoute par exemple ton numéro de course (ex. "Julien #12").' });
         });
       }).then(function () {
+        countUsage('signup');
+        if (viaReferral) countUsage('signup_referral');
+        if (viaRoulage) countUsage('signup_roulage');
         if (role === 'pilote') {
           // Needs a verified email (rules) -- if it can't land yet, the
           // rider doc is created later (see saveProfile / first login).
@@ -19041,6 +19142,7 @@
         var circuitField = box.querySelector('#imp-circuit').value;
         if (fCircuit && circuitField) { fCircuit.value = circuitField; fCircuit.dispatchEvent(new Event('change', { bubbles: true })); }
         close();
+        countUsage('import_ok');
         showToast('Tours importés – vérifie puis enregistre le chrono.', 'success');
       });
     }
@@ -19053,11 +19155,13 @@
       return;
     }
     showReading(null);
+    countUsage('import_photo');
     CI.recognize(file, function (p) {
       var el = box.querySelector('#imp-progress');
       if (el) el.textContent = 'Reconnaissance du texte : ' + Math.round(p * 100) + ' %';
     }).then(function (r) {
       if (!overlay.parentNode) return; // annulé entre-temps
+      countUsage('import_read');
       showValidate(CI.analyze(r.text, { circuits: allCircuits(), me: me, confidence: r.confidence }));
     }).catch(function (err) {
       if (!overlay.parentNode) return;
@@ -19066,6 +19170,7 @@
         : (err && err.message === 'tesseract-load-failed')
         ? 'Impossible de charger le lecteur de texte (connexion ?). Réessaie avec du réseau, ou utilise « Coller une liste de temps ».'
         : (err && err.message === 'image-unreadable') ? 'Cette image n\'a pas pu être ouverte.' : 'La lecture a échoué : ' + ((err && err.message) || err);
+      countUsage('import_fail');
       showMessage('Import impossible', msg);
     });
   }
@@ -19180,6 +19285,8 @@
     }
 
     STATE.sessions.push(session);
+    countUsage('chrono');
+    if (currentUserProfile && rider === currentUserProfile.name) countChronoMilestones();
     selectedRiders = new Set([rider]);
     selectedCircuit = circuit;
     userPickedCircuit = true;
@@ -19260,6 +19367,7 @@
   }
 
   function startSync() {
+    try { countActiveMonth(); } catch (e) {}
     mySetups = null; // reload this account's private setups
     coreSyncPending = new Set(CORE_SYNC_KEYS);
     unsubscribers.push(db.collection('sessions').onSnapshot(function (snap) {
