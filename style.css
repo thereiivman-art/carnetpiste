@@ -3280,3 +3280,23 @@ body { min-height: 100%; min-height: 100dvh; }
 .feed-line .feed-entry-muted { font-size: 0.82rem; }
 .feed-line + .feed-card, .feed-card + .feed-line { margin-top: 0.7rem; }
 #notifications-toggle svg { display: block; }
+
+/* Fil v2 : récap du roulage, duels, paliers, photos, circuit du moment */
+.feed-recap-head, .feed-photos, .feed-moment { display: flex; align-items: center; gap: 0.8rem; }
+.feed-photos { margin-top: 0.6rem; }
+.feed-moment .outing-thumb { width: 52px; height: 52px; }
+.feed-recap-rows { margin-top: 0.7rem; border-top: 1px solid var(--border); }
+.feed-recap-row { display: flex; align-items: center; gap: 0.55rem; padding: 0.45rem 0.2rem; border-bottom: 1px solid var(--border); }
+.feed-recap-row.me { background: color-mix(in srgb, var(--accent) 6%, transparent); box-shadow: inset 3px 0 0 var(--accent); }
+.feed-recap-pos { width: 1.2rem; font-family: var(--font-display); font-style: italic; font-weight: 800; font-size: 1.15rem; color: var(--text-muted); text-align: center; }
+.feed-recap-row:first-child .feed-recap-pos { color: var(--accent); }
+.feed-recap-name { flex: 1; min-width: 0; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.feed-recap-time { font-family: var(--font-display); font-style: italic; font-weight: 800; font-size: 1.15rem; white-space: nowrap; }
+.feed-recap-gap { width: 3.6rem; text-align: right; font-size: 0.78rem; font-weight: 700; color: var(--text-muted); white-space: nowrap; }
+.feed-recap-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.8rem; }
+.feed-highlight { display: flex; align-items: center; gap: 0.6rem; margin-top: 0.6rem; font-size: 0.9rem; line-height: 1.35; }
+.feed-highlight .notif-ico { width: 32px; height: 32px; }
+.feed-highlight .notif-ico svg { width: 16px; height: 16px; }
+.feed-highlight.duel { padding: 0.55rem 0.7rem; border-radius: 10px; background: color-mix(in srgb, var(--accent) 8%, transparent); }
+.feed-highlight.duel .notif-ico { background: var(--accent); color: var(--accent-ink); }
+.feed-upcoming-j { font-family: var(--font-display); font-style: italic; font-size: 0.95rem; color: var(--accent); margin-left: 0.25rem; }

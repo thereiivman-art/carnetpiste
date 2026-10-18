@@ -194,7 +194,7 @@
       ask_to_be_coached_by: 'Demander à être coaché par', send_request_generic: 'Envoyer la demande',
       ask_for_coaching_heading: 'Demander un coaching',
       proposed_slots_label: 'Créneaux proposés : ', slot_colon_label: 'Créneau : ',
-      bravo_btn: 'Bravo', photo_btn_short: 'Photo', see_photos_link: 'Voir les photos', see_link: 'Ouvrir le lien',
+      bravo_btn: 'Gaz !', photo_btn_short: 'Photo', see_photos_link: 'Voir les photos', see_link: 'Ouvrir le lien',
       send_generic: 'Envoyer', no_slot_to_propose: 'Aucun créneau disponible à proposer',
       no_slot_to_propose_check_avail: ' -- vérifie tes disponibilités ci-dessus.',
       accept_generic: 'Accepter ', propose_other_time: 'Proposer un autre horaire', refuse_generic: 'Refuser',
@@ -590,7 +590,7 @@
       ask_to_be_coached_by: 'Ask to be coached by', send_request_generic: 'Send request',
       ask_for_coaching_heading: 'Ask for coaching',
       proposed_slots_label: 'Proposed slots: ', slot_colon_label: 'Slot: ',
-      bravo_btn: 'Kudos', photo_btn_short: 'Photo', see_photos_link: 'See the photos', see_link: 'Open the link',
+      bravo_btn: 'Full gas!', photo_btn_short: 'Photo', see_photos_link: 'See the photos', see_link: 'Open the link',
       send_generic: 'Send', no_slot_to_propose: 'No slot available to propose',
       no_slot_to_propose_check_avail: ' -- check your availability above.',
       accept_generic: 'Accept ', propose_other_time: 'Propose another time', refuse_generic: 'Decline',
@@ -4302,15 +4302,19 @@
     var d = parseLocalDate(x.date);
     return d ? d.getTime() + 12 * 3600e3 : 0;
   }
-  // One entry per friend per day per circuit (several sessions = one ride).
+  // One entry per rider per day per circuit (several sessions = one ride).
   function friendRides(maxDays) {
     var me = currentUserProfile && currentUserProfile.name;
     if (!me) return [];
-    var friends = friendsOf(me).map(function (f) { return f.name; });
+    return ridesFor(friendsOf(me).map(function (f) { return f.name; }), maxDays);
+  }
+  function ridesFor(names, maxDays) {
+    var me = currentUserProfile && currentUserProfile.name;
     var limit = dateKey(new Date(Date.now() - (maxDays || 30) * 86400000));
     var by = {};
     (STATE.sessions || []).forEach(function (x) {
-      if (friends.indexOf(x.rider) === -1 || !x.laps || !x.laps.length || !x.date || x.date < limit) return;
+      if (names.indexOf(x.rider) === -1 || !x.laps || !x.laps.length || !x.date || x.date < limit) return;
+      if (x.rider !== me && ((STATE.usersByName || {})[x.rider] || {}).shareSorties === false) return;
       var k = x.rider + '|' + x.date + '|' + x.circuit;
       var r = by[k] || (by[k] = { key: 'ride:' + k, rider: x.rider, circuit: x.circuit, date: x.date, best: null, laps: 0, group: '', eventId: x.eventId || null, createdAt: 0 });
       var b = sessionBest(x);
@@ -4321,6 +4325,91 @@
     });
     return Object.keys(by).map(function (k) { return by[k]; });
   }
+
+  // ---- Ce qui rend une sortie remarquable (fil + notifications) ----
+  function riderBestWhere(rider, circuit, test) {
+    var best = null;
+    (STATE.sessions || []).forEach(function (x) {
+      if (x.rider !== rider || !x.laps || !x.laps.length || !sameCircuit(x.circuit, circuit) || !test(x.date)) return;
+      var b = sessionBest(x);
+      if (best === null || b < best) best = b;
+    });
+    return best;
+  }
+  function bestBefore(rider, circuit, date) { return riderBestWhere(rider, circuit, function (d) { return d < date; }); }
+  function bestUpTo(rider, circuit, date) { return riderBestWhere(rider, circuit, function (d) { return d <= date; }); }
+  function formatMark(sec) { return Math.floor(sec / 60) + '’' + pad2(Math.round(sec % 60)) + '”'; }
+  // Palier : barrière des 10 s franchie, 3 s gagnées depuis le premier
+  // roulage ici, ou 5e/10e/25e/50e journée de piste.
+  function rideMilestone(r) {
+    var prev = bestBefore(r.rider, r.circuit, r.date);
+    if (prev !== null && r.best < prev) {
+      var mark = Math.ceil(r.best / 10) * 10;
+      if (r.best < mark && prev >= mark) return L('Sous les ', 'Under ') + formatMark(mark);
+      var firstDate = null;
+      (STATE.sessions || []).forEach(function (x) { if (x.rider === r.rider && sameCircuit(x.circuit, r.circuit) && x.laps && x.laps.length && (!firstDate || x.date < firstDate)) firstDate = x.date; });
+      var first = firstDate ? riderBestWhere(r.rider, r.circuit, function (d) { return d === firstDate; }) : null;
+      if (first !== null && first - r.best >= 3 && first - prev < 3) return L('3 s gagnées depuis son premier roulage ici', '3 s gained since the first trackday here');
+    }
+    var days = {};
+    (STATE.sessions || []).forEach(function (x) { if (x.rider === r.rider && x.date <= r.date && x.laps && x.laps.length) days[x.date] = 1; });
+    var n = Object.keys(days).length;
+    if ([5, 10, 25, 50, 100].indexOf(n) !== -1) return n + L('e journée de piste', 'th day on track');
+    return '';
+  }
+  // Duel : this ride just put its rider ahead of me (a friend's ride) or
+  // ahead of a friend (my ride), on this circuit.
+  function rideDuel(r) {
+    var me = currentUserProfile && currentUserProfile.name;
+    if (!me) return null;
+    var opps = r.rider === me ? friendsOf(me).map(function (f) { return f.name; }) : [me];
+    var prevA = bestBefore(r.rider, r.circuit, r.date), found = null;
+    opps.forEach(function (o) {
+      var ob = bestUpTo(o, r.circuit, r.date);
+      if (ob === null || !(r.best < ob) || (prevA !== null && prevA < ob)) return;
+      if (!found || ob < found.oppBest) found = { opp: o, oppBest: ob, gap: ob - r.best, mine: r.rider === me };
+    });
+    return found;
+  }
+  function duelText(d, r) {
+    return d.mine
+      ? L('Tu passes devant ', 'You overtake ') + '<strong>' + escapeHtml(d.opp) + '</strong>' + L(' à ', ' at ') + escapeHtml(r.circuit) + ' · ' + formatGap(d.gap)
+      : '<strong>' + escapeHtml(r.rider) + '</strong>' + L(' t\'a pris la tête à ', ' just passed you at ') + escapeHtml(r.circuit) + ' · ' + formatGap(d.gap) + L('. À toi de jouer.', '. Your move.');
+  }
+  // Friends' photo links on recent roulages.
+  function friendPhotoLinks() {
+    var me = currentUserProfile && currentUserProfile.name;
+    if (!me) return [];
+    var friends = friendsOf(me).map(function (f) { return f.name; });
+    var limit = dateKey(new Date(Date.now() - 30 * 86400000)), today = dateKey(new Date()), out = [];
+    eventsList().forEach(function (ev) {
+      var end = ev.dateEnd || ev.dateStart;
+      if (end < limit || ev.dateStart > today) return;
+      var links = ev.personalMediaLinks || {};
+      Object.keys(links).forEach(function (n) {
+        if (!links[n] || friends.indexOf(n) === -1) return;
+        var d = parseLocalDate(end);
+        out.push({ key: 'photos:' + ev.id + ':' + n, rider: n, ev: ev, url: links[n], createdAt: d ? d.getTime() + 20 * 3600e3 : 0 });
+      });
+    });
+    return out;
+  }
+  // Circuit du moment: 3+ of us rode it in the last 30 days.
+  function circuitOfTheMoment() {
+    var me = currentUserProfile && currentUserProfile.name;
+    if (!me) return null;
+    var rides = ridesFor([me].concat(friendsOf(me).map(function (f) { return f.name; })), 30);
+    var by = {};
+    rides.forEach(function (r) {
+      var k = circuitKey(r.circuit), c = by[k] || (by[k] = { circuit: r.circuit, riders: {}, best: null, bestBy: '' });
+      c.riders[r.rider] = 1;
+      if (c.best === null || r.best < c.best) { c.best = r.best; c.bestBy = r.rider; }
+    });
+    var top = null;
+    Object.keys(by).forEach(function (k) { var c = by[k]; c.n = Object.keys(c.riders).length; if (c.n >= 3 && (!top || c.n > top.n)) top = c; });
+    return top;
+  }
+
   // Upcoming roulages with friends on them (next 45 days).
   function friendsUpcoming() {
     var me = currentUserProfile && currentUserProfile.name;
@@ -4351,16 +4440,16 @@
         Object.keys(d.reactions).forEach(function (who) {
           if (who === name || !d.reactions[who]) return;
           items.push({ key: 'bravo:' + coll + ':' + d.id + ':' + who, kind: 'bravo', time: d.createdAt || 0,
-            html: '<strong>' + escapeHtml(who) + '</strong>' + L(' a dit Bravo ', ' gave kudos ') + label(d), go: go });
+            html: '<strong>' + escapeHtml(who) + '</strong>' + L(' : « Gaz ! » ', ': “Full gas!” ') + label(d), go: go });
         });
       });
     };
     bravoOn('feed', (STATE.feedEvents || []).filter(function (e) { return e.actor === name; }), function (e) {
-      return e.type === 'record' ? L('à ton record à ', 'to your record at ') + escapeHtml(e.circuit) + ' · ' + formatTime(e.time) : L('à ton activité', 'to your activity');
+      return e.type === 'record' ? L('sur ton record à ', 'on your record at ') + escapeHtml(e.circuit) + ' · ' + formatTime(e.time) : L('sur ton activité', 'on your activity');
     }, { to: 'fil' });
     var excerpt = function (t) { t = (t || '').trim(); return t ? ' « ' + escapeHtml(t.length > 40 ? t.slice(0, 40) + '…' : t) + ' »' : ''; };
-    bravoOn('wall', (STATE.wallPosts || []).filter(function (p) { return p.author === name; }), function (p) { return L('à ton message', 'to your post') + excerpt(p.text); }, { to: 'fil' });
-    bravoOn('team', (STATE.teamFeed || []).filter(function (p) { return p.author === name; }), function (p) { return L('à ton message au team', 'to your team post') + excerpt(p.text || p.question); }, { to: 'fil' });
+    bravoOn('wall', (STATE.wallPosts || []).filter(function (p) { return p.author === name; }), function (p) { return L('sur ton message', 'on your post') + excerpt(p.text); }, { to: 'fil' });
+    bravoOn('team', (STATE.teamFeed || []).filter(function (p) { return p.author === name; }), function (p) { return L('sur ton message au team', 'on your team post') + excerpt(p.text || p.question); }, { to: 'fil' });
     // Records des amis
     var recordKeys = {};
     (STATE.feedEvents || []).forEach(function (e) {
@@ -4373,10 +4462,19 @@
     });
     // Roulages des amis
     friendRides(21).forEach(function (r) {
+      var duel = rideDuel(r);
+      if (duel) {
+        items.push({ key: 'duel:' + r.key, kind: 'trophy', time: r.createdAt + 1, html: duelText(duel, r), go: { to: 'outing', circuit: r.circuit, date: r.date, event: r.eventId || '' } });
+        return;
+      }
       if (recordKeys[r.rider + '|' + r.circuit + '|' + r.date]) return;
       items.push({ key: r.key, kind: 'flag', time: r.createdAt,
         html: '<strong>' + escapeHtml(r.rider) + '</strong>' + L(' a roulé à ', ' rode at ') + escapeHtml(r.circuit) + ' · <span class="notif-chrono">' + formatTime(r.best) + '</span>',
         go: { to: 'outing', circuit: r.circuit, date: r.date, event: r.eventId || '' } });
+    });
+    friendPhotoLinks().forEach(function (ph) {
+      items.push({ key: ph.key, kind: 'camera', time: ph.createdAt, html: '<strong>' + escapeHtml(ph.rider) + '</strong>' + L(' a ajouté ses photos de ', ' added photos from ') + escapeHtml(ph.ev.circuit),
+        go: { to: 'event', id: ph.ev.id } });
     });
     // Amis qui roulent bientôt
     friendsUpcoming().forEach(function (x) {
@@ -13393,12 +13491,46 @@
       if (f.audience === 'adherents' && (STATE.myFollowedTeamTiers || {})[f.teamId] !== 'adherent') return;
       items.push({ kind: 'team', data: f, teamId: f.teamId, createdAt: f.createdAt });
     });
-    // Friends' rides fill the feed on their own -- nobody has to write
-    // anything. A ride already announced as a record isn't repeated.
-    var recordDays = {};
+    // Rides fill the feed on their own -- nobody has to write anything.
+    // Several of us on the same roulage = one recap card (mini ranking,
+    // duels, paliers, story); a lone ride = its own card. My own rides
+    // only show when they're news (duel or palier).
+    var recordDays = {}, inRecap = {};
     (STATE.feedEvents || []).forEach(function (e) { if (e.type === 'record' && e.createdAt) recordDays[e.actor + '|' + e.circuit + '|' + dateKey(new Date(e.createdAt))] = true; });
-    friendRides(60).forEach(function (r) {
-      if (!recordDays[r.rider + '|' + r.circuit + '|' + r.date]) items.push({ kind: 'ride', data: r, createdAt: r.createdAt });
+    var groups = {}, recapSig = {};
+    ridesFor([me.name].concat(friendNames), 60).forEach(function (r) {
+      var k = r.eventId ? 'e:' + r.eventId : 'd:' + circuitKey(r.circuit) + '|' + r.date;
+      (groups[k] = groups[k] || []).push(r);
+    });
+    Object.keys(groups).forEach(function (k) {
+      var g = groups[k], r0 = g[0];
+      var ev = r0.eventId ? eventsList().filter(function (e) { return e.id === r0.eventId; })[0] : null;
+      var dates = battleDates(ev, r0.date);
+      var rows = friendsBattleRows(r0.circuit, dates);
+      var created = Math.max.apply(null, g.map(function (r) { return r.createdAt || 0; }));
+      if (rows.length >= 2) {
+        var sig = circuitKey(r0.circuit) + '|' + rows.map(function (x) { return x.rider + x.date; }).sort().join(',');
+        g.forEach(function (r) { inRecap[r.rider + '|' + r.circuit + '|' + r.date] = true; });
+        // Same roulage reached through another group (one ride linked to
+        // the event, another not): merge into the one recap.
+        if (recapSig[sig]) {
+          recapSig[sig].data.rides = recapSig[sig].data.rides.concat(g);
+          recapSig[sig].createdAt = Math.max(recapSig[sig].createdAt, created);
+          if (!recapSig[sig].data.ev && ev) recapSig[sig].data.ev = ev;
+          return;
+        }
+        recapSig[sig] = { kind: 'recap', data: { circuit: r0.circuit, rows: rows, dates: dates, ev: ev, rides: g, date: r0.date }, createdAt: created };
+        items.push(recapSig[sig]);
+        return;
+      }
+      g.forEach(function (r) {
+        if (r.rider === me.name ? (rideDuel(r) || rideMilestone(r)) : !recordDays[r.rider + '|' + r.circuit + '|' + r.date]) items.push({ kind: 'ride', data: r, createdAt: r.createdAt });
+      });
+    });
+    friendPhotoLinks().forEach(function (ph) { items.push({ kind: 'photos', data: ph, createdAt: ph.createdAt }); });
+    // A record already celebrated inside a recap isn't repeated on its own.
+    items = items.filter(function (it) {
+      return !(it.kind === 'activity' && it.data.type === 'record' && it.data.createdAt && inRecap[it.data.actor + '|' + it.data.circuit + '|' + dateKey(new Date(it.data.createdAt))]);
     });
     items.sort(function (a, b) { return (b.createdAt || 0) - (a.createdAt || 0); });
     // 5 at a time -- a scroll sentinel (see attachHandlers) loads 5 more
@@ -13413,6 +13545,8 @@
         if (it.kind === 'wall') inner = renderWallPost(it.data);
         else if (it.kind === 'activity') inner = renderFeedEntry(it.data);
         else if (it.kind === 'ride') inner = renderFeedRide(it.data);
+        else if (it.kind === 'recap') inner = renderFeedRecap(it.data);
+        else if (it.kind === 'photos') inner = renderFeedPhotos(it.data);
         else { var t = teamById(it.teamId); inner = renderTeamFeedEntry(it.data, me, t ? t.name : null); }
         if (!inner) return '';
         var h = feedDayHeader(it.createdAt), head = '';
@@ -13421,7 +13555,51 @@
         if (it.kind === 'activity' && it.data.type === 'friend') return head + '<div class="feed-line">' + inner + '</div>';
         return head + '<div class="card feed-card">' + inner + '</div>';
       }).join('') + (items.length > visible.length ? '<div id="wall-feed-sentinel" class="empty-inline">' + tr('loading') + '</div>' : '');
-    return renderFeedUpcoming() + body;
+    return renderFeedUpcoming() + renderCircuitMoment() + body;
+  }
+  // Duel / palier / record lines under a ride.
+  function rideHighlightsHtml(r) {
+    var out = '', duel = rideDuel(r), ms = rideMilestone(r);
+    if (duel) out += '<div class="feed-highlight duel">' + notifIconHtml('trophy') + '<span>' + duelText(duel, r) + '</span></div>';
+    if (ms) out += '<div class="feed-highlight">' + notifIconHtml('medal') + '<span><strong>' + escapeHtml(r.rider) + '</strong> · ' + escapeHtml(ms) + '</span></div>';
+    else {
+      var prev = bestBefore(r.rider, r.circuit, r.date);
+      if (prev !== null && r.best < prev) out += '<div class="feed-highlight">' + notifIconHtml('trophy') + '<span><strong>' + escapeHtml(r.rider) + '</strong>' + L(' bat son record : ', ' beats their record: ') + '−' + formatGap(prev - r.best) + '</span></div>';
+    }
+    return out;
+  }
+  function renderFeedRecap(d) {
+    var me = currentUserProfile && currentUserProfile.name;
+    var leader = d.rows[0].best, days = d.rows.map(function (x) { return x.date; }).sort();
+    var when = days[0] === days[days.length - 1] ? formatDate(days[0]) : formatDate(days[0]) + ' → ' + formatDate(days[days.length - 1]);
+    var mineRow = d.rows.filter(function (x) { return x.rider === me; })[0];
+    var openDate = mineRow ? mineRow.date : d.date;
+    var html = '<div class="feed-recap-head"><span class="outing-thumb feed-ride-thumb">' + circuitThumbHtml(d.circuit) + '</span>' +
+      '<span class="feed-ride-main"><span class="feed-record-label">' + L('Récap du roulage', 'Trackday recap') + '</span><strong class="feed-ride-circuit">' + escapeHtml(d.circuit) + '</strong>' +
+      '<span class="help-text">' + escapeHtml(when) + ' · ' + d.rows.length + L(' potes', ' friends') + '</span></span></div>';
+    html += '<div class="feed-recap-rows">' + d.rows.slice(0, 5).map(function (x, i) {
+      var u = (STATE.usersByName || {})[x.rider] || {};
+      return '<div class="feed-recap-row' + (x.rider === me ? ' me' : '') + '"><span class="feed-recap-pos">' + (i + 1) + '</span>' + avatarHtml(u, x.rider) +
+        '<span class="feed-recap-name">' + escapeHtml(x.rider) + (x.group ? ' ' + groupChip(x.group) : '') + '</span>' +
+        '<span class="feed-recap-time">' + formatTime(x.best) + '</span><span class="feed-recap-gap">' + (i === 0 ? '' : '+' + formatGap(x.best - leader)) + '</span></div>';
+    }).join('') + (d.rows.length > 5 ? '<div class="help-text">+' + (d.rows.length - 5) + '</div>' : '') + '</div>';
+    html += d.rides.map(rideHighlightsHtml).join('');
+    html += '<div class="feed-recap-actions"><button type="button" class="ghost" data-action="share-battle" data-circuit="' + escapeHtml(d.circuit) + '" data-date="' + escapeHtml(d.dates.join(',')) + '">' + L('Partager la story', 'Share the story') + '</button>' +
+      '<button type="button" class="ghost" data-open-outing="' + escapeHtml(d.circuit) + '" data-outing-date="' + escapeHtml(openDate) + '" data-outing-event="' + escapeHtml(d.ev ? d.ev.id : '') + '">' + L('Voir le roulage', 'Open the trackday') + '</button></div>';
+    return html;
+  }
+  function renderFeedPhotos(ph) {
+    var u = (STATE.usersByName || {})[ph.rider] || {};
+    return '<div class="wall-post-head">' + avatarHtml(u, ph.rider) + personNameHtml(ph.rider) + '<span class="feed-entry-time">' + escapeHtml(formatEventRange(ph.ev, true)) + '</span></div>' +
+      '<div class="feed-photos">' + notifIconHtml('camera') + '<span class="feed-ride-main"><span class="feed-record-label">' + L('Photos du roulage', 'Trackday photos') + '</span><strong class="feed-ride-circuit">' + escapeHtml(ph.ev.circuit) + '</strong></span></div>' +
+      postLinkHtml(ph.url);
+  }
+  function renderCircuitMoment() {
+    var c = circuitOfTheMoment();
+    if (!c) return '';
+    return '<div class="card feed-moment"><span class="outing-thumb feed-ride-thumb">' + circuitThumbHtml(c.circuit) + '</span>' +
+      '<span class="feed-ride-main"><span class="feed-record-label">' + L('Le circuit du moment', 'Circuit of the moment') + '</span><strong class="feed-ride-circuit">' + escapeHtml(c.circuit) + '</strong>' +
+      '<span class="help-text">' + c.n + L(' potes y ont roulé ce mois-ci · record des potes ', ' friends rode it this month · friends\' record ') + '<strong>' + formatTime(c.best) + '</strong> (' + escapeHtml(c.bestBy) + ')</span></span></div>';
   }
   function feedDayHeader(ms) {
     if (!ms) return 'Plus tôt';
@@ -13437,14 +13615,14 @@
     var me = currentUserProfile && currentUserProfile.name;
     var myBest = me ? riderCircuitBest(me, r.circuit) : null;
     var vs = '';
-    if (myBest !== null) vs = r.best < myBest ? '<span class="feed-ride-vs">' + formatGap(myBest - r.best) + ' devant toi</span>' : '<span class="feed-ride-vs ahead">tu es ' + formatGap(r.best - myBest) + ' devant</span>';
+    if (myBest !== null && r.rider !== me) vs = r.best < myBest ? '<span class="feed-ride-vs">' + formatGap(myBest - r.best) + ' devant toi</span>' : '<span class="feed-ride-vs ahead">tu es ' + formatGap(r.best - myBest) + ' devant</span>';
     return '<div class="wall-post-head">' + avatarHtml(u, r.rider) + personNameHtml(r.rider) + badgesHtml(u) + '<span class="feed-entry-time">' + escapeHtml(relativeTime(r.createdAt)) + '</span></div>' +
       '<button type="button" class="feed-ride" data-open-outing="' + escapeHtml(r.circuit) + '" data-outing-date="' + escapeHtml(r.date) + '" data-outing-event="' + escapeHtml(r.eventId || '') + '">' +
         '<span class="outing-thumb feed-ride-thumb">' + circuitThumbHtml(r.circuit) + '</span>' +
         '<span class="feed-ride-main"><span class="feed-record-label">A roulé à</span><strong class="feed-ride-circuit">' + escapeHtml(r.circuit) + '</strong>' +
-          '<span class="help-text">' + escapeHtml(formatDate(r.date)) + ' · ' + r.laps + ' tours' + (r.group ? ' · ' + groupChip(r.group) : '') + '</span></span>' +
+          '<span class="help-text">' + escapeHtml(formatDate(r.date)) + ' · ' + r.laps + (r.laps > 1 ? L(' tours', ' laps') : L(' tour', ' lap')) + (r.group ? ' · ' + groupChip(r.group) : '') + '</span></span>' +
         '<span class="feed-ride-right"><span class="feed-record-time">' + formatTime(r.best) + '</span>' + vs + '</span>' +
-      '</button>';
+      '</button>' + rideHighlightsHtml(r);
   }
   // « Bientôt sur la piste » : where my friends ride next, with « J'y vais
   // aussi » straight from the feed.
@@ -13454,9 +13632,9 @@
     return '<div class="card feed-upcoming"><div class="feed-record-label">Bientôt sur la piste</div>' + list.map(function (x) {
       var ev = x.ev;
       return '<div class="feed-upcoming-row"><span class="outing-thumb">' + circuitThumbHtml(ev.circuit) + '</span>' +
-        '<span class="feed-upcoming-main"><strong>' + escapeHtml(ev.circuit) + '</strong><span class="help-text">' + escapeHtml(formatEventRange(ev, true)) + '</span>' +
+        '<span class="feed-upcoming-main"><strong>' + escapeHtml(ev.circuit) + ' <span class="feed-upcoming-j">J-' + Math.max(0, Math.round((parseLocalDate(ev.dateStart) - parseLocalDate(dateKey(new Date()))) / 86400000)) + '</span></strong><span class="help-text">' + escapeHtml(formatEventRange(ev, true)) + '</span>' +
         '<span class="feed-upcoming-who">' + x.friends.slice(0, 4).map(function (n) { return avatarHtml((STATE.usersByName || {})[n] || {}, n); }).join('') +
-        '<span class="help-text">' + escapeHtml(x.friends.slice(0, 2).join(', ') + (x.friends.length > 2 ? ' +' + (x.friends.length - 2) : '')) + '</span></span></span>' +
+        '<span class="help-text">' + x.friends.slice(0, 2).map(function (n) { var g = riderGroupFor(ev, n, ev.dateStart, 'matin') || riderGroupFor(ev, n, ev.dateStart, 'apres-midi'); return escapeHtml(n) + (g ? ' ' + groupChip(g) : ''); }).join(', ') + (x.friends.length > 2 ? ' +' + (x.friends.length - 2) : '') + '</span></span></span>' +
         (x.mine ? '<span class="feed-upcoming-tag">Tu y vas</span>' : '<button type="button" class="ghost" data-notif-go="event" data-id="' + escapeHtml(ev.id) + '" data-join="1">J\'y vais aussi</button>') +
         '</div>';
     }).join('') + '</div>';
