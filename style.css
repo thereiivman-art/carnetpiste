@@ -3377,3 +3377,4 @@ body { min-height: 100%; min-height: 100dvh; }
 .consent-check { display: flex; align-items: flex-start; gap: 0.5rem; font-size: 0.85rem; line-height: 1.35; margin-top: 0.4rem; }
 .consent-check input { margin-top: 0.15rem; }
 .auth-link.inline { display: inline; padding: 0; font-size: inherit; text-decoration: underline; }
+.outing-role-value { font-family: var(--font-display); font-size: 1.4rem; font-weight: 700; }
