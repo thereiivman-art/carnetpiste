@@ -914,7 +914,7 @@
 "Chronos validés par le team": "Team-validated lap times",
 "Aucune donnée.": "No data.",
 "Records": "Records",
-"Record par circuit": "Record per circuit", "Ce soir": "Tonight", "Plus tard": "Later", "📷 Importer ma feuille de temps": "📷 Import my timesheet",
+"Record par circuit": "Record per circuit", "Bientôt sur la piste": "Soon on track", "A roulé à": "Rode at", "Tu y vas": "You're going", "J'y vais aussi": "I'm going too", "Nouveau record": "New record", "Aujourd'hui": "Today", "Hier": "Yesterday", "Cette semaine": "This week", "Plus tôt": "Earlier", "Sondage": "Poll", "Aimé": "Liked", "J'aime": "Like", "Ce soir": "Tonight", "Plus tard": "Later", "📷 Importer ma feuille de temps": "📷 Import my timesheet",
 "Photo de la feuille de temps, capture ou PDF : ton record, ta courbe et ta place « Entre potes » tout de suite.": "Timesheet photo, screenshot or PDF: your record, your progress chart and your place in “Between friends” right away.",
 "Semaine": "Week", "Mois": "Month", "Année": "Year", "Créer le team": "Create the team",
 "Roulages": "Trackdays",
@@ -1248,7 +1248,7 @@
     [/^Non attribués \((\d+)\)$/, 'Unassigned ($1)'], [/^Chronos \((\d+)\)$/, 'Lap times ($1)'], [/^Repères \((\d+)\)$/, 'Marks ($1)'], [/^Repères · (\d+)$/, 'Marks · $1'],
     [/^À traiter \((\d+)\)$/, 'To handle ($1)'], [/^En attente \((\d+)\)$/, 'Waiting ($1)'], [/^Demandes \((\d+)\)$/, 'Requests ($1)'], [/^En cours \((\d+)\)$/, 'Ongoing ($1)'],
     [/^Équipement (\d+\/\d+)$/, 'Gear $1'],
-    [/^Session (\d+)$/, 'Session $1'], [/^Du calendrier \((\d+)\)$/, 'From the calendar ($1)'], [/^De mon carnet \((\d+)\)$/, 'From my logbook ($1)'],
+    [/^Session (\d+)$/, 'Session $1'], [/^(.+) devant toi$/, '$1 ahead of you'], [/^tu es (.+) devant$/, 'you are $1 ahead'], [/^(\d+) tours$/, '$1 laps'], [/^Du calendrier \((\d+)\)$/, 'From the calendar ($1)'], [/^De mon carnet \((\d+)\)$/, 'From my logbook ($1)'],
     [/^Ajoute ton chrono de (.+)$/, 'Add your lap time from $1'],
     [/^🏆 Trophées — (\d+)\/(\d+) débloqués$/, '🏆 Trophies — $1/$2 unlocked'],
     [/^([\d\/]+) s gagnées$/, '$1 s gained'],
@@ -4273,6 +4273,216 @@
       '</div></div>';
   }
 
+
+  // ---- Activité (cloche + fil) ----
+  // Ce qui se passe autour de moi, calculé à partir des données déjà
+  // synchronisées (pas de collection de notifications à part) : Bravo
+  // reçus, records et roulages de mes amis, amis qui roulent bientôt, mes
+  // trophées, ma semaine, mon prochain roulage. « Lu » = clé déjà vue,
+  // gardée sur l'appareil.
+  var NOTIF_SVG = {
+    bravo: '<path d="M7 11v9H4v-9h3zm0 0l4-8c1.1 0 2 .9 2 2v4h5.2c1 0 1.8.9 1.6 1.9l-1.3 7c-.2.7-.8 1.1-1.5 1.1H7"/>',
+    trophy: '<path d="M8 4h8v5a4 4 0 01-8 0V4zM8 6H5a3 3 0 003 4M16 6h3a3 3 0 01-3 4M12 13v4M8.5 20h7M10 17h4"/>',
+    flag: '<path d="M5 21V4M5 4h11l-2 4 2 4H5"/>',
+    calendar: '<rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/>',
+    chart: '<path d="M4 20h16M7 16v-4M12 16V8M17 16v-7"/>',
+    clock: '<circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2"/>',
+    medal: '<circle cx="12" cy="15" r="5"/><path d="M8.5 11L6 4h4l2 4 2-4h4l-2.5 7"/>',
+    users: '<circle cx="9" cy="8" r="3"/><path d="M3 20c0-3 3-5 6-5s6 2 6 5"/><circle cx="17" cy="9" r="2.5"/><path d="M16 15c3 0 5 1.5 5 4.5"/>',
+    camera: '<rect x="3" y="7" width="18" height="13" rx="2"/><circle cx="12" cy="13.5" r="3.5"/><path d="M8 7l1.5-3h5L16 7"/>'
+  };
+  function notifIconHtml(kind) {
+    return '<span class="notif-ico notif-ico-' + kind + '"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + (NOTIF_SVG[kind] || NOTIF_SVG.flag) + '</svg></span>';
+  }
+  // Sessions carry no createdAt, but their id starts with Date.now() in
+  // base 36 (see genId) -- else noon on the session's day.
+  function sessionCreatedAt(x) {
+    var t = parseInt(String(x.id || '').slice(0, 8), 36);
+    if (t > 1.5e12 && t < 4e12) return t;
+    var d = parseLocalDate(x.date);
+    return d ? d.getTime() + 12 * 3600e3 : 0;
+  }
+  // One entry per friend per day per circuit (several sessions = one ride).
+  function friendRides(maxDays) {
+    var me = currentUserProfile && currentUserProfile.name;
+    if (!me) return [];
+    var friends = friendsOf(me).map(function (f) { return f.name; });
+    var limit = dateKey(new Date(Date.now() - (maxDays || 30) * 86400000));
+    var by = {};
+    (STATE.sessions || []).forEach(function (x) {
+      if (friends.indexOf(x.rider) === -1 || !x.laps || !x.laps.length || !x.date || x.date < limit) return;
+      var k = x.rider + '|' + x.date + '|' + x.circuit;
+      var r = by[k] || (by[k] = { key: 'ride:' + k, rider: x.rider, circuit: x.circuit, date: x.date, best: null, laps: 0, group: '', eventId: x.eventId || null, createdAt: 0 });
+      var b = sessionBest(x);
+      if (r.best === null || b < r.best) r.best = b;
+      r.laps += x.laps.length;
+      if (x.group && !r.group) r.group = x.group;
+      r.createdAt = Math.max(r.createdAt, sessionCreatedAt(x));
+    });
+    return Object.keys(by).map(function (k) { return by[k]; });
+  }
+  // Upcoming roulages with friends on them (next 45 days).
+  function friendsUpcoming() {
+    var me = currentUserProfile && currentUserProfile.name;
+    if (!me) return [];
+    var friends = friendsOf(me).map(function (f) { return f.name; });
+    var today = dateKey(new Date()), limit = dateKey(new Date(Date.now() + 45 * 86400000));
+    return eventsList().filter(function (ev) { return (ev.dateEnd || ev.dateStart) >= today && ev.dateStart <= limit; })
+      .map(function (ev) { return { ev: ev, friends: (ev.riders || []).filter(function (n) { return friends.indexOf(n) !== -1; }), mine: (ev.riders || []).indexOf(me) !== -1 }; })
+      .filter(function (x) { return x.friends.length; })
+      .sort(function (a, b) { return a.ev.dateStart < b.ev.dateStart ? -1 : 1; });
+  }
+  function L(fr, en) { return currentLang() === 'en' ? en : fr; }
+  function namesList(names) {
+    var n = names.map(function (x) { return '<strong>' + escapeHtml(x) + '</strong>'; });
+    if (n.length <= 1) return n.join('');
+    if (n.length === 2) return n[0] + L(' et ', ' and ') + n[1];
+    return n[0] + ', ' + n[1] + L(' et ', ' and ') + (n.length - 2) + L(' autre' + (n.length > 3 ? 's' : ''), ' other' + (n.length > 3 ? 's' : ''));
+  }
+  function activityItems() {
+    var me = currentUserProfile;
+    if (!me) return [];
+    var name = me.name, items = [];
+    var friends = friendsOf(name).map(function (f) { return f.name; });
+    // Bravo reçus
+    var bravoOn = function (coll, list, label, go) {
+      (list || []).forEach(function (d) {
+        if (!d.reactions) return;
+        Object.keys(d.reactions).forEach(function (who) {
+          if (who === name || !d.reactions[who]) return;
+          items.push({ key: 'bravo:' + coll + ':' + d.id + ':' + who, kind: 'bravo', time: d.createdAt || 0,
+            html: '<strong>' + escapeHtml(who) + '</strong>' + L(' a dit Bravo ', ' gave kudos ') + label(d), go: go });
+        });
+      });
+    };
+    bravoOn('feed', (STATE.feedEvents || []).filter(function (e) { return e.actor === name; }), function (e) {
+      return e.type === 'record' ? L('à ton record à ', 'to your record at ') + escapeHtml(e.circuit) + ' · ' + formatTime(e.time) : L('à ton activité', 'to your activity');
+    }, { to: 'fil' });
+    var excerpt = function (t) { t = (t || '').trim(); return t ? ' « ' + escapeHtml(t.length > 40 ? t.slice(0, 40) + '…' : t) + ' »' : ''; };
+    bravoOn('wall', (STATE.wallPosts || []).filter(function (p) { return p.author === name; }), function (p) { return L('à ton message', 'to your post') + excerpt(p.text); }, { to: 'fil' });
+    bravoOn('team', (STATE.teamFeed || []).filter(function (p) { return p.author === name; }), function (p) { return L('à ton message au team', 'to your team post') + excerpt(p.text || p.question); }, { to: 'fil' });
+    // Records des amis
+    var recordKeys = {};
+    (STATE.feedEvents || []).forEach(function (e) {
+      if (e.type !== 'record' || friends.indexOf(e.actor) === -1) return;
+      var day = e.createdAt ? dateKey(new Date(e.createdAt)) : '';
+      recordKeys[e.actor + '|' + e.circuit + '|' + day] = true;
+      items.push({ key: 'rec:' + e.id, kind: 'trophy', time: e.createdAt || 0,
+        html: '<strong>' + escapeHtml(e.actor) + '</strong>' + L(' a battu son record à ', ' set a new record at ') + escapeHtml(e.circuit) + ' · <span class="notif-chrono">' + formatTime(e.time) + '</span>',
+        go: { to: 'outing', circuit: e.circuit, date: day } });
+    });
+    // Roulages des amis
+    friendRides(21).forEach(function (r) {
+      if (recordKeys[r.rider + '|' + r.circuit + '|' + r.date]) return;
+      items.push({ key: r.key, kind: 'flag', time: r.createdAt,
+        html: '<strong>' + escapeHtml(r.rider) + '</strong>' + L(' a roulé à ', ' rode at ') + escapeHtml(r.circuit) + ' · <span class="notif-chrono">' + formatTime(r.best) + '</span>',
+        go: { to: 'outing', circuit: r.circuit, date: r.date, event: r.eventId || '' } });
+    });
+    // Amis qui roulent bientôt
+    friendsUpcoming().forEach(function (x) {
+      var ev = x.ev;
+      items.push({ key: 'going:' + ev.id + ':' + x.friends.slice().sort().join(','), kind: 'calendar', time: Date.now() - 1,
+        timeLabel: formatEventRange(ev, true),
+        html: namesList(x.friends) + L((x.friends.length > 1 ? ' roulent' : ' roule') + (x.mine ? ' aussi' : '') + ' à ', (x.mine ? ' also' : '') + (x.friends.length > 1 ? ' ride' : ' rides') + ' at ') + escapeHtml(ev.circuit),
+        go: { to: 'event', id: ev.id, join: !x.mine } });
+    });
+    // Mes trophées
+    if (me.role !== 'accompagnant' && me.role !== 'organisateur') {
+      try {
+        riderAchievements(name, riderStats(name)).forEach(function (a) {
+          if (!a.earned) return;
+          // Only while new: the full list lives in Stats → Trophées.
+          var tk = 'troph:' + a.label;
+          if (notifSeen && notifSeen.keys[tk] && !(notifSeenOnOpen && !notifSeenOnOpen[tk])) return;
+          items.push({ key: tk, kind: 'medal', time: Date.now() - 5, timeLabel: L('Nouveau trophée', 'New trophy'),
+            html: L('Trophée débloqué : ', 'Trophy unlocked: ') + '<strong>' + escapeHtml(a.label) + '</strong>', go: { to: 'trophees' } });
+        });
+      } catch (e) {}
+    }
+    // Ma semaine
+    var weekAgo = dateKey(new Date(Date.now() - 7 * 86400000));
+    var mineWeek = (STATE.sessions || []).filter(function (x) { return x.rider === name && x.date >= weekAgo && x.laps && x.laps.length; });
+    if (mineWeek.length) {
+      var days = {}, laps = 0, circuits = {};
+      mineWeek.forEach(function (x) { days[x.date + x.circuit] = 1; laps += x.laps.length; circuits[x.circuit] = 1; });
+      var nRides = Object.keys(days).length, monday = new Date(); monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7));
+      items.push({ key: 'week:' + dateKey(monday) + ':' + nRides + ':' + laps, kind: 'chart', time: Date.now() - 2, timeLabel: L('Cette semaine', 'This week'),
+        html: L('Ta semaine : ', 'Your week: ') + '<strong>' + nRides + L(' roulage' + (nRides > 1 ? 's' : ''), ' trackday' + (nRides > 1 ? 's' : '')) + '</strong>, ' + laps + L(' tours sur ', ' laps at ') + Object.keys(circuits).join(', ') + L('. Ta progression t\'attend.', '. Your progress is waiting.'),
+        go: { to: 'stats' } });
+    }
+    // Mon prochain roulage
+    var next = myUpcomingEvents()[0];
+    if (next) {
+      var dd = Math.round((parseLocalDate(next.dateStart) - parseLocalDate(dateKey(new Date()))) / 86400000);
+      if (dd >= 0 && dd <= 7) items.push({ key: 'soon:' + next.id + ':' + dd, kind: 'clock', time: Date.now() - 3, timeLabel: dd === 0 ? L('Aujourd\'hui', 'Today') : (dd === 1 ? L('Demain', 'Tomorrow') : 'J-' + dd),
+        html: (dd === 0 ? L('C\'est le jour J à ', 'Race day at ') + '<strong>' + escapeHtml(next.circuit) + '</strong>' + L(' : ton groupe et tes horaires en grand.', ': your group and timetable in big.') : '<strong>' + escapeHtml(next.circuit) + '</strong> ' + (dd === 1 ? L('demain', 'tomorrow') : L('dans ' + dd + ' jours', 'in ' + dd + ' days')) + L(' : vérifie tes horaires et ta checklist.', ': check your timetable and checklist.')),
+        go: { to: 'planning' } });
+    }
+    var ts = pendingTimesheetReminder();
+    if (ts) items.push({ key: 'ts:' + ts.ev.id + ':' + ts.date, kind: 'camera', time: Date.now() - 4, timeLabel: ts.date === dateKey(new Date()) ? L('Ce soir', 'Tonight') : formatDate(ts.date),
+      html: L('Ajoute ton chrono de ', 'Add your lap time from ') + '<strong>' + escapeHtml(ts.ev.circuit) + '</strong>' + L(' : ta place « Entre potes » t\'attend.', ': your place in “Between friends” is waiting.'), go: { to: 'carnet' } });
+    items.sort(function (a, b) { return (b.time || 0) - (a.time || 0); });
+    return items;
+  }
+  // Seen keys, per device. First run: everything already there counts as
+  // seen, so only what happens next shows up as new.
+  var notifSeen = null, notifSeenOnOpen = null;
+  function loadNotifSeen() {
+    if (notifSeen) return notifSeen;
+    try { notifSeen = JSON.parse(localStorage.getItem('cdp-notif-seen') || 'null'); } catch (e) { notifSeen = null; }
+    if (!notifSeen || !notifSeen.keys) {
+      notifSeen = { keys: {} };
+      activityItems().forEach(function (it) { notifSeen.keys[it.key] = 1; });
+      saveNotifSeen();
+    }
+    return notifSeen;
+  }
+  function saveNotifSeen() {
+    try {
+      var keys = Object.keys(notifSeen.keys);
+      if (keys.length > 800) keys.slice(0, keys.length - 800).forEach(function (k) { delete notifSeen.keys[k]; });
+      localStorage.setItem('cdp-notif-seen', JSON.stringify(notifSeen));
+    } catch (e) {}
+  }
+  function unreadActivityCount() {
+    if (!currentUserProfile) return 0;
+    var seen = loadNotifSeen().keys;
+    return activityItems().filter(function (it) { return !seen[it.key]; }).length;
+  }
+  // Opening the panel marks everything seen, but the dots stay for this
+  // visit (notifSeenOnOpen) so you can still tell what was new.
+  function markNotificationsSeen() {
+    var seen = loadNotifSeen();
+    notifSeenOnOpen = Object.assign({}, seen.keys);
+    activityItems().forEach(function (it) { seen.keys[it.key] = 1; });
+    saveNotifSeen();
+  }
+  function activityTimeLabel(it) {
+    return it.timeLabel || (it.time ? relativeTime(it.time) : '');
+  }
+  function notifGoAttrs(go) {
+    go = go || {};
+    return ' data-notif-go="' + escapeHtml(go.to || '') + '"' + (go.circuit ? ' data-circuit="' + escapeHtml(go.circuit) + '"' : '') +
+      (go.date ? ' data-date="' + escapeHtml(go.date) + '"' : '') + (go.event ? ' data-event="' + escapeHtml(go.event) + '"' : '') +
+      (go.id ? ' data-id="' + escapeHtml(go.id) + '"' : '') + (go.join ? ' data-join="1"' : '');
+  }
+  function followNotifGo(el) {
+    var to = el.getAttribute('data-notif-go');
+    notificationsPanelOpen = false;
+    if (to === 'outing') return openOuting(el.getAttribute('data-circuit'), el.getAttribute('data-date'), el.getAttribute('data-event') || null);
+    if (to === 'event') {
+      if (el.getAttribute('data-join')) joinBannerEventId = el.getAttribute('data-id');
+      return openEventPage(el.getAttribute('data-id'));
+    }
+    if (to === 'fil') { activeView = 'social'; pillState.social = 'fil'; }
+    else if (to === 'trophees') { activeView = 'stats'; pillState.stats = 'trophees'; }
+    else if (to === 'stats') { activeView = 'stats'; pillState.stats = 'records'; }
+    else if (to === 'planning') activeView = 'planning';
+    else activeView = 'carnet';
+    renderRoot();
+    window.scrollTo(0, 0);
+  }
+
   // How many items the header's 🔔 notification icon badges up -- every
   // pending thing addressed to this account across the app's request/
   // accept flows (friends, Teams, coaching, Team join requests this
@@ -4333,7 +4543,15 @@
     adherentReqs.forEach(function (f) {
       rows += renderTeamAdherentRequestRow(f);
     });
-    html += rows || '<div class="empty-state">Rien de nouveau.</div>';
+    if (rows) html += '<div class="notif-group-title">' + L('À traiter', 'To handle') + '</div>' + rows + '</div><div class="card notifications-panel">';
+    var seenBefore = notifSeenOnOpen || loadNotifSeen().keys;
+    var acts = activityItems().slice(0, 40);
+    html += acts.length ? acts.map(function (it) {
+      var unread = !seenBefore[it.key];
+      return '<button type="button" class="notif-row' + (unread ? ' unread' : '') + '"' + notifGoAttrs(it.go) + '>' + notifIconHtml(it.kind) +
+        '<span class="notif-body"><span class="notif-text">' + it.html + '</span><span class="notif-time">' + escapeHtml(activityTimeLabel(it)) + '</span></span>' +
+        (unread ? '<span class="notif-dot" aria-label="Nouveau"></span>' : '') + '</button>';
+    }).join('') : '<div class="empty-state">' + L('Rien de nouveau. Ajoute des amis pour suivre leurs chronos et leurs roulages.', 'Nothing new. Add friends to follow their lap times and trackdays.') + '</div>';
     html += '</div>';
     return html;
   }
@@ -12993,7 +13211,7 @@
         '<span class="feed-entry-time">' + escapeHtml(relativeTime(e.createdAt)) + '</span></div>';
     } else if (e.type === 'record') {
       text = '<span class="feed-record-label">Nouveau record</span><span class="feed-record-line">' + personNameHtml(e.actor) + ' · ' + escapeHtml(e.circuit) + '</span>';
-      return '<div class="feed-entry feed-entry-record"><div class="feed-entry-row"><span class="feed-entry-text">' + text + '</span>' +
+      return '<div class="feed-entry feed-entry-record"><div class="feed-entry-row"><span class="outing-thumb feed-ride-thumb">' + circuitThumbHtml(e.circuit) + '</span><span class="feed-entry-text">' + text + '</span>' +
         '<span class="feed-record-time">' + formatTime(e.time) + '</span></div>' +
         '<div class="feed-entry-foot">' + renderReactionBar(e.reactions, 'react-feed-event', e.id) + '<span class="feed-entry-time">' + escapeHtml(relativeTime(e.createdAt)) + '</span></div></div>';
     } else {
@@ -13175,20 +13393,73 @@
       if (f.audience === 'adherents' && (STATE.myFollowedTeamTiers || {})[f.teamId] !== 'adherent') return;
       items.push({ kind: 'team', data: f, teamId: f.teamId, createdAt: f.createdAt });
     });
+    // Friends' rides fill the feed on their own -- nobody has to write
+    // anything. A ride already announced as a record isn't repeated.
+    var recordDays = {};
+    (STATE.feedEvents || []).forEach(function (e) { if (e.type === 'record' && e.createdAt) recordDays[e.actor + '|' + e.circuit + '|' + dateKey(new Date(e.createdAt))] = true; });
+    friendRides(60).forEach(function (r) {
+      if (!recordDays[r.rider + '|' + r.circuit + '|' + r.date]) items.push({ kind: 'ride', data: r, createdAt: r.createdAt });
+    });
     items.sort(function (a, b) { return (b.createdAt || 0) - (a.createdAt || 0); });
     // 5 at a time -- a scroll sentinel (see attachHandlers) loads 5 more
     // once it comes into view, rather than the whole history rendering
     // (and every reaction/edit re-diffing it) up front.
     var visible = items.slice(0, wallFeedVisibleCount);
+    var lastHeader = '';
     var body = !items.length
-      ? (coreDataLoading() ? '<div class="empty-state">' + tr('loading') + '</div>' : emptyFeedHtml())
+      ? (coreDataLoading() ? '<div class="card"><div class="empty-state">' + tr('loading') + '</div></div>' : '<div class="card">' + emptyFeedHtml() + '</div>')
       : visible.map(function (it) {
-        if (it.kind === 'wall') return renderWallPost(it.data);
-        if (it.kind === 'activity') return renderFeedEntry(it.data);
-        var t = teamById(it.teamId);
-        return renderTeamFeedEntry(it.data, me, t ? t.name : null);
+        var inner;
+        if (it.kind === 'wall') inner = renderWallPost(it.data);
+        else if (it.kind === 'activity') inner = renderFeedEntry(it.data);
+        else if (it.kind === 'ride') inner = renderFeedRide(it.data);
+        else { var t = teamById(it.teamId); inner = renderTeamFeedEntry(it.data, me, t ? t.name : null); }
+        if (!inner) return '';
+        var h = feedDayHeader(it.createdAt), head = '';
+        if (h !== lastHeader) { head = '<div class="feed-day">' + h + '</div>'; lastHeader = h; }
+        // A new friendship is a quiet line between cards, not a card.
+        if (it.kind === 'activity' && it.data.type === 'friend') return head + '<div class="feed-line">' + inner + '</div>';
+        return head + '<div class="card feed-card">' + inner + '</div>';
       }).join('') + (items.length > visible.length ? '<div id="wall-feed-sentinel" class="empty-inline">' + tr('loading') + '</div>' : '');
-    return '<div class="card">' + body + '</div>';
+    return renderFeedUpcoming() + body;
+  }
+  function feedDayHeader(ms) {
+    if (!ms) return 'Plus tôt';
+    var d = dateKey(new Date(ms)), today = dateKey(new Date()), y = dateKey(new Date(Date.now() - 86400000));
+    if (d === today) return 'Aujourd\'hui';
+    if (d === y) return 'Hier';
+    if (d >= dateKey(new Date(Date.now() - 6 * 86400000))) return 'Cette semaine';
+    return 'Plus tôt';
+  }
+  // A friend's day on track: circuit outline, best lap in big, compare.
+  function renderFeedRide(r) {
+    var u = (STATE.usersByName || {})[r.rider] || {};
+    var me = currentUserProfile && currentUserProfile.name;
+    var myBest = me ? riderCircuitBest(me, r.circuit) : null;
+    var vs = '';
+    if (myBest !== null) vs = r.best < myBest ? '<span class="feed-ride-vs">' + formatGap(myBest - r.best) + ' devant toi</span>' : '<span class="feed-ride-vs ahead">tu es ' + formatGap(r.best - myBest) + ' devant</span>';
+    return '<div class="wall-post-head">' + avatarHtml(u, r.rider) + personNameHtml(r.rider) + badgesHtml(u) + '<span class="feed-entry-time">' + escapeHtml(relativeTime(r.createdAt)) + '</span></div>' +
+      '<button type="button" class="feed-ride" data-open-outing="' + escapeHtml(r.circuit) + '" data-outing-date="' + escapeHtml(r.date) + '" data-outing-event="' + escapeHtml(r.eventId || '') + '">' +
+        '<span class="outing-thumb feed-ride-thumb">' + circuitThumbHtml(r.circuit) + '</span>' +
+        '<span class="feed-ride-main"><span class="feed-record-label">A roulé à</span><strong class="feed-ride-circuit">' + escapeHtml(r.circuit) + '</strong>' +
+          '<span class="help-text">' + escapeHtml(formatDate(r.date)) + ' · ' + r.laps + ' tours' + (r.group ? ' · ' + groupChip(r.group) : '') + '</span></span>' +
+        '<span class="feed-ride-right"><span class="feed-record-time">' + formatTime(r.best) + '</span>' + vs + '</span>' +
+      '</button>';
+  }
+  // « Bientôt sur la piste » : where my friends ride next, with « J'y vais
+  // aussi » straight from the feed.
+  function renderFeedUpcoming() {
+    var list = friendsUpcoming().slice(0, 3);
+    if (!list.length) return '';
+    return '<div class="card feed-upcoming"><div class="feed-record-label">Bientôt sur la piste</div>' + list.map(function (x) {
+      var ev = x.ev;
+      return '<div class="feed-upcoming-row"><span class="outing-thumb">' + circuitThumbHtml(ev.circuit) + '</span>' +
+        '<span class="feed-upcoming-main"><strong>' + escapeHtml(ev.circuit) + '</strong><span class="help-text">' + escapeHtml(formatEventRange(ev, true)) + '</span>' +
+        '<span class="feed-upcoming-who">' + x.friends.slice(0, 4).map(function (n) { return avatarHtml((STATE.usersByName || {})[n] || {}, n); }).join('') +
+        '<span class="help-text">' + escapeHtml(x.friends.slice(0, 2).join(', ') + (x.friends.length > 2 ? ' +' + (x.friends.length - 2) : '')) + '</span></span></span>' +
+        (x.mine ? '<span class="feed-upcoming-tag">Tu y vas</span>' : '<button type="button" class="ghost" data-notif-go="event" data-id="' + escapeHtml(ev.id) + '" data-join="1">J\'y vais aussi</button>') +
+        '</div>';
+    }).join('') + '</div>';
   }
 
   function postToWall(text, linkUrl, photoURL, audience) {
@@ -14717,7 +14988,7 @@
       // Big section title so it's always clear which main tab you're in.
       if (activeView !== 'outing') body = renderSectionHeading(navTabFor(activeView)) + body;
     }
-    var notifCount = pendingNotificationCount();
+    var notifCount = pendingNotificationCount() + unreadActivityCount();
     root.innerHTML =
       '<header class="page-head">' +
         '<div class="page-head-inner">' +
@@ -14729,7 +15000,7 @@
                 '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3zM20 14v.01M14 20h.01M17 20h4v-3"/></svg></button>' +
               '<button type="button" class="header-icon-btn" id="settings-toggle" aria-label="Paramètres" title="Paramètres">' +
                 '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>' +
-              '<button type="button" class="header-icon-btn" id="notifications-toggle" aria-label="' + tr('notifications_label') + '" title="' + tr('notifications_label') + '">🔔' +
+              '<button type="button" class="header-icon-btn" id="notifications-toggle" aria-label="' + tr('notifications_label') + '" title="' + tr('notifications_label') + '"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 16V11a6 6 0 0112 0v5l1.5 2h-15L6 16z"/><path d="M10 20.5a2 2 0 004 0"/></svg>' +
                 (notifCount ? '<span class="notif-count">' + (notifCount > 9 ? '9+' : notifCount) + '</span>' : '') +
               '</button>' +
             '</div>' +
@@ -15246,11 +15517,15 @@
     });
     var inviteQrBtn = document.getElementById('invite-qr-btn');
     if (inviteQrBtn) inviteQrBtn.addEventListener('click', openInviteQr);
+    document.querySelectorAll('[data-notif-go]').forEach(function (el) {
+      el.addEventListener('click', function () { followNotifGo(el); });
+    });
     var notificationsToggle = document.getElementById('notifications-toggle');
     if (notificationsToggle) {
       notificationsToggle.addEventListener('click', function () {
         notificationsPanelOpen = !notificationsPanelOpen;
         profilePanelOpen = false;
+        if (notificationsPanelOpen) markNotificationsSeen();
         renderRoot();
       });
     }

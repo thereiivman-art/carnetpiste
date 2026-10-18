@@ -3235,3 +3235,48 @@ body { min-height: 100%; min-height: 100dvh; }
 }
 
 .team-composer-poll-link .link-btn { color: var(--text-muted); text-decoration: none; font-weight: 600; }
+
+/* Notifications vivantes : une icône par type, nom en gras, point « nouveau » */
+.notif-group-title { font-size: 0.72rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: var(--accent); margin-bottom: 0.5rem; }
+.notifications-panel { padding: 0.3rem 0; overflow: hidden; }
+.notifications-panel > .friend-row, .notifications-panel > .notif-group-title, .notifications-panel > .empty-state { margin-left: 1rem; margin-right: 1rem; }
+.notifications-panel > .notif-group-title { margin-top: 0.8rem; }
+.notif-row { display: flex; align-items: flex-start; gap: 0.85rem; width: 100%; text-align: left; background: transparent; border: 0; border-top: 1px solid var(--border); border-radius: 0; padding: 0.95rem 1rem; color: var(--text); font: inherit; cursor: pointer; }
+.notif-row:first-child { border-top: 0; }
+.notif-row.unread { background: color-mix(in srgb, var(--accent) 5%, transparent); }
+.notif-ico { width: 42px; height: 42px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; background: var(--surface-alt); color: var(--text-muted); }
+.notif-row.unread .notif-ico { background: color-mix(in srgb, var(--accent) 14%, transparent); color: var(--accent); }
+.notif-ico-trophy, .notif-ico-medal { color: #b07a0c; }
+.notif-ico-calendar, .notif-ico-clock { color: var(--grp-B, #1f49c2); }
+.notif-body { display: flex; flex-direction: column; gap: 0.2rem; flex: 1; min-width: 0; }
+.notif-text { font-size: 0.95rem; line-height: 1.35; font-weight: 500; }
+.notif-row.unread .notif-text { font-weight: 600; }
+.notif-chrono { font-family: var(--font-display); font-style: italic; font-weight: 800; font-size: 1.05rem; white-space: nowrap; }
+.notif-time { font-size: 0.8rem; color: var(--text-muted); }
+.notif-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--accent); flex-shrink: 0; margin-top: 0.4rem; }
+
+/* Fil : une carte par entrée, séparateurs par jour */
+.feed-day { font-family: var(--font-display); font-style: italic; font-weight: 800; font-size: 1.05rem; text-transform: uppercase; letter-spacing: 0.02em; margin: 1.2rem 0 0.5rem; color: var(--text); }
+.feed-card + .feed-card { margin-top: 0.7rem; }
+.feed-card .wall-post, .feed-card .feed-entry { border: 0; padding: 0; margin: 0; }
+.feed-ride { display: flex; align-items: center; gap: 0.8rem; width: 100%; text-align: left; margin-top: 0.7rem; padding: 0.75rem; border-radius: 12px; border: 1px solid var(--border); background: var(--surface-alt); color: var(--text); font: inherit; cursor: pointer; }
+.feed-ride-thumb { width: 52px; height: 52px; }
+.feed-ride-main { display: flex; flex-direction: column; gap: 0.1rem; flex: 1; min-width: 0; }
+.feed-ride-circuit { font-family: var(--font-display); font-size: 1.35rem; font-weight: 700; line-height: 1.05; }
+.feed-ride-right { display: flex; flex-direction: column; align-items: flex-end; gap: 0.15rem; }
+.feed-ride-vs { font-size: 0.75rem; font-weight: 700; color: var(--accent); white-space: nowrap; }
+.feed-ride-vs.ahead { color: #1d8a4e; }
+.feed-entry-record .feed-entry-row { align-items: center; }
+.feed-upcoming { display: flex; flex-direction: column; gap: 0.7rem; }
+.feed-upcoming-row { display: flex; align-items: center; gap: 0.75rem; }
+.feed-upcoming-row .outing-thumb { width: 48px; height: 48px; }
+.feed-upcoming-main { display: flex; flex-direction: column; gap: 0.1rem; flex: 1; min-width: 0; }
+.feed-upcoming-main strong { font-family: var(--font-display); font-size: 1.2rem; line-height: 1.05; }
+.feed-upcoming-who { display: flex; align-items: center; gap: 0.3rem; margin-top: 0.15rem; }
+.feed-upcoming-who .mini-avatar { width: 22px; height: 22px; font-size: 0.65rem; margin-right: -0.45rem; border: 2px solid var(--surface); }
+.feed-upcoming-who .help-text { margin-left: 0.6rem; }
+.feed-upcoming-tag { font-size: 0.75rem; font-weight: 800; color: #1d8a4e; white-space: nowrap; }
+.feed-line { margin: 0.7rem 0.3rem; }
+.feed-line .feed-entry-muted { font-size: 0.82rem; }
+.feed-line + .feed-card, .feed-card + .feed-line { margin-top: 0.7rem; }
+#notifications-toggle svg { display: block; }
