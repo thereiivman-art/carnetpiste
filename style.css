@@ -3326,3 +3326,18 @@ body { min-height: 100%; min-height: 100dvh; }
 .feed-month .feed-ride-circuit { display: block; margin: 0.15rem 0 0.2rem; }
 .feed-gain { color: #1d8a4e; }
 .feed-recap-name .help-text { font-weight: 500; }
+
+/* Paliers : Bronze, Argent, Or, Platine */
+:root { --tier-1: #b0743c; --tier-2: #8b95a1; --tier-3: #c9a227; --tier-4: #14161a; }
+.trophy-ico.earned.tier-1 { background: var(--tier-1); color: #fff; box-shadow: 0 0 0 3px color-mix(in srgb, var(--tier-1) 25%, transparent); }
+.trophy-ico.earned.tier-2 { background: var(--tier-2); color: #fff; box-shadow: 0 0 0 3px color-mix(in srgb, var(--tier-2) 25%, transparent); }
+.trophy-ico.earned.tier-3 { background: var(--tier-3); color: #fff; box-shadow: 0 0 0 3px color-mix(in srgb, var(--tier-3) 30%, transparent); }
+.trophy-ico.earned.tier-4 { background: var(--tier-4); color: #fff; box-shadow: 0 0 0 3px var(--accent); }
+.trophy-ico.earned.single { background: var(--accent); color: var(--accent-ink); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 20%, transparent); }
+.trophy-tier { font-size: 0.66rem; font-weight: 800; letter-spacing: 0.05em; text-transform: uppercase; }
+.trophy-tier.tier-1 { color: var(--tier-1); } .trophy-tier.tier-2 { color: var(--tier-2); } .trophy-tier.tier-3 { color: #a8860f; } .trophy-tier.tier-4 { color: var(--accent); }
+.tier-pips { display: flex; gap: 3px; }
+.tier-pips span { width: 14px; height: 4px; border-radius: 2px; background: var(--surface-alt); }
+.tier-pips span.on.tier-1 { background: var(--tier-1); } .tier-pips span.on.tier-2 { background: var(--tier-2); }
+.tier-pips span.on.tier-3 { background: var(--tier-3); } .tier-pips span.on.tier-4 { background: var(--tier-4); }
+.trophy-tile.earned { border-color: var(--border); }

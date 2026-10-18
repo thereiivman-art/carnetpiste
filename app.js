@@ -3375,15 +3375,89 @@
     crown: '<path d="M4 8l4 4 4-7 4 7 4-4-2 11H6L4 8z"/>',
     megaphone: '<path d="M4 10v4h3l7 4V6l-7 4H4zM18 9a4 4 0 010 6"/>',
     eye: '<path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
-    bell: '<path d="M6 16V11a6 6 0 0112 0v5l1.5 2h-15L6 16z"/><path d="M10 20.5a2 2 0 004 0"/>'
+    bell: '<path d="M6 16V11a6 6 0 0112 0v5l1.5 2h-15L6 16z"/><path d="M10 20.5a2 2 0 004 0"/>',
+    handshake: '<path d="M3 11l4-4 5 3 5-3 4 4-9 8-9-8z"/><path d="M8 12l3 3M11 10l4 4"/>',
+    flame: '<path d="M12 3c1 4 5 5 5 10a5 5 0 01-10 0c0-2 1-3 2-4 0 2 1 3 2 3 0-3-1-6 1-9z"/>',
+    team: '<path d="M12 3l7 3v5c0 5-3 8-7 10-4-2-7-5-7-10V6l7-3z"/><path d="M9 12l2 2 4-4"/>',
+    check: '<circle cx="12" cy="12" r="8"/><path d="M8.5 12.5l2.5 2.5 4.5-5"/>'
   };
   function trophyIconHtml(a, big) {
-    var m = TROPHY_ICONS[a.icon] || ['medal', 'piste'];
+    var m = a.iconKey ? [a.iconKey, a.family] : (TROPHY_ICONS[a.icon] || ['medal', 'piste']);
     var path = TROPHY_EXTRA_SVG[m[0]] || NOTIF_SVG[m[0]] || NOTIF_SVG.medal;
     var sz = big ? 26 : 22;
-    return '<span class="trophy-ico' + (a.earned ? ' earned' : '') + '"><svg width="' + sz + '" height="' + sz + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + path + '</svg></span>';
+    return '<span class="trophy-ico' + (a.earned ? ' earned tier-' + Math.min(a.level || 1, 4) + (a.maxLevel === 1 ? ' single' : '') : '') + '"><svg width="' + sz + '" height="' + sz + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + path + '</svg></span>';
   }
-  function trophyFamily(a) { return (TROPHY_ICONS[a.icon] || [0, 'piste'])[1]; }
+  function trophyFamily(a) { return a.family || (TROPHY_ICONS[a.icon] || [0, 'piste'])[1]; }
+  function tierPipsHtml(a) {
+    if (!a.maxLevel || a.maxLevel < 2) return '';
+    var h = '<span class="tier-pips">';
+    for (var i = 1; i <= a.maxLevel; i++) h += '<span class="' + (i <= a.level ? 'on tier-' + i : '') + '"></span>';
+    return h + '</span>';
+  }
+
+
+  // ---- Trophées à paliers ----
+  // Un trophée = un thème (jours de piste, circuits, records…) avec 4
+  // niveaux : Bronze, Argent, Or, Platine. Chaque niveau franchi est un
+  // nouveau trophée (notification), et le prochain seuil est toujours
+  // visible. Les seuils sont pensés pour un pistard : quelques roulages
+  // par an pour le bronze, une vraie saison pour l'or.
+  var TIER_NAMES = ['Bronze', 'Argent', 'Or', 'Platine'];
+  // icon: line icon key; fam: piste|progression|suivi|communaute;
+  // unit: [singular, plural]; desc(n): what level n asks for.
+  function tieredEntry(icon, fam, name, current, thresholds, unit, desc) {
+    var level = 0;
+    thresholds.forEach(function (t, i) { if (current >= t) level = i + 1; });
+    var max = thresholds.length, next = level < max ? thresholds[level] : null;
+    var u = function (n) { return n > 1 ? unit[1] : unit[0]; };
+    return {
+      tiered: true, iconKey: icon, family: fam, name: name, level: level, maxLevel: max,
+      label: name + (level > 1 ? ' · ' + L('niveau ', 'level ') + level : ''),
+      earned: level > 0, current: current, target: next || thresholds[max - 1],
+      tierName: level ? TIER_NAMES[Math.min(level, 4) - 1] : '',
+      description: next ? desc(next) : L('Niveau maximum atteint.', 'Top level reached.'),
+      progressText: next ? current + '/' + next + ' ' + u(next) : current + ' ' + u(current)
+    };
+  }
+  // One-shot trophy in the same shape (a single level).
+  function singleEntry(icon, fam, name, done, desc) {
+    return { tiered: true, iconKey: icon, family: fam, name: name, level: done ? 1 : 0, maxLevel: 1, label: name, earned: !!done,
+      current: done ? 1 : 0, target: 1, tierName: done ? 'Or' : '', description: desc, progressText: done ? L('Obtenu', 'Earned') : L('À faire', 'To do') };
+  }
+  // Times this rider's ride put them ahead of a friend on a circuit.
+  function duelsWonCount(rider) {
+    var friends = friendsOf(rider).map(function (f) { return f.name; }).filter(function (n) { return !isNonRiderName(n); });
+    if (!friends.length) return 0;
+    var mine = (STATE.sessions || []).filter(function (x) { return x.rider === rider && x.laps && x.laps.length; });
+    var byDay = {};
+    mine.forEach(function (x) { var k = x.date + '|' + x.circuit, b = sessionBest(x); if (!byDay[k] || b < byDay[k].best) byDay[k] = { date: x.date, circuit: x.circuit, best: b }; });
+    var n = 0;
+    Object.keys(byDay).forEach(function (k) {
+      var r = byDay[k], prev = bestBefore(rider, r.circuit, r.date);
+      friends.forEach(function (f) {
+        var fb = bestUpTo(f, r.circuit, r.date);
+        if (fb !== null && r.best < fb && (prev === null || prev >= fb)) n++;
+      });
+    });
+    return n;
+  }
+  function gazReceivedCount(name) {
+    var n = 0, count = function (d) { if (d.reactions) Object.keys(d.reactions).forEach(function (w) { if (w !== name && d.reactions[w]) n++; }); };
+    (STATE.feedEvents || []).forEach(function (e) { if (e.actor === name) count(e); });
+    (STATE.wallPosts || []).forEach(function (p) { if (p.author === name) count(p); });
+    (STATE.teamFeed || []).forEach(function (p) { if (p.author === name) count(p); });
+    return n;
+  }
+  var achievementsCache = {};
+  function cachedAchievements(key, fn) {
+    var sig = key + '|' + (STATE.sessions || []).length + '|' + (STATE.friendRequests || []).length + '|' + (STATE.wallPosts || []).length + '|' +
+      (STATE.feedEvents || []).length + '|' + (STATE.teams || []).length + '|' + eventsList().length + '|' + JSON.stringify(filleulCounts);
+    var c = achievementsCache[key];
+    if (c && c.sig === sig) return c.list;
+    var list = fn();
+    achievementsCache[key] = { sig: sig, list: list };
+    return list;
+  }
 
   // Social/Team trophies, shared by all three roles below (pilote,
   // accompagnant, organisateur) since none of this depends on riding --
@@ -3395,62 +3469,78 @@
     var friendsCount = (STATE.friendRequests || []).filter(function (r) {
       return r.status === 'accepted' && (r.from === name || r.to === name);
     }).length;
-    var teamsFounded = (STATE.teams || []).filter(function (t) { return t.createdBy === name; }).length;
-    var proTeamsFounded = (STATE.teams || []).filter(function (t) { return t.createdBy === name && t.teamPro; }).length;
+    var founded = (STATE.teams || []).filter(function (t) { return t.createdBy === name; });
+    var biggestTeam = founded.reduce(function (m, t) { return Math.max(m, t.memberCount || 1); }, 0);
     var wallPostCount = (STATE.wallPosts || []).filter(function (w) { return w.author === name; }).length;
+    loadFilleulCount(name);
+    var filleuls = filleulCounts[name] || 0;
     return [
-      achievementEntry('🧑‍🤝‍🧑', 'Premier ami', 'Avoir un premier ami accepté (Communauté → Amis & fil).', friendsCount, 1, 'ami(s)'),
-      achievementEntry('👥', 'Cercle fidèle', 'Avoir 5 amis acceptés ou plus.', friendsCount, 5, 'amis'),
-      achievementEntry('🏍️', 'Fondateur', 'Créer un Team.', teamsFounded, 1, 'team(s)'),
-      achievementEntry('🏆', 'Team PRO', 'Fonder un Team certifié PRO.', proTeamsFounded, 1, 'team(s)'),
-      achievementEntry('📣', 'Voix du Journal', 'Publier un premier message sur ton Journal.', wallPostCount, 1, 'message(s)'),
-      achievementEntry('📰', 'Chroniqueur', 'Publier 5 messages sur ton Journal.', wallPostCount, 5, 'messages')
+      tieredEntry('users', 'communaute', L('Bande de potes', 'Crew'), friendsCount, [1, 5, 15, 30], [L('ami', 'friend'), L('amis', 'friends')],
+        function (t) { return L('Avoir ' + t + ' ami' + (t > 1 ? 's' : '') + ' dans l\'appli.', 'Have ' + t + ' friend' + (t > 1 ? 's' : '') + ' in the app.'); }),
+      tieredEntry('handshake', 'communaute', L('Parrain', 'Sponsor'), filleuls, [1, 3, 10, 25], [L('filleul', 'referral'), L('filleuls', 'referrals')],
+        function (t) { return L('Faire inscrire ' + t + ' pistard' + (t > 1 ? 's' : '') + ' avec ton lien ou ton QR code.', 'Get ' + t + ' rider' + (t > 1 ? 's' : '') + ' to sign up with your link or QR code.'); }),
+      tieredEntry('flame', 'communaute', L('Plein gaz', 'Full gas'), gazReceivedCount(name), [5, 25, 100, 250], ['« Gaz ! »', '« Gaz ! »'],
+        function (t) { return L('Recevoir ' + t + ' « Gaz ! » de tes potes.', 'Get ' + t + ' “Full gas!” from friends.'); }),
+      tieredEntry('megaphone', 'communaute', L('Plume du paddock', 'Paddock writer'), wallPostCount, [1, 5, 20, 50], ['message', 'messages'],
+        function (t) { return L('Publier ' + t + ' message' + (t > 1 ? 's' : '') + ' dans le fil.', 'Post ' + t + ' message' + (t > 1 ? 's' : '') + ' in the feed.'); }),
+      tieredEntry('team', 'communaute', L('Bâtisseur de team', 'Team builder'), biggestTeam, [1, 5, 15, 30], [L('membre', 'member'), L('membres', 'members')],
+        function (t) { return t === 1 ? L('Créer un team.', 'Create a team.') : L('Réunir ' + t + ' membres dans un team que tu as créé.', 'Gather ' + t + ' members in a team you created.'); }),
+      singleEntry('check', 'communaute', 'Team PRO', founded.some(function (t) { return t.teamPro; }), L('Fonder un team certifié PRO.', 'Found a certified PRO team.'))
     ];
   }
 
   function riderAchievements(riderName, stats) {
-    var records = allCircuitRecordHolders();
-    var recordCount = Object.keys(records).filter(function (c) { return records[c].rider === riderName; }).length;
-    var maxOutingsOnOneCircuit = stats.bests.reduce(function (max, b) { return Math.max(max, b.outings); }, 0);
-    var maxGainSeconds = stats.bests.reduce(function (max, b) {
-      return b.progression != null && b.progression < 0 ? Math.max(max, -b.progression) : max;
-    }, 0);
-    var chronoCount = STATE.sessions.filter(function (s) { return s.rider === riderName; }).length;
-    loadFilleulCount(riderName);
-    var filleuls = filleulCounts[riderName] || 0;
-    return [
-      achievementEntry('🏁', 'Premier chrono', 'Enregistrer un premier chrono.', stats.bests.length, 1),
-      achievementEntry('🌍', 'Globe-trotter', 'Rouler sur 5 circuits différents.', stats.circuitsVisited, 5, 'circuits'),
-      achievementEntry('🗺️', 'Grand voyageur', 'Rouler sur 10 circuits différents.', stats.circuitsVisited, 10, 'circuits'),
-      achievementEntry('📅', 'Habitué', 'Cumuler 10 jours sur piste.', stats.trackDays, 10, 'jours'),
-      achievementEntry('🎖️', 'Vétéran', 'Cumuler 30 jours sur piste.', stats.trackDays, 30, 'jours'),
-      achievementEntry('🔥', 'Régulier', 'Revenir 3 fois ou plus sur le même circuit.', maxOutingsOnOneCircuit, 3, 'roulages'),
-      achievementEntry('📈', 'Assidu', 'Enregistrer 20 chronos.', chronoCount, 20, 'chronos'),
-      achievementEntry('🚀', 'Grosse progression', 'Gagner au moins 1 seconde sur un circuit depuis son premier roulage là-bas.', Math.floor(maxGainSeconds), 1, 's gagnées'),
-      achievementEntry('⚡', 'Éclair', 'Gagner au moins 3 secondes sur un circuit depuis son premier roulage là-bas.', Math.floor(maxGainSeconds), 3, 's gagnées'),
-      achievementEntry('🥇', 'Recordman', 'Détenir le record du groupe sur au moins un circuit.', recordCount, 1, 'record(s)'),
-      achievementEntry('👑', 'Multi-recordman', 'Détenir le record du groupe sur 3 circuits ou plus.', recordCount, 3, 'records'),
-      achievementEntry('🤝', 'Parrain', 'Faire signer un premier filleul avec ton lien de parrainage.', filleuls, 1, 'filleul(s)'),
-      achievementEntry('👨‍👩‍👧', 'Grand parrain', 'Faire signer 5 filleuls avec ton lien de parrainage.', filleuls, 5, 'filleuls')
-    ].concat(socialTeamAchievements(riderName));
+    return cachedAchievements('r:' + riderName, function () {
+      var records = allCircuitRecordHolders();
+      var recordCount = Object.keys(records).filter(function (c) { return records[c].rider === riderName; }).length;
+      var maxOutingsOnOneCircuit = stats.bests.reduce(function (max, b) { return Math.max(max, b.outings); }, 0);
+      var maxGainSeconds = stats.bests.reduce(function (max, b) {
+        return b.progression != null && b.progression < 0 ? Math.max(max, -b.progression) : max;
+      }, 0);
+      var mine = STATE.sessions.filter(function (s) { return s.rider === riderName && s.laps && s.laps.length; });
+      // Days on track: every day of the roulages they were on, plus days
+      // logged straight in the Carnet.
+      var days = {};
+      (stats.trackDaysList || []).forEach(function (d) { days[d] = 1; });
+      mine.forEach(function (x) { days[x.date] = 1; });
+      var nDays = Object.keys(days).length;
+      return [
+        tieredEntry('calendar', 'piste', L('Jours de piste', 'Days on track'), nDays, [1, 10, 30, 75], [L('jour', 'day'), L('jours', 'days')],
+          function (t) { return L('Cumuler ' + t + ' jour' + (t > 1 ? 's' : '') + ' de piste.', 'Ride ' + t + ' day' + (t > 1 ? 's' : '') + ' on track.'); }),
+        tieredEntry('globe', 'piste', L('Globe-trotter', 'Globetrotter'), stats.circuitsVisited, [2, 5, 10, 20], ['circuit', 'circuits'],
+          function (t) { return L('Rouler sur ' + t + ' circuits différents.', 'Ride ' + t + ' different circuits.'); }),
+        tieredEntry('repeat', 'piste', L('Fidèle', 'Regular'), maxOutingsOnOneCircuit, [3, 5, 10, 20], ['roulage', 'roulages'],
+          function (t) { return L('Rouler ' + t + ' fois sur le même circuit.', 'Ride the same circuit ' + t + ' times.'); }),
+        tieredEntry('chart', 'piste', L('Carnet rempli', 'Full logbook'), mine.length, [1, 20, 50, 150], ['session', 'sessions'],
+          function (t) { return t === 1 ? L('Enregistrer un premier chrono.', 'Log a first lap time.') : L('Enregistrer ' + t + ' sessions chronométrées.', 'Log ' + t + ' timed sessions.'); }),
+        tieredEntry('rocket', 'progression', L('Progression', 'Progress'), Math.floor(maxGainSeconds * 10) / 10, [1, 3, 5, 10], ['s', 's'],
+          function (t) { return L('Gagner ' + t + ' s sur un circuit depuis ton premier roulage là-bas.', 'Gain ' + t + ' s on a circuit since your first trackday there.'); }),
+        tieredEntry('trophy', 'progression', 'Recordman', recordCount, [1, 3, 5, 10], ['record', 'records'],
+          function (t) { return L('Détenir le meilleur chrono de tes potes sur ' + t + ' circuit' + (t > 1 ? 's' : '') + '.', 'Hold your friends\' best lap on ' + t + ' circuit' + (t > 1 ? 's' : '') + '.'); }),
+        tieredEntry('bolt', 'progression', L('Duelliste', 'Duellist'), duelsWonCount(riderName), [1, 5, 15, 30], ['duel', 'duels'],
+          function (t) { return L('Passer ' + t + ' fois devant un pote sur un circuit.', 'Overtake a friend\'s best ' + t + ' times on a circuit.'); })
+      ].concat(socialTeamAchievements(riderName));
+    });
   }
 
   // Accompagnants don't ride, so their achievements are about following
   // and supporting the group instead of lap times.
   function accompagnantAchievements(profile) {
-    var followed = (profile.followedRiders || []).length;
-    var mediaLinksAdded = STATE.events.filter(function (ev) { return ev.mediaLinkAddedBy === profile.name; }).length;
-    loadFilleulCount(profile.name);
-    var filleuls = filleulCounts[profile.name] || 0;
-    return [
-      achievementEntry('👀', 'Premier suivi', 'Suivre au moins un pilote depuis Mon profil.', followed, 1, 'pilote(s)'),
-      achievementEntry('🧭', 'Supporter fidèle', 'Suivre 3 pilotes ou plus.', followed, 3, 'pilotes'),
-      achievementEntry('🔔', 'Toujours alerte', 'Activer les notifications de départ en piste.', profile.notifyBeforeSession ? 1 : 0, 1),
-      achievementEntry('📸', 'Reporter', 'Partager un lien photos/vidéos pour un roulage.', mediaLinksAdded, 1, 'roulage(s)'),
-      achievementEntry('🎬', 'Grand reporter', 'Partager un lien photos/vidéos pour 3 roulages.', mediaLinksAdded, 3, 'roulages'),
-      achievementEntry('🤝', 'Parrain', 'Faire signer un premier filleul avec ton lien de parrainage.', filleuls, 1, 'filleul(s)'),
-      achievementEntry('👨‍👩‍👧', 'Grand parrain', 'Faire signer 5 filleuls avec ton lien de parrainage.', filleuls, 5, 'filleuls')
-    ].concat(socialTeamAchievements(profile.name));
+    return cachedAchievements('a:' + profile.name + '|' + (profile.followedRiders || []).length + (profile.notifyBeforeSession ? 1 : 0), function () {
+      var followed = (profile.followedRiders || []).length;
+      var mediaLinksAdded = STATE.events.filter(function (ev) { return ev.mediaLinkAddedBy === profile.name || (ev.personalMediaLinks || {})[profile.name]; }).length;
+      var today = dateKey(new Date());
+      var accompanied = eventsList().filter(function (ev) { return (ev.riders || []).indexOf(profile.name) !== -1 && (ev.dateEnd || ev.dateStart) < today; }).length;
+      return [
+        tieredEntry('flag', 'suivi', L('Fidèle du paddock', 'Paddock regular'), accompanied, [1, 5, 15, 30], ['roulage', 'roulages'],
+          function (t) { return L('Accompagner ' + t + ' roulage' + (t > 1 ? 's' : '') + '.', 'Come along to ' + t + ' trackday' + (t > 1 ? 's' : '') + '.'); }),
+        tieredEntry('eye', 'suivi', L('Supporter', 'Supporter'), followed, [1, 3, 5, 10], ['pilote', L('pilotes', 'riders')],
+          function (t) { return L('Suivre ' + t + ' pilote' + (t > 1 ? 's' : '') + ' depuis Mon profil.', 'Follow ' + t + ' rider' + (t > 1 ? 's' : '') + ' from My profile.'); }),
+        tieredEntry('camera', 'suivi', L('Reporter', 'Reporter'), mediaLinksAdded, [1, 3, 10, 25], ['roulage', 'roulages'],
+          function (t) { return L('Partager les photos ou vidéos de ' + t + ' roulage' + (t > 1 ? 's' : '') + '.', 'Share photos or videos of ' + t + ' trackday' + (t > 1 ? 's' : '') + '.'); }),
+        singleEntry('bell', 'suivi', L('Toujours alerte', 'Always alert'), !!profile.notifyBeforeSession, L('Activer les notifications de départ en piste.', 'Turn on session start notifications.'))
+      ].concat(socialTeamAchievements(profile.name));
+    });
   }
 
   // Organisateurs don't ride either, but unlike an accompagnant their
@@ -3460,24 +3550,23 @@
   // organisateur just signs their events with the same name they signed
   // up under.
   function organisateurAchievements(profile) {
-    var organized = STATE.events.filter(function (ev) { return ev.organizer === profile.name; });
-    var circuitsOrganized = {};
-    organized.forEach(function (ev) { if (ev.circuit) circuitsOrganized[ev.circuit] = true; });
-    var mediaLinksAdded = STATE.events.filter(function (ev) { return ev.mediaLinkAddedBy === profile.name; }).length;
-    loadFilleulCount(profile.name);
-    var filleuls = filleulCounts[profile.name] || 0;
-    return [
-      achievementEntry('🏁', 'Premier roulage', 'Organiser un roulage (champ "Organisateur" du roulage = ton nom).', organized.length, 1, 'roulage(s)'),
-      achievementEntry('📋', 'Organisateur confirmé', 'Organiser 5 roulages.', organized.length, 5, 'roulages'),
-      achievementEntry('🏆', 'Organisateur chevronné', 'Organiser 15 roulages.', organized.length, 15, 'roulages'),
-      achievementEntry('🗺️', 'Multi-circuits', 'Organiser des roulages sur 3 circuits différents.', Object.keys(circuitsOrganized).length, 3, 'circuits'),
-      achievementEntry('🔔', 'Toujours alerte', 'Activer les notifications de départ en piste.', profile.notifyBeforeSession ? 1 : 0, 1),
-      achievementEntry('📸', 'Reporter', 'Partager un lien photos/vidéos pour un roulage.', mediaLinksAdded, 1, 'roulage(s)'),
-      achievementEntry('🎬', 'Grand reporter', 'Partager un lien photos/vidéos pour 3 roulages.', mediaLinksAdded, 3, 'roulages'),
-      achievementEntry('🤝', 'Parrain', 'Faire signer un premier filleul avec ton lien de parrainage.', filleuls, 1, 'filleul(s)'),
-      achievementEntry('👨‍👩‍👧', 'Grand parrain', 'Faire signer 5 filleuls avec ton lien de parrainage.', filleuls, 5, 'filleuls')
-    ].concat(socialTeamAchievements(profile.name));
+    return cachedAchievements('o:' + profile.name + (profile.notifyBeforeSession ? 1 : 0), function () {
+      var organized = STATE.events.filter(function (ev) { return ev.organizer === profile.name || (ev.teamId && (teamById(ev.teamId) || {}).createdBy === profile.name); });
+      var circuitsOrganized = {};
+      organized.forEach(function (ev) { if (ev.circuit) circuitsOrganized[ev.circuit] = true; });
+      var mediaLinksAdded = STATE.events.filter(function (ev) { return ev.mediaLinkAddedBy === profile.name; }).length;
+      return [
+        tieredEntry('calendar', 'piste', L('Organisateur', 'Organiser'), organized.length, [1, 5, 15, 40], ['roulage', 'roulages'],
+          function (t) { return L('Organiser ' + t + ' roulage' + (t > 1 ? 's' : '') + '.', 'Organise ' + t + ' trackday' + (t > 1 ? 's' : '') + '.'); }),
+        tieredEntry('map', 'piste', L('Multi-circuits', 'Multi-circuit'), Object.keys(circuitsOrganized).length, [2, 3, 5, 10], ['circuit', 'circuits'],
+          function (t) { return L('Organiser des roulages sur ' + t + ' circuits.', 'Organise trackdays on ' + t + ' circuits.'); }),
+        tieredEntry('camera', 'suivi', L('Reporter', 'Reporter'), mediaLinksAdded, [1, 3, 10, 25], ['roulage', 'roulages'],
+          function (t) { return L('Partager les photos ou vidéos de ' + t + ' roulage' + (t > 1 ? 's' : '') + '.', 'Share photos or videos of ' + t + ' trackday' + (t > 1 ? 's' : '') + '.'); }),
+        singleEntry('bell', 'suivi', L('Toujours alerte', 'Always alert'), !!profile.notifyBeforeSession, L('Activer les notifications de départ en piste.', 'Turn on session start notifications.'))
+      ].concat(socialTeamAchievements(profile.name));
+    });
   }
+
 
   // Shared by pilote and accompagnant profiles -- a proper section (icon,
   // title, always-visible description and the concrete progress behind
@@ -3488,30 +3577,35 @@
   // Summary + « prochain objectif » (closest unearned trophy) + medals
   // grouped by family, earned in colour, the rest greyed with progress.
   function renderAchievementsCard(achievements, key) {
-    var earnedCount = achievements.filter(function (a) { return a.earned; }).length;
-    var pct = achievements.length ? Math.round(earnedCount * 100 / achievements.length) : 0;
-    var next = achievements.filter(function (a) { return !a.earned && a.target; })
+    // Levels, not trophies: « 9 niveaux sur 52 ».
+    var earnedCount = achievements.reduce(function (n, a) { return n + (a.tiered ? a.level : (a.earned ? 1 : 0)); }, 0);
+    var totalLevels = achievements.reduce(function (n, a) { return n + (a.tiered ? a.maxLevel : 1); }, 0);
+    var pct = totalLevels ? Math.round(earnedCount * 100 / totalLevels) : 0;
+    var next = achievements.filter(function (a) { return a.tiered ? a.level < a.maxLevel && a.maxLevel > 1 : !a.earned && a.target; })
       .sort(function (a, b) { return (b.current / b.target) - (a.current / a.target); })[0];
-    var inner = '<div class="trophy-summary"><span class="trophy-count">' + earnedCount + '<span>/' + achievements.length + '</span></span>' +
-      '<span class="trophy-summary-main"><span class="trophy-summary-label">' + L('trophées débloqués', 'trophies unlocked') + '</span><span class="trophy-bar"><span style="width:' + pct + '%"></span></span></span></div>';
+    var inner = '<div class="trophy-summary"><span class="trophy-count">' + earnedCount + '<span>/' + totalLevels + '</span></span>' +
+      '<span class="trophy-summary-main"><span class="trophy-summary-label">' + L('niveaux de trophées', 'trophy levels') + '</span><span class="trophy-bar"><span style="width:' + pct + '%"></span></span></span></div>';
     if (next) {
       var np = Math.round(Math.min(1, next.current / next.target) * 100);
+      var nextName = next.tiered ? next.name + ' · ' + L('niveau ', 'level ') + (next.level + 1) + ' (' + TIER_NAMES[Math.min(next.level, 3)] + ')' : next.label;
       inner += '<div class="trophy-next">' + trophyIconHtml(next, true) + '<span class="trophy-next-main"><span class="feed-record-label">' + L('Prochain objectif', 'Next goal') + '</span>' +
-        '<strong>' + escapeHtml(next.label) + '</strong><span class="help-text">' + escapeHtml(next.description) + '</span>' +
+        '<strong>' + escapeHtml(nextName) + '</strong><span class="help-text">' + escapeHtml(next.description) + '</span>' +
         '<span class="trophy-bar"><span style="width:' + np + '%"></span></span><span class="trophy-next-progress">' + escapeHtml(next.progressText) + '</span></span></div>';
     }
     var FAMILIES = [['piste', L('Sur la piste', 'On track')], ['progression', L('Progression', 'Progress')], ['suivi', L('Suivi', 'Following')], ['communaute', L('Communauté', 'Community')]];
     FAMILIES.forEach(function (f) {
       var list = achievements.filter(function (a) { return trophyFamily(a) === f[0]; });
       if (!list.length) return;
-      list.sort(function (a, b) { return (b.earned ? 1 : 0) - (a.earned ? 1 : 0); });
+      list.sort(function (a, b) { return (b.level || (b.earned ? 1 : 0)) - (a.level || (a.earned ? 1 : 0)); });
       inner += '<div class="trophy-family">' + escapeHtml(f[1]) + '</div><div class="trophy-grid">' + list.map(function (a) {
-        return '<button type="button" class="trophy-tile' + (a.earned ? ' earned' : '') + '" data-badge-info="' + escapeHtml(a.label + ' : ' + a.description + (a.earned ? '' : ' (' + a.progressText + ')')) + '">' +
-          trophyIconHtml(a) + '<span class="trophy-name">' + escapeHtml(a.label) + '</span>' +
-          (a.earned ? '' : '<span class="trophy-progress">' + escapeHtml(a.progressText) + '</span>') + '</button>';
+        var lvl = a.tiered && a.maxLevel > 1 && a.level ? '<span class="trophy-tier tier-' + Math.min(a.level, 4) + '">' + escapeHtml(a.tierName) + '</span>' : '';
+        var info = (a.name || a.label) + (a.level ? ' · ' + (a.tierName || '') : '') + ' — ' + a.description + (a.level < a.maxLevel || !a.tiered ? ' (' + a.progressText + ')' : '');
+        return '<button type="button" class="trophy-tile' + (a.earned ? ' earned' : '') + '" data-badge-info="' + escapeHtml(info) + '">' +
+          trophyIconHtml(a) + '<span class="trophy-name">' + escapeHtml(a.name || a.label) + '</span>' + lvl + tierPipsHtml(a) +
+          (a.tiered && a.level >= a.maxLevel ? '' : '<span class="trophy-progress">' + escapeHtml(a.progressText) + '</span>') + '</button>';
       }).join('') + '</div>';
     });
-    var title = L('Trophées', 'Trophies') + ' · ' + earnedCount + '/' + achievements.length;
+    var title = L('Trophées', 'Trophies') + ' · ' + earnedCount + '/' + totalLevels;
     if (achievementsFlat) return '<div class="card achievements-card">' + inner + '</div>';
     return '<div class="card achievements-card">' + collapsibleSection(key, title, inner) + '</div>';
   }
@@ -4589,7 +4683,7 @@
           var tk = 'troph:' + a.label;
           if (notifSeen && notifSeen.keys[tk] && !(notifSeenOnOpen && !notifSeenOnOpen[tk])) return;
           items.push({ key: tk, kind: 'medal', time: Date.now() - 5, timeLabel: L('Nouveau trophée', 'New trophy'),
-            html: L('Trophée débloqué : ', 'Trophy unlocked: ') + '<strong>' + escapeHtml(a.label) + '</strong>', go: { to: 'trophees' } });
+            html: L('Trophée débloqué : ', 'Trophy unlocked: ') + '<strong>' + escapeHtml(a.name || a.label) + '</strong>' + (a.tierName && a.maxLevel > 1 ? ' · ' + escapeHtml(a.tierName) : ''), go: { to: 'trophees' } });
         });
       } catch (e) {}
     }
