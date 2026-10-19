@@ -3555,8 +3555,7 @@
       .sort(function (a, b) { return (b.current / b.target) - (a.current / a.target); })[0];
     var inner = '<div class="trophy-summary"><span class="trophy-count">' + earnedCount + '<span>/' + totalLevels + '</span></span>' +
       '<span class="trophy-summary-main"><span class="trophy-summary-label">' + L('niveaux de trophées', 'trophy levels') + '</span><span class="trophy-bar"><span style="width:' + pct + '%"></span></span></span></div>' +
-      // What the colours mean: one colour per level, from Bronze to Légende.
-      '<div class="tier-legend"><span class="tier-legend-title">' + L('Les niveaux', 'Levels') + '</span>' + TIER_NAMES.map(function (t, i) { return '<span class="tier-legend-item"><span class="tier-dot tier-' + (i + 1) + '"></span>' + escapeHtml(t) + '</span>'; }).join('') + '</div>';
+      '';
     if (next) {
       var np = Math.round(Math.min(1, next.current / next.target) * 100);
       var nextName = next.tiered ? next.name + ' · ' + L('niveau ', 'level ') + (next.level + 1) + ' (' + TIER_NAMES[Math.min(next.level, 5)] + ')' : next.label;
@@ -14140,6 +14139,44 @@
     for (var i = 0; i < 52; i++) cells += '<i' + (weeks[i] ? ' class="on"' : '') + '></i>';
     return '<div class="card" style="' + lookStyle(l) + '"><h2 class="section-title">' + L('Saison ', 'Season ') + year + ' <span class="help-text" style="display:inline;">· ' + n + L(n > 1 ? ' jours de piste' : ' jour de piste', n > 1 ? ' days on track' : ' day on track') + '</span></h2><div class="ph-season">' + cells + '</div></div>';
   }
+  // What a customised profile shows (all on by default).
+  var LOOK_SECTIONS = function () { return [['featured', L('Chrono vedette', 'Featured lap')], ['vitrine', L('Vitrine', 'Showcase')], ['season', L('Saison', 'Season')], ['circuits', L('Circuits préférés', 'Favourite circuits')], ['teams', L('Teams préférés', 'Favourite teams')], ['friends', L('Amis préférés', 'Favourite friends')]]; };
+  function lookShows(l, key) { return !l.show || l.show[key] !== false; }
+  function lookTeamChoices(name) {
+    var me = currentUserProfile, ids = [];
+    if (me && me.name === name) {
+      (STATE.myTeamMemberships || []).forEach(function (m) { if (ids.indexOf(m.teamId) === -1) ids.push(m.teamId); });
+      (STATE.myFollowedTeams || []).forEach(function (id) { if (ids.indexOf(id) === -1) ids.push(id); });
+    }
+    return ids.map(teamById).filter(Boolean);
+  }
+  function renderFavourites(name, l) {
+    var html = '', bests = riderBestsByCircuit(name);
+    if (lookShows(l, 'circuits')) {
+      var circ = (l.favCircuits || []).filter(function (c) { return c; });
+      if (!circ.length) {
+        var counts = {};
+        (STATE.sessions || []).forEach(function (x) { if (x.rider === name && x.laps && x.laps.length) counts[x.circuit] = (counts[x.circuit] || 0) + 1; });
+        circ = Object.keys(counts).sort(function (a, b) { return counts[b] - counts[a]; }).slice(0, 3);
+      }
+      if (circ.length) html += '<div class="card"><h2 class="section-title">' + L('Circuits préférés', 'Favourite circuits') + '</h2><div class="ph-favs">' + circ.slice(0, 3).map(function (c) {
+        return '<span class="ph-fav-circuit"><span class="outing-thumb">' + circuitThumbHtml(c) + '</span><strong>' + escapeHtml(c) + '</strong>' + (bests[c] ? '<span class="carnet-time">' + formatTime(bests[c].best) + '</span>' : '') + '</span>';
+      }).join('') + '</div></div>';
+    }
+    if (lookShows(l, 'teams')) {
+      var teams = (l.favTeams || []).map(teamById).filter(Boolean);
+      if (teams.length) html += '<div class="card"><h2 class="section-title">' + L('Teams préférés', 'Favourite teams') + '</h2><div class="ph-favs">' + teams.slice(0, 3).map(function (t) {
+        return '<button type="button" class="ph-fav-team" data-action="open-team-page" data-team="' + escapeHtml(t.id) + '">' + avatarHtml(t, t.name) + '<strong>' + escapeHtml(t.name) + '</strong></button>';
+      }).join('') + '</div></div>';
+    }
+    if (lookShows(l, 'friends')) {
+      var friends = (l.favFriends || []).filter(function (n) { return (STATE.usersByName || {})[n]; });
+      if (friends.length) html += '<div class="card"><h2 class="section-title">' + L('Amis préférés', 'Favourite friends') + '</h2><div class="ph-favs ph-favs-friends">' + friends.slice(0, 5).map(function (n) {
+        return '<button type="button" class="ph-fav-friend" data-action="open-person" data-name="' + escapeHtml(n) + '">' + avatarHtml((STATE.usersByName || {})[n], n) + '<span>' + escapeHtml(n) + '</span></button>';
+      }).join('') + '</div></div>';
+    }
+    return html;
+  }
   function renderLookEditor(me, ach) {
     var d = lookDraft;
     var seg = function (key, list) {
@@ -14159,6 +14196,25 @@
       (me.bikeNumber ? '' : '<div class="help-text">' + L('Ajoute ton numéro dans Profil → Ma moto pour l\'afficher.', 'Add your number in Profile → My bike to show it.') + '</div>') + '</div>';
     if (circuits.length) html += '<div class="look-field"><label class="look-label" for="look-featured">' + L('Chrono vedette', 'Featured lap') + '</label><select id="look-featured"><option value="">' + L('Mon dernier record', 'My latest record') + '</option>' +
       circuits.map(function (c) { return '<option value="' + escapeHtml(c) + '"' + (d.featured === c ? ' selected' : '') + '>' + escapeHtml(c) + '</option>'; }).join('') + '</select></div>';
+    var pick = function (key, values, labels, max) {
+      return '<div class="look-pins">' + values.map(function (v, i) {
+        return '<button type="button" data-look-fav="' + key + '" data-max="' + max + '" data-val="' + escapeHtml(v) + '" aria-pressed="' + ((d[key] || []).indexOf(v) !== -1) + '">' + escapeHtml(labels[i]) + '</button>';
+      }).join('') + '</div>';
+    };
+    html += '<div class="look-field"><span class="look-label">' + L('Afficher sur ma fiche', 'Show on my profile') + '</span><div class="look-pins">' + LOOK_SECTIONS().map(function (o) {
+      return '<button type="button" data-look-show="' + o[0] + '" aria-pressed="' + lookShows(d, o[0]) + '">' + escapeHtml(o[1]) + '</button>';
+    }).join('') + '</div></div>';
+    var allCircuits = {};
+    (STATE.sessions || []).forEach(function (x) { if (x.rider === me.name && x.circuit) allCircuits[x.circuit] = 1; });
+    eventsList().forEach(function (ev) { if ((ev.riders || []).indexOf(me.name) !== -1 && ev.circuit) allCircuits[ev.circuit] = 1; });
+    var circList = Object.keys(allCircuits).sort();
+    if (lookShows(d, 'circuits') && circList.length) html += '<div class="look-field"><span class="look-label">' + L('Circuits préférés (3 max, sinon les plus roulés)', 'Favourite circuits (up to 3, else most ridden)') + '</span>' + pick('favCircuits', circList, circList, 3) + '</div>';
+    var teamChoices = lookTeamChoices(me.name);
+    if (lookShows(d, 'teams')) html += '<div class="look-field"><span class="look-label">' + L('Teams préférés (3 max)', 'Favourite teams (up to 3)') + '</span>' +
+      (teamChoices.length ? pick('favTeams', teamChoices.map(function (t) { return t.id; }), teamChoices.map(function (t) { return t.name; }), 3) : '<div class="help-text">' + L('Rejoins ou suis un team pour l\'afficher ici.', 'Join or follow a team to show it here.') + '</div>') + '</div>';
+    var friendNames = friendsOf(me.name).map(function (f) { return f.name; }).sort();
+    if (lookShows(d, 'friends')) html += '<div class="look-field"><span class="look-label">' + L('Amis préférés (5 max)', 'Favourite friends (up to 5)') + '</span>' +
+      (friendNames.length ? pick('favFriends', friendNames, friendNames, 5) : '<div class="help-text">' + L('Ajoute des amis pour les afficher ici.', 'Add friends to show them here.') + '</div>') + '</div>';
     html += '<div class="look-field"><label class="look-label" for="look-bio">' + L('Bio', 'Bio') + '</label><textarea id="look-bio" maxlength="140" rows="2" placeholder="' + L('Ex. Pistard depuis 2019, objectif sous les 2’00” à Misano.', 'E.g. Track rider since 2019, aiming under 2’00” at Misano.') + '">' + escapeHtml(d.bio || '') + '</textarea></div>';
     if (earned.length) html += '<div class="look-field"><span class="look-label">' + L('Vitrine (3 trophées)', 'Showcase (3 trophies)') + '</span><div class="look-pins">' + earned.map(function (a) {
       var on = (d.pinned || []).indexOf(a.name) !== -1;
@@ -14174,7 +14230,8 @@
     if (!me) return;
     var l = me.look || {};
     lookDraft = { color: l.color || '#c8261f', cover: l.cover != null ? l.cover : 'vibreur', coverPhoto: l.coverPhoto || null, plate: l.plate != null ? l.plate : (me.bikeNumber ? 'course' : ''),
-      bio: l.bio || '', featured: l.featured || '', pinned: (l.pinned || []).slice() };
+      bio: l.bio || '', featured: l.featured || '', pinned: (l.pinned || []).slice(),
+      show: Object.assign({}, l.show || {}), favCircuits: (l.favCircuits || []).slice(), favTeams: (l.favTeams || []).slice(), favFriends: (l.favFriends || []).slice() };
     lookMessage = '';
     countUsageOnce('lookOpen', 'look_open');
     renderRoot();
@@ -14184,7 +14241,8 @@
     if (!uid || !me) return;
     var value = reset ? null : {
       color: lookDraft.color, cover: lookDraft.cover || '', plate: lookDraft.plate || '', bio: (lookDraft.bio || '').trim().slice(0, 140),
-      featured: lookDraft.featured || '', pinned: (lookDraft.pinned || []).slice(0, 3), coverPhoto: lookDraft.cover === 'photo' ? (lookDraft.coverPhoto || null) : null
+      featured: lookDraft.featured || '', pinned: (lookDraft.pinned || []).slice(0, 3),
+      show: lookDraft.show || {}, favCircuits: (lookDraft.favCircuits || []).slice(0, 3), favTeams: (lookDraft.favTeams || []).slice(0, 3), favFriends: (lookDraft.favFriends || []).slice(0, 5), coverPhoto: lookDraft.cover === 'photo' ? (lookDraft.coverPhoto || null) : null
     };
     db.collection('users').doc(uid).update({ look: value }).then(function () {
       me.look = value;
@@ -14247,7 +14305,7 @@
       (STATE.sessions || []).forEach(function (x) { if (x.rider === name && x.laps && x.laps.length) days[x.date] = 1; });
       var records = allCircuitRecordHolders();
       var nRecords = Object.keys(records).filter(function (c) { return records[c].rider === name; }).length;
-      if (look) html += renderFeaturedChrono(name, look);
+      if (look && lookShows(look, 'featured')) html += renderFeaturedChrono(name, look);
       html += '<div class="person-kpis"' + (look ? ' style="' + lookStyle(look) + '"' : '') + '><div><strong>' + Object.keys(days).length + '</strong><span>' + L('jours de piste', 'days on track') + '</span></div>' +
         '<div><strong>' + stats.circuitsVisited + '</strong><span>' + L('circuits', 'circuits') + '</span></div>' +
         '<div><strong>' + nRecords + '</strong><span>' + L('records des potes', 'friends\' records') + '</span></div></div>';
@@ -14259,7 +14317,7 @@
         if (!bests[x.circuit] || b < bests[x.circuit].best) bests[x.circuit] = { best: b, date: x.date };
       });
       var circuits = Object.keys(bests).sort();
-      if (look) html += renderVitrine(getAch(), look) + renderSeasonGrid(name, look);
+      if (look) html += (lookShows(look, 'vitrine') ? renderVitrine(getAch(), look) : '') + (lookShows(look, 'season') ? renderSeasonGrid(name, look) : '') + renderFavourites(name, look);
       if (circuits.length) {
         html += '<div class="card"><h2 class="section-title">' + (isMe ? L('Mes records', 'My records') : L('Ses records', 'Their records')) + '</h2>' + circuits.map(function (c) {
           var mine = me ? riderCircuitBest(me.name, c) : null, cmp = '';
@@ -17509,6 +17567,34 @@
         if (!lookDraft) return;
         lookDraft[btn.getAttribute('data-look-set')] = btn.getAttribute('data-val');
         renderRoot();
+      });
+    });
+    document.querySelectorAll('[data-look-show]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        if (!lookDraft) return;
+        var k = btn.getAttribute('data-look-show');
+        lookDraft.show = lookDraft.show || {};
+        lookDraft.show[k] = !lookShows(lookDraft, k);
+        renderRoot();
+      });
+    });
+    document.querySelectorAll('[data-look-fav]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        if (!lookDraft) return;
+        var key = btn.getAttribute('data-look-fav'), max = parseInt(btn.getAttribute('data-max'), 10) || 3, v = btn.getAttribute('data-val');
+        var list = lookDraft[key] || (lookDraft[key] = []), i = list.indexOf(v);
+        if (i !== -1) list.splice(i, 1);
+        else { list.push(v); if (list.length > max) list.shift(); }
+        renderRoot();
+      });
+    });
+    document.querySelectorAll('[data-action="open-team-page"]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        expandedTeamId = btn.getAttribute('data-team');
+        managingEventId = null; teamMemberSearch = '';
+        activeView = 'team';
+        renderRoot();
+        window.scrollTo(0, 0);
       });
     });
     document.querySelectorAll('[data-look-pin]').forEach(function (btn) {

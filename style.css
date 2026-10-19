@@ -3299,7 +3299,7 @@ body { min-height: 100%; min-height: 100dvh; }
 .feed-highlight { display: flex; align-items: center; gap: 0.6rem; margin-top: 0.6rem; font-size: 0.9rem; line-height: 1.35; }
 .feed-highlight .notif-ico { width: 32px; height: 32px; }
 .feed-highlight .notif-ico svg { width: 16px; height: 16px; }
-.feed-highlight.duel { padding: 0.55rem 0.7rem; border-radius: 10px; background: color-mix(in srgb, var(--accent) 8%, transparent); }
+.feed-highlight.duel { padding: 0.55rem 0.7rem; border-radius: 10px; background: var(--surface-alt); }
 .feed-highlight.duel .notif-ico { background: var(--accent); color: var(--accent-ink); }
 .feed-upcoming-j { font-family: var(--font-display); font-style: italic; font-size: 0.95rem; color: var(--accent); margin-left: 0.25rem; }
 
@@ -3311,7 +3311,7 @@ body { min-height: 100%; min-height: 100dvh; }
 .trophy-summary-label { font-weight: 700; font-size: 0.9rem; }
 .trophy-bar { display: block; height: 6px; border-radius: 3px; background: var(--surface-alt); overflow: hidden; }
 .trophy-bar > span { display: block; height: 100%; background: var(--accent); border-radius: 3px; }
-.trophy-next { display: flex; gap: 0.8rem; align-items: flex-start; margin-top: 1rem; padding: 0.8rem; border-radius: 12px; background: color-mix(in srgb, var(--accent) 6%, transparent); border: 1px solid color-mix(in srgb, var(--accent) 25%, transparent); }
+.trophy-next { display: flex; gap: 0.8rem; align-items: flex-start; margin-top: 1rem; padding: 0.8rem; border-radius: 12px; background: var(--surface); border: 1px solid var(--border); }
 .trophy-next-main { flex: 1; display: flex; flex-direction: column; gap: 0.2rem; min-width: 0; }
 .trophy-next-main strong { font-family: var(--font-display); font-size: 1.25rem; line-height: 1.05; }
 .trophy-next-main .trophy-bar { margin-top: 0.3rem; }
@@ -3322,7 +3322,7 @@ body { min-height: 100%; min-height: 100dvh; }
 .trophy-tile.earned { color: var(--text); border-color: color-mix(in srgb, var(--accent) 35%, var(--border)); }
 .trophy-ico { width: 46px; height: 46px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: var(--surface-alt); color: var(--text-muted); flex-shrink: 0; }
 .trophy-ico.earned { background: var(--accent); color: var(--accent-ink); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 20%, transparent); }
-.trophy-next .trophy-ico { width: 52px; height: 52px; background: var(--surface); color: var(--accent); }
+.trophy-next .trophy-ico { width: 52px; height: 52px; background: var(--surface-alt); color: var(--accent); }
 .trophy-name { font-size: 0.78rem; font-weight: 700; line-height: 1.15; }
 .trophy-progress { font-size: 0.7rem; font-weight: 600; }
 .feed-month .feed-ride-circuit { display: block; margin: 0.15rem 0 0.2rem; }
@@ -3485,10 +3485,10 @@ body { min-height: 100%; min-height: 100dvh; }
 .ph-avatar .mini-avatar { width: 72px; height: 72px; box-shadow: 0 0 0 3px var(--surface), 0 0 0 5px var(--sig); background: var(--surface); }
 .ph-id .person-id { padding-top: 0.6rem; }
 .ph-bio { margin: 0; color: var(--text); font-size: 0.92rem; line-height: 1.45; }
-.ph-feature { position: relative; overflow: hidden; background: #14161a; color: #fff; border: 0; display: flex; flex-direction: column; gap: 0.15rem; }
-.ph-feature-k { font-size: 0.7rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: color-mix(in srgb, var(--sig) 75%, #fff); }
+.ph-feature { position: relative; overflow: hidden; background: var(--sig); color: var(--sig-ink); border: 0; display: flex; flex-direction: column; gap: 0.15rem; }
+.ph-feature-k { font-size: 0.7rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; opacity: 0.85; }
 .ph-feature-time { font-family: var(--font-display); font-style: italic; font-weight: 800; font-size: 2.6rem; line-height: 1; font-variant-numeric: tabular-nums; }
-.ph-feature-s { font-size: 0.8rem; color: #c9ccd1; position: relative; z-index: 1; }
+.ph-feature-s { font-size: 0.8rem; opacity: 0.85; position: relative; z-index: 1; }
 .ph-feature-trace { position: absolute; right: 0.6rem; top: 0.6rem; height: 64px; max-width: 34%; object-fit: contain; filter: invert(1) brightness(2); mix-blend-mode: screen; opacity: 0.6; }
 .ph-vitrine { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.6rem; }
 .ph-trophy { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 0.3rem; font-size: 0.8rem; line-height: 1.2; }
@@ -3513,3 +3513,13 @@ body { min-height: 100%; min-height: 100dvh; }
 .look-photo-row { display: flex; flex-direction: column; gap: 0.3rem; align-items: flex-start; }
 .look-editor textarea { width: 100%; resize: vertical; }
 .look-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 0.6rem; }
+
+.ph-favs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.6rem; }
+.ph-favs-friends { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+.ph-fav-circuit, .ph-fav-team, .ph-fav-friend { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 0.3rem; min-width: 0; font-size: 0.85rem; }
+.ph-fav-team, .ph-fav-friend { background: none; border: 0; padding: 0; color: var(--text); cursor: pointer; font: inherit; }
+.ph-fav-circuit strong, .ph-fav-team strong, .ph-fav-friend span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+.ph-fav-circuit .outing-thumb { width: 52px; height: 52px; }
+.ph-fav-team .mini-avatar { width: 52px; height: 52px; }
+.ph-fav-friend .mini-avatar { width: 44px; height: 44px; }
+.ph-fav-friend span { font-size: 0.78rem; font-weight: 600; }
