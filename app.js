@@ -260,7 +260,7 @@
       role_info_pilote_2: 'Noter tes repères (freinage, déclenchement, corde, sortie) sur le plan de chaque circuit',
       role_info_pilote_3: 'Retrouver les horaires, groupes et infos pratiques de chaque roulage dans l\'onglet Roulages',
       role_info_pilote_4: 'En bonus : partager tes infos de voyage, faire valider tes chronos par ton team',
-      role_info_pilote_5: 'Suivre tes amis, réagir sur leur Journal et sur le fil d\'actualité de ton Team',
+      role_info_pilote_5: 'Suivre tes amis, te comparer à eux (duels, classement du mois) et réagir dans le fil d\'actualité',
       role_info_pilote_6: 'Rejoindre un Team (amateur ou PRO) et participer à ses roulages',
       role_info_accompagnant_title: 'Espace accompagnant',
       role_info_accompagnant_1: 'Suivre des pilotes et être notifié quand leur groupe va partir rouler',
@@ -652,7 +652,7 @@
       role_info_pilote_2: 'Note your marks (braking, turn-in, apex, exit) on each circuit map',
       role_info_pilote_3: 'Find each trackday\'s schedule, groups, and practical info in the Trackdays tab',
       role_info_pilote_4: 'Bonus: share your travel info and get your lap times validated by your team (unofficial)',
-      role_info_pilote_5: 'Follow your friends, react on their Journal and on your Team\'s news feed',
+      role_info_pilote_5: 'Follow your friends, compare yourself with them (duels, monthly ranking) and react in the news feed',
       role_info_pilote_6: 'Join a Team (amateur or PRO) and take part in its trackdays',
       role_info_accompagnant_title: 'Companion space',
       role_info_accompagnant_1: 'Follow riders and get notified when their group is about to ride',
@@ -952,7 +952,7 @@
 "Publier un premier message sur ton Journal.": "Post a first message on your Journal.",
 "Chroniqueur": "Columnist",
 "Publier 5 messages sur ton Journal.": "Post 5 messages on your Journal.",
-"⬇ Exporter mes chronos (tableur CSV)": "⬇ Export my lap times (CSV spreadsheet)",
+"Exporter mes chronos (tableur CSV)": "Export my lap times (CSV spreadsheet)",
 "Qui voit quoi": "Who sees what",
 "Tes chronos et tes roulages sont visibles des autres pilotes de l'appli (classements, roulages en commun) – tu peux les retirer de ta fiche dans Réglages → Vie privée. Tes repères et tes débriefs ne sont affichés qu'à toi. Ton email reste privé.": "Your lap times and trackdays are visible to other riders in the app (rankings, shared trackdays) – you can hide them from your card in Settings → Privacy. Your marks and debriefs are only shown to you. Your email stays private.",
 "Prochain roulage": "Next trackday",
@@ -3368,6 +3368,7 @@
   var TIER_NAMES = ['Bronze', 'Argent', 'Or', 'Platine', 'Élite', 'Légende'];
   // icon: line icon key; fam: piste|progression|suivi|communaute;
   // unit: [singular, plural]; desc(n): what level n asks for.
+  function numFr(n) { return currentLang() === 'en' ? String(n) : String(n).replace('.', ','); }
   function tieredEntry(icon, fam, name, current, thresholds, unit, desc) {
     var level = 0;
     thresholds.forEach(function (t, i) { if (current >= t) level = i + 1; });
@@ -3379,7 +3380,7 @@
       earned: level > 0, current: current, target: next || thresholds[max - 1],
       tierName: level ? TIER_NAMES[Math.min(level, 6) - 1] : '',
       description: next ? desc(next) : L('Niveau maximum atteint.', 'Top level reached.'),
-      progressText: next ? current + '/' + next + ' ' + u(next) : current + ' ' + u(current)
+      progressText: next ? numFr(current) + '/' + next + ' ' + u(next) : numFr(current) + ' ' + u(current)
     };
   }
   // One-shot trophy in the same shape (a single level).
@@ -3964,7 +3965,7 @@
       '<div style="flex:1;"><label for="profile-firstname">' + tr('firstname_label') + '</label><input type="text" id="profile-firstname" value="' + escapeHtml(p.firstName || '') + '"></div>' +
       '<div style="flex:1;"><label for="profile-lastname">' + tr('lastname_label') + '</label><input type="text" id="profile-lastname" value="' + escapeHtml(p.lastName || '') + '"></div>' +
       '</div><div style="margin-top:0.7rem;"><label for="profile-nationality">' + L('Nationalité', 'Nationality') + '</label>' + nationalitySelectHtml('profile-nationality', p.nationality || '', true) +
-      '<div class="help-text">' + L('Ton drapeau s\'affiche derrière ton initiale tant que tu n\'as pas de photo.', 'Your flag shows behind your initial while you have no photo.') + '</div>' +
+      '<div class="help-text">' + L('Ta country ball remplace ta photo tant que tu n\'en as pas ajouté.', 'Your country ball replaces your photo until you add one.') + '</div>' +
       '</div>';
     html += '</div>' + cpillSection('profil', 'role');
     html += '<label style="margin-top:0.2rem;">' + tr('i_am_label') + '</label>';
@@ -5777,7 +5778,7 @@
     // Exporte exactement ce que la page affiche -- le(s) pilote(s)
     // actuellement filtré(s) par le sélecteur global, pas toute la base.
     var sp = pillState.stats;
-    if (sp === 'donnees') return html + '<button type="button" class="primary add-chrono-btn" data-action="export-chronos-csv">⬇ Exporter mes chronos (tableur CSV)</button>' +
+    if (sp === 'donnees') return html + '<button type="button" class="primary add-chrono-btn" data-action="export-chronos-csv">Exporter mes chronos (tableur CSV)</button>' +
       '<div class="card"><h2 class="section-title">Qui voit quoi</h2>' +
       '<div class="help-text">Tes chronos et tes roulages sont visibles des autres pilotes de l\'appli (classements, roulages en commun) – tu peux les retirer de ta fiche dans Réglages → Vie privée. Tes repères et tes débriefs ne sont affichés qu\'à toi. Ton email reste privé.</div></div>';
     if (sp === 'trophees') {
@@ -5806,7 +5807,7 @@
     return html;
     html += '<div class="card"><h2 class="section-title">Mes données</h2>' +
       '<div class="help-text"><strong>Qui voit quoi :</strong> tes chronos et tes roulages sont visibles des autres pilotes de l\'appli (classements, roulages en commun) – tu peux les retirer de ta fiche dans Réglages → Confidentialité. Tes repères et tes débriefs ne sont affichés qu\'à toi. Ton email reste privé.</div>' +
-      '<div style="margin-top:0.6rem;"><button type="button" class="ghost" data-action="export-chronos-csv">⬇ Exporter mes chronos (tableur CSV)</button></div></div>';
+      '<div style="margin-top:0.6rem;"><button type="button" class="ghost" data-action="export-chronos-csv">Exporter mes chronos (tableur CSV)</button></div></div>';
     names.forEach(function (r) { html += renderRiderStatsCard(r); });
     // Un compte accompagnant/organisateur qui apparaît aussi dans
     // allKnownRiders() (ex. listé une fois comme participant d'un event)
@@ -10498,7 +10499,7 @@
   // autres blocs Team-Leader-only ci-dessus (isLeader), aucune restriction
   // côté règles Firestore pour un event personnel (teamId == null).
   var editingWeatherFor = null;
-  var WEATHER_CONDITIONS = { sec: '☀️ Sec', pluie: '🌧️ Pluie', mixte: '⛅ Mixte' };
+  var WEATHER_CONDITIONS = { sec: 'Sec', pluie: 'Pluie', mixte: 'Mixte' };
   var TRACK_DIRECTIONS = { normal: 'Normal', inverse: 'Inversé' };
   function saveWeatherInfo(eventId, condition, direction, temp) {
     var patch = {
@@ -11453,12 +11454,12 @@
   // everyone) in Planning -- a pilote now only ever sees their own
   // assignment here, per "seuls les renseignements du user seront
   // affichés sur la fiche de l'Event".
-  function renderMyGroupSection(ev) {
+  function renderMyGroupSection(ev, noLiveLink) {
     var me = currentUserProfile;
     if (!me || (ev.riders || []).indexOf(me.name) === -1) return '';
     var group = riderEventGroup(ev, me.name);
     if (!group) return '';
-    var row = infoRow(me.name, '<span class="my-group-letter">' + escapeHtml(group) + '</span>');
+    var row = infoRow(L('Ton groupe', 'Your group'), '<span class="my-group-letter">' + escapeHtml(group) + '</span>');
     // A Team Leader can assign a rider a different bike number just for
     // this sortie (see saveEventRiderBikeNumber) -- separate from, and
     // never touching, "Ma moto" on the rider's own profile.
@@ -11468,7 +11469,7 @@
     // right here too, since checking "which group am I in" is usually the
     // same moment you'd want to go check your live chrono.
     var liveTimingUrl = circuitInfo(ev.circuit).liveTimingUrl;
-    if (liveTimingUrl) {
+    if (liveTimingUrl && !noLiveLink) {
       row += '<div style="margin-top:0.5rem;"><button type="button" class="ghost" data-action="open-external-url" data-url="' + escapeHtml(liveTimingUrl) + '">' + tr('live_timing_link_label') + ' ↗</button></div>';
     }
     return collapsibleSection('my-group-' + ev.id, 'Mon groupe', row, true);
@@ -12507,7 +12508,7 @@
     // here -- it's schedule information, same family as the slot times.
     var briefingLine = info.briefing ? '<div class="help-text" style="margin-bottom:0.6rem; color:var(--accent); font-weight:600;">Briefing ' + escapeHtml(info.briefing) + '</div>' : '';
 
-    html += flatSections(renderMyGroupSection(ev));
+    html += flatSections(renderMyGroupSection(ev, true));
 
     // Each rubrique is a sub-pill below the orange card now, not a
     // collapsible inside it. Only the Horaires content itself (and the
@@ -13612,9 +13613,9 @@
       return '<button type="button" class="theme-toggle-btn' + (pref === value ? ' active' : '') + '" data-theme-choice="' + value + '" aria-label="' + label + '" title="' + label + '">' + icon + '</button>';
     }
     return '<div class="theme-toggle" role="group" aria-label="' + tr('profile_theme') + '">' +
-      btn('light', 'profile_theme_light', '☀️') +
-      btn('dark', 'profile_theme_dark', '🌙') +
-      btn('system', 'profile_theme_system', '🖥️') +
+      btn('light', 'profile_theme_light', '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>') +
+      btn('dark', 'profile_theme_dark', '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>') +
+      btn('system', 'profile_theme_system', '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg>') +
       '</div>';
   }
 
@@ -13817,6 +13818,8 @@
     var by = {};
     usageStats.forEach(function (d) { by[d.id] = d; });
     var now = new Date(), cur = usageMonthKey(now), prev = usageMonthKey(new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 15)));
+    // Counters started on 19 October 2026: an earlier month would only show zeros.
+    var prevBeforeStart = now.getUTCFullYear() * 12 + now.getUTCMonth() - 1 < 2026 * 12 + 9;
     var monthName = function (d) { return d.toLocaleDateString(currentLang() === 'en' ? 'en-GB' : 'fr-FR', { month: 'short' }); };
     var v = function (id, k) { return (by[id] && by[id][k || 'count']) || 0; };
     var pct = function (a, b) { return b ? Math.round(a * 100 / b) + ' %' : '–'; };
@@ -13829,7 +13832,7 @@
       '<div><strong>' + pct(v('signup_referral') + v('signup_roulage'), v('signup')) + '</strong><span>' + L('des inscriptions viennent d\'un partage', 'of sign-ups come from a share') + '</span></div></div>';
     html += '<div class="usage-row usage-head"><span></span><span>' + monthName(new Date(now.getFullYear(), now.getMonth() - 1, 1)) + '</span><span>' + monthName(now) + '</span><span>Total</span></div>';
     html += USAGE_METRICS.map(function (m) {
-      return '<div class="usage-row' + (m[1].indexOf('…') === 0 ? ' sub' : '') + '"><span>' + escapeHtml(m[1]) + '</span><span>' + v(m[0], prev) + '</span><span>' + v(m[0], cur) + '</span><span><strong>' + v(m[0]) + '</strong></span></div>';
+      return '<div class="usage-row' + (m[1].indexOf('…') === 0 ? ' sub' : '') + '"><span>' + escapeHtml(m[1]) + '</span><span>' + (prevBeforeStart ? '–' : v(m[0], prev)) + '</span><span>' + v(m[0], cur) + '</span><span><strong>' + v(m[0]) + '</strong></span></div>';
     }).join('');
     return html + '</div>';
   }
