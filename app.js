@@ -4822,7 +4822,7 @@
     var rows = '';
     friendReqs.forEach(function (r) {
       rows += renderFriendRow(r.from, '<button type="button" class="primary" data-action="accept-friend" data-id="' + r.id + '">Accepter</button>' +
-        '<button type="button" class="ghost" data-action="remove-friend" data-id="' + r.id + '">Refuser</button>') +
+        '<button type="button" class="ghost" data-action="remove-friend" data-id="' + r.id + '">Refuser</button>', true) +
         '<div class="help-text" style="margin:-0.3rem 0 0.6rem;">Demande d\'ami</div>';
     });
     teamInvs.forEach(function (r) {
@@ -10970,6 +10970,7 @@
   // revenir directement.
   function navTabFor(view) {
     if (view === 'outing' && outingView && outingView.from) return navTabFor(outingView.from);
+    if (view === 'person') return personView && personView.from && personView.from !== 'person' ? navTabFor(personView.from) : 'communaute';
     if (view === 'event' || view === 'planning') return 'sorties';
     if (view === 'social' || view === 'team' || view === 'coach') return 'communaute';
     return 'carnet';
@@ -14012,6 +14013,125 @@
   // both on by default). This is a display-level courtesy, not a real
   // access boundary: sessions/events/users are all already readable by any
   // signed-in account under firestore.rules, same as before Social existed.
+
+  // ---- Fiche d'un pilote (page) ----
+  // Like a team's fiche: open from any name. A friend sees the full fiche
+  // (records compared with mine, next roulages, recent ones, trophies),
+  // within what they chose to share (shareSorties/shareTrophees); anyone
+  // else sees who it is and how to become friends.
+  var personView = null; // { name, from }
+  function openPerson(name) {
+    if (!name) return;
+    var from = activeView === 'person' && personView ? personView.from : (activeView === 'outing' ? 'social' : activeView);
+    personView = { name: name, from: from || 'social' };
+    activeView = 'person';
+    notificationsPanelOpen = false; profilePanelOpen = false;
+    pendingRemoveFriendId = null;
+    renderRoot();
+    window.scrollTo(0, 0);
+  }
+  function personLinkHtml(name) {
+    var me = currentUserProfile && currentUserProfile.name;
+    if (!name || name === me || !(STATE.usersByName || {})[name]) return personNameHtml(name);
+    return '<button type="button" class="friend-name-link' + nameColorClass(name) + '" data-action="open-person" data-name="' + escapeHtml(name) + '">' + escapeHtml(name) + '</button>';
+  }
+  function renderPersonPage() {
+    var name = personView && personView.name;
+    var me = currentUserProfile;
+    var u = (STATE.usersByName || {})[name] || {};
+    var isPilote = !u.role || u.role === 'pilote';
+    var friendship = me ? friendsOf(me.name).filter(function (f) { return f.name === name; })[0] : null;
+    var sent = me && (STATE.friendRequests || []).filter(function (r) { return r.status === 'pending' && r.from === me.name && r.to === name; })[0];
+    var received = me && (STATE.friendRequests || []).filter(function (r) { return r.status === 'pending' && r.to === me.name && r.from === name; })[0];
+    var html = '<div class="outing-page person-page">';
+    // Identity
+    var sub = [];
+    if (u.nationality) sub.push(flagEmoji(u.nationality) + ' ' + escapeHtml(countryName(u.nationality)));
+    if (isPilote && u.bike) sub.push(escapeHtml(u.bike) + (u.bikeNumber ? ' #' + escapeHtml(u.bikeNumber) : ''));
+    html += '<div class="card person-head"><div class="page-title-row"><button type="button" class="back-chevron" data-view="' + escapeHtml(personView.from) + '" aria-label="' + L('Retour', 'Back') + '">‹</button>' +
+      '<span class="person-avatar">' + avatarHtml(u, name) + '</span>' +
+      '<span class="person-id"><strong class="person-name">' + escapeHtml(name) + badgesHtml(u) + '</strong>' +
+      '<span class="help-text"><span class="friend-role-badge">' + roleLabel(u.role) + '</span>' + (sub.length ? ' ' + sub.join(' · ') : '') + '</span></span></div>';
+    // Actions
+    var acts = '';
+    if (friendship) acts += '<button type="button" class="ghost" disabled>' + L('Amis', 'Friends') + '</button>';
+    else if (received) acts += '<button type="button" class="primary" data-action="accept-friend" data-id="' + received.id + '">' + L('Accepter son invitation', 'Accept the request') + '</button>';
+    else if (sent) acts += '<button type="button" class="ghost" disabled>' + L('Demande envoyée', 'Request sent') + '</button>';
+    else acts += '<button type="button" class="primary" data-action="quick-add-friend" data-name="' + escapeHtml(name) + '">' + L('Ajouter en ami', 'Add friend') + '</button>';
+    if (isPilote && u.chronoLink && friendship) acts += '<button type="button" class="ghost" data-action="open-external-url" data-url="' + escapeHtml(u.chronoLink) + '">' + L('Ses chronos officiels ↗', 'Official lap times ↗') + '</button>';
+    html += '<div class="outing-actions">' + acts + '</div></div>';
+    if (!friendship) {
+      html += '<div class="card"><div class="empty-state">' + escapeHtml(L('Ajoute ' + name + ' en ami pour voir ses roulages, ses records et ses trophées, et vous comparer.', 'Add ' + name + ' as a friend to see their trackdays, records and trophies, and compare.')) + '</div></div>';
+      return html + '</div>';
+    }
+    if (isPilote && u.shareSorties !== false) {
+      var stats = riderStats(name);
+      var days = {};
+      (stats.trackDaysList || []).forEach(function (d) { days[d] = 1; });
+      (STATE.sessions || []).forEach(function (x) { if (x.rider === name && x.laps && x.laps.length) days[x.date] = 1; });
+      var records = allCircuitRecordHolders();
+      var nRecords = Object.keys(records).filter(function (c) { return records[c].rider === name; }).length;
+      html += '<div class="person-kpis"><div><strong>' + Object.keys(days).length + '</strong><span>' + L('jours de piste', 'days on track') + '</span></div>' +
+        '<div><strong>' + stats.circuitsVisited + '</strong><span>' + L('circuits', 'circuits') + '</span></div>' +
+        '<div><strong>' + nRecords + '</strong><span>' + L('records des potes', 'friends\' records') + '</span></div></div>';
+      // Records, compared with mine
+      var bests = {};
+      (STATE.sessions || []).forEach(function (x) {
+        if (x.rider !== name || !x.laps || !x.laps.length) return;
+        var b = sessionBest(x);
+        if (!bests[x.circuit] || b < bests[x.circuit].best) bests[x.circuit] = { best: b, date: x.date };
+      });
+      var circuits = Object.keys(bests).sort();
+      if (circuits.length) {
+        html += '<div class="card"><h2 class="section-title">' + L('Ses records', 'Their records') + '</h2>' + circuits.map(function (c) {
+          var mine = me ? riderCircuitBest(me.name, c) : null, cmp = '';
+          if (mine !== null) cmp = mine < bests[c].best
+            ? '<span class="person-cmp ahead">' + L('toi −', 'you −') + formatGap(bests[c].best - mine) + '</span>'
+            : '<span class="person-cmp">' + L('toi +', 'you +') + formatGap(mine - bests[c].best) + '</span>';
+          return '<div class="person-record"><span class="outing-thumb">' + circuitThumbHtml(c) + '</span><span class="person-record-main"><strong>' + escapeHtml(c) + '</strong><span class="help-text">' + escapeHtml(formatDate(bests[c].date)) + '</span></span>' +
+            '<span class="person-record-right"><span class="carnet-time">' + formatTime(bests[c].best) + '</span>' + cmp + '</span></div>';
+        }).join('') + '</div>';
+      }
+      // Next roulages
+      var today = dateKey(new Date());
+      var next = eventsList().filter(function (ev) { return (ev.riders || []).indexOf(name) !== -1 && (ev.dateEnd || ev.dateStart) >= today; })
+        .sort(function (a, b) { return a.dateStart < b.dateStart ? -1 : 1; }).slice(0, 4);
+      if (next.length) {
+        html += '<div class="card"><h2 class="section-title">' + L('Ses prochains roulages', 'Next trackdays') + '</h2>' + next.map(function (ev) {
+          var mineToo = me && (ev.riders || []).indexOf(me.name) !== -1;
+          return '<div class="feed-upcoming-row"><span class="outing-thumb">' + circuitThumbHtml(ev.circuit) + '</span><span class="feed-upcoming-main"><strong>' + escapeHtml(ev.circuit) + '</strong><span class="help-text">' + escapeHtml(formatEventRange(ev, true)) + '</span></span>' +
+            (mineToo ? '<span class="feed-upcoming-tag">' + L('Tu y vas aussi', 'You\'re going too') + '</span>' : '<button type="button" class="ghost" data-notif-go="event" data-id="' + escapeHtml(ev.id) + '" data-join="1">' + L('J\'y vais aussi', 'I\'m going too') + '</button>') + '</div>';
+        }).join('') + '</div>';
+      }
+      // Recent roulages
+      var rides = ridesFor([name], 3650).sort(function (a, b) { return a.date < b.date ? 1 : -1; }).slice(0, 5);
+      if (rides.length) {
+        html += '<div class="card outings-card"><h2 class="section-title">' + L('Ses derniers roulages', 'Recent trackdays') + '</h2>' + rides.map(function (r) {
+          return '<button type="button" class="outing-row" data-open-outing="' + escapeHtml(r.circuit) + '" data-outing-date="' + escapeHtml(r.date) + '" data-outing-event="' + escapeHtml(r.eventId || '') + '">' +
+            '<span class="outing-thumb">' + circuitThumbHtml(r.circuit) + '</span><span class="outing-row-main"><strong>' + escapeHtml(r.circuit) + '</strong><span class="help-text">' + escapeHtml(formatDate(r.date)) + (r.group ? ' · ' + groupChip(r.group) : '') + '</span></span>' +
+            '<span class="outing-row-right"><span class="carnet-time">' + formatTime(r.best) + '</span></span></button>';
+        }).join('') + '</div>';
+      }
+    } else if (isPilote) {
+      html += '<div class="card"><div class="help-text">' + escapeHtml(name) + tr('not_shared_events') + '</div></div>';
+    }
+    if (u.shareTrophees !== false) {
+      var ach = isPilote ? riderAchievements(name, riderStats(name)) : (u.role === 'organisateur' ? organisateurAchievements(u) : accompagnantAchievements(u));
+      html += renderAchievementsCard(ach, 'person-achievements-' + name);
+    }
+    // Remove the friend (second tap to confirm)
+    html += '<div class="danger-zone" style="margin-top:0.9rem;">';
+    if (pendingRemoveFriendId === friendship.id) {
+      html += '<div class="help-text">' + tr('remove_friend_confirm') + escapeHtml(name) + tr('remove_friend_confirm_suffix') + '</div>' +
+        '<div style="margin-top:0.5rem; display:flex; gap:0.6rem;"><button type="button" class="ghost danger" data-action="remove-friend-confirm" data-id="' + friendship.id + '">' + tr('confirm_label') + '</button>' +
+        '<button type="button" class="ghost" data-action="remove-friend-cancel">' + tr('cancel') + '</button></div>';
+    } else {
+      html += '<button type="button" class="ghost danger" data-action="remove-friend-request" data-id="' + friendship.id + '">' + tr('remove_this_friend') + '</button>';
+    }
+    html += '</div></div>';
+    return html;
+  }
+
   function renderFriendFiche(name) {
     var u = (STATE.usersByName || {})[name] || {};
     var isPilote = !u.role || u.role === 'pilote';
@@ -14127,7 +14247,7 @@
       return '<div class="feed-entry feed-entry-muted"><span class="feed-entry-text">' + escapeHtml(e.actor) + ' et ' + escapeHtml(e.target) + ' sont maintenant amis</span>' +
         '<span class="feed-entry-time">' + escapeHtml(relativeTime(e.createdAt)) + '</span></div>';
     } else if (e.type === 'record') {
-      text = '<span class="feed-record-label">Nouveau record</span><span class="feed-record-line">' + personNameHtml(e.actor) + ' · ' + escapeHtml(e.circuit) + '</span>';
+      text = '<span class="feed-record-label">Nouveau record</span><span class="feed-record-line">' + personLinkHtml(e.actor) + ' · ' + escapeHtml(e.circuit) + '</span>';
       return '<div class="feed-entry feed-entry-record"><div class="feed-entry-row"><span class="outing-thumb feed-ride-thumb">' + circuitThumbHtml(e.circuit) + '</span><span class="feed-entry-text">' + text + '</span>' +
         '<span class="feed-record-time">' + formatTime(e.time) + '</span></div>' +
         '<div class="feed-entry-foot">' + renderReactionBar(e.reactions, 'react-feed-event', e.id) + '<span class="feed-entry-time">' + escapeHtml(relativeTime(e.createdAt)) + '</span></div></div>';
@@ -14266,7 +14386,7 @@
     }
     var html = '<div class="wall-post">';
     html += '<div class="wall-post-head">' + avatarHtml(u, p.author) +
-      personNameHtml(p.author) + badgesHtml(u) +
+      personLinkHtml(p.author) + badgesHtml(u) +
       // Friends-only is the default: only flag the wider audiences.
       (p.audience === 'all' || p.audience === 'followers' ? '<span class="friend-role-badge">' + escapeHtml(audienceLabel) + '</span>' : '') +
       '<span class="feed-entry-time">' + escapeHtml(relativeTime(p.editedAt || p.createdAt)) + (p.editedAt ? tr('edited_suffix') : '') + '</span></div>';
@@ -14399,7 +14519,7 @@
     html += '<div class="feed-recap-rows">' + d.rows.slice(0, 5).map(function (x, i) {
       var u = (STATE.usersByName || {})[x.rider] || {};
       return '<div class="feed-recap-row' + (x.rider === me ? ' me' : '') + '"><span class="feed-recap-pos">' + (i + 1) + '</span>' + avatarHtml(u, x.rider) +
-        '<span class="feed-recap-name">' + escapeHtml(x.rider) + (x.group ? ' ' + groupChip(x.group) : '') + '</span>' +
+        '<span class="feed-recap-name">' + personLinkHtml(x.rider) + (x.group ? ' ' + groupChip(x.group) : '') + '</span>' +
         '<span class="feed-recap-time">' + formatTime(x.best) + '</span><span class="feed-recap-gap">' + (i === 0 ? '' : '+' + formatGap(x.best - leader)) + '</span></div>';
     }).join('') + (d.rows.length > 5 ? '<div class="help-text">+' + (d.rows.length - 5) + '</div>' : '') + '</div>';
     html += d.rides.map(rideHighlightsHtml).join('');
@@ -14409,7 +14529,7 @@
   }
   function renderFeedPhotos(ph) {
     var u = (STATE.usersByName || {})[ph.rider] || {};
-    return '<div class="wall-post-head">' + avatarHtml(u, ph.rider) + personNameHtml(ph.rider) + '<span class="feed-entry-time">' + escapeHtml(formatEventRange(ph.ev, true)) + '</span></div>' +
+    return '<div class="wall-post-head">' + avatarHtml(u, ph.rider) + personLinkHtml(ph.rider) + '<span class="feed-entry-time">' + escapeHtml(formatEventRange(ph.ev, true)) + '</span></div>' +
       '<div class="feed-photos">' + notifIconHtml('camera') + '<span class="feed-ride-main"><span class="feed-record-label">' + L('Photos du roulage', 'Trackday photos') + '</span><strong class="feed-ride-circuit">' + escapeHtml(ph.ev.circuit) + '</strong></span></div>' +
       postLinkHtml(ph.url);
   }
@@ -14435,7 +14555,7 @@
     var myBest = me ? riderCircuitBest(me, r.circuit) : null;
     var vs = '';
     if (myBest !== null && r.rider !== me) vs = r.best < myBest ? '<span class="feed-ride-vs">' + formatGap(myBest - r.best) + ' devant toi</span>' : '<span class="feed-ride-vs ahead">tu es ' + formatGap(r.best - myBest) + ' devant</span>';
-    return '<div class="wall-post-head">' + avatarHtml(u, r.rider) + personNameHtml(r.rider) + badgesHtml(u) + '<span class="feed-entry-time">' + escapeHtml(relativeTime(r.createdAt)) + '</span></div>' +
+    return '<div class="wall-post-head">' + avatarHtml(u, r.rider) + personLinkHtml(r.rider) + badgesHtml(u) + '<span class="feed-entry-time">' + escapeHtml(relativeTime(r.createdAt)) + '</span></div>' +
       '<button type="button" class="feed-ride" data-open-outing="' + escapeHtml(r.circuit) + '" data-outing-date="' + escapeHtml(r.date) + '" data-outing-event="' + escapeHtml(r.eventId || '') + '">' +
         '<span class="outing-thumb feed-ride-thumb">' + circuitThumbHtml(r.circuit) + '</span>' +
         '<span class="feed-ride-main"><span class="feed-record-label">A roulé à</span><strong class="feed-ride-circuit">' + escapeHtml(r.circuit) + '</strong>' +
@@ -14597,7 +14717,7 @@
     var total = counts.reduce(function (a, b) { return a + b; }, 0);
     var myVote = votes[me.name];
     var html = '<div class="wall-post">';
-    html += '<div class="wall-post-head">' + personNameHtml(f.author) +
+    html += '<div class="wall-post-head">' + personLinkHtml(f.author) +
       (teamName ? '<span class="friend-role-badge">' + escapeHtml(teamName) + '</span>' : '') +
       (f.audience === 'adherents' ? '<span class="friend-role-badge adherent-badge">' + tr('adherents_badge') + '</span>' : '') +
       '<span class="feed-entry-time">' + escapeHtml(relativeTime(f.createdAt)) + '</span></div>';
@@ -14630,7 +14750,7 @@
         '<button type="button" class="ghost" data-action="team-post-edit-cancel">' + tr('cancel') + '</button></div></form></div>';
     }
     var html = '<div class="wall-post">';
-    html += '<div class="wall-post-head">' + personNameHtml(f.author) +
+    html += '<div class="wall-post-head">' + personLinkHtml(f.author) +
       (teamName ? '<span class="friend-role-badge">' + escapeHtml(teamName) + '</span>' : '') +
       (f.audience === 'adherents' ? '<span class="friend-role-badge adherent-badge">' + tr('adherents_badge') + '</span>' : '') +
       '<span class="feed-entry-time">' + escapeHtml(relativeTime(f.editedAt || f.createdAt)) + (f.editedAt ? tr('edited_suffix') : '') + '</span>' +
@@ -16018,9 +16138,11 @@
       if (navTabFor(activeView) === 'communaute' && isSoloModeOn(currentUserProfile)) activeView = 'carnet';
       handlePendingRoulageSignedIn();
       if (activeView === 'outing' && !outingView) activeView = 'carnet';
-      if (activeView !== 'outing') lastSubView[navTabFor(activeView)] = activeView;
+      if (activeView === 'person' && !personView) activeView = 'social';
+      if (activeView !== 'outing' && activeView !== 'person') lastSubView[navTabFor(activeView)] = activeView;
       var carnetSub = renderSubNav([['carnet', 'Chronos'], ['circuit', 'Circuits'], ['stats', 'Stats']]);
       if (activeView === 'outing') body = renderOutingPage();
+      else if (activeView === 'person') body = renderPersonPage();
       else if (activeView === 'carnet') body = carnetSub + renderCarnetTab();
       else if (activeView === 'circuit') body = carnetSub + renderCircuitTab();
       else if (activeView === 'stats') body = carnetSub + renderPills('stats', [['records', 'Records'], ['trophees', 'Trophées'], ['donnees', 'Mes données']]) + renderStatsTab();
@@ -16030,7 +16152,7 @@
       else if (activeView === 'coach') body = renderSubNav(communauteSubItems()) + renderCoachTab();
       else body = renderSubNav([['planning', 'Prochain roulage'], ['event', 'Calendrier']]) + renderEventTab(); // 'event' and safety fallback
       // Big section title so it's always clear which main tab you're in.
-      if (activeView !== 'outing') body = renderSectionHeading(navTabFor(activeView)) + body;
+      if (activeView !== 'outing' && activeView !== 'person') body = renderSectionHeading(navTabFor(activeView)) + body;
     }
     var notifCount = pendingNotificationCount() + unreadActivityCount();
     root.innerHTML =
@@ -17183,12 +17305,12 @@
         renderRoot();
       });
     }
-    document.querySelectorAll('[data-action="toggle-friend-fiche"]').forEach(function (btn) {
-      btn.addEventListener('click', function () {
-        var name = btn.getAttribute('data-name');
-        expandedFriend = expandedFriend === name ? null : name;
-        pendingRemoveFriendId = null;
-        renderRoot();
+    // Every clickable name opens that person's fiche (a page now, not an
+    // inline block).
+    document.querySelectorAll('[data-action="toggle-friend-fiche"], [data-action="open-person"]').forEach(function (btn) {
+      btn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        openPerson(btn.getAttribute('data-name'));
       });
     });
     document.querySelectorAll('[data-action="quick-add-friend"]').forEach(function (btn) {
