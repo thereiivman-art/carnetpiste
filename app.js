@@ -4640,14 +4640,23 @@
     {
       try {
         var myAch = me.role === 'organisateur' ? organisateurAchievements(me) : (me.role === 'accompagnant' ? accompagnantAchievements(me) : riderAchievements(name, riderStats(name)));
+        var newTrophies = [];
         myAch.forEach(function (a) {
           if (!a.earned) return;
           // Only while new: the full list lives in Stats → Trophées.
           var tk = 'troph:' + a.label;
           if (notifSeen && notifSeen.keys[tk] && !(notifSeenOnOpen && !notifSeenOnOpen[tk])) return;
-          items.push({ key: tk, kind: 'medal', time: Date.now() - 5, timeLabel: L('Nouveau trophée', 'New trophy'),
-            html: L('Trophée débloqué : ', 'Trophy unlocked: ') + '<strong>' + escapeHtml(a.name || a.label) + '</strong>' + (a.tierName && a.maxLevel > 1 ? ' · ' + escapeHtml(a.tierName) : ''), go: { to: 'trophees' } });
+          newTrophies.push({ key: tk, name: a.name || a.label, html: '<strong>' + escapeHtml(a.name || a.label) + '</strong>' + (a.tierName && a.maxLevel > 1 ? ' · ' + escapeHtml(a.tierName) : '') });
         });
+        // Several at once (first opening, a big import): one line, not one per trophy.
+        if (newTrophies.length === 1) {
+          items.push({ key: newTrophies[0].key, kind: 'medal', time: Date.now() - 5, timeLabel: L('Nouveau trophée', 'New trophy'),
+            html: L('Trophée débloqué : ', 'Trophy unlocked: ') + newTrophies[0].html, go: { to: 'trophees' } });
+        } else if (newTrophies.length > 1) {
+          items.push({ key: newTrophies.map(function (t) { return t.key; }).join('|'), keys: newTrophies.map(function (t) { return t.key; }), kind: 'medal', time: Date.now() - 5,
+            timeLabel: L('Nouveaux trophées', 'New trophies'),
+            html: newTrophies.length + L(' trophées débloqués : ', ' trophies unlocked: ') + '<strong>' + newTrophies.map(function (t) { return escapeHtml(t.name); }).join(', ') + '</strong>', go: { to: 'trophees' } });
+        }
       } catch (e) {}
     }
     // Ma semaine
@@ -4683,7 +4692,7 @@
     try { notifSeen = JSON.parse(localStorage.getItem('cdp-notif-seen') || 'null'); } catch (e) { notifSeen = null; }
     if (!notifSeen || !notifSeen.keys) {
       notifSeen = { keys: {} };
-      activityItems().forEach(function (it) { notifSeen.keys[it.key] = 1; });
+      activityItems().forEach(function (it) { notifSeen.keys[it.key] = 1; (it.keys || []).forEach(function (k) { notifSeen.keys[k] = 1; }); });
       saveNotifSeen();
     }
     return notifSeen;
@@ -4705,7 +4714,7 @@
   function markNotificationsSeen() {
     var seen = loadNotifSeen();
     notifSeenOnOpen = Object.assign({}, seen.keys);
-    activityItems().forEach(function (it) { seen.keys[it.key] = 1; });
+    activityItems().forEach(function (it) { seen.keys[it.key] = 1; (it.keys || []).forEach(function (k) { seen.keys[k] = 1; }); });
     saveNotifSeen();
   }
   function activityTimeLabel(it) {
@@ -7737,7 +7746,7 @@
 
     // Groupe + statut
     var statusHtml;
-    if (status === 'terminee') statusHtml = '<span class="outing-label">Journée terminée</span><span class="outing-status-dash">—</span>';
+    if (status === 'terminee') statusHtml = '<span class="outing-label">Journée terminée</span>' + (best !== null ? '<strong class="outing-status-best">' + formatTime(best) + '</strong>' : '<span class="outing-status-dash">—</span>');
     else if (status === 'avenir') {
       var days = Math.round((parseLocalDate(date) - parseLocalDate(today)) / 86400000);
       statusHtml = '<span class="outing-label">À venir</span><strong>' + (days <= 1 ? 'Demain' : 'Dans ' + days + ' jours') + '</strong>';
@@ -7749,8 +7758,14 @@
     }
     var slotsAll = group ? todaysGroupSlots(circuit, group) : [];
     // A non-rider has no group: show their role instead.
+    var dayLaps = 0;
+    sessions.forEach(function (x) { dayLaps += (x.laps || []).length; });
     var groupMain = meIsNonRider()
       ? '<span class="outing-label">' + L('Je viens en', 'I\'m coming as') + '</span><span class="outing-group-value outing-role-value">' + escapeHtml(currentUserProfile.role === 'organisateur' ? L('Organisateur', 'Organiser') : L('Accompagnant', 'Companion')) + '</span>'
+      // Past and no group: what the day was, rather than an empty group.
+      : (status === 'terminee' && !group)
+      ? '<span class="outing-label">' + L('Ma journée', 'My day') + '</span><span class="outing-group-value outing-role-value">' + (dayLaps ? dayLaps + (dayLaps > 1 ? L(' tours', ' laps') : L(' tour', ' lap')) : '—') + '</span>' +
+        '<span class="help-text">' + (sessions.length ? sessions.length + (sessions.length > 1 ? ' sessions' : ' session') : L('Pas de chrono', 'No lap time')) + '</span>'
       : '<span class="outing-label">Mon groupe</span><span class="outing-group-value">' + (group ? groupChip(group, true) : '—') + '</span>' +
         '<span class="help-text">' + (slotsAll.length ? escapeHtml(slotsAll.map(function (sl) { return sl.label; }).join(', ')) : (group ? 'Horaires non communiqués' : 'Groupe pas encore attribué')) + '</span>';
     html += '<div class="outing-group-card"><div class="outing-group-main">' + groupMain + '</div>' +
@@ -7771,7 +7786,7 @@
       // horaires…) straight from here, not only from the team's page.
       if (leaderHere) acts += '<button type="button" class="primary" data-action="manage-from-outing" data-id="' + escapeHtml(ev.id) + '" data-team="' + escapeHtml(ev.teamId) + '">' + L('Gérer le roulage', 'Manage the trackday') + '</button>';
       if (ev.bookingUrl && !isRiderHere) acts += '<button type="button" class="primary" data-action="open-external-url" data-url="' + escapeHtml(ev.bookingUrl) + '">' + tr('book_register') + '</button>';
-      if (isRiderHere || leaderHere) acts += '<button type="button" class="ghost" data-action="share-roulage" data-id="' + escapeHtml(ev.id) + '">' + L('Inviter', 'Invite') + '</button>';
+      if ((isRiderHere || leaderHere) && status !== 'terminee') acts += '<button type="button" class="ghost" data-action="share-roulage" data-id="' + escapeHtml(ev.id) + '">' + L('Inviter', 'Invite') + '</button>';
       if (!ev.teamId) acts += '<button type="button" class="ghost" id="edit-event-btn" data-id="' + ev.id + '">✎ ' + tr('modify') + '</button>';
       acts += '<button type="button" class="ghost" data-action="export-event-recap" data-id="' + ev.id + '">' + L('Partager', 'Share') + '</button>';
       html += '<div class="outing-actions">' + acts + '</div>';
@@ -7842,7 +7857,7 @@
       else {
         var hor = '';
         if (info.liveTimingUrl) {
-          hor += '<a class="outing-live" href="' + escapeHtml(info.liveTimingUrl) + '" target="_blank" rel="noopener"><span class="outing-live-dot">((•))</span><span><strong>Live timing</strong><br><span>Sur le site du chronométreur</span></span><span class="outing-live-arrow">→</span></a>';
+          hor += '<a class="outing-live" href="' + escapeHtml(info.liveTimingUrl) + '" target="_blank" rel="noopener"><span class="outing-live-dot">((•))</span><span><strong>' + L('Chronos en direct', 'Live timing') + '</strong><br><span>Sur le site du chronométreur</span></span><span class="outing-live-arrow">→</span></a>';
         }
         var horCard = '';
         var horaires = ev ? eventHoraires(ev, date) : null;
@@ -10823,13 +10838,13 @@
       return s.getDate() + ' ' + MONTH_NAMES_FR()[s.getMonth()].toLowerCase() + yearSuffix;
     }
     if (s.getMonth() === e.getMonth() && s.getFullYear() === e.getFullYear()) {
-      return s.getDate() + '-' + e.getDate() + ' ' + MONTH_NAMES_FR()[e.getMonth()].toLowerCase() + yearSuffix;
+      return s.getDate() + '–' + e.getDate() + ' ' + MONTH_NAMES_FR()[e.getMonth()].toLowerCase() + yearSuffix;
     }
     if (s.getFullYear() === e.getFullYear()) {
-      return s.getDate() + ' ' + MONTH_NAMES_FR()[s.getMonth()].toLowerCase() + ' - ' + e.getDate() + ' ' + MONTH_NAMES_FR()[e.getMonth()].toLowerCase() + yearSuffix;
+      return s.getDate() + ' ' + MONTH_NAMES_FR()[s.getMonth()].toLowerCase() + ' – ' + e.getDate() + ' ' + MONTH_NAMES_FR()[e.getMonth()].toLowerCase() + yearSuffix;
     }
     return s.getDate() + ' ' + MONTH_NAMES_FR()[s.getMonth()].toLowerCase() + ' ' + s.getFullYear() +
-      ' - ' + e.getDate() + ' ' + MONTH_NAMES_FR()[e.getMonth()].toLowerCase() + ' ' + e.getFullYear();
+      ' – ' + e.getDate() + ' ' + MONTH_NAMES_FR()[e.getMonth()].toLowerCase() + ' ' + e.getFullYear();
   }
 
   function eventCircuitById(id) {
@@ -12492,8 +12507,11 @@
     html += '</div>';
     html += '</div>';
     var sub = [];
-    if (!isOngoing) sub.push(escapeHtml(formatEventRange(ev, true)) + ' (' + weekdayName(ev.dateStart) + ')');
-    if (sub.length) html += '<div class="help-text" style="font-size:0.78rem; font-weight:400;">' + sub.join(' · ') + '</div>';
+    if (!isOngoing) {
+      var multiDay = ev.dateEnd && ev.dateEnd !== ev.dateStart;
+      sub.push(escapeHtml(formatEventRange(ev, true)) + ' (' + weekdayName(ev.dateStart) + (multiDay ? ' – ' + weekdayName(ev.dateEnd) : '') + ')');
+    }
+    if (sub.length) html += '<div class="today-schedule-date">' + sub.join(' · ') + '</div>';
     // One link per circuit (set from Circuit -> Modifier les infos), not
     // per event -- the timing provider's URL for a given circuit is
     // normally the same every time a Team rides there. Also surfaced next

@@ -3245,7 +3245,7 @@ body { min-height: 100%; min-height: 100dvh; }
 .notifications-panel > .notif-group-title { margin-top: 0.8rem; }
 .notif-row { display: flex; align-items: flex-start; gap: 0.85rem; width: 100%; text-align: left; background: transparent; border: 0; border-top: 1px solid var(--border); border-radius: 0; padding: 0.95rem 1rem; color: var(--text); font: inherit; cursor: pointer; }
 .notif-row:first-child { border-top: 0; }
-.notif-row.unread { background: color-mix(in srgb, var(--accent) 5%, transparent); }
+.notif-row.unread { background: transparent; }
 .notif-ico { width: 42px; height: 42px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; background: var(--surface-alt); color: var(--text-muted); }
 .notif-row.unread .notif-ico { background: color-mix(in srgb, var(--accent) 14%, transparent); color: var(--accent); }
 .notif-ico-trophy, .notif-ico-medal { color: #b07a0c; }
@@ -3451,3 +3451,13 @@ body { min-height: 100%; min-height: 100dvh; }
 .mini-avatar.has-flag, .profile-avatar.has-flag { border-color: transparent; }
 .nat-flag .cball { width: 1.25rem; height: 1.25rem; }
 .cball.lang-ball { width: 1.25rem; height: 1.25rem; vertical-align: middle; }
+
+/* Passe design : respirations */
+.today-schedule-date { font-size: 0.85rem; color: var(--text-muted); margin: 0.15rem 0 0.9rem; }
+.today-schedule-card .card-action-inline { display: block; margin: 0 0 0.6rem; }
+.feed-recap-row { padding-right: 0.5rem; }
+.outing-actions > button.ghost, .planning-actions > button.ghost { color: var(--text); font-weight: 600; }
+.planning-group-filter[hidden] { display: none !important; }
+.person-head { margin-bottom: 0.9rem; }
+.outing-status-best { font-family: var(--font-display); font-style: italic; font-weight: 800; font-size: 1.3rem; }
+.planning-group-filter[hidden] + .today-schedule-groups { margin-top: 0; }
