@@ -6506,13 +6506,15 @@
     var canvas = document.createElement('canvas');
     canvas.width = W; canvas.height = H;
     var ctx = canvas.getContext('2d');
-    return shareFontsReady().then(function () {
+    var logoTeam = storyTeamFor({ eventId: session.eventId, circuit: session.circuit, date: session.date, rider: session.rider });
+    return Promise.all([shareFontsReady(), logoTeam ? loadImageEl(logoTeam.logoURL) : null]).then(function (res) {
       ctx.fillStyle = C.bg; ctx.fillRect(0, 0, W, H);
       ctx.textBaseline = 'alphabetic';
       // en-tête : marque + nom de l'app
       drawShareMark(ctx, 80, 112, 64);
       ctx.fillStyle = C.ink; ctx.font = 'italic 800 56px ' + CONDENSED;
       ctx.fillText('CARNET DE PISTE', 150, 166);
+      drawStoryLogo(ctx, res[1], W, 'CARNET DE PISTE');
       // circuit + date + groupe + pilote
       var circuit = String(session.circuit || '').toUpperCase();
       ctx.fillStyle = C.ink; fitText(ctx, circuit, W - 160, 170, 'italic 800', CONDENSED);
@@ -7534,7 +7536,8 @@
     var ctx = canvas.getContext('2d');
     var shown = rows.slice(0, 8), rowsEnd = 560 + shown.length * 128;
     var trackSrc = battleTrackSrc(circuit);
-    return Promise.all([shareFontsReady(), trackSrc ? loadImageEl(trackSrc) : null]).then(function (res) {
+    var logoTeam = storyTeamFor({ circuit: circuit, date: String(date || '').split(',')[0], rider: me });
+    return Promise.all([shareFontsReady(), trackSrc ? loadImageEl(trackSrc) : null, logoTeam ? loadImageEl(logoTeam.logoURL) : null]).then(function (res) {
       var track = res[1];
       ctx.fillStyle = C.bg; ctx.fillRect(0, 0, W, H);
       // Le plan du circuit : en grand sous le classement s'il reste de la
@@ -7555,6 +7558,7 @@
       drawShareMark(ctx, 80, 112, 64);
       ctx.fillStyle = C.ink; ctx.font = 'italic 800 56px ' + CONDENSED;
       ctx.fillText(EN ? 'BETWEEN FRIENDS' : 'ENTRE POTES', 150, 166);
+      drawStoryLogo(ctx, res[2], W, EN ? 'BETWEEN FRIENDS' : 'ENTRE POTES');
       var title = String(circuit).toUpperCase();
       fitText(ctx, title, W - 160, 170, 'italic 800', CONDENSED);
       ctx.fillText(title, 76, 400);
@@ -9782,11 +9786,30 @@
       return out;
     } catch (e) { return img; }
   }
+  // Which team's logo goes on a story: the team that organised the
+  // roulage, else the rider's own team (favourite on their fiche, then a
+  // Team PRO they belong to, then any team of theirs). Only teams with a logo.
+  function storyTeamFor(o) {
+    var withLogo = function (t) { return t && t.logoURL ? t : null; };
+    var ev = o.eventId ? eventsList().filter(function (e) { return e.id === o.eventId; })[0] : null;
+    if (!ev && o.circuit && o.date) ev = eventsList().filter(function (e) {
+      return e.teamId && sameCircuit(e.circuit, o.circuit) && o.date >= e.dateStart && o.date <= (e.dateEnd || e.dateStart) && (!o.rider || (e.riders || []).indexOf(o.rider) !== -1);
+    })[0];
+    if (ev && ev.teamId && withLogo(teamById(ev.teamId))) return teamById(ev.teamId);
+    var me = currentUserProfile, u = o.rider && me && o.rider !== me.name ? (STATE.usersByName || {})[o.rider] : me;
+    var fav = u && u.look && (u.look.favTeams || [])[0];
+    if (fav && withLogo(teamById(fav))) return teamById(fav);
+    if (!me || (o.rider && o.rider !== me.name)) return null;
+    var mine = (STATE.myTeamMemberships || []).map(function (m) { return teamById(m.teamId); }).filter(withLogo);
+    return mine.filter(function (t) { return t.teamPro; })[0] || mine[0] || null;
+  }
   // Logo top right of a story, as big as the corner allows.
-  function drawStoryLogo(ctx, logo, W) {
+  // headerText: the title drawn left of it (current font), kept clear.
+  function drawStoryLogo(ctx, logo, W, headerText) {
     if (!logo || !logo.width) return;
     var t = trimmedLogoCanvas(logo);
-    var maxW = 340, maxH = 150, k = Math.min(maxW / t.width, maxH / t.height);
+    var free = headerText ? W - 80 - (150 + ctx.measureText(headerText).width + 40) : 340;
+    var maxW = Math.max(160, Math.min(340, free)), maxH = free < 260 ? 110 : 150, k = Math.min(maxW / t.width, maxH / t.height);
     var lw = t.width * k, lh = t.height * k;
     ctx.drawImage(t, W - 80 - lw, 140 - lh / 2, lw, lh);
   }
@@ -9801,13 +9824,14 @@
     var ctx = canvas.getContext('2d');
     var trackSrc = battleTrackSrc(ev.circuit);
     var team = ev.teamId ? teamById(ev.teamId) : null;
+    var logoTeam = storyTeamFor({ eventId: ev.id, rider: me });
     var dates = battleDates(ev, ev.dateStart);
     var rows = friendsBattleRows(ev.circuit, dates);
     var mine = (STATE.sessions || []).filter(function (x) { return x.rider === me && x.laps && x.laps.length && (x.eventId === ev.id || (sameCircuit(x.circuit, ev.circuit) && x.date >= ev.dateStart && x.date <= (ev.dateEnd || ev.dateStart))); });
     var best = null, laps = 0;
     mine.forEach(function (x) { var b = sessionBest(x); if (best === null || b < best) best = b; laps += x.laps.length; });
     var prev = me ? bestBefore(me, ev.circuit, ev.dateStart) : null;
-    return Promise.all([shareFontsReady(), trackSrc ? loadImageEl(trackSrc) : null, team && team.logoURL ? loadImageEl(team.logoURL) : null]).then(function (res) {
+    return Promise.all([shareFontsReady(), trackSrc ? loadImageEl(trackSrc) : null, logoTeam ? loadImageEl(logoTeam.logoURL) : null]).then(function (res) {
       var track = res[1], logo = res[2];
       ctx.fillStyle = C.bg; ctx.fillRect(0, 0, W, H);
       drawShareMark(ctx, 80, 112, 64);
@@ -9902,6 +9926,7 @@
     var ctx = canvas.getContext('2d');
     var trackSrc = battleTrackSrc(ev.circuit);
     var team = ev.teamId ? teamById(ev.teamId) : null;
+    var logoTeam = storyTeamFor({ eventId: ev.id, rider: me });
     var friends = me ? friendsOf(me).map(function (f) { return f.name; }) : [];
     var riders = (ev.riders || []).filter(function (n) { return !isNonRiderName(n) && (n === me || friends.indexOf(n) !== -1); });
     riders.sort(function (a, b) { return a === me ? -1 : b === me ? 1 : a.localeCompare(b); });
@@ -9909,7 +9934,7 @@
     var others = Math.max(0, (ev.riders || []).filter(function (n) { return !isNonRiderName(n); }).length - riders.length);
     var groupOf = function (n) { return riderGroupFor(ev, n, ev.dateStart, 'matin') || riderGroupFor(ev, n, ev.dateStart, 'apres-midi') || ''; };
     var days = Math.max(0, Math.round((parseLocalDate(ev.dateStart) - parseLocalDate(dateKey(new Date()))) / 86400000));
-    return Promise.all([shareFontsReady(), trackSrc ? loadImageEl(trackSrc) : null, team && team.logoURL ? loadImageEl(team.logoURL) : null]).then(function (res) {
+    return Promise.all([shareFontsReady(), trackSrc ? loadImageEl(trackSrc) : null, logoTeam ? loadImageEl(logoTeam.logoURL) : null]).then(function (res) {
       var track = res[1], logo = res[2];
       ctx.fillStyle = C.bg; ctx.fillRect(0, 0, W, H);
       drawShareMark(ctx, 80, 112, 64);
