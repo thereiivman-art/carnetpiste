@@ -5485,7 +5485,7 @@
         '<li><strong>La partie communauté</strong> : amis, teams, messages, « Gaz ! », demandes de coaching et leurs messages, liens photos.</li>' +
         '<li><strong>Tes suggestions</strong> envoyées depuis Profil → Suggestion.</li>' +
         '<li><strong>Sur ton téléphone seulement</strong> : tes préférences d\'affichage et ce que tu as déjà lu (stockage local, pas de cookie).</li>' +
-        '<li><strong>Un compteur anonyme</strong> des langues des visiteurs (une langue, un chiffre : ni nom, ni adresse IP, ni identifiant).</li>' +
+        '<li><strong>Des compteurs anonymes</strong> : langues des visiteurs, et usage de l\'appli (nombre d\'inscriptions, de chronos, d\'imports, de stories partagées, par mois). Un simple chiffre par mesure : ni nom, ni adresse IP, ni identifiant.</li>' +
         '</ul><p>Les feuilles de temps et les photos d\'horaires que tu importes sont lues <strong>sur ton téléphone</strong> : l\'image n\'est envoyée nulle part, seuls les chronos ou horaires que tu valides sont enregistrés.</p>') +
       legalSection('Pourquoi', '<ul><li>Faire fonctionner le carnet et la communauté que tu utilises (exécution du service).</li>' +
         '<li>Protéger les comptes et l\'appli contre les abus (intérêt légitime).</li>' +
@@ -15105,6 +15105,7 @@
     // round avatar above is for badges everywhere else, this is the one
     // place it's shown properly.
     if (team.logoURL) html += '<div class="team-logo-frame"><img class="team-logo-img" src="' + escapeHtml(team.logoURL) + '" alt="Logo ' + escapeHtml(team.name) + '"></div>';
+    html += teamActionsHtml(team, me, isMember || !!myRoleInTeam(team.id));
     if (team.description) html += '<div class="help-text team-description">' + escapeHtml(team.description) + '</div>';
     if (team.links && team.links.length) {
       html += '<div class="team-links-row">' + team.links.map(function (l) {
@@ -15758,6 +15759,10 @@
     // instead of sitting here, unscoped, right under the header -- it's
     // per-team info, not something to show before you've even picked one.
 
+    // Opened from Découvrir: a team this account isn't in gets its public fiche.
+    if (expandedTeamId && !myTeams.some(function (t) { return t.id === expandedTeamId; }) && teamById(expandedTeamId)) {
+      return html + renderTeamPublicCard(teamById(expandedTeamId), me);
+    }
     if (!expandedTeamId) {
       html = renderPills('teams', [['mine', 'Mes teams' + (myTeams.length ? ' (' + myTeams.length + ')' : '')], ['discover', 'Découvrir'], ['create', 'Créer un team']]) + html;
       if (pillState.teams === 'discover') return html + renderTeamDiscovery(me, myTeams);
@@ -15852,24 +15857,62 @@
   // one you keep an eye on. Joining is member-only from here -- adherent
   // is never requested directly, only granted afterwards by a Team
   // Leader (see requestJoinTeam).
-  function renderTeamDiscoveryTile(t, me, showUnfollow) {
+  // Summary tile only (counters); every action lives on the team's fiche,
+  // opened by tapping the tile (see renderTeamPublicCard).
+  function renderTeamDiscoveryTile(t, me, followed) {
+    return renderTeamTile(t, followed ? '<span class="friend-role-badge">' + L('Suivi', 'Following') + '</span>' : '', true);
+  }
+  // J'aime / Suivre / Rejoindre / Partager, on a team's fiche.
+  function teamActionsHtml(t, me, isMember) {
     var iLike = (STATE.teamLikes || []).some(function (l) { return l.teamId === t.id && l.name === me.name; });
+    var following = (STATE.myFollowedTeams || []).indexOf(t.id) !== -1;
     var myRequest = (STATE.teamJoinRequests || []).filter(function (r) { return r.teamId === t.id && r.from === me.name; })[0];
-    var actions = '<button type="button" class="ghost icon-btn' + (iLike ? ' liked' : '') + '" data-action="team-like-toggle" data-team="' + t.id + '" aria-pressed="' + (iLike ? 'true' : 'false') + '">' + (iLike ? 'Aimé' : 'J\'aime') + '</button>';
-    actions += showUnfollow
-      ? '<button type="button" class="ghost icon-btn" data-action="unfollow-team" data-team="' + t.id + '" aria-label="Ne plus suivre" title="Ne plus suivre">×</button>'
-      : '<button type="button" class="ghost" data-action="follow-team" data-team="' + t.id + '">Suivre</button>';
-    // A Team Leader never needs to request to join a team it already
-    // leads -- guarded directly on role rather than relying solely on
-    // discoverable's myTeamIds filter above, so a leader whose
-    // membership sync momentarily lags never sees "Rejoindre" on their
-    // own team.
-    if (!isLeaderOfTeam(t.id)) {
-      actions += myRequest
-        ? '<span class="help-text">Demande envoyée</span>'
-        : '<button type="button" class="ghost" data-action="team-join-request" data-team="' + t.id + '">Rejoindre</button>';
-    }
-    return renderTeamTile(t, actions, false);
+    var h = '<button type="button" class="' + (iLike ? 'primary' : 'ghost') + '" data-action="team-like-toggle" data-team="' + t.id + '" aria-pressed="' + (iLike ? 'true' : 'false') + '">' + (iLike ? L('Aimé', 'Liked') : L('J\'aime', 'Like')) + '</button>';
+    if (!isMember) h += following
+      ? '<button type="button" class="ghost" data-action="unfollow-team" data-team="' + t.id + '">' + L('Abonné', 'Following') + '</button>'
+      : '<button type="button" class="ghost" data-action="follow-team" data-team="' + t.id + '">' + L('Suivre', 'Follow') + '</button>';
+    if (!isMember && !isLeaderOfTeam(t.id)) h += myRequest
+      ? '<button type="button" class="ghost" disabled>' + L('Demande envoyée', 'Request sent') + '</button>'
+      : '<button type="button" class="ghost" data-action="team-join-request" data-team="' + t.id + '">' + L('Rejoindre', 'Join') + '</button>';
+    h += '<button type="button" class="ghost" data-action="share-team" data-team="' + t.id + '">' + L('Partager', 'Share') + '</button>';
+    return '<div class="outing-actions team-actions">' + h + '</div>';
+  }
+  // A team's public fiche, for someone who isn't a member: identity,
+  // counters, actions, links, partners and its public roulages. The feed,
+  // members and private roulages stay for members only.
+  function renderTeamPublicCard(t, me) {
+    var likeCount = (STATE.teamLikes || []).filter(function (l) { return l.teamId === t.id; }).length;
+    var memberCount = t.memberCount || 0;
+    var html = '<div class="card team-card">';
+    html += '<div class="section-title" style="display:flex; align-items:center; gap:0.6rem;">' +
+      '<button type="button" class="back-chevron" data-action="team-tile-close" aria-label="' + L('Retour', 'Back') + '">‹</button>' + avatarHtml(t, t.name) +
+      '<span style="flex:1;">' + escapeHtml(t.name) + teamBadgesHtml(t) + '</span></div>';
+    html += '<div class="team-stats-row"><span>' + memberCount + L(memberCount > 1 ? ' membres' : ' membre', memberCount > 1 ? ' members' : ' member') + '</span>' +
+      '<span>' + likeCount + tr(likeCount > 1 ? 'likes_suffix' : 'like_suffix') + '</span></div>';
+    if (t.logoURL) html += '<div class="team-logo-frame"><img class="team-logo-img" data-autotrim src="' + escapeHtml(t.logoURL) + '" alt="Logo ' + escapeHtml(t.name) + '"></div>';
+    if (t.description) html += '<div class="help-text team-description">' + escapeHtml(t.description) + '</div>';
+    if (t.links && t.links.length) html += '<div class="team-links-row">' + t.links.map(function (l) {
+      return '<a class="team-link-chip" href="' + escapeHtml(l.url) + '" target="_blank" rel="noopener">' + escapeHtml(l.label) + '</a>';
+    }).join('') + '</div>';
+    html += teamActionsHtml(t, me, false);
+    html += '</div>';
+    var today = dateKey(new Date());
+    var pub = eventsList().filter(function (ev) {
+      return ev.teamId === t.id && (ev.dateEnd || ev.dateStart) >= today && (ev.eventVisibility === 'public' || ev.eventVisibility === 'ouvert');
+    }).sort(function (a, b) { return a.dateStart < b.dateStart ? -1 : 1; });
+    html += '<div class="card"><h2 class="section-title">' + L('Prochains roulages ouverts', 'Upcoming open trackdays') + '</h2>' +
+      (pub.length ? pub.map(function (ev) { return renderEventRow(ev, {}); }).join('') : '<div class="help-text">' + L('Aucun roulage public annoncé pour l\'instant.', 'No public trackday announced yet.') + '</div>') + '</div>';
+    if (typeof renderTeamPartnersSection === 'function') html += renderTeamPartnersSection(t, false);
+    html += '<div class="help-text team-private-note">' + L('Le fil, les membres et les roulages réservés sont visibles des membres du team.', 'The feed, members and private trackdays are visible to team members.') + '</div>';
+    return html;
+  }
+  function shareTeam(teamId) {
+    var t = teamById(teamId);
+    if (!t) return;
+    var link = currentUserProfile ? referralLinkFor(currentUserProfile.name) : 'https://thereiivman-art.github.io/carnetpiste';
+    var text = L('Découvre le team ' + t.name + ' sur Carnet de Piste : ', 'Check out the team ' + t.name + ' on Carnet de Piste: ') + link;
+    if (navigator.share) return navigator.share({ title: t.name, text: text }).catch(function () {});
+    if (navigator.clipboard) navigator.clipboard.writeText(text).then(function () { showToast(L('Lien copié.', 'Link copied.'), 'success'); });
   }
 
   function renderTeamDiscovery(me, myTeams) {
@@ -17624,6 +17667,9 @@
         deleteTeam(adminTeamDeleteForm.getAttribute('data-team'), pwEl ? pwEl.value : '');
       });
     }
+    document.querySelectorAll('[data-action="share-team"]').forEach(function (btn) {
+      btn.addEventListener('click', function () { shareTeam(btn.getAttribute('data-team')); });
+    });
     document.querySelectorAll('[data-action="team-tile-open"]').forEach(function (btn) {
       btn.addEventListener('click', function () {
         expandedTeamId = btn.getAttribute('data-team');
