@@ -11956,7 +11956,7 @@
     // Same shape as the Carnet roulage rows: circuit + date/participants on
     // the left, how far away it is (or my group) on the right.
     var nRiders = (ev.riders || []).filter(function (n) { return !isNonRiderName(n); }).length;
-    var meta = escapeHtml(formatEventRange(ev)) + (!opts.hideRiders && nRiders ? ' · ' + nRiders + ' pilote' + (nRiders > 1 ? 's' : '') : '');
+    var meta = escapeHtml(formatEventRange(ev)) + (!opts.hideRiders && nRiders ? ' · ' + nRiders + ' pilote' + (nRiders > 1 ? 's' : '') : '') + (opts.extraMeta ? ' · ' + escapeHtml(opts.extraMeta) : '');
     var daysTo = Math.round((parseLocalDate(ev.dateStart) - parseLocalDate(dateKey(new Date()))) / 86400000);
     var myGrp = currentUserProfile ? (riderGroupFor(ev, currentUserProfile.name, ev.dateStart, 'matin') || riderGroupFor(ev, currentUserProfile.name, ev.dateStart, 'apres-midi') || '') : '';
     var right = daysTo > 0 ? '<span class="event-row-when">J-' + daysTo + '</span>' : (daysTo === 0 || (ev.dateEnd && ev.dateEnd >= dateKey(new Date())) ? '<span class="event-row-when live">En cours</span>' : '');
@@ -15481,11 +15481,15 @@
         var likeCount = Object.keys(ev.reactions || {}).length;
         if (likeCount) likesHtml = ' <span class="event-likes-badge">' + tr('bravo_btn') + ' · ' + likeCount + '</span>';
       }
-      return '<div class="friend-row"><div class="friend-row-main"><span class="friend-name-plain">' + escapeHtml(ev.circuit) + '</span>' +
-        (orgTeam ? '<span class="friend-role-badge">' + escapeHtml(orgTeam.name) + '</span>' : '') +
-        '<span class="help-text">' + escapeHtml(formatEventRange(ev, true)) + ' · ' + meta.join(' · ') + '</span>' + likesHtml + '</div>' +
-        '<div class="friend-row-actions"><button type="button" class="' + (isOwn ? 'primary' : 'ghost') + '" data-action="team-event-manage-open" data-id="' + ev.id + '">' + (isOwn ? tr('manage_btn') : tr('view_btn')) + '</button></div></div>';
+      // Same row as in Roulages; it opens the roulage's page, where the
+      // Team Leader finds « Gérer le roulage ».
+      var extra = [];
+      if (orgTeam) extra.push(L('Organisé par ', 'Organised by ') + orgTeam.name + ' · ' + meta.join(', '));
+      else if (reqs.length) extra.push(meta[1]);
+      if (likesHtml) extra.push(tr('bravo_btn') + ' · ' + Object.keys(ev.reactions || {}).length);
+      return renderEventRow(ev, { extraMeta: extra.join(' · ') });
     }
+    function evCard(title, inner) { return '<div class="card team-card events-list-card">' + (title ? '<h2 class="section-title">' + title + '</h2>' : '') + inner + '</div>'; }
     var ongoing = [], upcoming = [], past = [];
     all.forEach(function (ev) {
       var status = eventTemporalStatus(ev, todayKey);
@@ -15502,11 +15506,11 @@
       ? teamCard('', renderEventForm())
       : '<button type="button" class="primary add-chrono-btn" data-action="team-event-add" data-team="' + team.id + '">+ ' + tr('add_event_heading') + '</button>';
     if (!all.length) {
-      body += teamCard('', '<div class="empty-state">' + tr('no_events_team') + '</div>');
+      body += evCard('', '<div class="empty-state">' + tr('no_events_team') + '</div>');
     } else {
-      if (ongoing.length) body += teamCard(tr('ongoing_label') + ' (' + ongoing.length + ')', ongoing.map(eventRow).join(''));
-      body += teamCard(tr('upcoming_label') + ' (' + upcoming.length + ')', upcoming.length ? upcoming.map(eventRow).join('') : '<div class="help-text">' + tr('nothing_planned') + '</div>');
-      if (past.length) body += teamCard(tr('past_label') + ' (' + past.length + ')', past.map(eventRow).join(''));
+      if (ongoing.length) body += evCard(tr('ongoing_label') + ' (' + ongoing.length + ')', ongoing.map(eventRow).join(''));
+      body += evCard(tr('upcoming_label') + ' (' + upcoming.length + ')', upcoming.length ? upcoming.map(eventRow).join('') : '<div class="help-text">' + tr('nothing_planned') + '</div>');
+      if (past.length) body += evCard(tr('past_label') + ' (' + past.length + ')', past.map(eventRow).join(''));
     }
     return body;
     // Same collapsibleSection style as every other sub-section of this
@@ -15666,7 +15670,7 @@
     var canPost = isLeader || (isMember && team.postPolicy === 'members');
     var feed = (STATE.teamFeed || []).filter(function (f) { return f.teamId === team.id; });
     var tLook = teamLookFor(team);
-    var html = '<div class="card team-card">';
+    var html = '<div class="card team-card team-head">';
     html += '<div class="section-title" style="display:flex; align-items:center; gap:0.6rem;">' +
       '<button type="button" class="back-chevron" data-action="team-tile-close" aria-label="' + escapeHtml(tr('back_to_teams').replace(/^←\s*/, '')) + '">‹</button>' + avatarHtml(team, team.name) +
       '<span style="flex:1;">' + escapeHtml(team.name) + teamBadgesHtml(team) + '</span>' +
@@ -15680,8 +15684,8 @@
     // round avatar above is for badges everywhere else, this is the one
     // place it's shown properly.
     if (team.logoURL) html += '<div class="team-logo-frame"><img class="team-logo-img" src="' + escapeHtml(team.logoURL) + '" alt="Logo ' + escapeHtml(team.name) + '"></div>';
-    html += teamActionsHtml(team, me, isMember || !!myRoleInTeam(team.id));
-    if (team.description) html += '<div class="help-text team-description">' + escapeHtml(team.description) + '</div>';
+    if (team.description) html += '<p class="team-slogan">' + escapeHtml(team.description) + '</p>';
+    html += '%%TEAM_ACTIONS%%';
     if (team.links && team.links.length) {
       html += '<div class="team-links-row">' + team.links.map(function (l) {
         return '<a class="team-link-chip" href="' + escapeHtml(l.url) + '" target="_blank" rel="noopener">' + escapeHtml(l.label) + '</a>';
@@ -15700,14 +15704,13 @@
     // to reach.
     var headHtml = html, headClosed = false; html = '';
     var editing = !!(lookDraft && lookDraft.__team === team.id);
-    var lookBtn = isLeader && !editing ? '<button type="button" class="' + (tLook ? 'ghost' : 'primary') + '" data-action="team-look-edit" data-team="' + team.id + '">' + (tLook ? L('Modifier la fiche', 'Edit the page') : L('Personnaliser la fiche', 'Customise the page')) + '</button>' : '';
+    var lookBtn = isLeader && !editing ? '<button type="button" class="ghost" data-action="team-look-edit" data-team="' + team.id + '">' + (tLook ? L('Modifier la fiche', 'Edit the page') : L('Personnaliser', 'Customise')) + '</button>' : '';
+    headHtml = headHtml.replace('%%TEAM_ACTIONS%%', teamActionsHtml(team, me, isMember || !!myRoleInTeam(team.id)).replace(/<\/div>$/, lookBtn + '</div>'));
     if (tLook) {
       var roleLabelTxt = isLeader ? tr('team_leader_label') : (isMember ? tr('member_label') : tr('follower_label'));
       var actsInner = teamActionsHtml(team, me, isMember || !!myRoleInTeam(team.id)).replace(/^<div class="outing-actions team-actions">|<\/div>$/g, '');
       headHtml = renderTeamHero(team, tLook, me, lookBtn + actsInner, roleLabelTxt) + (editing ? renderLookEditor(me, [], team) : '');
       headClosed = true;
-    } else if (lookBtn) {
-      headHtml += '<div class="outing-actions">' + lookBtn + '</div>';
     }
     var bRoulages = '';
     if (isLeader) bRoulages += renderTeamEventsManagement(team);
@@ -16476,18 +16479,18 @@
     }
     var likeCount = (STATE.teamLikes || []).filter(function (l) { return l.teamId === t.id; }).length;
     var memberCount = t.memberCount || 0;
-    var html = '<div class="card team-card">';
+    var html = '<div class="card team-card team-head">';
     html += '<div class="section-title" style="display:flex; align-items:center; gap:0.6rem;">' +
       '<button type="button" class="back-chevron" data-action="team-tile-close" aria-label="' + L('Retour', 'Back') + '">‹</button>' + avatarHtml(t, t.name) +
       '<span style="flex:1;">' + escapeHtml(t.name) + teamBadgesHtml(t) + '</span></div>';
     html += '<div class="team-stats-row"><span>' + memberCount + L(memberCount > 1 ? ' membres' : ' membre', memberCount > 1 ? ' members' : ' member') + '</span>' +
       '<span>' + likeCount + tr(likeCount > 1 ? 'likes_suffix' : 'like_suffix') + '</span></div>';
     if (t.logoURL) html += '<div class="team-logo-frame"><img class="team-logo-img" data-autotrim src="' + escapeHtml(t.logoURL) + '" alt="Logo ' + escapeHtml(t.name) + '"></div>';
-    if (t.description) html += '<div class="help-text team-description">' + escapeHtml(t.description) + '</div>';
+    if (t.description) html += '<p class="team-slogan">' + escapeHtml(t.description) + '</p>';
+    html += teamActionsHtml(t, me, false);
     if (t.links && t.links.length) html += '<div class="team-links-row">' + t.links.map(function (l) {
       return '<a class="team-link-chip" href="' + escapeHtml(l.url) + '" target="_blank" rel="noopener">' + escapeHtml(l.label) + '</a>';
     }).join('') + '</div>';
-    html += teamActionsHtml(t, me, false);
     html += '</div>';
     var today = dateKey(new Date());
     var pub = eventsList().filter(function (ev) {

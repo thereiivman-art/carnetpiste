@@ -3560,3 +3560,11 @@ span.ph-sponsor { cursor: default; }
 .ph-date-box small { font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.06em; }
 .ph-date-book { flex: none; font-size: 0.8rem; font-weight: 700; color: var(--sig-ink); background: var(--sig); border-radius: 999px; padding: 0.3rem 0.7rem; }
 .person-hero .outing-actions > button { flex: 1 1 auto; }
+/* En-tête d'un team : de l'air entre chaque bloc */
+.team-head { display: flex; flex-direction: column; gap: 1rem; padding-bottom: 1.1rem; }
+.team-head > * { margin: 0 !important; }
+.team-head .team-stats-row { margin: 0; }
+.team-head .team-logo-frame img { border-radius: 12px; }
+.team-head .outing-actions { margin: 0; }
+.team-slogan { margin: 0; font-family: var(--font-display); font-style: italic; font-weight: 700; font-size: 1.35rem; line-height: 1.2; color: var(--text); text-wrap: balance; }
+.team-head + .pill-tabs, .team-head + .subnav, .person-hero + .pill-tabs { margin-top: 1.2rem; }
