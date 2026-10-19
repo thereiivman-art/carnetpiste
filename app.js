@@ -227,6 +227,9 @@
       notify_coach_message: 'Nouveau message dans l\'espace coaching',
       notify_event_announcement: 'Annonce du Team Leader sur un roulage',
       notify_event_ended: 'Un event auquel j\'ai participé vient de se terminer',
+      notify_duel: 'Un pote me passe devant sur un circuit (duel)',
+      notify_friends_riding: 'Un pote s\'inscrit à un roulage',
+      notify_timesheet: 'Le soir d\'un roulage : rappel d\'ajouter mon chrono',
       show_advanced_options: 'Afficher plus d\'options',
       feeling_after_session_heading: 'Ressenti après chaque session',
       enable_feeling: 'Activer le ressenti à ton retour de chaque session',
@@ -619,6 +622,9 @@
       notify_coach_message: 'New message in the coaching space',
       notify_event_announcement: 'Team Leader announcement on a trackday',
       notify_event_ended: 'A trackday I took part in just ended',
+      notify_duel: 'A friend passes me on a circuit (duel)',
+      notify_friends_riding: 'A friend signs up for a trackday',
+      notify_timesheet: 'On the evening of a trackday: reminder to add my lap time',
       show_advanced_options: 'Show more options',
       feeling_after_session_heading: 'Feeling after each session',
       enable_feeling: 'Turn on the feeling check when you get back from each session',
@@ -1240,7 +1246,7 @@
     [/^Non attribués \((\d+)\)$/, 'Unassigned ($1)'], [/^Chronos \((\d+)\)$/, 'Lap times ($1)'], [/^Repères \((\d+)\)$/, 'Marks ($1)'], [/^Repères · (\d+)$/, 'Marks · $1'],
     [/^À traiter \((\d+)\)$/, 'To handle ($1)'], [/^En attente \((\d+)\)$/, 'Waiting ($1)'], [/^Demandes \((\d+)\)$/, 'Requests ($1)'], [/^En cours \((\d+)\)$/, 'Ongoing ($1)'],
     [/^Équipement (\d+\/\d+)$/, 'Gear $1'],
-    [/^Session (\d+)$/, 'Session $1'], [/^(.+) devant toi$/, '$1 ahead of you'], [/^tu es (.+) devant$/, 'you are $1 ahead'], [/^(\d+) tours$/, '$1 laps'], [/^Du calendrier \((\d+)\)$/, 'From the calendar ($1)'], [/^De mon carnet \((\d+)\)$/, 'From my logbook ($1)'],
+    [/^Session (\d+)$/, 'Session $1'], [/^(.+) devant toi$/, '$1 ahead of you'], [/^tu es (.+) devant$/, 'you are $1 ahead'], [/^tu étais (.+) devant$/, 'you were $1 ahead'], [/^(\d+) tours$/, '$1 laps'], [/^Du calendrier \((\d+)\)$/, 'From the calendar ($1)'], [/^De mon carnet \((\d+)\)$/, 'From my logbook ($1)'],
     [/^Ajoute ton chrono de (.+)$/, 'Add your lap time from $1'],
     [/^Trophées — (\d+)\/(\d+) débloqués$/, 'Trophies — $1/$2 unlocked'],
     [/^([\d\/]+) s gagnées$/, '$1 s gained'],
@@ -4044,6 +4050,9 @@
     html += '<div class="section-title" style="font-size:0.95rem;">' + tr('notifications_heading') + '</div>';
     html += '<div class="help-text">' + tr('notifications_browser_help') + '</div>';
     html += '<label class="checklist-item" style="margin-top:0.6rem;"><input type="checkbox" id="profile-notify"' + (p.notifyBeforeSession ? ' checked' : '') + '> <span id="profile-notify-label">' + (isNonRider ? tr('notify_group_departing_rider') : tr('notify_group_departing_self')) + '</span></label>';
+    if (!isNonRider) html += '<label class="checklist-item" style="margin-top:0.4rem;"><input type="checkbox" id="profile-notify-duels"' + (p.notifyDuels !== false ? ' checked' : '') + '> ' + tr('notify_duel') + '</label>';
+    html += '<label class="checklist-item" style="margin-top:0.4rem;"><input type="checkbox" id="profile-notify-friends-riding"' + (p.notifyFriendsRiding !== false ? ' checked' : '') + '> ' + tr('notify_friends_riding') + '</label>';
+    if (!isNonRider) html += '<label class="checklist-item" style="margin-top:0.4rem;"><input type="checkbox" id="profile-notify-timesheet"' + (p.notifyTimesheet !== false ? ' checked' : '') + '> ' + tr('notify_timesheet') + '</label>';
     html += '<label class="checklist-item" style="margin-top:0.4rem;"><input type="checkbox" id="profile-notify-invites"' + (p.notifyInvites !== false ? ' checked' : '') + '> ' + tr('notify_received_invite') + '</label>';
     html += '<label class="checklist-item" style="margin-top:0.4rem;"><input type="checkbox" id="profile-notify-team-news"' + (p.notifyTeamNews !== false ? ' checked' : '') + '> ' + tr('notify_team_news') + '</label>';
     html += '<label class="checklist-item" style="margin-top:0.4rem;"><input type="checkbox" id="profile-notify-adherent-requests"' + (p.notifyAdherentRequests !== false ? ' checked' : '') + '> ' + tr('notify_adherent_request') + '</label>';
@@ -7909,7 +7918,7 @@
     var r = pendingTimesheetReminder();
     if (!r) return '';
     var key = r.ev.id + '-' + r.date;
-    if (!timesheetNotified[key] && window.Notification && Notification.permission === 'granted') {
+    if (!timesheetNotified[key] && notifCategoryAllowed('notifyTimesheet')) {
       timesheetNotified[key] = true;
       try { sendAppNotification('Importe ta feuille de temps de ' + r.ev.circuit + ' pour garder tes chronos.'); } catch (e) {}
     }
@@ -11969,7 +11978,8 @@
     var body = searchHtml;
     years.forEach(function (year) {
       var yearEvents = byYear[year];
-      var isExpanded = !!expandedPastYears[year];
+      // The most recent year starts open.
+      var isExpanded = year in expandedPastYears ? !!expandedPastYears[year] : year === years[0];
       body += '<div class="past-year-band">';
       body += '<button type="button" class="past-year-toggle" data-past-year="' + escapeHtml(year) + '" aria-expanded="' + (isExpanded ? 'true' : 'false') + '">' +
         '<span class="past-year-chevron">' + (isExpanded ? '▾' : '▸') + '</span>' +
@@ -12782,6 +12792,29 @@
   function notifCategoryAllowed(field) {
     return !!currentUserProfile && currentUserProfile[field] !== false
       && !!window.Notification && Notification.permission === 'granted';
+  }
+
+  // Duels and « un pote roule à… » from the activity list, as system
+  // notifications -- once per item, per device. First run only records
+  // what's already there.
+  function maybeNotifyFriendActivity() {
+    var uid = myUid();
+    if (!uid || coreDataLoading() || !window.Notification || Notification.permission !== 'granted') return;
+    var storageKey = 'cdp-notif-sent-' + uid, sent = null;
+    try { sent = JSON.parse(localStorage.getItem(storageKey) || 'null'); } catch (e) {}
+    var first = !sent, changed = false;
+    sent = sent || {};
+    activityItems().forEach(function (it) {
+      var cat = it.key.indexOf('duel:') === 0 ? 'notifyDuels' : it.key.indexOf('going:') === 0 ? 'notifyFriendsRiding' : null;
+      if (!cat || sent[it.key]) return;
+      sent[it.key] = 1;
+      changed = true;
+      if (first || !notifCategoryAllowed(cat)) return;
+      var div = document.createElement('div');
+      div.innerHTML = it.html;
+      sendAppNotification(div.textContent);
+    });
+    if (changed) { try { localStorage.setItem(storageKey, JSON.stringify(sent)); } catch (e) {} }
   }
 
   // Once, the day after an event a rider took part in ends: a nudge to
@@ -14471,8 +14504,11 @@
     return renderFeedUpcoming() + renderMonthRanking() + renderCircuitMoment() + body;
   }
   // Duel / palier / record lines under a ride.
-  function rideHighlightsHtml(r) {
+  // In a recap, a duel between two riders of its own ranking is already
+  // shown by their positions: not repeated.
+  function rideHighlightsHtml(r, rankedNames) {
     var out = '', duel = rideDuel(r), ms = rideMilestone(r);
+    if (duel && rankedNames && rankedNames.indexOf(duel.opp) !== -1 && rankedNames.indexOf(r.rider) !== -1) duel = null;
     if (duel) out += '<div class="feed-highlight duel">' + notifIconHtml('trophy') + '<span>' + duelText(duel, r) + '</span></div>';
     if (ms) out += '<div class="feed-highlight">' + notifIconHtml('medal') + '<span><strong>' + escapeHtml(r.rider) + '</strong> · ' + escapeHtml(ms) + '</span></div>';
     else {
@@ -14496,7 +14532,8 @@
         '<span class="feed-recap-name">' + personLinkHtml(x.rider) + (x.group ? ' ' + groupChip(x.group) : '') + '</span>' +
         '<span class="feed-recap-time">' + formatTime(x.best) + '</span><span class="feed-recap-gap">' + (i === 0 ? '' : '+' + formatGap(x.best - leader)) + '</span></div>';
     }).join('') + (d.rows.length > 5 ? '<div class="help-text">+' + (d.rows.length - 5) + '</div>' : '') + '</div>';
-    html += d.rides.map(rideHighlightsHtml).join('');
+    var ranked = d.rows.map(function (x) { return x.rider; });
+    html += d.rides.map(function (r) { return rideHighlightsHtml(r, ranked); }).join('');
     html += '<div class="feed-recap-actions"><button type="button" class="ghost" data-action="share-battle" data-circuit="' + escapeHtml(d.circuit) + '" data-date="' + escapeHtml(d.dates.join(',')) + '">' + L('Partager la story', 'Share the story') + '</button>' +
       '<button type="button" class="ghost" data-open-outing="' + escapeHtml(d.circuit) + '" data-outing-date="' + escapeHtml(openDate) + '" data-outing-event="' + escapeHtml(d.ev ? d.ev.id : '') + '">' + L('Voir le roulage', 'Open the trackday') + '</button></div>';
     return html;
@@ -14526,9 +14563,11 @@
   function renderFeedRide(r) {
     var u = (STATE.usersByName || {})[r.rider] || {};
     var me = currentUserProfile && currentUserProfile.name;
-    var myBest = me ? riderCircuitBest(me, r.circuit) : null;
+    // Against my best as it stood that day, not today's.
+    var myBest = me ? bestUpTo(me, r.circuit, r.date) : null;
+    var past = r.date < dateKey(new Date(Date.now() - 2 * 86400000));
     var vs = '';
-    if (myBest !== null && r.rider !== me) vs = r.best < myBest ? '<span class="feed-ride-vs">' + formatGap(myBest - r.best) + ' devant toi</span>' : '<span class="feed-ride-vs ahead">tu es ' + formatGap(r.best - myBest) + ' devant</span>';
+    if (myBest !== null && r.rider !== me) vs = r.best < myBest ? '<span class="feed-ride-vs">' + formatGap(myBest - r.best) + ' devant toi</span>' : '<span class="feed-ride-vs ahead">' + (past ? 'tu étais ' : 'tu es ') + formatGap(r.best - myBest) + ' devant</span>';
     return '<div class="wall-post-head">' + avatarHtml(u, r.rider) + personLinkHtml(r.rider) + badgesHtml(u) + '<span class="feed-entry-time">' + escapeHtml(relativeTime(r.createdAt)) + '</span></div>' +
       '<button type="button" class="feed-ride" data-open-outing="' + escapeHtml(r.circuit) + '" data-outing-date="' + escapeHtml(r.date) + '" data-outing-event="' + escapeHtml(r.eventId || '') + '">' +
         '<span class="outing-thumb feed-ride-thumb">' + circuitThumbHtml(r.circuit) + '</span>' +
@@ -16739,6 +16778,10 @@
     if (notifyEventAnnouncementsEl) {
       notifyEventAnnouncementsEl.addEventListener('change', function () { saveOwnBooleanField('notifyEventAnnouncements', notifyEventAnnouncementsEl.checked); });
     }
+    [['profile-notify-duels', 'notifyDuels'], ['profile-notify-friends-riding', 'notifyFriendsRiding'], ['profile-notify-timesheet', 'notifyTimesheet']].forEach(function (pair) {
+      var el = document.getElementById(pair[0]);
+      if (el) el.addEventListener('change', function () { saveOwnBooleanField(pair[1], el.checked); });
+    });
     var notifyEventEndedEl = document.getElementById('profile-notify-event-ended');
     if (notifyEventEndedEl) {
       notifyEventEndedEl.addEventListener('change', function () { saveOwnBooleanField('notifyEventEndedReaction', notifyEventEndedEl.checked); });
@@ -18510,7 +18553,7 @@
     document.querySelectorAll('.past-year-toggle[data-past-year]').forEach(function (btn) {
       btn.addEventListener('click', function () {
         var year = btn.getAttribute('data-past-year');
-        expandedPastYears[year] = !expandedPastYears[year];
+        expandedPastYears[year] = btn.getAttribute('aria-expanded') !== 'true';
         renderRoot();
       });
     });
@@ -19505,12 +19548,14 @@
       STATE.sessions = snap.docs.map(function (d) { return d.data(); });
       maybeNotifyChronoCertified(STATE.sessions);
       markCoreSynced('sessions');
+      try { maybeNotifyFriendActivity(); } catch (e) {}
       renderRoot();
     }, handleSyncError));
     unsubscribers.push(db.collection('events').onSnapshot(function (snap) {
       STATE.events = snap.docs.map(function (d) { return d.data(); });
       maybeNotifyEndedEvents();
       markCoreSynced('events');
+      try { maybeNotifyFriendActivity(); } catch (e) {}
       renderRoot();
     }, handleSyncError));
     unsubscribers.push(db.collection('circuits').onSnapshot(function (snap) {
