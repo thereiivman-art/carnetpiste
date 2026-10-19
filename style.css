@@ -3532,3 +3532,22 @@ body { min-height: 100%; min-height: 100dvh; }
 .ph-month-l { font-size: 0.7rem; font-weight: 700; color: var(--text-muted); }
 .ph-month.current .ph-month-l { color: var(--text); text-decoration: underline; text-underline-offset: 3px; }
 .ph-months-help { margin-top: 0.4rem; }
+
+.ph-feature { margin-bottom: 0.9rem; }
+.ph-link { display: flex; align-items: center; gap: 0.75rem; width: 100%; padding: 0.6rem 0; border: 0; border-top: 1px solid var(--border); background: none; color: var(--text); font: inherit; text-align: left; cursor: pointer; }
+.ph-link:first-of-type { border-top: 0; }
+.ph-link-ico { width: 38px; height: 38px; border-radius: 10px; display: grid; place-items: center; background: var(--sig, var(--accent)); color: var(--sig-ink, #fff); flex: none; }
+.ph-link-main, .look-item-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.ph-link-main strong, .look-item-main strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ph-link-go { color: var(--text-muted); font-weight: 700; }
+.ph-sponsors { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.6rem; }
+.ph-sponsor { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.3rem; min-height: 74px; padding: 0.5rem; border: 1px solid var(--border); border-radius: 10px; background: #fff; color: #14161a; font: inherit; cursor: pointer; min-width: 0; }
+span.ph-sponsor { cursor: default; }
+.ph-sponsor img { max-width: 100%; max-height: 44px; object-fit: contain; }
+.ph-sponsor-name { font-family: var(--font-display); font-weight: 800; font-size: 1rem; text-align: center; overflow-wrap: anywhere; }
+.ph-sponsor-cap { font-size: 0.7rem; color: #6a6e76; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+.look-item { display: flex; align-items: center; gap: 0.6rem; padding: 0.4rem 0; border-bottom: 1px solid var(--border); }
+.look-item .ph-link-ico { width: 32px; height: 32px; background: var(--surface-alt); color: var(--text); }
+.look-item-logo { width: 40px; height: 32px; object-fit: contain; background: #fff; border-radius: 6px; border: 1px solid var(--border); }
+.look-add { display: flex; flex-direction: column; gap: 0.4rem; }
+.look-add-row { display: flex; flex-wrap: wrap; gap: 0.4rem; }

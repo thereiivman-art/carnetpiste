@@ -14146,8 +14146,47 @@
       '<div class="ph-months">' + bars + '</div><div class="help-text ph-months-help">' + L('Jours de piste par mois', 'Track days per month') + '</div></div>';
   }
   // What a customised profile shows (all on by default).
-  var LOOK_SECTIONS = function () { return [['featured', L('Chrono vedette', 'Featured lap')], ['vitrine', L('Vitrine', 'Showcase')], ['season', L('Saison', 'Season')], ['circuits', L('Circuits préférés', 'Favourite circuits')], ['teams', L('Teams préférés', 'Favourite teams')], ['friends', L('Amis préférés', 'Favourite friends')]]; };
+  var LOOK_SECTIONS = function () { return [['links', L('Réseaux et liens', 'Socials and links')], ['sponsors', L('Sponsors', 'Sponsors')], ['featured', L('Chrono vedette', 'Featured lap')], ['vitrine', L('Vitrine', 'Showcase')], ['season', L('Saison', 'Season')], ['circuits', L('Circuits préférés', 'Favourite circuits')], ['teams', L('Teams préférés', 'Favourite teams')], ['friends', L('Amis préférés', 'Favourite friends')]]; };
   function lookShows(l, key) { return !l.show || l.show[key] !== false; }
+  function normalizeUrl(u) {
+    u = (u || '').trim();
+    if (!u) return '';
+    if (!/^https?:\/\//i.test(u)) u = 'https://' + u;
+    return /^https?:\/\/[^\s\/]+\.[^\s]+$/i.test(u) || /^https?:\/\/[^\s\/]+\.[a-z]{2,}\/?$/i.test(u) ? u : '';
+  }
+  // Which network a link points to: label + line icon.
+  var LINK_ICONS = {
+    instagram: '<rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="0.6"/>',
+    youtube: '<rect x="2.5" y="5.5" width="19" height="13" rx="4"/><path d="M10 9.5v5l4.5-2.5z"/>',
+    tiktok: '<path d="M14 3v11.5a3.5 3.5 0 1 1-3.5-3.5"/><path d="M14 3c.5 2.6 2.4 4.4 5 4.6"/>',
+    facebook: '<path d="M14 21v-8h3l.5-3.5H14V7.8c0-1 .4-1.8 1.9-1.8H18V3.2A22 22 0 0 0 15.3 3C12.6 3 11 4.6 11 7.5v2H8V13h3v8"/>',
+    strava: '<path d="M10 3 4 15h4l2-4 2 4h4z"/><path d="m14 15 2 4 2-4"/>',
+    x: '<path d="M4 4l16 16M20 4 4 20"/>',
+    link: '<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>'
+  };
+  function linkKind(url) {
+    var host = '';
+    try { host = new URL(url).hostname.replace(/^www\./, ''); } catch (e) {}
+    var k = /instagram\.com$/.test(host) ? ['instagram', 'Instagram'] : /(youtube\.com|youtu\.be)$/.test(host) ? ['youtube', 'YouTube'] : /tiktok\.com$/.test(host) ? ['tiktok', 'TikTok']
+      : /facebook\.com$/.test(host) ? ['facebook', 'Facebook'] : /strava\.com$/.test(host) ? ['strava', 'Strava'] : /(twitter\.com|x\.com)$/.test(host) ? ['x', 'X'] : ['link', host || url];
+    return { icon: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + LINK_ICONS[k[0]] + '</svg>', label: k[1] };
+  }
+  function renderLinksAndSponsors(l) {
+    var html = '';
+    var links = (l.links || []).filter(function (x) { return x && x.url; });
+    if (lookShows(l, 'links') && links.length) html += '<div class="card" style="' + lookStyle(l) + '"><h2 class="section-title">' + L('Réseaux et liens', 'Socials and links') + '</h2>' + links.map(function (x) {
+      var k = linkKind(x.url);
+      return '<button type="button" class="ph-link" data-action="open-external-url" data-url="' + escapeHtml(x.url) + '"><span class="ph-link-ico">' + k.icon + '</span><span class="ph-link-main"><strong>' + escapeHtml(k.label) + '</strong>' +
+        (x.comment ? '<span class="help-text">' + escapeHtml(x.comment) + '</span>' : '') + '</span><span class="ph-link-go">↗</span></button>';
+    }).join('') + '</div>';
+    var sponsors = (l.sponsors || []).filter(function (x) { return x && x.name; });
+    if (lookShows(l, 'sponsors') && sponsors.length) html += '<div class="card"><h2 class="section-title">' + L('Mes sponsors', 'My sponsors') + '</h2><div class="ph-sponsors">' + sponsors.map(function (x) {
+      var inner = (x.logo ? '<img src="' + escapeHtml(x.logo) + '" alt="">' : '<span class="ph-sponsor-name">' + escapeHtml(x.name) + '</span>') + (x.logo ? '<span class="ph-sponsor-cap">' + escapeHtml(x.name) + '</span>' : '');
+      return x.url ? '<button type="button" class="ph-sponsor" data-action="open-external-url" data-url="' + escapeHtml(x.url) + '">' + inner + '</button>' : '<span class="ph-sponsor">' + inner + '</span>';
+    }).join('') + '</div></div>';
+    return html;
+  }
+  var lookPendingLogo = null;
   function lookTeamChoices(name) {
     var me = currentUserProfile, ids = [];
     if (me && me.name === name) {
@@ -14210,6 +14249,18 @@
     html += '<div class="look-field"><span class="look-label">' + L('Afficher sur ma fiche', 'Show on my profile') + '</span><div class="look-pins">' + LOOK_SECTIONS().map(function (o) {
       return '<button type="button" data-look-show="' + o[0] + '" aria-pressed="' + lookShows(d, o[0]) + '">' + escapeHtml(o[1]) + '</button>';
     }).join('') + '</div></div>';
+    if (lookShows(d, 'links')) {
+      html += '<div class="look-field"><span class="look-label">' + L('Réseaux et liens (6 max)', 'Socials and links (up to 6)') + '</span>' +
+        (d.links || []).map(function (x, i) { var k = linkKind(x.url); return '<div class="look-item"><span class="ph-link-ico">' + k.icon + '</span><span class="look-item-main"><strong>' + escapeHtml(k.label) + '</strong>' + (x.comment ? '<span class="help-text">' + escapeHtml(x.comment) + '</span>' : '') + '</span><button type="button" class="ghost" data-look-remove="links" data-i="' + i + '">' + L('Retirer', 'Remove') + '</button></div>'; }).join('') +
+        ((d.links || []).length < 6 ? '<div class="look-add"><input type="url" id="look-ln-url" placeholder="instagram.com/ton.compte" autocomplete="off"><input type="text" id="look-ln-comment" maxlength="60" placeholder="' + L('Commentaire (ex. Mes vidéos embarquées)', 'Comment (e.g. My onboard videos)') + '"><button type="button" class="ghost" data-action="look-add-link">' + L('Ajouter le lien', 'Add link') + '</button></div>' : '') + '</div>';
+    }
+    if (lookShows(d, 'sponsors')) {
+      html += '<div class="look-field"><span class="look-label">' + L('Sponsors (6 max)', 'Sponsors (up to 6)') + '</span>' +
+        (d.sponsors || []).map(function (x, i) { return '<div class="look-item">' + (x.logo ? '<img class="look-item-logo" src="' + escapeHtml(x.logo) + '" alt="">' : '') + '<span class="look-item-main"><strong>' + escapeHtml(x.name) + '</strong>' + (x.url ? '<span class="help-text">' + escapeHtml(x.url.replace(/^https?:\/\//, '')) + '</span>' : '') + '</span><button type="button" class="ghost" data-look-remove="sponsors" data-i="' + i + '">' + L('Retirer', 'Remove') + '</button></div>'; }).join('') +
+        ((d.sponsors || []).length < 6 ? '<div class="look-add"><input type="text" id="look-sp-name" maxlength="40" placeholder="' + L('Nom du sponsor', 'Sponsor name') + '"><input type="url" id="look-sp-url" placeholder="' + L('Site (optionnel)', 'Website (optional)') + '" autocomplete="off">' +
+          '<div class="look-add-row"><button type="button" class="ghost" id="look-sp-logo-btn">' + (lookPendingLogo ? L('Logo choisi', 'Logo chosen') : L('Logo (optionnel)', 'Logo (optional)')) + '</button><input type="file" id="look-sp-logo" accept="image/*" style="display:none;">' +
+          '<button type="button" class="ghost" data-action="look-add-sponsor">' + L('Ajouter le sponsor', 'Add sponsor') + '</button></div></div>' : '') + '</div>';
+    }
     var allCircuits = {};
     (STATE.sessions || []).forEach(function (x) { if (x.rider === me.name && x.circuit) allCircuits[x.circuit] = 1; });
     eventsList().forEach(function (ev) { if ((ev.riders || []).indexOf(me.name) !== -1 && ev.circuit) allCircuits[ev.circuit] = 1; });
@@ -14237,8 +14288,10 @@
     var l = me.look || {};
     lookDraft = { color: l.color || '#c8261f', cover: l.cover != null ? l.cover : 'vibreur', coverPhoto: l.coverPhoto || null, plate: l.plate != null ? l.plate : (me.bikeNumber ? 'course' : ''),
       bio: l.bio || '', featured: l.featured || '', pinned: (l.pinned || []).slice(),
+      links: (l.links || []).slice(), sponsors: (l.sponsors || []).slice(),
       show: Object.assign({}, l.show || {}), favCircuits: (l.favCircuits || []).slice(), favTeams: (l.favTeams || []).slice(), favFriends: (l.favFriends || []).slice() };
     lookMessage = '';
+    lookPendingLogo = null;
     countUsageOnce('lookOpen', 'look_open');
     renderRoot();
   }
@@ -14248,6 +14301,7 @@
     var value = reset ? null : {
       color: lookDraft.color, cover: lookDraft.cover || '', plate: lookDraft.plate || '', bio: (lookDraft.bio || '').trim().slice(0, 140),
       featured: lookDraft.featured || '', pinned: (lookDraft.pinned || []).slice(0, 3),
+      links: (lookDraft.links || []).slice(0, 6), sponsors: (lookDraft.sponsors || []).slice(0, 6),
       show: lookDraft.show || {}, favCircuits: (lookDraft.favCircuits || []).slice(0, 3), favTeams: (lookDraft.favTeams || []).slice(0, 3), favFriends: (lookDraft.favFriends || []).slice(0, 5), coverPhoto: lookDraft.cover === 'photo' ? (lookDraft.coverPhoto || null) : null
     };
     db.collection('users').doc(uid).update({ look: value }).then(function () {
@@ -14323,6 +14377,7 @@
         if (!bests[x.circuit] || b < bests[x.circuit].best) bests[x.circuit] = { best: b, date: x.date };
       });
       var circuits = Object.keys(bests).sort();
+      if (look) html += renderLinksAndSponsors(look);
       if (look) html += (lookShows(look, 'vitrine') ? renderVitrine(getAch(), look) : '') + (lookShows(look, 'season') ? renderSeasonGrid(name, look) : '') + renderFavourites(name, look);
       if (circuits.length) {
         html += '<div class="card"><h2 class="section-title">' + (isMe ? L('Mes records', 'My records') : L('Ses records', 'Their records')) + '</h2>' + circuits.map(function (c) {
@@ -17572,6 +17627,49 @@
       btn.addEventListener('click', function () {
         if (!lookDraft) return;
         lookDraft[btn.getAttribute('data-look-set')] = btn.getAttribute('data-val');
+        renderRoot();
+      });
+    });
+    document.querySelectorAll('[data-look-remove]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        if (!lookDraft) return;
+        (lookDraft[btn.getAttribute('data-look-remove')] || []).splice(parseInt(btn.getAttribute('data-i'), 10), 1);
+        renderRoot();
+      });
+    });
+    document.querySelectorAll('[data-action="look-add-link"]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        if (!lookDraft) return;
+        var url = normalizeUrl((document.getElementById('look-ln-url') || {}).value);
+        if (!url) { showToast(L('Lien invalide : colle l\'adresse complète de la page.', 'Invalid link: paste the full page address.')); return; }
+        (lookDraft.links || (lookDraft.links = [])).push({ url: url, comment: ((document.getElementById('look-ln-comment') || {}).value || '').trim().slice(0, 60) });
+        renderRoot();
+      });
+    });
+    var spLogoBtn = document.getElementById('look-sp-logo-btn'), spLogo = document.getElementById('look-sp-logo');
+    if (spLogoBtn && spLogo) {
+      spLogoBtn.addEventListener('click', function () { spLogo.click(); });
+      spLogo.addEventListener('change', function () {
+        var f = spLogo.files && spLogo.files[0];
+        if (!f) return;
+        var keepName = (document.getElementById('look-sp-name') || {}).value, keepUrl = (document.getElementById('look-sp-url') || {}).value;
+        resizeImageToDataUrl(f, 240, 0.8, function (url) {
+          lookPendingLogo = url;
+          renderRoot();
+          var n = document.getElementById('look-sp-name'), u = document.getElementById('look-sp-url');
+          if (n) n.value = keepName || ''; if (u) u.value = keepUrl || '';
+        });
+      });
+    }
+    document.querySelectorAll('[data-action="look-add-sponsor"]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        if (!lookDraft) return;
+        var name = ((document.getElementById('look-sp-name') || {}).value || '').trim().slice(0, 40);
+        var rawUrl = ((document.getElementById('look-sp-url') || {}).value || '').trim(), url = rawUrl ? normalizeUrl(rawUrl) : '';
+        if (!name) { showToast(L('Indique le nom du sponsor.', 'Enter the sponsor name.')); return; }
+        if (rawUrl && !url) { showToast(L('Site invalide : colle l\'adresse complète.', 'Invalid website: paste the full address.')); return; }
+        (lookDraft.sponsors || (lookDraft.sponsors = [])).push({ name: name, url: url, logo: lookPendingLogo || null });
+        lookPendingLogo = null;
         renderRoot();
       });
     });
