@@ -3913,7 +3913,7 @@
   function renderProfileAvatar(p) {
     var initial = escapeHtml((p.name || '?').trim().charAt(0).toUpperCase() || '?');
     return '<div class="profile-avatar-row">' +
-      '<div class="profile-avatar' + (!p.photoURL && p.nationality ? ' has-flag' : '') + '">' + (p.photoURL ? '<img src="' + escapeHtml(p.photoURL) + '" alt="' + tr('profile_photo_alt') + '">' : (p.nationality ? '<span class="avatar-flag" aria-hidden="true">' + flagEmoji(p.nationality) + '</span>' : '<span class="profile-avatar-placeholder">' + initial + '</span>')) + '</div>' +
+      '<div class="profile-avatar' + (!p.photoURL && p.nationality ? ' has-flag' : '') + '">' + (p.photoURL ? '<img src="' + escapeHtml(p.photoURL) + '" alt="' + tr('profile_photo_alt') + '">' : (p.nationality && COUNTRY_BALLS[p.nationality] ? countryBallHtml(p.nationality, 'avatar-ball') : '<span class="profile-avatar-placeholder">' + initial + '</span>')) + '</div>' +
       '<div class="profile-avatar-actions">' +
         '<button type="button" class="ghost" id="profile-photo-btn">' + (p.photoURL ? tr('change_photo') : tr('add_photo_plain')) + '</button>' +
         (p.photoURL ? '<button type="button" class="ghost" id="profile-photo-recrop-btn">' + tr('edit_crop') + '</button>' : '') +
@@ -13925,6 +13925,49 @@
     var c = COUNTRIES.filter(function (x) { return x[0] === code; })[0];
     return c ? (currentLang() === 'en' ? c[2] : c[1]) : (code || '');
   }
+
+  // Country balls: the flag's stripes in a circle, drawn in CSS (no emoji
+  // -- simpler to read, and shown the same on every system). Deliberately
+  // simplified: stripes, crosses, a dot; no coats of arms.
+  function stripes(dir, colors, weights) {
+    weights = weights || colors.map(function () { return 1; });
+    var total = weights.reduce(function (a, b) { return a + b; }, 0), at = 0;
+    return 'linear-gradient(' + (dir === 'v' ? 'to right' : 'to bottom') + ', ' + colors.map(function (c, i) {
+      var from = at * 100 / total; at += weights[i]; var to = at * 100 / total;
+      return c + ' ' + from.toFixed(1) + '% ' + to.toFixed(1) + '%';
+    }).join(', ') + ')';
+  }
+  function nordic(base, cross) {
+    return 'linear-gradient(to right, transparent 30%, ' + cross + ' 30% 44%, transparent 44%), linear-gradient(to bottom, transparent 43%, ' + cross + ' 43% 57%, transparent 57%), ' + base;
+  }
+  function centreDot(color, size, base) {
+    return 'radial-gradient(circle, ' + color + ' 0 ' + size + '%, transparent ' + (size + 1) + '%), ' + base;
+  }
+  var COUNTRY_BALLS = {
+    FR: stripes('v', ['#0055A4', '#ffffff', '#EF4135']), BE: stripes('v', ['#1a1a1a', '#FDDA24', '#EF3340']), IT: stripes('v', ['#009246', '#ffffff', '#CE2B37']),
+    IE: stripes('v', ['#169B62', '#ffffff', '#FF883E']), RO: stripes('v', ['#002B7F', '#FCD116', '#CE1126']), AD: stripes('v', ['#10069F', '#FEDF00', '#D50032']),
+    DE: stripes('h', ['#1a1a1a', '#DD0000', '#FFCE00']), NL: stripes('h', ['#AE1C28', '#ffffff', '#21468B']), LU: stripes('h', ['#EF3340', '#ffffff', '#00A3E0']),
+    AT: stripes('h', ['#ED2939', '#ffffff', '#ED2939']), HU: stripes('h', ['#CE2939', '#ffffff', '#477050']), ES: stripes('h', ['#AA151B', '#F1BF00', '#AA151B'], [1, 2, 1]),
+    PT: stripes('v', ['#046A38', '#DA291C'], [2, 3]), PL: stripes('h', ['#ffffff', '#DC143C']), MC: stripes('h', ['#CE1126', '#ffffff']),
+    HR: stripes('h', ['#FF0000', '#ffffff', '#171796']), SI: stripes('h', ['#ffffff', '#005DA4', '#ED1C24']),
+    GR: stripes('h', ['#0D5EAF', '#ffffff', '#0D5EAF', '#ffffff', '#0D5EAF']),
+    CZ: 'linear-gradient(to right, #11457E 0 34%, transparent 34%), ' + stripes('h', ['#ffffff', '#D7141A']),
+    DK: nordic('#C8102E', '#ffffff'), SE: nordic('#006AA7', '#FECC02'), NO: nordic('#BA0C2F', '#ffffff'), FI: nordic('#ffffff', '#002F6C'),
+    CH: 'linear-gradient(to right, transparent 42%, #ffffff 42% 58%, transparent 58%) center / 100% 64% no-repeat, linear-gradient(to bottom, transparent 42%, #ffffff 42% 58%, transparent 58%) center / 64% 100% no-repeat, #DA291C',
+    GB: 'linear-gradient(to right, transparent 44%, #C8102E 44% 56%, transparent 56%), linear-gradient(to bottom, transparent 44%, #C8102E 44% 56%, transparent 56%), linear-gradient(to right, transparent 38%, #ffffff 38% 62%, transparent 62%), linear-gradient(to bottom, transparent 38%, #ffffff 38% 62%, transparent 62%), #012169',
+    JP: centreDot('#BC002D', 30, '#ffffff'), CA: centreDot('#D80621', 16, stripes('v', ['#D80621', '#ffffff', '#D80621'], [1, 2, 1])),
+    US: 'linear-gradient(#3C3B6E, #3C3B6E) 0 0 / 50% 54% no-repeat, repeating-linear-gradient(to bottom, #B22234 0 7.7%, #ffffff 7.7% 15.4%)',
+    BR: 'radial-gradient(circle, #002776 0 20%, transparent 21%), radial-gradient(ellipse 46% 30%, #FEDF00 0 98%, transparent 100%), #009C3B',
+    AR: centreDot('#F6B40E', 12, stripes('h', ['#74ACDF', '#ffffff', '#74ACDF'])), AU: centreDot('#ffffff', 10, '#012169'), NZ: centreDot('#C8102E', 10, '#012169'),
+    ZA: stripes('h', ['#E03C31', '#007749', '#001489']), MA: centreDot('#006233', 18, '#C1272D'), DZ: centreDot('#D21034', 14, stripes('v', ['#006233', '#ffffff'])),
+    TN: centreDot('#E70013', 14, centreDot('#ffffff', 30, '#E70013'))
+  };
+  function countryBallHtml(code, cls) {
+    var bg = COUNTRY_BALLS[code];
+    if (!bg) return '';
+    return '<span class="cball' + (cls ? ' ' + cls : '') + '" style="background:' + bg + '" title="' + escapeHtml(countryName(code)) + '" aria-hidden="true"></span>';
+  }
+
   function flagEmoji(code) {
     if (!code || !/^[A-Z]{2}$/.test(code)) return '';
     return String.fromCodePoint(0x1F1E6 + code.charCodeAt(0) - 65, 0x1F1E6 + code.charCodeAt(1) - 65);
@@ -13939,7 +13982,7 @@
   function nationalitySelectHtml(id, value, withEmpty) {
     var list = COUNTRIES.slice().sort(function (a, b) { return countryName(a[0]).localeCompare(countryName(b[0])); });
     return '<select id="' + id + '">' + (withEmpty ? '<option value="">' + L('Non renseignée', 'Not set') + '</option>' : '') +
-      list.map(function (c) { return '<option value="' + c[0] + '"' + (value === c[0] ? ' selected' : '') + '>' + flagEmoji(c[0]) + ' ' + escapeHtml(countryName(c[0])) + '</option>'; }).join('') + '</select>';
+      list.map(function (c) { return '<option value="' + c[0] + '"' + (value === c[0] ? ' selected' : '') + '>' + escapeHtml(countryName(c[0])) + '</option>'; }).join('') + '</select>';
   }
   function saveNationality(code) {
     var uid = auth.currentUser && auth.currentUser.uid;
@@ -13981,7 +14024,7 @@
       '<div class="help-text" style="margin-bottom:0.6rem;">' + total + L(' comptes. Renseignée dans le profil (préremplie à l\'inscription d\'après la langue du téléphone).', ' accounts. Set in the profile (prefilled at signup from the phone language).') + '</div>';
     html += rows.map(function (k) {
       var pct = total ? Math.round(by[k] * 100 / total) : 0;
-      return '<div class="nat-row"><span class="nat-flag">' + (k ? flagEmoji(k) : '–') + '</span><span class="nat-name">' + escapeHtml(k ? countryName(k) : L('Non renseignée', 'Not set')) + '</span>' +
+      return '<div class="nat-row"><span class="nat-flag">' + (k ? countryBallHtml(k) : '–') + '</span><span class="nat-name">' + escapeHtml(k ? countryName(k) : L('Non renseignée', 'Not set')) + '</span>' +
         '<span class="nat-bar"><span style="width:' + pct + '%"></span></span><span class="nat-count">' + by[k] + '</span></div>';
     }).join('');
     if (missing) html += '<button type="button" class="ghost" data-action="nat-fill-fr" style="margin-top:0.7rem;">' + L('Mettre en France les ' + missing + ' compte' + (missing > 1 ? 's' : '') + ' non renseigné' + (missing > 1 ? 's' : ''), 'Set the ' + missing + ' unset account' + (missing > 1 ? 's' : '') + ' to France') + '</button>';
@@ -13990,11 +14033,11 @@
 
   function avatarHtml(u, name) {
     var initial = escapeHtml((name || '?').trim().charAt(0).toUpperCase() || '?');
-    var flag = u && !u.photoURL && u.nationality ? flagEmoji(u.nationality) : '';
+    var flag = u && !u.photoURL && u.nationality ? countryBallHtml(u.nationality, 'avatar-ball') : '';
     return '<span class="mini-avatar' + (flag ? ' has-flag' : '') + '"' + (flag ? ' title="' + escapeHtml(countryName(u.nationality)) + '"' : '') + '>' + (u && u.photoURL
       ? '<img src="' + escapeHtml(u.photoURL) + '" alt="">'
       // The flag alone (the pseudo is always shown next to it).
-      : (flag ? '<span class="avatar-flag" aria-hidden="true">' + flag + '</span>' : '<span class="mini-avatar-placeholder">' + initial + '</span>')) + '</span>';
+      : (flag || '<span class="mini-avatar-placeholder">' + initial + '</span>')) + '</span>';
   }
 
   function renderFriendRow(name, actionsHtml, expandable) {
@@ -14046,7 +14089,7 @@
     var html = '<div class="outing-page person-page">';
     // Identity
     var sub = [];
-    if (u.nationality) sub.push(flagEmoji(u.nationality) + ' ' + escapeHtml(countryName(u.nationality)));
+    if (u.nationality) sub.push(countryBallHtml(u.nationality, 'inline') + ' ' + escapeHtml(countryName(u.nationality)));
     if (isPilote && u.bike) sub.push(escapeHtml(u.bike) + (u.bikeNumber ? ' #' + escapeHtml(u.bikeNumber) : ''));
     html += '<div class="card person-head"><div class="page-title-row"><button type="button" class="back-chevron" data-view="' + escapeHtml(personView.from) + '" aria-label="' + L('Retour', 'Back') + '">‹</button>' +
       '<span class="person-avatar">' + avatarHtml(u, name) + '</span>' +

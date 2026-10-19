@@ -3439,3 +3439,12 @@ body { min-height: 100%; min-height: 100dvh; }
 .person-cmp { font-size: 0.75rem; font-weight: 700; color: var(--accent); white-space: nowrap; }
 .person-cmp.ahead { color: #1d8a4e; }
 .friend-name-link { background: none; border: 0; padding: 0; font: inherit; font-weight: 700; color: inherit; cursor: pointer; text-align: left; }
+
+/* Country balls : un rond aux bandes du drapeau, avec un léger volume */
+.cball { display: inline-block; width: 1.1em; height: 1.1em; border-radius: 50%; vertical-align: -0.18em; flex-shrink: 0;
+  box-shadow: inset 0 0 0 1px rgba(20, 22, 26, 0.12), inset -0.12em -0.14em 0 rgba(20, 22, 26, 0.10); }
+.cball.inline { margin-right: 0.1em; }
+.cball.avatar-ball { position: absolute; inset: 0; width: 100%; height: 100%; vertical-align: 0;
+  box-shadow: inset 0 0 0 1px rgba(20, 22, 26, 0.12), inset -3px -4px 0 rgba(20, 22, 26, 0.10); }
+.mini-avatar.has-flag, .profile-avatar.has-flag { border-color: transparent; }
+.nat-flag .cball { width: 1.25rem; height: 1.25rem; }
