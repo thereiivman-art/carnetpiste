@@ -13817,7 +13817,8 @@
     ['story', 'Stories partagées (toutes)'],
     ['story_session', '… chrono'], ['story_battle', '… Entre potes'], ['story_roulage', '… « On roule à »'], ['story_recap', '… « Mon roulage à »'],
     ['link_roulage', 'Liens de roulage partagés'],
-    ['look_open', 'Fiche : personnalisation essayée'], ['look_saved', '… enregistrée']
+    ['look_open', 'Fiche : personnalisation essayée'], ['look_saved', '… enregistrée'],
+    ['team_look_open', 'Fiche team : personnalisation essayée'], ['team_look_saved', '… enregistrée']
   ];
   // UTC, like the server-side check in firestore.rules (request.time).
   function usageMonthKey(d) { d = d || new Date(); return 'm' + d.getUTCFullYear() + '_' + (d.getUTCMonth() + 1); }
@@ -14094,17 +14095,28 @@
     if (!c) Object.keys(bests).forEach(function (k) { if (!c || bests[k].date > bests[c].date) c = k; });
     return c ? { circuit: c, best: bests[c].best, date: bests[c].date, gain: bests[c].first - bests[c].best } : null;
   }
-  function renderPersonHero(u, name, l, sub, acts, backTo) {
-    var outline = l.cover === 'trace' ? (function () { var f = featuredChrono(name, l), c = f ? f.circuit : ''; return c ? outlineImageFor(circuitInfo(c), c) : null; })() : null;
-    var coverInner = l.cover === 'photo' && l.coverPhoto ? '<img class="ph-photo" src="' + escapeHtml(l.coverPhoto) + '" alt="">' : (outline ? '<img class="ph-trace" src="' + escapeHtml(outline) + '" alt="">' : '');
-    var plate = l.plate && u.bikeNumber ? '<span class="ph-plate">' + escapeHtml(u.bikeNumber) + '</span>' : '';
+  // Shared by the rider's and the team's customised pages.
+  // o: { backAttr, outline, plateHtml, avatar, nameHtml, subHtml, bio, acts }
+  function renderLookHero(l, o) {
+    var coverInner = l.cover === 'photo' && l.coverPhoto ? '<img class="ph-photo" src="' + escapeHtml(l.coverPhoto) + '" alt="">' : (o.outline ? '<img class="ph-trace" src="' + escapeHtml(o.outline) + '" alt="">' : '');
     return '<div class="card person-hero" data-cover="' + escapeHtml(l.cover === 'photo' && !l.coverPhoto ? 'vibreur' : (l.cover || 'none')) + '" data-plate="' + escapeHtml(l.plate || '') + '" style="' + lookStyle(l) + '">' +
-      '<div class="ph-cover">' + coverInner + '<button type="button" class="back-chevron ph-back" data-view="' + escapeHtml(backTo) + '" aria-label="' + L('Retour', 'Back') + '">‹</button>' + plate + '</div>' +
-      '<div class="ph-body"><div class="ph-id"><span class="person-avatar ph-avatar">' + avatarHtml(u, name) + '</span>' +
-      '<span class="person-id"><strong class="person-name">' + escapeHtml(name) + badgesHtml(u) + '</strong>' +
-      '<span class="help-text"><span class="friend-role-badge">' + roleLabel(u.role) + '</span>' + (sub.length ? ' ' + sub.join(' · ') : '') + '</span></span></div>' +
-      (l.bio ? '<p class="ph-bio">' + escapeHtml(l.bio) + '</p>' : '') +
-      '<div class="outing-actions">' + acts + '</div></div></div>';
+      '<div class="ph-cover">' + coverInner + '<button type="button" class="back-chevron ph-back" ' + o.backAttr + ' aria-label="' + L('Retour', 'Back') + '">‹</button>' + (o.plateHtml || '') + '</div>' +
+      '<div class="ph-body"><div class="ph-id"><span class="person-avatar ph-avatar">' + o.avatar + '</span>' +
+      '<span class="person-id"><strong class="person-name">' + o.nameHtml + '</strong><span class="help-text">' + o.subHtml + '</span></span></div>' +
+      (o.bio ? '<p class="ph-bio">' + escapeHtml(o.bio) + '</p>' : '') +
+      (o.acts ? '<div class="outing-actions">' + o.acts + '</div>' : '') + '</div></div>';
+  }
+  function renderPersonHero(u, name, l, sub, acts, backTo) {
+    var f = l.cover === 'trace' ? featuredChrono(name, l) : null;
+    return renderLookHero(l, {
+      backAttr: 'data-view="' + escapeHtml(backTo) + '"',
+      outline: f ? outlineImageFor(circuitInfo(f.circuit), f.circuit) : null,
+      plateHtml: l.plate && u.bikeNumber ? '<span class="ph-plate">' + escapeHtml(u.bikeNumber) + '</span>' : '',
+      avatar: avatarHtml(u, name),
+      nameHtml: escapeHtml(name) + badgesHtml(u),
+      subHtml: '<span class="friend-role-badge">' + roleLabel(u.role) + '</span>' + (sub.length ? ' ' + sub.join(' · ') : ''),
+      bio: l.bio, acts: acts
+    });
   }
   function renderFeaturedChrono(name, l) {
     var f = featuredChrono(name, l);
@@ -14145,7 +14157,91 @@
     return '<div class="card" style="' + lookStyle(l) + '"><h2 class="section-title">' + L('Saison ', 'Season ') + year + ' <span class="help-text" style="display:inline;">· ' + n + L(n > 1 ? ' jours de piste' : ' jour de piste', n > 1 ? ' days on track' : ' day on track') + '</span></h2>' +
       '<div class="ph-months">' + bars + '</div><div class="help-text ph-months-help">' + L('Jours de piste par mois', 'Track days per month') + '</div></div>';
   }
+  // ---- Fiche team personnalisée (aperçu de Team PRO) ----
+  function teamLookFor(t) { return lookDraft && lookDraft.__team === t.id ? lookDraft : lookOf(t); }
+  function teamEvents(t) { return eventsList().filter(function (ev) { return ev.teamId === t.id; }); }
+  // Best lap per circuit set during this team's roulages.
+  function teamPalmares(t) {
+    var best = {};
+    teamEvents(t).forEach(function (ev) {
+      var end = ev.dateEnd || ev.dateStart;
+      (STATE.sessions || []).forEach(function (x) {
+        if (!x.laps || !x.laps.length || (ev.riders || []).indexOf(x.rider) === -1 || !sameCircuit(x.circuit, ev.circuit) || x.date < ev.dateStart || x.date > end) return;
+        if (x.eventId && x.eventId !== ev.id) return;
+        var b = sessionBest(x);
+        if (!best[ev.circuit] || b < best[ev.circuit].best) best[ev.circuit] = { best: b, rider: x.rider, date: x.date };
+      });
+    });
+    return best;
+  }
+  function renderTeamHero(t, l, me, acts, role) {
+    var memberCount = (membersOfTeam(t.id).length || t.memberCount || (myRoleInTeam(t.id) ? 1 : 0));
+    var likeCount = (STATE.teamLikes || []).filter(function (x) { return x.teamId === t.id; }).length;
+    var sub = [memberCount + L(memberCount > 1 ? ' membres' : ' membre', memberCount > 1 ? ' members' : ' member')];
+    if (likeCount) sub.push(likeCount + L(likeCount > 1 ? ' j\'aime' : ' j\'aime', likeCount > 1 ? ' likes' : ' like'));
+    var next = teamEvents(t).filter(function (ev) { return (ev.dateEnd || ev.dateStart) >= dateKey(new Date()); }).sort(function (a, b) { return a.dateStart < b.dateStart ? -1 : 1; })[0];
+    return renderLookHero(l, {
+      backAttr: 'data-action="team-tile-close"',
+      outline: l.cover === 'trace' && next ? outlineImageFor(circuitInfo(next.circuit), next.circuit) : null,
+      plateHtml: t.logoURL ? '<span class="ph-plate ph-logo"><img src="' + escapeHtml(t.logoURL) + '" alt="Logo ' + escapeHtml(t.name) + '"></span>' : '',
+      avatar: avatarHtml(t, t.name),
+      nameHtml: escapeHtml(t.name) + teamBadgesHtml(t),
+      subHtml: (role ? '<span class="friend-role-badge">' + role + '</span> ' : '') + sub.join(' · '),
+      bio: l.bio || t.description || '', acts: acts
+    });
+  }
+  function renderTeamShowcase(t, l, isMember) {
+    var html = '', today = dateKey(new Date()), evs = teamEvents(t);
+    var followers = ((STATE.teamFollowersByTeam || {})[t.id] || []).length;
+    var memberCount = (membersOfTeam(t.id).length || t.memberCount || (myRoleInTeam(t.id) ? 1 : 0));
+    html += '<div class="person-kpis" style="' + lookStyle(l) + '"><div><strong>' + memberCount + '</strong><span>' + L('membres', 'members') + '</span></div>' +
+      '<div><strong>' + evs.length + '</strong><span>' + L('roulages', 'trackdays') + '</span></div>' +
+      '<div><strong>' + followers + '</strong><span>' + L('abonnés', 'followers') + '</span></div></div>';
+    // Legacy links and partners (Réglages) shown alongside the fiche's own.
+    var merged = Object.assign({}, l, { __isTeam: true,
+      links: (l.links || []).concat((t.links || []).filter(function (x) { return x && x.url && !(l.links || []).some(function (y) { return y.url === x.url; }); }).map(function (x) { return { url: x.url, comment: x.label }; })),
+      sponsors: (l.sponsors || []).concat((t.partners || []).filter(function (x) { return x && x.name && !(l.sponsors || []).some(function (y) { return y.name.toLowerCase() === x.name.toLowerCase(); }); }))
+    });
+    if (lookShows(l, 'dates')) {
+      var next = evs.filter(function (ev) {
+        return (ev.dateEnd || ev.dateStart) >= today && (isMember || ev.eventVisibility === 'public' || ev.eventVisibility === 'ouvert');
+      }).sort(function (a, b) { return a.dateStart < b.dateStart ? -1 : 1; }).slice(0, 4);
+      if (next.length) html += '<div class="card" style="' + lookStyle(l) + '"><h2 class="section-title">' + L('Prochaines dates', 'Upcoming dates') + '</h2>' + next.map(function (ev) {
+        var d = parseLocalDate(ev.dateStart);
+        return '<button type="button" class="ph-date" data-notif-go="event" data-id="' + escapeHtml(ev.id) + '"><span class="ph-date-box"><b>' + d.getDate() + '</b><small>' + escapeHtml(MONTH_NAMES_FR()[d.getMonth()].slice(0, 4)) + '</small></span>' +
+          '<span class="ph-link-main"><strong>' + escapeHtml(ev.circuit) + '</strong><span class="help-text">' + escapeHtml(formatEventRange(ev, true)) + ((ev.riders || []).length ? ' · ' + ev.riders.length + L(' inscrits', ' signed up') : '') + '</span></span>' +
+          (ev.bookingUrl ? '<span class="ph-date-book">' + L('Réserver', 'Book') + '</span>' : '<span class="ph-link-go">›</span>') + '</button>';
+      }).join('') + '</div>';
+    }
+    html += renderLinksAndSponsors(merged);
+    if (lookShows(l, 'palmares')) {
+      var pal = teamPalmares(t), circuits = Object.keys(pal).sort();
+      if (circuits.length) html += '<div class="card"><h2 class="section-title">' + L('Palmarès du team', 'Team records') + '</h2>' + circuits.slice(0, 6).map(function (c) {
+        return '<div class="person-record"><span class="outing-thumb">' + circuitThumbHtml(c) + '</span><span class="person-record-main"><strong>' + escapeHtml(c) + '</strong><span class="help-text">' + personLinkHtml(pal[c].rider) + ' · ' + escapeHtml(formatDate(pal[c].date)) + '</span></span>' +
+          '<span class="person-record-right"><span class="carnet-time">' + formatTime(pal[c].best) + '</span></span></div>';
+      }).join('') + '</div>';
+    }
+    if (lookShows(l, 'riders')) {
+      var riders = (l.favRiders || []).filter(function (n) { return (STATE.usersByName || {})[n]; });
+      if (riders.length) html += '<div class="card"><h2 class="section-title">' + L('Pilotes du team', 'Team riders') + '</h2><div class="ph-favs ph-favs-friends">' + riders.slice(0, 5).map(function (n) {
+        return '<button type="button" class="ph-fav-friend" data-action="open-person" data-name="' + escapeHtml(n) + '">' + avatarHtml((STATE.usersByName || {})[n], n) + '<span>' + escapeHtml(n) + '</span></button>';
+      }).join('') + '</div></div>';
+    }
+    return html;
+  }
+  function openTeamLookEditor(teamId) {
+    var t = teamById(teamId);
+    if (!t) return;
+    var l = t.look || {};
+    lookDraft = { __team: teamId, color: l.color || '#c8261f', cover: l.cover != null ? l.cover : 'vibreur', coverPhoto: l.coverPhoto || null, bio: l.bio != null ? l.bio : (t.description || ''),
+      links: (l.links || []).slice(), sponsors: (l.sponsors || []).slice(), show: Object.assign({}, l.show || {}), favRiders: (l.favRiders || []).slice() };
+    lookMessage = ''; lookPendingLogo = null;
+    countUsageOnce('teamLookOpen', 'team_look_open');
+    renderRoot();
+  }
+
   // What a customised profile shows (all on by default).
+  var LOOK_SECTIONS_TEAM = function () { return [['dates', L('Prochaines dates', 'Upcoming dates')], ['links', L('Réseaux et liens', 'Socials and links')], ['sponsors', L('Sponsors', 'Sponsors')], ['palmares', L('Palmarès', 'Records')], ['riders', L('Pilotes du team', 'Team riders')]]; };
   var LOOK_SECTIONS = function () { return [['links', L('Réseaux et liens', 'Socials and links')], ['sponsors', L('Sponsors', 'Sponsors')], ['featured', L('Chrono vedette', 'Featured lap')], ['vitrine', L('Vitrine', 'Showcase')], ['season', L('Saison', 'Season')], ['circuits', L('Circuits préférés', 'Favourite circuits')], ['teams', L('Teams préférés', 'Favourite teams')], ['friends', L('Amis préférés', 'Favourite friends')]]; };
   function lookShows(l, key) { return !l.show || l.show[key] !== false; }
   function normalizeUrl(u) {
@@ -14180,7 +14276,7 @@
         (x.comment ? '<span class="help-text">' + escapeHtml(x.comment) + '</span>' : '') + '</span><span class="ph-link-go">↗</span></button>';
     }).join('') + '</div>';
     var sponsors = (l.sponsors || []).filter(function (x) { return x && x.name; });
-    if (lookShows(l, 'sponsors') && sponsors.length) html += '<div class="card"><h2 class="section-title">' + L('Mes sponsors', 'My sponsors') + '</h2><div class="ph-sponsors">' + sponsors.map(function (x) {
+    if (lookShows(l, 'sponsors') && sponsors.length) html += '<div class="card"><h2 class="section-title">' + (l.__isTeam ? L('Partenaires', 'Partners') : L('Mes sponsors', 'My sponsors')) + '</h2><div class="ph-sponsors">' + sponsors.map(function (x) {
       var inner = (x.logo ? '<img src="' + escapeHtml(x.logo) + '" alt="">' : '<span class="ph-sponsor-name">' + escapeHtml(x.name) + '</span>') + (x.logo ? '<span class="ph-sponsor-cap">' + escapeHtml(x.name) + '</span>' : '');
       return x.url ? '<button type="button" class="ph-sponsor" data-action="open-external-url" data-url="' + escapeHtml(x.url) + '">' + inner + '</button>' : '<span class="ph-sponsor">' + inner + '</span>';
     }).join('') + '</div></div>';
@@ -14222,31 +14318,33 @@
     }
     return html;
   }
-  function renderLookEditor(me, ach) {
+  function renderLookEditor(me, ach, team) {
     var d = lookDraft;
     var seg = function (key, list) {
       return '<div class="look-seg">' + list.map(function (o) { return '<button type="button" data-look-set="' + key + '" data-val="' + o[0] + '" aria-pressed="' + ((d[key] || '') === o[0]) + '">' + escapeHtml(o[1]) + '</button>'; }).join('') + '</div>';
     };
     var circuits = Object.keys(riderBestsByCircuit(me.name)).sort();
     var earned = ach.filter(function (a) { return a.earned; });
-    var html = '<div class="card look-editor"><h2 class="section-title">' + L('Personnaliser ma fiche', 'Customise my profile') + '</h2>' +
-      '<div class="help-text">' + L('Offert pendant la phase de test. Cette personnalisation fera partie de Carnet+, l\'offre payante prévue plus tard.', 'Free during the test phase. This will be part of Carnet+, the paid plan planned later.') + '</div>';
+    var html = '<div class="card look-editor"><h2 class="section-title">' + (team ? L('Personnaliser la fiche du team', 'Customise the team page') : L('Personnaliser ma fiche', 'Customise my profile')) + '</h2>' +
+      '<div class="help-text">' + (team ? L('Offert pendant la phase de test. Cette personnalisation fera partie de Team PRO, l\'offre payante prévue plus tard.', 'Free during the test phase. This will be part of Team PRO, the paid plan planned later.')
+        : L('Offert pendant la phase de test. Cette personnalisation fera partie de Carnet+, l\'offre payante prévue plus tard.', 'Free during the test phase. This will be part of Carnet+, the paid plan planned later.')) + '</div>';
     html += '<div class="look-field"><span class="look-label">' + L('Couleur', 'Colour') + '</span><div class="look-swatches">' + LOOK_COLORS.map(function (c) {
       return '<button type="button" class="look-sw" style="background:' + c[0] + '" data-look-set="color" data-val="' + c[0] + '" aria-label="' + c[1] + '" aria-pressed="' + (d.color === c[0]) + '"></button>';
     }).join('') + '</div></div>';
     html += '<div class="look-field"><span class="look-label">' + L('Couverture', 'Cover') + '</span>' + seg('cover', lookCovers());
     if (d.cover === 'photo') html += '<div class="look-photo-row"><button type="button" class="ghost" id="look-cover-btn">' + (d.coverPhoto ? L('Changer la photo', 'Change photo') : L('Choisir une photo', 'Choose a photo')) + '</button><input type="file" id="look-cover-input" accept="image/*" style="display:none;"><span class="help-text">' + L('Une photo de toi en piste, en largeur de préférence.', 'A photo of you on track, landscape if possible.') + '</span></div>';
     html += '</div>';
-    html += '<div class="look-field"><span class="look-label">' + L('Plaque', 'Number plate') + '</span>' + seg('plate', lookPlates()) +
+    if (team) html += team.logoURL ? '' : '<div class="help-text">' + L('Ajoute le logo du team dans Réglages pour l\'afficher sur la couverture.', 'Add the team logo in Settings to show it on the cover.') + '</div>';
+    else html += '<div class="look-field"><span class="look-label">' + L('Plaque', 'Number plate') + '</span>' + seg('plate', lookPlates()) +
       (me.bikeNumber ? '' : '<div class="help-text">' + L('Ajoute ton numéro dans Profil → Ma moto pour l\'afficher.', 'Add your number in Profile → My bike to show it.') + '</div>') + '</div>';
-    if (circuits.length) html += '<div class="look-field"><label class="look-label" for="look-featured">' + L('Chrono vedette', 'Featured lap') + '</label><select id="look-featured"><option value="">' + L('Mon dernier record', 'My latest record') + '</option>' +
+    if (circuits.length && !team) html += '<div class="look-field"><label class="look-label" for="look-featured">' + L('Chrono vedette', 'Featured lap') + '</label><select id="look-featured"><option value="">' + L('Mon dernier record', 'My latest record') + '</option>' +
       circuits.map(function (c) { return '<option value="' + escapeHtml(c) + '"' + (d.featured === c ? ' selected' : '') + '>' + escapeHtml(c) + '</option>'; }).join('') + '</select></div>';
     var pick = function (key, values, labels, max) {
       return '<div class="look-pins">' + values.map(function (v, i) {
         return '<button type="button" data-look-fav="' + key + '" data-max="' + max + '" data-val="' + escapeHtml(v) + '" aria-pressed="' + ((d[key] || []).indexOf(v) !== -1) + '">' + escapeHtml(labels[i]) + '</button>';
       }).join('') + '</div>';
     };
-    html += '<div class="look-field"><span class="look-label">' + L('Afficher sur ma fiche', 'Show on my profile') + '</span><div class="look-pins">' + LOOK_SECTIONS().map(function (o) {
+    html += '<div class="look-field"><span class="look-label">' + (team ? L('Afficher sur la fiche', 'Show on the page') : L('Afficher sur ma fiche', 'Show on my profile')) + '</span><div class="look-pins">' + (team ? LOOK_SECTIONS_TEAM() : LOOK_SECTIONS()).map(function (o) {
       return '<button type="button" data-look-show="' + o[0] + '" aria-pressed="' + lookShows(d, o[0]) + '">' + escapeHtml(o[1]) + '</button>';
     }).join('') + '</div></div>';
     if (lookShows(d, 'links')) {
@@ -14260,6 +14358,16 @@
         ((d.sponsors || []).length < 6 ? '<div class="look-add"><input type="text" id="look-sp-name" maxlength="40" placeholder="' + L('Nom du sponsor', 'Sponsor name') + '"><input type="url" id="look-sp-url" placeholder="' + L('Site (optionnel)', 'Website (optional)') + '" autocomplete="off">' +
           '<div class="look-add-row"><button type="button" class="ghost" id="look-sp-logo-btn">' + (lookPendingLogo ? L('Logo choisi', 'Logo chosen') : L('Logo (optionnel)', 'Logo (optional)')) + '</button><input type="file" id="look-sp-logo" accept="image/*" style="display:none;">' +
           '<button type="button" class="ghost" data-action="look-add-sponsor">' + L('Ajouter le sponsor', 'Add sponsor') + '</button></div></div>' : '') + '</div>';
+    }
+    if (team) {
+      var memberNames = membersOfTeam(team.id).map(function (m) { return m.name; }).sort();
+      if (lookShows(d, 'riders')) html += '<div class="look-field"><span class="look-label">' + L('Pilotes du team (5 max)', 'Team riders (up to 5)') + '</span>' +
+        (memberNames.length ? pick('favRiders', memberNames, memberNames, 5) : '<div class="help-text">' + L('Les membres du team apparaîtront ici.', 'Team members will show here.') + '</div>') + '</div>';
+      html += '<div class="look-field"><label class="look-label" for="look-bio">' + L('Présentation', 'About') + '</label><textarea id="look-bio" maxlength="240" rows="3" placeholder="' + L('Ex. Roulages circuit en France et en Espagne depuis 2012.', 'E.g. Track days in France and Spain since 2012.') + '">' + escapeHtml(d.bio || '') + '</textarea></div>';
+      html += '<div class="look-actions"><button type="button" class="primary" data-action="look-save">' + L('Enregistrer', 'Save') + '</button><button type="button" class="ghost" data-action="look-cancel">' + L('Annuler', 'Cancel') + '</button>' +
+        (lookOf(team) ? '<button type="button" class="link-btn" data-action="look-reset">' + L('Revenir à la fiche standard', 'Back to the standard page') + '</button>' : '') + '</div>' +
+        (lookMessage ? '<div class="help-text">' + escapeHtml(lookMessage) + '</div>' : '') + '</div>';
+      return html;
     }
     var allCircuits = {};
     (STATE.sessions || []).forEach(function (x) { if (x.rider === me.name && x.circuit) allCircuits[x.circuit] = 1; });
@@ -14298,6 +14406,22 @@
   function saveLook(reset) {
     var uid = myUid(), me = currentUserProfile;
     if (!uid || !me) return;
+    if (lookDraft && lookDraft.__team) {
+      var teamId = lookDraft.__team, t = teamById(teamId);
+      var tv = reset ? null : {
+        color: lookDraft.color, cover: lookDraft.cover || '', bio: (lookDraft.bio || '').trim().slice(0, 240),
+        links: (lookDraft.links || []).slice(0, 6), sponsors: (lookDraft.sponsors || []).slice(0, 6), show: lookDraft.show || {},
+        favRiders: (lookDraft.favRiders || []).slice(0, 5), coverPhoto: lookDraft.cover === 'photo' ? (lookDraft.coverPhoto || null) : null
+      };
+      db.collection('teams').doc(teamId).update({ look: tv }).then(function () {
+        if (t) t.look = tv;
+        lookDraft = null; lookMessage = '';
+        if (!reset) countUsageOnce('teamLookSaved', 'team_look_saved');
+        showToast(reset ? L('Fiche standard rétablie.', 'Standard page restored.') : L('Fiche du team enregistrée.', 'Team page saved.'));
+        renderRoot();
+      }).catch(function (err) { lookMessage = tr('error_prefix') + (err && err.message ? err.message : err); renderRoot(); });
+      return;
+    }
     var value = reset ? null : {
       color: lookDraft.color, cover: lookDraft.cover || '', plate: lookDraft.plate || '', bio: (lookDraft.bio || '').trim().slice(0, 140),
       featured: lookDraft.featured || '', pinned: (lookDraft.pinned || []).slice(0, 3),
@@ -14328,7 +14452,8 @@
     var received = me && (STATE.friendRequests || []).filter(function (r) { return r.status === 'pending' && r.to === me.name && r.from === name; })[0];
     var isMe = !!(me && me.name === name);
     if (isMe) u = Object.assign({}, u, me);
-    var look = isMe && lookDraft ? lookDraft : lookOf(u);
+    var myDraft = lookDraft && !lookDraft.__team ? lookDraft : null;
+    var look = isMe && myDraft ? myDraft : lookOf(u);
     var html = '<div class="outing-page person-page">';
     // Identity
     var sub = [];
@@ -14336,7 +14461,7 @@
     if (isPilote && u.bike) sub.push(escapeHtml(u.bike) + (u.bikeNumber ? ' #' + escapeHtml(u.bikeNumber) : ''));
     // Actions
     var acts = '';
-    if (isMe) acts += lookDraft ? '' : '<button type="button" class="primary" data-action="look-edit">' + (lookOf(u) ? L('Modifier ma fiche', 'Edit my profile') : L('Personnaliser ma fiche', 'Customise my profile')) + '</button>';
+    if (isMe) acts += myDraft ? '' : '<button type="button" class="primary" data-action="look-edit">' + (lookOf(u) ? L('Modifier ma fiche', 'Edit my profile') : L('Personnaliser ma fiche', 'Customise my profile')) + '</button>';
     else if (friendship) acts += '<button type="button" class="ghost" disabled>' + L('Amis', 'Friends') + '</button>';
     else if (received) acts += '<button type="button" class="primary" data-action="accept-friend" data-id="' + received.id + '">' + L('Accepter son invitation', 'Accept the request') + '</button>';
     else if (sent) acts += '<button type="button" class="ghost" disabled>' + L('Demande envoyée', 'Request sent') + '</button>';
@@ -14346,7 +14471,7 @@
     var getAch = function () { return achList || (achList = isPilote ? riderAchievements(name, riderStats(name)) : (u.role === 'organisateur' ? organisateurAchievements(u) : accompagnantAchievements(u))); };
     if (look) {
       html += renderPersonHero(u, name, look, sub, acts, personView.from);
-      if (isMe && lookDraft) html += renderLookEditor(u, getAch());
+      if (isMe && myDraft) html += renderLookEditor(u, getAch());
     } else {
       html += '<div class="card person-head"><div class="page-title-row"><button type="button" class="back-chevron" data-view="' + escapeHtml(personView.from) + '" aria-label="' + L('Retour', 'Back') + '">‹</button>' +
         '<span class="person-avatar">' + avatarHtml(u, name) + '</span>' +
@@ -15515,6 +15640,7 @@
     var isMember = members.some(function (m) { return m.name === me.name; });
     var canPost = isLeader || (isMember && team.postPolicy === 'members');
     var feed = (STATE.teamFeed || []).filter(function (f) { return f.teamId === team.id; });
+    var tLook = teamLookFor(team);
     var html = '<div class="card team-card">';
     html += '<div class="section-title" style="display:flex; align-items:center; gap:0.6rem;">' +
       '<button type="button" class="back-chevron" data-action="team-tile-close" aria-label="' + escapeHtml(tr('back_to_teams').replace(/^←\s*/, '')) + '">‹</button>' + avatarHtml(team, team.name) +
@@ -15547,7 +15673,17 @@
     // présentation/liens) -- it's the main reason a Team Leader opens
     // this screen, not something to scroll past Fil d'actualité/Membres
     // to reach.
-    var headHtml = html; html = '';
+    var headHtml = html, headClosed = false; html = '';
+    var editing = !!(lookDraft && lookDraft.__team === team.id);
+    var lookBtn = isLeader && !editing ? '<button type="button" class="' + (tLook ? 'ghost' : 'primary') + '" data-action="team-look-edit" data-team="' + team.id + '">' + (tLook ? L('Modifier la fiche', 'Edit the page') : L('Personnaliser la fiche', 'Customise the page')) + '</button>' : '';
+    if (tLook) {
+      var roleLabelTxt = isLeader ? tr('team_leader_label') : (isMember ? tr('member_label') : tr('follower_label'));
+      var actsInner = teamActionsHtml(team, me, isMember || !!myRoleInTeam(team.id)).replace(/^<div class="outing-actions team-actions">|<\/div>$/g, '');
+      headHtml = renderTeamHero(team, tLook, me, lookBtn + actsInner, roleLabelTxt) + (editing ? renderLookEditor(me, [], team) : '');
+      headClosed = true;
+    } else if (lookBtn) {
+      headHtml += '<div class="outing-actions">' + lookBtn + '</div>';
+    }
     var bRoulages = '';
     if (isLeader) bRoulages += renderTeamEventsManagement(team);
 
@@ -15661,13 +15797,15 @@
     // "Ne plus suivre" lives in Réglages (was a bare × in the header).
     if (!isMember && !isLeader) bReglages = teamCard('', '<button type="button" class="ghost" data-action="unfollow-team" data-team="' + team.id + '">' + tr('unfollow') + '</button>') + (bReglages || '');
     var teamPills = [['fil', 'Fil'], ['membres', 'Membres (' + members.length + ')']];
+    if (tLook) teamPills.unshift(['fiche', L('Fiche', 'Page')]);
     if (isLeader) teamPills.push(['roulages', 'Roulages']);
     teamPills.push(['reglages', 'Réglages']);
     var pillsHtml = renderPills('team', teamPills);
-    var body = pillState.team === 'membres' ? bMembres : pillState.team === 'roulages' ? bRoulages : pillState.team === 'reglages' ? bReglages : bFil;
+    var body = pillState.team === 'membres' ? bMembres : pillState.team === 'roulages' ? bRoulages : pillState.team === 'reglages' ? bReglages
+      : (pillState.team === 'fiche' && tLook) ? renderTeamShowcase(team, tLook, true) : bFil;
     // Team header in its own card, then the pills outside it like on every
     // other page, then one card per topic.
-    return headHtml + '</div>' + pillsHtml + body;
+    return headHtml + (headClosed ? '' : '</div>') + pillsHtml + body;
   }
 
   function renderCreateTeamCard() {
@@ -16305,6 +16443,12 @@
   // counters, actions, links, partners and its public roulages. The feed,
   // members and private roulages stay for members only.
   function renderTeamPublicCard(t, me) {
+    var pLook = lookOf(t);
+    if (pLook) {
+      var acts = teamActionsHtml(t, me, false).replace(/^<div class="outing-actions team-actions">|<\/div>$/g, '');
+      return renderTeamHero(t, pLook, me, acts, '') + renderTeamShowcase(t, pLook, false) +
+        '<div class="help-text team-private-note">' + L('Le fil, les membres et les roulages réservés sont visibles des membres du team.', 'The feed, members and private trackdays are visible to team members.') + '</div>';
+    }
     var likeCount = (STATE.teamLikes || []).filter(function (l) { return l.teamId === t.id; }).length;
     var memberCount = t.memberCount || 0;
     var html = '<div class="card team-card">';
@@ -17620,6 +17764,7 @@
       btn.addEventListener('click', function () { if (currentUserProfile) { openPerson(currentUserProfile.name); if (!lookOf(currentUserProfile)) openLookEditor(); } });
     });
     document.querySelectorAll('[data-action="look-edit"]').forEach(function (btn) { btn.addEventListener('click', openLookEditor); });
+    document.querySelectorAll('[data-action="team-look-edit"]').forEach(function (btn) { btn.addEventListener('click', function () { openTeamLookEditor(btn.getAttribute('data-team')); }); });
     document.querySelectorAll('[data-action="look-cancel"]').forEach(function (btn) { btn.addEventListener('click', function () { lookDraft = null; lookMessage = ''; renderRoot(); }); });
     document.querySelectorAll('[data-action="look-save"]').forEach(function (btn) { btn.addEventListener('click', function () { saveLook(false); }); });
     document.querySelectorAll('[data-action="look-reset"]').forEach(function (btn) { btn.addEventListener('click', function () { saveLook(true); }); });
@@ -18259,7 +18404,7 @@
       btn.addEventListener('click', function () { teamInviteOpen = !teamInviteOpen; renderRoot(); });
     });
     document.querySelectorAll('[data-action="team-tile-close"]').forEach(function (btn) {
-      btn.addEventListener('click', function () { expandedTeamId = null; managingEventId = null; teamMemberSearch = ''; renderRoot(); });
+      btn.addEventListener('click', function () { expandedTeamId = null; managingEventId = null; teamMemberSearch = ''; if (lookDraft && lookDraft.__team) lookDraft = null; renderRoot(); });
     });
     var teamMemberSearchEl = expandedTeamId && document.getElementById('team-member-search-' + expandedTeamId);
     if (teamMemberSearchEl) {

@@ -3551,3 +3551,12 @@ span.ph-sponsor { cursor: default; }
 .look-item-logo { width: 40px; height: 32px; object-fit: contain; background: #fff; border-radius: 6px; border: 1px solid var(--border); }
 .look-add { display: flex; flex-direction: column; gap: 0.4rem; }
 .look-add-row { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.ph-plate.ph-logo { background: #fff; border: 3px solid #fff; min-width: 5rem; max-width: 9rem; padding: 0.3rem 0.5rem; }
+.ph-plate.ph-logo img { max-width: 100%; max-height: 100%; object-fit: contain; display: block; }
+.ph-date { display: flex; align-items: center; gap: 0.75rem; width: 100%; padding: 0.6rem 0; border: 0; border-top: 1px solid var(--border); background: none; color: var(--text); font: inherit; text-align: left; cursor: pointer; }
+.ph-date:first-of-type { border-top: 0; }
+.ph-date-box { width: 44px; flex: none; border-radius: 10px; background: var(--sig); color: var(--sig-ink); text-align: center; padding: 0.25rem 0; line-height: 1.05; }
+.ph-date-box b { display: block; font-family: var(--font-display); font-style: italic; font-weight: 800; font-size: 1.3rem; }
+.ph-date-box small { font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.06em; }
+.ph-date-book { flex: none; font-size: 0.8rem; font-weight: 700; color: var(--sig-ink); background: var(--sig); border-radius: 999px; padding: 0.3rem 0.7rem; }
+.person-hero .outing-actions > button { flex: 1 1 auto; }
