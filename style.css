@@ -3523,3 +3523,12 @@ body { min-height: 100%; min-height: 100dvh; }
 .ph-fav-team .mini-avatar { width: 52px; height: 52px; }
 .ph-fav-friend .mini-avatar { width: 44px; height: 44px; }
 .ph-fav-friend span { font-size: 0.78rem; font-weight: 600; }
+
+.ph-months { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 4px; align-items: end; }
+.ph-month { display: flex; flex-direction: column; align-items: center; gap: 3px; }
+.ph-month-n { font-family: var(--font-display); font-weight: 800; font-size: 0.85rem; line-height: 1; min-height: 0.85rem; color: var(--sig); font-variant-numeric: tabular-nums; }
+.ph-month-bar { width: 100%; height: 56px; border-radius: 4px; background: var(--surface-alt); display: flex; align-items: flex-end; overflow: hidden; }
+.ph-month-bar i { display: block; width: 100%; background: var(--sig); border-radius: 4px 4px 0 0; }
+.ph-month-l { font-size: 0.7rem; font-weight: 700; color: var(--text-muted); }
+.ph-month.current .ph-month-l { color: var(--text); text-decoration: underline; text-underline-offset: 3px; }
+.ph-months-help { margin-top: 0.4rem; }

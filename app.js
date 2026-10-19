@@ -14123,21 +14123,27 @@
       return '<span class="ph-trophy">' + trophyIconHtml(a, true) + '<strong>' + escapeHtml(a.name || a.label) + '</strong>' + (a.tierName && a.maxLevel > 1 ? '<span class="trophy-tier tier-' + Math.min(a.level, 6) + '">' + escapeHtml(a.tierName) + '</span>' : '') + '</span>';
     }).join('') + '</div></div>';
   }
-  // One square per week of the current year, filled when the rider rode.
+  // Track days per month of the current year: one bar per month, its
+  // number on top, the month's initial below.
   function renderSeasonGrid(name, l) {
-    var year = new Date().getFullYear(), weeks = {}, days = {};
+    var year = new Date().getFullYear(), byMonth = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], days = {};
     (STATE.sessions || []).forEach(function (x) {
-      if (x.rider !== name || !x.laps || !x.laps.length || !x.date || x.date.slice(0, 4) !== String(year)) return;
+      if (x.rider !== name || !x.laps || !x.laps.length || !x.date || x.date.slice(0, 4) !== String(year) || days[x.date]) return;
       days[x.date] = 1;
-      var d = parseLocalDate(x.date), start = new Date(year, 0, 1);
-      var w = Math.min(51, Math.floor((d - start) / (7 * 86400000)));
-      weeks[w] = (weeks[w] || 0) + 1;
+      byMonth[parseInt(x.date.slice(5, 7), 10) - 1]++;
     });
     var n = Object.keys(days).length;
     if (!n) return '';
-    var cells = '';
-    for (var i = 0; i < 52; i++) cells += '<i' + (weeks[i] ? ' class="on"' : '') + '></i>';
-    return '<div class="card" style="' + lookStyle(l) + '"><h2 class="section-title">' + L('Saison ', 'Season ') + year + ' <span class="help-text" style="display:inline;">· ' + n + L(n > 1 ? ' jours de piste' : ' jour de piste', n > 1 ? ' days on track' : ' day on track') + '</span></h2><div class="ph-season">' + cells + '</div></div>';
+    var max = Math.max.apply(null, byMonth), cur = new Date().getMonth();
+    var initials = ['J', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D'];
+    var bars = byMonth.map(function (v, i) {
+      var monthName = MONTH_NAMES_FR()[i];
+      return '<span class="ph-month' + (i === cur ? ' current' : '') + '" title="' + escapeHtml(monthName + ' : ' + v + L(v > 1 ? ' jours' : ' jour', v > 1 ? ' days' : ' day')) + '">' +
+        '<span class="ph-month-n">' + (v || '') + '</span><span class="ph-month-bar"><i style="height:' + (v ? Math.max(12, Math.round(v * 100 / max)) : 0) + '%"></i></span>' +
+        '<span class="ph-month-l">' + initials[i] + '</span></span>';
+    }).join('');
+    return '<div class="card" style="' + lookStyle(l) + '"><h2 class="section-title">' + L('Saison ', 'Season ') + year + ' <span class="help-text" style="display:inline;">· ' + n + L(n > 1 ? ' jours de piste' : ' jour de piste', n > 1 ? ' days on track' : ' day on track') + '</span></h2>' +
+      '<div class="ph-months">' + bars + '</div><div class="help-text ph-months-help">' + L('Jours de piste par mois', 'Track days per month') + '</div></div>';
   }
   // What a customised profile shows (all on by default).
   var LOOK_SECTIONS = function () { return [['featured', L('Chrono vedette', 'Featured lap')], ['vitrine', L('Vitrine', 'Showcase')], ['season', L('Saison', 'Season')], ['circuits', L('Circuits préférés', 'Favourite circuits')], ['teams', L('Teams préférés', 'Favourite teams')], ['friends', L('Amis préférés', 'Favourite friends')]]; };
