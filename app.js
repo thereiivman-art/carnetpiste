@@ -6804,7 +6804,7 @@
     if (!circuits.length) {
       return '<div class="card"><div class="empty-state">' + (coreDataLoading() ? tr('loading') : tr('circuit_none_yet')) + '</div></div>';
     }
-    var html = renderPills('circuit', [['plan', 'Plan & repères'], ['chronos', 'Chronos'], ['infos', 'Infos']]);
+    var html = renderPills('circuit', [['plan', 'Plan & repères'], ['chronos', 'Chronos'], ['podium', L('Podium', 'Podium')], ['infos', 'Infos']]);
     html += '<div class="circuit-picker"><select id="f-filter-circuit" aria-label="' + tr('circuit_label') + '">';
     circuits.forEach(function (c) {
       html += '<option value="' + escapeHtml(c) + '"' + (c === selectedCircuit ? ' selected' : '') + '>' + escapeHtml(c) + '</option>';
@@ -6818,6 +6818,7 @@
       return html;
     }
     if (cp === 'infos') { html += renderCircuitInfoCard('infos'); return html; }
+    if (cp === 'podium') { html += renderFriendsPodium(selectedCircuit); return html; }
     // Objectif pour la prochaine session lives in EN PISTE now (see
     // renderPlanningTab), keyed off the current/next event's own circuit --
     // not repeated here.
@@ -7299,6 +7300,60 @@
     });
   }
 
+  // ---- Podium des potes : my friends' and my best lap on a circuit, all time ----
+  function friendsPodium(circuit) {
+    var me = currentUserProfile && currentUserProfile.name;
+    if (!me) return [];
+    var group = [me].concat(friendsOf(me).map(function (f) { return f.name; })).filter(function (n) { return !isNonRiderName(n); });
+    var best = {};
+    (STATE.sessions || []).forEach(function (x) {
+      if (group.indexOf(x.rider) === -1 || !x.laps || !x.laps.length || !sameCircuit(x.circuit, circuit)) return;
+      if (x.rider !== me && ((STATE.usersByName || {})[x.rider] || {}).shareSorties === false) return;
+      var b = sessionBest(x);
+      if (!best[x.rider] || b < best[x.rider].best) best[x.rider] = { rider: x.rider, best: b, date: x.date };
+    });
+    return Object.keys(best).map(function (k) { return best[k]; }).sort(function (a, b) { return a.best - b.best; });
+  }
+  function podiumPlace(circuit, rider) {
+    var rows = friendsPodium(circuit);
+    if (rows.length < 2) return 0;
+    for (var i = 0; i < rows.length; i++) if (rows[i].rider === rider) return i + 1;
+    return 0;
+  }
+  function renderFriendsPodium(circuit) {
+    var me = currentUserProfile && currentUserProfile.name;
+    var rows = friendsPodium(circuit);
+    var html = '<div class="card podium-card"><h2 class="section-title">' + L('Podium des potes', 'Friends\' podium') + '</h2>' +
+      '<div class="help-text">' + escapeHtml(circuit) + L(' · meilleur tour de chacun, tous roulages confondus', ' · everyone\'s best lap, all trackdays') + '</div>';
+    if (rows.length < 2) {
+      return html + '<div class="empty-state">' + (rows.length ? L('Tu es seul sur ce circuit pour l\'instant. Invite tes potes à y rouler pour lancer le podium.', 'You\'re alone on this circuit so far. Invite your friends to ride here to start the podium.')
+        : L('Personne de ta bande n\'a encore roulé ici.', 'Nobody in your crew has ridden here yet.')) + '</div></div>';
+    }
+    var leader = rows[0].best;
+    var col = function (r, place) {
+      if (!r) return '<div class="podium-col empty p' + place + '"><div class="podium-step"><span>' + place + '</span></div></div>';
+      var u = (STATE.usersByName || {})[r.rider] || {};
+      return '<div class="podium-col p' + place + (r.rider === me ? ' me' : '') + '">' +
+        '<button type="button" class="podium-who"' + (r.rider === me ? '' : ' data-action="open-person" data-name="' + escapeHtml(r.rider) + '"') + '>' + avatarHtml(u, r.rider) + '<strong>' + escapeHtml(r.rider === me ? L('Toi', 'You') : r.rider) + '</strong></button>' +
+        '<span class="podium-time">' + formatTime(r.best) + '</span>' + (place > 1 ? '<span class="podium-gap">+' + formatGap(r.best - leader) + '</span>' : '<span class="podium-gap">' + escapeHtml(formatDate(r.date)) + '</span>') +
+        '<div class="podium-step"><span>' + place + '</span></div></div>';
+    };
+    html += '<div class="podium">' + col(rows[1], 2) + col(rows[0], 1) + col(rows[2], 3) + '</div>';
+    if (rows.length > 3) html += '<div class="podium-rest">' + rows.slice(3).map(function (r, i) {
+      var u = (STATE.usersByName || {})[r.rider] || {};
+      return '<div class="feed-recap-row' + (r.rider === me ? ' me' : '') + '"><span class="feed-recap-pos">' + (i + 4) + '</span>' + avatarHtml(u, r.rider) +
+        '<span class="feed-recap-name">' + (r.rider === me ? escapeHtml(L('Toi', 'You')) : personLinkHtml(r.rider)) + '</span><span class="feed-recap-time">' + formatTime(r.best) + '</span><span class="feed-recap-gap">+' + formatGap(r.best - leader) + '</span></div>';
+    }).join('') + '</div>';
+    var mine = rows.filter(function (r) { return r.rider === me; })[0];
+    if (mine && rows[0].rider !== me) {
+      var ahead = rows[rows.indexOf(mine) - 1];
+      html += '<div class="podium-note">' + L('Il te manque ', 'You need ') + '<strong>' + formatGap(mine.best - ahead.best) + '</strong>' + L(' pour passer devant ', ' to pass ') + escapeHtml(ahead.rider) + '.</div>';
+    } else if (mine) {
+      html += '<div class="podium-note">' + L('Tu tiens la première place de ta bande ici.', 'You hold first place in your crew here.') + '</div>';
+    }
+    return html + '</div>';
+  }
+
   function renderMyRecordsCard() {
     var outings = myOutings();
     if (!outings.length) return '';
@@ -7308,7 +7363,7 @@
     Object.keys(records).sort().forEach(function (c) {
       var r = records[c];
       html += '<button type="button" class="carnet-row" data-carnet-circuit="' + escapeHtml(r.circuit) + '"><span class="carnet-row-main"><strong>' + escapeHtml(r.circuit) + '</strong>' +
-        '<span class="help-text">' + escapeHtml(formatDate(r.date)) + '</span></span><span class="carnet-time">' + formatTime(r.best) + '</span></button>';
+        '<span class="help-text">' + escapeHtml(formatDate(r.date)) + (function () { var pl = podiumPlace(c, currentUserProfile && currentUserProfile.name); return pl ? ' · <span class="podium-chip p' + Math.min(pl, 4) + '">' + (pl === 1 ? L('1er', '1st') : pl + L('e', pl === 2 ? 'nd' : pl === 3 ? 'rd' : 'th')) + L(' entre potes', ' among friends') + '</span>' : ''; })() + '</span></span><span class="carnet-time">' + formatTime(r.best) + '</span></button>';
     });
     return html + '</div>';
   }
