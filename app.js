@@ -102,7 +102,7 @@
       no_event: 'Aucun roulage.', event_count_suffix: ' roulage', events_count_suffix: ' roulages',
       riders_unspecified: 'Pilotes non précisés', close: 'Fermer',
       team_label: 'Team', organizer_label: 'Organisateur', dates_label: 'Dates', note_label: 'Note',
-      book_register: 'Réserver chez l\'orga ↗', how_was_it: 'Comment s\'est passé cet event ?',
+      book_register: 'Réserver chez l\'orga ↗', how_was_it: 'Comment s\'est passé ce roulage ?',
       groups_horaires_this_event: 'Groupes & horaires de ce roulage', circuit_map_heading: 'Carte du circuit',
       modify: 'Modifier',
       vis_public: 'Public', vis_adherent: 'Adhérent only', vis_membre: 'Membre only', vis_follower: 'Followers only', vis_ouvert: 'Ouvert',
@@ -117,21 +117,21 @@
       date_start_label: 'Date de début', date_end_label: 'Date de fin (optionnel)',
       team_organizer_label: 'Team organisateur (optionnel)', none_personal_event: 'Aucun (roulage personnel)',
       visibility_label: 'Visibilité', vis_public_full: 'Public (visible par tous, invitation requise)', vis_ouvert_full: 'Ouvert (inscription libre)',
-      teampro_only_help: 'Réservé aux Teams PRO – un Team amateur reste visible par ses membres et les pilotes invités.',
+      teampro_only_help: 'Réservé aux Teams PRO – un team amateur reste visible par ses membres et les pilotes invités.',
       booking_url_label: 'Lien de réservation (optionnel)',
       booking_url_help: 'Carnet de Piste ne gère pas les paiements – ce lien renvoie vers ta billetterie (Billetweb ou autre) pour l\'inscription/le paiement.',
       more_options_less: '− Moins d\'options', more_options_more: '+ Plus d\'options (horaires, pilotes, organisateur...)',
       horaires_this_event_label: 'Horaires par groupe (ce roulage – laisser vide pour utiliser les horaires habituels du circuit)',
       organizer_note_label: 'Organisateur (si absent de l\'app)', riders_label: 'Pilotes',
-      riders_search_help: 'Suggestions limitées à tes amis et aux membres de tes Teams – choisis un nom dans la liste pour l\'ajouter.',
+      riders_search_help: 'Suggestions limitées à tes amis et aux membres de tes teams – choisis un nom dans la liste pour l\'ajouter.',
       remove_label: 'Retirer', start_group_label: 'Groupe de départ',
-      managed_from_team: 'Participants et groupes se gèrent depuis la Gestion des roulages du Team.',
+      managed_from_team: 'Participants et groupes se gèrent depuis la Gestion des roulages du team.',
       // Team tab
       accept: 'Accepter', decline: 'Refuser', invited_by: 'invité par ',
-      received_invites_label: 'Invitations reçues (', no_team_yet: 'Pas encore de team – crée-en un, rejoins-en un depuis "Découvrir des Teams" ci-dessous, ou attends une invitation.',
-      my_teams_heading: 'Mes Teams', team_leader_label: 'Team Leader', member_label: 'Membre', follower_label: 'Follower',
-      back_to_team: '← Retour à ', back_to_teams: '← Retour aux Teams',
-      create_team_heading: 'Créer un Team',
+      received_invites_label: 'Invitations reçues (', no_team_yet: 'Pas encore de team – crée-en un, rejoins-en un depuis "Découvrir des teams" ci-dessous, ou attends une invitation.',
+      my_teams_heading: 'Mes teams', team_leader_label: 'Team Leader', member_label: 'Membre', follower_label: 'Follower',
+      back_to_team: '← Retour à ', back_to_teams: '← Retour aux teams',
+      create_team_heading: 'Créer un team',
       create_team_help: '<strong>Team amateur</strong> : entre amis, ouvert tout de suite, tu en es le premier Team Leader – membres, fil d\'actualité et roulages, sans plus.<br><strong>Team PRO</strong> (coche bleue ✓) : club officiel validé – en plus de l\'amateur, gère des adhérents, peut attribuer les badges Coach et Photographe officiel, proposer coaching/baptêmes piste, et choisir la visibilité de ses roulages (public, adhérents, sur demande...).',
       create_team_btn: 'Créer le team',
       create_team_short: 'Ton team est ouvert tout de suite, entre amis : membres, fil d\'actualité et roulages. Tu en es le Team Leader.',
@@ -218,15 +218,15 @@
       notifications_heading: 'Notifications',
       notifications_browser_help: 'Nécessite d\'autoriser les notifications du navigateur, et que cet onglet reste ouvert.',
       notify_group_departing_rider: 'Un pilote suivi va partir rouler', notify_group_departing_self: 'Mon groupe va partir rouler',
-      notify_received_invite: 'J\'ai reçu une invitation', notify_team_news: 'Actu de mon Team',
-      notify_adherent_request: 'Demande d\'adhésion sur un Team que je dirige',
-      notify_request_decision: 'Réponse à une demande que j\'ai envoyée (ami, rejoindre un Team, devenir adhérent)',
+      notify_received_invite: 'J\'ai reçu une invitation', notify_team_news: 'Actu de mon team',
+      notify_adherent_request: 'Demande d\'adhésion sur un team que je dirige',
+      notify_request_decision: 'Réponse à une demande que j\'ai envoyée (ami, rejoindre un team, devenir adhérent)',
       notify_chrono_certified: 'Un de mes chronos a été validé par mon team',
       notify_reaction: 'Quelqu\'un a réagi à un de mes posts',
       notify_pro_outing: 'Nouveau roulage organisé par un Team PRO que je suis ou dont je suis adhérent',
       notify_coach_message: 'Nouveau message dans l\'espace coaching',
       notify_event_announcement: 'Annonce du Team Leader sur un roulage',
-      notify_event_ended: 'Un event auquel j\'ai participé vient de se terminer',
+      notify_event_ended: 'Un roulage auquel j\'ai participé vient de se terminer',
       notify_duel: 'Un pote me passe devant sur un circuit (duel)',
       notify_friends_riding: 'Un pote s\'inscrit à un roulage',
       notify_timesheet: 'Le soir d\'un roulage : rappel d\'ajouter mon chrono',
@@ -264,19 +264,19 @@
       role_info_pilote_3: 'Retrouver les horaires, groupes et infos pratiques de chaque roulage dans l\'onglet Roulages',
       role_info_pilote_4: 'En bonus : partager tes infos de voyage, faire valider tes chronos par ton team',
       role_info_pilote_5: 'Suivre tes amis, te comparer à eux (duels, classement du mois) et réagir dans le fil d\'actualité',
-      role_info_pilote_6: 'Rejoindre un Team (amateur ou PRO) et participer à ses roulages',
+      role_info_pilote_6: 'Rejoindre un team (amateur ou PRO) et participer à ses roulages',
       role_info_accompagnant_title: 'Espace accompagnant',
       role_info_accompagnant_1: 'Suivre des pilotes et être notifié quand leur groupe va partir rouler',
       role_info_accompagnant_2: 'Consulter les horaires, groupes et infos pratiques du roulage en cours, sans y rouler toi-même',
       role_info_accompagnant_3: 'Voir les chronos et la progression des pilotes que tu suis',
       role_info_accompagnant_4: 'Voir les infos de voyage des pilotes suivis, si elles sont partagées',
-      role_info_accompagnant_5: 'Suivre des Teams, réagir sur leur fil d\'actualité, et publier sur ton propre Journal',
+      role_info_accompagnant_5: 'Suivre des teams, réagir sur leur fil d\'actualité, et publier sur ton propre Journal',
       role_info_organisateur_title: 'Espace organisateur',
       role_info_organisateur_1: 'Créer et gérer un roulage : dates, horaires par groupe, infos pratiques, baptêmes/coaching',
       role_info_organisateur_2: 'Tenir à jour la fiche d\'un circuit (plan, distance, virages, horaires par défaut)',
       role_info_organisateur_3: 'Partager un lien photos/vidéos après le roulage',
       role_info_organisateur_4: 'Suivre des pilotes et être notifié de leurs départs, comme un accompagnant',
-      role_info_organisateur_5: 'Si tu es aussi Team Leader d\'un Team : gérer ses membres, son fil d\'actualité, ses roulages et certifier les chronos de tes pilotes',
+      role_info_organisateur_5: 'Si tu es aussi Team Leader d\'un team : gérer ses membres, son fil d\'actualité, ses roulages et certifier les chronos de tes pilotes',
       carnet_helps_you: 'Carnet de Piste t\'aide à :',
       pseudo_label: 'Pseudo', rename_limit_prefix: '1 changement de pseudo par mois – possible à nouveau le ',
       rename_warning: '⚠ Renommer va changer ton identité partout dans l\'app (chronos, roulages, teams, coaching, amis...).',
@@ -298,12 +298,12 @@
       team_pro_legend: 'Team PRO — club officiel certifié par l\'administrateur.',
       team_pro_leader_legend: 'Team Leader d\'un Team PRO.', coach_legend: 'Coach.',
       adherent_singular_badge: 'Adhérent', adherent_legend: 'Adhérent d\'un Team PRO — statut accordé par son Team Leader.',
-      follower_legend: 'Suit un Team sans en être membre – droits limités (voir la fiche du Team).',
+      follower_legend: 'Suit un team sans en être membre – droits limités (voir la fiche du team).',
       no_partner_yet: 'Aucun partenaire pour l\'instant.',
       partners_input_label: 'Un par ligne : Nom | URL (URL optionnelle)',
       our_partners_heading: 'Nos partenaires de Carnet de Piste',
       optional_features_heading: 'Fonctionnalités optionnelles',
-      optional_features_help: 'Masquées pour tout le monde par défaut – à activer seulement si un Team en a besoin.',
+      optional_features_help: 'Masquées pour tout le monde par défaut – à activer seulement si un team en a besoin.',
       feature_weather_label: 'Météo & piste', feature_special_activities_label: 'Baptêmes, coaching...', feature_rental_label: 'Location (motos et équipement)',
       feedback_heading: 'Une remarque, une idée ?',
       feedback_help: 'Dis-nous ce qui manque, ce qui bloque ou ce que tu aimerais voir – ça part directement à l\'équipe de développement.',
@@ -319,26 +319,26 @@
       mecano_option: 'Mécano', assistant_option: 'Assistant', photographe_option: 'Photographe', logistique_option: 'Logistique',
       members_label: 'Membres (', followers_label: 'Followers (',
       leaders_only_reserved: 'Réservé aux Team Leaders.',
-      presentation_label: 'Présentation', presentation_placeholder: 'Quelques mots sur le Team...',
+      presentation_label: 'Présentation', presentation_placeholder: 'Quelques mots sur le team...',
       save_presentation_btn: 'Enregistrer la présentation',
       change_badge_photo: 'Changer la photo (badge)', add_badge_photo: 'Ajouter une photo (badge)',
       photo_round_help: 'S\'affiche partout en rond (fil d\'actu, membres, invitations...) – le prochain écran te laisse choisir le cadrage.',
-      logo_label: 'Logo (affiché en largeur sur la fiche du Team)',
+      logo_label: 'Logo (affiché en largeur sur la fiche du team)',
       change_logo: 'Changer le logo', add_logo: 'Ajouter un logo',
       logo_help: 'Utile pour un logo large (ex. "Mototeam95") que le badge rond couperait.',
       links_label: 'Liens (un par ligne : Nom | URL)', save_links_btn: 'Enregistrer les liens',
-      visibility_who_label: 'Visibilité (qui peut trouver et suivre ce Team)',
+      visibility_who_label: 'Visibilité (qui peut trouver et suivre ce team)',
       vis_invite_only: 'Sur invitation uniquement', vis_all: 'Visible par tous',
       vis_pro_riders: 'Visible par les Pilotes PRO', vis_certified: 'Visible par les comptes certifiés',
       who_can_post_label: 'Qui peut publier', leaders_only_option: 'Team Leaders seulement', all_members_option: 'Tous les membres',
-      delete_team_btn: 'Supprimer ce Team', delete_irreversible_password_help: 'Cette action est irréversible. Confirme avec ton mot de passe actuel.',
-      grant_coach_photographer_help: 'En tant que Team Leader d\'un Team PRO, attribue ou retire ces badges à n\'importe quel compte (pas seulement les membres du Team).',
+      delete_team_btn: 'Supprimer ce team', delete_irreversible_password_help: 'Cette action est irréversible. Confirme avec ton mot de passe actuel.',
+      grant_coach_photographer_help: 'En tant que Team Leader d\'un Team PRO, attribue ou retire ces badges à n\'importe quel compte (pas seulement les membres du team).',
       search_person_placeholder: 'Rechercher un pilote, accompagnant, organisateur...',
-      search_past_event_placeholder: 'Rechercher un circuit, un Team...',
+      search_past_event_placeholder: 'Rechercher un circuit, un team...',
       coach_toggle_btn: 'Coach : attribuer/retirer', photographer_toggle_btn: 'Photographe : attribuer/retirer',
       grant_coach_photographer_heading: 'Attribuer Coach / Photographe officiel',
       participant_word: 'participant', pending_request_word: 'demande', pending_suffix: ' en attente',
-      manage_btn: 'Gérer', view_btn: 'Voir', no_events_team: 'Aucun roulage pour ce Team.',
+      manage_btn: 'Gérer', view_btn: 'Voir', no_events_team: 'Aucun roulage pour ce team.',
       nothing_now: 'Rien en ce moment.', nothing_planned: 'Rien de prévu.', no_past_events: 'Aucun roulage passé.',
       events_management_heading: 'Gestion des roulages',
       organized_by_prefix: 'Organisé par ', readonly_leader_can_edit_suffix: ' — lecture seule, seul le Team Leader de ',
@@ -346,8 +346,8 @@
       ev_vis_public: 'Public', ev_vis_adherent_only: 'Adhérent only', ev_vis_membre_only: 'Membre only',
       ev_vis_follower_only: 'Followers only', ev_vis_ouvert: 'Ouvert', visibility_label: 'Visibilité',
       book_register_btn: 'Réserver / S\'inscrire ↗', rider_col_label: 'Pilote',
-      event_bike_number_label: 'N° pour cet event', save_number_aria: 'Enregistrer le N°',
-      event_bike_number_prefix: 'N° pour cet event : #', no_participants: 'Aucun participant.',
+      event_bike_number_label: 'N° pour ce roulage', save_number_aria: 'Enregistrer le N°',
+      event_bike_number_prefix: 'N° pour ce roulage : #', no_participants: 'Aucun participant.',
       participants_heading: 'Participants', requests_to_accept_heading: 'Demandes à accepter', accept_btn: 'Accepter',
       groups_heading: 'Groupes', add_riders_to_group_hint: 'Ajoute des participants pour pouvoir les répartir en groupes.',
       remove_from_group_aria: 'Retirer du groupe', unassigned_label: 'Non attribués', nobody_yet: 'Personne pour l\'instant.',
@@ -376,7 +376,7 @@
       no_results_for_prefix: 'Aucun résultat pour « ', no_results_for_suffix: ' ».',
       bike_colon: 'moto : ', follows_colon: 'suit : ', demote_to_rider: 'Repasser en pilote',
       delete_account_aria: 'Supprimer ce compte', revoke_access_title: 'Retirer l\'accès',
-      team_management_heading: 'Gestion des Teams', created_by_prefix: 'créé par ',
+      team_management_heading: 'Gestion des teams', created_by_prefix: 'créé par ',
       remove_team_pro: 'Retirer Team PRO', mark_team_pro: 'Marquer Team PRO',
       delete_team_irreversible_prefix: 'Supprimer "', delete_team_irreversible_suffix: '" est irréversible. Confirme avec ton mot de passe actuel.',
       error_prefix: 'Erreur : ',
@@ -388,7 +388,7 @@
       team_created_prefix: 'Team "', team_created_suffix: '" créée.',
       invitation_sent_to_prefix: 'Invitation envoyée à ',
       welcome_to_prefix: 'Bienvenue dans "', quote_close_period: '".',
-      team_needs_leader: 'Impossible : ce Team doit toujours garder au moins un Team Leader.',
+      team_needs_leader: 'Impossible : ce team doit toujours garder au moins un Team Leader.',
       adherent_request_sent: 'Demande d\'adhésion envoyée.', joined_suffix: ' a rejoint ',
       poll_min_requirements: 'Une question et au moins 2 options sont nécessaires pour un sondage.',
       presentation_saved: 'Présentation enregistrée.', partners_saved: 'Partenaires enregistrés.',
@@ -953,8 +953,8 @@
 "Cercle fidèle": "Inner circle",
 "Avoir 5 amis acceptés ou plus.": "Have 5 accepted friends or more.",
 "Fondateur": "Founder",
-"Créer un Team.": "Create a Team.",
-"Fonder un Team certifié PRO.": "Found a certified PRO Team.",
+"Créer un team.": "Create a Team.",
+"Fonder un team certifié PRO.": "Found a certified PRO Team.",
 "Voix du Journal": "Journal voice",
 "Publier un premier message sur ton Journal.": "Post a first message on your Journal.",
 "Chroniqueur": "Columnist",
@@ -966,7 +966,7 @@
 "Calendrier": "Calendar",
 "Programme": "Schedule",
 "Ma prépa": "My prep",
-"🔗 Inviter des pistards (lien public)": "🔗 Invite riders (public link)", "🔗 Inviter des pistards": "🔗 Invite riders",
+"Inviter des pistards (lien public)": "Invite riders (public link)", "Inviter des pistards": "Invite riders",
 "✎ Modifier le roulage": "✎ Edit trackday",
 "Horaires": "Times",
 "Infos pratiques": "Practical info",
@@ -1206,7 +1206,7 @@
 "Réserver chez l'orga ↗": "Book with the organiser ↗",
 "Inscription et paiement chez l'organisateur.": "Registration and payment with the organiser.",
 "J'y vais": "I'm going",
-"En attente du Team": "Waiting for the Team",
+"En attente du team": "Waiting for the Team",
 "Tu y vas aussi ?": "Are you going too?",
 "« J'y vais » te met sur la liste du roulage dans Carnet de Piste. L'inscription et le paiement se font chez l'orga.": "\"I'm going\" puts you on this trackday's list in Carnet de Piste. Registration and payment are with the organiser.",
 "Roulage": "Trackday",
@@ -2285,9 +2285,9 @@
   var tutorialOpen = false;
   var tutorialStep = 0;
   var TUTORIAL_STEPS = [
-    { icon: '📒', title: 'Ton carnet de piste', body: 'Dans « Mon carnet », ajoute tes chronos – à la main ou en photographiant ta feuille de temps – et retrouve ton historique et tes records par circuit.' },
-    { icon: '📍', title: 'Tes repères sur le plan', body: 'Touche le plan d\'un circuit pour épingler tes points de freinage, de déclenchement, de corde et de sortie. Ils sont enregistrés tout de suite.' },
-    { icon: '🏍️', title: 'Le jour J', body: 'L\'onglet « Roulages » affiche le prochain roulage (horaires, ton groupe, tes repères) et ton calendrier. Tu peux revoir ce guide depuis Profil → Aide.' }
+    { icon: '<svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 8h6M9 12h6M9 16h3"/></svg>', title: 'Ton carnet de piste', body: 'Dans « Carnet », ajoute tes chronos – à la main ou en photographiant ta feuille de temps – et retrouve ton historique et tes records par circuit.' },
+    { icon: '<svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-6-5.5-6-11a6 6 0 0 1 12 0c0 5.5-6 11-6 11z"/><circle cx="12" cy="10" r="2.2"/></svg>', title: 'Tes repères sur le plan', body: 'Touche le plan d\'un circuit pour épingler tes points de freinage, de déclenchement, de corde et de sortie. Ils sont enregistrés tout de suite.' },
+    { icon: '<svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 21V4M5 4h12l-2 4 2 4H5"/></svg>', title: 'Le jour J', body: 'L\'onglet « Roulages » affiche le prochain roulage (horaires, ton groupe, tes repères) et ton calendrier. Tu peux revoir ce guide depuis Profil → Aide.' }
   ];
 
   function openTutorial() {
@@ -3146,7 +3146,7 @@
   // per-day/per-période rider assignment on a sortie and for tagging a
   // chrono entry with which group's session it belongs to.
   var GROUP_LETTERS = ['A', 'B', 'C', 'D'];
-  // Same, plus ORGA (mécano, photographe, autre staff du Team) -- only
+  // Same, plus ORGA (mécano, photographe, autre staff du team) -- only
   // used for the Team Leader's roster assignment (renderGroupsSection),
   // never offered when tagging a chrono's group since ORGA never rides.
   var ROSTER_GROUP_LETTERS = GROUP_LETTERS.concat(['ORGA']);
@@ -4182,7 +4182,7 @@
     html += '<div class="referral-link-text">' + escapeHtml(referralLink) + '</div>';
     html += '<div style="display:flex; gap:0.5rem;">' +
       '<button type="button" class="primary" id="share-referral-link-btn">' + tr('share_my_link_btn') + '</button>' +
-      '<button type="button" class="ghost icon-btn" id="copy-referral-link-btn" aria-label="' + tr('copy_link_aria') + '" title="' + tr('copy_label') + '">📋</button>' +
+      '<button type="button" class="ghost icon-btn" id="copy-referral-link-btn" aria-label="' + tr('copy_link_aria') + '" title="' + tr('copy_label') + '">' + '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3"/></svg>' + '</button>' +
       '</div>';
     html += '<div class="help-text" style="margin-top:0.5rem;">' + (filleulCount == null ? '…' : filleulCount) + (filleulCount === 1 ? tr('filleul_singular') : tr('filleul_plural')) + '</div>';
     html += '</div></div>';
@@ -6004,7 +6004,7 @@
     html += '<div class="help-text" id="f-slot-hint"' + (suggestedSlotIdx !== -1 ? '' : ' style="display:none;"') + '>' + tr('slot_hint') + '</div>';
     html += '<div class="import-chrono-row">' +
       '<button type="button" class="ghost" id="import-photo-btn">Importer photo / capture / PDF</button>' +
-      '<button type="button" class="ghost" id="import-paste-btn">📋 Coller une liste de temps</button>' +
+      '<button type="button" class="ghost" id="import-paste-btn">Coller une liste de temps</button>' +
       '<input type="file" id="import-photo-input" accept="image/*,application/pdf" hidden>' +
       '</div>';
     html += '<label for="f-laps">' + tr('chronos_field_label') + '</label>' +
@@ -6419,7 +6419,7 @@
   // Suggestions for the event form's "Pilotes" field -- scoped to riders
   // this account actually knows (a friend, or a fellow member of any Team
   // it's in) rather than the entire roster, per "les pilotes ajoutés sont
-  // des amis ou bien un Team". Still a plain text input underneath (see
+  // des amis ou bien un team". Still a plain text input underneath (see
   // renderEventForm), so this only narrows the datalist's suggestions --
   // the admin, who manages every account, keeps seeing everyone.
   function riderDatalistForEventForm(existingRiders) {
@@ -6800,9 +6800,9 @@
   function renderLocationActions(text) {
     if (!text) return '';
     return '<span class="location-actions">' +
-      '<button type="button" class="ghost icon-btn" data-action="copy-location" data-text="' + escapeHtml(text) + '" aria-label="Copier" title="Copier">📋</button>' +
-      '<button type="button" class="ghost icon-btn" data-action="open-maps" data-text="' + escapeHtml(text) + '" aria-label="Ouvrir dans Google Maps" title="Google Maps">🗺️</button>' +
-      '<button type="button" class="ghost icon-btn" data-action="open-waze" data-text="' + escapeHtml(text) + '" aria-label="Ouvrir dans Waze" title="Waze">🚗</button>' +
+      '<button type="button" class="ghost icon-btn" data-action="copy-location" data-text="' + escapeHtml(text) + '" aria-label="Copier" title="Copier">' + '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3"/></svg>' + '</button>' +
+      '<button type="button" class="ghost icon-btn" data-action="open-maps" data-text="' + escapeHtml(text) + '" aria-label="Ouvrir dans Google Maps" title="Google Maps">' + '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-6-5.5-6-11a6 6 0 0 1 12 0c0 5.5-6 11-6 11z"/><circle cx="12" cy="10" r="2.2"/></svg>' + '</button>' +
+      '<button type="button" class="ghost icon-btn" data-action="open-waze" data-text="' + escapeHtml(text) + '" aria-label="Ouvrir dans Waze" title="Waze">' + '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 16h14l-1.5-5.5A2 2 0 0 0 15.6 9H8.4a2 2 0 0 0-1.9 1.5z"/><circle cx="8" cy="17" r="1.6"/><circle cx="16" cy="17" r="1.6"/></svg>' + '</button>' +
       '</span>';
   }
 
@@ -8533,7 +8533,7 @@
     } else delta = '<span class="help-text">1re fois</span>';
     return '<button type="button" class="outing-row" data-open-outing="' + escapeHtml(o.circuit) + '" data-outing-date="' + escapeHtml(o.date) + '" data-outing-event="' + escapeHtml(o.eventId || '') + '">' +
       '<span class="outing-thumb">' + circuitThumbHtml(o.circuit) + '</span>' +
-      '<span class="outing-row-main"><strong>' + escapeHtml(o.circuit) + (o.isRecord && o.prevBest !== null ? ' 🏆' : '') + '</strong><span class="help-text">' + escapeHtml(formatDate(o.date)) + (grp ? ' · ' + groupChip(grp) : '') + ' · ' + o.laps + ' t.</span></span>' +
+      '<span class="outing-row-main"><strong>' + escapeHtml(o.circuit) + (o.isRecord && o.prevBest !== null ? ' <span class="record-chip">' + L('Record', 'Record') + '</span>' : '') + '</strong><span class="help-text">' + escapeHtml(formatDate(o.date)) + (grp ? ' · ' + groupChip(grp) : '') + ' · ' + o.laps + ' t.</span></span>' +
       '<span class="outing-row-right"><span class="carnet-time">' + formatTime(o.best) + '</span>' + delta + '</span></button>';
   }
   function renderOutingCards(outings) {
@@ -10932,8 +10932,8 @@
       var goHtml = vis === 'ouvert'
         ? '<button type="button" class="' + (ev.bookingUrl ? 'ghost' : 'primary') + '" data-action="event-join-ouvert" data-id="' + ev.id + '">J\'y vais</button>'
         : (myRequest
-          ? '<span class="help-text">En attente du Team</span>'
-          : '<button type="button" class="ghost" data-action="event-join-request" data-id="' + ev.id + '" title="Te signale au Team sur Carnet de Piste – ne réserve ni ne paie rien.">J\'y vais</button>');
+          ? '<span class="help-text">En attente du team</span>'
+          : '<button type="button" class="ghost" data-action="event-join-request" data-id="' + ev.id + '" title="Te signale au team sur Carnet de Piste – ne réserve ni ne paie rien.">J\'y vais</button>');
       var actionHtml = (ev.bookingUrl ? '<button type="button" class="primary" data-action="open-external-url" data-url="' + escapeHtml(ev.bookingUrl) + '">Réserver chez l\'orga ↗</button> ' : '') + goHtml;
       // The Team leads here (avatar, name, ✓ badge) rather than a bare
       // name in the help-text -- the whole point of this card is "which
@@ -10962,12 +10962,12 @@
           : '<div class="help-text">Rien ce jour-là.</div>') + '</div>';
       }
     } else {
-      // Tri par Team -- one subheading per Team (name, badge), sorted
+      // Tri par team -- one subheading per Team (name, badge), sorted
       // alphabetically, its own events kept in the usual date order
       // underneath, instead of one flat date-ordered list.
       var sortToggle = '<div style="display:flex; gap:0.5rem; margin-bottom:0.6rem;">' +
         '<button type="button" class="calendar-view-btn' + (discoverySortMode === 'date' ? ' active' : '') + '" data-action="discovery-sort-mode" data-mode="date">Trier par date</button>' +
-        '<button type="button" class="calendar-view-btn' + (discoverySortMode === 'team' ? ' active' : '') + '" data-action="discovery-sort-mode" data-mode="team">Trier par Team</button>' +
+        '<button type="button" class="calendar-view-btn' + (discoverySortMode === 'team' ? ' active' : '') + '" data-action="discovery-sort-mode" data-mode="team">Trier par team</button>' +
         '</div>';
       function renderCandidateList(list) {
         if (discoverySortMode === 'team') {
@@ -11803,7 +11803,7 @@
     var evWeather = weatherSummaryLine(ev);
     if (evWeather) html += infoRow(tr('weather_label'), escapeHtml(evWeather));
     // Carnet de Piste ne gère pas les paiements/réservations -- ce lien
-    // renvoie vers l'outil de billetterie du Team (Billetweb ou autre),
+    // renvoie vers l'outil de billetterie du team (Billetweb ou autre),
     // jamais une inscription gérée ici.
     if (ev.bookingUrl) html += '<div style="margin-top:0.6rem;"><button type="button" class="primary" data-action="open-external-url" data-url="' + escapeHtml(ev.bookingUrl) + '">' + tr('book_register') + '</button><div class="help-text" style="margin-top:0.3rem;">Inscription et paiement chez l\'organisateur.</div></div>';
     // Once the event is over, its own rider can react with an emoji --
@@ -12742,7 +12742,7 @@
       html += '<div class="card-action-inline"><button type="button" class="ghost" data-action="open-external-url" data-url="' + escapeHtml(info.liveTimingUrl) + '">' + tr('live_timing_link_label') + ' ↗</button></div>';
     }
     // Raccourci vers Modifier l'événement, uniquement pour le Team Leader
-    // du Team qui gère cet event -- pas besoin d'aller jusqu'à Team ->
+    // du team qui gère cet event -- pas besoin d'aller jusqu'à Team ->
     // Gestion des événements pour un ajustement rapide.
     // Same action row as the roulage's own page: Gérer / Inviter / Partager.
     var onIt = (ev.riders || []).indexOf(currentUserProfile && currentUserProfile.name) !== -1;
@@ -13083,7 +13083,7 @@
       notifiedEventEndedIds[ev.id] = true;
       changed = true;
       if ((ev.reactions || {})[me.name]) return;
-      sendAppNotification('Comment s\'est passé ' + ev.circuit + ' ? Réagis avec un emoji !');
+      sendAppNotification('Comment s\'est passé ' + ev.circuit + ' ? Mets les gaz sur le roulage !');
     });
     if (changed) {
       try { localStorage.setItem(storageKey, JSON.stringify(notifiedEventEndedIds)); } catch (e) {}
@@ -15640,11 +15640,11 @@
     // Cross-team, read-only : un event organisé par un autre Team (le
     // plus souvent un Team PRO) où au moins un membre de CE Team-ci
     // participe -- pas de bouton Gérer, les droits de modification
-    // restent réservés au Team Leader du Team organisateur (voir
+    // restent réservés au Team Leader du team organisateur (voir
     // renderEventManagementScreen). Mélangé dans les mêmes buckets
-    // En cours/À venir/Passés que les events propres au Team (plutôt
+    // En cours/À venir/Passés que les events propres au team (plutôt
     // qu'une 4e section à part) pour que le regroupement reste
-    // temporel partout -- seuls le badge du Team organisateur et le
+    // temporel partout -- seuls le badge du team organisateur et le
     // bouton Voir (au lieu de Gérer) distinguent une ligne cross-team.
     var roster = membersOfTeam(team.id).map(function (m) { return m.name; });
     var cross = (STATE.events || []).filter(function (ev) {
@@ -16519,7 +16519,7 @@
     var me = currentUserProfile;
     if (!me) return '';
     var incoming = (STATE.teamInvites || []).filter(function (r) { return r.status === 'pending' && r.to === me.name; });
-    // "Mes Teams" also lists teams this account merely follows, not just
+    // "Mes teams" also lists teams this account merely follows, not just
     // those it's a member of -- a plain follower still gets the Team's
     // fiche (renderTeamCard), just with a Team Leader inside gating
     // member-only actions off (see canPost/isMember there).
@@ -16598,15 +16598,15 @@
       html += '<input type="file" id="team-photo-input" accept="image/*" style="display:none;">';
       html += '<input type="file" id="team-logo-input" accept="image/*" style="display:none;">';
     }
-    // Same reasoning as the tile grid above -- Découvrir des Teams/Créer
-    // un Team belong on the Team space's home screen, not trailing behind
+    // Same reasoning as the tile grid above -- Découvrir des teams/Créer
+    // un team belong on the Team space's home screen, not trailing behind
     // whatever specific Team/Event you've drilled into.
     return html;
   }
 
   // A small, clean "encadré" for one Team -- photo, name, member/like
-  // counts, a short description -- shared by "Mes Teams" (clickable, see
-  // expandedTeamId) and "Découvrir des Teams" (informational + action
+  // counts, a short description -- shared by "Mes teams" (clickable, see
+  // expandedTeamId) and "Découvrir des teams" (informational + action
   // buttons only, see renderTeamDiscoveryTile). memberCount comes off the
   // team doc itself (see bumpTeamMemberCount) rather than a live count of
   // membersOfTeam(), which is only ever synced for teams this account is
@@ -16615,7 +16615,7 @@
     var likeCount = (STATE.teamLikes || []).filter(function (l) { return l.teamId === t.id; }).length;
     // teamMembersByTeam (the real roster) is only ever synced for teams
     // this account is actually in (see refreshTeamDetailSync), which
-    // covers every tile in "Mes Teams" (team-tile-grid) -- but a
+    // covers every tile in "Mes teams" (team-tile-grid) -- but a
     // discoverable team it isn't in has no such data, so those tiles
     // fall back to t.memberCount, a denormalized counter kept in sync via
     // atomic increments/decrements (see bumpTeamMemberCount).
@@ -16708,7 +16708,7 @@
 
   function renderTeamDiscovery(me, myTeams) {
     var myTeamIds = myTeams.map(function (t) { return t.id; });
-    // "Mes Teams" above already lists every team this account follows
+    // "Mes teams" above already lists every team this account follows
     // (see renderTeamTab), with a real, clickable fiche -- so a followed
     // team never needs its own smaller "Teams suivis" tile here too.
     var followedTeamIds = (STATE.myFollowedTeams || []).filter(function (id) { return myTeamIds.indexOf(id) === -1; });
@@ -17042,7 +17042,7 @@
       showToast('Tu es sur la liste de ' + ev.circuit + '.', 'success');
     } else {
       db.collection('eventJoinRequests').doc(ev.id + '_' + me).set({ eventId: ev.id, from: me, status: 'pending', fromUid: myUid() }).then(function () {
-        showToast('C\'est noté : le Team doit valider.', 'success');
+        showToast('C\'est noté : le team doit valider.', 'success');
       }).catch(function () { showToast('Impossible d\'envoyer la demande.'); });
     }
     renderRoot();
@@ -20595,7 +20595,7 @@
   // startSync() with whatever currentUserProfile.name was at that moment,
   // which meant it kept matching the OLD name for the rest of the
   // session even after a rename migrated the underlying teamMembers docs
-  // (see saveProfile), silently emptying "Mes Teams"/leader rights out
+  // (see saveProfile), silently emptying "Mes teams"/leader rights out
   // from under the renamed account.
   var myTeamMembershipsUnsub = null;
   function refreshMyTeamMembershipsSync() {
@@ -20685,7 +20685,7 @@
         if (notifCategoryAllowed('notifyTeamNews')) {
           var t = teamById(f.teamId);
           var body = f.text || f.question || (f.linkUrl ? 'Nouveau lien partagé' : (f.photoURL ? 'Nouvelle photo partagée' : 'Nouvelle publication'));
-          sendAppNotification('Actu' + (t ? ' de ' + t.name : ' de ton Team') + ' : ' + body.slice(0, 100));
+          sendAppNotification('Actu' + (t ? ' de ' + t.name : ' de ton team') + ' : ' + body.slice(0, 100));
         }
       });
       maybeNotifyTeamFeedReaction(posts);

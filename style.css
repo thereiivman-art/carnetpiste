@@ -3590,3 +3590,7 @@ span.ph-sponsor { cursor: default; }
 .podium-chip { display: inline-block; font-size: 0.72rem; font-weight: 700; padding: 0.05rem 0.45rem; border-radius: 999px; color: #fff; background: var(--text-muted); }
 .podium-chip.p1 { background: var(--tier-3); } .podium-chip.p2 { background: var(--tier-2); } .podium-chip.p3 { background: var(--tier-1); }
 .feed-highlight.podium-climb .notif-ico { background: var(--tier-3); color: #fff; } .feed-highlight.podium-climb.p2 .notif-ico { background: var(--tier-2); } .feed-highlight.podium-climb.p3 .notif-ico { background: var(--tier-1); }
+.record-chip { display: inline-block; vertical-align: middle; margin-left: 0.3rem; font-family: var(--font-body); font-style: normal; font-size: 0.66rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: #fff; background: var(--accent); border-radius: 999px; padding: 0.08rem 0.45rem; }
+.tutorial-icon { color: var(--accent); }
+.location-actions .icon-btn svg, #copy-referral-link-btn svg { display: block; }
+.icon-btn svg { flex-shrink: 0; width: 18px; height: 18px; }
