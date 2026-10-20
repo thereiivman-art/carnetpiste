@@ -64,7 +64,7 @@
       goal_no_feeling: 'Note ce que tu veux travailler à {c} : un point précis par roulage suffit (freinage, point de corde, regard…).',
       goal_placeholder: 'Ex. Travailler le point de corde en 3, être plus fluide au freinage...',
       distance_label: 'Distance', turns_label: 'Virages (D / G)', last_event_label: 'Dernier roulage',
-      circuit_record_label: 'Record (tous pilotes)', next_event_label: 'Prochain roulage',
+      circuit_record_label: 'Record validé (tous pilotes)', next_event_label: 'Prochain roulage',
       not_planned_plan_it: 'Non planifiée — planifier', edit_info: 'Modifier les infos',
       ci_distance_km: 'Distance (km)', ci_turns_right: 'Virages à droite', ci_turns_left: 'Virages à gauche',
       ci_organizer: 'Organisateur', ci_briefing: 'Briefing', ci_usual_horaires: 'Horaires habituels par groupe',
@@ -172,7 +172,7 @@
       add_photo_btn: 'Ajouter une photo', adherents_badge: 'Adhérents',
       just_now: 'à l\'instant', min_ago_prefix: 'il y a ', min_ago_suffix: ' min', hour_ago_suffix: ' h',
       events_label: 'Roulages', circuits_visited_label: 'Circuits visités', track_days_label: 'Jours sur piste',
-      view_official_chronos: 'Voir ses chronos officiels ↗', verified_chronos_label: 'Chronos validés par le team (',
+      view_official_chronos: 'Voir ses chronos officiels ↗', verified_chronos_label: 'Meilleurs chronos validés (',
       not_shared_events: ' n\'a pas choisi de partager ses roulages/chronos.', trophies_not_shared: 'Trophées non partagés.',
       remove_friend_confirm: 'Retirer ' , remove_friend_confirm_suffix: ' de tes amis ?',
       confirm_label: 'Confirmer', remove_this_friend: 'Retirer cet ami',
@@ -459,7 +459,7 @@
       goal_no_feeling: 'Write down what you want to work on at {c}: one precise point per trackday is enough (braking, apex, vision…).',
       goal_placeholder: 'E.g. Work on the apex in turn 3, smoother braking...',
       distance_label: 'Distance', turns_label: 'Turns (R / L)', last_event_label: 'Last trackday',
-      circuit_record_label: 'Circuit record', next_event_label: 'Next trackday',
+      circuit_record_label: 'Validated record (all riders)', next_event_label: 'Next trackday',
       not_planned_plan_it: 'Not planned — plan it', edit_info: 'Edit info',
       ci_distance_km: 'Distance (km)', ci_turns_right: 'Right-hand turns', ci_turns_left: 'Left-hand turns',
       ci_organizer: 'Organizer', ci_briefing: 'Briefing', ci_usual_horaires: 'Usual schedule per group',
@@ -567,7 +567,7 @@
       add_photo_btn: 'Add a photo', adherents_badge: 'Adherents',
       just_now: 'just now', min_ago_prefix: '', min_ago_suffix: ' min ago', hour_ago_suffix: ' h ago',
       events_label: 'Events', circuits_visited_label: 'Circuits visited', track_days_label: 'Track days',
-      view_official_chronos: 'View official lap times ↗', verified_chronos_label: 'Team-validated lap times (',
+      view_official_chronos: 'View official lap times ↗', verified_chronos_label: 'Best validated lap times (',
       not_shared_events: ' hasn\'t chosen to share their trackdays/lap times.', trophies_not_shared: 'Trophies not shared.',
       remove_friend_confirm: 'Remove ', remove_friend_confirm_suffix: ' from your friends?',
       confirm_label: 'Confirm', remove_this_friend: 'Remove this friend',
@@ -910,6 +910,7 @@
 "Circuits visités": "Circuits visited",
 "Jours sur piste": "Days on track",
 "Chronos validés par le team": "Team-validated lap times",
+"Meilleurs chronos validés par le team": "Best team-validated lap times",
 "Aucune donnée.": "No data.",
 "Records": "Records",
 "Record par circuit": "Record per circuit", "Bientôt sur la piste": "Soon on track", "A roulé à": "Rode at", "Tu y vas": "You're going", "J'y vais aussi": "I'm going too", "Nouveau record": "New record", "Aujourd'hui": "Today", "Hier": "Yesterday", "Cette semaine": "This week", "Plus tôt": "Earlier", "Sondage": "Poll", "Aimé": "Liked", "J'aime": "Like", "Ce soir": "Tonight", "Plus tard": "Later", "Importer ma feuille de temps": "Import my timesheet",
@@ -3301,15 +3302,37 @@
     return best;
   }
 
-  // circuit -> whoever holds the fastest recorded time there, across every
-  // rider -- powers the "Recordman" achievement below.
-  function allCircuitRecordHolders() {
+  // circuit -> fastest time among a rider and their friends (« records des
+  // potes », Recordman). Declared times: it's the friends' game.
+  function allCircuitRecordHolders(rider) {
+    var group = [rider].concat(friendsOf(rider).map(function (f) { return f.name; }));
     var records = {};
     STATE.sessions.forEach(function (s) {
+      if (group.indexOf(s.rider) === -1 || !s.laps || !s.laps.length) return;
       var b = sessionBest(s);
       if (!records[s.circuit] || b < records[s.circuit].time) records[s.circuit] = { time: b, rider: s.rider };
     });
     return records;
+  }
+  // Best team-validated lap per circuit for one rider, by circuit name.
+  function verifiedBestsByCircuit(rider) {
+    var out = {};
+    STATE.sessions.forEach(function (s) {
+      if (s.rider !== rider || !s.certifiedBy || !s.laps || !s.laps.length) return;
+      var b = sessionBest(s);
+      if (!out[s.circuit] || b < out[s.circuit].best) out[s.circuit] = { best: b, session: s };
+    });
+    return out;
+  }
+  function verifiedBestsRows(rider) {
+    var v = verifiedBestsByCircuit(rider);
+    return Object.keys(v).sort().map(function (c) {
+      return infoRow(escapeHtml(c) + ' — ' + escapeHtml(formatDate(v[c].session.date)), formatTime(v[c].best) + ' ' + certifyControl(v[c].session));
+    });
+  }
+  function isVerifiedBest(rider, circuit, best) {
+    var v = verifiedBestsByCircuit(rider)[circuit];
+    return !!(v && Math.abs(v.best - best) < 0.0005);
   }
 
   // A small, purely-derived set of badges -- nothing new to persist, just
@@ -3461,7 +3484,7 @@
 
   function riderAchievements(riderName, stats) {
     return cachedAchievements('r:' + riderName, function () {
-      var records = allCircuitRecordHolders();
+      var records = allCircuitRecordHolders(riderName);
       var recordCount = Object.keys(records).filter(function (c) { return records[c].rider === riderName; }).length;
       var maxOutingsOnOneCircuit = stats.bests.reduce(function (max, b) { return Math.max(max, b.outings); }, 0);
       var maxGainSeconds = stats.bests.reduce(function (max, b) {
@@ -3803,12 +3826,9 @@
     // Vérifiés par un Team Leader (voir certifyControl/renderEventCertification-
     // Section) -- même liste que sur la fiche d'un ami, mais ici pour le
     // pilote dont les Stats sont affichées.
-    var verifiedSessions = STATE.sessions.filter(function (s) { return s.rider === riderName && s.certifiedBy; })
-      .sort(function (a, b) { return a.date < b.date ? 1 : a.date > b.date ? -1 : 0; });
-    var verifiedDetail = !verifiedSessions.length ? '' : verifiedSessions.map(function (s) {
-      return infoRow(escapeHtml(s.circuit) + ' — ' + escapeHtml(formatDate(s.date)), formatTime(sessionBest(s)) + ' ' + certifyControl(s));
-    }).join('');
-    html += renderStatSummaryCategory('verified-' + riderName, 'Chronos validés par le team', verifiedSessions.length, verifiedDetail);
+    // Only the best validated lap of each circuit.
+    var verifiedRowsList = verifiedBestsRows(riderName);
+    html += renderStatSummaryCategory('verified-' + riderName, 'Meilleurs chronos validés par le team', verifiedRowsList.length, verifiedRowsList.join(''));
     html += renderRiderRecordsCategory(riderName);
     html += '</div>';
     html += '</div>';
@@ -6672,7 +6692,10 @@
     var riders = (ev.riders || []).filter(function (n) { return !isNonRiderName(n); }).sort();
     if (!riders.length) return '';
     var rows = riders.map(function (rider) {
-      var sessions = STATE.sessions.filter(function (s) { return s.rider === rider && s.eventId === ev.id; });
+      // Linked to the roulage, or entered for its circuit on one of its days.
+      var sessions = STATE.sessions.filter(function (s) {
+        return s.rider === rider && s.laps && s.laps.length && (s.eventId === ev.id || (!s.eventId && sameCircuit(s.circuit, ev.circuit) && s.date >= ev.dateStart && s.date <= (ev.dateEnd || ev.dateStart)));
+      });
       var valueHtml = !sessions.length
         ? '<span class="help-text">' + tr('no_chrono') + '</span>'
         : (function () {
@@ -6870,8 +6893,11 @@
     var sessions = circuitSessionsDesc(selectedCircuit, true);
     var lastSession = null;
     sessions.forEach(function (s) { if (!lastSession || s.date > lastSession.date) lastSession = s; });
+    // Record across every rider: validated laps only (declared times from
+    // strangers can't be trusted).
     var recordSession = null, recordTime = Infinity;
     sessions.forEach(function (s) {
+      if (!s.certifiedBy) return;
       var b = sessionBest(s);
       if (b < recordTime) { recordTime = b; recordSession = s; }
     });
@@ -14192,7 +14218,7 @@
       var end = ev.dateEnd || ev.dateStart;
       (STATE.sessions || []).forEach(function (x) {
         if (!x.laps || !x.laps.length || (ev.riders || []).indexOf(x.rider) === -1 || !sameCircuit(x.circuit, ev.circuit) || x.date < ev.dateStart || x.date > end) return;
-        if (x.eventId && x.eventId !== ev.id) return;
+        if ((x.eventId && x.eventId !== ev.id) || !x.certifiedBy) return;
         var b = sessionBest(x);
         if (!best[ev.circuit] || b < best[ev.circuit].best) best[ev.circuit] = { best: b, rider: x.rider, date: x.date };
       });
@@ -14241,7 +14267,8 @@
     html += renderLinksAndSponsors(merged);
     if (lookShows(l, 'palmares')) {
       var pal = teamPalmares(t), circuits = Object.keys(pal).sort();
-      if (circuits.length) html += '<div class="card"><h2 class="section-title">' + L('Palmarès du team', 'Team records') + '</h2>' + circuits.slice(0, 6).map(function (c) {
+      if (!circuits.length && isLeaderOfTeam(t.id)) html += '<div class="card"><h2 class="section-title">' + L('Palmarès du team', 'Team records') + '</h2><div class="help-text">' + L('Le palmarès ne retient que les chronos validés. Valide ceux de tes pilotes depuis la gestion de chaque roulage.', 'Only validated laps count. Validate your riders\' laps from each trackday\'s management.') + '</div></div>';
+      if (circuits.length) html += '<div class="card"><h2 class="section-title">' + L('Palmarès du team', 'Team records') + '<span class="verified-pill" style="margin-left:0.5rem;">✓ ' + L('Validés', 'Validated') + '</span></h2>' + circuits.slice(0, 6).map(function (c) {
         return '<div class="person-record"><span class="outing-thumb">' + circuitThumbHtml(c) + '</span><span class="person-record-main"><strong>' + escapeHtml(c) + '</strong><span class="help-text">' + personLinkHtml(pal[c].rider) + ' · ' + escapeHtml(formatDate(pal[c].date)) + '</span></span>' +
           '<span class="person-record-right"><span class="carnet-time">' + formatTime(pal[c].best) + '</span></span></div>';
       }).join('') + '</div>';
@@ -14513,7 +14540,7 @@
       var days = {};
       (stats.trackDaysList || []).forEach(function (d) { days[d] = 1; });
       (STATE.sessions || []).forEach(function (x) { if (x.rider === name && x.laps && x.laps.length) days[x.date] = 1; });
-      var records = allCircuitRecordHolders();
+      var records = allCircuitRecordHolders(name);
       var nRecords = Object.keys(records).filter(function (c) { return records[c].rider === name; }).length;
       if (look && lookShows(look, 'featured')) html += renderFeaturedChrono(name, look);
       html += '<div class="person-kpis"' + (look ? ' style="' + lookStyle(look) + '"' : '') + '><div><strong>' + Object.keys(days).length + '</strong><span>' + L('jours de piste', 'days on track') + '</span></div>' +
@@ -14535,7 +14562,7 @@
           if (mine !== null && !isMe) cmp = mine < bests[c].best
             ? '<span class="person-cmp ahead">' + L('toi −', 'you −') + formatGap(bests[c].best - mine) + '</span>'
             : '<span class="person-cmp">' + L('toi +', 'you +') + formatGap(mine - bests[c].best) + '</span>';
-          return '<div class="person-record"><span class="outing-thumb">' + circuitThumbHtml(c) + '</span><span class="person-record-main"><strong>' + escapeHtml(c) + '</strong><span class="help-text">' + escapeHtml(formatDate(bests[c].date)) + '</span></span>' +
+          return '<div class="person-record"><span class="outing-thumb">' + circuitThumbHtml(c) + '</span><span class="person-record-main"><strong>' + escapeHtml(c) + '</strong><span class="help-text">' + escapeHtml(formatDate(bests[c].date)) + (isVerifiedBest(name, c, bests[c].best) ? ' · <span class="verified-pill">✓ ' + L('Validé', 'Validated') + '</span>' : '') + '</span></span>' +
             '<span class="person-record-right"><span class="carnet-time">' + formatTime(bests[c].best) + '</span>' + cmp + '</span></div>';
         }).join('') + '</div>';
       }
@@ -14599,14 +14626,8 @@
         // de chrono officielle du pilote (Superlaps ou autre) s'il en a
         // renseigné une dans son profil, jamais une mesure faite ici.
         if (u.chronoLink) html += '<div style="margin:0.5rem 0;"><button type="button" class="ghost" data-action="open-external-url" data-url="' + escapeHtml(u.chronoLink) + '">' + tr('view_official_chronos') + '</button></div>';
-        var verifiedSessions = STATE.sessions.filter(function (s) { return s.rider === name && s.certifiedBy; })
-          .sort(function (a, b) { return a.date < b.date ? 1 : a.date > b.date ? -1 : 0; });
-        if (verifiedSessions.length) {
-          var verifiedRows = verifiedSessions.map(function (s) {
-            return infoRow(escapeHtml(s.circuit) + ' — ' + escapeHtml(formatDate(s.date)), formatTime(sessionBest(s)) + ' ' + certifyControl(s));
-          }).join('');
-          html += collapsibleSection('fiche-verified-' + name, tr('verified_chronos_label') + verifiedSessions.length + ')', verifiedRows);
-        }
+        var verifiedRows = verifiedBestsRows(name);
+        if (verifiedRows.length) html += collapsibleSection('fiche-verified-' + name, tr('verified_chronos_label') + verifiedRows.length + ')', verifiedRows.join(''));
         var recentSessions = STATE.sessions.filter(function (s) { return s.rider === name; })
           .sort(function (a, b) { return a.date < b.date ? 1 : a.date > b.date ? -1 : 0; }).slice(0, 10);
         if (recentSessions.length) {
