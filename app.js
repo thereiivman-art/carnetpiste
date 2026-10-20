@@ -4641,6 +4641,15 @@
         html: '<strong>' + escapeHtml(r.rider) + '</strong>' + L(' a roulé à ', ' rode at ') + escapeHtml(r.circuit) + ' · <span class="notif-chrono">' + formatTime(r.best) + '</span>',
         go: { to: 'outing', circuit: r.circuit, date: r.date, event: r.eventId || '' } });
     });
+    // Podium des potes: my own climbs (friends' climbs show in their ride line).
+    ridesFor([name], 21).forEach(function (r) {
+      var pc = podiumClimb(r);
+      if (pc) items.push({ key: 'podium:' + r.key + ':' + pc.place, kind: 'trophy', time: r.createdAt + 2, html: podiumClimbText(r, pc), go: { to: 'podium', circuit: r.circuit } });
+    });
+    friendRides(21).forEach(function (r) {
+      var pc = podiumClimb(r);
+      if (pc && pc.place === 1 && !rideDuel(r)) items.push({ key: 'podium:' + r.key + ':' + pc.place, kind: 'trophy', time: r.createdAt + 2, html: podiumClimbText(r, pc), go: { to: 'podium', circuit: r.circuit } });
+    });
     friendPhotoLinks().forEach(function (ph) {
       items.push({ key: ph.key, kind: 'camera', time: ph.createdAt, html: '<strong>' + escapeHtml(ph.rider) + '</strong>' + L(' a ajouté ses photos de ', ' added photos from ') + escapeHtml(ph.ev.circuit),
         go: { to: 'event', id: ph.ev.id } });
@@ -4757,6 +4766,7 @@
     }
     if (to === 'fil') { activeView = 'social'; pillState.social = 'fil'; }
     else if (to === 'trophees') { activeView = 'stats'; pillState.stats = 'trophees'; }
+    else if (to === 'podium') { activeView = 'circuit'; pillState.circuit = 'podium'; if (el.getAttribute('data-circuit')) selectedCircuit = el.getAttribute('data-circuit'); }
     else if (to === 'stats') { activeView = 'stats'; pillState.stats = 'records'; }
     else if (to === 'planning') activeView = 'planning';
     else activeView = 'carnet';
@@ -7301,18 +7311,36 @@
   }
 
   // ---- Podium des potes : my friends' and my best lap on a circuit, all time ----
-  function friendsPodium(circuit) {
+  // keep(x): optional filter on sessions (used to rebuild the podium as
+  // it stood just before a ride).
+  function friendsPodium(circuit, keep) {
     var me = currentUserProfile && currentUserProfile.name;
     if (!me) return [];
     var group = [me].concat(friendsOf(me).map(function (f) { return f.name; })).filter(function (n) { return !isNonRiderName(n); });
     var best = {};
     (STATE.sessions || []).forEach(function (x) {
-      if (group.indexOf(x.rider) === -1 || !x.laps || !x.laps.length || !sameCircuit(x.circuit, circuit)) return;
+      if (group.indexOf(x.rider) === -1 || !x.laps || !x.laps.length || !sameCircuit(x.circuit, circuit) || (keep && !keep(x))) return;
       if (x.rider !== me && ((STATE.usersByName || {})[x.rider] || {}).shareSorties === false) return;
       var b = sessionBest(x);
       if (!best[x.rider] || b < best[x.rider].best) best[x.rider] = { rider: x.rider, best: b, date: x.date };
     });
     return Object.keys(best).map(function (k) { return best[k]; }).sort(function (a, b) { return a.best - b.best; });
+  }
+  // A ride that put its rider on (or higher on) the friends' podium:
+  // { place, before } or null.
+  function podiumClimb(r) {
+    var placeIn = function (rows) { for (var i = 0; i < rows.length; i++) if (rows[i].rider === r.rider) return i + 1; return 0; };
+    var after = friendsPodium(r.circuit, function (x) { return x.date <= r.date; });
+    if (after.length < 2) return null;
+    var place = placeIn(after);
+    if (!place || place > 3) return null;
+    var before = placeIn(friendsPodium(r.circuit, function (x) { return x.rider === r.rider ? x.date < r.date : x.date <= r.date; }));
+    return (!before || place < before) ? { place: place, before: before } : null;
+  }
+  function podiumClimbText(r, pc) {
+    var me = currentUserProfile && currentUserProfile.name;
+    var step = pc.place === 1 ? L('la 1re marche', 'the top step') : pc.place === 2 ? L('la 2e marche', 'the 2nd step') : L('la 3e marche', 'the 3rd step');
+    return (r.rider === me ? L('Tu montes sur ', 'You climb onto ') : '<strong>' + escapeHtml(r.rider) + '</strong>' + L(' monte sur ', ' climbs onto ')) + step + L(' du podium des potes à ', ' of the friends\' podium at ') + escapeHtml(r.circuit);
   }
   function podiumPlace(circuit, rider) {
     var rows = friendsPodium(circuit);
@@ -7323,7 +7351,8 @@
   function renderFriendsPodium(circuit) {
     var me = currentUserProfile && currentUserProfile.name;
     var rows = friendsPodium(circuit);
-    var html = '<div class="card podium-card"><h2 class="section-title">' + L('Podium des potes', 'Friends\' podium') + '</h2>' +
+    var html = '<div class="card podium-card"><div class="battle-head"><h2 class="section-title">' + L('Podium des potes', 'Friends\' podium') + '</h2>' +
+      (rows.length > 1 ? '<button type="button" class="ghost" data-action="share-podium" data-circuit="' + escapeHtml(circuit) + '">' + L('Partager', 'Share') + '</button>' : '') + '</div>' +
       '<div class="help-text">' + escapeHtml(circuit) + L(' · meilleur tour de chacun, tous roulages confondus', ' · everyone\'s best lap, all trackdays') + '</div>';
     if (rows.length < 2) {
       return html + '<div class="empty-state">' + (rows.length ? L('Tu es seul sur ce circuit pour l\'instant. Invite tes potes à y rouler pour lancer le podium.', 'You\'re alone on this circuit so far. Invite your friends to ride here to start the podium.')
@@ -7669,6 +7698,91 @@
       ctx.fillText('thereiivman-art.github.io/carnetpiste', 80, H - 105);
       return new Promise(function (resolve) { canvas.toBlob(function (b) { resolve(b); }, 'image/png'); });
     });
+  }
+  // ---- Story « Podium des potes » ----
+  function buildPodiumStoryCard(circuit, rows) {
+    var W = 1080, H = 1920, C = SHARE_COLORS, me = currentUserProfile && currentUserProfile.name;
+    var canvas = document.createElement('canvas');
+    canvas.width = W; canvas.height = H;
+    var ctx = canvas.getContext('2d');
+    var trackSrc = battleTrackSrc(circuit);
+    var logoTeam = storyTeamFor({ circuit: circuit, rider: me });
+    return Promise.all([shareFontsReady(), trackSrc ? loadImageEl(trackSrc) : null, logoTeam ? loadImageEl(logoTeam.logoURL) : null]).then(function (res) {
+      var track = res[1];
+      ctx.fillStyle = C.bg; ctx.fillRect(0, 0, W, H);
+      drawShareMark(ctx, 80, 112, 64);
+      ctx.fillStyle = C.ink; ctx.font = 'italic 800 56px ' + CONDENSED;
+      var head = L('PODIUM DES POTES', 'FRIENDS\' PODIUM');
+      ctx.fillText(head, 150, 166);
+      drawStoryLogo(ctx, res[2], W, head);
+      var title = String(circuit).toUpperCase();
+      fitText(ctx, title, W - 160, 170, 'italic 800', CONDENSED);
+      ctx.fillText(title, 76, 400);
+      ctx.fillStyle = C.muted; ctx.font = '600 44px "Barlow", sans-serif';
+      ctx.fillText(L('Meilleur tour de chacun, tous roulages', 'Everyone\'s best lap, all trackdays'), 80, 470);
+      // Circuit outline, faint, behind the podium.
+      if (track && track.width) {
+        var bw = W - 200, bh = 520, k = Math.min(bw / track.width, bh / track.height);
+        ctx.save(); ctx.globalAlpha = 0.14;
+        ctx.drawImage(track, (W - track.width * k) / 2, 560, track.width * k, track.height * k);
+        ctx.restore();
+      }
+      var base = 1330, colW = 300, gap = 30, x0 = (W - (3 * colW + 2 * gap)) / 2;
+      var steps = [{ r: rows[1], place: 2, h: 300, color: '#8b95a1', x: x0 }, { r: rows[0], place: 1, h: 420, color: '#c9a227', x: x0 + colW + gap }, { r: rows[2], place: 3, h: 220, color: '#b0743c', x: x0 + 2 * (colW + gap) }];
+      var leader = rows[0].best;
+      steps.forEach(function (st) {
+        var top = base - st.h;
+        ctx.fillStyle = st.r ? st.color : C.line;
+        roundRect(ctx, st.x, top, colW, st.h, 24); ctx.fill();
+        ctx.fillStyle = '#ffffff'; ctx.font = 'italic 800 130px ' + CONDENSED; ctx.textAlign = 'center';
+        ctx.fillText(String(st.place), st.x + colW / 2, top + 140);
+        if (st.r) {
+          var isMe = st.r.rider === me;
+          ctx.fillStyle = C.ink; ctx.font = 'italic 800 ' + (st.place === 1 ? 84 : 70) + 'px ' + CONDENSED;
+          ctx.fillText(formatTime(st.r.best), st.x + colW / 2, top - 40);
+          ctx.fillStyle = isMe ? C.red : C.ink; fitText(ctx, st.r.rider, colW - 10, st.place === 1 ? 54 : 46, '800');
+          ctx.textAlign = 'center';
+          ctx.fillText(st.r.rider, st.x + colW / 2, top - (st.place === 1 ? 130 : 115));
+          if (st.place > 1) { ctx.fillStyle = 'rgba(255,255,255,0.9)'; ctx.font = '700 38px "Barlow", sans-serif'; ctx.fillText('+' + formatGap(st.r.best - leader), st.x + colW / 2, Math.min(top + 200, base - 24)); }
+        }
+        ctx.textAlign = 'left';
+      });
+      // 4th to 7th, small.
+      var y = base + 90;
+      rows.slice(3, 7).forEach(function (r, i) {
+        var isMe = r.rider === me;
+        ctx.fillStyle = isMe ? '#ffffff' : 'rgba(255,255,255,0.6)';
+        roundRect(ctx, 60, y, W - 120, 90, 22); ctx.fill();
+        ctx.fillStyle = C.ink; ctx.font = 'italic 800 52px ' + CONDENSED; ctx.fillText(String(i + 4), 95, y + 64);
+        ctx.fillStyle = isMe ? C.red : C.ink; ctx.font = '700 44px "Barlow", sans-serif'; ctx.fillText(r.rider, 180, y + 60);
+        ctx.fillStyle = C.ink; ctx.font = 'italic 800 52px ' + CONDENSED; ctx.textAlign = 'right'; ctx.fillText(formatTime(r.best), W - 100, y + 64); ctx.textAlign = 'left';
+        y += 104;
+      });
+      ctx.fillStyle = C.line; ctx.fillRect(80, H - 250, W - 160, 3);
+      ctx.fillStyle = C.ink; ctx.font = '700 46px "Barlow", sans-serif';
+      ctx.fillText(L('Monte sur le podium, compare tes chronos :', 'Get on the podium, compare your lap times:'), 80, H - 175);
+      ctx.fillStyle = C.red; fitText(ctx, 'thereiivman-art.github.io/carnetpiste', W - 160, 46, '700');
+      ctx.fillText('thereiivman-art.github.io/carnetpiste', 80, H - 105);
+      return new Promise(function (resolve) { canvas.toBlob(function (b) { resolve(b); }, 'image/png'); });
+    });
+  }
+  function sharePodium(circuit) {
+    var rows = friendsPodium(circuit);
+    if (rows.length < 2) return;
+    showToast(L('Préparation de l\'image…', 'Preparing the image…'));
+    buildPodiumStoryCard(circuit, rows).then(function (blob) {
+      var fileName = 'podium-' + String(circuit).replace(/[^\w-]+/g, '-') + '.png';
+      var file = new File([blob], fileName, { type: 'image/png' });
+      countUsage('story'); countUsage('story_podium');
+      var link = currentUserProfile ? referralLinkFor(currentUserProfile.name) : '';
+      var text = L('Podium des potes à ', 'Friends\' podium at ') + circuit + ' — ' + link;
+      if (navigator.canShare && navigator.canShare({ files: [file] })) return navigator.share({ files: [file], text: text }).catch(function () {});
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a'); a.href = url; a.download = fileName;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
+      showToast(L('Image enregistrée – publie-la en story !', 'Image saved – post it as a story!'), 'success');
+    }).catch(function () { showToast(L('Impossible de créer l\'image sur cet appareil.', 'Could not create the image on this device.')); });
   }
   function shareBattle(circuit, date) {
     var dates = String(date).split(',');
@@ -12930,7 +13044,7 @@
     var first = !sent, changed = false;
     sent = sent || {};
     activityItems().forEach(function (it) {
-      var cat = it.key.indexOf('duel:') === 0 ? 'notifyDuels' : it.key.indexOf('going:') === 0 ? 'notifyFriendsRiding' : null;
+      var cat = (it.key.indexOf('duel:') === 0 || it.key.indexOf('podium:') === 0) ? 'notifyDuels' : it.key.indexOf('going:') === 0 ? 'notifyFriendsRiding' : null;
       if (!cat || sent[it.key]) return;
       sent[it.key] = 1;
       changed = true;
@@ -13921,7 +14035,7 @@
     ['import_ok', '… validés (tours importés)'],
     ['import_fail', '… en échec'],
     ['story', 'Stories partagées (toutes)'],
-    ['story_session', '… chrono'], ['story_battle', '… Entre potes'], ['story_roulage', '… « On roule à »'], ['story_recap', '… « Mon roulage à »'],
+    ['story_session', '… chrono'], ['story_battle', '… Entre potes'], ['story_roulage', '… « On roule à »'], ['story_recap', '… « Mon roulage à »'], ['story_podium', '… Podium des potes'],
     ['link_roulage', 'Liens de roulage partagés'],
     ['look_open', 'Fiche : personnalisation essayée'], ['look_saved', '… enregistrée'],
     ['team_look_open', 'Fiche team : personnalisation essayée'], ['team_look_saved', '… enregistrée']
@@ -15026,7 +15140,12 @@
   function rideHighlightsHtml(r, rankedNames) {
     var out = '', duel = rideDuel(r), ms = rideMilestone(r);
     if (duel && rankedNames && rankedNames.indexOf(duel.opp) !== -1 && rankedNames.indexOf(r.rider) !== -1) duel = null;
+    // One headline per ride: my own ride → the podium climb first; a
+    // friend's → the duel with me first (it's my move).
+    var pc = podiumClimb(r), mineRide = r.rider === (currentUserProfile && currentUserProfile.name);
+    if (pc && duel) { if (mineRide) duel = null; else pc = null; }
     if (duel) out += '<div class="feed-highlight duel">' + notifIconHtml('trophy') + '<span>' + duelText(duel, r) + '</span></div>';
+    if (pc) out += '<div class="feed-highlight podium-climb p' + pc.place + '">' + notifIconHtml('trophy') + '<span>' + podiumClimbText(r, pc) + '</span></div>';
     if (ms) out += '<div class="feed-highlight">' + notifIconHtml('medal') + '<span><strong>' + escapeHtml(r.rider) + '</strong> · ' + escapeHtml(ms) + '</span></div>';
     else {
       var prev = bestBefore(r.rider, r.circuit, r.date);
@@ -18470,6 +18589,9 @@
         renderRoot();
         window.scrollTo(0, 0);
       });
+    });
+    document.querySelectorAll('[data-action="share-podium"]').forEach(function (btn) {
+      btn.addEventListener('click', function () { sharePodium(btn.getAttribute('data-circuit')); });
     });
     document.querySelectorAll('[data-action="share-battle"]').forEach(function (btn) {
       btn.addEventListener('click', function () { shareBattle(btn.getAttribute('data-circuit'), btn.getAttribute('data-date')); });
