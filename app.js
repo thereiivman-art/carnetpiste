@@ -12284,17 +12284,11 @@
         }
       }
     } else if (cur === 'passes') {
-      // Les roulages notés directement dans le Carnet (sans roulage créé
-      // au calendrier) sont aussi des roulages passés.
-      var pastIds = past.map(function (ev) { return ev.id; });
-      var solo = currentUserProfile ? myOutings().filter(function (o) { return !o.eventId || pastIds.indexOf(o.eventId) === -1; }) : [];
-      var soloHtml = solo.length ? '<div class="card outings-card">' + solo.map(outingRowHtml).join('') + '</div>' : '';
-      if (past.length && solo.length) {
-        html += renderSubPills('passub', [
-          ['calendrier', 'Du calendrier (' + past.length + ')', flatCard(renderPastEventsCard(past))],
-          ['carnet', 'De mon carnet (' + solo.length + ')', soloHtml]
-        ], { noCard: true });
-      } else html += past.length ? flatCard(renderPastEventsCard(past)) : (soloHtml || '<div class="card"><div class="empty-state">Aucun roulage passé.</div></div>');
+      // Only roulages from the calendar: the ones noted straight in the
+      // Carnet are listed there (Carnet → Chronos), not twice.
+      html += past.length ? flatCard(renderPastEventsCard(past))
+        : '<div class="card"><div class="empty-state">Aucun roulage passé au calendrier.</div></div>';
+      html += '<div class="help-text carnet-add-help">Tes roulages notés dans le carnet sont dans <button type="button" class="link-btn inline-link" data-view="carnet">Carnet → Chronos</button></div>';
     } else if (cur === 'calendrier') {
       html += renderCalendarSection();
     } else if (cur === 'decouvrir') {

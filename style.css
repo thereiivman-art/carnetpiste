@@ -3594,3 +3594,4 @@ span.ph-sponsor { cursor: default; }
 .tutorial-icon { color: var(--accent); }
 .location-actions .icon-btn svg, #copy-referral-link-btn svg { display: block; }
 .icon-btn svg { flex-shrink: 0; width: 18px; height: 18px; }
+.link-btn.inline-link { display: inline; padding: 0; margin: 0; width: auto; }
