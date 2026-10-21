@@ -7675,8 +7675,8 @@
       };
       var out = document.createElement('canvas'); out.width = w + pad * 2; out.height = h + pad * 2;
       var o = out.getContext('2d');
-      ribbon(C.red, shadow, shadow, o);
-      ribbon(C.ink, 0, 0, o);
+      if (!opts.noShadow) ribbon(C.red, shadow, shadow, o);
+      ribbon(opts.color || C.ink, 0, 0, o);
       return out;
     } catch (e) { return null; }
   }
@@ -14829,13 +14829,12 @@
       circuits.forEach(function (c, i) {
         var row = Math.floor(i / cols), inRow = Math.min(cols, n - row * cols);
         var x = 80 + ((W - 160) - (inRow * gw + (inRow - 1) * 24)) / 2 + (i % cols) * (gw + 24), y = gy + row * (gh + 24);
-        ctx.fillStyle = C.card; roundRect(ctx, x, y, gw, gh, 24); ctx.fill();
         var img = res[2 + i];
         if (img && img.width) {
           var bw = gw - 60, bh = gh - 90, k = Math.min(bw / img.width, bh / img.height), tw = img.width * k, th = img.height * k;
           // Styled at the size the Entre potes story uses (about 860 px
           // wide), then scaled down: the same clean ribbon, just smaller.
-          var Z = Math.max(1, 860 / tw), styled = styledTrack(img, Math.round(tw * Z), Math.round(th * Z), C);
+          var Z = Math.max(1, 860 / tw), styled = styledTrack(img, Math.round(tw * Z), Math.round(th * Z), C, { noShadow: true, radii: [4, 8, 11] });
           if (styled) {
             ctx.save(); ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
             ctx.drawImage(styled, x + (gw - tw) / 2 - 24 / Z, y + 18 - 24 / Z + (bh - th) / 2, styled.width / Z, styled.height / Z);
