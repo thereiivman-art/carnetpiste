@@ -14328,7 +14328,7 @@
   }
   function personLinkHtml(name) {
     var me = currentUserProfile && currentUserProfile.name;
-    if (!name || name === me || !(STATE.usersByName || {})[name]) return personNameHtml(name);
+    if (!name || (!(STATE.usersByName || {})[name] && name !== me)) return personNameHtml(name);
     return '<button type="button" class="friend-name-link' + nameColorClass(name) + '" data-action="open-person" data-name="' + escapeHtml(name) + '">' + escapeHtml(name) + '</button>';
   }
   // ---- Fiche personnalisée (aperçu de Carnet+) ----
@@ -14899,7 +14899,8 @@
     if (isPilote && u.bike) sub.push(escapeHtml(u.bike) + (u.bikeNumber ? ' #' + escapeHtml(u.bikeNumber) : ''));
     // Actions
     var acts = '';
-    if (isMe) acts += myDraft ? '' : '<button type="button" class="primary" data-action="look-edit">' + (lookOf(u) ? L('Modifier ma fiche', 'Edit my profile') : L('Personnaliser ma fiche', 'Customise my profile')) + '</button>';
+    if (isMe) acts += myDraft ? '' : '<button type="button" class="primary" data-action="look-edit">' + (lookOf(u) ? L('Modifier ma fiche', 'Edit my page') : L('Personnaliser ma fiche', 'Customise my page')) + '</button>' +
+      '<button type="button" class="ghost" data-action="open-my-profile">' + L('Mon profil', 'My profile') + '</button>';
     else if (friendship) acts += '<button type="button" class="ghost" disabled>' + L('Amis', 'Friends') + '</button>';
     else if (received) acts += '<button type="button" class="primary" data-action="accept-friend" data-id="' + received.id + '">' + L('Accepter son invitation', 'Accept the request') + '</button>';
     else if (sent) acts += '<button type="button" class="ghost" disabled>' + L('Demande envoyée', 'Request sent') + '</button>';
@@ -17052,7 +17053,7 @@
       '<header class="page-head">' +
         '<div class="page-head-inner">' +
           '<div class="page-head-row">' +
-            '<button type="button" class="header-hello" id="profile-toggle" aria-label="' + tr('my_profile_label') + '" title="' + tr('my_profile_label') + '">' + avatarHtml(currentUserProfile, currentUserProfile.name) +
+            '<button type="button" class="header-hello" id="profile-toggle" aria-label="' + L('Ma fiche', 'My page') + '" title="' + L('Ma fiche', 'My page') + '">' + avatarHtml(currentUserProfile, currentUserProfile.name) +
               '<span class="hello-text"><span class="hello-small">Bonjour</span><span class="hello-name">' + escapeHtml(currentUserProfile.firstName || currentUserProfile.name || '') + '</span></span></button>' +
             '<div class="header-controls">' +
               '<button type="button" class="header-icon-btn" id="invite-qr-btn" aria-label="Inviter un pilote (QR code)" title="Inviter un pilote">' +
@@ -17573,14 +17574,15 @@
     }
     var profileToggle = document.getElementById('profile-toggle');
     if (profileToggle) {
+      // The avatar opens my own fiche (Fiche / Saisons); my profile
+      // settings stay one tap away from there and behind the gear.
       profileToggle.addEventListener('click', function () {
-        var onProfil = profilePanelOpen && profileSubTab === 'profil';
-        profilePanelOpen = !onProfil;
-        profileSubTab = 'profil';
-        notificationsPanelOpen = false;
-        if (!profilePanelOpen) accountManagerOpen = false;
-        profileSaveMessage = '';
-        renderRoot();
+        if (!currentUserProfile) return;
+        if (activeView === 'person' && personView && personView.name === currentUserProfile.name && !profilePanelOpen) {
+          activeView = personView.from || 'carnet'; renderRoot(); return;
+        }
+        accountManagerOpen = false;
+        openPerson(currentUserProfile.name);
       });
     }
     var settingsToggle = document.getElementById('settings-toggle');
@@ -18210,6 +18212,9 @@
       btn.addEventListener('click', function () { if (currentUserProfile) { openPerson(currentUserProfile.name); if (!lookOf(currentUserProfile)) openLookEditor(); } });
     });
     document.querySelectorAll('[data-action="look-edit"]').forEach(function (btn) { btn.addEventListener('click', openLookEditor); });
+    document.querySelectorAll('[data-action="open-my-profile"]').forEach(function (btn) {
+      btn.addEventListener('click', function () { profilePanelOpen = true; profileSubTab = 'profil'; notificationsPanelOpen = false; profileSaveMessage = ''; renderRoot(); window.scrollTo(0, 0); });
+    });
     document.querySelectorAll('[data-action="team-look-edit"]').forEach(function (btn) { btn.addEventListener('click', function () { openTeamLookEditor(btn.getAttribute('data-team')); }); });
     document.querySelectorAll('[data-action="look-cancel"]').forEach(function (btn) { btn.addEventListener('click', function () { lookDraft = null; lookMessage = ''; renderRoot(); }); });
     document.querySelectorAll('[data-action="look-save"]').forEach(function (btn) { btn.addEventListener('click', function () { saveLook(false); }); });
