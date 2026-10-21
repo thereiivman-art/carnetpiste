@@ -7653,7 +7653,7 @@
       var d = sctx.getImageData(0, 0, w, h), px = d.data;
       for (var i = 0; i < px.length; i += 4) {
         var lum = (px[i] * 0.3 + px[i + 1] * 0.59 + px[i + 2] * 0.11) * px[i + 3] / 255 + 255 * (1 - px[i + 3] / 255);
-        var a = lum < 200 ? 255 : 0;
+        var a = lum < (opts.threshold || 200) ? 255 : 0;
         px[i] = px[i + 1] = px[i + 2] = 0; px[i + 3] = a;
       }
       sctx.putImageData(d, 0, 0);
@@ -11219,7 +11219,7 @@
   }
   // Pastilles (3e niveau, à l'intérieur d'un sous-onglet) : même style que
   // le filtre Passés/À venir du carnet. État mémorisé par groupe.
-  var pillState = { profil: 'identite', settings: 'affichage', social: 'fil', events: 'avenir', circuit: 'plan', stats: 'records', teams: 'mine', team: 'fil', coach: 'demandes', planning: 'programme', outing: 'chronos', evmanage: 'participants', statsrec: 'circuits', passub: 'calendrier', outinfo: 'horaires' };
+  var pillState = { person: 'fiche', profil: 'identite', settings: 'affichage', social: 'fil', events: 'avenir', circuit: 'plan', stats: 'records', teams: 'mine', team: 'fil', coach: 'demandes', planning: 'programme', outing: 'chronos', evmanage: 'participants', statsrec: 'circuits', passub: 'calendrier', outinfo: 'horaires' };
   function renderPills(group, items) {
     var cur = pillState[group];
     if (!items.some(function (it) { return it[0] === cur; })) cur = pillState[group] = items[0][0];
@@ -14080,7 +14080,7 @@
     ['import_ok', '… validés (tours importés)'],
     ['import_fail', '… en échec'],
     ['story', 'Stories partagées (toutes)'],
-    ['story_session', '… chrono'], ['story_battle', '… Entre potes'], ['story_roulage', '… « On roule à »'], ['story_recap', '… « Mon roulage à »'], ['story_podium', '… Podium des potes'],
+    ['story_session', '… chrono'], ['story_battle', '… Entre potes'], ['story_roulage', '… « On roule à »'], ['story_recap', '… « Mon roulage à »'], ['story_podium', '… Podium des potes'], ['story_season', '… Ma saison'],
     ['link_roulage', 'Liens de roulage partagés'],
     ['look_open', 'Fiche : personnalisation essayée'], ['look_saved', '… enregistrée'],
     ['team_look_open', 'Fiche team : personnalisation essayée'], ['team_look_saved', '… enregistrée']
@@ -14709,6 +14709,177 @@
     });
   }
 
+  // ---- Saisons : one year at a time, visual, shareable ----
+  var seasonYear = {};   // key (rider or 'team:'+id) -> selected year
+  function riderSeasonYears(name) {
+    var ys = {};
+    ridesFor([name], 3650).forEach(function (r) { ys[r.date.slice(0, 4)] = 1; });
+    return Object.keys(ys).sort().reverse();
+  }
+  function riderSeason(name, year) {
+    var rides = ridesFor([name], 3650).filter(function (r) { return r.date.slice(0, 4) === year; }).sort(function (a, b) { return a.date < b.date ? -1 : 1; });
+    var days = {}, circuits = {}, records = 0, laps = 0;
+    rides.forEach(function (r) {
+      days[r.date] = 1; laps += r.laps;
+      var c = circuits[r.circuit] || (circuits[r.circuit] = { circuit: r.circuit, days: 0, best: null });
+      c.days++; if (c.best === null || r.best < c.best) c.best = r.best;
+      var prev = bestBefore(name, r.circuit, r.date);
+      r.isRecord = prev !== null && r.best < prev; r.isFirst = prev === null;
+      if (r.isRecord) records++;
+    });
+    return { rides: rides, days: Object.keys(days).length, circuits: Object.keys(circuits).map(function (k) { return circuits[k]; }).sort(function (a, b) { return b.days - a.days; }), records: records, laps: laps };
+  }
+  function seasonYearChips(key, years, cur) {
+    if (years.length < 2) return '';
+    return '<div class="season-years">' + years.map(function (y) { return '<button type="button" data-season-key="' + escapeHtml(key) + '" data-season-year="' + y + '" aria-pressed="' + (y === cur) + '">' + y + '</button>'; }).join('') + '</div>';
+  }
+  function seasonDateBox(d) {
+    var dt = parseLocalDate(d);
+    return '<span class="season-date"><b>' + dt.getDate() + '</b><small>' + escapeHtml(MONTH_NAMES_FR()[dt.getMonth()].slice(0, 4)) + '</small></span>';
+  }
+  function renderRiderSeasons(name, l, isMe) {
+    var years = riderSeasonYears(name);
+    if (!years.length) return '<div class="card"><div class="empty-state">' + L('Pas encore de roulage avec chronos.', 'No trackday with lap times yet.') + '</div></div>';
+    var year = seasonYear[name] && years.indexOf(seasonYear[name]) !== -1 ? seasonYear[name] : years[0];
+    var se = riderSeason(name, year), st = lookStyle(l || {});
+    var html = seasonYearChips(name, years, year);
+    html += '<div class="card season-hero" style="' + st + '"><span class="season-eyebrow">' + L('Saison', 'Season') + '</span><strong class="season-year">' + year + '</strong><span class="season-who">' + escapeHtml(name) + '</span>' +
+      '<div class="season-stats"><div><b>' + se.days + '</b><span>' + L(se.days > 1 ? 'jours de piste' : 'jour de piste', se.days > 1 ? 'days on track' : 'day on track') + '</span></div>' +
+      '<div><b>' + se.rides.length + '</b><span>' + L(se.rides.length > 1 ? 'roulages' : 'roulage', se.rides.length > 1 ? 'trackdays' : 'trackday') + '</span></div>' +
+      '<div><b>' + se.circuits.length + '</b><span>' + L(se.circuits.length > 1 ? 'circuits' : 'circuit', se.circuits.length > 1 ? 'circuits' : 'circuit') + '</span></div>' +
+      '<div><b>' + se.records + '</b><span>' + L(se.records > 1 ? 'records battus' : 'record battu', se.records > 1 ? 'records beaten' : 'record beaten') + '</span></div></div>' +
+      (isMe ? '<button type="button" class="season-share" data-action="share-season" data-name="' + escapeHtml(name) + '" data-year="' + year + '">' + L('Partager ma saison', 'Share my season') + '</button>' : '') + '</div>';
+    html += '<div class="card"><h2 class="section-title">' + L('Circuits', 'Circuits') + '</h2><div class="season-circuits">' + se.circuits.map(function (c) {
+      return '<span class="season-circuit"><span class="outing-thumb">' + circuitThumbHtml(c.circuit) + '</span><strong>' + escapeHtml(c.circuit) + '</strong><span class="carnet-time">' + formatTime(c.best) + '</span><span class="help-text">' + c.days + L(c.days > 1 ? ' roulages' : ' roulage', c.days > 1 ? ' trackdays' : ' trackday') + '</span></span>';
+    }).join('') + '</div></div>';
+    html += '<div class="card"><h2 class="section-title">' + L('Roulages', 'Trackdays') + '</h2><div class="season-tiles">' + se.rides.slice().reverse().map(function (r) {
+      return '<button type="button" class="season-tile" data-open-outing="' + escapeHtml(r.circuit) + '" data-outing-date="' + escapeHtml(r.date) + '" data-outing-event="' + escapeHtml(r.eventId || '') + '" style="' + st + '">' +
+        '<span class="season-tile-map">' + circuitThumbHtml(r.circuit) + seasonDateBox(r.date) + (r.isRecord ? '<span class="record-chip season-tile-chip">' + L('Record', 'Record') + '</span>' : r.isFirst ? '<span class="season-tile-chip first">' + L('1re fois', 'First') + '</span>' : '') + '</span>' +
+        '<strong>' + escapeHtml(r.circuit) + '</strong><span class="season-tile-time">' + formatTime(r.best) + '</span>' +
+        '<span class="help-text">' + r.laps + L(r.laps > 1 ? ' tours' : ' tour', r.laps > 1 ? ' laps' : ' lap') + (r.group ? ' · ' + groupChip(r.group) : '') + '</span></button>';
+    }).join('') + '</div></div>';
+    return html;
+  }
+  function teamSeasonYears(t) {
+    var ys = {};
+    teamEvents(t).forEach(function (ev) { if (ev.dateStart) ys[ev.dateStart.slice(0, 4)] = 1; });
+    return Object.keys(ys).sort().reverse();
+  }
+  function teamSeasonDays(evs) { return evs.reduce(function (n, ev) { return n + datesInRange(ev.dateStart, ev.dateEnd || ev.dateStart).length; }, 0); }
+  function teamEventBest(ev) {
+    var best = null, end = ev.dateEnd || ev.dateStart;
+    (STATE.sessions || []).forEach(function (x) {
+      if (!x.certifiedBy || !x.laps || !x.laps.length || (ev.riders || []).indexOf(x.rider) === -1 || !sameCircuit(x.circuit, ev.circuit) || x.date < ev.dateStart || x.date > end) return;
+      var b = sessionBest(x);
+      if (!best || b < best.best) best = { best: b, rider: x.rider };
+    });
+    return best;
+  }
+  function renderTeamSeasons(t, l, canShare) {
+    var years = teamSeasonYears(t), key = 'team:' + t.id;
+    if (!years.length) return '<div class="card"><div class="empty-state">' + L('Pas encore de roulage au calendrier du team.', 'No trackday on the team calendar yet.') + '</div></div>';
+    var year = seasonYear[key] && years.indexOf(seasonYear[key]) !== -1 ? seasonYear[key] : years[0];
+    var evs = teamEvents(t).filter(function (ev) { return ev.dateStart.slice(0, 4) === year; }).sort(function (a, b) { return a.dateStart < b.dateStart ? -1 : 1; });
+    var riders = {}, circuits = {};
+    evs.forEach(function (ev) { circuits[ev.circuit] = (circuits[ev.circuit] || 0) + 1; (ev.riders || []).forEach(function (n) { if (!isNonRiderName(n)) riders[n] = 1; }); });
+    var st = lookStyle(l || {});
+    var html = seasonYearChips(key, years, year);
+    html += '<div class="card season-hero" style="' + st + '"><span class="season-eyebrow">' + L('Saison', 'Season') + '</span><strong class="season-year">' + year + '</strong><span class="season-who">' + escapeHtml(t.name) + '</span>' +
+      '<div class="season-stats"><div><b>' + evs.length + '</b><span>' + L(evs.length > 1 ? 'roulages' : 'roulage', evs.length > 1 ? 'trackdays' : 'trackday') + '</span></div>' +
+      '<div><b>' + Object.keys(riders).length + '</b><span>' + L('pilotes', 'riders') + '</span></div>' +
+      '<div><b>' + Object.keys(circuits).length + '</b><span>' + L('circuits', 'circuits') + '</span></div>' +
+      '<div><b>' + teamSeasonDays(evs) + '</b><span>' + L('jours de piste', 'days on track') + '</span></div></div>' +
+      (canShare ? '<button type="button" class="season-share" data-action="share-team-season" data-team="' + escapeHtml(t.id) + '" data-year="' + year + '">' + L('Partager la saison', 'Share the season') + '</button>' : '') + '</div>';
+    html += '<div class="card"><h2 class="section-title">' + L('Roulages', 'Trackdays') + '</h2><div class="season-tiles">' + evs.map(function (ev) {
+      var b = teamEventBest(ev), n = (ev.riders || []).filter(function (x) { return !isNonRiderName(x); }).length;
+      return '<button type="button" class="season-tile" data-notif-go="event" data-id="' + escapeHtml(ev.id) + '" style="' + st + '">' +
+        '<span class="season-tile-map">' + circuitThumbHtml(ev.circuit) + seasonDateBox(ev.dateStart) + '</span>' +
+        '<strong>' + escapeHtml(ev.circuit) + '</strong>' + (b ? '<span class="season-tile-time">' + formatTime(b.best) + '</span><span class="help-text">' + escapeHtml(b.rider) + ' · ' + n + L(' pilotes', ' riders') + '</span>'
+          : '<span class="help-text">' + escapeHtml(formatEventRange(ev, false)) + ' · ' + n + L(n > 1 ? ' pilotes' : ' pilote', n > 1 ? ' riders' : ' rider') + '</span>') + '</button>';
+    }).join('') + '</div></div>';
+    return html;
+  }
+  // Story « Ma saison » / « Saison du team ».
+  function buildSeasonStoryCard(o) {
+    var W = 1080, H = 1920, C = SHARE_COLORS, color = o.color || C.red;
+    var canvas = document.createElement('canvas');
+    canvas.width = W; canvas.height = H;
+    var ctx = canvas.getContext('2d');
+    var circuits = o.circuits.slice(0, 6);
+    return Promise.all([shareFontsReady(), o.logoTeam ? loadImageEl(o.logoTeam.logoURL) : null].concat(circuits.map(function (c) { var src = battleTrackSrc(c); return src ? loadImageEl(src) : null; }))).then(function (res) {
+      ctx.fillStyle = C.bg; ctx.fillRect(0, 0, W, H);
+      drawShareMark(ctx, 80, 112, 64);
+      ctx.fillStyle = C.ink; ctx.font = 'italic 800 56px ' + CONDENSED;
+      ctx.fillText(o.head, 150, 166);
+      drawStoryLogo(ctx, res[1], W, o.head);
+      ctx.fillStyle = color; ctx.font = 'italic 800 330px ' + CONDENSED;
+      ctx.fillText(o.year, 62, 520);
+      ctx.fillStyle = C.ink; fitText(ctx, o.who, W - 160, 64, '800');
+      ctx.fillText(o.who, 80, 610);
+      var cw = (W - 160 - 30) / 2, ch = 190;
+      o.stats.forEach(function (st, i) {
+        var x = 80 + (i % 2) * (cw + 30), y = 670 + Math.floor(i / 2) * (ch + 30);
+        ctx.fillStyle = C.card; roundRect(ctx, x, y, cw, ch, 28); ctx.fill();
+        ctx.fillStyle = color; ctx.font = 'italic 800 110px ' + CONDENSED; ctx.fillText(String(st[0]), x + 36, y + 115);
+        ctx.fillStyle = C.muted; ctx.font = '700 38px "Barlow", sans-serif'; ctx.fillText(st[1], x + 38, y + 165);
+      });
+      var gy = 1120, cols = 3, gw = (W - 160 - 2 * 24) / 3, gh = 230;
+      circuits.forEach(function (c, i) {
+        var x = 80 + (i % cols) * (gw + 24), y = gy + Math.floor(i / cols) * (gh + 24);
+        ctx.fillStyle = C.card; roundRect(ctx, x, y, gw, gh, 24); ctx.fill();
+        var img = res[2 + i];
+        if (img && img.width) {
+          var bw = gw - 60, bh = gh - 90, k = Math.min(bw / img.width, bh / img.height), tw = img.width * k, th = img.height * k;
+          // Small outline: keep the anti-aliased grey of thin lines.
+          var styled = styledTrack(img, Math.round(tw), Math.round(th), C, { threshold: 248, radii: [2, 3], shadow: 4 });
+          if (styled) ctx.drawImage(styled, x + (gw - tw) / 2 - 24, y + 18 - 24 + (bh - th) / 2);
+          else ctx.drawImage(img, x + (gw - tw) / 2, y + 18 + (bh - th) / 2, tw, th);
+        }
+        ctx.fillStyle = C.ink; fitText(ctx, c, gw - 30, 34, '800'); ctx.textAlign = 'center';
+        ctx.fillText(c, x + gw / 2, y + gh - 26); ctx.textAlign = 'left';
+      });
+      ctx.fillStyle = C.line; ctx.fillRect(80, H - 250, W - 160, 3);
+      ctx.fillStyle = C.ink; ctx.font = '700 46px "Barlow", sans-serif';
+      ctx.fillText(L('Mon carnet de piste, gratuit :', 'My track logbook, free:'), 80, H - 175);
+      ctx.fillStyle = C.red; fitText(ctx, 'thereiivman-art.github.io/carnetpiste', W - 160, 46, '700');
+      ctx.fillText('thereiivman-art.github.io/carnetpiste', 80, H - 105);
+      return new Promise(function (resolve) { canvas.toBlob(function (b) { resolve(b); }, 'image/png'); });
+    });
+  }
+  function shareStoryBlob(blob, fileName, text, metric) {
+    var file = new File([blob], fileName, { type: 'image/png' });
+    countUsage('story'); countUsage(metric);
+    if (navigator.canShare && navigator.canShare({ files: [file] })) return navigator.share({ files: [file], text: text }).catch(function () {});
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a'); a.href = url; a.download = fileName;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
+    showToast(L('Image enregistrée – publie-la en story !', 'Image saved – post it as a story!'), 'success');
+  }
+  function shareSeason(name, year) {
+    var me = currentUserProfile, se = riderSeason(name, year), l = (me && me.look) || {};
+    showToast(L('Préparation de l\'image…', 'Preparing the image…'));
+    buildSeasonStoryCard({ head: L('MA SAISON', 'MY SEASON'), year: year, who: name, color: l.color, logoTeam: storyTeamFor({ rider: name }),
+      stats: [[se.days, L('jours de piste', 'days on track')], [se.rides.length, L('roulages', 'trackdays')], [se.circuits.length, L('circuits', 'circuits')], [se.records, L('records battus', 'records beaten')]],
+      circuits: se.circuits.map(function (c) { return c.circuit; }) }).then(function (blob) {
+      shareStoryBlob(blob, 'saison-' + year + '.png', L('Ma saison ', 'My season ') + year + ' — ' + (me ? referralLinkFor(me.name) : ''), 'story_season');
+    }).catch(function () { showToast(L('Impossible de créer l\'image sur cet appareil.', 'Could not create the image on this device.')); });
+  }
+  function shareTeamSeason(teamId, year) {
+    var t = teamById(teamId);
+    if (!t) return;
+    var evs = teamEvents(t).filter(function (ev) { return ev.dateStart.slice(0, 4) === year; });
+    var riders = {}, circuits = [];
+    evs.forEach(function (ev) { if (circuits.indexOf(ev.circuit) === -1) circuits.push(ev.circuit); (ev.riders || []).forEach(function (n) { if (!isNonRiderName(n)) riders[n] = 1; }); });
+    var l = lookOf(t) || {};
+    showToast(L('Préparation de l\'image…', 'Preparing the image…'));
+    buildSeasonStoryCard({ head: L('SAISON DU TEAM', 'TEAM SEASON'), year: year, who: t.name, color: l.color, logoTeam: t.logoURL ? t : null,
+      stats: [[evs.length, L('roulages', 'trackdays')], [Object.keys(riders).length, L('pilotes', 'riders')], [circuits.length, L('circuits', 'circuits')], [teamSeasonDays(evs), L('jours de piste', 'days on track')]],
+      circuits: circuits }).then(function (blob) {
+      shareStoryBlob(blob, 'saison-' + year + '-' + String(t.name).replace(/[^\w-]+/g, '-') + '.png', t.name + ' — ' + L('saison ', 'season ') + year, 'story_season');
+    }).catch(function () { showToast(L('Impossible de créer l\'image sur cet appareil.', 'Could not create the image on this device.')); });
+  }
+
   function renderPersonPage() {
     var name = personView && personView.name;
     var me = currentUserProfile;
@@ -14749,6 +14920,10 @@
     if (!friendship && !isMe) {
       html += '<div class="card"><div class="empty-state">' + escapeHtml(L('Ajoute ' + name + ' en ami pour voir ses roulages, ses records et ses trophées, et vous comparer.', 'Add ' + name + ' as a friend to see their trackdays, records and trophies, and compare.')) + '</div></div>';
       return html + '</div>';
+    }
+    if (isPilote && (isMe || u.shareSorties !== false)) {
+      html += renderPills('person', [['fiche', L('Fiche', 'Profile')], ['saisons', L('Saisons', 'Seasons')]]);
+      if (pillState.person === 'saisons') return html + renderRiderSeasons(name, look, isMe) + '</div>';
     }
     if (isPilote && u.shareSorties !== false) {
       var stats = riderStats(name);
@@ -16067,11 +16242,13 @@
     if (!isMember && !isLeader) bReglages = teamCard('', '<button type="button" class="ghost" data-action="unfollow-team" data-team="' + team.id + '">' + tr('unfollow') + '</button>') + (bReglages || '');
     var teamPills = [['fil', 'Fil'], ['membres', 'Membres (' + members.length + ')']];
     if (tLook) teamPills.unshift(['fiche', L('Fiche', 'Page')]);
+    teamPills.splice(tLook ? 2 : 1, 0, ['saisons', L('Saisons', 'Seasons')]);
     if (isLeader) teamPills.push(['roulages', 'Roulages']);
     teamPills.push(['reglages', 'Réglages']);
     var pillsHtml = renderPills('team', teamPills);
     var body = pillState.team === 'membres' ? bMembres : pillState.team === 'roulages' ? bRoulages : pillState.team === 'reglages' ? bReglages
-      : (pillState.team === 'fiche' && tLook) ? renderTeamShowcase(team, tLook, true) : bFil;
+      : (pillState.team === 'fiche' && tLook) ? renderTeamShowcase(team, tLook, true)
+      : pillState.team === 'saisons' ? renderTeamSeasons(team, tLook, isMember || !!myRoleInTeam(team.id)) : bFil;
     // Team header in its own card, then the pills outside it like on every
     // other page, then one card per topic.
     return headHtml + (headClosed ? '' : '</div>') + pillsHtml + body;
@@ -16715,7 +16892,7 @@
     var pLook = lookOf(t);
     if (pLook) {
       var acts = teamActionsHtml(t, me, false).replace(/^<div class="outing-actions team-actions">|<\/div>$/g, '');
-      return renderTeamHero(t, pLook, me, acts, '') + renderTeamShowcase(t, pLook, false) +
+      return renderTeamHero(t, pLook, me, acts, '') + renderTeamShowcase(t, pLook, false) + renderTeamSeasons(t, pLook, false) +
         '<div class="help-text team-private-note">' + L('Le fil, les membres et les roulages réservés sont visibles des membres du team.', 'The feed, members and private trackdays are visible to team members.') + '</div>';
     }
     var likeCount = (STATE.teamLikes || []).filter(function (l) { return l.teamId === t.id; }).length;
@@ -18635,6 +18812,15 @@
         renderRoot();
         window.scrollTo(0, 0);
       });
+    });
+    document.querySelectorAll('[data-season-year]').forEach(function (btn) {
+      btn.addEventListener('click', function () { seasonYear[btn.getAttribute('data-season-key')] = btn.getAttribute('data-season-year'); renderRoot(); });
+    });
+    document.querySelectorAll('[data-action="share-season"]').forEach(function (btn) {
+      btn.addEventListener('click', function () { shareSeason(btn.getAttribute('data-name'), btn.getAttribute('data-year')); });
+    });
+    document.querySelectorAll('[data-action="share-team-season"]').forEach(function (btn) {
+      btn.addEventListener('click', function () { shareTeamSeason(btn.getAttribute('data-team'), btn.getAttribute('data-year')); });
     });
     document.querySelectorAll('[data-action="share-podium"]').forEach(function (btn) {
       btn.addEventListener('click', function () { sharePodium(btn.getAttribute('data-circuit')); });

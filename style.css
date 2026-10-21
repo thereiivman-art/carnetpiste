@@ -3595,3 +3595,34 @@ span.ph-sponsor { cursor: default; }
 .location-actions .icon-btn svg, #copy-referral-link-btn svg { display: block; }
 .icon-btn svg { flex-shrink: 0; width: 18px; height: 18px; }
 .link-btn.inline-link { display: inline; padding: 0; margin: 0; width: auto; }
+
+/* Saisons */
+.season-years { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-bottom: 0.8rem; }
+.season-years button { font: 700 0.9rem var(--font-body); padding: 0.35rem 0.85rem; border-radius: 999px; border: 1px solid var(--border); background: var(--surface); color: var(--text); cursor: pointer; }
+.season-years button[aria-pressed="true"] { background: var(--text); color: var(--bg); border-color: var(--text); }
+.season-hero { --sig: var(--accent); background: var(--sig, var(--accent)); color: var(--sig-ink, #fff); border: 0; display: flex; flex-direction: column; gap: 0.2rem; position: relative; overflow: hidden; }
+.season-hero::after { content: ""; position: absolute; right: -40px; top: -40px; width: 180px; height: 180px; border-radius: 50%; border: 18px solid rgba(255,255,255,0.12); pointer-events: none; }
+.season-eyebrow { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; opacity: 0.85; }
+.season-year { font-family: var(--font-display); font-style: italic; font-weight: 800; font-size: 4.6rem; line-height: 0.9; }
+.season-who { font-weight: 700; font-size: 1.05rem; opacity: 0.95; }
+.season-stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.5rem; margin-top: 0.8rem; }
+.season-stats > div { background: rgba(255,255,255,0.16); border-radius: 12px; padding: 0.55rem 0.7rem; display: flex; flex-direction: column; }
+.season-stats b { font-family: var(--font-display); font-style: italic; font-weight: 800; font-size: 2rem; line-height: 1; }
+.season-stats span { font-size: 0.78rem; opacity: 0.9; }
+.season-share { margin-top: 0.9rem; align-self: flex-start; font: 700 0.9rem var(--font-body); padding: 0.55rem 1rem; border-radius: 999px; border: 0; background: var(--sig-ink, #fff); color: var(--sig, var(--accent)); cursor: pointer; }
+.season-circuits { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.7rem; }
+.season-circuit { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 0.2rem; min-width: 0; }
+.season-circuit .outing-thumb { width: 60px; height: 60px; }
+.season-circuit strong { font-size: 0.88rem; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.season-tiles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.7rem; }
+.season-tile { display: flex; flex-direction: column; gap: 0.2rem; padding: 0 0 0.7rem; border: 1px solid var(--border); border-radius: 14px; background: var(--surface); color: var(--text); text-align: left; font: inherit; cursor: pointer; overflow: hidden; min-width: 0; }
+.season-tile > strong, .season-tile > span:not(.season-tile-map) { padding: 0 0.7rem; }
+.season-tile > strong { font-size: 0.95rem; margin-top: 0.35rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.season-tile-map { position: relative; height: 104px; display: grid; place-items: center; background: #fff; border-bottom: 3px solid var(--sig, var(--accent)); }
+.season-tile-map img { max-width: 78%; max-height: 82px; object-fit: contain; }
+.season-date { position: absolute; left: 0.45rem; top: 0.45rem; width: 38px; border-radius: 8px; background: var(--sig, var(--accent)); color: var(--sig-ink, #fff); text-align: center; line-height: 1.05; padding: 0.15rem 0; }
+.season-date b { display: block; font-family: var(--font-display); font-style: italic; font-weight: 800; font-size: 1.1rem; }
+.season-date small { font-size: 0.55rem; text-transform: uppercase; letter-spacing: 0.05em; }
+.season-tile-chip { position: absolute; right: 0.45rem; top: 0.45rem; margin: 0; }
+.season-tile-chip.first { font-size: 0.66rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text); background: var(--surface-alt); border-radius: 999px; padding: 0.08rem 0.45rem; }
+.season-tile-time { font-family: var(--font-display); font-style: italic; font-weight: 800; font-size: 1.35rem; line-height: 1.1; font-variant-numeric: tabular-nums; }
