@@ -14823,16 +14823,24 @@
         ctx.fillStyle = color; ctx.font = 'italic 800 110px ' + CONDENSED; ctx.fillText(String(st[0]), x + 36, y + 115);
         ctx.fillStyle = C.muted; ctx.font = '700 38px "Barlow", sans-serif'; ctx.fillText(st[1], x + 38, y + 165);
       });
-      var gy = 1120, cols = 3, gw = (W - 160 - 2 * 24) / 3, gh = 230;
+      // Fewer circuits, bigger tiles; a short last row is centred.
+      var n = circuits.length, cols = n <= 2 ? Math.max(1, n) : 3, gy = 1120;
+      var gw = (W - 160 - (cols - 1) * 24) / cols, gh = n <= 2 ? 400 : 240;
       circuits.forEach(function (c, i) {
-        var x = 80 + (i % cols) * (gw + 24), y = gy + Math.floor(i / cols) * (gh + 24);
+        var row = Math.floor(i / cols), inRow = Math.min(cols, n - row * cols);
+        var x = 80 + ((W - 160) - (inRow * gw + (inRow - 1) * 24)) / 2 + (i % cols) * (gw + 24), y = gy + row * (gh + 24);
         ctx.fillStyle = C.card; roundRect(ctx, x, y, gw, gh, 24); ctx.fill();
         var img = res[2 + i];
         if (img && img.width) {
           var bw = gw - 60, bh = gh - 90, k = Math.min(bw / img.width, bh / img.height), tw = img.width * k, th = img.height * k;
-          // Small outline: keep the anti-aliased grey of thin lines.
-          var styled = styledTrack(img, Math.round(tw), Math.round(th), C, { threshold: 248, radii: [2, 3], shadow: 4 });
-          if (styled) ctx.drawImage(styled, x + (gw - tw) / 2 - 24, y + 18 - 24 + (bh - th) / 2);
+          // Styled at the size the Entre potes story uses (about 860 px
+          // wide), then scaled down: the same clean ribbon, just smaller.
+          var Z = Math.max(1, 860 / tw), styled = styledTrack(img, Math.round(tw * Z), Math.round(th * Z), C);
+          if (styled) {
+            ctx.save(); ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
+            ctx.drawImage(styled, x + (gw - tw) / 2 - 24 / Z, y + 18 - 24 / Z + (bh - th) / 2, styled.width / Z, styled.height / Z);
+            ctx.restore();
+          }
           else ctx.drawImage(img, x + (gw - tw) / 2, y + 18 + (bh - th) / 2, tw, th);
         }
         ctx.fillStyle = C.ink; fitText(ctx, c, gw - 30, 34, '800'); ctx.textAlign = 'center';
