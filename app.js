@@ -65,7 +65,7 @@
       goal_placeholder: 'Ex. Travailler le point de corde en 3, être plus fluide au freinage...',
       distance_label: 'Distance', turns_label: 'Virages (D / G)', last_event_label: 'Dernier roulage',
       circuit_record_label: 'Record validé (tous pilotes)', next_event_label: 'Prochain roulage',
-      not_planned_plan_it: 'Non planifiée — planifier', edit_info: 'Modifier les infos',
+      not_planned_plan_it: 'Aucun – en ajouter un', edit_info: 'Modifier les infos',
       ci_distance_km: 'Distance (km)', ci_turns_right: 'Virages à droite', ci_turns_left: 'Virages à gauche',
       ci_organizer: 'Organisateur', ci_briefing: 'Briefing', ci_usual_horaires: 'Horaires habituels par groupe',
       ci_live_timing_url: 'Lien chronos en direct', live_timing_link_label: 'Chronos en direct',
@@ -2762,6 +2762,49 @@
   // planned sorties, so a brand-new circuit with a sortie but no chrono yet
   // (e.g. picked from the Calendrier) is still a valid Circuit/Chronos tab
   // context instead of being silently rejected by normalizeSelection().
+  // Reference list of motorcycle circuits (France first, then Europe):
+  // offered everywhere a circuit is picked, even before anyone rode there.
+  // km = usual length; a circuit's own fiche (STATE.circuits) always wins.
+  var BUILTIN_CIRCUITS = [
+    ['Albi', 'FR', 3.565], ['Alès', 'FR', 2.5], ['Bresse', 'FR', 3.1], ['Carole', 'FR', 2.055], ['Charade', 'FR', 3.975],
+    ['Croix-en-Ternois', 'FR', 1.9], ['Dijon-Prenois', 'FR', 3.801], ['Haute Saintonge', 'FR', null], ['Lédenon', 'FR', 3.15],
+    ['Le Mans', 'FR', 4.185], ['Le Vigeant', 'FR', 3.768], ['Magny Cours', 'FR', 4.411], ['Nogaro', 'FR', 3.636],
+    ['Pau-Arnos', 'FR', 3.03], ['Paul Ricard', 'FR', 5.8],
+    ['Barcelone', 'ES', 4.657], ['Jerez', 'ES', 4.428], ['Valence', 'ES', 4.005], ['Aragón', 'ES', 5.077], ['Navarra', 'ES', 3.933],
+    ['Jarama', 'ES', 3.85], ['Almería', 'ES', null], ['Cartagena', 'ES', null], ['Calafat', 'ES', null], ['Alcarràs', 'ES', null],
+    ['Portimão', 'PT', 4.592], ['Estoril', 'PT', 4.182],
+    ['Mugello', 'IT', 5.245], ['Misano', 'IT', 4.226], ['Imola', 'IT', 4.909], ['Vallelunga', 'IT', 4.085], ['Cremona', 'IT', null], ['Varano', 'IT', null],
+    ['Spa-Francorchamps', 'BE', 7.004], ['Zolder', 'BE', 4.011], ['Mettet', 'BE', null],
+    ['Assen', 'NL', 4.542], ['Sachsenring', 'DE', 3.671], ['Hockenheim', 'DE', 4.574], ['Nürburgring', 'DE', 5.148],
+    ['Red Bull Ring', 'AT', 4.318], ['Brno', 'CZ', 5.403], ['Most', 'CZ', 4.212], ['Slovakia Ring', 'SK', 5.922], ['Pannonia-Ring', 'HU', null],
+    ['Silverstone', 'GB', 5.891], ['Donington', 'GB', 4.023], ['Brands Hatch', 'GB', 3.916]
+  ];
+  function builtinCircuit(name) {
+    for (var i = 0; i < BUILTIN_CIRCUITS.length; i++) {
+      var b = BUILTIN_CIRCUITS[i];
+      if (circuitKey(b[0]) === circuitKey(name)) return { country: b[1], km: b[2] };
+    }
+    return null;
+  }
+  // <option>s for a circuit picker: mine first, then the others by country.
+  function circuitOptionsHtml(circuits, selected) {
+    var me = currentUserProfile && currentUserProfile.name, mine = {};
+    (STATE.sessions || []).forEach(function (x) { if (x.rider === me) mine[x.circuit] = 1; });
+    eventsList().forEach(function (e) { if ((e.riders || []).indexOf(me) !== -1) mine[e.circuit] = 1; });
+    var opt = function (c) { return '<option value="' + escapeHtml(c) + '"' + (c === selected ? ' selected' : '') + '>' + escapeHtml(c) + '</option>'; };
+    var groups = {}, order = [];
+    var my = circuits.filter(function (c) { return mine[c]; });
+    circuits.forEach(function (c) {
+      if (mine[c]) return;
+      var b = builtinCircuit(c) || {}, g = b.country ? countryName(b.country) : L('Autres', 'Others');
+      if (!groups[g]) { groups[g] = []; order.push(g); }
+      groups[g].push(c);
+    });
+    var fr = countryName('FR');
+    order.sort(function (a, b) { return a === fr ? -1 : b === fr ? 1 : a === L('Autres', 'Others') ? 1 : b === L('Autres', 'Others') ? -1 : a.localeCompare(b); });
+    return (my.length ? '<optgroup label="' + escapeHtml(L('Mes circuits', 'My circuits')) + '">' + my.map(opt).join('') + '</optgroup>' : '') +
+      order.map(function (g) { return '<optgroup label="' + escapeHtml(g) + '">' + groups[g].map(opt).join('') + '</optgroup>'; }).join('');
+  }
   function allCircuits() {
     var seen = {};
     var out = [];
@@ -2777,6 +2820,10 @@
     Object.keys(STATE.circuits || {}).forEach(function (c) {
       var name = (STATE.circuits[c] && STATE.circuits[c].name) || c;
       if (name && !seen[name]) { seen[name] = true; out.push(name); }
+    });
+    // Reference circuits not already known under another spelling.
+    BUILTIN_CIRCUITS.forEach(function (b) {
+      if (!out.some(function (n) { return circuitKey(n) === circuitKey(b[0]); })) out.push(b[0]);
     });
     out.sort(function (a, b) { return a.localeCompare(b); });
     return out;
@@ -5981,7 +6028,7 @@
       '<input type="text" id="f-date" inputmode="numeric" placeholder="JJ/MM/AAAA" value="' + isoToFrDate(todayStr) + '" required></div>';
     var formCircuits = allCircuits();
     html += '<div><label for="f-circuit">' + tr('circuit_label') + '</label><select id="f-circuit" required>' +
-      formCircuits.map(function (c) { return '<option value="' + escapeHtml(c) + '"' + (c === selectedCircuit ? ' selected' : '') + '>' + escapeHtml(c) + '</option>'; }).join('') +
+      circuitOptionsHtml(formCircuits, selectedCircuit) +
       '<option value="__other__"' + (!formCircuits.length ? ' selected' : '') + '>Autre circuit…</option>' +
       '</select>' +
       '<input type="text" id="f-circuit-other" placeholder="Nom du circuit" style="margin-top:0.4rem;' + (formCircuits.length ? ' display:none;' : '') + '"></div>';
@@ -6722,7 +6769,12 @@
 
   function circuitInfo(name) {
     STATE.circuits = STATE.circuits || {};
-    return STATE.circuits[name] || {};
+    var stored = STATE.circuits[name], b = builtinCircuit(name);
+    if (!b) return stored || {};
+    var info = Object.assign({}, stored || {});
+    if (info.km == null && b.km != null) info.km = b.km;
+    if (!info.country) info.country = b.country;
+    return info;
   }
 
   // The horaires actually in effect for a given sortie: its own override
@@ -6816,9 +6868,7 @@
     }
     var html = renderPills('circuit', [['plan', 'Plan & repères'], ['chronos', 'Chronos'], ['podium', L('Podium', 'Podium')], ['infos', 'Infos']]);
     html += '<div class="circuit-picker"><select id="f-filter-circuit" aria-label="' + tr('circuit_label') + '">';
-    circuits.forEach(function (c) {
-      html += '<option value="' + escapeHtml(c) + '"' + (c === selectedCircuit ? ' selected' : '') + '>' + escapeHtml(c) + '</option>';
-    });
+    html += circuitOptionsHtml(circuits, selectedCircuit);
     html += '</select></div>';
     var cp = pillState.circuit;
     if (cp === 'plan') {
@@ -6934,7 +6984,8 @@
       html += infoRow('Mon record', myBestS ? '<strong>' + formatTime(sessionBest(myBestS)) + '</strong> (' + escapeHtml(formatDate(myBestS.date)) + ')' : 'Pas encore de chrono');
       html += infoRow('Mes roulages ici', String(Object.keys(myDays).length));
     }
-    html += infoRow(tr('distance_label'), info.km != null ? (escapeHtml(String(info.km)) + ' km') : '—');
+    html += infoRow(tr('distance_label'), info.km != null ? (escapeHtml(numFr(info.km)) + ' km') : '—');
+    if (info.country) html += infoRow(L('Pays', 'Country'), countryBallHtml(info.country, 'inline') + ' ' + escapeHtml(countryName(info.country)));
     html += infoRow(tr('turns_label'), turnsHtml);
     var lastOutingText = lastSession ? (escapeHtml(formatDate(lastSession.date)) + ' — ' + formatTime(sessionBest(lastSession))) : '—';
     // Used to jump to this session's own event (Événements) -- now jumps to
@@ -8417,7 +8468,7 @@
     var circuits = allCircuits();
     return '<div class="quick-outing" data-quick-prefix="' + prefix + '">' +
       '<div class="field-row"><div><label for="' + prefix + '-circuit">Circuit</label><select id="' + prefix + '-circuit">' +
-      '<option value="">Choisir…</option>' + circuits.map(function (c) { return '<option value="' + escapeHtml(c) + '">' + escapeHtml(c) + '</option>'; }).join('') +
+      '<option value="">Choisir…</option>' + circuitOptionsHtml(circuits, null) +
       '<option value="__other__">Autre circuit…</option></select>' +
       '<input type="text" id="' + prefix + '-circuit-other" placeholder="Nom du circuit" style="display:none; margin-top:0.4rem;"></div>' +
       '<div><label for="' + prefix + '-date">Date</label><input type="date" id="' + prefix + '-date" min="' + dateKey(new Date()) + '"></div></div>' +
@@ -14115,7 +14166,7 @@
     ['NL', 'Pays-Bas', 'Netherlands'], ['GB', 'Royaume-Uni', 'United Kingdom'], ['IE', 'Irlande', 'Ireland'], ['AT', 'Autriche', 'Austria'],
     ['DK', 'Danemark', 'Denmark'], ['SE', 'Suède', 'Sweden'], ['NO', 'Norvège', 'Norway'], ['FI', 'Finlande', 'Finland'],
     ['PL', 'Pologne', 'Poland'], ['CZ', 'Tchéquie', 'Czechia'], ['HU', 'Hongrie', 'Hungary'], ['RO', 'Roumanie', 'Romania'],
-    ['GR', 'Grèce', 'Greece'], ['HR', 'Croatie', 'Croatia'], ['SI', 'Slovénie', 'Slovenia'], ['MC', 'Monaco', 'Monaco'],
+    ['GR', 'Grèce', 'Greece'], ['HR', 'Croatie', 'Croatia'], ['SI', 'Slovénie', 'Slovenia'], ['SK', 'Slovaquie', 'Slovakia'], ['MC', 'Monaco', 'Monaco'],
     ['AD', 'Andorre', 'Andorra'], ['MA', 'Maroc', 'Morocco'], ['DZ', 'Algérie', 'Algeria'], ['TN', 'Tunisie', 'Tunisia'],
     ['US', 'États-Unis', 'United States'], ['CA', 'Canada', 'Canada'], ['BR', 'Brésil', 'Brazil'], ['AR', 'Argentine', 'Argentina'],
     ['AU', 'Australie', 'Australia'], ['NZ', 'Nouvelle-Zélande', 'New Zealand'], ['JP', 'Japon', 'Japan'], ['ZA', 'Afrique du Sud', 'South Africa']
@@ -14143,6 +14194,7 @@
     return 'radial-gradient(circle, ' + color + ' 0 ' + size + '%, transparent ' + (size + 1) + '%), ' + base;
   }
   var COUNTRY_BALLS = {
+    SK: stripes('h', ['#ffffff', '#0B4EA2', '#EE1C25']),
     FR: stripes('v', ['#0055A4', '#ffffff', '#EF4135']), BE: stripes('v', ['#1a1a1a', '#FDDA24', '#EF3340']), IT: stripes('v', ['#009246', '#ffffff', '#CE2B37']),
     IE: stripes('v', ['#169B62', '#ffffff', '#FF883E']), RO: stripes('v', ['#002B7F', '#FCD116', '#CE1126']), AD: stripes('v', ['#10069F', '#FEDF00', '#D50032']),
     DE: stripes('h', ['#1a1a1a', '#DD0000', '#FFCE00']), NL: stripes('h', ['#AE1C28', '#ffffff', '#21468B']), LU: stripes('h', ['#EF3340', '#ffffff', '#00A3E0']),
