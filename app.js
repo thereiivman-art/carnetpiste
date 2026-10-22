@@ -8958,7 +8958,13 @@
     'albi': 'circuit-outlines/Albi.png',
     'croix-en-ternois': 'circuit-outlines/Croix-en-Ternois.png',
     'dijon-prenois': 'circuit-outlines/Dijon-Prenois.png',
-    'valence': 'circuit-outlines/Valence.png'
+    'valence': 'circuit-outlines/Valence.png',
+    'calafat': 'circuit-outlines/Calafat.png',
+    'imola': 'circuit-outlines/Imola.png',
+    'jarama': 'circuit-outlines/Jarama.png',
+    'vallelunga': 'circuit-outlines/Vallelunga.png',
+    'varano': 'circuit-outlines/Varano.png',
+    'zolder': 'circuit-outlines/Zolder.png'
   };
   // Source maps of the traced outlines: circuit, Commons file, author, licence.
   // CC BY-SA maps: our outlines derived from them are shared under the same licence.
@@ -8968,7 +8974,13 @@
     ['Albi', 'Circuit Albi.svg', 'Gustavo Girardelli', 'CC BY-SA 4.0'],
     ['Croix-en-Ternois', 'Circuit de Croix-en-Ternois track map.svg', 'Will Pittenger', 'CC BY-SA 3.0'],
     ['Dijon-Prenois', 'Dijon-Prenois.svg', 'Will Pittenger', 'domaine public'],
-    ['Valence', 'Valencia (Ricardo Tormo) track map.svg', 'Will Pittenger', 'CC BY-SA 3.0']
+    ['Valence', 'Valencia (Ricardo Tormo) track map.svg', 'Will Pittenger', 'CC BY-SA 3.0'],
+    ['Calafat', 'Circuit de Calafat.svg', 'auteur indiqué sur la page du fichier', 'CC BY-SA 2.5'],
+    ['Imola', 'Imola.svg', 'Will Pittenger', 'CC BY 3.0'],
+    ['Jarama', 'Circuito Permanente del Jarama.svg', 'Will Pittenger', 'domaine public'],
+    ['Vallelunga', 'Autodromo Vallelunga.svg', 'Gustavo Girardelli', 'CC BY-SA 4.0'],
+    ['Varano', 'Autodromo Riccardo Paletti.svg', 'Arz, Pbroks13', 'domaine public'],
+    ['Zolder', 'Zolder.svg', 'Will Pittenger', 'CC BY-SA 3.0']
   ];
   function outlineImageFor(info, circuitName) {
     if (info.outlineImage) return info.outlineImage;
