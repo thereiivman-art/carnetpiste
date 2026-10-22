@@ -5557,6 +5557,10 @@
         '<li>Les horaires, groupes et infos pratiques sont reportés par les utilisateurs : vérifie-les toujours auprès de l\'organisateur. La pratique de la moto sur circuit se fait sous ta responsabilité et selon les règles du circuit.</li>' +
         '<li>Le service est fourni tel quel, sans garantie de disponibilité.</li></ul>') +
       legalSection('Propriété intellectuelle', '<p>L\'appli, son nom et son design appartiennent à l\'éditeur. Tu gardes tes droits sur ce que tu publies et tu autorises son affichage aux personnes concernées dans l\'appli.</p>') +
+      legalSection('Tracés des circuits', '<p>Certains tracés sont redessinés d\'après des plans de Wikimedia Commons. Ces tracés sont partagés sous la même licence que le plan d\'origine.</p><ul>' +
+        TRACK_CREDITS.map(function (c) {
+          return '<li>' + escapeHtml(c[0]) + ' : d\'après « ' + escapeHtml(c[1]) + ' », ' + escapeHtml(c[2]) + ', ' + escapeHtml(c[3]) + ' (commons.wikimedia.org)</li>';
+        }).join('') + '</ul>') +
       '</div>';
   }
   // Full-screen reader, usable before signing in (signup form).
@@ -8947,8 +8951,25 @@
     'magny cours': 'circuit-outlines/Magny%20Cours.png',
     'misano': 'circuit-outlines/Misano.png',
     'mugello': 'circuit-outlines/Mugello.png',
-    'navarra': 'circuit-outlines/Navarra.png'
+    'navarra': 'circuit-outlines/Navarra.png',
+    // Outlines traced from Wikimedia Commons maps (see TRACK_CREDITS).
+    'lédenon': 'circuit-outlines/Ledenon.png',
+    'paul ricard': 'circuit-outlines/Paul%20Ricard.png',
+    'albi': 'circuit-outlines/Albi.png',
+    'croix-en-ternois': 'circuit-outlines/Croix-en-Ternois.png',
+    'dijon-prenois': 'circuit-outlines/Dijon-Prenois.png',
+    'valence': 'circuit-outlines/Valence.png'
   };
+  // Source maps of the traced outlines: circuit, Commons file, author, licence.
+  // CC BY-SA maps: our outlines derived from them are shared under the same licence.
+  var TRACK_CREDITS = [
+    ['Lédenon', 'Circuit Ledenon.svg', 'Baptiste Vialatte', 'CC BY-SA 3.0'],
+    ['Paul Ricard', 'Circuit Paul Ricard 2020 layout map.svg', 'Antonsusi', 'CC BY-SA 4.0'],
+    ['Albi', 'Circuit Albi.svg', 'Gustavo Girardelli', 'CC BY-SA 4.0'],
+    ['Croix-en-Ternois', 'Circuit de Croix-en-Ternois track map.svg', 'Will Pittenger', 'CC BY-SA 3.0'],
+    ['Dijon-Prenois', 'Dijon-Prenois.svg', 'Will Pittenger', 'domaine public'],
+    ['Valence', 'Valencia (Ricardo Tormo) track map.svg', 'Will Pittenger', 'CC BY-SA 3.0']
+  ];
   function outlineImageFor(info, circuitName) {
     if (info.outlineImage) return info.outlineImage;
     var exact = DEFAULT_TRACK_OUTLINES[(circuitName || '').trim().toLowerCase()];
