@@ -8950,7 +8950,13 @@
     'navarra': 'circuit-outlines/Navarra.png'
   };
   function outlineImageFor(info, circuitName) {
-    return info.outlineImage || DEFAULT_TRACK_OUTLINES[(circuitName || '').trim().toLowerCase()] || null;
+    if (info.outlineImage) return info.outlineImage;
+    var exact = DEFAULT_TRACK_OUTLINES[(circuitName || '').trim().toLowerCase()];
+    if (exact) return exact;
+    // Same circuit under another spelling (« Magny-Cours », « Lédenon »…).
+    var key = circuitKey(circuitName);
+    var k = Object.keys(DEFAULT_TRACK_OUTLINES).filter(function (n) { return circuitKey(n) === key; })[0];
+    return k ? DEFAULT_TRACK_OUTLINES[k] : null;
   }
 
   // Read-only view of another account's own circuit-level/outline plan
