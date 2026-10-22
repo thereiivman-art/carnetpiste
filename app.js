@@ -8964,7 +8964,14 @@
     'jarama': 'circuit-outlines/Jarama.png',
     'vallelunga': 'circuit-outlines/Vallelunga.png',
     'varano': 'circuit-outlines/Varano.png',
-    'zolder': 'circuit-outlines/Zolder.png'
+    'zolder': 'circuit-outlines/Zolder.png',
+    'mettet': 'circuit-outlines/Mettet.png',
+    'sachsenring': 'circuit-outlines/Sachsenring.png',
+    'hockenheim': 'circuit-outlines/Hockenheim.png',
+    'nürburgring': 'circuit-outlines/Nurburgring.png',
+    'red bull ring': 'circuit-outlines/Red%20Bull%20Ring.png',
+    'slovakia ring': 'circuit-outlines/Slovakia%20Ring.png',
+    'brands hatch': 'circuit-outlines/Brands%20Hatch.png'
   };
   // Source maps of the traced outlines: circuit, Commons file, author, licence.
   // CC BY-SA maps: our outlines derived from them are shared under the same licence.
@@ -8980,7 +8987,14 @@
     ['Jarama', 'Circuito Permanente del Jarama.svg', 'Will Pittenger', 'domaine public'],
     ['Vallelunga', 'Autodromo Vallelunga.svg', 'Gustavo Girardelli', 'CC BY-SA 4.0'],
     ['Varano', 'Autodromo Riccardo Paletti.svg', 'Arz, Pbroks13', 'domaine public'],
-    ['Zolder', 'Zolder.svg', 'Will Pittenger', 'CC BY-SA 3.0']
+    ['Zolder', 'Zolder.svg', 'Will Pittenger', 'CC BY-SA 3.0'],
+    ['Mettet', 'Circuit Jules Tacheny.svg', 'Pitlane02', 'CC BY-SA 3.0'],
+    ['Sachsenring', 'Sachsenring.svg', 'Will Pittenger, contributeurs OpenStreetMap', 'CC BY-SA 2.0'],
+    ['Hockenheim', 'Hockenheim2012.svg', 'Sentoan', 'CC BY-SA 3.0'],
+    ['Nürburgring', 'Nürburgring - Grand-Prix-Strecke.svg', 'Will Pittenger', 'domaine public'],
+    ['Red Bull Ring', 'Circuit Red Bull Ring.svg', 'Pitlane02', 'CC BY-SA 3.0'],
+    ['Slovakia Ring', 'Slovakiaring.svg', 'TPPMFR', 'domaine public'],
+    ['Brands Hatch', 'Brands Hatch.svg', 'Will Pittenger', 'domaine public']
   ];
   function outlineImageFor(info, circuitName) {
     if (info.outlineImage) return info.outlineImage;
