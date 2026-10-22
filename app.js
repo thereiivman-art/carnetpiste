@@ -8971,7 +8971,15 @@
     'nürburgring': 'circuit-outlines/Nurburgring.png',
     'red bull ring': 'circuit-outlines/Red%20Bull%20Ring.png',
     'slovakia ring': 'circuit-outlines/Slovakia%20Ring.png',
-    'brands hatch': 'circuit-outlines/Brands%20Hatch.png'
+    'brands hatch': 'circuit-outlines/Brands%20Hatch.png',
+    'alcarràs': 'circuit-outlines/Alcarras.png',
+    'almería': 'circuit-outlines/Almeria.png',
+    'aragón': 'circuit-outlines/Aragon.png',
+    'cartagena': 'circuit-outlines/Cartagena.png',
+    'cremona': 'circuit-outlines/Cremona.png',
+    'estoril': 'circuit-outlines/Estoril.png',
+    'silverstone': 'circuit-outlines/Silverstone.png',
+    'spa-francorchamps': 'circuit-outlines/Spa-Francorchamps.png'
   };
   // Source maps of the traced outlines: circuit, Commons file, author, licence.
   // CC BY-SA maps: our outlines derived from them are shared under the same licence.
@@ -8994,7 +9002,15 @@
     ['Nürburgring', 'Nürburgring - Grand-Prix-Strecke.svg', 'Will Pittenger', 'domaine public'],
     ['Red Bull Ring', 'Circuit Red Bull Ring.svg', 'Pitlane02', 'CC BY-SA 3.0'],
     ['Slovakia Ring', 'Slovakiaring.svg', 'TPPMFR', 'domaine public'],
-    ['Brands Hatch', 'Brands Hatch.svg', 'Will Pittenger', 'domaine public']
+    ['Brands Hatch', 'Brands Hatch.svg', 'Will Pittenger', 'domaine public'],
+    ['Alcarràs', 'Circuit de alcarrás.svg', 'Sentoan', 'CC BY 3.0'],
+    ['Almería', 'Circuito de Almeria1.svg', 'Jorjum', 'CC BY-SA 3.0'],
+    ['Aragón', "Circuito d'Alcañiz-Motorland Aragón.svg", 'auteur indiqué sur la page du fichier', 'CC BY-SA 3.0'],
+    ['Cartagena', 'Circuito de Cartagena.svg', 'Sentoan', 'CC BY 3.0'],
+    ['Cremona', 'Cremona Circuit Angelo Bergamonti, San Martino Del Lago, Italy.svg', 'Vale93b', 'CC BY-SA 3.0'],
+    ['Estoril', 'Estoril track map.svg', 'Will Pittenger', 'CC BY-SA 3.0'],
+    ['Silverstone', 'Silverstone Circuit moto intl pits v2.svg', 'Astradaen, Gpmat', 'CC BY-SA 3.0'],
+    ['Spa-Francorchamps', 'GrandPrix Circuit Belgium 2006.svg', 'Miljoshi', 'CC BY 2.5']
   ];
   function outlineImageFor(info, circuitName) {
     if (info.outlineImage) return info.outlineImage;
