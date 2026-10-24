@@ -2777,7 +2777,9 @@
     ['Spa-Francorchamps', 'BE', 7.004], ['Zolder', 'BE', 4.011], ['Mettet', 'BE', null],
     ['Assen', 'NL', 4.542], ['Sachsenring', 'DE', 3.671], ['Hockenheim', 'DE', 4.574], ['Nürburgring', 'DE', 5.148],
     ['Red Bull Ring', 'AT', 4.318], ['Brno', 'CZ', 5.403], ['Most', 'CZ', 4.212], ['Slovakia Ring', 'SK', 5.922], ['Pannonia-Ring', 'HU', null],
-    ['Silverstone', 'GB', 5.891], ['Donington', 'GB', 4.023], ['Brands Hatch', 'GB', 3.916]
+    ['Silverstone', 'GB', 5.891], ['Donington', 'GB', 4.023], ['Brands Hatch', 'GB', 3.916],
+    ['Losail', 'QA', 5.38], ['COTA', 'US', 5.513], ['Termas de Río Hondo', 'AR', 4.806], ['Buriram', 'TH', 4.554],
+    ['Mandalika', 'ID', 4.31], ['Motegi', 'JP', 4.801], ['Phillip Island', 'AU', 4.448]
   ];
   function builtinCircuit(name) {
     for (var i = 0; i < BUILTIN_CIRCUITS.length; i++) {
@@ -7645,31 +7647,36 @@
     return html + '</div>';
   }
   // Tracé (trait sombre sur fond clair) redessiné aux couleurs de la
-  // charte : piste épaisse couleur encre, filet rouge au centre.
+  // charte : trait couleur encre, ligne de départ rouge.
   function styledTrack(img, w, h, C, opts) {
     opts = opts || {};
-    var radii = opts.radii || [3, 6, 8], shadow = opts.shadow == null ? 7 : opts.shadow;
+    var radii = opts.radii || [3, 6, 8];
     try {
       var pad = opts.keepSize ? 0 : (opts.pad || 24), src = document.createElement('canvas');
       src.width = w; src.height = h;
       var sctx = src.getContext('2d');
       sctx.drawImage(img, 0, 0, w, h);
       var d = sctx.getImageData(0, 0, w, h), px = d.data;
+      // La ligne de départ rouge des tracés reste rouge.
+      var startLine = document.createElement('canvas'); startLine.width = w; startLine.height = h;
+      var rctx = startLine.getContext('2d'), rd = rctx.createImageData(w, h), hasStart = false;
       for (var i = 0; i < px.length; i += 4) {
         var lum = (px[i] * 0.3 + px[i + 1] * 0.59 + px[i + 2] * 0.11) * px[i + 3] / 255 + 255 * (1 - px[i + 3] / 255);
         var a = lum < (opts.threshold || 200) ? 255 : 0;
+        if (a && px[i + 3] > 128 && px[i] > 140 && px[i] - px[i + 1] > 70 && px[i] - px[i + 2] > 70) { rd.data[i + 3] = 255; hasStart = true; }
         px[i] = px[i + 1] = px[i + 2] = 0; px[i + 3] = a;
       }
       sctx.putImageData(d, 0, 0);
-      var tint = function (color) {
+      if (hasStart) rctx.putImageData(rd, 0, 0);
+      var tint = function (color, mask) {
         var c = document.createElement('canvas'); c.width = w; c.height = h;
-        var cc = c.getContext('2d'); cc.drawImage(src, 0, 0);
+        var cc = c.getContext('2d'); cc.drawImage(mask || src, 0, 0);
         cc.globalCompositeOperation = 'source-in'; cc.fillStyle = color; cc.fillRect(0, 0, w, h);
         return c;
       };
       // Les deux bords du tracé fusionnent en un ruban plein.
-      var ribbon = function (color, dx, dy, o) {
-        var t = tint(color);
+      var ribbon = function (color, dx, dy, o, mask) {
+        var t = tint(color, mask);
         radii.forEach(function (rr) {
           for (var a = 0; a < 360; a += 15) {
             var rad = a * Math.PI / 180;
@@ -7679,8 +7686,8 @@
       };
       var out = document.createElement('canvas'); out.width = w + pad * 2; out.height = h + pad * 2;
       var o = out.getContext('2d');
-      if (!opts.noShadow) ribbon(C.red, shadow, shadow, o);
       ribbon(opts.color || C.ink, 0, 0, o);
+      if (hasStart) ribbon(C.red, 0, 0, o, startLine);
       return out;
     } catch (e) { return null; }
   }
@@ -8972,6 +8979,24 @@
     'red bull ring': 'circuit-outlines/Red%20Bull%20Ring.png',
     'slovakia ring': 'circuit-outlines/Slovakia%20Ring.png',
     'brands hatch': 'circuit-outlines/Brands%20Hatch.png',
+    'assen': 'circuit-outlines/Assen.png',
+    'brno': 'circuit-outlines/Brno.png',
+    'portimão': 'circuit-outlines/Portimao.png',
+    'losail': 'circuit-outlines/Losail.png',
+    'qatar': 'circuit-outlines/Losail.png',
+    'cota': 'circuit-outlines/COTA.png',
+    'austin': 'circuit-outlines/COTA.png',
+    'circuit of the americas': 'circuit-outlines/COTA.png',
+    'termas de río hondo': 'circuit-outlines/Termas%20de%20Rio%20Hondo.png',
+    'rio hondo': 'circuit-outlines/Termas%20de%20Rio%20Hondo.png',
+    'argentine': 'circuit-outlines/Termas%20de%20Rio%20Hondo.png',
+    'buriram': 'circuit-outlines/Buriram.png',
+    'chang': 'circuit-outlines/Buriram.png',
+    'mandalika': 'circuit-outlines/Mandalika.png',
+    'motegi': 'circuit-outlines/Motegi.png',
+    'phillip island': 'circuit-outlines/Phillip%20Island.png',
+    'valencia': 'circuit-outlines/Valence.png',
+    'ricardo tormo': 'circuit-outlines/Valence.png',
     'alcarràs': 'circuit-outlines/Alcarras.png',
     'almería': 'circuit-outlines/Almeria.png',
     'aragón': 'circuit-outlines/Aragon.png',
@@ -8985,11 +9010,13 @@
   // CC BY-SA maps: our outlines derived from them are shared under the same licence.
   var TRACK_CREDITS = [
     ['Lédenon', 'Circuit Ledenon.svg', 'Baptiste Vialatte', 'CC BY-SA 3.0'],
-    ['Paul Ricard', 'Circuit Paul Ricard 2020 layout map.svg', 'Antonsusi', 'CC BY-SA 4.0'],
+    ['Paul Ricard', 'Paul Ricard.svg', 'Will Pittenger', 'domaine public'],
+    ['Navarra', 'Circuito de Navarra.svg', 'Sentoan', 'CC BY 3.0'],
+    ['Jerez', 'Jerez.svg', 'Will Pittenger', 'domaine public'],
+    ['Magny Cours', 'Circuit de Nevers Magny-Cours.svg', 'Will Pittenger', 'domaine public'],
     ['Albi', 'Circuit Albi.svg', 'Gustavo Girardelli', 'CC BY-SA 4.0'],
     ['Croix-en-Ternois', 'Circuit de Croix-en-Ternois track map.svg', 'Will Pittenger', 'CC BY-SA 3.0'],
     ['Dijon-Prenois', 'Dijon-Prenois.svg', 'Will Pittenger', 'domaine public'],
-    ['Valence', 'Valencia (Ricardo Tormo) track map.svg', 'Will Pittenger', 'CC BY-SA 3.0'],
     ['Calafat', 'Circuit de Calafat.svg', 'auteur indiqué sur la page du fichier', 'CC BY-SA 2.5'],
     ['Imola', 'Imola.svg', 'Will Pittenger', 'CC BY 3.0'],
     ['Jarama', 'Circuito Permanente del Jarama.svg', 'Will Pittenger', 'domaine public'],
@@ -8997,19 +9024,15 @@
     ['Varano', 'Autodromo Riccardo Paletti.svg', 'Arz, Pbroks13', 'domaine public'],
     ['Zolder', 'Zolder.svg', 'Will Pittenger', 'CC BY-SA 3.0'],
     ['Mettet', 'Circuit Jules Tacheny.svg', 'Pitlane02', 'CC BY-SA 3.0'],
-    ['Sachsenring', 'Sachsenring.svg', 'Will Pittenger, contributeurs OpenStreetMap', 'CC BY-SA 2.0'],
     ['Hockenheim', 'Hockenheim2012.svg', 'Sentoan', 'CC BY-SA 3.0'],
     ['Nürburgring', 'Nürburgring - Grand-Prix-Strecke.svg', 'Will Pittenger', 'domaine public'],
-    ['Red Bull Ring', 'Circuit Red Bull Ring.svg', 'Pitlane02', 'CC BY-SA 3.0'],
     ['Slovakia Ring', 'Slovakiaring.svg', 'TPPMFR', 'domaine public'],
     ['Brands Hatch', 'Brands Hatch.svg', 'Will Pittenger', 'domaine public'],
     ['Alcarràs', 'Circuit de alcarrás.svg', 'Sentoan', 'CC BY 3.0'],
     ['Almería', 'Circuito de Almeria1.svg', 'Jorjum', 'CC BY-SA 3.0'],
-    ['Aragón', "Circuito d'Alcañiz-Motorland Aragón.svg", 'auteur indiqué sur la page du fichier', 'CC BY-SA 3.0'],
     ['Cartagena', 'Circuito de Cartagena.svg', 'Sentoan', 'CC BY 3.0'],
     ['Cremona', 'Cremona Circuit Angelo Bergamonti, San Martino Del Lago, Italy.svg', 'Vale93b', 'CC BY-SA 3.0'],
     ['Estoril', 'Estoril track map.svg', 'Will Pittenger', 'CC BY-SA 3.0'],
-    ['Silverstone', 'Silverstone Circuit moto intl pits v2.svg', 'Astradaen, Gpmat', 'CC BY-SA 3.0'],
     ['Spa-Francorchamps', 'GrandPrix Circuit Belgium 2006.svg', 'Miljoshi', 'CC BY 2.5']
   ];
   function outlineImageFor(info, circuitName) {
@@ -14238,7 +14261,8 @@
     ['GR', 'Grèce', 'Greece'], ['HR', 'Croatie', 'Croatia'], ['SI', 'Slovénie', 'Slovenia'], ['SK', 'Slovaquie', 'Slovakia'], ['MC', 'Monaco', 'Monaco'],
     ['AD', 'Andorre', 'Andorra'], ['MA', 'Maroc', 'Morocco'], ['DZ', 'Algérie', 'Algeria'], ['TN', 'Tunisie', 'Tunisia'],
     ['US', 'États-Unis', 'United States'], ['CA', 'Canada', 'Canada'], ['BR', 'Brésil', 'Brazil'], ['AR', 'Argentine', 'Argentina'],
-    ['AU', 'Australie', 'Australia'], ['NZ', 'Nouvelle-Zélande', 'New Zealand'], ['JP', 'Japon', 'Japan'], ['ZA', 'Afrique du Sud', 'South Africa']
+    ['AU', 'Australie', 'Australia'], ['NZ', 'Nouvelle-Zélande', 'New Zealand'], ['JP', 'Japon', 'Japan'], ['ZA', 'Afrique du Sud', 'South Africa'],
+    ['QA', 'Qatar', 'Qatar'], ['TH', 'Thaïlande', 'Thailand'], ['ID', 'Indonésie', 'Indonesia']
   ];
   function countryName(code) {
     var c = COUNTRIES.filter(function (x) { return x[0] === code; })[0];
@@ -14280,7 +14304,9 @@
     BR: 'radial-gradient(circle, #002776 0 20%, transparent 21%), radial-gradient(ellipse 46% 30%, #FEDF00 0 98%, transparent 100%), #009C3B',
     AR: centreDot('#F6B40E', 12, stripes('h', ['#74ACDF', '#ffffff', '#74ACDF'])), AU: centreDot('#ffffff', 10, '#012169'), NZ: centreDot('#C8102E', 10, '#012169'),
     ZA: stripes('h', ['#E03C31', '#007749', '#001489']), MA: centreDot('#006233', 18, '#C1272D'), DZ: centreDot('#D21034', 14, stripes('v', ['#006233', '#ffffff'])),
-    TN: centreDot('#E70013', 14, centreDot('#ffffff', 30, '#E70013'))
+    TN: centreDot('#E70013', 14, centreDot('#ffffff', 30, '#E70013')),
+    QA: stripes('v', ['#ffffff', '#8A1538'], [1, 2]), TH: stripes('h', ['#A51931', '#F4F5F8', '#2D2A4A', '#F4F5F8', '#A51931'], [1, 1, 2, 1, 1]),
+    ID: stripes('h', ['#CE1126', '#ffffff'])
   };
   function countryBallHtml(code, cls) {
     var bg = COUNTRY_BALLS[code];

@@ -3472,7 +3472,7 @@ body { min-height: 100%; min-height: 100dvh; }
 .person-hero[data-cover="photo"] .ph-cover { background: #1b1d21; }
 .person-hero[data-cover="none"] .ph-cover { height: 64px; background: linear-gradient(120deg, var(--sig), color-mix(in srgb, var(--sig) 55%, #14161a)); }
 .ph-photo { width: 100%; height: 100%; object-fit: cover; display: block; }
-.ph-trace { position: absolute; right: 4%; top: 6%; height: 88%; max-width: 70%; object-fit: contain; filter: invert(1) brightness(2); mix-blend-mode: screen; opacity: 0.95; }
+.ph-trace { position: absolute; right: 4%; top: 6%; height: 88%; max-width: 70%; object-fit: contain; filter: grayscale(1) invert(1) brightness(2); mix-blend-mode: screen; opacity: 0.95; }
 .ph-back { position: absolute; left: 0.7rem; top: 0.7rem; z-index: 2; box-shadow: 0 2px 8px rgba(0,0,0,0.18); }
 .ph-plate { position: absolute; right: 0.9rem; bottom: 0.7rem; z-index: 2; min-width: 4.2rem; height: 3.3rem; padding: 0 0.5rem; border-radius: 10px; display: grid; place-items: center;
   font-family: var(--font-display); font-style: italic; font-weight: 800; font-size: 2.2rem; line-height: 1; box-shadow: 0 6px 14px rgba(0,0,0,0.25); }
@@ -3489,7 +3489,7 @@ body { min-height: 100%; min-height: 100dvh; }
 .ph-feature-k { font-size: 0.7rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; opacity: 0.85; }
 .ph-feature-time { font-family: var(--font-display); font-style: italic; font-weight: 800; font-size: 2.6rem; line-height: 1; font-variant-numeric: tabular-nums; }
 .ph-feature-s { font-size: 0.8rem; opacity: 0.85; position: relative; z-index: 1; }
-.ph-feature-trace { position: absolute; right: 0.6rem; top: 0.6rem; height: 64px; max-width: 34%; object-fit: contain; filter: invert(1) brightness(2); mix-blend-mode: screen; opacity: 0.6; }
+.ph-feature-trace { position: absolute; right: 0.6rem; top: 0.6rem; height: 64px; max-width: 34%; object-fit: contain; filter: grayscale(1) invert(1) brightness(2); mix-blend-mode: screen; opacity: 0.6; }
 .ph-vitrine { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.6rem; }
 .ph-trophy { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 0.3rem; font-size: 0.8rem; line-height: 1.2; }
 .ph-season { display: grid; grid-template-columns: repeat(13, 1fr); gap: 3px; }
