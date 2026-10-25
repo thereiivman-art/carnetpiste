@@ -563,6 +563,19 @@
     return { horaires: out, slotCount: count };
   }
 
+  // Télécharge le lecteur de texte et le lecteur de PDF à l'avance, pour
+  // qu'ils marchent ensuite sans réseau (le service worker les garde, et
+  // Tesseract garde ses données de langue dans le navigateur).
+  function prepareOffline() {
+    return loadTesseract().then(function (T) {
+      return T.createWorker('eng', 1).then(function (worker) { return worker.terminate(); });
+    }).then(function () {
+      return loadPdfJs();
+    }).then(function () {
+      return fetch(PDFJS_WORKER_URL, { mode: 'no-cors' });
+    });
+  }
+
   root.ChronoImport = {
     parseHoraires: parseHoraires,
     analyze: analyze,
@@ -575,7 +588,8 @@
     recognize: recognize,
     itemsToLines: itemsToLines,
     isPdf: isPdf,
-    loadTesseract: loadTesseract
+    loadTesseract: loadTesseract,
+    prepareOffline: prepareOffline
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = root.ChronoImport;
 })(typeof window !== 'undefined' ? window : globalThis);

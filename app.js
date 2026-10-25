@@ -17188,7 +17188,7 @@
       // exactly as long as the connection actually is down, and disappear
       // the moment the 'online' listener above fires, not before.
       (!isOnline
-        ? '<div class="offline-banner">Hors ligne — tu vois les dernières données synchronisées. Tes changements seront envoyés dès que la connexion reviendra.</div>'
+        ? '<div class="offline-banner">Hors ligne : tu vois les dernières données synchronisées. Tes chronos sont gardés sur le téléphone et envoyés dès que le réseau revient.</div>'
         : '') +
       // A compte créé par un admin sans email réel (compte de démo/test,
       // voir create-accounts.html) porte needsEmailUpdate:true jusqu'à ce
@@ -20452,12 +20452,9 @@
     }
 
     if (mode === 'paste') { showPaste(); return; }
-    // Photo : la bibliothèque de lecture se télécharge au premier usage
-    // (réseau nécessaire ce jour-là), ensuite le navigateur la garde.
-    if (!window.Tesseract && !window.pdfjsLib && navigator.onLine === false) {
-      showMessage('Pas de connexion', 'La lecture d\'une photo ou d\'un PDF nécessite une connexion la première fois (chargement du lecteur de texte). Utilise « Coller une liste de temps » ou la saisie manuelle.');
-      return;
-    }
+    // Photo : le lecteur de texte vient du cache s'il a déjà été chargé
+    // (voir prepareOfflineReader) ; sinon l'erreur de chargement plus bas
+    // propose le collage ou la saisie manuelle.
     showReading(null);
     countUsage('import_photo');
     CI.recognize(file, function (p) {
@@ -20670,8 +20667,25 @@
     return encodeURIComponent(name).slice(0, 300) || '_';
   }
 
+  // Hors ligne au paddock, la lecture des feuilles de temps doit marcher :
+  // une fois par appareil, dès qu'il y a du réseau, on télécharge le
+  // lecteur à l'avance (quelques Mo).
+  var OFFLINE_READER_KEY = 'cdp-offline-reader-1';
+  function prepareOfflineReader() {
+    var CI = window.ChronoImport;
+    try { if (localStorage.getItem(OFFLINE_READER_KEY)) return; } catch (e) { return; }
+    if (!CI || !CI.prepareOffline) return;
+    setTimeout(function () {
+      if (navigator.onLine === false) return;
+      CI.prepareOffline().then(function () {
+        try { localStorage.setItem(OFFLINE_READER_KEY, String(Date.now())); } catch (e) {}
+      }).catch(function () {});
+    }, 20000);
+  }
+
   function startSync() {
     try { countActiveMonth(); } catch (e) {}
+    prepareOfflineReader();
     mySetups = null; // reload this account's private setups
     coreSyncPending = new Set(CORE_SYNC_KEYS);
     unsubscribers.push(db.collection('sessions').onSnapshot(function (snap) {
