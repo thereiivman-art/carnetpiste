@@ -3626,3 +3626,6 @@ span.ph-sponsor { cursor: default; }
 .season-tile-chip { position: absolute; right: 0.45rem; top: 0.45rem; margin: 0; }
 .season-tile-chip.first { font-size: 0.66rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text); background: var(--surface-alt); border-radius: 999px; padding: 0.08rem 0.45rem; }
 .season-tile-time { font-family: var(--font-display); font-style: italic; font-weight: 800; font-size: 1.35rem; line-height: 1.1; font-variant-numeric: tabular-nums; }
+
+/* Slogan sous le nom de l'appli (écran de connexion) */
+.app-tagline { margin: 0.15rem 0 0; font-size: 0.95rem; color: var(--text-muted); }

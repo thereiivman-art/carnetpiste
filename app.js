@@ -119,7 +119,7 @@
       visibility_label: 'Visibilité', vis_public_full: 'Public (visible par tous, invitation requise)', vis_ouvert_full: 'Ouvert (inscription libre)',
       teampro_only_help: 'Réservé aux Teams PRO – un team amateur reste visible par ses membres et les pilotes invités.',
       booking_url_label: 'Lien de réservation (optionnel)',
-      booking_url_help: 'Carnet de Piste ne gère pas les paiements – ce lien renvoie vers ta billetterie (Billetweb ou autre) pour l\'inscription/le paiement.',
+      booking_url_help: 'Pitbook ne gère pas les paiements – ce lien renvoie vers ta billetterie (Billetweb ou autre) pour l\'inscription/le paiement.',
       more_options_less: '− Moins d\'options', more_options_more: '+ Plus d\'options (horaires, pilotes, organisateur...)',
       horaires_this_event_label: 'Horaires par groupe (ce roulage – laisser vide pour utiliser les horaires habituels du circuit)',
       organizer_note_label: 'Organisateur (si absent de l\'app)', riders_label: 'Pilotes',
@@ -277,7 +277,7 @@
       role_info_organisateur_3: 'Partager un lien photos/vidéos après le roulage',
       role_info_organisateur_4: 'Suivre des pilotes et être notifié de leurs départs, comme un accompagnant',
       role_info_organisateur_5: 'Si tu es aussi Team Leader d\'un team : gérer ses membres, son fil d\'actualité, ses roulages et certifier les chronos de tes pilotes',
-      carnet_helps_you: 'Carnet de Piste t\'aide à :',
+      carnet_helps_you: 'Pitbook t\'aide à :',
       pseudo_label: 'Pseudo', rename_limit_prefix: '1 changement de pseudo par mois – possible à nouveau le ',
       rename_warning: '⚠ Renommer va changer ton identité partout dans l\'app (chronos, roulages, teams, coaching, amis...).',
       edit_pseudo_btn: 'Modifier le pseudo', firstname_label: 'Prénom', lastname_label: 'Nom',
@@ -285,14 +285,14 @@
       my_bike_label: 'Ma moto', bike_suggested_help: 'Suggérée automatiquement quand tu entres un chrono.',
       bike_number_label: 'N° de moto', bike_number_help: '1 à 3 chiffres.',
       chrono_app_link_label: 'Lien vers ton appli de chrono (optionnel)',
-      chrono_app_link_help: 'Carnet de Piste reste déclaratif – ce lien renvoie vers ton appli de chrono officielle (Superlaps ou autre) si tu en utilises une.',
+      chrono_app_link_help: 'Pitbook reste déclaratif – ce lien renvoie vers ton appli de chrono officielle (Superlaps ou autre) si tu en utilises une.',
       followed_riders_label: 'Pilotes que je suis', no_rider_registered: 'Aucun pilote enregistré pour l\'instant.',
       close_label: 'Fermer',
       my_badges_admin_heading: 'Mes badges (admin)',
       my_badges_admin_help: 'Pour tout autre compte, ces badges se gèrent depuis Gestion des comptes.',
       // Aide / Suggestion tabs
       about_heading: 'À propos',
-      about_text: 'Carnet de Piste, c\'est ton carnet de pilote : avant le roulage (prépa, horaires, repères), pendant (jour J, live timing de l\'orga), après (chronos, progression, partage). Il complète l\'appli de ton organisateur, il ne la remplace pas : la réservation, le paiement et le chronométrage officiel restent chez lui.',
+      about_text: 'Pitbook, c\'est ton carnet de pilote : avant le roulage (prépa, horaires, repères), pendant (jour J, live timing de l\'orga), après (chronos, progression, partage). Il complète l\'appli de ton organisateur, il ne la remplace pas : la réservation, le paiement et le chronométrage officiel restent chez lui.',
       review_tutorial_btn: 'Revoir le tutoriel',
       badges_legend_heading: 'Que veulent dire ces badges ?',
       team_pro_legend: 'Team PRO — club officiel certifié par l\'administrateur.',
@@ -301,7 +301,7 @@
       follower_legend: 'Suit un team sans en être membre – droits limités (voir la fiche du team).',
       no_partner_yet: 'Aucun partenaire pour l\'instant.',
       partners_input_label: 'Un par ligne : Nom | URL (URL optionnelle)',
-      our_partners_heading: 'Nos partenaires de Carnet de Piste',
+      our_partners_heading: 'Nos partenaires de Pitbook',
       optional_features_heading: 'Fonctionnalités optionnelles',
       optional_features_help: 'Masquées pour tout le monde par défaut – à activer seulement si un team en a besoin.',
       feature_weather_label: 'Météo & piste', feature_special_activities_label: 'Baptêmes, coaching...', feature_rental_label: 'Location (motos et équipement)',
@@ -514,7 +514,7 @@
       visibility_label: 'Visibility', vis_public_full: 'Public (visible to everyone, invitation required)', vis_ouvert_full: 'Open (free registration)',
       teampro_only_help: 'Reserved for Team PRO – an amateur Team stays visible to its members and invited riders.',
       booking_url_label: 'Booking link (optional)',
-      booking_url_help: 'Carnet de Piste doesn\'t handle payments – this link goes to your ticketing site (Billetweb or other) for registration/payment.',
+      booking_url_help: 'Pitbook doesn\'t handle payments – this link goes to your ticketing site (Billetweb or other) for registration/payment.',
       more_options_less: '− Fewer options', more_options_more: '+ More options (schedule, riders, organizer...)',
       horaires_this_event_label: 'Schedule per group (this trackday only – leave blank to use the circuit\'s usual schedule)',
       organizer_note_label: 'Organizer (if not on the app)', riders_label: 'Riders',
@@ -672,7 +672,7 @@
       role_info_organisateur_3: 'Share a photos/videos link after the trackday',
       role_info_organisateur_4: 'Follow riders and get notified of their departures, like a companion',
       role_info_organisateur_5: 'If you\'re also a Team\'s Leader: manage its members, news feed, trackdays, and certify your riders\' lap times',
-      carnet_helps_you: 'Carnet de Piste helps you:',
+      carnet_helps_you: 'Pitbook helps you:',
       pseudo_label: 'Username', rename_limit_prefix: '1 username change per month – possible again on ',
       rename_warning: '⚠ Renaming will change your identity everywhere in the app (lap times, trackdays, teams, coaching, friends...).',
       edit_pseudo_btn: 'Edit username', firstname_label: 'First name', lastname_label: 'Last name',
@@ -680,14 +680,14 @@
       my_bike_label: 'My bike', bike_suggested_help: 'Suggested automatically when you log a lap time.',
       bike_number_label: 'Bike number', bike_number_help: '1 to 3 digits.',
       chrono_app_link_label: 'Link to your lap timing app (optional)',
-      chrono_app_link_help: 'Carnet de Piste stays declarative – this link points to your official lap timing app (Superlaps or other) if you use one.',
+      chrono_app_link_help: 'Pitbook stays declarative – this link points to your official lap timing app (Superlaps or other) if you use one.',
       followed_riders_label: 'Riders I follow', no_rider_registered: 'No rider registered yet.',
       close_label: 'Close',
       my_badges_admin_heading: 'My badges (admin)',
       my_badges_admin_help: 'For every other account, these badges are managed from Account management.',
       // Aide / Suggestion tabs
       about_heading: 'About',
-      about_text: 'Carnet de Piste is your rider\'s logbook: before the trackday (prep, timetable, notes), during (race day, the organiser\'s live timing), after (lap times, progress, sharing). It complements your organiser\'s app, it doesn\'t replace it: booking, payment and official timing stay with them.',
+      about_text: 'Pitbook is your rider\'s logbook: before the trackday (prep, timetable, notes), during (race day, the organiser\'s live timing), after (lap times, progress, sharing). It complements your organiser\'s app, it doesn\'t replace it: booking, payment and official timing stay with them.',
       review_tutorial_btn: 'Replay the tutorial',
       badges_legend_heading: 'What do these badges mean?',
       team_pro_legend: 'Team PRO — official club certified by the admin.',
@@ -696,7 +696,7 @@
       follower_legend: 'Follows a Team without being a member – limited rights (see the Team\'s page).',
       no_partner_yet: 'No partner yet.',
       partners_input_label: 'One per line: Name | URL (URL optional)',
-      our_partners_heading: 'Our Carnet de Piste partners',
+      our_partners_heading: 'Our Pitbook partners',
       optional_features_heading: 'Optional features',
       optional_features_help: 'Hidden for everyone by default (even in Full/Organizer mode) – turn on only if a Team actually needs it.',
       feature_weather_label: 'Weather & track', feature_special_activities_label: 'Track intros, coaching...', feature_rental_label: 'Rental (bikes and gear)',
@@ -999,7 +999,7 @@
 "Cet email est déjà utilisé — connecte-toi plutôt.": "This email is already in use — sign in instead.", "Email invalide.": "Invalid email.", "Trop de tentatives — attends quelques minutes avant de renvoyer l'email.": "Too many attempts — wait a few minutes before resending the email.",
 "Mot de passe trop court (6 caractères minimum).": "Password too short (6 characters minimum).", "Email ou mot de passe incorrect.": "Wrong email or password.",
 "Connecte-toi avec ton adresse email (la connexion par pseudo a été retirée pour des raisons de sécurité).": "Sign in with your email address (username sign-in was removed for security reasons).",
-"Carnet de Piste": "Carnet de Piste", "QR code indisponible hors connexion – partage le lien ci-dessous.": "QR code unavailable offline – share the link below.", "Accepter": "Accept", "Refuser": "Decline", "Demande d'ami": "Friend request",
+"Pitbook": "Pitbook", "QR code indisponible hors connexion – partage le lien ci-dessous.": "QR code unavailable offline – share the link below.", "Accepter": "Accept", "Refuser": "Decline", "Demande d'ami": "Friend request",
 "Invite un pilote": "Invite a rider", "Fais scanner ce code : il s'inscrit avec ton lien et devient ton filleul.": "Have them scan this code: they sign up with your link and become your referral.",
 "Partager le lien": "Share the link", "Copier": "Copy", "Lien copié": "Link copied",
 "souhaite rejoindre": "wants to join", "Accepter comme membre": "Accept as member", "comme adhérent": "as adherent", "comme Team Leader": "as Team Leader",
@@ -1208,7 +1208,7 @@
 "J'y vais": "I'm going",
 "En attente du team": "Waiting for the Team",
 "Tu y vas aussi ?": "Are you going too?",
-"« J'y vais » te met sur la liste du roulage dans Carnet de Piste. L'inscription et le paiement se font chez l'orga.": "\"I'm going\" puts you on this trackday's list in Carnet de Piste. Registration and payment are with the organiser.",
+"« J'y vais » te met sur la liste du roulage dans Pitbook. L'inscription et le paiement se font chez l'orga.": "\"I'm going\" puts you on this trackday's list in Pitbook. Registration and payment are with the organiser.",
 "Roulage": "Trackday",
 "Créer mon carnet": "Create my logbook",
 "J'ai déjà un compte": "I already have an account",
@@ -2063,7 +2063,7 @@
   // "Nom | URL", parsed into {label, url} objects. A free-form textarea
   // rather than an add/remove-row widget, consistent with how riders/
   // horaires are typed elsewhere in this app.
-  // "Nos partenaires de Carnet de Piste" -- one shared doc
+  // "Nos partenaires de Pitbook" -- one shared doc
   // (settings/partners), admin-only (Xavier), shown in Profil > Aide >
   // À propos. Not to be confused with a Team's own Partenaires (see
   // renderTeamPartnersSection below) -- that one's per-Team, set by that
@@ -3961,7 +3961,7 @@
       '</div>';
   }
 
-  // What Carnet de Piste actually does for each role -- shown live as soon
+  // What Pitbook actually does for each role -- shown live as soon
   // as a role is selected in the "Je suis" choice (see the profile-role
   // change listener), not just after Enregistrer, so switching the radio
   // immediately answers "qu'est-ce que ça m'apporte ?" without a round
@@ -5515,9 +5515,9 @@
   function renderPrivacyPolicyHtml() {
     var c = escapeHtml(LEGAL_INFO.contact);
     return '<div class="legal">' +
-      (currentLang() === 'en' ? '<p class="legal-note">Summary in English: Carnet de Piste only keeps what the app needs (account, lap times, trackdays, posts), never sells it, shows no ads and uses no trackers. You can download or erase all your data yourself from Settings. The full policy below is in French.</p>' : '') +
+      (currentLang() === 'en' ? '<p class="legal-note">Summary in English: Pitbook only keeps what the app needs (account, lap times, trackdays, posts), never sells it, shows no ads and uses no trackers. You can download or erase all your data yourself from Settings. The full policy below is in French.</p>' : '') +
       '<p class="help-text">Dernière mise à jour : ' + escapeHtml(LEGAL_INFO.updated) + '</p>' +
-      legalSection('Qui est responsable de tes données ?', '<p>' + escapeHtml(LEGAL_INFO.editor) + ', éditeur de Carnet de Piste. Contact : ' + c + ', ou Profil → Suggestion dans l\'appli.</p>') +
+      legalSection('Qui est responsable de tes données ?', '<p>' + escapeHtml(LEGAL_INFO.editor) + ', éditeur de Pitbook. Contact : ' + c + ', ou Profil → Suggestion dans l\'appli.</p>') +
       legalSection('Les données que l\'appli garde', '<ul>' +
         '<li><strong>Ton compte</strong> : e-mail, pseudo, rôle (pilote, accompagnant, organisateur) et, si tu les remplis, prénom, nom, photo, moto et numéro.</li>' +
         '<li><strong>Ta pratique</strong> : chronos, roulages, groupes, objectifs, repères sur les plans, débriefs, réglages de ta moto, infos de voyage.</li>' +
@@ -5553,7 +5553,7 @@
       legalSection('Éditeur', '<p>' + escapeHtml(LEGAL_INFO.editor) + '<br>' + escapeHtml(LEGAL_INFO.address) + '<br>Contact : ' + escapeHtml(LEGAL_INFO.contact) + '<br>Directeur de la publication : ' + escapeHtml(LEGAL_INFO.editor) + '</p>') +
       legalSection('Hébergement', '<p>Fichiers de l\'appli : GitHub Inc., 88 Colin P. Kelly Jr. Street, San Francisco, CA 94107, États-Unis.<br>Données : Google Firebase, Google Ireland Ltd, Gordon House, Barrow Street, Dublin 4, Irlande.</p>') +
       legalSection('Conditions d\'utilisation', '<ul>' +
-        '<li>Carnet de Piste est un carnet personnel de pilote. Il ne vend ni réservation ni créneau : l\'inscription, le paiement et le chronométrage officiel restent chez l\'organisateur.</li>' +
+        '<li>Pitbook est un carnet personnel de pilote. Il ne vend ni réservation ni créneau : l\'inscription, le paiement et le chronométrage officiel restent chez l\'organisateur.</li>' +
         '<li>Les chronos saisis ou importés sont <strong>non officiels</strong>, y compris ceux « validés par le team ». La référence reste le chronométrage de l\'organisateur.</li>' +
         '<li>Tu es responsable de ce que tu publies (messages, photos, liens). Pas de contenu illégal, injurieux ou portant atteinte aux droits d\'autrui ; l\'éditeur peut retirer un contenu signalé et suspendre un compte qui ne respecte pas ces règles.</li>' +
         '<li>Les horaires, groupes et infos pratiques sont reportés par les utilisateurs : vérifie-les toujours auprès de l\'organisateur. La pratique de la moto sur circuit se fait sous ta responsabilité et selon les règles du circuit.</li>' +
@@ -5595,7 +5595,7 @@
     var me = currentUserProfile, user = auth.currentUser;
     if (!me || !user) return;
     showToast(L('Préparation de tes données…', 'Preparing your data…'));
-    var out = { exportedAt: new Date().toISOString(), app: 'Carnet de Piste', account: { uid: user.uid, email: user.email }, profile: me };
+    var out = { exportedAt: new Date().toISOString(), app: 'Pitbook', account: { uid: user.uid, email: user.email }, profile: me };
     var jobs = [db.collection('userPrivate').doc(user.uid).get().then(function (d) { out.private = d.exists ? d.data() : null; }).catch(function () {})];
     PERSONAL_COLLECTIONS.forEach(function (c) {
       jobs.push(queryMine(c[0], c[1], me.name).then(function (docs) {
@@ -6596,8 +6596,8 @@
       // en-tête : marque + nom de l'app
       drawShareMark(ctx, 80, 112, 64);
       ctx.fillStyle = C.ink; ctx.font = 'italic 800 56px ' + CONDENSED;
-      ctx.fillText('CARNET DE PISTE', 150, 166);
-      drawStoryLogo(ctx, res[1], W, 'CARNET DE PISTE');
+      ctx.fillText('PITBOOK', 150, 166);
+      drawStoryLogo(ctx, res[1], W, 'PITBOOK');
       // circuit + date + groupe + pilote
       var circuit = String(session.circuit || '').toUpperCase();
       ctx.fillStyle = C.ink; fitText(ctx, circuit, W - 160, 170, 'italic 800', CONDENSED);
@@ -7336,7 +7336,7 @@
     overlay.querySelector('[data-q="close"]').addEventListener('click', close);
     var shareBtn = overlay.querySelector('[data-q="share"]');
     if (shareBtn) shareBtn.addEventListener('click', function () {
-      navigator.share({ text: (currentLang() === 'en' ? 'Join me on Carnet de Piste, my lap times and track marks logbook: ' : 'Rejoins-moi sur Carnet de Piste, mon carnet de chronos et de repères : ') + link }).catch(function () {});
+      navigator.share({ text: (currentLang() === 'en' ? 'Join me on Pitbook, my lap times and track marks logbook: ' : 'Rejoins-moi sur Pitbook, mon carnet de chronos et de repères : ') + link }).catch(function () {});
     });
     overlay.querySelector('[data-q="copy"]').addEventListener('click', function () {
       if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(link).then(function () { showToast('Lien copié', 'success'); }).catch(function () {});
@@ -8035,7 +8035,7 @@
 
     var meName = currentUserProfile && currentUserProfile.name;
     if (ev && joinBannerEventId === ev.id && (ev.riders || []).indexOf(meName) === -1) {
-      html += '<div class="card join-banner"><strong>Tu y vas aussi ?</strong><div class="help-text">« J\'y vais » te met sur la liste du roulage dans Carnet de Piste. L\'inscription et le paiement se font chez l\'orga.</div>' +
+      html += '<div class="card join-banner"><strong>Tu y vas aussi ?</strong><div class="help-text">« J\'y vais » te met sur la liste du roulage dans Pitbook. L\'inscription et le paiement se font chez l\'orga.</div>' +
         '<div class="join-banner-actions">' + (ev.bookingUrl ? '<button type="button" class="primary" data-action="open-external-url" data-url="' + escapeHtml(ev.bookingUrl) + '">Réserver chez l\'orga ↗</button>' : '') +
         '<button type="button" class="' + (ev.bookingUrl ? 'ghost' : 'primary') + '" data-action="join-roulage-link" data-id="' + escapeHtml(ev.id) + '">J\'y vais</button></div></div>';
     }
@@ -11087,7 +11087,7 @@
         ? '<button type="button" class="' + (ev.bookingUrl ? 'ghost' : 'primary') + '" data-action="event-join-ouvert" data-id="' + ev.id + '">J\'y vais</button>'
         : (myRequest
           ? '<span class="help-text">En attente du team</span>'
-          : '<button type="button" class="ghost" data-action="event-join-request" data-id="' + ev.id + '" title="Te signale au team sur Carnet de Piste – ne réserve ni ne paie rien.">J\'y vais</button>');
+          : '<button type="button" class="ghost" data-action="event-join-request" data-id="' + ev.id + '" title="Te signale au team sur Pitbook – ne réserve ni ne paie rien.">J\'y vais</button>');
       var actionHtml = (ev.bookingUrl ? '<button type="button" class="primary" data-action="open-external-url" data-url="' + escapeHtml(ev.bookingUrl) + '">Réserver chez l\'orga ↗</button> ' : '') + goHtml;
       // The Team leads here (avatar, name, ✓ badge) rather than a bare
       // name in the help-text -- the whole point of this card is "which
@@ -11098,7 +11098,7 @@
         ' · ' + (visTags[vis] || '') + '</span></div>' +
         '<div class="friend-row-actions">' + actionHtml + '</div></div>';
     }
-    var legend = '<div class="help-text" style="margin-bottom:0.7rem;">L\'inscription et le paiement se font chez l\'organisateur (« Réserver chez l\'orga »). « J\'y vais » te met seulement sur la liste des pilotes du roulage dans Carnet de Piste, pour retrouver horaires, groupe et copains.</div>';
+    var legend = '<div class="help-text" style="margin-bottom:0.7rem;">L\'inscription et le paiement se font chez l\'organisateur (« Réserver chez l\'orga »). « J\'y vais » te met seulement sur la liste des pilotes du roulage dans Pitbook, pour retrouver horaires, groupe et copains.</div>';
     var toggle = legend + '<div style="display:flex; flex-wrap:wrap; gap:0.5rem; margin-bottom:0.7rem;">' +
       '<button type="button" class="calendar-view-btn' + (discoveryViewMode === 'list' ? ' active' : '') + '" data-action="discovery-view-mode" data-mode="list">Liste</button>' +
       '<button type="button" class="calendar-view-btn' + (discoveryViewMode === 'month' ? ' active' : '') + '" data-action="discovery-view-mode" data-mode="month">Mois</button>' +
@@ -11956,7 +11956,7 @@
     // the event from Événements instead.
     var evWeather = weatherSummaryLine(ev);
     if (evWeather) html += infoRow(tr('weather_label'), escapeHtml(evWeather));
-    // Carnet de Piste ne gère pas les paiements/réservations -- ce lien
+    // Pitbook ne gère pas les paiements/réservations -- ce lien
     // renvoie vers l'outil de billetterie du team (Billetweb ou autre),
     // jamais une inscription gérée ici.
     if (ev.bookingUrl) html += '<div style="margin-top:0.6rem;"><button type="button" class="primary" data-action="open-external-url" data-url="' + escapeHtml(ev.bookingUrl) + '">' + tr('book_register') + '</button><div class="help-text" style="margin-top:0.3rem;">Inscription et paiement chez l\'organisateur.</div></div>';
@@ -13165,10 +13165,10 @@
   function sendAppNotification(body) {
     if (navigator.serviceWorker && navigator.serviceWorker.ready) {
       navigator.serviceWorker.ready.then(function (reg) {
-        reg.showNotification('Carnet de Piste', { body: body, icon: 'icons/icon-192.png', badge: 'icons/icon-192.png' });
-      }).catch(function () { new Notification('Carnet de Piste', { body: body }); });
+        reg.showNotification('Pitbook', { body: body, icon: 'icons/icon-192.png', badge: 'icons/icon-192.png' });
+      }).catch(function () { new Notification('Pitbook', { body: body }); });
     } else {
-      new Notification('Carnet de Piste', { body: body });
+      new Notification('Pitbook', { body: body });
     }
   }
 
@@ -15126,7 +15126,7 @@
         if (stats.lastSession) {
           html += infoRow(tr('last_event_label'), escapeHtml(stats.lastSession.circuit) + ' — ' + escapeHtml(formatDate(stats.lastSession.date)) + ' (' + formatTime(stats.lastSession.time) + ')');
         }
-        // Carnet de Piste reste déclaratif -- ce lien renvoie vers l'appli
+        // Pitbook reste déclaratif -- ce lien renvoie vers l'appli
         // de chrono officielle du pilote (Superlaps ou autre) s'il en a
         // renseigné une dans son profil, jamais une mesure faite ici.
         if (u.chronoLink) html += '<div style="margin:0.5rem 0;"><button type="button" class="ghost" data-action="open-external-url" data-url="' + escapeHtml(u.chronoLink) + '">' + tr('view_official_chronos') + '</button></div>';
@@ -16615,7 +16615,7 @@
     });
     var html = '<div class="crop-modal-overlay"><div class="crop-modal">' +
       '<h2 class="section-title">' + tr('ask_for_slot_heading') + escapeHtml(coachSlotModal.slotLabel) + '</h2>' +
-      '<div class="help-text" style="margin-bottom:0.5rem;">C\'est une demande au coach, à confirmer avec lui (et avec l\'organisateur si besoin) : Carnet de Piste ne réserve ni ne fait payer de créneau.</div>';
+      '<div class="help-text" style="margin-bottom:0.5rem;">C\'est une demande au coach, à confirmer avec lui (et avec l\'organisateur si besoin) : Pitbook ne réserve ni ne fait payer de créneau.</div>';
     if (me && proposeRoles.indexOf(me.role || 'pilote') === -1) {
       html += '<div class="help-text">' + tr('coaching_riders_only') + '</div>';
     }
@@ -17038,7 +17038,7 @@
     var t = teamById(teamId);
     if (!t) return;
     var link = currentUserProfile ? referralLinkFor(currentUserProfile.name) : 'https://thereiivman-art.github.io/carnetpiste';
-    var text = L('Découvre le team ' + t.name + ' sur Carnet de Piste : ', 'Check out the team ' + t.name + ' on Carnet de Piste: ') + link;
+    var text = L('Découvre le team ' + t.name + ' sur Pitbook : ', 'Check out the team ' + t.name + ' on Pitbook: ') + link;
     if (navigator.share) return navigator.share({ title: t.name, text: text }).catch(function () {});
     if (navigator.clipboard) navigator.clipboard.writeText(text).then(function () { showToast(L('Lien copié.', 'Link copied.'), 'success'); });
   }
@@ -17110,7 +17110,7 @@
       else if (pendingRoulageId && !publicRoulageDismissed && authState !== 'verify-email') authBody = renderPublicRoulage();
       else authBody = renderAuthScreen();
       root.innerHTML =
-        '<header class="page-head"><div class="page-head-inner"><h1 class="title">Carnet de Piste</h1></div></header>' +
+        '<header class="page-head"><div class="page-head-inner"><h1 class="title">Pitbook</h1><p class="app-tagline">' + L('Le carnet de bord de tes roulages', 'Your trackday logbook') + '</p></div></header>' +
         '<div class="auth-screen">' + authBody + '</div>';
       var prSignup = document.getElementById('public-roulage-signup');
       if (prSignup) prSignup.addEventListener('click', function () { publicRoulageDismissed = true; authMode = 'signup'; renderRoot(); window.scrollTo(0, 0); });
@@ -19462,7 +19462,7 @@
         if (!currentUserProfile) return;
         var link = referralLinkFor(currentUserProfile.name);
         if (navigator.share) {
-          navigator.share({ title: 'Carnet de Piste', text: 'Rejoins-nous sur Carnet de Piste !', url: link }).catch(function () {});
+          navigator.share({ title: 'Pitbook', text: 'Rejoins-nous sur Pitbook !', url: link }).catch(function () {});
         } else if (navigator.clipboard && navigator.clipboard.writeText) {
           navigator.clipboard.writeText(link).then(function () {
             showToast(tr('referral_link_copied'), 'success');
