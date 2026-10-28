@@ -886,6 +886,33 @@
   // then a few patterns with numbers or names in them) and swapped for
   // its English version. French mode never touches the DOM.
   var EN_LITERALS = {
+"Comptes actifs (sur le mois)": "Active accounts (this month)",
+"Comptes créés": "Accounts created",
+"… via un parrainage ou un QR": "… via a referral or a QR code",
+"… via un lien de roulage": "… via a trackday link",
+"Premier chrono enregistré": "First lap time logged",
+"Chronos sur un 2e roulage": "Lap times on a 2nd trackday",
+"Sessions enregistrées": "Sessions logged",
+"Imports de feuille lancés": "Timesheet imports started",
+"… lus (texte reconnu)": "… read (text recognised)",
+"… validés (tours importés)": "… validated (laps imported)",
+"… en échec": "… failed",
+"Stories partagées (toutes)": "Stories shared (all)",
+"… chrono": "… lap time",
+"… Entre potes": "… Between friends",
+"… « On roule à »": "… “We're riding at”",
+"… « Mon roulage à »": "… “My trackday at”",
+"… Podium des potes": "… Friends' podium",
+"… Ma saison": "… My season",
+"Liens de roulage partagés": "Trackday links shared",
+"Fiche : personnalisation essayée": "Profile page: customisation tried",
+"… enregistrée": "… saved",
+"Fiche team : personnalisation essayée": "Team page: customisation tried",
+"Langues des visiteurs": "Visitors' languages",
+"Langue du téléphone des personnes qui ouvrent un lien public de roulage ou créent un compte. Anonyme : un simple compteur par langue.": "Phone language of people who open a public trackday link or create an account. Anonymous: a simple count per language.",
+"Pas encore de visite comptée.": "No visit counted yet.",
+"Langue": "Language",
+"Liens ouverts": "Links opened",
 "Plus d'options": "More options",
 "− Moins d'options": "− Fewer options",
 "Dernier jour (si plusieurs jours)": "Last day (if several days)",
@@ -2372,11 +2399,11 @@
     var oldPw = document.getElementById('pwreset-old').value;
     var newPw = document.getElementById('pwreset-new').value;
     pwResetLog = '';
-    if (!names.length || !oldPw || newPw.length < 6) { pwLog('Remplis les pseudos, le mot de passe actuel et un nouveau mot de passe (6 caractères min.).'); return; }
-    if (newPw === oldPw) { pwLog('Le nouveau mot de passe doit être différent de l\'ancien.'); return; }
+    if (!names.length || !oldPw || newPw.length < 6) { pwLog(L('Remplis les pseudos, le mot de passe actuel et un nouveau mot de passe (6 caractères min.).', 'Fill in the usernames, the current password and a new password (min. 6 characters).')); return; }
+    if (newPw === oldPw) { pwLog(L('Le nouveau mot de passe doit être différent de l\'ancien.', 'The new password must be different from the old one.')); return; }
     pwResetRunning = true;
     var secondary = null;
-    try { secondary = firebase.initializeApp(firebaseConfig, 'pwreset-' + Date.now()); } catch (e) { pwLog('ERREUR : ' + (e && e.message ? e.message : e)); pwResetRunning = false; return; }
+    try { secondary = firebase.initializeApp(firebaseConfig, 'pwreset-' + Date.now()); } catch (e) { pwLog(L('ERREUR : ', 'ERROR: ') + (e && e.message ? e.message : e)); pwResetRunning = false; return; }
     var secAuth = secondary.auth();
     Promise.all([db.collection('users').get(), db.collection('userPrivate').get()]).then(function (res) {
       var emailByUid = {};
@@ -2387,18 +2414,18 @@
       });
       return targets.reduce(function (chain, t) {
         return chain.then(function () {
-          if (!t.email) { pwLog('✗ ' + t.name + ' : compte ou email introuvable'); return null; }
+          if (!t.email) { pwLog('✗ ' + t.name + L(' : compte ou email introuvable', ': account or email not found')); return null; }
           return secAuth.signInWithEmailAndPassword(t.email, oldPw).then(function (cred) {
             return cred.user.updatePassword(newPw);
           }).then(function () {
-            pwLog('✓ ' + t.name + ' : mot de passe remplacé');
+            pwLog('✓ ' + t.name + L(' : mot de passe remplacé', ': password replaced'));
             return secAuth.signOut();
           }).catch(function (err) {
-            pwLog('✗ ' + t.name + ' : ' + (err && err.code === 'auth/invalid-credential' || err && err.code === 'auth/wrong-password' ? 'mot de passe actuel incorrect (déjà changé ?)' : (err && err.message ? err.message : err)));
+            pwLog('✗ ' + t.name + ' : ' + (err && err.code === 'auth/invalid-credential' || err && err.code === 'auth/wrong-password' ? L('mot de passe actuel incorrect (déjà changé ?)', 'wrong current password (already changed?)') : (err && err.message ? err.message : err)));
           });
         });
       }, Promise.resolve());
-    }).then(function () { pwLog('Terminé.'); }).catch(function (e) { pwLog('ERREUR : ' + (e && e.message ? e.message : e)); }).then(function () {
+    }).then(function () { pwLog(L('Terminé.', 'Done.')); }).catch(function (e) { pwLog(L('ERREUR : ', 'ERROR: ') + (e && e.message ? e.message : e)); }).then(function () {
       pwResetRunning = false;
       if (secondary && secondary.delete) secondary.delete().catch(function () {});
     });
@@ -5219,7 +5246,7 @@
         : '';
       var row = '<li class="rider-manager-row account-manager-row">' +
         '<div><span class="rider-manager-name">' + escapeHtml(t.name) + '</span>' + teamBadgesHtml(t) +
-        '<div class="help-text">' + tr('created_by_prefix') + escapeHtml(t.createdBy) + '</div></div>' +
+        (t.createdBy ? '<div class="help-text">' + tr('created_by_prefix') + escapeHtml(t.createdBy) + '</div>' : '') + '</div>' +
         '<button type="button" class="ghost icon-btn' + (t.teamPro ? ' confirm' : '') + '" data-action="toggle-team-pro" data-team="' + t.id + '" aria-label="' + (t.teamPro ? tr('remove_team_pro') : tr('mark_team_pro')) + '" title="' + (t.teamPro ? tr('remove_team_pro') : tr('mark_team_pro')) + '">✓</button>' +
         deleteControl +
         '</li>';
@@ -14378,7 +14405,7 @@
   // only (see toggle-team-pro in attachHandlers), to stand apart from an
   // amateur "Team entre amis".
   function teamBadgesHtml(team) {
-    return team && team.teamPro ? ' <span class="team-pro-badge" title="Team PRO certifié par l\'administrateur." data-badge-info="Team PRO certifié par l\'administrateur.">✓</span>' : '';
+    return team && team.teamPro ? ' <span class="team-pro-badge" title="' + L('Team PRO certifié par l\'administrateur.', 'Team PRO certified by the administrator.') + '" data-badge-info="' + L('Team PRO certifié par l\'administrateur.', 'Team PRO certified by the administrator.') + '">✓</span>' : '';
   }
 
   // Which friend's fiche (see renderFriendFiche) is expanded inline in the
@@ -18956,7 +18983,7 @@
       });
     }
     var pwGoBtn = document.getElementById('pwreset-go-btn');
-    if (pwGoBtn) pwGoBtn.addEventListener('click', function () { if (confirm('Remplacer le mot de passe de ces comptes ?')) runPasswordReset(); });
+    if (pwGoBtn) pwGoBtn.addEventListener('click', function () { if (confirm(L('Remplacer le mot de passe de ces comptes ?', 'Replace the password of these accounts?'))) runPasswordReset(); });
     document.querySelectorAll('[data-feature-toggle]').forEach(function (cb) {
       cb.addEventListener('change', function () {
         saveFeatureVisibility(cb.getAttribute('data-feature-toggle'), cb.checked);
