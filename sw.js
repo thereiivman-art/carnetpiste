@@ -12,15 +12,15 @@
 // - LIBS: third-party scripts and fonts (Firebase SDK, Google Fonts, the
 //   timesheet reader). Their URLs carry a fixed version, so a cached copy
 //   never goes stale; kept across app versions too.
-var CACHE_VERSION = 'cdp-2026102502';
-var ASSETS_VERSION = 'cdp-assets-2026102502';
+var CACHE_VERSION = 'cdp-2026102801';
+var ASSETS_VERSION = 'cdp-assets-2026102801';
 var LIBS_CACHE = 'cdp-libs-1';
 var SHELL_URLS = [
   './',
   './index.html',
-  './style.css?v=2026102502',
-  './chrono-import.js?v=2026102502',
-  './app.js?v=2026102502',
+  './style.css?v=2026102801',
+  './chrono-import.js?v=2026102801',
+  './app.js?v=2026102801',
   './manifest.json',
   './firebase-config.js',
   './icons/favicon-32.png',
