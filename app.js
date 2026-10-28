@@ -304,6 +304,7 @@
       our_partners_heading: 'Nos partenaires de Pitbook',
       optional_features_heading: 'Fonctionnalités optionnelles',
       optional_features_help: 'Masquées pour tout le monde par défaut – à activer seulement si un team en a besoin.',
+      feature_teams_coaching_label: 'Teams et coaching (onglets de Communauté)',
       feature_weather_label: 'Météo & piste', feature_special_activities_label: 'Baptêmes, coaching...', feature_rental_label: 'Location (motos et équipement)',
       feedback_heading: 'Une remarque, une idée ?',
       feedback_help: 'Dis-nous ce qui manque, ce qui bloque ou ce que tu aimerais voir – ça part directement à l\'équipe de développement.',
@@ -699,6 +700,7 @@
       our_partners_heading: 'Our Pitbook partners',
       optional_features_heading: 'Optional features',
       optional_features_help: 'Hidden for everyone by default (even in Full/Organiser mode) – turn on only if a Team actually needs it.',
+      feature_teams_coaching_label: 'Teams and coaching (Community tabs)',
       feature_weather_label: 'Weather & track', feature_special_activities_label: 'Track intros, coaching...', feature_rental_label: 'Rental (bikes and gear)',
       feedback_heading: 'A remark, an idea?',
       feedback_help: 'Tell us what\'s missing, what\'s blocking you, or what you\'d like to see – it goes straight to the development team.',
@@ -2366,7 +2368,8 @@
   var OPTIONAL_FEATURES = [
     { key: 'weather', labelKey: 'feature_weather_label' },
     { key: 'specialActivities', labelKey: 'feature_special_activities_label' },
-    { key: 'rental', labelKey: 'feature_rental_label' }
+    { key: 'rental', labelKey: 'feature_rental_label' },
+    { key: 'teamsCoaching', labelKey: 'feature_teams_coaching_label' }
   ];
   // ---- Mots de passe temporaires (admin, temporaire) ----
   // Pour les comptes créés avec un mot de passe commun : se connecte à
@@ -8134,6 +8137,7 @@
   // ({sessionId: setup}) : visibles par le pilote seul, jamais par les
   // autres comptes (contrairement aux chronos eux-mêmes).
   var mySetups = null; // null = pas encore chargé
+  var myTyreSets = null; // trains de pneus, même document privé (voir plus bas)
   var SETUP_FIELDS = [
     ['pFrontCold', 'Pression AV à froid', 'bar', 'Ex. 2.1'], ['pRearCold', 'Pression AR à froid', 'bar', 'Ex. 1.8'],
     ['pFrontHot', 'Pression AV à chaud', 'bar', 'Ex. 2.3'], ['pRearHot', 'Pression AR à chaud', 'bar', 'Ex. 2.0'],
@@ -8144,8 +8148,10 @@
   function ensureSetupsLoaded() {
     if (mySetups !== null || !auth.currentUser) return;
     mySetups = {};
+    myTyreSets = [];
     db.collection('userPrivate').doc(auth.currentUser.uid).get().then(function (doc) {
       mySetups = (doc.exists && doc.data().setups) || {};
+      myTyreSets = (doc.exists && doc.data().tyreSets) || [];
       renderRoot();
     }).catch(function () {});
   }
@@ -8159,8 +8165,8 @@
     if (su.pFrontHot || su.pRearHot) parts.push(L('AV ', 'Front ') + (su.pFrontHot || '–') + L(' / AR ', ' / Rear ') + (su.pRearHot || '–') + L(' à chaud', ' hot'));
     if (su.tyres) parts.push(su.tyres);
     if (su.gearing) parts.push(su.gearing);
-    if (su.fork) parts.push('Fourche : ' + su.fork);
-    if (su.shock) parts.push('Amorto : ' + su.shock);
+    if (su.fork) parts.push(L('Fourche : ', 'Fork: ') + su.fork);
+    if (su.shock) parts.push(L('Amorto : ', 'Shock: ') + su.shock);
     if (su.note) parts.push(su.note);
     return parts.join(' · ');
   }
@@ -8204,6 +8210,7 @@
     sheet.innerHTML = '<div class="crop-modal setup-modal"><h2 class="section-title">Mes réglages</h2>' +
       '<div class="help-text">' + escapeHtml(x.circuit + ' · ' + formatDate(x.date) + (x.slotLabel ? ' · ' + x.slotLabel : '') + ' · meilleur tour ' + formatTime(sessionBest(x))) +
       (current ? '' : (prefill && Object.keys(prefill).length ? '<br>Pré-rempli avec tes derniers réglages : modifie ce qui a changé.' : '')) +
+      tyreLineForSession(x) +
       '<br>Visible par toi seul.</div>' +
       '<div class="setup-grid">' + fields + '</div>' +
       '<div style="margin-top:0.8rem; display:flex; gap:0.5rem; flex-wrap:wrap;"><button type="button" class="primary" data-s="save">Enregistrer</button>' +
@@ -8235,6 +8242,223 @@
     var clearBtn = sheet.querySelector('[data-s="clear"]');
     if (clearBtn) clearBtn.addEventListener('click', function () { write(null); });
   }
+
+  // ---- Mes pneus : sessions et km sur le train en place ----
+  // On déclare « pneus neufs » une fois ; l'appli compte ensuite les
+  // sessions chronométrées, les tours et les km (tours × longueur du
+  // circuit) faits depuis. Stocké avec les réglages, dans le document
+  // privé du pilote (userPrivate/{uid}.tyreSets), jamais visible des autres.
+  function setupFieldName(key) {
+    var names = {
+      pFrontCold: L('Pression AV à froid', 'Front pressure, cold'), pRearCold: L('Pression AR à froid', 'Rear pressure, cold'),
+      pFrontHot: L('Pression AV à chaud', 'Front pressure, hot'), pRearHot: L('Pression AR à chaud', 'Rear pressure, hot'),
+      tyres: L('Pneus', 'Tyres'), fork: L('Fourche', 'Fork'), shock: L('Amortisseur', 'Shock'), gearing: L('Transmission', 'Gearing')
+    };
+    return names[key] || key;
+  }
+  function currentTyreSet() {
+    ensureSetupsLoaded();
+    return myTyreSets && myTyreSets.length ? myTyreSets[myTyreSets.length - 1] : null;
+  }
+  // Sessions roulées sur un train de pneus : à partir de sa date de montage,
+  // jusqu'au train suivant (exclu), sur la même moto quand elle est connue.
+  function tyreSetSessions(set, nextSet) {
+    var me = currentUserProfile && currentUserProfile.name;
+    return (STATE.sessions || []).filter(function (x) {
+      if (x.rider !== me || !x.laps || !x.laps.length || !x.date) return false;
+      if (x.date < set.since) return false;
+      if (nextSet && x.date >= nextSet.since) return false;
+      if (set.bike && x.bike && x.bike !== set.bike) return false;
+      return true;
+    }).sort(compareSessionsInDay);
+  }
+  function tyreSetUsage(set, nextSet) {
+    var list = tyreSetSessions(set, nextSet);
+    var out = { sessions: list.length, laps: 0, km: 0, kmMissing: false, days: 0 };
+    var days = {};
+    list.forEach(function (x) {
+      out.laps += x.laps.length;
+      days[x.date + '|' + x.circuit] = true;
+      var km = circuitInfo(x.circuit).km;
+      if (km) out.km += km * x.laps.length; else out.kmMissing = true;
+    });
+    out.days = Object.keys(days).length;
+    return out;
+  }
+  function tyreUsageText(u) {
+    var parts = [u.sessions + (u.sessions > 1 ? ' sessions' : ' session'), u.laps + (u.laps > 1 ? L(' tours', ' laps') : L(' tour', ' lap'))];
+    if (u.km) parts.push((u.kmMissing ? '≥ ' : '≈ ') + Math.round(u.km) + ' km');
+    return parts.join(' · ');
+  }
+  // « 8e session sur ce train » dans la fiche réglages d'une session.
+  function tyreLineForSession(x) {
+    var set = currentTyreSet();
+    if (!set) return '';
+    var list = tyreSetSessions(set, null);
+    var i = list.map(function (s) { return s.id; }).indexOf(x.id);
+    if (i === -1) return '';
+    var laps = 0, km = 0;
+    list.slice(0, i + 1).forEach(function (s) { laps += s.laps.length; km += (circuitInfo(s.circuit).km || 0) * s.laps.length; });
+    return '<br>' + L('Pneus : ', 'Tyres: ') + (set.label ? escapeHtml(set.label) + ', ' : '') +
+      L((i + 1) + (i === 0 ? 're' : 'e') + ' session sur ce train', 'session ' + (i + 1) + ' on this set') + (km ? ' (≈ ' + Math.round(km) + ' km)' : '') + '.';
+  }
+  function renderTyreCard() {
+    if (meIsNonRider() || !currentUserProfile) return '';
+    var set = currentTyreSet();
+    if (myTyreSets === null) return '';
+    if (!set) {
+      return '<div class="card tyre-card tyre-card-empty"><div><strong>' + L('Combien de sessions sur tes pneus ?', 'How many sessions on your tyres?') + '</strong>' +
+        '<div class="help-text">' + L('Indique quand tu montes des pneus neufs : Pitbook compte les sessions, les tours et les km faits depuis.', 'Tell Pitbook when you fit new tyres: it counts the sessions, laps and km done since.') + '</div></div>' +
+        '<button type="button" class="ghost" data-action="tyre-new">' + L('J\'ai des pneus neufs', 'I fitted new tyres') + '</button></div>';
+    }
+    var u = tyreSetUsage(set, null);
+    return '<div class="card tyre-card"><div class="tyre-card-main"><span class="outing-label">' + L('Mes pneus', 'My tyres') + '</span>' +
+      '<strong class="tyre-card-label">' + escapeHtml(set.label || L('Train actuel', 'Current set')) + '</strong>' +
+      '<span class="tyre-card-usage">' + escapeHtml(tyreUsageText(u)) + '</span>' +
+      '<span class="help-text">' + L('Montés le ', 'Fitted on ') + escapeHtml(formatDate(set.since)) + (set.bike ? ' · ' + escapeHtml(set.bike) : '') + '</span></div>' +
+      '<button type="button" class="ghost" data-action="tyre-new">' + L('Pneus neufs', 'New tyres') + '</button></div>';
+  }
+  function openTyreSheet() {
+    if (!auth.currentUser || document.querySelector('.tyre-sheet')) return;
+    ensureSetupsLoaded();
+    var sets = (myTyreSets || []).slice();
+    var cur = sets[sets.length - 1] || null;
+    var history = sets.slice().reverse().slice(0, 4).map(function (set, idx, arr) {
+      var realIdx = sets.indexOf(set), next = sets[realIdx + 1] || null;
+      return '<div class="tyre-history-row"><strong>' + escapeHtml(set.label || L('Pneus', 'Tyres')) + '</strong> · ' + escapeHtml(formatDate(set.since)) +
+        '<div class="help-text">' + escapeHtml(tyreUsageText(tyreSetUsage(set, next))) + '</div></div>';
+    }).join('');
+    var sheet = document.createElement('div');
+    sheet.className = 'crop-modal-overlay setup-sheet tyre-sheet';
+    sheet.innerHTML = '<div class="crop-modal setup-modal"><h2 class="section-title">' + L('Pneus neufs', 'New tyres') + '</h2>' +
+      '<div class="help-text">' + L('À partir de cette date, Pitbook compte les sessions, les tours et les km sur ce train. Visible par toi seul.', 'From this date, Pitbook counts the sessions, laps and km on this set. Visible to you only.') + '</div>' +
+      '<div class="setup-grid">' +
+      '<label class="setup-field"><span>' + L('Pneus', 'Tyres') + '</span><input type="text" id="tyre-label" maxlength="80" value="' + escapeHtml(cur && cur.label || '') + '" placeholder="' + L('Ex. Pirelli SC1 / SC0', 'E.g. Pirelli SC1 / SC0') + '"></label>' +
+      '<label class="setup-field setup-half"><span>' + L('Montés le', 'Fitted on') + '</span><input type="date" id="tyre-since" value="' + dateKey(new Date()) + '"></label>' +
+      '<label class="setup-field setup-half"><span>' + L('Moto', 'Bike') + '</span><input type="text" id="tyre-bike" maxlength="60" value="' + escapeHtml((currentUserProfile && currentUserProfile.bike) || '') + '"></label>' +
+      '</div>' +
+      (history ? '<div class="tyre-history"><div class="outing-label">' + L('Trains précédents', 'Previous sets') + '</div>' + history + '</div>' : '') +
+      '<div style="margin-top:0.8rem; display:flex; gap:0.5rem; flex-wrap:wrap;"><button type="button" class="primary" data-t="save">' + tr('save') + '</button>' +
+      '<button type="button" class="ghost" data-t="cancel">' + tr('cancel') + '</button></div></div>';
+    document.body.appendChild(sheet);
+    function close() { if (sheet.parentNode) sheet.parentNode.removeChild(sheet); }
+    sheet.addEventListener('click', function (e) { if (e.target === sheet) close(); });
+    sheet.querySelector('[data-t="cancel"]').addEventListener('click', close);
+    sheet.querySelector('[data-t="save"]').addEventListener('click', function () {
+      var since = sheet.querySelector('#tyre-since').value || dateKey(new Date());
+      var set = { id: genId(), label: sheet.querySelector('#tyre-label').value.trim().slice(0, 80), since: since, at: Date.now() };
+      var bike = sheet.querySelector('#tyre-bike').value.trim().slice(0, 60);
+      if (bike) set.bike = bike;
+      myTyreSets = (myTyreSets || []).concat([set]).sort(function (a, b) { return a.since.localeCompare(b.since) || a.at - b.at; }).slice(-20);
+      close(); renderRoot();
+      db.collection('userPrivate').doc(auth.currentUser.uid).set({ tyreSets: myTyreSets }, { merge: true }).then(function () {
+        showToast(L('Pneus neufs notés.', 'New tyres saved.'), 'success');
+      }).catch(function (err) { showToast(L('Pneus non enregistrés : ', 'Tyres not saved: ') + ((err && err.message) || err)); });
+    });
+  }
+
+  // ---- Ma journée : session par session ----
+  // Ordre des sessions d'un même jour : le créneau quand on le connaît,
+  // sinon l'ordre de saisie (les identifiants commencent par l'heure).
+  function compareSessionsInDay(a, b) {
+    if ((a.date || '') !== (b.date || '')) return (a.date || '').localeCompare(b.date || '');
+    if (a.slotStart != null && b.slotStart != null && a.slotStart !== b.slotStart) return a.slotStart - b.slotStart;
+    return String(a.id || '').localeCompare(String(b.id || ''));
+  }
+  // Ce qui a changé sur la moto entre deux sessions (fiches réglages).
+  function setupChanges(prev, cur) {
+    if (!prev || !cur) return [];
+    var out = [];
+    SETUP_FIELDS.forEach(function (f) {
+      var k = f[0];
+      if (k === 'note') return;
+      var a = prev[k] != null ? String(prev[k]) : '', b = cur[k] != null ? String(cur[k]) : '';
+      if (a === b || !b) return;
+      out.push(setupFieldName(k) + L(' : ', ': ') + (a ? a + ' → ' : '') + b);
+    });
+    return out;
+  }
+  function renderDayProgression(sessions) {
+    var list = sessions.filter(function (x) { return x.laps && x.laps.length; }).slice().sort(compareSessionsInDay);
+    if (list.length < 2) return '';
+    ensureSetupsLoaded();
+    var bests = list.map(sessionBest);
+    var first = bests[0], dayBest = Math.min.apply(null, bests), lo = dayBest, hi = Math.max.apply(null, bests);
+    var gain = first - dayBest;
+    // Courbe : plus haut = plus rapide.
+    var W = 300, H = 70, pad = 10, span = Math.max(hi - lo, 0.5);
+    var pts = bests.map(function (b, i) {
+      return [pad + (W - 2 * pad) * (i / (bests.length - 1)), pad + (H - 2 * pad) * ((b - lo) / span)];
+    });
+    var svg = '<svg class="day-prog-chart" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' + L('Meilleur tour de chaque session', 'Best lap of each session') + '">' +
+      '<polyline points="' + pts.map(function (q) { return q[0].toFixed(1) + ',' + q[1].toFixed(1); }).join(' ') + '" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>' +
+      pts.map(function (q, i) { return '<circle cx="' + q[0].toFixed(1) + '" cy="' + q[1].toFixed(1) + '" r="' + (bests[i] === dayBest ? 5 : 3.5) + '" class="' + (bests[i] === dayBest ? 'day-prog-best' : 'day-prog-dot') + '"/>'; }).join('') + '</svg>';
+    var rows = list.map(function (x, i) {
+      var b = bests[i], d = i ? b - bests[i - 1] : null;
+      var delta = d == null ? '' : '<span class="day-prog-delta ' + (d < 0 ? 'faster' : (d > 0 ? 'slower' : '')) + '">' + (d < 0 ? '−' + formatGap(-d) : (d > 0 ? '+' + formatGap(d) : '=')) + '</span>';
+      var changes = i ? setupChanges(mySetupFor(list[i - 1].id), mySetupFor(x.id)) : [];
+      var label = x.slotLabel || ('S' + (i + 1));
+      return '<div class="day-prog-row"><span class="day-prog-name">' + escapeHtml(label) + '</span><span class="day-prog-time' + (b === dayBest ? ' best' : '') + '">' + formatTime(b) + '</span>' + delta +
+        (changes.length ? '<div class="day-prog-changes">' + L('Changé : ', 'Changed: ') + escapeHtml(changes.join(' · ')) + '</div>' : '') + '</div>';
+    }).join('');
+    var head = gain > 0
+      ? L('Tu as gagné ', 'You gained ') + '<strong>' + formatGap(gain) + '</strong>' + L(' entre ta 1re session et ta meilleure.', ' between your 1st session and your best.')
+      : L('Ta 1re session reste ta meilleure de la journée.', 'Your 1st session is still your best of the day.');
+    var noSetups = list.every(function (x) { return !mySetupFor(x.id); });
+    return '<div class="card day-prog-card"><h2 class="section-title">' + L('Ma journée, session par session', 'My day, session by session') + '</h2>' +
+      '<div class="help-text">' + head + '</div>' + svg + '<div class="day-prog-rows">' + rows + '</div>' +
+      (noSetups ? '<div class="help-text day-prog-hint">' + L('Note tes réglages après chaque session (« Noter mes réglages ») : tu verras ici ce qui a changé et ce que ça t\'a fait gagner.', 'Note your setup after each session ("Note my setup"): you\'ll see here what changed and what it gained you.') + '</div>' : '') +
+      '</div>';
+  }
+
+  // ---- Ajouter le roulage à l'agenda du téléphone (.ics) ----
+  function icsDate(d) { return d.replace(/-/g, ''); }
+  function icsDateTime(d, minutes) { return icsDate(d) + 'T' + pad2(Math.floor(minutes / 60)) + pad2(minutes % 60) + '00'; }
+  function icsEscape(t) { return String(t || '').replace(/\\/g, '\\\\').replace(/;/g, '\;').replace(/,/g, '\\,').replace(/\n/g, '\\n'); }
+  function buildEventIcs(ev) {
+    var me = currentUserProfile && currentUserProfile.name;
+    var days = datesInRange(ev.dateStart, ev.dateEnd || ev.dateStart);
+    var endNext = parseLocalDate(ev.dateEnd || ev.dateStart); endNext.setDate(endNext.getDate() + 1);
+    var stamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d+Z$/, 'Z');
+    var link = publicRoulageLink(ev.id);
+    var lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Pitbook//Trackdays//FR', 'CALSCALE:GREGORIAN',
+      'BEGIN:VEVENT', 'UID:' + ev.id + '@pitbook', 'DTSTAMP:' + stamp,
+      'DTSTART;VALUE=DATE:' + icsDate(ev.dateStart), 'DTEND;VALUE=DATE:' + icsDate(dateKey(endNext)),
+      'SUMMARY:' + icsEscape(L('Roulage – ', 'Trackday – ') + ev.circuit), 'LOCATION:' + icsEscape(ev.circuit),
+      'DESCRIPTION:' + icsEscape(L('Horaires et infos : ', 'Schedule and info: ') + link), 'END:VEVENT'];
+    days.forEach(function (d) {
+      var group = riderGroupFor(ev, me, d, 'matin') || riderGroupFor(ev, me, d, 'apres-midi');
+      var hor = group ? eventHoraires(ev, d) : null;
+      var line = hor && hor['group' + group];
+      if (!line) return;
+      parseHoraireLine(line).filter(function (sl) { return sl.start != null; }).forEach(function (sl, i) {
+        lines.push('BEGIN:VEVENT', 'UID:' + ev.id + '-' + d + '-' + i + '@pitbook', 'DTSTAMP:' + stamp,
+          'DTSTART:' + icsDateTime(d, sl.start), 'DTEND:' + icsDateTime(d, sl.end || sl.start + 20),
+          'SUMMARY:' + icsEscape(L('Session groupe ', 'Session group ') + group + ' – ' + ev.circuit), 'LOCATION:' + icsEscape(ev.circuit),
+          'BEGIN:VALARM', 'TRIGGER:-PT20M', 'ACTION:DISPLAY', 'DESCRIPTION:' + icsEscape(L('Session dans 20 min', 'Session in 20 min')), 'END:VALARM', 'END:VEVENT');
+      });
+    });
+    lines.push('END:VCALENDAR');
+    return lines.join('\r\n') + '\r\n';
+  }
+  function addToCalendarLink(ev) {
+    return '<div class="add-cal-row"><button type="button" class="link-btn inline-link" data-action="add-to-calendar" data-id="' + escapeHtml(ev.id) + '">+ ' +
+      L('Ajouter à mon agenda', 'Add to my calendar') + '</button></div>';
+  }
+  function addEventToCalendar(evId) {
+    var ev = eventsList().filter(function (e) { return e.id === evId; })[0];
+    if (!ev) return;
+    var text = buildEventIcs(ev);
+    var name = 'pitbook-' + String(ev.circuit || 'roulage').toLowerCase().replace(/[^a-z0-9]+/g, '-') + '-' + ev.dateStart + '.ics';
+    // iPhone : ouvrir le fichier propose directement « Ajouter au calendrier ».
+    if (/iPhone|iPad|iPod/.test(navigator.userAgent)) { window.location.href = 'data:text/calendar;charset=utf-8,' + encodeURIComponent(text); return; }
+    var url = URL.createObjectURL(new Blob([text], { type: 'text/calendar;charset=utf-8' }));
+    var a = document.createElement('a');
+    a.href = url; a.download = name;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
+  }
+
 
   function renderOutingPage() {
     if (!outingView) return renderCarnetTab();
@@ -8313,6 +8537,7 @@
       if (!ev.teamId) acts += '<button type="button" class="ghost" id="edit-event-btn" data-id="' + ev.id + '">✎ ' + tr('modify') + '</button>';
       acts += '<button type="button" class="ghost" data-action="export-event-recap" data-id="' + ev.id + '">' + L('Partager', 'Share') + '</button>';
       html += '<div class="outing-actions">' + acts + '</div>';
+      if (status !== 'terminee') html += addToCalendarLink(ev);
       if (ev.bookingUrl && !isRiderHere) html += '<div class="help-text outing-actions-help">Inscription et paiement chez l\'organisateur.</div>';
     }
     // Same pills as everywhere else: Chronos / Infos / Repères.
@@ -8349,11 +8574,12 @@
       if (status !== 'avenir' && !meIsNonRider()) html += '<button type="button" class="primary add-chrono-btn" id="outing-add-chrono">+ Ajouter un chrono pour ce jour</button>';
       // Mes sessions du jour
       if (!meIsNonRider()) {
+      html += renderDayProgression(sessions);
       html += '<div class="card">';
       if (!sessions.length) {
         html += '<div class="empty-state">' + (status === 'avenir' ? 'Tes chronos de ce roulage apparaîtront ici.' : 'Aucun chrono enregistré ce jour-là.') + '</div>';
       } else {
-        sessions.slice().sort(function (a, b) { return (a.slotStart || 0) - (b.slotStart || 0); }).forEach(function (x) {
+        sessions.slice().sort(compareSessionsInDay).forEach(function (x) {
           var b = sessionBest(x);
           var su = mySetupFor(x.id);
           html += '<div class="outing-session"><div><strong>' + escapeHtml(x.slotLabel || (x.group ? 'Groupe ' + x.group : 'Session')) + '</strong>' +
@@ -8916,6 +9142,7 @@
       if (!meIsNonRider()) {
         html += '<button type="button" class="primary add-chrono-btn" id="carnet-add-chrono">+ Ajouter un chrono</button>';
         html += '<div class="help-text carnet-add-help">Saisie, photo de la feuille de temps, capture d\'écran ou PDF.</div>';
+        if (outings.length) html += renderTyreCard();
       } else if (canLogChronoForOthers()) {
         html += '<button type="button" class="primary add-chrono-btn" id="carnet-add-chrono">+ Ajouter un chrono pour un pilote du team</button>';
       }
@@ -8962,14 +9189,14 @@
   function trackNoteSummary(n) {
     var parts = [];
     var apex = n.apex || n.mark; // "mark" = ancien champ "repère visuel / point de corde"
-    if (n.brake) parts.push('Freinage : ' + n.brake);
+    if (n.brake) parts.push(L('Freinage : ', 'Braking: ') + n.brake);
     if (n.gear) parts.push(n.gear + (/^\d$/.test(n.gear) ? (n.gear === '1' ? 're' : 'e') : ''));
     if (n.turnIn) parts.push(L('Déclenchement : ', 'Turn-in: ') + n.turnIn);
     if (n.doubleApex) {
-      if (apex) parts.push('Corde 1 : ' + apex);
-      if (n.apex2) parts.push('Corde 2 : ' + n.apex2);
-    } else if (apex) parts.push('Corde : ' + apex);
-    if (n.exit) parts.push('Sortie : ' + n.exit);
+      if (apex) parts.push(L('Corde 1 : ', 'Apex 1: ') + apex);
+      if (n.apex2) parts.push(L('Corde 2 : ', 'Apex 2: ') + n.apex2);
+    } else if (apex) parts.push(L('Corde : ', 'Apex: ') + apex);
+    if (n.exit) parts.push(L('Sortie : ', 'Exit: ') + n.exit);
     if (n.note) parts.push(n.note);
     return parts.join(' · ');
   }
@@ -11605,6 +11832,11 @@
   }
   function communauteSubItems() {
     var items = [['social', 'Amis & fil']];
+    // Prototype : Teams et Coaching restent masqués tant que l'admin ne les
+    // active pas (Aide › Admin › Fonctions optionnelles), sauf pour qui
+    // fait déjà partie d'un team.
+    var full = isAdmin() || featureEnabled('teamsCoaching') || (STATE.myTeamMemberships || []).length > 0;
+    if (!full) return items;
     items.push(['team', 'Teams']);
     if (canAccessCoachSpace()) items.push(['coach', 'Coaching']);
     return items;
@@ -13160,6 +13392,7 @@
     if (onIt || isLeader) pActs += '<button type="button" class="ghost" data-action="share-roulage" data-id="' + escapeHtml(ev.id) + '">' + L('Inviter', 'Invite') + '</button>';
     pActs += '<button type="button" class="ghost" data-action="export-event-recap" data-id="' + escapeHtml(ev.id) + '">' + L('Partager', 'Share') + '</button>';
     html += '<div class="outing-actions planning-actions">' + pActs + '</div>';
+    if (onIt) html += addToCalendarLink(ev);
     if (isLeader && editingEventId === ev.id) html += renderEventForm();
     if (ev.teamId) html += renderEventAnnouncements(ev, false);
     // Briefing lives with Horaires (above the group filter) now, not up
@@ -19212,6 +19445,12 @@
     document.querySelectorAll('[data-action="invite-qr"]').forEach(function (btn) { btn.addEventListener('click', openInviteQr); });
     document.querySelectorAll('[data-action="session-setup"]').forEach(function (btn) {
       btn.addEventListener('click', function () { openSetupSheet(btn.getAttribute('data-id')); });
+    });
+    document.querySelectorAll('[data-action="tyre-new"]').forEach(function (btn) {
+      btn.addEventListener('click', openTyreSheet);
+    });
+    document.querySelectorAll('[data-action="add-to-calendar"]').forEach(function (btn) {
+      btn.addEventListener('click', function () { addEventToCalendar(btn.getAttribute('data-id')); });
     });
     document.querySelectorAll('[data-action="share-roulage"]').forEach(function (btn) {
       btn.addEventListener('click', function () { shareRoulage(btn.getAttribute('data-id')); });
