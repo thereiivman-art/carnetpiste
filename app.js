@@ -4540,6 +4540,12 @@
     var html = '';
     html += '<div class="help-text">' + tr('about_text') + '</div>';
     html += '<div style="margin-top:1.1rem;"><button type="button" class="ghost" id="tutorial-open-btn">' + tr('review_tutorial_btn') + '</button></div>';
+    // Guide de démarrage en PDF (2 pages), à lire ou à envoyer à un pote.
+    var guideLink = function (lang, label) { return '<a class="ghost guide-link" href="guides/Pitbook-' + lang + '.pdf" target="_blank" rel="noopener">' + label + ' ↗</a>'; };
+    html += '<div class="guide-links"><div class="help-text">' + L('Le guide de démarrage, à lire ou à envoyer à un pote :', 'The getting-started guide, to read or send to a friend:') + '</div>' +
+      '<div class="guide-links-row">' + (currentLang() === 'en'
+        ? guideLink('EN', 'Guide (English)') + guideLink('FR', 'Guide (français)')
+        : guideLink('FR', 'Guide (français)') + guideLink('EN', 'Guide (English)')) + '</div></div>';
     html = renderSubPills('aidesub', [['apropos', 'À propos', html + renderPartnersSection()], ['badges', 'Badges', flatSections(renderBadgesLegend())],
       ['confidentialite', L('Confidentialité', 'Privacy'), renderPrivacyPolicyHtml()], ['mentions', L('Mentions légales', 'Legal'), renderLegalNoticeHtml()]]);
     if (!isAdmin()) return html;
