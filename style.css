@@ -3665,3 +3665,28 @@ span.ph-sponsor { cursor: default; }
 .evimp-row { display: grid; grid-template-columns: 8.5rem 1fr; gap: 0 0.6rem; padding: 0.3rem 0; border-top: 1px solid var(--border); font-size: 0.88rem; }
 .evimp-row .help-text { grid-column: 2; }
 .evimp-row.error { color: var(--accent); }
+
+/* Mon budget (carnet + fiche) */
+.budget-card { display: flex; align-items: center; justify-content: space-between; gap: 0.8rem; flex-wrap: wrap; }
+.budget-card-main { display: flex; flex-direction: column; gap: 0.1rem; min-width: 0; }
+.budget-card-total { font-family: var(--font-display); font-size: 1.35rem; font-weight: 800; font-style: italic; font-variant-numeric: tabular-nums; }
+.budget-card-empty > div { flex: 1 1 14rem; min-width: 0; }
+.event-price-line { margin: -0.5rem 0 0.9rem; }
+.budget-modal { max-height: 88vh; overflow-y: auto; padding-bottom: 0; }
+.budget-years { margin: 0.8rem 0 0.4rem; display: grid; gap: 0.5rem; }
+.budget-year { border: 1px solid var(--border); border-radius: 10px; padding: 0.55rem 0.7rem; }
+.budget-year-head { display: flex; justify-content: space-between; align-items: baseline; gap: 0.6rem; font-family: var(--font-display); text-transform: uppercase; font-weight: 700; }
+.budget-year-head strong { font-size: 1.3rem; font-weight: 800; font-style: italic; font-variant-numeric: tabular-nums; }
+.budget-none { margin: 0.4rem 0; }
+.budget-list-label { margin-top: 0.8rem; }
+.budget-row { border-top: 1px solid var(--border); padding: 0.45rem 0; }
+.budget-row-head { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 0.6rem; align-items: start; cursor: pointer; margin: 0; }
+.budget-row-head input { margin-top: 0.2rem; width: auto; }
+.budget-row-title { display: flex; flex-direction: column; min-width: 0; }
+.budget-row-total { font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.budget-row-off .budget-row-title strong { color: var(--text-muted); }
+.budget-row-more { margin: 0.3rem 0 0 1.8rem; }
+.budget-row-more summary { cursor: pointer; font-size: 0.88rem; color: var(--text-muted); }
+.budget-paid { flex-direction: row; align-items: center; gap: 0.4rem; align-self: end; }
+.budget-paid input { width: auto; }
+.budget-actions { margin-top: 0.9rem; display: flex; gap: 0.5rem; flex-wrap: wrap; position: sticky; bottom: -1px; background: var(--surface); padding: 0.5rem 0; }
