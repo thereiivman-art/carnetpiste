@@ -2845,7 +2845,7 @@
 
 /* Sous-onglets (Sorties, Communauté) et retour au carnet */
 .subnav { display: flex; gap: 0.3rem; background: var(--surface-alt); border: 1px solid var(--border); border-radius: 12px; padding: 0.25rem; margin-bottom: 0.9rem; }
-.subnav-btn { flex: 1; border: none; background: none; padding: 0.55rem 0.4rem; border-radius: 9px; font-weight: 600; color: var(--text-muted); cursor: pointer; }
+.subnav-btn { flex: 1; border: none; background: none; padding: 0.55rem 0.25rem; white-space: nowrap; border-radius: 9px; font-weight: 600; color: var(--text-muted); cursor: pointer; }
 .subnav-btn.active { background: var(--surface); color: var(--text); box-shadow: 0 1px 3px rgba(0,0,0,0.12); }
 .back-link { width: auto; text-decoration: none; font-weight: 600; margin: 0 0 0.6rem; display: inline-block; }
 .carnet-links { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 0.9rem; }
@@ -3690,3 +3690,15 @@ span.ph-sponsor { cursor: default; }
 .budget-paid { flex-direction: row; align-items: center; gap: 0.4rem; align-self: end; }
 .budget-paid input { width: auto; }
 .budget-row-name { display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; }
+.budget-lines { display: grid; gap: 0.35rem; margin-top: 0.5rem; }
+.budget-line { display: grid; grid-template-columns: minmax(0, 1fr) 5.5rem auto; gap: 0.4rem; align-items: center; }
+.budget-line input { margin: 0; }
+.budget-line-del { width: auto; background: none; border: 0; color: var(--text-muted); font-size: 1.3rem; line-height: 1; padding: 0.2rem 0.4rem; cursor: pointer; }
+.budget-row-actions { display: flex; justify-content: space-between; gap: 0.8rem; flex-wrap: wrap; margin-top: 0.5rem; font-size: 0.9rem; }
+.budget-remove { color: var(--text-muted); }
+.budget-extras { margin: 0.5rem 0 0; }
+.budget-past-year + .budget-past-year { margin-top: 0.6rem; }
+.budget-past-head { display: flex; justify-content: space-between; gap: 0.6rem; padding: 0.5rem 0 0.2rem; font-family: var(--font-display); font-weight: 800; font-style: italic; font-size: 1.1rem; text-transform: uppercase; font-variant-numeric: tabular-nums; border-bottom: 2px solid var(--text); }
+.budget-past-head + .budget-row { border-top: 0; }
+.budget-list input[type="number"], .budget-year input[type="number"] { width: 100%; background: var(--surface-alt); border: 1px solid var(--border); border-radius: 7px; padding: 0.55rem 0.65rem; font-family: var(--font-body); font-size: 0.95rem; color: var(--text); font-variant-numeric: tabular-nums; }
+.budget-list input[type="number"]:focus-visible, .budget-year input[type="number"]:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }

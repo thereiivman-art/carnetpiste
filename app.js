@@ -8237,6 +8237,7 @@
   var mySetups = null; // null = pas encore chargé
   var myTyreSets = null; // trains de pneus, même document privé (voir plus bas)
   var myBudget = null; // budget des roulages, même document privé (voir renderBudgetTab)
+  var myBudgetExtras = null; // { '2027': [{id, label, amount}] } : dépenses hors roulage
   var SETUP_FIELDS = [
     ['pFrontCold', 'Pression AV à froid', 'bar', 'Ex. 2.1'], ['pRearCold', 'Pression AR à froid', 'bar', 'Ex. 1.8'],
     ['pFrontHot', 'Pression AV à chaud', 'bar', 'Ex. 2.3'], ['pRearHot', 'Pression AR à chaud', 'bar', 'Ex. 2.0'],
@@ -8249,10 +8250,12 @@
     mySetups = {};
     myTyreSets = [];
     myBudget = {};
+    myBudgetExtras = {};
     db.collection('userPrivate').doc(auth.currentUser.uid).get().then(function (doc) {
       mySetups = (doc.exists && doc.data().setups) || {};
       myTyreSets = (doc.exists && doc.data().tyreSets) || [];
       myBudget = (doc.exists && doc.data().budget) || {};
+      myBudgetExtras = (doc.exists && doc.data().budgetExtras) || {};
       renderRoot();
     }).catch(function () {});
   }
@@ -8458,20 +8461,21 @@
     });
   }
 
-  // ---- Mon budget : ce que vont coûter les roulages à venir ----
+  // ---- Mon budget : ce que coûtent les roulages ----
   // Le prix vient de la note du roulage, telle que l'orga l'a écrite
   // (« ~419 € », « 119 €/jour », « forfait Portimão + Jerez ~895 € ») ;
-  // le pilote peut le corriger et ajoute ses propres frais (déplacement,
-  // hébergement, pneus…). Simple estimation : l'inscription et le paiement
-  // restent chez l'orga. Stocké dans le document privé du pilote
-  // (userPrivate/{uid}.budget), jamais visible des autres.
+  // le pilote peut le corriger, ajoute ses propres frais (déplacement,
+  // hébergement, pneus…) et ses propres lignes. Les roulages passés gardent
+  // leur détail, rangés par année. Simple estimation : l'inscription et le
+  // paiement restent chez l'orga. Stocké dans le document privé du pilote
+  // (userPrivate/{uid}.budget et .budgetExtras), jamais visible des autres.
   function budgetCosts() { return [
     ['travel', L('Déplacement', 'Travel'), L('Essence, péages, vol', 'Fuel, tolls, flight')],
     ['hotel', L('Hébergement', 'Accommodation'), L('Hôtel, repas', 'Hotel, meals')],
-    ['tyres', L('Pneus', 'Tyres'), L('Part du train', 'Share of the set')],
+    ['tyres', L('Pneus', 'Tyres'), L('Ex. 450 si neufs', 'E.g. 450 if new')],
     ['other', L('Autre', 'Other'), L('Location, essence moto', 'Rental, bike fuel')]
   ]; }
-  function budgetCostLabel(k) { return { travel: L('Déplacement', 'Travel'), hotel: L('Hébergement', 'Accommodation'), tyres: L('Pneus', 'Tyres'), other: L('Autre', 'Other') }[k] || k; }
+  function budgetCostLabel(k) { return { travel: L('Déplacement', 'Travel'), hotel: L('Hébergement', 'Accommodation'), tyres: L('Pneus', 'Tyres'), other: L('Autre', 'Other'), lines: L('Mes lignes', 'My lines'), extras: L('Hors roulage', 'Outside trackdays') }[k] || k; }
   function formatEuros(n, approx) {
     var s = Math.round(n || 0).toLocaleString(currentLang() === 'en' ? 'en-GB' : 'fr-FR').replace(/[  ]/g, ' ');
     return (approx ? '~' : '') + L(s + ' €', '€' + s);
@@ -8497,34 +8501,36 @@
     var a = new Date(ev.dateStart + 'T12:00:00'), b = new Date((ev.dateEnd || ev.dateStart) + 'T12:00:00');
     return Math.max(1, Math.round((b - a) / 86400000) + 1);
   }
-  function budgetEntry(evId) { return (myBudget && myBudget[evId]) || {}; }
   function budgetIncluded(ev, entry) {
     var me = currentUserProfile && currentUserProfile.name;
     if (entry && typeof entry.on === 'boolean') return entry.on;
     return !!(me && (ev.riders || []).indexOf(me) !== -1);
   }
-  // Les roulages à venir que le pilote peut budgéter : les siens, et ceux
-  // des Teams qu'il voit (le calendrier proposé par le Mototeam95, par
-  // ex.), pour estimer avant de s'inscrire.
+  function budgetLinesSum(lines) {
+    var t = 0;
+    (lines || []).forEach(function (l) { t += Number(l.amount) || 0; });
+    return t;
+  }
+  // Les roulages qu'on peut budgéter : à venir, les siens et ceux des
+  // Teams qu'il voit (le calendrier proposé par le Mototeam95, par ex.,
+  // pour estimer avant de s'inscrire) ; passés, seulement les siens.
   function budgetCandidates() {
     var me = currentUserProfile && currentUserProfile.name;
     var today = dateKey(new Date());
     return eventsList().filter(function (ev) {
-      if ((ev.dateEnd || ev.dateStart || '') < today) return false;
-      if (me && (ev.riders || []).indexOf(me) !== -1) return true;
-      return !!ev.teamId;
+      var mine = !!(me && (ev.riders || []).indexOf(me) !== -1);
+      if ((ev.dateEnd || ev.dateStart || '') < today) return mine;
+      return mine || !!ev.teamId;
     }).sort(function (a, b) { return a.dateStart < b.dateStart ? -1 : a.dateStart > b.dateStart ? 1 : 0; });
   }
-  // Calcule chaque ligne, avec un « draft » (la fiche en cours) ou le budget
-  // enregistré. Un forfait commun à plusieurs roulages compte une fois,
-  // réparti entre ceux qu'on a gardés.
-  function computeBudget(entries) {
-    entries = entries || myBudget || {};
-    var list = budgetCandidates();
-    var rows = list.map(function (ev) {
+  // Calcule chaque ligne et les totaux par saison. Un forfait commun à
+  // plusieurs roulages compte une fois, réparti entre ceux qu'on a gardés.
+  function computeBudget() {
+    var entries = myBudget || {};
+    var today = dateKey(new Date());
+    var rows = budgetCandidates().map(function (ev) {
       var e = entries[ev.id] || {};
-      var info = eventPriceInfo(ev);
-      return { ev: ev, entry: e, info: info, on: budgetIncluded(ev, e) };
+      return { ev: ev, entry: e, info: eventPriceInfo(ev), on: budgetIncluded(ev, e), past: (ev.dateEnd || ev.dateStart) < today };
     });
     var forfaitCount = {};
     rows.forEach(function (r) { if (r.on && r.info && r.info.forfait && r.entry.price == null) forfaitCount[r.info.forfait] = (forfaitCount[r.info.forfait] || 0) + 1; });
@@ -8537,46 +8543,72 @@
         if (r.info.forfait) orga = r.info.amount / Math.max(1, forfaitCount[r.info.forfait] || 1);
       }
       r.orga = orga; r.approx = approx;
-      r.perso = 0;
+      r.lines = budgetLinesSum(r.entry.lines);
+      r.perso = r.lines;
       budgetCosts().forEach(function (c) { r.perso += Number(r.entry[c[0]]) || 0; });
       r.total = (orga || 0) + r.perso;
     });
     var years = {};
+    function yearOf(y) {
+      return years[y] = years[y] || { year: y, total: 0, orga: 0, spent: 0, planned: 0, toPay: 0, count: 0, countPast: 0, approx: false, missing: 0, perso: { travel: 0, hotel: 0, tyres: 0, other: 0, lines: 0, extras: 0 } };
+    }
     rows.forEach(function (r) {
       if (!r.on) return;
-      var y = (r.ev.dateStart || '').slice(0, 4);
-      var t = years[y] = years[y] || { year: y, total: 0, orga: 0, toPay: 0, count: 0, approx: false, missing: 0, perso: { travel: 0, hotel: 0, tyres: 0, other: 0 } };
+      var t = yearOf((r.ev.dateStart || '').slice(0, 4));
       t.count++; t.total += r.total; t.orga += r.orga || 0;
-      if (!r.entry.paid) t.toPay += r.orga || 0;
+      if (r.past) { t.countPast++; t.spent += r.total; }
+      else { t.planned += r.total; if (!r.entry.paid) t.toPay += r.orga || 0; }
       if (r.approx) t.approx = true;
       if (r.orga === null) t.missing++;
       budgetCosts().forEach(function (c) { t.perso[c[0]] += Number(r.entry[c[0]]) || 0; });
+      t.perso.lines += r.lines;
     });
+    Object.keys(myBudgetExtras || {}).forEach(function (y) {
+      var sum = budgetLinesSum(myBudgetExtras[y]);
+      if (!(myBudgetExtras[y] || []).length) return;
+      var t = yearOf(y);
+      t.perso.extras += sum; t.total += sum;
+    });
+    // La saison en cours a toujours sa carte, pour pouvoir y noter une
+    // dépense hors roulage même sans roulage gardé.
+    if (rows.length) yearOf(today.slice(0, 4));
     return { rows: rows, years: Object.keys(years).sort().map(function (y) { return years[y]; }) };
   }
+  function budgetYearTotal(y) { return y.total || !y.missing ? formatEuros(y.total, y.approx) : '—'; }
   function renderBudgetCard() {
     if (!currentUserProfile) return '';
     ensureSetupsLoaded();
     if (myBudget === null) return '';
     var b = computeBudget();
-    if (!b.rows.length) return '';
-    if (!b.years.length) {
+    var upcoming = b.rows.filter(function (r) { return !r.past; });
+    if (!upcoming.length) return '';
+    var on = upcoming.filter(function (r) { return r.on; });
+    if (!on.length) {
       return '<div class="card budget-card budget-card-empty"><div><strong>' + L('Combien vont te coûter tes roulages ?', 'What will your trackdays cost?') + '</strong>' +
         '<div class="help-text">' + L('Choisis les roulages à venir que tu vises : Pitbook additionne les prix annoncés et tes frais.', 'Pick the upcoming trackdays you\'re aiming for: Pitbook adds up the announced prices and your costs.') + '</div></div>' +
         '<button type="button" class="ghost" data-action="budget-open">' + L('Mon budget', 'My budget') + '</button></div>';
     }
-    var all = { total: 0, toPay: 0, count: 0, approx: false, missing: 0 };
-    b.years.forEach(function (y) { all.total += y.total; all.toPay += y.toPay; all.count += y.count; all.missing += y.missing; if (y.approx) all.approx = true; });
-    var perYear = b.years.length > 1 ? b.years.map(function (y) { return escapeHtml(y.year) + ' : ' + budgetYearTotal(y); }).join(' · ') + '<br>' : '';
+    var all = { total: 0, toPay: 0, approx: false, missing: 0 };
+    on.forEach(function (r) { all.total += r.total; if (!r.entry.paid) all.toPay += r.orga || 0; if (r.approx) all.approx = true; if (r.orga === null) all.missing++; });
     return '<div class="card budget-card"><div class="budget-card-main"><span class="outing-label">' + L('Mon budget à venir', 'My upcoming budget') + '</span>' +
       '<strong class="budget-card-total">' + budgetYearTotal(all) + '</strong>' +
-      '<span class="help-text">' + perYear + all.count + (all.count > 1 ? L(' roulages', ' trackdays') : L(' roulage', ' trackday')) +
+      '<span class="help-text">' + on.length + (on.length > 1 ? L(' roulages', ' trackdays') : L(' roulage', ' trackday')) +
       (all.toPay ? L(' · reste à payer à l\'orga ', ' · still to pay the organiser ') + formatEuros(all.toPay, all.approx) : '') +
       (all.missing ? ' · ' + all.missing + L(' sans prix', ' without a price') : '') + '</span></div>' +
       '<button type="button" class="ghost" data-action="budget-open">' + L('Détail', 'Details') + '</button></div>';
   }
-  function budgetYearTotal(y) { return y.total || !y.missing ? formatEuros(y.total, y.approx) : L('Prix à saisir', 'Price to enter'); }
   // Ligne « Prix annoncé » sur la page d'un roulage à venir.
+  // Roulage passé où j'étais : ce qu'il m'a coûté, et le lien pour détailler.
+  function eventSpendLine(ev) {
+    var me = currentUserProfile && currentUserProfile.name;
+    if (!me || (ev.riders || []).indexOf(me) === -1) return '';
+    ensureSetupsLoaded();
+    if (myBudget === null) return '';
+    var r = computeBudget().rows.filter(function (x) { return x.ev.id === ev.id; })[0];
+    var txt = r && r.on && (r.total || r.orga !== null) ? L('Ce roulage t\'a coûté ', 'This trackday cost you ') + formatEuros(r.total, r.approx) : L('Combien t\'a coûté ce roulage ?', 'What did this trackday cost you?');
+    return '<div class="help-text event-price-line">' + txt +
+      ' · <button type="button" class="link-btn inline-link" data-action="budget-open" data-id="' + escapeHtml(ev.id) + '">' + L('Détail des dépenses', 'Spending details') + '</button></div>';
+  }
   function eventPriceLine(ev) {
     var info = eventPriceInfo(ev);
     if (!info) return '';
@@ -8586,10 +8618,19 @@
     return '<div class="help-text event-price-line">' + L('Prix annoncé : ', 'Announced price: ') + txt +
       ' · <button type="button" class="link-btn inline-link" data-action="budget-open" data-id="' + escapeHtml(ev.id) + '">' + L('Mon budget', 'My budget') + '</button></div>';
   }
-  // Onglet Budget (Carnet › Budget). Deux vues : « Mon budget » (les
-  // roulages gardés) et « Tous les roulages » (pour en cocher d'autres).
-  // Chaque saisie est enregistrée toute seule, sans bouton.
+
+  // Onglet Budget (Carnet › Budget). Trois vues : « Mon budget » (les
+  // roulages à venir gardés), « À venir » (pour en cocher d'autres) et
+  // « Passés » (rangés par année). Chaque saisie s'enregistre toute seule.
   var budgetFocusId = null;
+  function budgetLinesHtml(lines, attrs) {
+    return (lines || []).map(function (l) {
+      return '<div class="budget-line">' +
+        '<input type="text" maxlength="60" id="bl-' + l.id + '-label" ' + attrs + ' data-line="' + l.id + '" data-f="label" value="' + escapeHtml(l.label || '') + '" placeholder="' + escapeHtml(L('Libellé', 'Label')) + '">' +
+        '<input type="number" inputmode="decimal" min="0" step="1" id="bl-' + l.id + '-amount" ' + attrs + ' data-line="' + l.id + '" data-f="amount" value="' + escapeHtml(l.amount != null ? String(l.amount) : '') + '" placeholder="€">' +
+        '<button type="button" class="budget-line-del" data-budget-act="del-line" ' + attrs + ' data-line="' + l.id + '" aria-label="' + escapeHtml(L('Supprimer la ligne', 'Delete line')) + '">×</button></div>';
+    }).join('');
+  }
   function budgetRowHtml(r) {
     var ev = r.ev, team = ev.teamId ? teamById(ev.teamId) : null;
     var me = currentUserProfile && currentUserProfile.name;
@@ -8599,28 +8640,43 @@
         : formatEuros(r.info.amount, r.info.approx) + (r.info.perDay ? L(' par jour × ', ' per day × ') + eventDayCount(ev) : '')) + (team ? ' · ' + escapeHtml(team.name) : '')
       : L('Pas de prix annoncé', 'No announced price') + (team ? ' · ' + escapeHtml(team.name) : '');
     function idFor(k) { return 'bud-' + ev.id + '-' + k; }
-    var fields = '<label class="setup-field setup-half"><span>' + L('Prix orga', 'Organiser price') + '</span><input type="number" inputmode="decimal" min="0" step="1" id="' + idFor('price') + '" data-ev="' + ev.id + '" data-k="price" value="' + escapeHtml(r.entry.price != null ? String(r.entry.price) : '') + '" placeholder="' + escapeHtml(r.orga != null ? String(Math.round(r.orga)) : L('à saisir', 'enter')) + '"></label>' +
-      '<label class="setup-field setup-half budget-paid"><input type="checkbox" id="' + idFor('paid') + '" data-ev="' + ev.id + '" data-k="paid"' + (r.entry.paid ? ' checked' : '') + '><span>' + L('Déjà payé', 'Already paid') + '</span></label>' +
+    var attrs = 'data-ev="' + ev.id + '"';
+    var fields = '<label class="setup-field setup-half"><span>' + L('Prix orga', 'Organiser price') + '</span><input type="number" inputmode="decimal" min="0" step="1" id="' + idFor('price') + '" ' + attrs + ' data-k="price" value="' + escapeHtml(r.entry.price != null ? String(r.entry.price) : '') + '" placeholder="' + escapeHtml(r.orga != null ? String(Math.round(r.orga)) : L('à saisir', 'enter')) + '"></label>' +
+      (r.past ? '<span></span>' : '<label class="setup-field setup-half budget-paid"><input type="checkbox" id="' + idFor('paid') + '" ' + attrs + ' data-k="paid"' + (r.entry.paid ? ' checked' : '') + '><span>' + L('Déjà payé', 'Already paid') + '</span></label>') +
       budgetCosts().map(function (c) {
-        return '<label class="setup-field setup-half"><span>' + c[1] + '</span><input type="number" inputmode="decimal" min="0" step="1" id="' + idFor(c[0]) + '" data-ev="' + ev.id + '" data-k="' + c[0] + '" value="' + escapeHtml(r.entry[c[0]] != null ? String(r.entry[c[0]]) : '') + '" placeholder="' + escapeHtml(c[2]) + '"></label>';
+        return '<label class="setup-field setup-half"><span>' + c[1] + '</span><input type="number" inputmode="decimal" min="0" step="1" id="' + idFor(c[0]) + '" ' + attrs + ' data-k="' + c[0] + '" value="' + escapeHtml(r.entry[c[0]] != null ? String(r.entry[c[0]]) : '') + '" placeholder="' + escapeHtml(c[2]) + '"></label>';
       }).join('');
-    var hasCosts = budgetCosts().some(function (c) { return r.entry[c[0]]; }) || r.entry.price != null;
+    var hasCosts = budgetCosts().some(function (c) { return r.entry[c[0]]; }) || r.entry.price != null || (r.entry.lines || []).length;
     return '<div class="budget-row' + (r.on ? '' : ' budget-row-off') + '" data-row="' + ev.id + '">' +
-      '<div class="budget-row-head"><input type="checkbox" id="' + idFor('on') + '" data-ev="' + ev.id + '" data-k="on" aria-label="' + escapeHtml(L('Dans mon budget', 'In my budget')) + '"' + (r.on ? ' checked' : '') + '>' +
-      '<button type="button" class="budget-row-title" data-open-outing="' + escapeHtml(ev.circuit) + '" data-outing-date="' + escapeHtml(ev.dateStart) + '" data-outing-event="' + escapeHtml(ev.id) + '"><span class="budget-row-name"><strong>' + escapeHtml(ev.circuit) + '</strong>' + (going ? '<span class="record-chip">' + L('J\'y vais', 'Going') + '</span>' : '') + '</span>' +
+      '<div class="budget-row-head"><input type="checkbox" id="' + idFor('on') + '" ' + attrs + ' data-k="on" aria-label="' + escapeHtml(L('Dans mon budget', 'In my budget')) + '"' + (r.on ? ' checked' : '') + '>' +
+      '<button type="button" class="budget-row-title" data-open-outing="' + escapeHtml(ev.circuit) + '" data-outing-date="' + escapeHtml(ev.dateStart) + '" data-outing-event="' + escapeHtml(ev.id) + '"><span class="budget-row-name"><strong>' + escapeHtml(ev.circuit) + '</strong>' + (going && !r.past ? '<span class="record-chip">' + L('J\'y vais', 'Going') + '</span>' : '') + '</span>' +
       '<span class="help-text">' + escapeHtml(formatEventRange(ev, true)) + ' · ' + priceHelp + '</span></button>' +
       '<span class="budget-row-total" data-tot-ev="' + ev.id + '"></span></div>' +
-      '<details class="budget-row-more"' + (budgetFocusId === ev.id || (r.on && hasCosts) ? ' open' : '') + '><summary>' + L('Mes frais', 'My costs') + '</summary><div class="setup-grid">' + fields + '</div></details></div>';
+      '<details class="budget-row-more"' + (budgetFocusId === ev.id || (r.on && hasCosts) ? ' open' : '') + '><summary>' + (r.past ? L('Détail des dépenses', 'Spending details') : L('Mes frais', 'My costs')) + '</summary>' +
+      '<div class="setup-grid">' + fields + '</div>' +
+      '<div class="budget-lines">' + budgetLinesHtml(r.entry.lines, attrs) + '</div>' +
+      '<div class="budget-row-actions"><button type="button" class="link-btn inline-link" data-budget-act="add-line" ' + attrs + '>' + L('+ Ajouter une ligne', '+ Add a line') + '</button>' +
+      (r.on ? '<button type="button" class="link-btn inline-link budget-remove" data-budget-act="remove" ' + attrs + '>' + L('Retirer du budget', 'Remove from budget') + '</button>' : '') + '</div>' +
+      '</details></div>';
   }
   function budgetYearsHtml(cb) {
-    if (!cb.years.length) return '<div class="card help-text budget-none">' + L('Coche les roulages que tu vises (dans « Tous les roulages ») pour voir le total.', 'Tick the trackdays you\'re aiming for (under “All trackdays”) to see the total.') + '</div>';
-    return cb.years.map(function (y) {
+    if (!cb.years.length) return '';
+    return cb.years.slice().reverse().map(function (y) {
       var parts = [L('Roulages ', 'Trackdays ') + formatEuros(y.orga, y.approx)];
-      budgetCosts().forEach(function (c) { if (y.perso[c[0]]) parts.push(budgetCostLabel(c[0]) + ' ' + formatEuros(y.perso[c[0]])); });
-      return '<div class="card budget-year"><div class="budget-year-head"><span>' + L('Saison ', 'Season ') + escapeHtml(y.year) + '</span><strong>' + budgetYearTotal(y) + '</strong></div>' +
-        '<div class="help-text">' + y.count + (y.count > 1 ? L(' roulages', ' trackdays') : L(' roulage', ' trackday')) + ' · ' + parts.join(' · ') + '</div>' +
+      ['travel', 'hotel', 'tyres', 'other', 'lines', 'extras'].forEach(function (k) { if (y.perso[k]) parts.push(budgetCostLabel(k) + ' ' + formatEuros(y.perso[k])); });
+      var split = [];
+      if (y.spent) split.push(L('Dépensé ', 'Spent ') + formatEuros(y.spent, y.approx && y.countPast));
+      if (y.planned) split.push(L('Prévu ', 'Planned ') + formatEuros(y.planned, y.approx));
+      var extras = (myBudgetExtras && myBudgetExtras[y.year]) || [];
+      return '<div class="card budget-year"><div class="budget-year-head"><span>' + L('Saison ', 'Season ') + escapeHtml(y.year) + '</span><strong data-ytot="' + escapeHtml(y.year) + '">' + budgetYearTotal(y) + '</strong></div>' +
+        (y.count ? '<div class="help-text">' + y.count + (y.count > 1 ? L(' roulages', ' trackdays') : L(' roulage', ' trackday')) + (split.length ? ' · ' + split.join(' · ') : '') + '</div>' : '') +
+        (y.total ? '<div class="help-text">' + parts.join(' · ') + '</div>' : '') +
         (y.toPay ? '<div class="help-text">' + L('Reste à payer à l\'orga : ', 'Still to pay the organiser: ') + formatEuros(y.toPay, y.approx) + '</div>' : '') +
-        (y.missing ? '<div class="help-text">' + y.missing + L(' roulage(s) sans prix : saisis-le dans « Mes frais ».', ' trackday(s) without a price: enter it under “My costs”.') + '</div>' : '') + '</div>';
+        (y.missing ? '<div class="help-text">' + y.missing + L(' roulage(s) sans prix : saisis-le dans le détail du roulage.', ' trackday(s) without a price: enter it in the trackday\'s details.') + '</div>' : '') +
+        '<details class="budget-row-more budget-extras"' + (extras.length ? ' open' : '') + '><summary>' + L('Hors roulage', 'Outside trackdays') + ' <span data-yextra="' + escapeHtml(y.year) + '">' + (budgetLinesSum(extras) ? '(' + formatEuros(budgetLinesSum(extras)) + ')' : '') + '</span></summary>' +
+        '<div class="help-text">' + L('Licence, équipement, entretien de la moto…', 'Licence, gear, bike servicing…') + '</div>' +
+        '<div class="budget-lines">' + budgetLinesHtml(extras, 'data-year="' + escapeHtml(y.year) + '"') + '</div>' +
+        '<div class="budget-row-actions"><button type="button" class="link-btn inline-link" data-budget-act="add-line" data-year="' + escapeHtml(y.year) + '">' + L('+ Ajouter une ligne', '+ Add a line') + '</button></div></details></div>';
     }).join('');
   }
   function renderBudgetTab() {
@@ -8628,16 +8684,30 @@
     ensureSetupsLoaded();
     if (myBudget === null) return '<div class="help-text">' + L('Chargement…', 'Loading…') + '</div>';
     var cb = computeBudget();
-    var html = '<div class="help-text budget-intro">' + L('Une estimation à partir des prix annoncés par l\'orga et de tes frais. L\'inscription et le paiement se font chez l\'orga. Visible par toi seul.', 'An estimate based on the organiser\'s announced prices and your own costs. Booking and payment happen with the organiser. Visible to you only.') + '</div>';
-    if (!cb.rows.length) return html + '<div class="card help-text">' + L('Aucun roulage à venir pour l\'instant. Ajoute-en un ou suis un Team pour voir son calendrier.', 'No upcoming trackdays yet. Add one or follow a Team to see its calendar.') + '</div>';
-    var mineCount = cb.rows.filter(function (r) { return r.on; }).length;
-    if (!pillState.budget) pillState.budget = mineCount ? 'mine' : 'all';
+    var html = '<div data-budget-root><div class="help-text budget-intro">' + L('Une estimation à partir des prix annoncés par l\'orga et de tes frais. L\'inscription et le paiement se font chez l\'orga. Visible par toi seul.', 'An estimate based on the organiser\'s announced prices and your own costs. Booking and payment happen with the organiser. Visible to you only.') + '</div>';
+    if (!cb.rows.length) return html + '<div class="card help-text">' + L('Aucun roulage pour l\'instant. Ajoute-en un ou suis un Team pour voir son calendrier.', 'No trackdays yet. Add one or follow a Team to see its calendar.') + '</div></div>';
+    var upcoming = cb.rows.filter(function (r) { return !r.past; });
+    var past = cb.rows.filter(function (r) { return r.past; });
+    var mine = upcoming.filter(function (r) { return r.on; });
+    if (!pillState.budget) pillState.budget = mine.length ? 'mine' : upcoming.length ? 'all' : 'past';
     html += '<div data-budget-years>' + budgetYearsHtml(cb) + '</div>';
-    html += renderPills('budget', [['mine', L('Mon budget', 'My budget') + (mineCount ? ' (' + mineCount + ')' : '')], ['all', L('Tous les roulages', 'All trackdays') + ' (' + cb.rows.length + ')']]);
-    var rows = pillState.budget === 'mine' ? cb.rows.filter(function (r) { return r.on; }) : cb.rows;
-    html += '<div class="card budget-list" data-budget-list>' + (rows.length ? rows.map(budgetRowHtml).join('')
-      : '<div class="help-text">' + L('Aucun roulage gardé. Coche-les dans « Tous les roulages ».', 'No trackday kept yet. Tick them under “All trackdays”.') + '</div>') + '</div>';
-    return html;
+    html += renderPills('budget', [['mine', L('Mon budget', 'My budget') + (mine.length ? ' (' + mine.length + ')' : '')], ['all', L('À venir', 'Upcoming') + ' (' + upcoming.length + ')'], ['past', L('Passés', 'Past') + (past.length ? ' (' + past.length + ')' : '')]]);
+    var body;
+    if (pillState.budget === 'past') {
+      var byYear = {};
+      past.forEach(function (r) { var y = r.ev.dateStart.slice(0, 4); (byYear[y] = byYear[y] || []).push(r); });
+      body = Object.keys(byYear).sort().reverse().map(function (y) {
+        var t = 0, n = 0;
+        byYear[y].forEach(function (r) { if (r.on) { t += r.total; n++; } });
+        return '<div class="budget-past-year"><div class="budget-past-head"><span>' + escapeHtml(y) + '</span><span data-past-year="' + escapeHtml(y) + '">' + (t ? formatEuros(t) : '—') + '</span></div>' +
+          byYear[y].slice().reverse().map(budgetRowHtml).join('') + '</div>';
+      }).join('') || '<div class="help-text">' + L('Aucun roulage passé.', 'No past trackdays.') + '</div>';
+    } else {
+      var rows = pillState.budget === 'mine' ? mine : upcoming;
+      body = rows.length ? rows.map(budgetRowHtml).join('')
+        : '<div class="help-text">' + L('Aucun roulage gardé. Coche-les dans « À venir ».', 'No trackday kept yet. Tick them under “Upcoming”.') + '</div>';
+    }
+    return html + '<div class="card budget-list" data-budget-list>' + body + '</div></div>';
   }
   var budgetSaveTimer = null;
   function saveBudgetSoon() {
@@ -8646,12 +8716,17 @@
       if (!auth.currentUser) return;
       var keep = {};
       budgetCandidates().forEach(function (ev) { if (myBudget[ev.id] && Object.keys(myBudget[ev.id]).length) keep[ev.id] = myBudget[ev.id]; });
-      db.collection('userPrivate').doc(auth.currentUser.uid).set({ budget: keep }, { merge: true })
+      var extras = {};
+      Object.keys(myBudgetExtras || {}).forEach(function (y) { if ((myBudgetExtras[y] || []).length) extras[y] = myBudgetExtras[y]; });
+      // mergeFields : ces deux champs sont remplacés en entier (un « merge »
+      // simple garderait dans la base les montants qu'on vient d'effacer).
+      db.collection('userPrivate').doc(auth.currentUser.uid).set({ budget: keep, budgetExtras: extras }, { mergeFields: ['budget', 'budgetExtras'] })
         .catch(function (err) { showToast(L('Budget non enregistré : ', 'Budget not saved: ') + ((err && err.message) || err)); });
     }, 700);
   }
-  function refreshBudgetTotals(root) {
+  function refreshBudgetTotals(root, inYears) {
     var cb = computeBudget();
+    var pastYears = {};
     cb.rows.forEach(function (r) {
       var el = root.querySelector('[data-tot-ev="' + r.ev.id + '"]');
       if (el) el.textContent = r.on ? (r.orga === null && !r.perso ? '—' : formatEuros(r.total, r.approx)) : '';
@@ -8659,30 +8734,86 @@
       if (row) row.classList.toggle('budget-row-off', !r.on);
       var pin = root.querySelector('[data-ev="' + r.ev.id + '"][data-k="price"]');
       if (pin && !pin.value) pin.placeholder = r.orga != null ? String(Math.round(r.orga)) : L('à saisir', 'enter');
+      if (r.past && r.on) { var y = r.ev.dateStart.slice(0, 4); pastYears[y] = (pastYears[y] || 0) + r.total; }
     });
+    root.querySelectorAll('[data-past-year]').forEach(function (el) {
+      var t = pastYears[el.getAttribute('data-past-year')];
+      el.textContent = t ? formatEuros(t) : '—';
+    });
+    // Les cartes de saison ne sont reconstruites que si on n'y tape pas,
+    // pour ne pas perdre le champ en cours de saisie : on ne met alors à
+    // jour que leurs totaux.
     var yrs = root.querySelector('[data-budget-years]');
-    if (yrs) yrs.innerHTML = budgetYearsHtml(cb);
+    if (yrs && !inYears && !yrs.contains(document.activeElement)) yrs.innerHTML = budgetYearsHtml(cb);
+    else cb.years.forEach(function (y) {
+      var t = root.querySelector('[data-ytot="' + y.year + '"]'), x = root.querySelector('[data-yextra="' + y.year + '"]');
+      var sum = budgetLinesSum((myBudgetExtras || {})[y.year]);
+      if (t) t.textContent = budgetYearTotal(y);
+      if (x) x.textContent = sum ? '(' + formatEuros(sum) + ')' : '';
+    });
+  }
+  function budgetLineList(t) {
+    var ev = t.getAttribute('data-ev'), y = t.getAttribute('data-year');
+    if (ev) { var d = myBudget[ev] = myBudget[ev] || {}; return d.lines = d.lines || []; }
+    myBudgetExtras = myBudgetExtras || {};
+    return myBudgetExtras[y] = myBudgetExtras[y] || [];
   }
   function attachBudgetTab() {
-    var list = document.querySelector('[data-budget-list]');
-    if (!list || !myBudget) return;
-    var root = list.parentNode;
+    var root = document.querySelector('[data-budget-root]');
+    if (!root || !myBudget) return;
     function onEdit(e) {
-      var t = e.target, id = t.getAttribute && t.getAttribute('data-ev'), k = t.getAttribute && t.getAttribute('data-k');
-      if (!id || !k) return;
-      var d = myBudget[id] = myBudget[id] || {};
-      if (t.type === 'checkbox') { if (e.type !== 'change') return; d[k] = t.checked; }
-      else { var v = t.value.trim(); if (v === '') delete d[k]; else d[k] = Math.max(0, Math.round(parseEuroNumber(v) || 0)); }
-      refreshBudgetTotals(root);
+      var t = e.target;
+      if (!t.getAttribute) return;
+      var lineId = t.getAttribute('data-line');
+      if (lineId && t.getAttribute('data-f')) {
+        var line = budgetLineList(t).filter(function (l) { return l.id === lineId; })[0];
+        if (!line) return;
+        if (t.getAttribute('data-f') === 'label') line.label = t.value.slice(0, 60);
+        else { var a = t.value.trim(); line.amount = a === '' ? null : Math.max(0, Math.round(parseEuroNumber(a) || 0)); }
+      } else {
+        var id = t.getAttribute('data-ev'), k = t.getAttribute('data-k');
+        if (!id || !k) return;
+        var d = myBudget[id] = myBudget[id] || {};
+        if (t.type === 'checkbox') { if (e.type !== 'change') return; d[k] = t.checked; }
+        else { var v = t.value.trim(); if (v === '') delete d[k]; else d[k] = Math.max(0, Math.round(parseEuroNumber(v) || 0)); }
+      }
+      var yrsEl = root.querySelector('[data-budget-years]');
+      refreshBudgetTotals(root, !!(yrsEl && yrsEl.contains(t)));
       saveBudgetSoon();
     }
-    list.addEventListener('input', onEdit);
-    list.addEventListener('change', onEdit);
+    root.addEventListener('input', onEdit);
+    root.addEventListener('change', onEdit);
+    root.addEventListener('click', function (e) {
+      var btn = e.target.closest && e.target.closest('[data-budget-act]');
+      if (!btn) return;
+      var act = btn.getAttribute('data-budget-act'), evId = btn.getAttribute('data-ev');
+      var focusId = null;
+      if (act === 'add-line') {
+        var l = { id: genId(), label: '', amount: null };
+        budgetLineList(btn).push(l);
+        focusId = 'bl-' + l.id + '-label';
+        if (evId) budgetFocusId = evId;
+      } else if (act === 'del-line') {
+        var list = budgetLineList(btn), lid = btn.getAttribute('data-line');
+        for (var i = list.length - 1; i >= 0; i--) if (list[i].id === lid) list.splice(i, 1);
+        if (evId) budgetFocusId = evId;
+      } else if (act === 'remove') {
+        myBudget[evId] = myBudget[evId] || {};
+        myBudget[evId].on = false;
+        showToast(L('Roulage retiré du budget. Tes montants sont gardés si tu le recoches.', 'Trackday removed from the budget. Your amounts are kept if you tick it again.'), 'success');
+      }
+      saveBudgetSoon();
+      var y = window.scrollY;
+      renderRoot();
+      window.scrollTo(0, y);
+      if (focusId) { var f = document.getElementById(focusId); if (f) f.focus(); }
+    });
     refreshBudgetTotals(root);
     if (budgetFocusId) {
-      var fr = list.querySelector('[data-row="' + budgetFocusId + '"]');
+      var fr = root.querySelector('[data-row="' + budgetFocusId + '"]');
+      var jump = !fr || fr.getBoundingClientRect().top < 0 || fr.getBoundingClientRect().top > window.innerHeight;
       budgetFocusId = null;
-      if (fr && fr.scrollIntoView) fr.scrollIntoView({ block: 'center' });
+      if (fr && jump && fr.scrollIntoView) fr.scrollIntoView({ block: 'center' });
     }
   }
   // Depuis la carte du Carnet ou la page d'un roulage : on ouvre l'onglet,
@@ -8691,17 +8822,15 @@
     ensureSetupsLoaded();
     if (evId && myBudget) {
       var d = myBudget[evId] = myBudget[evId] || {};
-      if (typeof d.on !== 'boolean' || !d.on) {
-        var ev = (STATE.events || []).filter(function (x) { return x.id === evId; })[0];
-        if (!ev || !budgetIncluded(ev, d)) { d.on = true; saveBudgetSoon(); }
-      }
+      var ev = (STATE.events || []).filter(function (x) { return x.id === evId; })[0];
+      if (!ev || !budgetIncluded(ev, d)) { d.on = true; saveBudgetSoon(); }
       budgetFocusId = evId;
-      pillState.budget = 'mine';
+      pillState.budget = ev && (ev.dateEnd || ev.dateStart) < dateKey(new Date()) ? 'past' : 'mine';
     }
     activeView = 'budget';
     outingView = null;
     renderRoot();
-    window.scrollTo(0, 0);
+    if (!evId) window.scrollTo(0, 0);
   }
 
   // ---- Ma journée : session par session ----
@@ -8885,7 +9014,7 @@
       acts += '<button type="button" class="ghost" data-action="export-event-recap" data-id="' + ev.id + '">' + L('Partager', 'Share') + '</button>';
       html += '<div class="outing-actions">' + acts + '</div>';
       if (status !== 'terminee') html += addToCalendarLink(ev);
-      if (status !== 'terminee') html += eventPriceLine(ev);
+      html += status !== 'terminee' ? eventPriceLine(ev) : eventSpendLine(ev);
       if (ev.bookingUrl && !isRiderHere) html += '<div class="help-text outing-actions-help">Inscription et paiement chez l\'organisateur.</div>';
     }
     // Same pills as everywhere else: Chronos / Infos / Repères.
