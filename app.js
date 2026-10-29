@@ -964,7 +964,6 @@
 "Modifier": "Edit",
 "Modifier mon lien": "Edit my link",
 "Photo des horaires": "Schedule photo",
-"Ex. Inscriptions avant le 1er septembre": "E.g. Sign up before 1 September",
 "Aucun temps n'a été reconnu. Essaie avec une photo plus nette et bien cadrée sur le tableau, une capture d'écran, ou colle les temps en texte.": "No time was recognised. Try a sharper photo framed on the table, a screenshot, or paste the times as text.",
 "Ton carnet de piste": "Your Pitbook",
 "Tes repères sur le plan": "Your marks on the map",
@@ -8512,9 +8511,11 @@
   // Prix annoncé dans la note : { amount, perDay, approx, forfait } ou null.
   function eventPriceInfo(ev) {
     var note = String((ev && ev.note) || '');
-    var m = note.match(/([~≈]|env\.?|environ)?\s*(\d{1,3}(?:[\s  .]\d{3})+|\d+)(?:,\d+)?\s*€\s*(\/\s*(?:jour|j|day)\b)?/i);
+    // « ~419 € », « 119 €/jour » ou, à l'anglaise, « ~€419 », « €119/day ».
+    var m = note.match(/([~≈]|env\.?|environ)?\s*(\d{1,3}(?:[\s  .]\d{3})+|\d+)(?:,\d+)?\s*€\s*(\/\s*(?:jour|j|day)\b)?/i) ||
+      note.match(/([~≈]|approx\.?|about)?\s*€\s*(\d{1,3}(?:[\s,.]\d{3})+|\d+)(?:\.\d+)?\s*(\/\s*(?:jour|j|day)\b)?/i);
     if (!m) return null;
-    var amount = parseEuroNumber(m[0].replace(/^[^\d]*/, '').replace(/€[\s\S]*$/, ''));
+    var amount = parseEuroNumber(m[2].replace(/,(?=\d{3}\b)/g, ''));
     if (!amount) return null;
     var f = note.match(/forfait\s+([^~≈\d€·]+?)\s*(?:[~≈]|env\.?)?\s*\d/i);
     return { amount: amount, perDay: !!m[3], approx: !!m[1], forfait: f ? (ev.teamId || '') + '|' + f[1].trim().toLowerCase() : null, forfaitLabel: f ? f[1].trim() : '' };
@@ -8715,7 +8716,7 @@
       '<span class="ph-feature-s">' + (y.count ? y.count + (y.count > 1 ? L(' roulages', ' trackdays') : L(' roulage', ' trackday')) : L('Aucun roulage gardé', 'No trackday kept')) +
       (y.perso.extras ? L(' · dont ', ' · incl. ') + formatEuros(y.perso.extras) + L(' hors roulage', ' outside trackdays') : '') + '</span>';
     if (y.spent && y.planned) {
-      html += '<div class="budget-progress" role="img" aria-label="' + escapeHtml(spentPct + '%') + '"><i style="width:' + spentPct + '%"></i></div>' +
+      html += '<div class="budget-progress" role="img" aria-label="' + escapeHtml(L('Dépensé : ' + spentPct + ' %', 'Spent: ' + spentPct + '%')) + '"><i style="width:' + spentPct + '%"></i></div>' +
         '<div class="budget-progress-legend"><span>' + L('Dépensé ', 'Spent ') + formatEuros(y.spent, y.approx && y.countPast) + '</span><span>' + L('Prévu ', 'Planned ') + formatEuros(y.planned, y.approx) + '</span></div>';
     }
     html += '</div>';
@@ -14788,7 +14789,8 @@
       html += '<div class="help-text" style="margin-top:0.9rem;">' + tr('managed_from_team') + '</div>';
     }
     html += '</div>';
-    html += '<div style="margin-top:0.9rem;"><label for="ev-note">' + tr('note_optional') + '</label><input type="text" id="ev-note" placeholder="Ex. Inscriptions avant le 1er septembre" value="' + escapeHtml(ev.note || '') + '"></div>';
+    html += '<div style="margin-top:0.9rem;"><label for="ev-note">' + tr('note_optional') + '</label><input type="text" id="ev-note" placeholder="' + escapeHtml(L('Ex. ~419 € · inscriptions avant le 1er septembre', 'E.g. ~€419 · sign up before 1 September')) + '" value="' + escapeHtml(ev.note || '') + '">' +
+      '<div class="help-text">' + L('Un prix écrit ici (« ~419 € », « 119 €/jour ») apparaît dans le budget de chacun.', 'A price written here (“~€419”, “€119/day”) shows up in everyone\'s budget.') + '</div></div>';
     html += '<div class="field-error" id="event-form-error"></div>';
     html += '<div style="margin-top:0.9rem; display:flex; gap:0.6rem;">' +
       '<button type="submit" class="primary">' + tr('save') + '</button>' +
