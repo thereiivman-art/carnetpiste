@@ -2484,7 +2484,19 @@
       var row = { line: i + 1, dateStart: start, dateEnd: end, circuit: circuit, note: note, error: '' };
       if (!/^\d{4}-\d{2}-\d{2}$/.test(start) || !/^\d{4}-\d{2}-\d{2}$/.test(end) || end < start) row.error = L('dates invalides', 'invalid dates');
       else if (!circuit) row.error = L('circuit manquant', 'circuit missing');
-      else if (eventsList().some(function (e) { return circuitKey(e.circuit) === circuitKey(circuit) && e.dateStart === start && (e.teamId || null) === (teamId || null); })) row.error = L('existe déjà', 'already exists');
+      else {
+        // Même circuit, même début, même Team : c'est le même roulage. S'il a
+        // changé (fin, note), l'import le met à jour au lieu de l'ignorer
+        // (ex. Portimão 20-24 sept. devenu Portimão 20-21 + Jerez 23-24).
+        var same = eventsList().filter(function (e) { return circuitKey(e.circuit) === circuitKey(circuit) && e.dateStart === start && (e.teamId || null) === (teamId || null); })[0];
+        if (same) {
+          var changes = [];
+          if ((same.dateEnd || same.dateStart) !== end) changes.push(L('fin ', 'end ') + formatDate(same.dateEnd || same.dateStart) + ' → ' + formatDate(end));
+          if ((same.note || '') !== note) changes.push(L('note', 'note'));
+          if (changes.length) { row.updateId = same.id; row.changes = changes.join(', '); }
+          else row.error = L('existe déjà', 'already exists');
+        }
+      }
       rows.push(row);
     });
     return rows;
@@ -2507,11 +2519,19 @@
       var ok = eventImportPreview.filter(function (r) { return !r.error; });
       html += '<div class="evimp-preview">' + eventImportPreview.map(function (r) {
         return '<div class="evimp-row' + (r.error ? ' error' : '') + '"><span>' + escapeHtml(formatDate(r.dateStart)) + (r.dateEnd !== r.dateStart ? ' → ' + escapeHtml(formatDate(r.dateEnd)) : '') + '</span><strong>' + escapeHtml(r.circuit || '?') + '</strong>' +
-          '<span class="help-text">' + escapeHtml(r.error ? L('Ligne ', 'Line ') + r.line + ' : ' + r.error : r.note) + '</span></div>';
+          '<span class="help-text">' + escapeHtml(r.error ? L('Ligne ', 'Line ') + r.line + ' : ' + r.error : (r.updateId ? L('Mise à jour (', 'Update (') + r.changes + ') · ' : '') + r.note) + '</span></div>';
       }).join('') + '</div>' +
-        (ok.length ? '<button type="button" class="primary" data-action="evimp-go" style="margin-top:0.6rem;">' + L('Importer ' + ok.length + ' roulage' + (ok.length > 1 ? 's' : ''), 'Import ' + ok.length + ' trackday' + (ok.length > 1 ? 's' : '')) + '</button>' : '');
+        (ok.length ? '<button type="button" class="primary" data-action="evimp-go" style="margin-top:0.6rem;">' + evimpCountText(ok, L('Importer ', 'Import '), L('mettre à jour ', 'update ')) + '</button>' : '');
     }
     return html;
+  }
+  // « 1 roulage · mettre à jour 1 » : nouveaux d'abord, mises à jour ensuite.
+  function evimpCountText(rows, addVerb, updVerb) {
+    var nAdd = rows.filter(function (r) { return !r.updateId; }).length, nUpd = rows.length - nAdd;
+    var parts = [];
+    if (nAdd) parts.push(addVerb + nAdd + L(nAdd > 1 ? ' roulages' : ' roulage', nAdd > 1 ? ' trackdays' : ' trackday'));
+    if (nUpd) parts.push((parts.length ? updVerb : updVerb.charAt(0).toUpperCase() + updVerb.slice(1)) + nUpd);
+    return parts.join(' · ');
   }
   function runEventImport() {
     if (!isAdmin() || !eventImportPreview) return;
@@ -2522,6 +2542,11 @@
     var prevState = JSON.parse(JSON.stringify(STATE));
     eventsList();
     rows.forEach(function (r) {
+      if (r.updateId) {
+        var cur = STATE.events.filter(function (e) { return e.id === r.updateId; })[0];
+        if (cur) { cur.dateEnd = r.dateEnd; cur.note = r.note || ''; }
+        return;
+      }
       var ev = { id: genId(), circuit: r.circuit, dateStart: r.dateStart, dateEnd: r.dateEnd, riders: [], note: r.note || '' };
       if (teamId) { ev.teamId = teamId; if (vis) ev.eventVisibility = vis; }
       STATE.events.push(ev);
@@ -2529,7 +2554,7 @@
     eventImportPreview = null;
     renderRoot();
     persist(prevState);
-    showToast(L(rows.length + ' roulage' + (rows.length > 1 ? 's' : '') + ' ajouté' + (rows.length > 1 ? 's' : '') + '.', rows.length + ' trackday' + (rows.length > 1 ? 's' : '') + ' added.'), 'success');
+    showToast(evimpCountText(rows, L('Ajouté : ', 'Added: '), L('mis à jour : ', 'updated: ')) + '.', 'success');
   }
 
   function renderOptionalFeaturesSection() {
