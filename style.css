@@ -3659,3 +3659,9 @@ span.ph-sponsor { cursor: default; }
 .day-prog-changes { grid-column: 1 / -1; font-size: 0.82rem; color: var(--text-muted); }
 .day-prog-hint { margin-top: 0.5rem; }
 .add-cal-row { margin: -0.4rem 0 0.9rem; font-size: 0.9rem; }
+
+/* Import de roulages (admin) */
+.evimp-preview { margin-top: 0.7rem; display: grid; gap: 0.2rem; max-height: 22rem; overflow: auto; }
+.evimp-row { display: grid; grid-template-columns: 8.5rem 1fr; gap: 0 0.6rem; padding: 0.3rem 0; border-top: 1px solid var(--border); font-size: 0.88rem; }
+.evimp-row .help-text { grid-column: 2; }
+.evimp-row.error { color: var(--accent); }

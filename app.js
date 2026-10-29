@@ -344,7 +344,7 @@
       events_management_heading: 'Gestion des roulages',
       organized_by_prefix: 'Organisé par ', readonly_leader_can_edit_suffix: ' — lecture seule, seul le Team Leader de ',
       readonly_can_edit_suffix2: ' peut modifier ce roulage.', edit_event_btn: 'Modifier le roulage',
-      ev_vis_public: 'Public', ev_vis_adherent_only: 'Adhérent only', ev_vis_membre_only: 'Membre only',
+      ev_vis_public: 'Public', ev_vis_adherent_only: 'Adhérents seulement', ev_vis_membre_only: 'Membres seulement',
       ev_vis_follower_only: 'Abonnés seulement', ev_vis_ouvert: 'Ouvert', visibility_label: 'Visibilité',
       book_register_btn: 'Réserver / S\'inscrire ↗', rider_col_label: 'Pilote',
       event_bike_number_label: 'N° pour ce roulage', save_number_aria: 'Enregistrer le N°',
@@ -740,7 +740,7 @@
       events_management_heading: 'Trackday management',
       organized_by_prefix: 'Organised by ', readonly_leader_can_edit_suffix: ' — read-only, only the Team Leader of ',
       readonly_can_edit_suffix2: ' can edit this trackday.', edit_event_btn: 'Edit trackday',
-      ev_vis_public: 'Public', ev_vis_adherent_only: 'Club member only', ev_vis_membre_only: 'Member only',
+      ev_vis_public: 'Public', ev_vis_adherent_only: 'Club members only', ev_vis_membre_only: 'Members only',
       ev_vis_follower_only: 'Followers only', ev_vis_ouvert: 'Open', visibility_label: 'Visibility',
       book_register_btn: 'Book / Register ↗', rider_col_label: 'Rider',
       event_bike_number_label: 'Bike # for this trackday', save_number_aria: 'Save the #',
@@ -2434,6 +2434,103 @@
     });
   }
 
+
+  // ---- Import de roulages en lot (admin) ----
+  // Une ligne par roulage : début | fin | circuit | note. Pré-rempli avec
+  // le calendrier 2027 proposé par le Mototeam95 (vote des adhérents).
+  var EVENT_IMPORT_SAMPLE = [
+    '2027-03-15 | 2027-03-16 | Le Mans | ~419 € · circuit MotoGP',
+    '2027-03-27 | 2027-03-28 | Carole | 119 €/jour (1 ou 2 j) · sam 27 : fête du club',
+    '2027-04-09 | 2027-04-11 | Misano | 739 € · circuit MotoGP',
+    '2027-04-21 | 2027-04-22 | Le Mans | ~439 € · circuit MotoGP',
+    '2027-04-23 | 2027-04-25 | Navarra | ~529 €',
+    '2027-05-11 | 2027-05-12 | Assen | ~499 € · circuit MotoGP',
+    '2027-05-14 | 2027-05-16 | Brno | ~890 € · circuit MotoGP',
+    '2027-06-05 | 2027-06-06 | Mas du Clos | ~319 €',
+    '2027-06-12 | 2027-06-13 | Carole | 119 €/jour (1 ou 2 j)',
+    '2027-06-12 | 2027-06-13 | Clastres | ~90 €/jour',
+    '2027-06-25 | 2027-06-27 | Magny Cours | prix à venir',
+    '2027-06-25 | 2027-06-27 | Aragón | ~420 € · circuit MotoGP',
+    '2027-07-03 | 2027-07-04 | Le Vigeant | ~319 €',
+    '2027-07-10 | 2027-07-11 | Carole | 119 €/jour (1 ou 2 j)',
+    '2027-07-28 | 2027-07-29 | Le Mans | ~439 € · circuit MotoGP',
+    '2027-08-07 | 2027-08-08 | Dijon-Prenois | ~419 €',
+    '2027-09-01 | 2027-09-03 | Red Bull Ring | ~1 200 € · circuit MotoGP',
+    '2027-09-04 | 2027-09-05 | Carole | 119 €/jour (1 ou 2 j)',
+    '2027-09-04 | 2027-09-05 | Clastres | ~90 €/jour',
+    '2027-09-20 | 2027-09-24 | Portimão | Portimão + Jerez · ~895 € · circuits MotoGP',
+    '2027-10-01 | 2027-10-03 | Mugello | ~799 € · circuit MotoGP',
+    '2027-10-07 | 2027-10-08 | Le Mans | ~419 € · circuit MotoGP',
+    '2027-10-18 | 2027-10-20 | Valence | ~620 € · circuit MotoGP',
+    '2027-10-23 | 2027-10-24 | Alcarràs | ~299 €'
+  ].join('\n');
+  var eventImportText = null, eventImportPreview = null;
+  // Nom du circuit tel que l'appli le connaît (« Magny-Cours » -> « Magny Cours »).
+  function canonicalCircuitName(name) {
+    var k = circuitKey(name);
+    var b = BUILTIN_CIRCUITS.filter(function (c) { return circuitKey(c[0]) === k; })[0];
+    if (b) return b[0];
+    var known = Object.keys(STATE.circuits || {}).filter(function (c) { return circuitKey(c) === k; })[0];
+    return known || name;
+  }
+  function parseEventImport(text, teamId) {
+    var rows = [];
+    (text || '').split('\n').forEach(function (line, i) {
+      line = line.trim();
+      if (!line) return;
+      var parts = line.split('|').map(function (x) { return x.trim(); });
+      var start = parts[0], end = parts[1] || parts[0], circuit = parts[2] ? canonicalCircuitName(parts[2]) : '', note = parts.slice(3).join(' | ');
+      var row = { line: i + 1, dateStart: start, dateEnd: end, circuit: circuit, note: note, error: '' };
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(start) || !/^\d{4}-\d{2}-\d{2}$/.test(end) || end < start) row.error = L('dates invalides', 'invalid dates');
+      else if (!circuit) row.error = L('circuit manquant', 'circuit missing');
+      else if (eventsList().some(function (e) { return circuitKey(e.circuit) === circuitKey(circuit) && e.dateStart === start && (e.teamId || null) === (teamId || null); })) row.error = L('existe déjà', 'already exists');
+      rows.push(row);
+    });
+    return rows;
+  }
+  function renderEventImportCard() {
+    if (!isAdmin()) return '';
+    if (eventImportText === null) eventImportText = EVENT_IMPORT_SAMPLE;
+    var teams = (STATE.teams || []).slice().sort(function (a, b) { return (a.name || '').localeCompare(b.name || ''); });
+    var defTeam = teams.filter(function (t) { return /moto\s*team\s*95|mototeam\s*95/i.test(t.name || ''); })[0];
+    var html = '<div class="section-title" style="font-size:0.95rem;">' + L('Importer des roulages', 'Import trackdays') + '</div>' +
+      '<div class="help-text">' + L('Une ligne par roulage : début | fin | circuit | note (dates au format AAAA-MM-JJ). Pré-rempli avec le calendrier 2027 proposé par le Mototeam95.', 'One line per trackday: start | end | circuit | note (dates as YYYY-MM-DD). Prefilled with the 2027 calendar proposed by Mototeam95.') + '</div>' +
+      '<label for="evimp-team" style="margin-top:0.6rem;">Team</label><select id="evimp-team"><option value="">' + L('Aucun (roulage libre)', 'None (independent trackday)') + '</option>' +
+      teams.map(function (t) { return '<option value="' + escapeHtml(t.id) + '"' + (defTeam && defTeam.id === t.id ? ' selected' : '') + '>' + escapeHtml(t.name || t.id) + '</option>'; }).join('') + '</select>' +
+      '<label for="evimp-vis" style="margin-top:0.6rem;">' + tr('visibility_label') + '</label><select id="evimp-vis">' +
+      '<option value="adherent" selected>' + tr('ev_vis_adherent_only') + '</option><option value="membre">' + tr('ev_vis_membre_only') + '</option>' +
+      '<option value="follower">' + tr('ev_vis_follower_only') + '</option><option value="public">' + tr('ev_vis_public') + '</option></select>' +
+      '<textarea id="evimp-text" rows="10" style="margin-top:0.6rem; font-family: var(--font-mono, monospace); font-size:0.8rem;">' + escapeHtml(eventImportText) + '</textarea>' +
+      '<div style="margin-top:0.6rem; display:flex; gap:0.5rem; flex-wrap:wrap;"><button type="button" class="ghost" data-action="evimp-check">' + L('Vérifier', 'Check') + '</button></div>';
+    if (eventImportPreview) {
+      var ok = eventImportPreview.filter(function (r) { return !r.error; });
+      html += '<div class="evimp-preview">' + eventImportPreview.map(function (r) {
+        return '<div class="evimp-row' + (r.error ? ' error' : '') + '"><span>' + escapeHtml(formatDate(r.dateStart)) + (r.dateEnd !== r.dateStart ? ' → ' + escapeHtml(formatDate(r.dateEnd)) : '') + '</span><strong>' + escapeHtml(r.circuit || '?') + '</strong>' +
+          '<span class="help-text">' + escapeHtml(r.error ? L('Ligne ', 'Line ') + r.line + ' : ' + r.error : r.note) + '</span></div>';
+      }).join('') + '</div>' +
+        (ok.length ? '<button type="button" class="primary" data-action="evimp-go" style="margin-top:0.6rem;">' + L('Importer ' + ok.length + ' roulage' + (ok.length > 1 ? 's' : ''), 'Import ' + ok.length + ' trackday' + (ok.length > 1 ? 's' : '')) + '</button>' : '');
+    }
+    return html;
+  }
+  function runEventImport() {
+    if (!isAdmin() || !eventImportPreview) return;
+    var teamId = (document.getElementById('evimp-team') || {}).value || null;
+    var vis = (document.getElementById('evimp-vis') || {}).value || null;
+    var rows = parseEventImport(eventImportText, teamId).filter(function (r) { return !r.error; });
+    if (!rows.length) return;
+    var prevState = JSON.parse(JSON.stringify(STATE));
+    eventsList();
+    rows.forEach(function (r) {
+      var ev = { id: genId(), circuit: r.circuit, dateStart: r.dateStart, dateEnd: r.dateEnd, riders: [], note: r.note || '' };
+      if (teamId) { ev.teamId = teamId; if (vis) ev.eventVisibility = vis; }
+      STATE.events.push(ev);
+    });
+    eventImportPreview = null;
+    renderRoot();
+    persist(prevState);
+    showToast(L(rows.length + ' roulage' + (rows.length > 1 ? 's' : '') + ' ajouté' + (rows.length > 1 ? 's' : '') + '.', rows.length + ' trackday' + (rows.length > 1 ? 's' : '') + ' added.'), 'success');
+  }
+
   function renderOptionalFeaturesSection() {
     if (!isAdmin()) return '';
     var rows = OPTIONAL_FEATURES.map(function (f) {
@@ -3023,7 +3120,7 @@
     ['Albi', 'FR', 3.565], ['Alès', 'FR', 2.5], ['Bresse', 'FR', 3.1], ['Carole', 'FR', 2.055], ['Charade', 'FR', 3.975],
     ['Croix-en-Ternois', 'FR', 1.9], ['Dijon-Prenois', 'FR', 3.801], ['Haute Saintonge', 'FR', null], ['Lédenon', 'FR', 3.15],
     ['Le Mans', 'FR', 4.185], ['Le Vigeant', 'FR', 3.768], ['Magny Cours', 'FR', 4.411], ['Nogaro', 'FR', 3.636],
-    ['Pau-Arnos', 'FR', 3.03], ['Paul Ricard', 'FR', 5.8],
+    ['Pau-Arnos', 'FR', 3.03], ['Paul Ricard', 'FR', 5.8], ['Mas du Clos', 'FR', null], ['Clastres', 'FR', null],
     ['Barcelone', 'ES', 4.657], ['Jerez', 'ES', 4.428], ['Valence', 'ES', 4.005], ['Aragón', 'ES', 5.077], ['Navarra', 'ES', 3.933],
     ['Jarama', 'ES', 3.85], ['Almería', 'ES', null], ['Cartagena', 'ES', null], ['Calafat', 'ES', null], ['Alcarràs', 'ES', null],
     ['Portimão', 'PT', 4.592], ['Estoril', 'PT', 4.182],
@@ -4557,7 +4654,7 @@
     var pills = renderPills('aide', [['aide', 'Aide'], ['admin', 'Admin']]);
     // Une carte par outil d'admin.
     var asCard = function (h) { return h ? '<div class="card">' + h.replace('margin-top:1.2rem; border-top:1px solid var(--border); padding-top:0.9rem;', '') + '</div>' : ''; };
-    if (pillState.aide === 'admin') return pills + renderUsageStatsCard() + renderLangStatsCard() + renderNationalityStatsCard() + asCard(renderPartnersSection(true)) + asCard(renderOptionalFeaturesSection()) + asCard(renderPasswordResetSection());
+    if (pillState.aide === 'admin') return pills + renderUsageStatsCard() + renderLangStatsCard() + renderNationalityStatsCard() + asCard(renderPartnersSection(true)) + asCard(renderOptionalFeaturesSection()) + asCard(renderEventImportCard()) + asCard(renderPasswordResetSection());
     return pills + html;
   }
 
@@ -19446,6 +19543,14 @@
     document.querySelectorAll('[data-action="session-setup"]').forEach(function (btn) {
       btn.addEventListener('click', function () { openSetupSheet(btn.getAttribute('data-id')); });
     });
+    var evimpCheck = document.querySelector('[data-action="evimp-check"]');
+    if (evimpCheck) evimpCheck.addEventListener('click', function () {
+      eventImportText = document.getElementById('evimp-text').value;
+      eventImportPreview = parseEventImport(eventImportText, document.getElementById('evimp-team').value || null);
+      renderRoot();
+    });
+    var evimpGo = document.querySelector('[data-action="evimp-go"]');
+    if (evimpGo) evimpGo.addEventListener('click', runEventImport);
     document.querySelectorAll('[data-action="tyre-new"]').forEach(function (btn) {
       btn.addEventListener('click', openTyreSheet);
     });
