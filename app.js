@@ -5349,13 +5349,16 @@
         var isPendingDelete = pendingDeleteAccountUid === a.uid;
         var isPilote = !a.role || a.role === 'pilote';
         var detail = isPilote ? escapeHtml(a.bike || '—') : escapeHtml((a.followedRiders || []).join(', ') || '—');
-        return '<li class="rider-manager-row account-manager-row">' +
+        // Infos du compte en haut, boutons en dessous sur une rangée qui
+        // passe à la ligne : avec 6 badges, ils débordaient de l'écran.
+        return '<li class="rider-manager-row account-manager-row account-row-wrap">' +
           '<div><span class="rider-manager-name' + nameColorClass(a.name) + '">' + escapeHtml(a.name || a.email) + '</span>' + badgesHtml(a) + ' <span class="friend-role-badge">' + roleLabel(a.role) + '</span>' +
           '<div class="help-text">' + escapeHtml(a.email || '') + ' · ' + (isPilote ? tr('bike_colon') : tr('follows_colon')) + detail + '</div>' +
           // Parrain : d'habitude posé tout seul à l'inscription par le lien
           // de parrainage ; l'admin le corrige ici quand l'inscription s'est
           // faite sans le lien.
           '<label class="account-referrer">' + L('Parrain', 'Referrer') + ' <input type="text" list="account-names" data-action="set-referrer" data-uid="' + a.uid + '" value="' + escapeHtml(a.referredBy || '') + '" placeholder="' + escapeHtml(L('aucun', 'none')) + '" maxlength="40"></label></div>' +
+          '<div class="account-row-actions">' +
           (isPilote ? '' : '<button type="button" class="ghost icon-btn" data-action="demote-account" data-uid="' + a.uid + '" aria-label="' + tr('demote_to_rider') + '" title="' + tr('demote_to_rider') + '">↺</button>') +
           profileBadges().map(function (b) {
             var on = !!a[b.field];
@@ -5363,6 +5366,7 @@
             return '<button type="button" class="ghost icon-btn' + (on ? ' confirm' : '') + '" data-action="toggle-account-badge" data-uid="' + a.uid + '" data-field="' + b.field + '" aria-label="' + escapeHtml(title) + '" title="' + escapeHtml(title) + '">' + b.icon + '</button>';
           }).join('') +
           '<button type="button" class="ghost icon-btn' + (isPendingDelete ? ' confirm' : ' danger') + '" data-action="delete-account-request" data-uid="' + a.uid + '" aria-label="' + tr('delete_account_aria') + '" title="' + tr('revoke_access_title') + '">' + (isPendingDelete ? '✓' : '×') + '</button>' +
+          '</div>' +
           '</li>';
       }).join('') + '</ul>' +
         '<datalist id="account-names">' + referrerCandidates().map(function (a) { return '<option value="' + escapeHtml(a.name) + '">'; }).join('') + '</datalist>';

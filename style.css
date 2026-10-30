@@ -3747,3 +3747,7 @@ span.ph-sponsor { cursor: default; }
 .pressure-error { color: var(--accent); margin-top: 0.5rem; }
 .account-referrer { display: flex; align-items: center; gap: 0.4rem; margin-top: 0.3rem; font-size: 0.8rem; font-weight: 600; color: var(--text-muted); }
 .account-referrer input { width: auto; flex: 1; max-width: 11rem; padding: 0.25rem 0.45rem; font-size: 0.85rem; }
+.account-row-wrap { flex-wrap: wrap; }
+.account-row-wrap > div:first-child { flex: 1 1 100%; min-width: 0; }
+.account-row-actions { display: flex; flex-wrap: wrap; gap: 0.35rem; margin: 0.15rem 0 0.2rem; }
+.account-row-actions .icon-btn { width: auto; min-width: 2rem; height: 2rem; padding: 0 0.45rem; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.02em; white-space: nowrap; }

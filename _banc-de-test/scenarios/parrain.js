@@ -3,7 +3,7 @@ const { chromium, BASE } = require('../lib');
 (async () => {
   const lang = process.argv[2] || 'fr';
   const b = await chromium.launch();
-  const p = await b.newPage({ viewport: { width: 400, height: 1000 } });
+  const p = await b.newPage({ viewport: { width: 360, height: 1000 } });
   const errs = []; p.on('pageerror', e => errs.push(e.message));
   const sam = () => p.evaluate(() => Object.values(window.__MOCK_DATA.users).filter(u => u.name === 'Sam').map(u => u.referredBy === undefined ? '(aucun)' : u.referredBy)[0]);
   const toast = async () => { const t = await p.$$eval('.toast', e => e.map(x => x.innerText)); return t[t.length - 1]; };
