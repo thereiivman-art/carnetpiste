@@ -70,6 +70,10 @@ function jouer(nom, args) {
   });
 }
 
+// Utilisé par d'autres outils du banc (guide/faire-guide.js) : on
+// exporte le serveur sans rien lancer.
+if (require.main !== module) { module.exports = { servir: servir, PORT: PORT, DEPOT: DEPOT, BANC: BANC }; return; }
+
 (async function () {
   fs.mkdirSync(SORTIE, { recursive: true });
   indexBanc(); // échoue tout de suite si index.html ne se laisse plus adapter

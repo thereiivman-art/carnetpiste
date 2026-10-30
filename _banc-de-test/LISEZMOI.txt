@@ -34,6 +34,11 @@ Scénarios
   tyres-stats          Stats › Pneus.
   pressures            Stats › Pneus › Mes pressions.
 
+Guide PDF
+  node _banc-de-test/guide/faire-guide.js
+      Refait guides/Pitbook-FR.pdf et Pitbook-EN.pdf avec des captures
+      fraîches de l'appli de démo. Les textes sont dans faire-guide.js.
+
 Fichiers
   lancer.js            serveur et lanceur des scénarios
   lib.js               Playwright et adresse du banc pour les scénarios
