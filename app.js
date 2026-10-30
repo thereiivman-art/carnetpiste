@@ -1214,8 +1214,8 @@
 "Aucun de tes amis n'a encore importé ses chronos de ce jour-là. Défie-les : ils importent leur feuille de temps et vous comparez.": "None of your friends has imported their lap times from that day yet. Challenge them: they import their timesheet and you compare.", "Modifier mes réglages": "Edit my setup", "Noter mes réglages": "Note my setup", "Mes réglages": "My setup",
 "Pression AV à froid (bar)": "Front pressure cold (bar)", "Pression AR à froid (bar)": "Rear pressure cold (bar)", "Pression AV à chaud (bar)": "Front pressure hot (bar)", "Pression AR à chaud (bar)": "Rear pressure hot (bar)",
 "Pneus": "Tyres", "Fourche": "Fork", "Amortisseur": "Shock", "Transmission": "Gearing", "Note": "Note", "Effacer": "Clear",
-"Ex. 2.1": "E.g. 2.1", "Ex. 1.8": "E.g. 1.8", "Ex. 2.3": "E.g. 2.3", "Ex. 2.0": "E.g. 2.0", "Ex. Pirelli SC1 / SC0, 3e session": "E.g. Pirelli SC1 / SC0, 3rd session",
-"Ex. compression 8 clics, détente 10": "E.g. compression 8 clicks, rebound 10", "Ex. précharge +2 tours, détente 12": "E.g. preload +2 turns, rebound 12", "Ex. 16/43": "E.g. 16/43",
+"Ta valeur": "Your value", "Marque, gomme, usure": "Brand, compound, wear", "Compression, détente, précharge": "Compression, rebound, preload", "Pignon / couronne": "Front / rear sprocket",
+
 "Ex. avant qui chatte en sortie du 3": "E.g. front chattering on the exit of turn 3", "Réglages enregistrés.": "Setup saved.", "Réglages effacés.": "Setup cleared.",
 "Connexion": "Sign in", "Mot de passe": "Password", "Se souvenir de moi": "Remember me", "Se connecter": "Sign in",
 "Pas encore de compte ?": "No account yet?", "Créer un compte": "Create an account", "Mot de passe oublié ?": "Forgot your password?",
@@ -8262,11 +8262,15 @@
   var myTyreSets = null; // trains de pneus, même document privé (voir plus bas)
   var myBudget = null; // budget des roulages, même document privé (voir renderBudgetTab)
   var myBudgetExtras = null; // { '2027': [{id, label, amount}] } : dépenses hors roulage
+  var myPressures = null; // relevés de pressions notés par le pilote (voir renderPressuresCard)
+  // Pas de valeur d'exemple dans les champs techniques (pressions,
+  // suspensions, rapports) : un chiffre affiché par l'appli pourrait être
+  // pris pour un conseil. On indique seulement quoi noter.
   var SETUP_FIELDS = [
-    ['pFrontCold', 'Pression AV à froid', 'bar', 'Ex. 2.1'], ['pRearCold', 'Pression AR à froid', 'bar', 'Ex. 1.8'],
-    ['pFrontHot', 'Pression AV à chaud', 'bar', 'Ex. 2.3'], ['pRearHot', 'Pression AR à chaud', 'bar', 'Ex. 2.0'],
-    ['tyres', 'Pneus', '', 'Ex. Pirelli SC1 / SC0, 3e session'], ['fork', 'Fourche', '', 'Ex. compression 8 clics, détente 10'],
-    ['shock', 'Amortisseur', '', 'Ex. précharge +2 tours, détente 12'], ['gearing', 'Transmission', '', 'Ex. 16/43'],
+    ['pFrontCold', 'Pression AV à froid', 'bar', 'Ta valeur'], ['pRearCold', 'Pression AR à froid', 'bar', 'Ta valeur'],
+    ['pFrontHot', 'Pression AV à chaud', 'bar', 'Ta valeur'], ['pRearHot', 'Pression AR à chaud', 'bar', 'Ta valeur'],
+    ['tyres', 'Pneus', '', 'Marque, gomme, usure'], ['fork', 'Fourche', '', 'Compression, détente, précharge'],
+    ['shock', 'Amortisseur', '', 'Compression, détente, précharge'], ['gearing', 'Transmission', '', 'Pignon / couronne'],
     ['note', 'Note', '', 'Ex. avant qui chatte en sortie du 3']
   ];
   function ensureSetupsLoaded() {
@@ -8275,11 +8279,13 @@
     myTyreSets = [];
     myBudget = {};
     myBudgetExtras = {};
+    myPressures = [];
     db.collection('userPrivate').doc(auth.currentUser.uid).get().then(function (doc) {
       mySetups = (doc.exists && doc.data().setups) || {};
       myTyreSets = (doc.exists && doc.data().tyreSets) || [];
       myBudget = (doc.exists && doc.data().budget) || {};
       myBudgetExtras = (doc.exists && doc.data().budgetExtras) || {};
+      myPressures = (doc.exists && doc.data().pressures) || [];
       renderRoot();
     }).catch(function () {});
   }
@@ -8446,6 +8452,124 @@
       '<span class="help-text">' + L('Montés le ', 'Fitted on ') + escapeHtml(formatDate(set.since)) + (set.bike ? ' · ' + escapeHtml(set.bike) : '') + '</span></div>' +
       '<button type="button" class="ghost" data-action="tyre-new">' + L('Pneus neufs', 'New tyres') + '</button></div>';
   }
+  // ---- Mes pressions (Stats › Pneus) ----
+  // Le pilote note ses propres pressions AV/AR, à froid et à chaud, par
+  // circuit. Pitbook n'en suggère jamais aucune : pas de valeur par défaut,
+  // pas d'exemple chiffré, pas d'alerte « trop haut / trop bas ». Relevés
+  // privés (userPrivate/{uid}.pressures), plus ceux des fiches réglages.
+  var PRESSURE_KEYS = [['fc', 'pFrontCold'], ['rc', 'pRearCold'], ['fh', 'pFrontHot'], ['rh', 'pRearHot']];
+  function pressureText(p) {
+    var u = p.unit || 'bar', parts = [];
+    // Virgule décimale en français (2,1), point en anglais (2.1).
+    function n(x) { return x ? L(String(x).replace('.', ','), String(x).replace(',', '.')) : '–'; }
+    if (p.fc || p.rc) parts.push(L('AV ', 'Front ') + n(p.fc) + L(' / AR ', ' / Rear ') + n(p.rc) + ' ' + u + L(' à froid', ' cold'));
+    if (p.fh || p.rh) parts.push(L('AV ', 'Front ') + n(p.fh) + L(' / AR ', ' / Rear ') + n(p.rh) + ' ' + u + L(' à chaud', ' hot'));
+    return parts;
+  }
+  // Relevés notés ici, et pressions des fiches réglages des sessions.
+  function allPressureEntries() {
+    ensureSetupsLoaded();
+    var me = currentUserProfile && currentUserProfile.name;
+    var out = (myPressures || []).map(function (p) { return Object.assign({ source: 'own' }, p); });
+    (STATE.sessions || []).forEach(function (x) {
+      var su = x.rider === me && mySetups && mySetups[x.id];
+      if (!su || !(su.pFrontCold || su.pRearCold || su.pFrontHot || su.pRearHot)) return;
+      var e = { id: 'session-' + x.id, sessionId: x.id, source: 'session', circuit: x.circuit, date: x.date, tyres: su.tyres || '', unit: 'bar', slot: x.slotLabel || '' };
+      PRESSURE_KEYS.forEach(function (k) { if (su[k[1]]) e[k[0]] = String(su[k[1]]); });
+      out.push(e);
+    });
+    return out.sort(function (a, b) { return (b.date || '').localeCompare(a.date || '') || (b.at || 0) - (a.at || 0); });
+  }
+  function renderPressuresCard() {
+    ensureSetupsLoaded();
+    if (myPressures === null) return '';
+    var entries = allPressureEntries();
+    var byCircuit = {}, order = [];
+    entries.forEach(function (e) { var k = e.circuit || '—'; if (!byCircuit[k]) { byCircuit[k] = []; order.push(k); } byCircuit[k].push(e); });
+    var html = '<div class="card pressures-card"><div class="budget-card-head"><h2 class="section-title">' + L('Mes pressions', 'My pressures') + '</h2></div>' +
+      '<div class="help-text">' + L('Tes relevés à toi, AV et AR, circuit par circuit. Pitbook ne conseille aucune pression : suis les préconisations du manufacturier de tes pneus ou du technicien pneus du circuit.', 'Your own readings, front and rear, circuit by circuit. Pitbook never recommends a pressure: follow your tyre manufacturer\'s guidance or the trackside tyre technician\'s.') + '</div>' +
+      '<button type="button" class="primary pressures-add" data-action="pressure-new">' + L('+ Noter mes pressions', '+ Log my pressures') + '</button>';
+    if (!order.length) return html + '</div>';
+    html += order.map(function (c) {
+      var list = byCircuit[c];
+      function row(e) {
+        var meta = [formatDate(e.date)];
+        if (e.slot) meta.push(e.slot);
+        if (e.tyres) meta.push(e.tyres);
+        if (e.cond) meta.push(e.cond);
+        var act = e.source === 'session'
+          ? '<button type="button" class="link-btn inline-link" data-action="session-setup" data-id="' + escapeHtml(e.sessionId) + '">' + L('Fiche réglages', 'Setup sheet') + '</button>'
+          : '<button type="button" class="link-btn inline-link" data-action="pressure-edit" data-id="' + escapeHtml(e.id) + '">' + L('Modifier', 'Edit') + '</button>';
+        return '<div class="pressure-row">' + pressureText(e).map(function (t) { return '<div class="pressure-vals">' + escapeHtml(t) + '</div>'; }).join('') +
+          '<div class="help-text">' + escapeHtml(meta.join(' · ')) + (e.note ? '<br>' + escapeHtml(e.note) : '') + ' · ' + act + '</div></div>';
+      }
+      return '<div class="pressure-circuit"><div class="pressure-circuit-head"><span class="outing-thumb">' + circuitThumbHtml(c) + '</span><strong>' + escapeHtml(c) + '</strong>' +
+        '<span class="help-text">' + list.length + (list.length > 1 ? L(' relevés', ' readings') : L(' relevé', ' reading')) + '</span></div>' +
+        row(list[0]) + (list.length > 1 ? '<details class="pressure-more"><summary>' + L('Relevés précédents', 'Earlier readings') + '</summary>' + list.slice(1).map(row).join('') + '</details>' : '') + '</div>';
+    }).join('');
+    return html + '</div>';
+  }
+  function savePressures(msg) {
+    if (!auth.currentUser) return;
+    db.collection('userPrivate').doc(auth.currentUser.uid).set({ pressures: myPressures }, { mergeFields: ['pressures'] }).then(function () {
+      if (msg) showToast(msg, 'success');
+    }).catch(function (err) { showToast(L('Pressions non enregistrées : ', 'Pressures not saved: ') + ((err && err.message) || err)); });
+  }
+  function openPressureSheet(id) {
+    if (!auth.currentUser || document.querySelector('.pressure-sheet')) return;
+    ensureSetupsLoaded();
+    var cur = (myPressures || []).filter(function (p) { return p.id === id; })[0] || null;
+    var last = (myPressures || []).slice().sort(function (a, b) { return (b.at || 0) - (a.at || 0); })[0];
+    var target = typeof targetPlanningEvent === 'function' ? targetPlanningEvent() : null;
+    var tyre = currentTyreSet();
+    var v = cur || { circuit: (target && target.ev && target.ev.circuit) || '', date: dateKey(new Date()), unit: (last && last.unit) || 'bar', tyres: (tyre && tyre.label) || '' };
+    function field(k, label, half, attrs) {
+      return '<label class="setup-field' + (half ? ' setup-half' : '') + '"><span>' + label + '</span><input type="text" id="pr-' + k + '" ' + (attrs || '') + ' value="' + escapeHtml(/^(fc|rc|fh|rh)$/.test(k) && v[k] ? L(String(v[k]).replace('.', ','), String(v[k])) : (v[k] || '')) + '"></label>';
+    }
+    var sheet = document.createElement('div');
+    sheet.className = 'crop-modal-overlay setup-sheet pressure-sheet';
+    sheet.innerHTML = '<div class="crop-modal setup-modal"><h2 class="section-title">' + L('Mes pressions', 'My pressures') + '</h2>' +
+      '<div class="help-text">' + L('Note ce que tu as mis. Aucune valeur n\'est proposée par Pitbook. Visible par toi seul.', 'Log what you used. Pitbook suggests no value. Visible to you only.') + '</div>' +
+      '<div class="setup-grid">' +
+      '<label class="setup-field"><span>Circuit</span><input type="text" id="pr-circuit" list="pr-circuits" maxlength="60" value="' + escapeHtml(v.circuit || '') + '"><datalist id="pr-circuits">' + circuitDatalist() + '</datalist></label>' +
+      '<label class="setup-field setup-half"><span>' + L('Date', 'Date') + '</span><input type="date" id="pr-date" value="' + escapeHtml(v.date || dateKey(new Date())) + '"></label>' +
+      '<label class="setup-field setup-half"><span>' + L('Unité', 'Unit') + '</span><select id="pr-unit"><option value="bar"' + (v.unit !== 'psi' ? ' selected' : '') + '>bar</option><option value="psi"' + (v.unit === 'psi' ? ' selected' : '') + '>psi</option></select></label>' +
+      field('fc', L('AV à froid', 'Front, cold'), true, 'inputmode="decimal" maxlength="6"') + field('rc', L('AR à froid', 'Rear, cold'), true, 'inputmode="decimal" maxlength="6"') +
+      field('fh', L('AV à chaud', 'Front, hot'), true, 'inputmode="decimal" maxlength="6"') + field('rh', L('AR à chaud', 'Rear, hot'), true, 'inputmode="decimal" maxlength="6"') +
+      field('tyres', L('Pneus', 'Tyres'), false, 'maxlength="80" placeholder="' + escapeHtml(L('Marque, gomme, usure', 'Brand, compound, wear')) + '"') +
+      field('cond', L('Conditions', 'Conditions'), false, 'maxlength="80" placeholder="' + escapeHtml(L('Météo, température piste…', 'Weather, track temperature…')) + '"') +
+      field('note', L('Note', 'Note'), false, 'maxlength="200"') +
+      '</div><div class="help-text pressure-error" hidden></div>' +
+      '<div style="margin-top:0.8rem; display:flex; gap:0.5rem; flex-wrap:wrap;"><button type="button" class="primary" data-p="save">' + tr('save') + '</button>' +
+      '<button type="button" class="ghost" data-p="cancel">' + tr('cancel') + '</button>' +
+      (cur ? '<button type="button" class="ghost danger" data-p="delete">' + L('Supprimer', 'Delete') + '</button>' : '') + '</div></div>';
+    document.body.appendChild(sheet);
+    function close() { if (sheet.parentNode) sheet.parentNode.removeChild(sheet); }
+    function val(k) { return (sheet.querySelector('#pr-' + k).value || '').trim(); }
+    sheet.addEventListener('click', function (e) { if (e.target === sheet) close(); });
+    sheet.querySelector('[data-p="cancel"]').addEventListener('click', close);
+    var del = sheet.querySelector('[data-p="delete"]');
+    if (del) del.addEventListener('click', function () {
+      myPressures = (myPressures || []).filter(function (p) { return p.id !== cur.id; });
+      close(); renderRoot(); savePressures(L('Relevé supprimé.', 'Reading deleted.'));
+    });
+    sheet.querySelector('[data-p="save"]').addEventListener('click', function () {
+      var rec = { id: cur ? cur.id : genId(), at: cur ? cur.at : Date.now(), circuit: val('circuit').slice(0, 60), date: val('date') || dateKey(new Date()), unit: val('unit') === 'psi' ? 'psi' : 'bar' };
+      ['fc', 'rc', 'fh', 'rh'].forEach(function (k) { var x = val(k).replace(',', '.').slice(0, 6); if (x) rec[k] = x; });
+      ['tyres', 'cond', 'note'].forEach(function (k) { var x = val(k); if (x) rec[k] = x; });
+      var err = sheet.querySelector('.pressure-error');
+      // Seulement la forme (un nombre), jamais la valeur elle-même.
+      var bad = ['fc', 'rc', 'fh', 'rh'].filter(function (k) { return rec[k] && !/^\d{1,2}(\.\d{1,2})?$/.test(rec[k]); });
+      if (!rec.circuit || !(rec.fc || rec.rc || rec.fh || rec.rh) || bad.length) {
+        err.textContent = !rec.circuit ? L('Indique le circuit.', 'Enter the circuit.') : bad.length ? L('Une pression s\'écrit en chiffres, avec une virgule ou un point.', 'A pressure is written in digits, with a comma or a point.') : L('Note au moins une pression.', 'Log at least one pressure.');
+        err.hidden = false;
+        return;
+      }
+      myPressures = (myPressures || []).filter(function (p) { return p.id !== rec.id; }).concat([rec]).slice(-300);
+      close(); renderRoot(); savePressures(L('Pressions notées.', 'Pressures logged.'));
+    });
+  }
+
   // Stats › Pneus : le train en place et les précédents (avant sur
   // l'écran Chronos, où il repoussait la liste des roulages trop bas).
   function renderTyresPanel() {
@@ -8457,7 +8581,7 @@
       return '<div class="tyre-history-row"><strong>' + escapeHtml(set.label || L('Pneus', 'Tyres')) + '</strong> · ' + escapeHtml(formatDate(set.since)) +
         '<div class="help-text">' + escapeHtml(tyreUsageText(tyreSetUsage(set, next))) + '</div></div>';
     }).join('');
-    return renderTyreCard() + (history ? '<div class="card"><h2 class="section-title">' + L('Trains précédents', 'Previous sets') + '</h2><div class="tyre-history">' + history + '</div></div>' : '');
+    return renderPressuresCard() + renderTyreCard() + (history ? '<div class="card"><h2 class="section-title">' + L('Trains précédents', 'Previous sets') + '</h2><div class="tyre-history">' + history + '</div></div>' : '');
   }
   function openTyreSheet() {
     if (!auth.currentUser || document.querySelector('.tyre-sheet')) return;
@@ -15334,7 +15458,9 @@
     CZ: 'linear-gradient(to right, #11457E 0 34%, transparent 34%), ' + stripes('h', ['#ffffff', '#D7141A']),
     DK: nordic('#C8102E', '#ffffff'), SE: nordic('#006AA7', '#FECC02'), NO: nordic('#BA0C2F', '#ffffff'), FI: nordic('#ffffff', '#002F6C'),
     CH: 'linear-gradient(to right, transparent 42%, #ffffff 42% 58%, transparent 58%) center / 100% 64% no-repeat, linear-gradient(to bottom, transparent 42%, #ffffff 42% 58%, transparent 58%) center / 64% 100% no-repeat, #DA291C',
-    GB: 'linear-gradient(to right, transparent 44%, #C8102E 44% 56%, transparent 56%), linear-gradient(to bottom, transparent 44%, #C8102E 44% 56%, transparent 56%), linear-gradient(to right, transparent 38%, #ffffff 38% 62%, transparent 62%), linear-gradient(to bottom, transparent 38%, #ffffff 38% 62%, transparent 62%), #012169',
+    // Union Jack complet (croix et diagonales) : avec la seule croix, la
+    // pastille ressemblait au drapeau islandais.
+    GB: 'url(data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 60 30"><clipPath id="t"><path d="M30,15h30v15zv15h-30zh-30v-15zv-15h30z"/></clipPath><path d="M0,0v30h60v-30z" fill="#012169"/><path d="M0,0L60,30M60,0L0,30" stroke="#fff" stroke-width="6"/><path d="M0,0L60,30M60,0L0,30" clip-path="url(#t)" stroke="#C8102E" stroke-width="4"/><path d="M30,0v30M0,15h60" stroke="#fff" stroke-width="10"/><path d="M30,0v30M0,15h60" stroke="#C8102E" stroke-width="6"/></svg>').replace(/[()']/g, function (c) { return '%' + c.charCodeAt(0).toString(16).toUpperCase(); }) + ') center / cover no-repeat, #012169',
     JP: centreDot('#BC002D', 30, '#ffffff'), CA: centreDot('#D80621', 16, stripes('v', ['#D80621', '#ffffff', '#D80621'], [1, 2, 1])),
     US: 'linear-gradient(#3C3B6E, #3C3B6E) 0 0 / 50% 54% no-repeat, repeating-linear-gradient(to bottom, #B22234 0 7.7%, #ffffff 7.7% 15.4%)',
     BR: 'radial-gradient(circle, #002776 0 20%, transparent 21%), radial-gradient(ellipse 46% 30%, #FEDF00 0 98%, transparent 100%), #009C3B',
@@ -19994,6 +20120,12 @@
       btn.addEventListener('click', function () { openBudgetTab(btn.getAttribute('data-id') || null); });
     });
     attachBudgetTab();
+    document.querySelectorAll('[data-action="pressure-new"]').forEach(function (btn) {
+      btn.addEventListener('click', function () { openPressureSheet(null); });
+    });
+    document.querySelectorAll('[data-action="pressure-edit"]').forEach(function (btn) {
+      btn.addEventListener('click', function () { openPressureSheet(btn.getAttribute('data-id')); });
+    });
     document.querySelectorAll('[data-action="tyre-new"]').forEach(function (btn) {
       btn.addEventListener('click', openTyreSheet);
     });

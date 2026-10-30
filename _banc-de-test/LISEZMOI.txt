@@ -1,0 +1,41 @@
+Banc de test de Pitbook
+=======================
+
+L'appli du dépôt, branchée sur un faux Firebase en mémoire, avec des
+données de démo (pilotes Alex et Sam, Team Piste). Rien ne part sur le vrai
+Firebase : on peut tout casser sans risque.
+
+Ce dossier commence par « _ » : GitHub Pages ne le publie pas.
+
+Il faut Node.js et Playwright (avec Chromium).
+
+  node _banc-de-test/lancer.js
+      Démarre le banc. Ouvrir http://localhost:8766/index.html#lang=fr
+      Options dans l'adresse : #lang=fr ou #lang=en, &admin=1 (compte admin),
+      &noteam=1 (ne mène aucun Team).
+
+  node _banc-de-test/lancer.js tout
+      Joue tous les scénarios puis s'arrête.
+
+  node _banc-de-test/lancer.js budget4 en
+      Joue un seul scénario (nom du fichier dans scenarios/, sans .js).
+
+Captures et relevés dans _banc-de-test/.sortie/ (pas versionné).
+
+Scénarios
+  crawl, crawl2        parcourent l'appli et relèvent les textes dans la
+                       mauvaise langue (found-*.txt). Restent signalés,
+                       c'est voulu : « Guide (français) » et les exemples
+                       d'adresse au Mans.
+  crawl-admin(2)       pareil pour les écrans admin.
+  feat                 pneus, journée, ajout à l'agenda.
+  budget4, budget-page budget : saisons, lignes, forfait, page d'un roulage.
+  reimp                import des roulages et mise à jour d'un existant.
+  tyres-stats          Stats › Pneus.
+  pressures            Stats › Pneus › Mes pressions.
+
+Fichiers
+  lancer.js            serveur et lanceur des scénarios
+  lib.js               Playwright et adresse du banc pour les scénarios
+  firebase-mock.js     faux Firebase (Auth + Firestore en mémoire)
+  data.js              données de démo

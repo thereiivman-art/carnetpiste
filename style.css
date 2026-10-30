@@ -3733,3 +3733,15 @@ span.ph-sponsor { cursor: default; }
 .budget-card-head strong { font-family: var(--font-display); font-style: italic; font-weight: 800; font-size: 1.2rem; font-variant-numeric: tabular-nums; }
 .budget-intro { margin: 0.4rem 0 1rem; }
 .budget-split { margin-bottom: 0.9rem; }
+
+/* Mes pressions (Stats › Pneus) */
+.pressures-card { margin-bottom: 0.9rem; }
+.pressures-add { margin: 0.7rem 0 0.2rem; }
+.pressure-circuit { border-top: 1px solid var(--border); padding-top: 0.6rem; margin-top: 0.7rem; }
+.pressure-circuit-head { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 0.6rem; align-items: center; margin-bottom: 0.35rem; }
+.pressure-row { padding: 0.3rem 0 0.3rem calc(40px + 0.6rem); }
+.pressure-vals { font-weight: 700; font-variant-numeric: tabular-nums; }
+.pressure-more { padding-left: calc(40px + 0.6rem); }
+.pressure-more .pressure-row { padding-left: 0; border-top: 1px solid var(--border); }
+.pressure-more summary { cursor: pointer; font-size: 0.88rem; color: var(--text-muted); }
+.pressure-error { color: var(--accent); margin-top: 0.5rem; }

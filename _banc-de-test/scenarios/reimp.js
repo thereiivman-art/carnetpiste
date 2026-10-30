@@ -1,0 +1,26 @@
+const { chromium, BASE } = require('../lib');
+(async () => {
+  const b = await chromium.launch();
+  const p = await b.newPage({ viewport: { width: 400, height: 1400 } });
+  const errs = []; p.on('pageerror', e => errs.push(e.message));
+  await p.goto(BASE + 'index.html#lang=fr&admin=1'); await p.waitForTimeout(1600);
+  await p.click('#settings-toggle'); await p.waitForTimeout(300);
+  await p.getByText('Aide', { exact: true }).first().click(); await p.waitForTimeout(300);
+  await p.click('[data-pill-group="aide"][data-pill="admin"]'); await p.waitForTimeout(500);
+  const sample = await p.$eval('#evimp-text', e => e.value);
+  await p.fill('#evimp-text', sample.split('\n').filter(l => !/\| Jerez \|/.test(l)).map(l => /Portim/.test(l) ? '2027-09-20 | 2027-09-24 | Portimão | Portimão + Jerez · ~895 € · circuits MotoGP' : l).join('\n'));
+  await p.click('[data-action="evimp-check"]'); await p.waitForTimeout(300);
+  console.log('first preview', await p.$$eval('.evimp-row', e => e.length), await p.$eval('[data-action="evimp-go"]', e => e.textContent).catch(x => 'nobtn')); await p.click('[data-action="evimp-go"]'); await p.waitForTimeout(800);
+  const evs = () => p.evaluate(() => Object.values(window.__MOCK_DATA.events).filter(e => /Portim|Jerez/.test(e.circuit)).map(e => e.circuit + ' ' + e.dateStart + '→' + e.dateEnd + ' | ' + e.note));
+  console.log('old:', await evs());
+  await p.fill('#evimp-text', sample);
+  await p.click('[data-action="evimp-check"]'); await p.waitForTimeout(300);
+  console.log('preview ok rows:', await p.$$eval('.evimp-row:not(.error)', e => e.map(x => x.innerText.replace(/\n/g, ' '))));
+  console.log('button:', await p.$eval('[data-action="evimp-go"]', e => e.textContent));
+  await p.click('[data-action="evimp-go"]'); await p.waitForTimeout(800);
+  console.log('new:', await evs());
+  console.log('toast:', await p.$eval('.toast', e => e.innerText).catch(() => '?'));
+  await p.click('[data-action="evimp-check"]'); await p.waitForTimeout(300);
+  console.log('after: ok rows', await p.$$eval('.evimp-row:not(.error)', e => e.length));
+  console.log('errs', JSON.stringify(errs)); await b.close();
+})();
