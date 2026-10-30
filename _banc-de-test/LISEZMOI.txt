@@ -40,7 +40,7 @@ Scénarios
   budget-roulage       onglet Budget de la page d'un roulage.
   team-rename          réglages d'un Team : le leader le renomme.
   chrono-estime        chrono estimé sur un circuit jamais roulé.
-  onglets-pneus-podium Circuits › Pneus et Stats › Podium.
+  moto-podium          onglet Moto d'un roulage, Ma moto, Stats › Podium.
   parrain              Gestion des comptes : corriger un parrain.
 
 Guide PDF

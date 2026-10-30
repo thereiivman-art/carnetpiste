@@ -1,4 +1,4 @@
-// Circuits › Pneus › Cocher mes sessions : sessions des roulages depuis le
+// Mon profil › Ma moto › Cocher mes sessions : sessions des roulages depuis le
 // montage, cochées par le pilote, et sessions d'une journée sans horaires.
 const { chromium, BASE } = require('../lib');
 (async () => {
@@ -7,8 +7,7 @@ const { chromium, BASE } = require('../lib');
   const p = await b.newPage({ viewport: { width: 380, height: 900 } });
   const errs = []; p.on('pageerror', e => errs.push(e.message));
   await p.goto(BASE + 'index.html#lang=' + lang); await p.waitForTimeout(1600);
-  await p.click('.subnav-btn[data-view="circuit"]'); await p.waitForTimeout(300);
-  await p.click('[data-pill-group="circuit"][data-pill="pneus"]'); await p.waitForTimeout(400);
+  await p.click('#profile-toggle'); await p.waitForTimeout(500); await p.click('[data-action="open-my-profile"]'); await p.waitForTimeout(400); await p.click('[data-profile-tab="moto"]'); await p.waitForTimeout(400);
   const usage = async () => p.$eval('.tyre-card-usage', e => e.innerText);
   console.log('before:', await usage());
   await p.click('[data-action="tyre-sessions"]'); await p.waitForTimeout(400);

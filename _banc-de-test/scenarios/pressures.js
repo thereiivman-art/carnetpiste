@@ -1,4 +1,4 @@
-// Circuits › Pneus › Mes pressions : saisie, contrôle de forme, modification,
+// Mon profil › Ma moto › Mes pressions : saisie, contrôle de forme, modification,
 // suppression, et aucune valeur proposée dans les champs.
 const { chromium, BASE } = require('../lib');
 (async () => {
@@ -8,8 +8,7 @@ const { chromium, BASE } = require('../lib');
   const errs = []; p.on('pageerror', e => errs.push(e.message));
   const stored = () => p.evaluate(() => Object.values(window.__MOCK_DATA.userPrivate || {}).map(d => d.pressures));
   await p.goto(BASE + 'index.html#lang=' + lang); await p.waitForTimeout(1600);
-  await p.click('.subnav-btn[data-view="circuit"]'); await p.waitForTimeout(300);
-  await p.click('[data-pill-group="circuit"][data-pill="pneus"]'); await p.waitForTimeout(400);
+  await p.click('#profile-toggle'); await p.waitForTimeout(500); await p.click('[data-action="open-my-profile"]'); await p.waitForTimeout(400); await p.click('[data-profile-tab="moto"]'); await p.waitForTimeout(400);
   await p.click('[data-action="pressure-new"]'); await p.waitForTimeout(300);
   console.log('prefilled pressures:', JSON.stringify(await p.$$eval('#pr-fc, #pr-rc, #pr-fh, #pr-rh', e => e.map(x => x.value + '|' + x.placeholder))));
   await p.fill('#pr-circuit', 'Barcelone'); await p.fill('#pr-fc', 'deux');

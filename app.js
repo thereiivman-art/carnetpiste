@@ -4507,7 +4507,9 @@
   // signup (see resolveUniquePseudo) if the new pseudo collides with
   // someone else's.
   function renderProfileTabBar() {
-    var tabs = [['profil', tr('tab_profil')], ['reglages', tr('tab_reglages')], ['aide', tr('tab_aide')], ['suggestion', tr('tab_suggestion')]];
+    var tabs = [['profil', tr('tab_profil')]];
+    if (!meIsNonRider()) tabs.push(['moto', L('Ma moto', 'My bike')]);
+    tabs.push(['reglages', tr('tab_reglages')], ['aide', tr('tab_aide')], ['suggestion', tr('tab_suggestion')]);
     return '<div class="subnav profile-tabs" role="tablist">' + tabs.map(function (t) {
       return '<button type="button" class="subnav-btn profile-tab-btn' + (profileSubTab === t[0] ? ' active' : '') + '" role="tab" aria-selected="' + (profileSubTab === t[0]) + '" data-profile-tab="' + t[0] + '">' + t[1] + '</button>';
     }).join('') + '</div>';
@@ -4936,7 +4938,8 @@
     html += renderProfileTabBar();
     html += '<div class="profile-tab-body">';
     if (profileSubTab === 'parrainage') profileSubTab = 'profil'; // fusionné dans le QR d'invitation
-    if (profileSubTab === 'reglages') html += renderProfileReglagesTab(p);
+    if (profileSubTab === 'moto') html += renderTyresPanel();
+    else if (profileSubTab === 'reglages') html += renderProfileReglagesTab(p);
     else if (profileSubTab === 'aide') html += renderProfileAideTab(p);
     else if (profileSubTab === 'suggestion') html += '<div class="card">' + renderProfileSuggestionTab(p) + '</div>';
     else html += renderProfileProfilTab(p);
@@ -7462,12 +7465,9 @@
     if (!circuits.length) {
       return '<div class="card"><div class="empty-state">' + (coreDataLoading() ? tr('loading') : tr('circuit_none_yet')) + '</div></div>';
     }
-    // Pneus ici (pressions de ce circuit d'abord) ; le podium entre potes est
-    // dans Stats, avec les records.
-    var circuitPills = [['plan', 'Plan & repères'], ['chronos', 'Chronos']];
-    if (!meIsNonRider()) circuitPills.push(['pneus', L('Pneus', 'Tyres')]);
-    circuitPills.push(['infos', 'Infos']);
-    var html = renderPills('circuit', circuitPills);
+    // Pneus et pressions : onglet Moto de chaque roulage, et Ma moto dans
+    // Mon profil ; le podium entre potes est dans Stats.
+    var html = renderPills('circuit', [['plan', 'Plan & repères'], ['chronos', 'Chronos'], ['infos', 'Infos']]);
     html += '<div class="circuit-picker"><select id="f-filter-circuit" aria-label="' + tr('circuit_label') + '">';
     html += circuitOptionsHtml(circuits, selectedCircuit);
     html += '</select></div>';
@@ -7479,7 +7479,6 @@
       return html;
     }
     if (cp === 'infos') { html += renderCircuitInfoCard('infos'); return html; }
-    if (cp === 'pneus') { html += renderTyresPanel(selectedCircuit); return html; }
     // Objectif pour la prochaine session lives in EN PISTE now (see
     // renderPlanningTab), keyed off the current/next event's own circuit --
     // not repeated here.
@@ -8543,8 +8542,10 @@
   }
   function setupSummary(su) {
     var parts = [];
-    if (su.pFrontCold || su.pRearCold) parts.push(L('AV ', 'Front ') + (su.pFrontCold || '–') + L(' / AR ', ' / Rear ') + (su.pRearCold || '–') + L(' à froid', ' cold'));
-    if (su.pFrontHot || su.pRearHot) parts.push(L('AV ', 'Front ') + (su.pFrontHot || '–') + L(' / AR ', ' / Rear ') + (su.pRearHot || '–') + L(' à chaud', ' hot'));
+    // Virgule décimale en français, point en anglais.
+    function n(x) { return x ? L(String(x).replace('.', ','), String(x).replace(',', '.')) : '–'; }
+    if (su.pFrontCold || su.pRearCold) parts.push(L('AV ', 'Front ') + n(su.pFrontCold) + L(' / AR ', ' / Rear ') + n(su.pRearCold) + L(' à froid', ' cold'));
+    if (su.pFrontHot || su.pRearHot) parts.push(L('AV ', 'Front ') + n(su.pFrontHot) + L(' / AR ', ' / Rear ') + n(su.pRearHot) + L(' à chaud', ' hot'));
     if (su.tyres) parts.push(su.tyres);
     if (su.gearing) parts.push(su.gearing);
     if (su.fork) parts.push(L('Fourche : ', 'Fork: ') + su.fork);
@@ -8825,7 +8826,8 @@
     });
     return out.sort(function (a, b) { return (b.date || '').localeCompare(a.date || '') || (b.at || 0) - (a.at || 0); });
   }
-  function renderPressuresCard(circuit) {
+  function renderPressuresCard(circuit, opts) {
+    opts = opts || {};
     ensureSetupsLoaded();
     if (myPressures === null) return '';
     var entries = allPressureEntries();
@@ -8834,9 +8836,11 @@
     // Depuis Circuits : ce circuit en tête.
     var hereKey = circuit ? order.filter(function (k) { return sameCircuit(k, circuit); })[0] : null;
     if (hereKey) { order.splice(order.indexOf(hereKey), 1); order.unshift(hereKey); }
+    // Onglet Moto d'un roulage : seulement ce circuit.
+    if (opts.only) order = hereKey ? [hereKey] : [];
     var html = '<div class="card pressures-card"><div class="budget-card-head"><h2 class="section-title">' + L('Mes pressions', 'My pressures') + '</h2></div>' +
       '<div class="help-text">' + L('Tes relevés à toi, AV et AR, circuit par circuit. Pitbook ne conseille aucune pression : suis les préconisations du manufacturier de tes pneus ou du technicien pneus du circuit.', 'Your own readings, front and rear, circuit by circuit. Pitbook never recommends a pressure: follow your tyre manufacturer\'s guidance or the trackside tyre technician\'s.') + '</div>' +
-      '<button type="button" class="primary pressures-add" data-action="pressure-new"' + (circuit ? ' data-circuit="' + escapeHtml(circuit) + '"' : '') + '>' + L('+ Noter mes pressions', '+ Log my pressures') + '</button>' +
+      '<button type="button" class="primary pressures-add" data-action="pressure-new"' + (circuit ? ' data-circuit="' + escapeHtml(circuit) + '"' : '') + (opts.date ? ' data-date="' + escapeHtml(opts.date) + '"' : '') + '>' + L('+ Noter mes pressions', '+ Log my pressures') + '</button>' +
       (circuit && !hereKey ? '<div class="help-text pressures-none-here">' + L('Pas encore de relevé à ', 'No reading yet at ') + escapeHtml(circuit) + '.</div>' : '');
     if (!order.length) return html + '</div>';
     html += order.map(function (c) {
@@ -8864,14 +8868,14 @@
       if (msg) showToast(msg, 'success');
     }).catch(function (err) { showToast(L('Pressions non enregistrées : ', 'Pressures not saved: ') + ((err && err.message) || err)); });
   }
-  function openPressureSheet(id, circuitHint) {
+  function openPressureSheet(id, circuitHint, dateHint) {
     if (!auth.currentUser || document.querySelector('.pressure-sheet')) return;
     ensureSetupsLoaded();
     var cur = (myPressures || []).filter(function (p) { return p.id === id; })[0] || null;
     var last = (myPressures || []).slice().sort(function (a, b) { return (b.at || 0) - (a.at || 0); })[0];
     var target = typeof targetPlanningEvent === 'function' ? targetPlanningEvent() : null;
     var tyre = currentTyreSet();
-    var v = cur || { circuit: circuitHint || (target && target.ev && target.ev.circuit) || '', date: dateKey(new Date()), unit: (last && last.unit) || 'bar', tyres: (tyre && tyre.label) || '' };
+    var v = cur || { circuit: circuitHint || (target && target.ev && target.ev.circuit) || '', date: dateHint || dateKey(new Date()), unit: (last && last.unit) || 'bar', tyres: (tyre && tyre.label) || '' };
     function field(k, label, half, attrs) {
       return '<label class="setup-field' + (half ? ' setup-half' : '') + '"><span>' + label + '</span><input type="text" id="pr-' + k + '" ' + (attrs || '') + ' value="' + escapeHtml(/^(fc|rc|fh|rh)$/.test(k) && v[k] ? L(String(v[k]).replace('.', ','), String(v[k])) : (v[k] || '')) + '"></label>';
     }
@@ -8921,6 +8925,22 @@
 
   // Stats › Pneus : le train en place et les précédents (avant sur
   // l'écran Chronos, où il repoussait la liste des roulages trop bas).
+  // Onglet Moto d'un roulage : mes pressions sur ce circuit, mes réglages
+  // de chaque session de la journée, et mon train de pneus.
+  function renderOutingMoto(circuit, date, sessions) {
+    ensureSetupsLoaded();
+    var html = renderPressuresCard(circuit, { only: true, date: date });
+    var list = (sessions || []).slice().sort(compareSessionsInDay);
+    html += '<div class="card"><h2 class="section-title">' + L('Mes réglages ce jour-là', 'My setup that day') + '</h2>' + (list.length ? list.map(function (x, i) {
+      var su = mySetupFor(x.id);
+      return '<div class="moto-setup-row"><div><strong>' + escapeHtml(x.slotLabel || L('Session ', 'Session ') + (i + 1)) + '</strong> · <span class="carnet-time">' + formatTime(sessionBest(x)) + '</span>' +
+        (su ? '<div class="help-text">' + escapeHtml(setupSummary(su)) + '</div>' : '') + '</div>' +
+        '<button type="button" class="ghost" data-action="session-setup" data-id="' + escapeHtml(x.id) + '">' + (su ? L('Modifier', 'Edit') : L('Noter', 'Log')) + '</button></div>';
+    }).join('') : '<div class="help-text">' + L('Ajoute tes chronos de la journée pour y noter tes réglages, session par session.', 'Add your lap times for the day to log your setup, session by session.') + '</div>') + '</div>';
+    html += renderTyreCard();
+    html += '<button type="button" class="ghost outing-budget-all" data-action="open-ma-moto">' + L('Ma moto : tous mes pneus et pressions ›', 'My bike: all my tyres and pressures ›') + '</button>';
+    return html;
+  }
   function renderTyresPanel(circuit) {
     ensureSetupsLoaded();
     if (myTyreSets === null) return '';
@@ -9651,7 +9671,9 @@
     }
     // Same pills as everywhere else: Chronos / Infos / Repères.
     var notes = myTrackNotes(circuit);
-    var outingPills = [['chronos', 'Chronos' + (sessions.length ? ' (' + sessions.length + ')' : '')], ['infos', 'Infos'], ['reperes', 'Repères' + (notes.length ? ' (' + notes.length + ')' : '')]];
+    var outingPills = [['chronos', 'Chronos' + (sessions.length ? ' (' + sessions.length + ')' : '')]];
+    if (!meIsNonRider()) outingPills.push(['moto', L('Moto', 'Bike')]);
+    outingPills.push(['infos', 'Infos'], ['reperes', 'Repères' + (notes.length ? ' (' + notes.length + ')' : '')]);
     if (outingBudgetRow(ev)) outingPills.push(['budget', 'Budget']);
     html += renderPills('outing', outingPills);
     var cur = pillState.outing;
@@ -9751,6 +9773,8 @@
         }
         html += items.length > 1 ? renderSubPills('outinfo', items, { noCard: true }) : hor;
       }
+    } else if (cur === 'moto') {
+      html += renderOutingMoto(circuit, date, sessions);
     } else if (cur === 'budget') {
       html += renderOutingBudget(ev);
     } else {
@@ -20671,8 +20695,11 @@
       btn.addEventListener('click', function () { openBudgetTab(btn.getAttribute('data-id') || null); });
     });
     attachBudgetTab();
+    document.querySelectorAll('[data-action="open-ma-moto"]').forEach(function (btn) {
+      btn.addEventListener('click', function () { profilePanelOpen = true; profileSubTab = 'moto'; notificationsPanelOpen = false; renderRoot(); window.scrollTo(0, 0); });
+    });
     document.querySelectorAll('[data-action="pressure-new"]').forEach(function (btn) {
-      btn.addEventListener('click', function () { openPressureSheet(null, btn.getAttribute('data-circuit')); });
+      btn.addEventListener('click', function () { openPressureSheet(null, btn.getAttribute('data-circuit'), btn.getAttribute('data-date')); });
     });
     document.querySelectorAll('[data-action="pressure-edit"]').forEach(function (btn) {
       btn.addEventListener('click', function () { openPressureSheet(btn.getAttribute('data-id')); });

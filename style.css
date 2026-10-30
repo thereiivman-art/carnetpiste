@@ -3799,3 +3799,6 @@ label.budget-row-title { cursor: pointer; margin: 0; }
 .podium-share { position: absolute; top: 0.6rem; right: 0.6rem; width: auto; padding: 0.3rem 0.7rem; font-size: 0.8rem; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .podium-trace { mix-blend-mode: screen; filter: grayscale(1) invert(1) brightness(2); } }
 :root[data-theme="dark"] .podium-trace { mix-blend-mode: screen; filter: grayscale(1) invert(1) brightness(2); }
+.moto-setup-row { display: flex; justify-content: space-between; align-items: center; gap: 0.6rem; padding: 0.5rem 0; border-top: 1px solid var(--border); }
+.moto-setup-row:first-of-type { border-top: 0; }
+.moto-setup-row button { flex: none; width: auto; }
