@@ -8037,9 +8037,14 @@
   function renderFriendsPodium(circuit) {
     var me = currentUserProfile && currentUserProfile.name;
     var rows = friendsPodium(circuit);
-    var html = '<div class="card podium-card"><div class="battle-head"><h2 class="section-title">' + L('Podium des potes', 'Friends\' podium') + '</h2>' +
-      (rows.length > 1 ? '<button type="button" class="ghost" data-action="share-podium" data-circuit="' + escapeHtml(circuit) + '">' + L('Partager', 'Share') + '</button>' : '') + '</div>' +
-      '<div class="help-text">' + escapeHtml(circuit) + L(' · meilleur tour de chacun, tous roulages confondus', ' · everyone\'s best lap, all trackdays') + '</div>';
+    // En-tête façon fiche : le circuit en grand, son drapeau et son tracé.
+    var info = circuitInfo(circuit), outline = outlineImageFor(info, circuit);
+    var html = '<div class="card podium-card"><div class="podium-head">' +
+      (outline ? '<img class="podium-trace" src="' + escapeHtml(outline) + '" alt="">' : '') +
+      '<div class="podium-head-text"><span class="podium-kicker">' + L('Podium des potes', 'Friends\' podium') + '</span>' +
+      '<strong class="podium-circuit">' + (info.country ? countryBallHtml(info.country, 'inline') + ' ' : '') + escapeHtml(circuit) + '</strong>' +
+      '<span class="podium-sub">' + L('Meilleur tour de chacun', 'Everyone\'s best lap') + (rows.length > 1 ? ' · ' + rows.length + L(' pilotes', ' riders') : '') + '</span></div>' +
+      (rows.length > 1 ? '<button type="button" class="ghost podium-share" data-action="share-podium" data-circuit="' + escapeHtml(circuit) + '">' + L('Partager', 'Share') + '</button>' : '') + '</div>';
     if (rows.length < 2) {
       return html + '<div class="empty-state">' + (rows.length ? L('Tu es seul sur ce circuit pour l\'instant. Invite tes potes à y rouler pour lancer le podium.', 'You\'re alone on this circuit so far. Invite your friends to ride here to start the podium.')
         : L('Personne de ta bande n\'a encore roulé ici.', 'Nobody in your crew has ridden here yet.')) + '</div></div>';
@@ -10230,7 +10235,7 @@
     if (!outings.length && !upcoming.length) return '';
     if (!carnetCardsMode) carnetCardsMode = outings.length ? 'passees' : 'avenir';
     if (!outings.length) carnetCardsMode = 'avenir';
-    var items = [['passees', 'Mes roulages' + (outings.length ? ' (' + outings.length + ')' : '')], ['avenir', 'À venir' + (upcoming.length ? ' (' + upcoming.length + ')' : '')]];
+    var items = [['passees', L('Passés', 'Past') + (outings.length ? ' (' + outings.length + ')' : '')], ['avenir', 'À venir' + (upcoming.length ? ' (' + upcoming.length + ')' : '')]];
     return '<div class="pill-tabs">' + items.map(function (it) {
       return '<button type="button" class="pill-btn' + (carnetCardsMode === it[0] ? ' active' : '') + '" data-cards-mode="' + it[0] + '">' + it[1] + '</button>';
     }).join('') + '</div>';
@@ -18790,7 +18795,7 @@
       if (activeView === 'outing' && !outingView) activeView = 'carnet';
       if (activeView === 'person' && !personView) activeView = 'social';
       if (activeView !== 'outing' && activeView !== 'person') lastSubView[navTabFor(activeView)] = activeView;
-      var carnetSub = renderSubNav([['carnet', 'Chronos'], ['circuit', 'Circuits'], ['stats', 'Stats'], ['budget', 'Budget']]);
+      var carnetSub = renderSubNav([['carnet', L('Roulages', 'Trackdays')], ['circuit', 'Circuits'], ['stats', 'Stats'], ['budget', 'Budget']]);
       if (activeView === 'outing') body = renderOutingPage();
       else if (activeView === 'person') body = renderPersonPage();
       else if (activeView === 'carnet') body = carnetSub + renderCarnetTab();
