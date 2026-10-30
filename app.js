@@ -14566,7 +14566,13 @@
   // else the soonest upcoming one, so there's always something useful to
   // look at instead of an empty gap between outings.
   function targetPlanningEvent() {
-    var all = eventsList();
+    // Un roulage perso d'un pote est visible (canSeeEvent) mais n'est pas
+    // « mon » prochain roulage ; un accompagnant suit, lui, ceux de ses potes.
+    var me = currentUserProfile && currentUserProfile.name, friends = meIsNonRider() ? friendRiderNames() : [];
+    var all = eventsList().filter(function (ev) {
+      if (ev.teamId) return isMyEventForList(ev);
+      return (ev.riders || []).some(function (r) { return r === me || friends.indexOf(r) !== -1; });
+    });
     var todayKey = dateKey(new Date());
     var ongoing = all.filter(function (ev) { return eventTemporalStatus(ev, todayKey) === 'ongoing'; })
       .sort(function (a, b) { return a.dateStart < b.dateStart ? -1 : 1; });

@@ -7,6 +7,8 @@ const { chromium, BASE } = require('../lib');
   const p = await b.newPage({ viewport: { width: 380, height: 1000 } });
   const errs = []; p.on('pageerror', e => errs.push(e.message));
   await p.goto(BASE + 'index.html#lang=' + lang + '&role=acc'); await p.waitForTimeout(1600);
+  // Des potes roulent aujourd'hui : le jour J s'ouvre tout seul.
+  if (await p.$('#jourj-overlay')) { await p.click('[data-jj="close"]'); await p.waitForTimeout(300); }
   await p.click('.bottom-nav-btn[data-view^="carnet"]'); await p.waitForTimeout(300);
   await p.click('.subnav-btn[data-view="carnet"]'); await p.waitForTimeout(400);
   console.log('pills:', await p.$$eval('[data-pill-group="compcarnet"]', e => e.map(x => x.textContent).join(' / ')));
