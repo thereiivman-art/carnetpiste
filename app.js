@@ -5293,6 +5293,13 @@
   var accountManagerError = '';
   var pendingDeleteAccountUid = null;
 
+  // Parrains possibles : tous les comptes, y compris l'admin lui-même
+  // (exclu de manageableAccounts, qu'il n'a pas à gérer).
+  function referrerCandidates() {
+    var list = (manageableAccounts || []).filter(function (a) { return a.name; });
+    if (currentUserProfile && currentUserProfile.name && auth.currentUser) list = list.concat([{ uid: auth.currentUser.uid, name: currentUserProfile.name }]);
+    return list;
+  }
   function loadManageableAccounts() {
     accountManagerError = '';
     Promise.all([db.collection('users').get(), db.collection('userPrivate').get().catch(function () { return { docs: [] }; })]).then(function (res) {
@@ -5344,7 +5351,11 @@
         var detail = isPilote ? escapeHtml(a.bike || '—') : escapeHtml((a.followedRiders || []).join(', ') || '—');
         return '<li class="rider-manager-row account-manager-row">' +
           '<div><span class="rider-manager-name' + nameColorClass(a.name) + '">' + escapeHtml(a.name || a.email) + '</span>' + badgesHtml(a) + ' <span class="friend-role-badge">' + roleLabel(a.role) + '</span>' +
-          '<div class="help-text">' + escapeHtml(a.email || '') + ' · ' + (isPilote ? tr('bike_colon') : tr('follows_colon')) + detail + '</div></div>' +
+          '<div class="help-text">' + escapeHtml(a.email || '') + ' · ' + (isPilote ? tr('bike_colon') : tr('follows_colon')) + detail + '</div>' +
+          // Parrain : d'habitude posé tout seul à l'inscription par le lien
+          // de parrainage ; l'admin le corrige ici quand l'inscription s'est
+          // faite sans le lien.
+          '<label class="account-referrer">' + L('Parrain', 'Referrer') + ' <input type="text" list="account-names" data-action="set-referrer" data-uid="' + a.uid + '" value="' + escapeHtml(a.referredBy || '') + '" placeholder="' + escapeHtml(L('aucun', 'none')) + '" maxlength="40"></label></div>' +
           (isPilote ? '' : '<button type="button" class="ghost icon-btn" data-action="demote-account" data-uid="' + a.uid + '" aria-label="' + tr('demote_to_rider') + '" title="' + tr('demote_to_rider') + '">↺</button>') +
           profileBadges().map(function (b) {
             var on = !!a[b.field];
@@ -5353,7 +5364,8 @@
           }).join('') +
           '<button type="button" class="ghost icon-btn' + (isPendingDelete ? ' confirm' : ' danger') + '" data-action="delete-account-request" data-uid="' + a.uid + '" aria-label="' + tr('delete_account_aria') + '" title="' + tr('revoke_access_title') + '">' + (isPendingDelete ? '✓' : '×') + '</button>' +
           '</li>';
-      }).join('') + '</ul>';
+      }).join('') + '</ul>' +
+        '<datalist id="account-names">' + referrerCandidates().map(function (a) { return '<option value="' + escapeHtml(a.name) + '">'; }).join('') + '</datalist>';
       }
     }
     if (accountManagerError) html += '<div class="field-error visible">' + escapeHtml(accountManagerError) + '</div>';
@@ -19012,6 +19024,30 @@
           pendingDeleteAccountUid = uid;
           renderRoot();
         }
+      });
+    });
+    document.querySelectorAll('[data-action="set-referrer"]').forEach(function (input) {
+      input.addEventListener('change', function () {
+        var uid = input.getAttribute('data-uid');
+        var account = (manageableAccounts || []).filter(function (a) { return a.uid === uid; })[0];
+        if (!account) return;
+        var typed = input.value.trim();
+        // Le nom doit être celui d'un compte existant (même casse que son
+        // pseudo) : c'est lui que compte l'onglet Parrainage du parrain.
+        var match = typed ? referrerCandidates().filter(function (a) { return a.name.toLowerCase() === typed.toLowerCase(); })[0] : null;
+        if (typed && !match) { input.value = account.referredBy || ''; showToast(L('Aucun compte ne s\'appelle « ', 'No account is called “') + typed + L(' ».', '”.')); return; }
+        if (match && match.uid === uid) { input.value = account.referredBy || ''; showToast(L('Un compte ne peut pas être son propre parrain.', 'An account can\'t be its own referrer.')); return; }
+        var next = match ? match.name : null;
+        if ((account.referredBy || null) === next) return;
+        var writes = { referredBy: next ? next : firebase.firestore.FieldValue.delete() };
+        db.collection('users').doc(uid).set(writes, { merge: true }).then(function () {
+          if (next) account.referredBy = next; else delete account.referredBy;
+          showToast(next ? L(next + ' est maintenant parrain de ' + account.name + '.', next + ' is now ' + account.name + '\'s referrer.') : L(account.name + ' n\'a plus de parrain.', account.name + ' no longer has a referrer.'), 'success');
+          renderRoot();
+        }).catch(function (err) {
+          accountManagerError = tr('error_prefix') + (err && err.message ? err.message : err);
+          renderRoot();
+        });
       });
     });
     document.querySelectorAll('[data-action="toggle-account-badge"]').forEach(function (btn) {

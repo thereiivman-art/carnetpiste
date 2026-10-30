@@ -3745,3 +3745,5 @@ span.ph-sponsor { cursor: default; }
 .pressure-more .pressure-row { padding-left: 0; border-top: 1px solid var(--border); }
 .pressure-more summary { cursor: pointer; font-size: 0.88rem; color: var(--text-muted); }
 .pressure-error { color: var(--accent); margin-top: 0.5rem; }
+.account-referrer { display: flex; align-items: center; gap: 0.4rem; margin-top: 0.3rem; font-size: 0.8rem; font-weight: 600; color: var(--text-muted); }
+.account-referrer input { width: auto; flex: 1; max-width: 11rem; padding: 0.25rem 0.45rem; font-size: 0.85rem; }
