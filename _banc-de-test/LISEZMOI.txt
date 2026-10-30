@@ -38,6 +38,7 @@ Scénarios
   eybis                import du calendrier Eybis 2027, avec création du Team.
   amis                 fiche profil : la rangée de tous les amis.
   budget-roulage       onglet Budget de la page d'un roulage.
+  team-rename          réglages d'un Team : le leader le renomme.
   parrain              Gestion des comptes : corriger un parrain.
 
 Guide PDF

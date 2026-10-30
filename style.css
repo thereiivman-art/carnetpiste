@@ -3781,3 +3781,6 @@ span.ph-sponsor { cursor: default; }
 .outing-budget-hero .ph-feature-time { font-size: 2.5rem; }
 .outing-budget-all { display: block; width: 100%; margin: 0.6rem 0 1rem; text-align: center; }
 label.budget-row-title { cursor: pointer; margin: 0; }
+.team-rename-row { display: flex; gap: 0.5rem; align-items: center; margin-top: 0.3rem; }
+.team-rename-row input { flex: 1; min-width: 0; }
+.team-rename-row button { flex: none; width: auto; }

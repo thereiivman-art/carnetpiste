@@ -2289,6 +2289,23 @@
     });
   }
 
+  function renameTeam(teamId, name) {
+    var team = teamById(teamId);
+    name = (name || '').trim().replace(/\s+/g, ' ').slice(0, 60);
+    if (!team || !isLeaderOfTeam(teamId)) return;
+    if (!name) { showToast(L('Donne un nom au Team.', 'Give the Team a name.')); return; }
+    if (name === team.name) return;
+    var taken = (STATE.teams || []).some(function (t) { return t.id !== teamId && (t.name || '').toLowerCase() === name.toLowerCase(); });
+    if (taken) { showToast(L('Un autre Team porte déjà ce nom.', 'Another Team already has that name.')); return; }
+    var old = team.name;
+    db.collection('teams').doc(teamId).set({ name: name }, { merge: true }).then(function () {
+      team.name = name;
+      showToast(L('« ' + old + ' » s\'appelle maintenant « ' + name + ' ».', '“' + old + '” is now called “' + name + '”.'), 'success');
+      renderRoot();
+    }).catch(function (err) {
+      showToast(tr('error_prefix') + (err && err.message ? err.message : err));
+    });
+  }
   function saveTeamDescription(teamId, text) {
     db.collection('teams').doc(teamId).set({ description: (text || '').trim() || null }, { merge: true }).then(function () {
       showToast(tr('presentation_saved'), 'success');
@@ -17364,7 +17381,11 @@
       return teamCard('', '<div class="help-text">' + tr('leaders_only_reserved') + '</div>');
     }
     var visibility = team.visibility || 'private';
-    var html = '<div><label>Photo (badge rond)</label>' +
+    // Nom du Team : modifiable par ses leaders seulement (amateur ou PRO).
+    var html = '<div style="margin-bottom:0.9rem;"><label for="team-name-' + team.id + '">' + L('Nom du Team', 'Team name') + '</label>' +
+      '<div class="team-rename-row"><input type="text" id="team-name-' + team.id + '" maxlength="60" value="' + escapeHtml(team.name || '') + '">' +
+      '<button type="button" class="ghost" data-action="team-rename" data-team="' + team.id + '">' + L('Renommer', 'Rename') + '</button></div></div>' +
+      '<div><label>Photo (badge rond)</label>' +
       '<div style="margin-top:0.3rem; display:flex; align-items:center; gap:0.6rem; flex-wrap:wrap;">' +
       '<button type="button" class="ghost" data-action="team-photo-btn" data-team="' + team.id + '">' + (team.photoURL ? tr('change_badge_photo') : tr('add_badge_photo')) + '</button>' +
       (team.photoURL ? '<button type="button" class="ghost" data-action="team-photo-recrop" data-team="' + team.id + '">' + tr('edit_crop') + '</button>' : '') +
@@ -20154,6 +20175,12 @@
     });
     document.querySelectorAll('[data-action="team-visibility"]').forEach(function (select) {
       select.addEventListener('change', function () { setTeamVisibility(select.getAttribute('data-team'), select.value); });
+    });
+    document.querySelectorAll('[data-action="team-rename"]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var teamId = btn.getAttribute('data-team'), input = document.getElementById('team-name-' + teamId);
+        renameTeam(teamId, input ? input.value : '');
+      });
     });
     document.querySelectorAll('[data-action="team-description-save"]').forEach(function (btn) {
       btn.addEventListener('click', function () {
