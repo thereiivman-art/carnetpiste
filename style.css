@@ -3785,3 +3785,4 @@ label.budget-row-title { cursor: pointer; margin: 0; }
 .team-rename-row input { flex: 1; min-width: 0; }
 .team-rename-row button { flex: none; width: auto; }
 .estimate-card { margin-bottom: 0.9rem; }
+.estimate-none { margin-bottom: 0.9rem; }

@@ -3243,8 +3243,8 @@
     ['Barcelone', 'ES', 4.657], ['Jerez', 'ES', 4.428], ['Valence', 'ES', 4.005], ['Aragón', 'ES', 5.077], ['Navarra', 'ES', 3.933],
     ['Jarama', 'ES', 3.85], ['Almería', 'ES', null], ['Cartagena', 'ES', null], ['Calafat', 'ES', null], ['Alcarràs', 'ES', null],
     ['Portimão', 'PT', 4.592], ['Estoril', 'PT', 4.182],
-    ['Mugello', 'IT', 5.245], ['Misano', 'IT', 4.226], ['Imola', 'IT', 4.909], ['Vallelunga', 'IT', 4.085], ['Cremona', 'IT', null], ['Varano', 'IT', null],
-    ['Spa-Francorchamps', 'BE', 7.004], ['Zolder', 'BE', 4.011], ['Mettet', 'BE', null],
+    ['Mugello', 'IT', 5.245], ['Misano', 'IT', 4.226], ['Imola', 'IT', 4.909], ['Vallelunga', 'IT', 4.085], ['Cremona', 'IT', 3.768], ['Varano', 'IT', 2.35],
+    ['Spa-Francorchamps', 'BE', 7.004], ['Zolder', 'BE', 4.011], ['Mettet', 'BE', 2.28],
     ['Assen', 'NL', 4.542], ['Sachsenring', 'DE', 3.671], ['Hockenheim', 'DE', 4.574], ['Nürburgring', 'DE', 5.148],
     ['Red Bull Ring', 'AT', 4.318], ['Brno', 'CZ', 5.403], ['Most', 'CZ', 4.212], ['Slovakia Ring', 'SK', 5.922], ['Grobnik', 'HR', 4.168], ['Pannonia-Ring', 'HU', 4.74],
     ['Silverstone', 'GB', 5.891], ['Donington', 'GB', 4.023], ['Brands Hatch', 'GB', 3.916],
@@ -7490,8 +7490,15 @@
   function renderEstimateCard(circuit) {
     var me = currentUserProfile && currentUserProfile.name;
     if (!me || meIsNonRider()) return '';
+    var all = bestsByRiderCircuit();
+    if ((all[me] || {})[circuitKey(circuit)]) return '';
     var est = estimateLapTime(me, circuit);
-    return est ? '<div class="outing-best-card estimate-card">' + estimateCardInner(est) + '</div>' : '';
+    if (est) return '<div class="outing-best-card estimate-card">' + estimateCardInner(est) + '</div>';
+    // Pas d'estimation possible : dire ce qui manque.
+    var why = !Object.keys(all[me] || {}).length
+      ? L('Ajoute un premier chrono sur n\'importe quel circuit : Pitbook pourra alors estimer ton temps ici.', 'Add a first lap time on any circuit: Pitbook can then estimate your time here.')
+      : L('Pas encore d\'estimation ici : il faudrait la longueur du circuit, ou un pilote qui roule à la fois ici et sur tes circuits.', 'No estimate here yet: it needs the circuit length, or a rider who rides both here and on your circuits.');
+    return '<div class="card help-text estimate-none">' + why + '</div>';
   }
   function estimateCardInner(est) {
     return '<span class="outing-label light">' + L('Ton chrono estimé ici', 'Your estimated lap here') + '</span>' +
@@ -10573,7 +10580,8 @@
     'nogaro': 'circuit-outlines/Nogaro.png',
     'most': 'circuit-outlines/Most.png',
     'pannonia-ring': 'circuit-outlines/Pannonia-Ring.png',
-    'charade': 'circuit-outlines/Charade.png',
+    'pau-arnos': 'circuit-outlines/Pau-Arnos.png',
+    'pau arnos': 'circuit-outlines/Pau-Arnos.png',
     'haute saintonge': 'circuit-outlines/Haute%20Saintonge.png',
     'haute-saintonge': 'circuit-outlines/Haute%20Saintonge.png',
     'pannonia ring': 'circuit-outlines/Pannonia-Ring.png',
@@ -10600,7 +10608,7 @@
     ['Le Vigeant', 'Circuit de vitesse du Vigeant.svg', 'Crochet.david', 'CC BY-SA 3.0'],
     ['Most', 'Autodrom Most layout.svg', 'VulcanSphere', 'CC BY-SA 4.0'],
     ['Pannonia-Ring', 'Pannonia-Ring Layout.png', 'DarthKrilasar2', 'CC BY-SA 4.0'],
-    ['Charade', 'Circuit Charade 1989.png', 'Franck rive', 'CC BY-SA 4.0'],
+    ['Pau-Arnos', 'Circuit-Pau-Arnos.png', 'Harald Gallinnis', 'CC BY-SA 4.0'],
     ['Haute Saintonge', 'plan du circuit', 'Circuit de Haute Saintonge', 'tracé simplifié', 'plan officiel du circuit'],
     ['Donington', 'Donington as of 2010.svg', 'Will Pittenger, bamse', 'CC BY-SA 3.0'],
     ['Magny Cours', 'Circuit de Nevers Magny-Cours.svg', 'Will Pittenger', 'domaine public'],
