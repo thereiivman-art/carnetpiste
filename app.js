@@ -3239,7 +3239,7 @@
     ['Albi', 'FR', 3.565], ['Alès', 'FR', 2.5], ['Bresse', 'FR', 3.1], ['Carole', 'FR', 2.055], ['Charade', 'FR', 3.975],
     ['Croix-en-Ternois', 'FR', 1.9], ['Dijon-Prenois', 'FR', 3.801], ['Haute Saintonge', 'FR', null], ['Lédenon', 'FR', 3.15],
     ['Le Mans', 'FR', 4.185], ['Le Vigeant', 'FR', 3.768], ['Magny Cours', 'FR', 4.411], ['Nogaro', 'FR', 3.636],
-    ['Pau-Arnos', 'FR', 3.03], ['Paul Ricard', 'FR', 5.8], ['Mas du Clos', 'FR', null], ['Clastres', 'FR', null],
+    ['Pau-Arnos', 'FR', 3.03], ['Paul Ricard', 'FR', 5.8], ['Mas du Clos', 'FR', null], ['Vaison Piste', 'FR', 2.0], ['Clastres', 'FR', null],
     ['Barcelone', 'ES', 4.657], ['Jerez', 'ES', 4.428], ['Valence', 'ES', 4.005], ['Aragón', 'ES', 5.077], ['Navarra', 'ES', 3.933],
     ['Jarama', 'ES', 3.85], ['Almería', 'ES', null], ['Cartagena', 'ES', null], ['Calafat', 'ES', null], ['Alcarràs', 'ES', null],
     ['Portimão', 'PT', 4.592], ['Estoril', 'PT', 4.182],

@@ -3802,3 +3802,12 @@ label.budget-row-title { cursor: pointer; margin: 0; }
 .moto-setup-row { display: flex; justify-content: space-between; align-items: center; gap: 0.6rem; padding: 0.5rem 0; border-top: 1px solid var(--border); }
 .moto-setup-row:first-of-type { border-top: 0; }
 .moto-setup-row button { flex: none; width: auto; }
+
+/* Onglets en classeur : quand des sous-onglets suivent la barre d'onglets,
+   l'onglet actif descend dans un panneau blanc qui les contient, pour
+   qu'on voie qu'ils lui appartiennent. */
+.subnav:has(+ .pill-tabs) { margin-bottom: 0; padding-bottom: 0; border-bottom: 0; border-radius: 12px 12px 0 0; align-items: flex-end; }
+.subnav:has(+ .pill-tabs) .subnav-btn { margin-bottom: 0.25rem; }
+.subnav:has(+ .pill-tabs) .subnav-btn.active { position: relative; z-index: 1; margin-bottom: -1px; padding-bottom: calc(0.55rem + 0.25rem + 1px); border-radius: 9px 9px 0 0; box-shadow: none; border: 1px solid var(--border); border-bottom: 0; }
+.subnav + .pill-tabs { margin: 0 0 0.9rem; padding: 0 0.35rem; background: var(--surface); border: 1px solid var(--border); border-radius: 0 0 12px 12px; box-shadow: var(--shadow); }
+.subnav + .pill-tabs .pill-btn { padding: 0.6rem 0.45rem 0.55rem; }
