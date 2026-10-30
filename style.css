@@ -3666,11 +3666,7 @@ span.ph-sponsor { cursor: default; }
 .evimp-row .help-text { grid-column: 2; }
 .evimp-row.error { color: var(--accent); }
 
-/* Mon budget (carte du Carnet + onglet Carnet › Budget) */
-.budget-card { display: flex; align-items: center; justify-content: space-between; gap: 0.8rem; flex-wrap: wrap; }
-.budget-card-main { display: flex; flex-direction: column; gap: 0.1rem; min-width: 0; }
-.budget-card-total { font-family: var(--font-display); font-size: 1.35rem; font-weight: 800; font-style: italic; font-variant-numeric: tabular-nums; }
-.budget-card-empty > div { flex: 1 1 14rem; min-width: 0; }
+/* Mon budget (onglet Carnet › Budget) */
 .event-price-line { margin: -0.5rem 0 0.9rem; }
 .budget-intro { margin: 0.2rem 0 0.8rem; }
 .budget-year { padding: 0.75rem 0.9rem; }

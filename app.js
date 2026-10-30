@@ -8446,6 +8446,19 @@
       '<span class="help-text">' + L('Montés le ', 'Fitted on ') + escapeHtml(formatDate(set.since)) + (set.bike ? ' · ' + escapeHtml(set.bike) : '') + '</span></div>' +
       '<button type="button" class="ghost" data-action="tyre-new">' + L('Pneus neufs', 'New tyres') + '</button></div>';
   }
+  // Stats › Pneus : le train en place et les précédents (avant sur
+  // l'écran Chronos, où il repoussait la liste des roulages trop bas).
+  function renderTyresPanel() {
+    ensureSetupsLoaded();
+    if (myTyreSets === null) return '';
+    var sets = myTyreSets || [];
+    var history = sets.slice(0, -1).reverse().map(function (set) {
+      var next = sets[sets.indexOf(set) + 1] || null;
+      return '<div class="tyre-history-row"><strong>' + escapeHtml(set.label || L('Pneus', 'Tyres')) + '</strong> · ' + escapeHtml(formatDate(set.since)) +
+        '<div class="help-text">' + escapeHtml(tyreUsageText(tyreSetUsage(set, next))) + '</div></div>';
+    }).join('');
+    return renderTyreCard() + (history ? '<div class="card"><h2 class="section-title">' + L('Trains précédents', 'Previous sets') + '</h2><div class="tyre-history">' + history + '</div></div>' : '');
+  }
   function openTyreSheet() {
     if (!auth.currentUser || document.querySelector('.tyre-sheet')) return;
     ensureSetupsLoaded();
@@ -8601,29 +8614,6 @@
     return { rows: rows, years: Object.keys(years).sort().map(function (y) { return years[y]; }) };
   }
   function budgetYearTotal(y) { return y.total || !y.missing ? formatEuros(y.total, y.approx) : '—'; }
-  function renderBudgetCard() {
-    if (!currentUserProfile) return '';
-    ensureSetupsLoaded();
-    if (myBudget === null) return '';
-    var b = computeBudget();
-    var upcoming = b.rows.filter(function (r) { return !r.past; });
-    if (!upcoming.length) return '';
-    var on = upcoming.filter(function (r) { return r.on; });
-    if (!on.length) {
-      return '<div class="card budget-card budget-card-empty"><div><strong>' + L('Combien vont te coûter tes roulages ?', 'What will your trackdays cost?') + '</strong>' +
-        '<div class="help-text">' + L('Choisis les roulages à venir que tu vises : Pitbook additionne les prix annoncés et tes frais.', 'Pick the upcoming trackdays you\'re aiming for: Pitbook adds up the announced prices and your costs.') + '</div></div>' +
-        '<button type="button" class="ghost" data-action="budget-open">' + L('Mon budget', 'My budget') + '</button></div>';
-    }
-    var all = { total: 0, toPay: 0, approx: false, missing: 0 };
-    on.forEach(function (r) { all.total += r.total; if (!r.entry.paid) all.toPay += r.orga || 0; if (r.approx) all.approx = true; if (r.orga === null) all.missing++; });
-    return '<div class="card budget-card"><div class="budget-card-main"><span class="outing-label">' + L('Mon budget à venir', 'My upcoming budget') + '</span>' +
-      '<strong class="budget-card-total">' + budgetYearTotal(all) + '</strong>' +
-      '<span class="help-text">' + on.length + (on.length > 1 ? L(' roulages', ' trackdays') : L(' roulage', ' trackday')) +
-      (all.toPay ? L(' · reste à payer à l\'orga ', ' · still to pay the organiser ') + formatEuros(all.toPay, all.approx) : '') +
-      (all.missing ? ' · ' + all.missing + L(' sans prix', ' without a price') : '') + '</span></div>' +
-      '<button type="button" class="ghost" data-action="budget-open">' + L('Détail', 'Details') + '</button></div>';
-  }
-  // Ligne « Prix annoncé » sur la page d'un roulage à venir.
   // Roulage passé où j'étais : ce qu'il m'a coûté, et le lien pour détailler.
   function eventSpendLine(ev) {
     var me = currentUserProfile && currentUserProfile.name;
@@ -9683,13 +9673,11 @@
       if (!meIsNonRider()) {
         html += '<button type="button" class="primary add-chrono-btn" id="carnet-add-chrono">+ Ajouter un chrono</button>';
         html += '<div class="help-text carnet-add-help">Saisie, photo de la feuille de temps, capture d\'écran ou PDF.</div>';
-        if (outings.length) html += renderTyreCard();
       } else if (canLogChronoForOthers()) {
         html += '<button type="button" class="primary add-chrono-btn" id="carnet-add-chrono">+ Ajouter un chrono pour un pilote du team</button>';
       }
     }
 
-    if (!addChronoOpen) html += renderBudgetCard();
     if (!outings.length) {
       if (!myUpcomingEvents().length) {
         html += '<div class="card first-outing-card"><h2 class="section-title">Quel est ton prochain roulage ?</h2>' +
@@ -18190,7 +18178,11 @@
       else if (activeView === 'carnet') body = carnetSub + renderCarnetTab();
       else if (activeView === 'circuit') body = carnetSub + renderCircuitTab();
       else if (activeView === 'budget') body = carnetSub + renderBudgetTab();
-      else if (activeView === 'stats') body = carnetSub + renderPills('stats', [['records', 'Records'], ['trophees', 'Trophées'], ['donnees', 'Mes données']]) + renderStatsTab();
+      else if (activeView === 'stats') {
+        var statPills = [['records', 'Records'], ['trophees', 'Trophées'], ['donnees', 'Mes données']];
+        if (!meIsNonRider()) statPills.push(['pneus', L('Pneus', 'Tyres')]);
+        body = carnetSub + renderPills('stats', statPills) + (pillState.stats === 'pneus' ? renderTyresPanel() : renderStatsTab());
+      }
       else if (activeView === 'planning') body = renderSubNav([['planning', 'Prochain roulage'], ['event', 'Calendrier']]) + renderTimesheetReminder() + renderPlanningTab();
       else if (activeView === 'social') body = renderSubNav(communauteSubItems()) + renderSocialTab();
       else if (activeView === 'team') body = renderSubNav(communauteSubItems()) + renderTeamTab();
