@@ -5387,7 +5387,7 @@
     }
     if (to === 'fil') { activeView = 'social'; pillState.social = 'fil'; }
     else if (to === 'trophees') { activeView = 'stats'; pillState.stats = 'trophees'; }
-    else if (to === 'podium') { activeView = 'circuit'; pillState.circuit = 'podium'; if (el.getAttribute('data-circuit')) selectedCircuit = el.getAttribute('data-circuit'); }
+    else if (to === 'podium') { activeView = 'stats'; pillState.stats = 'podium'; podiumFocusCircuit = el.getAttribute('data-circuit') || null; }
     else if (to === 'stats') { activeView = 'stats'; pillState.stats = 'records'; }
     else if (to === 'planning') activeView = 'planning';
     else activeView = 'carnet';
@@ -7462,7 +7462,12 @@
     if (!circuits.length) {
       return '<div class="card"><div class="empty-state">' + (coreDataLoading() ? tr('loading') : tr('circuit_none_yet')) + '</div></div>';
     }
-    var html = renderPills('circuit', [['plan', 'Plan & repères'], ['chronos', 'Chronos'], ['podium', L('Podium', 'Podium')], ['infos', 'Infos']]);
+    // Pneus ici (pressions de ce circuit d'abord) ; le podium entre potes est
+    // dans Stats, avec les records.
+    var circuitPills = [['plan', 'Plan & repères'], ['chronos', 'Chronos']];
+    if (!meIsNonRider()) circuitPills.push(['pneus', L('Pneus', 'Tyres')]);
+    circuitPills.push(['infos', 'Infos']);
+    var html = renderPills('circuit', circuitPills);
     html += '<div class="circuit-picker"><select id="f-filter-circuit" aria-label="' + tr('circuit_label') + '">';
     html += circuitOptionsHtml(circuits, selectedCircuit);
     html += '</select></div>';
@@ -7474,7 +7479,7 @@
       return html;
     }
     if (cp === 'infos') { html += renderCircuitInfoCard('infos'); return html; }
-    if (cp === 'podium') { html += renderFriendsPodium(selectedCircuit); return html; }
+    if (cp === 'pneus') { html += renderTyresPanel(selectedCircuit); return html; }
     // Objectif pour la prochaine session lives in EN PISTE now (see
     // renderPlanningTab), keyed off the current/next event's own circuit --
     // not repeated here.
@@ -8016,6 +8021,18 @@
     if (rows.length < 2) return 0;
     for (var i = 0; i < rows.length; i++) if (rows[i].rider === rider) return i + 1;
     return 0;
+  }
+  // Stats › Podium : un podium entre potes par circuit roulé, le plus
+  // récent d'abord (celui d'une notification en tête).
+  var podiumFocusCircuit = null;
+  function renderStatsPodiums() {
+    var me = currentUserProfile && currentUserProfile.name;
+    var last = {};
+    (STATE.sessions || []).forEach(function (x) { if (x.rider === me && x.laps && x.laps.length && (!last[x.circuit] || x.date > last[x.circuit])) last[x.circuit] = x.date; });
+    var list = Object.keys(last).sort(function (a, b) { return last[b].localeCompare(last[a]); });
+    if (podiumFocusCircuit && list.indexOf(podiumFocusCircuit) > 0) { list.splice(list.indexOf(podiumFocusCircuit), 1); list.unshift(podiumFocusCircuit); }
+    if (!list.length) return '<div class="card help-text">' + L('Ajoute tes chronos : le podium entre potes apparaît pour chaque circuit où tu as roulé.', 'Add your lap times: the friends\' podium shows for every circuit you\'ve ridden.') + '</div>';
+    return list.map(renderFriendsPodium).join('');
   }
   function renderFriendsPodium(circuit) {
     var me = currentUserProfile && currentUserProfile.name;
@@ -8803,15 +8820,19 @@
     });
     return out.sort(function (a, b) { return (b.date || '').localeCompare(a.date || '') || (b.at || 0) - (a.at || 0); });
   }
-  function renderPressuresCard() {
+  function renderPressuresCard(circuit) {
     ensureSetupsLoaded();
     if (myPressures === null) return '';
     var entries = allPressureEntries();
     var byCircuit = {}, order = [];
     entries.forEach(function (e) { var k = e.circuit || '—'; if (!byCircuit[k]) { byCircuit[k] = []; order.push(k); } byCircuit[k].push(e); });
+    // Depuis Circuits : ce circuit en tête.
+    var hereKey = circuit ? order.filter(function (k) { return sameCircuit(k, circuit); })[0] : null;
+    if (hereKey) { order.splice(order.indexOf(hereKey), 1); order.unshift(hereKey); }
     var html = '<div class="card pressures-card"><div class="budget-card-head"><h2 class="section-title">' + L('Mes pressions', 'My pressures') + '</h2></div>' +
       '<div class="help-text">' + L('Tes relevés à toi, AV et AR, circuit par circuit. Pitbook ne conseille aucune pression : suis les préconisations du manufacturier de tes pneus ou du technicien pneus du circuit.', 'Your own readings, front and rear, circuit by circuit. Pitbook never recommends a pressure: follow your tyre manufacturer\'s guidance or the trackside tyre technician\'s.') + '</div>' +
-      '<button type="button" class="primary pressures-add" data-action="pressure-new">' + L('+ Noter mes pressions', '+ Log my pressures') + '</button>';
+      '<button type="button" class="primary pressures-add" data-action="pressure-new"' + (circuit ? ' data-circuit="' + escapeHtml(circuit) + '"' : '') + '>' + L('+ Noter mes pressions', '+ Log my pressures') + '</button>' +
+      (circuit && !hereKey ? '<div class="help-text pressures-none-here">' + L('Pas encore de relevé à ', 'No reading yet at ') + escapeHtml(circuit) + '.</div>' : '');
     if (!order.length) return html + '</div>';
     html += order.map(function (c) {
       var list = byCircuit[c];
@@ -8838,14 +8859,14 @@
       if (msg) showToast(msg, 'success');
     }).catch(function (err) { showToast(L('Pressions non enregistrées : ', 'Pressures not saved: ') + ((err && err.message) || err)); });
   }
-  function openPressureSheet(id) {
+  function openPressureSheet(id, circuitHint) {
     if (!auth.currentUser || document.querySelector('.pressure-sheet')) return;
     ensureSetupsLoaded();
     var cur = (myPressures || []).filter(function (p) { return p.id === id; })[0] || null;
     var last = (myPressures || []).slice().sort(function (a, b) { return (b.at || 0) - (a.at || 0); })[0];
     var target = typeof targetPlanningEvent === 'function' ? targetPlanningEvent() : null;
     var tyre = currentTyreSet();
-    var v = cur || { circuit: (target && target.ev && target.ev.circuit) || '', date: dateKey(new Date()), unit: (last && last.unit) || 'bar', tyres: (tyre && tyre.label) || '' };
+    var v = cur || { circuit: circuitHint || (target && target.ev && target.ev.circuit) || '', date: dateKey(new Date()), unit: (last && last.unit) || 'bar', tyres: (tyre && tyre.label) || '' };
     function field(k, label, half, attrs) {
       return '<label class="setup-field' + (half ? ' setup-half' : '') + '"><span>' + label + '</span><input type="text" id="pr-' + k + '" ' + (attrs || '') + ' value="' + escapeHtml(/^(fc|rc|fh|rh)$/.test(k) && v[k] ? L(String(v[k]).replace('.', ','), String(v[k])) : (v[k] || '')) + '"></label>';
     }
@@ -8895,7 +8916,7 @@
 
   // Stats › Pneus : le train en place et les précédents (avant sur
   // l'écran Chronos, où il repoussait la liste des roulages trop bas).
-  function renderTyresPanel() {
+  function renderTyresPanel(circuit) {
     ensureSetupsLoaded();
     if (myTyreSets === null) return '';
     var sets = myTyreSets || [];
@@ -8904,7 +8925,7 @@
       return '<div class="tyre-history-row"><strong>' + escapeHtml(set.label || L('Pneus', 'Tyres')) + '</strong> · ' + escapeHtml(formatDate(set.since)) +
         '<div class="help-text">' + escapeHtml(tyreUsageText(tyreSetUsage(set, next))) + '</div></div>';
     }).join('');
-    return renderPressuresCard() + renderTyreCard() + (history ? '<div class="card"><h2 class="section-title">' + L('Trains précédents', 'Previous sets') + '</h2><div class="tyre-history">' + history + '</div></div>' : '');
+    return renderPressuresCard(circuit) + renderTyreCard() + (history ? '<div class="card"><h2 class="section-title">' + L('Trains précédents', 'Previous sets') + '</h2><div class="tyre-history">' + history + '</div></div>' : '');
   }
   // « Cocher mes sessions » : les journées depuis le montage, avec les
   // sessions de son groupe ; celles qui ont un chrono comptent d'office.
@@ -18776,9 +18797,8 @@
       else if (activeView === 'circuit') body = carnetSub + renderCircuitTab();
       else if (activeView === 'budget') body = carnetSub + renderBudgetTab();
       else if (activeView === 'stats') {
-        var statPills = [['records', 'Records'], ['trophees', 'Trophées'], ['donnees', 'Mes données']];
-        if (!meIsNonRider()) statPills.push(['pneus', L('Pneus', 'Tyres')]);
-        body = carnetSub + renderPills('stats', statPills) + (pillState.stats === 'pneus' ? renderTyresPanel() : renderStatsTab());
+        var statPills = [['records', 'Records'], ['podium', L('Podium', 'Podium')], ['trophees', 'Trophées'], ['donnees', 'Mes données']];
+        body = carnetSub + renderPills('stats', statPills) + (pillState.stats === 'podium' ? renderStatsPodiums() : renderStatsTab());
       }
       else if (activeView === 'planning') body = renderSubNav([['planning', 'Prochain roulage'], ['event', 'Calendrier']]) + renderTimesheetReminder() + renderPlanningTab();
       else if (activeView === 'social') body = renderSubNav(communauteSubItems()) + renderSocialTab();
@@ -20647,7 +20667,7 @@
     });
     attachBudgetTab();
     document.querySelectorAll('[data-action="pressure-new"]').forEach(function (btn) {
-      btn.addEventListener('click', function () { openPressureSheet(null); });
+      btn.addEventListener('click', function () { openPressureSheet(null, btn.getAttribute('data-circuit')); });
     });
     document.querySelectorAll('[data-action="pressure-edit"]').forEach(function (btn) {
       btn.addEventListener('click', function () { openPressureSheet(btn.getAttribute('data-id')); });

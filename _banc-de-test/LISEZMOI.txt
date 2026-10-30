@@ -31,8 +31,8 @@ Scénarios
   feat                 pneus, journée, ajout à l'agenda.
   budget4, budget-page budget : saisons, lignes, forfait, page d'un roulage.
   reimp                import des roulages et mise à jour d'un existant.
-  tyres-stats          Stats › Pneus.
-  pressures            Stats › Pneus › Mes pressions.
+  tyres-stats          Circuits › Pneus.
+  pressures            Circuits › Pneus › Mes pressions.
   tyres-used           pneus déjà roulés, avec les km estimés.
   tyres-sessions       pneus : cocher les sessions roulées depuis le montage.
   eybis                import du calendrier Eybis 2027, avec création du Team.
@@ -40,6 +40,7 @@ Scénarios
   budget-roulage       onglet Budget de la page d'un roulage.
   team-rename          réglages d'un Team : le leader le renomme.
   chrono-estime        chrono estimé sur un circuit jamais roulé.
+  onglets-pneus-podium Circuits › Pneus et Stats › Podium.
   parrain              Gestion des comptes : corriger un parrain.
 
 Guide PDF
