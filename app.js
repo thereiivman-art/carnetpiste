@@ -2464,7 +2464,35 @@
     '2027-10-18 | 2027-10-20 | Valence | ~620 € · circuit MotoGP',
     '2027-10-23 | 2027-10-24 | Alcarràs | ~299 €'
   ].join('\n');
-  var eventImportText = null, eventImportPreview = null;
+  // Calendrier prévisionnel 2027 d'Eybis (eybis.com), relevé sur leur
+  // affiche : bleu foncé = confirmé, bleu clair = en option. Le Mans et
+  // Spa-Francorchamps sont annoncés sans date.
+  var EYBIS_URL = 'https://www.eybis.com/calendarFR.html';
+  var EVENT_IMPORT_EYBIS = [
+    ['2027-03-08', '2027-03-10', 'Jerez', 0], ['2027-03-18', '2027-03-20', 'Aragón', 0], ['2027-03-22', '2027-03-23', 'Alcarràs', 0],
+    ['2027-04-09', '2027-04-11', 'Misano', 1], ['2027-05-11', '2027-05-12', 'Assen', 1], ['2027-05-29', '2027-05-30', 'Hockenheim', 1],
+    ['2027-06-07', '2027-06-08', 'Brno', 0], ['2027-06-11', '2027-06-13', 'Slovakia Ring', 0], ['2027-06-18', '2027-06-20', 'Mugello', 0],
+    ['2027-07-16', '2027-07-18', 'Mettet', 0], ['2027-07-23', '2027-07-25', 'Most', 0], ['2027-08-06', '2027-08-08', 'Magny Cours', 1],
+    ['2027-08-21', '2027-08-22', 'Dijon-Prenois', 1], ['2027-08-27', '2027-08-29', 'Grobnik', 1], ['2027-09-03', '2027-09-05', 'Red Bull Ring', 0],
+    ['2027-09-20', '2027-09-21', 'Portimão', 1], ['2027-09-23', '2027-09-24', 'Jerez', 1]
+  ].map(function (r) { return r[0] + ' | ' + r[1] + ' | ' + r[2] + ' | ' + (r[3] ? 'confirmé' : 'en option, à confirmer') + ' · prix sur eybis.com | ' + EYBIS_URL; }).join('\n');
+  var EVENT_IMPORT_PRESETS = {
+    mt95: { label: 'Mototeam95 2027', text: EVENT_IMPORT_SAMPLE, team: /moto\s*team\s*95|mototeam\s*95/i, newTeam: 'Mototeam95', vis: 'adherent' },
+    eybis: { label: 'Eybis 2027', text: EVENT_IMPORT_EYBIS, team: /eybis/i, newTeam: 'Eybis', vis: 'public', description: 'Roulages moto sur les circuits de toute l\'Europe · www.eybis.com' }
+  };
+  // Choix de la carte d'import, gardés d'un rendu à l'autre (sinon
+  // « Vérifier » remettait le Team et la visibilité par défaut).
+  var eventImportText = null, eventImportPreview = null, eventImportPreset = 'mt95', eventImportTeam = null, eventImportVis = null, eventImportNewTeam = '';
+  function applyEventImportPreset(key) {
+    var pr = EVENT_IMPORT_PRESETS[key] || EVENT_IMPORT_PRESETS.mt95;
+    eventImportPreset = key;
+    eventImportText = pr.text;
+    var t = (STATE.teams || []).filter(function (x) { return pr.team.test(x.name || ''); })[0];
+    eventImportTeam = t ? t.id : '__new__';
+    eventImportNewTeam = t ? '' : pr.newTeam;
+    eventImportVis = pr.vis;
+    eventImportPreview = null;
+  }
   // Nom du circuit tel que l'appli le connaît (« Magny-Cours » -> « Magny Cours »).
   function canonicalCircuitName(name) {
     var k = circuitKey(name);
@@ -2479,19 +2507,23 @@
       line = line.trim();
       if (!line) return;
       var parts = line.split('|').map(function (x) { return x.trim(); });
-      var start = parts[0], end = parts[1] || parts[0], circuit = parts[2] ? canonicalCircuitName(parts[2]) : '', note = parts.slice(3).join(' | ');
-      var row = { line: i + 1, dateStart: start, dateEnd: end, circuit: circuit, note: note, error: '' };
+      // Une colonne qui commence par http(s) est le lien de réservation chez
+      // l'orga ; le reste après le circuit est la note.
+      var rest = parts.slice(3), url = rest.filter(function (x) { return /^https?:\/\//i.test(x); })[0] || '';
+      var start = parts[0], end = parts[1] || parts[0], circuit = parts[2] ? canonicalCircuitName(parts[2]) : '', note = rest.filter(function (x) { return x !== url; }).join(' | ');
+      var row = { line: i + 1, dateStart: start, dateEnd: end, circuit: circuit, note: note, bookingUrl: url, error: '' };
       if (!/^\d{4}-\d{2}-\d{2}$/.test(start) || !/^\d{4}-\d{2}-\d{2}$/.test(end) || end < start) row.error = L('dates invalides', 'invalid dates');
       else if (!circuit) row.error = L('circuit manquant', 'circuit missing');
       else {
         // Même circuit, même début, même Team : c'est le même roulage. S'il a
         // changé (fin, note), l'import le met à jour au lieu de l'ignorer
         // (ex. Portimão 20-24 sept. devenu Portimão 20-21 + Jerez 23-24).
-        var same = eventsList().filter(function (e) { return circuitKey(e.circuit) === circuitKey(circuit) && e.dateStart === start && (e.teamId || null) === (teamId || null); })[0];
+        var same = teamId === '__new__' ? null : eventsList().filter(function (e) { return circuitKey(e.circuit) === circuitKey(circuit) && e.dateStart === start && (e.teamId || null) === (teamId || null); })[0];
         if (same) {
           var changes = [];
           if ((same.dateEnd || same.dateStart) !== end) changes.push(L('fin ', 'end ') + formatDate(same.dateEnd || same.dateStart) + ' → ' + formatDate(end));
           if ((same.note || '') !== note) changes.push(L('note', 'note'));
+          if (url && (same.bookingUrl || '') !== url) changes.push(L('lien de réservation', 'booking link'));
           if (changes.length) { row.updateId = same.id; row.changes = changes.join(', '); }
           else row.error = L('existe déjà', 'already exists');
         }
@@ -2502,27 +2534,56 @@
   }
   function renderEventImportCard() {
     if (!isAdmin()) return '';
-    if (eventImportText === null) eventImportText = EVENT_IMPORT_SAMPLE;
+    if (eventImportText === null) applyEventImportPreset(eventImportPreset);
     var teams = (STATE.teams || []).slice().sort(function (a, b) { return (a.name || '').localeCompare(b.name || ''); });
-    var defTeam = teams.filter(function (t) { return /moto\s*team\s*95|mototeam\s*95/i.test(t.name || ''); })[0];
+    var vis = eventImportVis || 'adherent';
+    function opt(v, label, cur) { return '<option value="' + escapeHtml(v) + '"' + (v === cur ? ' selected' : '') + '>' + escapeHtml(label) + '</option>'; }
     var html = '<div class="section-title" style="font-size:0.95rem;">' + L('Importer des roulages', 'Import trackdays') + '</div>' +
-      '<div class="help-text">' + L('Une ligne par roulage : début | fin | circuit | note (dates au format AAAA-MM-JJ). Pré-rempli avec le calendrier 2027 proposé par le Mototeam95.', 'One line per trackday: start | end | circuit | note (dates as YYYY-MM-DD). Prefilled with the 2027 calendar proposed by Mototeam95.') + '</div>' +
-      '<label for="evimp-team" style="margin-top:0.6rem;">Team</label><select id="evimp-team"><option value="">' + L('Aucun (roulage libre)', 'None (independent trackday)') + '</option>' +
-      teams.map(function (t) { return '<option value="' + escapeHtml(t.id) + '"' + (defTeam && defTeam.id === t.id ? ' selected' : '') + '>' + escapeHtml(t.name || t.id) + '</option>'; }).join('') + '</select>' +
+      '<div class="help-text">' + L('Une ligne par roulage : début | fin | circuit | note | lien de réservation (dates au format AAAA-MM-JJ, lien facultatif). Choisis un calendrier pour pré-remplir.', 'One line per trackday: start | end | circuit | note | booking link (dates as YYYY-MM-DD, link optional). Pick a calendar to prefill.') + '</div>' +
+      '<label for="evimp-preset" style="margin-top:0.6rem;">' + L('Calendrier', 'Calendar') + '</label><select id="evimp-preset">' +
+      Object.keys(EVENT_IMPORT_PRESETS).map(function (k) { return opt(k, EVENT_IMPORT_PRESETS[k].label, eventImportPreset); }).join('') + '</select>' +
+      '<label for="evimp-team" style="margin-top:0.6rem;">Team</label><select id="evimp-team">' + opt('', L('Aucun (roulage libre)', 'None (independent trackday)'), eventImportTeam || '') +
+      teams.map(function (t) { return opt(t.id, t.name || t.id, eventImportTeam); }).join('') + opt('__new__', L('+ Nouveau Team…', '+ New Team…'), eventImportTeam) + '</select>' +
+      (eventImportTeam === '__new__' ? '<label for="evimp-newteam" style="margin-top:0.6rem;">' + L('Nom du nouveau Team', 'New Team name') + '</label><input type="text" id="evimp-newteam" maxlength="60" value="' + escapeHtml(eventImportNewTeam) + '">' +
+        '<div class="help-text">' + L('Créé à l\'import : tu en es le leader, il passe en Team PRO.', 'Created on import: you lead it, and it becomes a Team PRO.') + '</div>' : '') +
       '<label for="evimp-vis" style="margin-top:0.6rem;">' + tr('visibility_label') + '</label><select id="evimp-vis">' +
-      '<option value="adherent" selected>' + tr('ev_vis_adherent_only') + '</option><option value="membre">' + tr('ev_vis_membre_only') + '</option>' +
-      '<option value="follower">' + tr('ev_vis_follower_only') + '</option><option value="public">' + tr('ev_vis_public') + '</option></select>' +
+      opt('adherent', tr('ev_vis_adherent_only'), vis) + opt('membre', tr('ev_vis_membre_only'), vis) + opt('follower', tr('ev_vis_follower_only'), vis) + opt('public', tr('ev_vis_public'), vis) + '</select>' +
       '<textarea id="evimp-text" rows="10" style="margin-top:0.6rem; font-family: var(--font-mono, monospace); font-size:0.8rem;">' + escapeHtml(eventImportText) + '</textarea>' +
       '<div style="margin-top:0.6rem; display:flex; gap:0.5rem; flex-wrap:wrap;"><button type="button" class="ghost" data-action="evimp-check">' + L('Vérifier', 'Check') + '</button></div>';
     if (eventImportPreview) {
       var ok = eventImportPreview.filter(function (r) { return !r.error; });
       html += '<div class="evimp-preview">' + eventImportPreview.map(function (r) {
         return '<div class="evimp-row' + (r.error ? ' error' : '') + '"><span>' + escapeHtml(formatDate(r.dateStart)) + (r.dateEnd !== r.dateStart ? ' → ' + escapeHtml(formatDate(r.dateEnd)) : '') + '</span><strong>' + escapeHtml(r.circuit || '?') + '</strong>' +
-          '<span class="help-text">' + escapeHtml(r.error ? L('Ligne ', 'Line ') + r.line + ' : ' + r.error : (r.updateId ? L('Mise à jour (', 'Update (') + r.changes + ') · ' : '') + r.note) + '</span></div>';
+          '<span class="help-text">' + escapeHtml(r.error ? L('Ligne ', 'Line ') + r.line + ' : ' + r.error : (r.updateId ? L('Mise à jour (', 'Update (') + r.changes + ') · ' : '') + r.note + (r.bookingUrl ? L(' · réservation ↗', ' · booking ↗') : '')) + '</span></div>';
       }).join('') + '</div>' +
         (ok.length ? '<button type="button" class="primary" data-action="evimp-go" style="margin-top:0.6rem;">' + evimpCountText(ok, L('Importer ', 'Import '), L('mettre à jour ', 'update ')) + '</button>' : '');
     }
     return html;
+  }
+  // Lit les champs de la carte dans l'état (avant un nouveau rendu).
+  function readEventImportForm() {
+    var g = function (id) { var el = document.getElementById(id); return el ? el.value : null; };
+    if (g('evimp-text') !== null) eventImportText = g('evimp-text');
+    if (g('evimp-team') !== null) eventImportTeam = g('evimp-team');
+    if (g('evimp-vis') !== null) eventImportVis = g('evimp-vis');
+    if (g('evimp-newteam') !== null) eventImportNewTeam = g('evimp-newteam').trim();
+  }
+  // Crée le Team de l'import (l'admin en est le leader, puis Team PRO),
+  // et rend son id une fois les droits de leader en place.
+  function createImportTeam(name) {
+    var me = currentUserProfile, uid = auth.currentUser && auth.currentUser.uid;
+    var pr = EVENT_IMPORT_PRESETS[eventImportPreset] || {};
+    var teamId = genId();
+    var doc = { id: teamId, name: name, createdBy: me.name, createdAt: Date.now(), memberCount: 1 };
+    if (pr.description && pr.team && pr.team.test(name)) doc.description = pr.description;
+    return db.collection('teams').doc(teamId).set(doc).then(function () {
+      return db.collection('teamMembers').doc(teamMemberDocId(teamId, me.name)).set({ teamId: teamId, name: me.name, role: 'leader', joinedAt: Date.now(), uid: uid });
+    }).then(function () {
+      return db.collection('teams').doc(teamId).set({ teamPro: true }, { merge: true });
+    }).then(function () {
+      STATE.teams = (STATE.teams || []).filter(function (t) { return t.id !== teamId; }).concat([Object.assign({}, doc, { teamPro: true })]);
+      return teamId;
+    });
   }
   // « 1 roulage · mettre à jour 1 » : nouveaux d'abord, mises à jour ensuite.
   function evimpCountText(rows, addVerb, updVerb) {
@@ -2534,8 +2595,23 @@
   }
   function runEventImport() {
     if (!isAdmin() || !eventImportPreview) return;
-    var teamId = (document.getElementById('evimp-team') || {}).value || null;
-    var vis = (document.getElementById('evimp-vis') || {}).value || null;
+    readEventImportForm();
+    if (eventImportTeam === '__new__') {
+      var name = eventImportNewTeam;
+      if (!name) { showToast(L('Donne un nom au nouveau Team.', 'Name the new Team.')); return; }
+      var exists = (STATE.teams || []).filter(function (t) { return (t.name || '').toLowerCase() === name.toLowerCase(); })[0];
+      if (exists) { eventImportTeam = exists.id; return runEventImport(); }
+      createImportTeam(name).then(function (teamId) {
+        eventImportTeam = teamId;
+        showToast(tr('team_created_prefix') + name + tr('team_created_suffix'), 'success');
+        importEventRows(teamId);
+      }).catch(function (err) { showToast(tr('error_prefix') + (err && err.message ? err.message : err)); });
+      return;
+    }
+    importEventRows(eventImportTeam || null);
+  }
+  function importEventRows(teamId) {
+    var vis = eventImportVis || null;
     var rows = parseEventImport(eventImportText, teamId).filter(function (r) { return !r.error; });
     if (!rows.length) return;
     var prevState = JSON.parse(JSON.stringify(STATE));
@@ -2543,10 +2619,11 @@
     rows.forEach(function (r) {
       if (r.updateId) {
         var cur = STATE.events.filter(function (e) { return e.id === r.updateId; })[0];
-        if (cur) { cur.dateEnd = r.dateEnd; cur.note = r.note || ''; }
+        if (cur) { cur.dateEnd = r.dateEnd; cur.note = r.note || ''; if (r.bookingUrl) cur.bookingUrl = r.bookingUrl; }
         return;
       }
       var ev = { id: genId(), circuit: r.circuit, dateStart: r.dateStart, dateEnd: r.dateEnd, riders: [], note: r.note || '' };
+      if (r.bookingUrl) ev.bookingUrl = r.bookingUrl;
       if (teamId) { ev.teamId = teamId; if (vis) ev.eventVisibility = vis; }
       STATE.events.push(ev);
     });
@@ -3152,7 +3229,7 @@
     ['Mugello', 'IT', 5.245], ['Misano', 'IT', 4.226], ['Imola', 'IT', 4.909], ['Vallelunga', 'IT', 4.085], ['Cremona', 'IT', null], ['Varano', 'IT', null],
     ['Spa-Francorchamps', 'BE', 7.004], ['Zolder', 'BE', 4.011], ['Mettet', 'BE', null],
     ['Assen', 'NL', 4.542], ['Sachsenring', 'DE', 3.671], ['Hockenheim', 'DE', 4.574], ['Nürburgring', 'DE', 5.148],
-    ['Red Bull Ring', 'AT', 4.318], ['Brno', 'CZ', 5.403], ['Most', 'CZ', 4.212], ['Slovakia Ring', 'SK', 5.922], ['Pannonia-Ring', 'HU', null],
+    ['Red Bull Ring', 'AT', 4.318], ['Brno', 'CZ', 5.403], ['Most', 'CZ', 4.212], ['Slovakia Ring', 'SK', 5.922], ['Grobnik', 'HR', 4.168], ['Pannonia-Ring', 'HU', null],
     ['Silverstone', 'GB', 5.891], ['Donington', 'GB', 4.023], ['Brands Hatch', 'GB', 3.916],
     ['Losail', 'QA', 5.38], ['COTA', 'US', 5.513], ['Termas de Río Hondo', 'AR', 4.806], ['Buriram', 'TH', 4.554],
     ['Mandalika', 'ID', 4.31], ['Motegi', 'JP', 4.801], ['Phillip Island', 'AU', 4.448]
@@ -15950,7 +16027,7 @@
 
   // What a customised profile shows (all on by default).
   var LOOK_SECTIONS_TEAM = function () { return [['dates', L('Prochaines dates', 'Upcoming dates')], ['links', L('Réseaux et liens', 'Socials and links')], ['sponsors', L('Sponsors', 'Sponsors')], ['palmares', L('Palmarès', 'Records')], ['riders', L('Pilotes du team', 'Team riders')]]; };
-  var LOOK_SECTIONS = function () { return [['links', L('Réseaux et liens', 'Socials and links')], ['sponsors', L('Sponsors', 'Sponsors')], ['featured', L('Chrono vedette', 'Featured lap')], ['vitrine', L('Vitrine', 'Showcase')], ['season', L('Saison', 'Season')], ['circuits', L('Circuits préférés', 'Favourite circuits')], ['teams', L('Teams préférés', 'Favourite teams')], ['friends', L('Amis préférés', 'Favourite friends')]]; };
+  var LOOK_SECTIONS = function () { return [['links', L('Réseaux et liens', 'Socials and links')], ['sponsors', L('Sponsors', 'Sponsors')], ['featured', L('Chrono vedette', 'Featured lap')], ['vitrine', L('Vitrine', 'Showcase')], ['season', L('Saison', 'Season')], ['circuits', L('Circuits préférés', 'Favourite circuits')], ['teams', L('Teams préférés', 'Favourite teams')], ['friends', L('Amis', 'Friends')]]; };
   function lookShows(l, key) { return !l.show || l.show[key] !== false; }
   function normalizeUrl(u) {
     u = (u || '').trim();
@@ -16018,13 +16095,37 @@
         return '<button type="button" class="ph-fav-team" data-action="open-team-page" data-team="' + escapeHtml(t.id) + '">' + avatarHtml(t, t.name) + '<strong>' + escapeHtml(t.name) + '</strong></button>';
       }).join('') + '</div></div>';
     }
-    if (lookShows(l, 'friends')) {
-      var friends = (l.favFriends || []).filter(function (n) { return (STATE.usersByName || {})[n]; });
-      if (friends.length) html += '<div class="card"><h2 class="section-title">' + L('Amis préférés', 'Favourite friends') + '</h2><div class="ph-favs ph-favs-friends">' + friends.slice(0, 5).map(function (n) {
-        return '<button type="button" class="ph-fav-friend" data-action="open-person" data-name="' + escapeHtml(n) + '">' + avatarHtml((STATE.usersByName || {})[n], n) + '<span>' + escapeHtml(n) + '</span></button>';
-      }).join('') + '</div></div>';
-    }
     return html;
+  }
+  // Tous les amis du profil, sur une rangée qui défile au doigt (avant :
+  // 5 « amis préférés » choisis à la main). Les miens sont déjà en
+  // mémoire ; ceux d'un autre pilote sont lus une fois puis gardés.
+  var personFriendsCache = {};
+  function personFriendNames(name) {
+    var me = currentUserProfile && currentUserProfile.name;
+    if (name === me) return friendsOf(me).map(function (f) { return f.name; });
+    if (personFriendsCache[name]) return personFriendsCache[name];
+    if (personFriendsCache[name] === undefined) {
+      personFriendsCache[name] = null;
+      var q = function (field) { return db.collection('friendRequests').where(field, '==', name).where('status', '==', 'accepted').get(); };
+      Promise.all([q('from'), q('to')]).then(function (res) {
+        var names = {};
+        res.forEach(function (snap) { snap.docs.forEach(function (d) { var r = d.data(); names[r.from === name ? r.to : r.from] = true; }); });
+        personFriendsCache[name] = Object.keys(names);
+        renderRoot();
+      }).catch(function () { personFriendsCache[name] = []; });
+    }
+    return null;
+  }
+  function renderPersonFriends(name, l) {
+    if (l && !lookShows(l, 'friends')) return '';
+    var list = personFriendNames(name);
+    if (!list || !list.length) return '';
+    list = list.filter(function (n) { return (STATE.usersByName || {})[n]; }).sort(function (a, b) { return a.localeCompare(b); });
+    if (!list.length) return '';
+    return '<div class="card"><h2 class="section-title">' + L('Amis', 'Friends') + ' <span class="ph-count">' + list.length + '</span></h2><div class="ph-friends-row">' + list.map(function (n) {
+      return '<button type="button" class="ph-fav-friend" data-action="open-person" data-name="' + escapeHtml(n) + '">' + avatarHtml((STATE.usersByName || {})[n], n) + '<span>' + escapeHtml(n) + '</span></button>';
+    }).join('') + '</div></div>';
   }
   function renderLookEditor(me, ach, team) {
     var d = lookDraft;
@@ -16085,9 +16186,6 @@
     var teamChoices = lookTeamChoices(me.name);
     if (lookShows(d, 'teams')) html += '<div class="look-field"><span class="look-label">' + L('Teams préférés (3 max)', 'Favourite teams (up to 3)') + '</span>' +
       (teamChoices.length ? pick('favTeams', teamChoices.map(function (t) { return t.id; }), teamChoices.map(function (t) { return t.name; }), 3) : '<div class="help-text">' + L('Rejoins ou suis un team pour l\'afficher ici.', 'Join or follow a team to show it here.') + '</div>') + '</div>';
-    var friendNames = friendsOf(me.name).map(function (f) { return f.name; }).sort();
-    if (lookShows(d, 'friends')) html += '<div class="look-field"><span class="look-label">' + L('Amis préférés (5 max)', 'Favourite friends (up to 5)') + '</span>' +
-      (friendNames.length ? pick('favFriends', friendNames, friendNames, 5) : '<div class="help-text">' + L('Ajoute des amis pour les afficher ici.', 'Add friends to show them here.') + '</div>') + '</div>';
     html += '<div class="look-field"><label class="look-label" for="look-bio">' + L('Bio', 'Bio') + '</label><textarea id="look-bio" maxlength="140" rows="2" placeholder="' + L('Ex. Pistard depuis 2019, objectif sous les 2’00” à Misano.', 'E.g. Track rider since 2019, aiming under 2’00” at Misano.') + '">' + escapeHtml(d.bio || '') + '</textarea></div>';
     if (earned.length) html += '<div class="look-field"><span class="look-label">' + L('Vitrine (3 trophées)', 'Showcase (3 trophies)') + '</span><div class="look-pins">' + earned.map(function (a) {
       var on = (d.pinned || []).indexOf(a.name) !== -1;
@@ -16395,6 +16493,7 @@
       var circuits = Object.keys(bests).sort();
       if (look) html += renderLinksAndSponsors(look);
       if (look) html += (lookShows(look, 'vitrine') ? renderVitrine(getAch(), look) : '') + (lookShows(look, 'season') ? renderSeasonGrid(name, look) : '') + renderFavourites(name, look);
+      html += renderPersonFriends(name, look);
       if (circuits.length) {
         html += '<div class="card"><h2 class="section-title">' + (isMe ? L('Mes records', 'My records') : L('Ses records', 'Their records')) + '</h2>' + circuits.map(function (c) {
           var mine = me ? riderCircuitBest(me.name, c) : null, cmp = '';
@@ -20318,10 +20417,14 @@
     });
     var evimpCheck = document.querySelector('[data-action="evimp-check"]');
     if (evimpCheck) evimpCheck.addEventListener('click', function () {
-      eventImportText = document.getElementById('evimp-text').value;
-      eventImportPreview = parseEventImport(eventImportText, document.getElementById('evimp-team').value || null);
+      readEventImportForm();
+      eventImportPreview = parseEventImport(eventImportText, eventImportTeam || null);
       renderRoot();
     });
+    var evimpPreset = document.getElementById('evimp-preset');
+    if (evimpPreset) evimpPreset.addEventListener('change', function () { applyEventImportPreset(evimpPreset.value); renderRoot(); });
+    var evimpTeam = document.getElementById('evimp-team');
+    if (evimpTeam) evimpTeam.addEventListener('change', function () { readEventImportForm(); eventImportPreview = null; renderRoot(); });
     var evimpGo = document.querySelector('[data-action="evimp-go"]');
     if (evimpGo) evimpGo.addEventListener('click', runEventImport);
     document.querySelectorAll('[data-action="budget-open"]').forEach(function (btn) {

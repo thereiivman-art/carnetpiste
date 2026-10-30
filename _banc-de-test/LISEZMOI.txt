@@ -35,6 +35,8 @@ Scénarios
   pressures            Stats › Pneus › Mes pressions.
   tyres-used           pneus déjà roulés, avec les km estimés.
   tyres-sessions       pneus : cocher les sessions roulées depuis le montage.
+  eybis                import du calendrier Eybis 2027, avec création du Team.
+  amis                 fiche profil : la rangée de tous les amis.
   parrain              Gestion des comptes : corriger un parrain.
 
 Guide PDF

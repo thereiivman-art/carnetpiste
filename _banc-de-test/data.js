@@ -5,9 +5,15 @@
   window.__MOCK_DATA = {
     users: {
       u1: { name: 'Alex', role: 'pilote', email: EMAIL, lang: LANG, tutorialSeen: true, country: 'FR', bike: 'Yamaha R6', level: 'intermediaire' },
-      u2: { name: 'Sam', role: 'pilote', email: 'sam@example.com', lang: 'fr', tutorialSeen: true, country: 'BE', bike: 'BMW S1000RR' }
+      u2: { name: 'Sam', role: 'pilote', email: 'sam@example.com', lang: 'fr', tutorialSeen: true, country: 'BE', bike: 'BMW S1000RR' },
+      u3: { name: 'Tom', role: 'pilote', email: 'tom@example.com', lang: 'fr', tutorialSeen: true, country: 'FR', bike: 'Yamaha R1' },
+      u4: { name: 'Ugo', role: 'pilote', email: 'ugo@example.com', lang: 'fr', tutorialSeen: true, country: 'FR', bike: 'Yamaha R1' },
+      u5: { name: 'Victor', role: 'pilote', email: 'victor@example.com', lang: 'fr', tutorialSeen: true, country: 'FR', bike: 'Yamaha R1' },
+      u6: { name: 'Yann', role: 'pilote', email: 'yann@example.com', lang: 'fr', tutorialSeen: true, country: 'FR', bike: 'Yamaha R1' },
+      u7: { name: 'Zoé', role: 'pilote', email: 'zoe@example.com', lang: 'fr', tutorialSeen: true, country: 'FR', bike: 'Yamaha R1' },
+      u8: { name: 'Théo', role: 'pilote', email: 'theo@example.com', lang: 'fr', tutorialSeen: true, country: 'FR', bike: 'Yamaha R1' }
     },
-    friendRequests: { f1: { id: 'f1', from: 'Alex', to: 'Sam', status: 'accepted' }, f2: { id: 'f2', from: 'Luca', to: 'Alex', status: 'pending' } },
+    friendRequests: { f1: { id: 'f1', from: 'Alex', to: 'Sam', status: 'accepted' }, f2: { id: 'f2', from: 'Luca', to: 'Alex', status: 'pending' }, g0: { id: 'g0', from: 'Alex', to: 'Tom', status: 'accepted' }, g1: { id: 'g1', from: 'Alex', to: 'Ugo', status: 'accepted' }, g2: { id: 'g2', from: 'Alex', to: 'Victor', status: 'accepted' }, g3: { id: 'g3', from: 'Alex', to: 'Yann', status: 'accepted' }, g4: { id: 'g4', from: 'Alex', to: 'Zoé', status: 'accepted' }, g5: { id: 'g5', from: 'Alex', to: 'Théo', status: 'accepted' } },
     riders: { Alex: { name: 'Alex' }, Sam: { name: 'Sam' } },
     circuits: { Barcelone: { name: 'Barcelone', km: 4.657 }, Mugello: { name: 'Mugello' } },
     events: {
