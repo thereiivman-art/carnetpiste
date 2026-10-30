@@ -4507,9 +4507,7 @@
   // signup (see resolveUniquePseudo) if the new pseudo collides with
   // someone else's.
   function renderProfileTabBar() {
-    var tabs = [['profil', tr('tab_profil')]];
-    if (!meIsNonRider()) tabs.push(['moto', L('Ma moto', 'My bike')]);
-    tabs.push(['reglages', tr('tab_reglages')], ['aide', tr('tab_aide')], ['suggestion', tr('tab_suggestion')]);
+    var tabs = [['profil', tr('tab_profil')], ['reglages', tr('tab_reglages')], ['aide', tr('tab_aide')], ['suggestion', tr('tab_suggestion')]];
     return '<div class="subnav profile-tabs" role="tablist">' + tabs.map(function (t) {
       return '<button type="button" class="subnav-btn profile-tab-btn' + (profileSubTab === t[0] ? ' active' : '') + '" role="tab" aria-selected="' + (profileSubTab === t[0]) + '" data-profile-tab="' + t[0] + '">' + t[1] + '</button>';
     }).join('') + '</div>';
@@ -4938,8 +4936,8 @@
     html += renderProfileTabBar();
     html += '<div class="profile-tab-body">';
     if (profileSubTab === 'parrainage') profileSubTab = 'profil'; // fusionné dans le QR d'invitation
-    if (profileSubTab === 'moto') html += renderTyresPanel();
-    else if (profileSubTab === 'reglages') html += renderProfileReglagesTab(p);
+    if (profileSubTab === 'moto') profileSubTab = 'profil'; // Ma moto est dans Roulages › Ma prépa
+    if (profileSubTab === 'reglages') html += renderProfileReglagesTab(p);
     else if (profileSubTab === 'aide') html += renderProfileAideTab(p);
     else if (profileSubTab === 'suggestion') html += '<div class="card">' + renderProfileSuggestionTab(p) + '</div>';
     else html += renderProfileProfilTab(p);
@@ -8938,7 +8936,7 @@
         '<button type="button" class="ghost" data-action="session-setup" data-id="' + escapeHtml(x.id) + '">' + (su ? L('Modifier', 'Edit') : L('Noter', 'Log')) + '</button></div>';
     }).join('') : '<div class="help-text">' + L('Ajoute tes chronos de la journée pour y noter tes réglages, session par session.', 'Add your lap times for the day to log your setup, session by session.') + '</div>') + '</div>';
     html += renderTyreCard();
-    html += '<button type="button" class="ghost outing-budget-all" data-action="open-ma-moto">' + L('Ma moto : tous mes pneus et pressions ›', 'My bike: all my tyres and pressures ›') + '</button>';
+    html += '<button type="button" class="ghost outing-budget-all" data-action="open-ma-moto">' + L('Ma moto dans Ma prépa : tous mes pneus et pressions ›', 'My bike in My prep: all my tyres and pressures ›') + '</button>';
     return html;
   }
   function renderTyresPanel(circuit) {
@@ -14608,12 +14606,17 @@
     var nNotes = myTrackNotes(ev.circuit).length;
     var prepItems = [
       ['objectif', 'Objectif', flatSections(renderChronoGoalsCard(ev.circuit, true))],
+      // Ma moto : mes pressions sur ce circuit d'abord, puis les autres, et
+      // mes pneus (train en place et précédents). Pas pour un accompagnant.
+      ['moto', L('Ma moto', 'My bike'), meIsNonRider() ? '' : renderTyresPanel(ev.circuit)],
       ['reperes', 'Repères' + (nNotes ? ' (' + nNotes + ')' : ''), flatSections(renderTrackNotesReminder(ev.circuit))],
       ['amis', 'Amis', flatSections(renderFriendsGroupSection(ev))]
     ];
     {
       prepItems.push(['checklist', 'Checklist ' + avantSessionChecklistLabel(ev).replace(/^.*—\s*/, ''), renderAvantSessionChecklist(ev)]);
-      prepItems.push(['equipement', 'Équipement ' + checklistCountLabel(ev).replace(/^.*—\s*/, ''), renderPlanningChecklist(ev)]);
+      // « Équipement 3/12 » ; liste vide : « Équipement » tout court.
+      var eqCount = (checklistCountLabel(ev).match(/—\s*(.*)$/) || [])[1];
+      prepItems.push(['equipement', 'Équipement' + (eqCount ? ' ' + eqCount : ''), renderPlanningChecklist(ev)]);
       prepItems.push(['voyage', 'Voyage', flatSections(renderMyTravelInfoSection(ev)) + renderFollowedTravelInfoSection(ev)]);
     }
 
@@ -20696,7 +20699,7 @@
     });
     attachBudgetTab();
     document.querySelectorAll('[data-action="open-ma-moto"]').forEach(function (btn) {
-      btn.addEventListener('click', function () { profilePanelOpen = true; profileSubTab = 'moto'; notificationsPanelOpen = false; renderRoot(); window.scrollTo(0, 0); });
+      btn.addEventListener('click', function () { profilePanelOpen = false; notificationsPanelOpen = false; outingView = null; activeView = 'planning'; pillState.planning = 'prepa'; pillState.prepsub = 'moto'; renderRoot(); window.scrollTo(0, 0); });
     });
     document.querySelectorAll('[data-action="pressure-new"]').forEach(function (btn) {
       btn.addEventListener('click', function () { openPressureSheet(null, btn.getAttribute('data-circuit'), btn.getAttribute('data-date')); });

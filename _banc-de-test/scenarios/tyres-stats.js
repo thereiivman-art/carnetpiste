@@ -7,7 +7,7 @@ const { chromium, BASE } = require('../lib');
   await p.goto(BASE + 'index.html#lang=' + lang); await p.waitForTimeout(1600);
   console.log('carnet: tyre card', !!(await p.$('.tyre-card')), 'rows', await p.$$eval('.outing-row', e => e.length));
   await p.screenshot({ path: 'ts-carnet-' + lang + '.png' });
-  await p.click('#profile-toggle'); await p.waitForTimeout(500); await p.click('[data-action="open-my-profile"]'); await p.waitForTimeout(400); await p.click('[data-profile-tab="moto"]'); await p.waitForTimeout(400);
+  await p.click('.bottom-nav-btn:nth-child(2)'); await p.waitForTimeout(500); await p.click('[data-cpill-group="planning"][data-cpill="prepa"]'); await p.waitForTimeout(300); await p.click('[data-cpill-group="prepsub"][data-cpill="moto"]'); await p.waitForTimeout(300);
   console.log('stats pills', await p.$$eval('[data-pill-group="stats"]', e => e.map(x => x.textContent).join(' / ')));
   await p.click('[data-action="tyre-new"]'); await p.waitForTimeout(300);
   await p.fill('#tyre-label', 'Pirelli SC2'); await p.click('.tyre-sheet [data-t="save"]'); await p.waitForTimeout(600);

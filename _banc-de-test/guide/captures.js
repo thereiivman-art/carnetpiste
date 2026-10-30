@@ -40,7 +40,7 @@ async function captures(base, dir, lang) {
   await shot('records');
   await p.click('[data-pill-group="stats"][data-pill="records"]'); await p.waitForTimeout(300);
   // Mes pressions (deux relevés notés par le pilote)
-  await p.click('#profile-toggle'); await p.waitForTimeout(500); await p.click('[data-action="open-my-profile"]'); await p.waitForTimeout(400); await p.click('[data-profile-tab="moto"]'); await p.waitForTimeout(400);
+  await p.click('.bottom-nav-btn:nth-child(2)'); await p.waitForTimeout(500); await p.click('[data-cpill-group="planning"][data-cpill="prepa"]'); await p.waitForTimeout(300); await p.click('[data-cpill-group="prepsub"][data-cpill="moto"]'); await p.waitForTimeout(300);
   for (const [c, fc, rc, cond] of [['Barcelone', '2,1', '1,8', lang === 'fr' ? 'Soleil' : 'Sunny'], ['Mugello', '2,2', '1,9', lang === 'fr' ? 'Couvert' : 'Overcast']]) {
     await p.click('[data-action="pressure-new"]'); await p.waitForTimeout(300);
     await p.fill('#pr-circuit', c); await p.fill('#pr-fc', fc); await p.fill('#pr-rc', rc); await p.fill('#pr-cond', cond);

@@ -9,7 +9,7 @@ const { chromium, BASE } = require('../lib');
   await p.getByText('Mugello').first().click(); await p.waitForTimeout(900);
   await p.screenshot({ path: 'f-day-' + lang + '.png' });
   await p.goto('about:blank'); await p.goto(BASE + 'index.html#lang=' + lang); await p.waitForTimeout(1500);
-  await p.click('#profile-toggle'); await p.waitForTimeout(500); await p.click('[data-action="open-my-profile"]'); await p.waitForTimeout(400); await p.click('[data-profile-tab="moto"]'); await p.waitForTimeout(400);
+  await p.click('.bottom-nav-btn:nth-child(2)'); await p.waitForTimeout(500); await p.click('[data-cpill-group="planning"][data-cpill="prepa"]'); await p.waitForTimeout(300); await p.click('[data-cpill-group="prepsub"][data-cpill="moto"]'); await p.waitForTimeout(300);
   await p.click('[data-action="tyre-new"]'); await p.waitForTimeout(400);
   await p.screenshot({ path: 'f-tyre-' + lang + '.png' });
   await p.goto('about:blank'); await p.goto(BASE + 'index.html#lang=' + lang); await p.waitForTimeout(1500);
