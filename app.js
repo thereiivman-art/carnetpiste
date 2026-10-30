@@ -5328,7 +5328,7 @@
     var next = myUpcomingEvents()[0];
     if (next) {
       var dd = Math.round((parseLocalDate(next.dateStart) - parseLocalDate(dateKey(new Date()))) / 86400000);
-      if (dd >= 0 && dd <= 7) items.push({ key: 'soon:' + next.id + ':' + dd, kind: 'clock', time: Date.now() - 3, timeLabel: dd === 0 ? L('Aujourd\'hui', 'Today') : (dd === 1 ? L('Demain', 'Tomorrow') : 'J-' + dd),
+      if (dd >= 0 && dd <= 7) items.push({ key: 'soon:' + next.id + ':' + dd, kind: 'clock', time: Date.now() - 3, timeLabel: dd === 0 ? L('Aujourd\'hui', 'Today') : (dd === 1 ? L('Demain', 'Tomorrow') : countdownLabel(dd)),
         html: (dd === 0 ? L('C\'est le jour J à ', 'Race day at ') + '<strong>' + escapeHtml(next.circuit) + '</strong>' + L(' : ton groupe et tes horaires en grand.', ': your group and timetable in big.') : '<strong>' + escapeHtml(next.circuit) + '</strong> ' + (dd === 1 ? L('demain', 'tomorrow') : L('dans ' + dd + ' jours', 'in ' + dd + ' days')) + L(' : vérifie tes horaires et ta checklist.', ': check your timetable and checklist.')),
         go: { to: 'planning' } });
     }
@@ -9636,7 +9636,7 @@
     if (status === 'terminee') statusHtml = '<span class="outing-label">Journée terminée</span>' + (best !== null ? '<strong class="outing-status-best">' + formatTime(best) + '</strong>' : '<span class="outing-status-dash">—</span>');
     else if (status === 'avenir') {
       var days = Math.round((parseLocalDate(date) - parseLocalDate(today)) / 86400000);
-      statusHtml = '<span class="outing-label">À venir</span><strong>' + (days <= 1 ? 'Demain' : 'Dans ' + days + ' jours') + '</strong>';
+      statusHtml = '<span class="outing-label">À venir</span><strong>' + (days <= 1 ? L('Demain', 'Tomorrow') : inDaysText(days)) + '</strong>';
     } else {
       var slots = todaysGroupSlots(circuit, group);
       var nowMin = new Date().getHours() * 60 + new Date().getMinutes();
@@ -10261,7 +10261,7 @@
           '<span class="outing-row-main"><strong>' + escapeHtml(ev.circuit) + '</strong><span class="help-text">' + escapeHtml(formatEventRange(ev, true)) + (grp ? ' · ' + groupChip(grp) : '') + '</span></span>' +
           '<span class="outing-row-right">' + (myBest !== null
             ? '<span class="carnet-time">' + formatTime(myBest) + '</span><span class="help-text">record à battre</span>'
-            : '<span class="carnet-time">J-' + Math.max(0, Math.round((parseLocalDate(ev.dateStart) - parseLocalDate(dateKey(new Date()))) / 86400000)) + '</span><span class="help-text">1re fois ici</span>') + '</span></button>';
+            : '<span class="carnet-time">' + countdownLabel(Math.max(0, Math.round((parseLocalDate(ev.dateStart) - parseLocalDate(dateKey(new Date()))) / 86400000))) + '</span><span class="help-text">1re fois ici</span>') + '</span></button>';
       });
     } else {
       var shown = carnetHistoryAll ? outings : outings.slice(0, 6);
@@ -12123,7 +12123,9 @@
       // Countdown badge
       ctx.fillStyle = C.red; roundRect(ctx, 80, 490, 230, 84, 18); ctx.fill();
       ctx.fillStyle = '#fff'; ctx.font = 'italic 800 60px ' + CONDENSED; ctx.textAlign = 'center';
-      ctx.fillText(days === 0 ? L('JOUR J', 'TODAY') : 'J-' + days, 195, 553); ctx.textAlign = 'left';
+      var cdTxt = days === 0 ? L('JOUR J', 'TODAY') : countdownLabel(days).toUpperCase(), cdSize = 60;
+      while (cdSize > 30 && (ctx.font = 'italic 800 ' + cdSize + 'px ' + CONDENSED, ctx.measureText(cdTxt).width > 206)) cdSize -= 4;
+      ctx.fillText(cdTxt, 195, 553); ctx.textAlign = 'left';
       var myG = me ? groupOf(me) : '';
       if (myG) {
         var slots = todaysGroupSlots(ev.circuit, myG);
@@ -12444,6 +12446,26 @@
     return false;
   }
 
+  // Compte à rebours lisible : J-5, puis J-2 sem., J-3 mois, J-1 an.
+  function countdownUnits(days) {
+    if (days < 7) return null;
+    if (days < 28) { var w = Math.round(days / 7); return { n: w, fr: w + ' sem.', en: w + ' wk' }; }
+    if (days < 345) { var m = Math.max(1, Math.round(days / 30.44)); return { n: m, fr: m + ' mois', en: m + ' mo' }; }
+    var y = Math.max(1, Math.round(days / 365.25)); return { n: y, fr: y + (y > 1 ? ' ans' : ' an'), en: y + ' yr' };
+  }
+  function countdownLabel(days) {
+    var u = countdownUnits(days);
+    return u ? L('J-' + u.fr, 'D-' + u.en) : L('J-' + days, 'D-' + days);
+  }
+  // « Dans 3 jours », « Dans 2 semaines », « Dans 4 mois », « Dans 1 an ».
+  function inDaysText(days) {
+    if (days <= 1) return L('Dans 1 jour', 'In 1 day');
+    if (days < 7) return L('Dans ' + days + ' jours', 'In ' + days + ' days');
+    var u = countdownUnits(days), n = u.n;
+    if (days < 28) return L('Dans ' + n + (n > 1 ? ' semaines' : ' semaine'), 'In ' + n + (n > 1 ? ' weeks' : ' week'));
+    if (days < 345) return L('Dans ' + n + ' mois', 'In ' + n + (n > 1 ? ' months' : ' month'));
+    return L('Dans ' + n + (n > 1 ? ' ans' : ' an'), 'In ' + n + (n > 1 ? ' years' : ' year'));
+  }
   function eventsList() {
     STATE.events = STATE.events || [];
     return STATE.events.filter(canSeeEvent);
@@ -14143,7 +14165,7 @@
     var meta = escapeHtml(formatEventRange(ev)) + (!opts.hideRiders && nRiders ? ' · ' + nRiders + ' pilote' + (nRiders > 1 ? 's' : '') : '') + (opts.extraMeta ? ' · ' + escapeHtml(opts.extraMeta) : '');
     var daysTo = Math.round((parseLocalDate(ev.dateStart) - parseLocalDate(dateKey(new Date()))) / 86400000);
     var myGrp = currentUserProfile ? (riderGroupFor(ev, currentUserProfile.name, ev.dateStart, 'matin') || riderGroupFor(ev, currentUserProfile.name, ev.dateStart, 'apres-midi') || '') : '';
-    var right = daysTo > 0 ? '<span class="event-row-when">J-' + daysTo + '</span>' : (daysTo === 0 || (ev.dateEnd && ev.dateEnd >= dateKey(new Date())) ? '<span class="event-row-when live">En cours</span>' : '');
+    var right = daysTo > 0 ? '<span class="event-row-when">' + countdownLabel(daysTo) + '</span>' : (daysTo === 0 || (ev.dateEnd && ev.dateEnd >= dateKey(new Date())) ? '<span class="event-row-when live">En cours</span>' : '');
     html += '<div class="event-row-main"><span class="event-row-text"><span class="event-row-circuit">' + escapeHtml(ev.circuit) + '</span><span class="event-row-dates">' + meta + '</span></span>' +
       '<span class="event-row-right">' + (myGrp ? groupChip(myGrp) : '') + right + '<span class="event-row-chevron" aria-hidden="true">›</span></span></div>';
     html += '</div>';
@@ -15342,7 +15364,7 @@
       if (countdownEl) {
         if (planningEventDateStart) {
           var days = Math.round((parseLocalDate(planningEventDateStart) - parseLocalDate(dateKey(new Date()))) / 86400000);
-          var dayText = days === 1 ? 'Dans 1 jour' : 'Dans ' + days + ' jours';
+          var dayText = inDaysText(days);
           var minStartUp = null;
           document.querySelectorAll('[data-slot-start]').forEach(function (el) {
             var start = parseInt(el.getAttribute('data-slot-start'), 10);
@@ -17429,7 +17451,7 @@
     return '<div class="card feed-upcoming"><div class="feed-record-label">Bientôt sur la piste</div>' + list.map(function (x) {
       var ev = x.ev;
       return '<div class="feed-upcoming-row"><span class="outing-thumb">' + circuitThumbHtml(ev.circuit) + '</span>' +
-        '<span class="feed-upcoming-main"><strong>' + escapeHtml(ev.circuit) + ' <span class="feed-upcoming-j">J-' + Math.max(0, Math.round((parseLocalDate(ev.dateStart) - parseLocalDate(dateKey(new Date()))) / 86400000)) + '</span></strong><span class="help-text">' + escapeHtml(formatEventRange(ev, true)) + '</span>' +
+        '<span class="feed-upcoming-main"><strong>' + escapeHtml(ev.circuit) + ' <span class="feed-upcoming-j">' + countdownLabel(Math.max(0, Math.round((parseLocalDate(ev.dateStart) - parseLocalDate(dateKey(new Date()))) / 86400000))) + '</span></strong><span class="help-text">' + escapeHtml(formatEventRange(ev, true)) + '</span>' +
         '<span class="feed-upcoming-who">' + x.friends.concat(x.companions).slice(0, 4).map(function (n) { return avatarHtml((STATE.usersByName || {})[n] || {}, n); }).join('') +
         '<span class="help-text">' + x.friends.slice(0, 2).map(function (n) { var g = riderGroupFor(ev, n, ev.dateStart, 'matin') || riderGroupFor(ev, n, ev.dateStart, 'apres-midi'); return escapeHtml(n) + (g ? ' ' + groupChip(g) : ''); }).join(', ') + (x.friends.length > 2 ? ' +' + (x.friends.length - 2) : '') +
           (x.companions.length ? (x.friends.length ? ' · ' : '') + escapeHtml(x.companions.join(', ')) + L(x.companions.length > 1 ? ' viennent' : ' vient', x.companions.length > 1 ? ' are coming' : ' is coming') : '') + '</span></span></span>' +
