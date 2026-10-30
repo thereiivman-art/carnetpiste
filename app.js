@@ -16872,7 +16872,7 @@
     if (isPilote && u.bike) sub.push(escapeHtml(u.bike) + (u.bikeNumber ? ' #' + escapeHtml(u.bikeNumber) : ''));
     // Actions
     var acts = '';
-    if (isMe) acts += myDraft ? '' : '<button type="button" class="primary" data-action="look-edit">' + (lookOf(u) ? L('Modifier ma fiche', 'Edit my page') : L('Personnaliser ma fiche', 'Customise my page')) + '</button>' +
+    if (isMe) acts += myDraft ? '' : '<button type="button" class="primary" data-action="look-edit">' + (lookOf(u) ? L('Modifier', 'Edit') : L('Personnaliser', 'Customise')) + '</button>' +
       '<button type="button" class="ghost" data-action="open-my-profile">' + L('Mon profil', 'My profile') + '</button>';
     else if (friendship) acts += '<button type="button" class="ghost" disabled>' + L('Amis', 'Friends') + '</button>';
     else if (received) acts += '<button type="button" class="primary" data-action="accept-friend" data-id="' + received.id + '">' + L('Accepter son invitation', 'Accept the request') + '</button>';
@@ -18069,7 +18069,7 @@
     html += '<div class="section-title" style="display:flex; align-items:center; gap:0.6rem;">' +
       '<button type="button" class="back-chevron" data-action="team-tile-close" aria-label="' + escapeHtml(tr('back_to_teams').replace(/^←\s*/, '')) + '">‹</button>' + avatarHtml(team, team.name) +
       '<span style="flex:1;">' + escapeHtml(team.name) + teamBadgesHtml(team) + '</span>' +
-      '<span class="friend-role-badge">' + (isLeader ? tr('team_leader_label') : (isMember ? tr('member_label') : tr('follower_label'))) + '</span></div>';
+      '<span class="friend-role-badge">' + (isLeader ? tr('team_leader_label') : (isMember ? tr('member_label') : tr('follower_label'))) + '</span>%%TEAM_GEAR%%</div>';
     var teamLikeCount = (STATE.teamLikes || []).filter(function (l) { return l.teamId === team.id; }).length;
     var teamFollowCount = ((STATE.teamFollowersByTeam || {})[team.id] || []).length;
     // Counters only once there is something to count.
@@ -18099,12 +18099,21 @@
     // to reach.
     var headHtml = html, headClosed = false; html = '';
     var editing = !!(lookDraft && lookDraft.__team === team.id);
-    var lookBtn = isLeader && !editing ? '<button type="button" class="ghost" data-action="team-look-edit" data-team="' + team.id + '">' + (tLook ? L('Modifier la fiche', 'Edit the page') : L('Personnaliser', 'Customise')) + '</button>' : '';
+    // Réglages du team : un petit engrenage en haut de la fiche, pour ses
+    // leaders seulement ; un simple suiveur garde « Ne plus suivre ».
+    var gearBtn = isLeader ? '<button type="button" class="team-gear" data-action="team-settings-open" data-team="' + team.id + '" aria-label="' + escapeHtml(L('Réglages du team', 'Team settings')) + '" title="' + escapeHtml(L('Réglages du team', 'Team settings')) + '">' +
+      '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button>' : '';
+    var unfollowBtn = !isMember && !isLeader && (STATE.myFollowedTeams || []).indexOf(team.id) !== -1
+      ? '<button type="button" class="ghost" data-action="unfollow-team" data-team="' + team.id + '">' + tr('unfollow') + '</button>' : '';
+    var lookBtn = isLeader && !editing ? '<button type="button" class="ghost" data-action="team-look-edit" data-team="' + team.id + '">' + (tLook ? L('Modifier', 'Edit') : L('Personnaliser', 'Customise')) + '</button>' : '';
+    lookBtn += unfollowBtn;
+
+    headHtml = headHtml.replace('%%TEAM_GEAR%%', gearBtn.replace('class="team-gear"', 'class="team-gear team-gear-inline"'));
     headHtml = headHtml.replace('%%TEAM_ACTIONS%%', teamActionsHtml(team, me, isMember || !!myRoleInTeam(team.id)).replace(/<\/div>$/, lookBtn + '</div>'));
     if (tLook) {
       var roleLabelTxt = isLeader ? tr('team_leader_label') : (isMember ? tr('member_label') : tr('follower_label'));
       var actsInner = teamActionsHtml(team, me, isMember || !!myRoleInTeam(team.id)).replace(/^<div class="outing-actions team-actions">|<\/div>$/g, '');
-      headHtml = renderTeamHero(team, tLook, me, lookBtn + actsInner, roleLabelTxt) + (editing ? renderLookEditor(me, [], team) : '');
+      headHtml = renderTeamHero(team, tLook, me, gearBtn + lookBtn + actsInner, roleLabelTxt) + (editing ? renderLookEditor(me, [], team) : '');
       headClosed = true;
     }
     var bRoulages = '';
@@ -18216,23 +18225,26 @@
     // Membres: action first, then what needs an answer, then the lists.
     var proBadges = (isLeader && team.teamPro) ? renderTeamProBadgeGrantSection(team) : '';
     var bMembres = inviteCta + html + membersCards + sentInvitesCard + proBadges;
-    var bReglages = renderTeamSettings(team, isLeader);
-    // "Ne plus suivre" lives in Réglages (was a bare × in the header).
-    if (!isMember && !isLeader) bReglages = teamCard('', '<button type="button" class="ghost" data-action="unfollow-team" data-team="' + team.id + '">' + tr('unfollow') + '</button>') + (bReglages || '');
-    var teamPills = [['fil', 'Fil'], ['membres', 'Membres (' + members.length + ')']];
-    if (tLook) teamPills.unshift(['fiche', L('Fiche', 'Page')]);
-    teamPills.splice(tLook ? 2 : 1, 0, ['saisons', L('Saisons', 'Seasons')]);
+    // Moins de sous-onglets : Fiche (avec les saisons), Fil, Membres, et
+    // Roulages pour le leader ; les Réglages s'ouvrent par l'engrenage.
+    var seasonsHtml = renderTeamSeasons(team, tLook, isMember || !!myRoleInTeam(team.id));
+    if (isLeader && teamSettingsOpenId === team.id) {
+      return headHtml + (headClosed ? '' : '</div>') + '<button type="button" class="link-btn back-link" data-action="team-settings-close">‹ ' + L('Retour au team', 'Back to the team') + '</button>' +
+        '<h2 class="section-title team-settings-title">' + L('Réglages du team', 'Team settings') + '</h2>' + renderTeamSettings(team, isLeader);
+    }
+    var teamPills = [['fil', 'Fil'], ['membres', L('Membres', 'Members')]];
+    teamPills.unshift(tLook ? ['fiche', L('Fiche', 'Page')] : ['saisons', L('Saisons', 'Seasons')]);
     if (isLeader) teamPills.push(['roulages', 'Roulages']);
-    teamPills.push(['reglages', 'Réglages']);
     var pillsHtml = renderPills('team', teamPills);
-    var body = pillState.team === 'membres' ? bMembres : pillState.team === 'roulages' ? bRoulages : pillState.team === 'reglages' ? bReglages
-      : (pillState.team === 'fiche' && tLook) ? renderTeamShowcase(team, tLook, true)
-      : pillState.team === 'saisons' ? renderTeamSeasons(team, tLook, isMember || !!myRoleInTeam(team.id)) : bFil;
+    var body = pillState.team === 'membres' ? bMembres : pillState.team === 'roulages' ? bRoulages
+      : (pillState.team === 'fiche' && tLook) ? renderTeamShowcase(team, tLook, true) + seasonsHtml
+      : pillState.team === 'saisons' ? seasonsHtml : bFil;
     // Team header in its own card, then the pills outside it like on every
     // other page, then one card per topic.
     return headHtml + (headClosed ? '' : '</div>') + pillsHtml + body;
   }
 
+  var teamSettingsOpenId = null;
   function renderCreateTeamCard() {
     var me = currentUserProfile;
     var isOrganisateur = !!(me && me.role === 'organisateur');
@@ -20543,6 +20555,12 @@
     });
     document.querySelectorAll('[data-action="team-visibility"]').forEach(function (select) {
       select.addEventListener('change', function () { setTeamVisibility(select.getAttribute('data-team'), select.value); });
+    });
+    document.querySelectorAll('[data-action="team-settings-open"]').forEach(function (btn) {
+      btn.addEventListener('click', function () { teamSettingsOpenId = btn.getAttribute('data-team'); renderRoot(); window.scrollTo(0, 0); });
+    });
+    document.querySelectorAll('[data-action="team-settings-close"]').forEach(function (btn) {
+      btn.addEventListener('click', function () { teamSettingsOpenId = null; renderRoot(); });
     });
     document.querySelectorAll('[data-action="team-rename"]').forEach(function (btn) {
       btn.addEventListener('click', function () {

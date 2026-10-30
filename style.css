@@ -3827,3 +3827,12 @@ label.budget-row-title { cursor: pointer; margin: 0; }
 .jourj-friends .fot-row.on-track .fot-status { color: #4ade80; opacity: 1; }
 .jourj-friends .fot-row.soon .fot-status { color: #ff8a80; opacity: 1; }
 .jourj-friends .fot-main strong { font-size: 1.15rem; }
+
+/* Fiche : le tracé passe à gauche du badge (numéro ou logo) */
+.ph-cover:has(.ph-plate) .ph-trace { right: auto; left: 3.4rem; max-width: calc(100% - 3.4rem - 6.4rem); }
+.ph-cover:has(.ph-logo) .ph-trace { max-width: calc(100% - 3.4rem - 10.6rem); }
+/* Team : engrenage des réglages en haut à droite de la fiche */
+.person-hero:has(.team-gear) { position: relative; }
+.team-gear { position: absolute; top: 0.6rem; right: 0.6rem; z-index: 3; width: 2.2rem; height: 2.2rem; padding: 0; border-radius: 50%; display: grid; place-items: center; background: var(--surface); color: var(--text); border: 1px solid var(--border); box-shadow: var(--shadow); cursor: pointer; }
+.team-settings-title { margin: 0.2rem 0 0.6rem; }
+.team-gear.team-gear-inline { position: static; flex: 0 0 auto; box-shadow: none; }

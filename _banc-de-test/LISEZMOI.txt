@@ -12,7 +12,8 @@ Il faut Node.js et Playwright (avec Chromium).
   node _banc-de-test/lancer.js
       Démarre le banc. Ouvrir http://localhost:8766/index.html#lang=fr
       Options dans l'adresse : #lang=fr ou #lang=en, &admin=1 (compte admin),
-      &noteam=1 (ne mène aucun Team).
+      &noteam=1 (ne mène aucun Team),
+      &look=1 (fiches personnalisées d'Alex et du Team Piste).
 
   node _banc-de-test/lancer.js tout
       Joue tous les scénarios puis s'arrête.

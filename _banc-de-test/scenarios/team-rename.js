@@ -10,7 +10,7 @@ const { chromium, BASE } = require('../lib');
     await p.click('.bottom-nav-btn:nth-child(3)'); await p.waitForTimeout(400);
     await p.click('.subnav-btn[data-view="team"]'); await p.waitForTimeout(400);
     await p.getByText('Team Piste').first().click(); await p.waitForTimeout(700);
-    await p.click('[data-pill-group="team"][data-pill="reglages"]'); await p.waitForTimeout(400);
+    await p.click('[data-action="team-settings-open"]'); await p.waitForTimeout(400);
   };
   await open();
   const input = '[id^="team-name-"]';

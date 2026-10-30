@@ -4,7 +4,7 @@
   window.__MOCK_USER = { uid: 'u1', email: EMAIL, emailVerified: true, isAnonymous: false, displayName: 'Alex', getIdToken: function () { return Promise.resolve('x'); }, sendEmailVerification: function () { return Promise.resolve(); } };
   window.__MOCK_DATA = {
     users: {
-      u1: { name: 'Alex', role: /role=acc/.test(location.hash) ? 'accompagnant' : 'pilote', email: EMAIL, lang: LANG, tutorialSeen: true, country: 'FR', bike: 'Yamaha R6', level: 'intermediaire' },
+      u1: { name: 'Alex', role: /role=acc/.test(location.hash) ? 'accompagnant' : 'pilote', email: EMAIL, lang: LANG, tutorialSeen: true, country: 'FR', bike: 'Yamaha R6', level: 'intermediaire', bikeNumber: /look=1/.test(location.hash) ? '27' : undefined, look: /look=1/.test(location.hash) ? { cover: 'trace', plate: 'course', color: '#c8261f', bio: 'Pistard du dimanche' } : undefined },
       u2: { name: 'Sam', role: 'pilote', email: 'sam@example.com', lang: 'fr', tutorialSeen: true, country: 'BE', bike: 'BMW S1000RR' },
       u3: { name: 'Tom', role: 'pilote', email: 'tom@example.com', lang: 'fr', tutorialSeen: true, country: 'FR', bike: 'Yamaha R1' },
       u4: { name: 'Ugo', role: 'pilote', email: 'ugo@example.com', lang: 'fr', tutorialSeen: true, country: 'FR', bike: 'Yamaha R1' },
@@ -42,7 +42,7 @@
       s2: { id: 's2', rider: 'Sam', date: d(-40), circuit: 'Mugello', laps: [114.8, 113.9], eventId: 'e2' },
       s3: { id: 's3', rider: 'Alex', date: d(-100), circuit: 'Barcelone', laps: [112.4, 110.9], bike: 'Yamaha R6' }
     },
-    teams: { t1: { id: 't1', name: 'Team Piste', leader: 'Alex', pro: false, slogan: 'On roule ensemble' }, t2: { id: 't2', name: 'Mototeam95', teamPro: true } },
+    teams: { t1: { id: 't1', name: 'Team Piste', leader: 'Alex', pro: false, slogan: 'On roule ensemble', look: /look=1/.test(location.hash) ? { cover: 'trace', color: '#c8261f', bio: 'On roule ensemble' } : undefined }, t2: { id: 't2', name: 'Mototeam95', teamPro: true } },
     teamMembers: /noteam=1/.test(location.hash) ? { m2: { teamId: 't1', name: 'Sam', role: 'membre' } } : { m1: { teamId: 't1', name: 'Alex', role: 'leader' }, m2: { teamId: 't1', name: 'Sam', role: 'membre' } },
     feedEvents: {}, wallPosts: {}, follows: {}, settings: {},
     userPrivate: { u1: { setups: {
