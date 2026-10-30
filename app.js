@@ -6038,7 +6038,7 @@
       legalSection('Propriété intellectuelle', '<p>L\'appli, son nom et son design appartiennent à l\'éditeur. Tu gardes tes droits sur ce que tu publies et tu autorises son affichage aux personnes concernées dans l\'appli.</p>') +
       legalSection('Tracés des circuits', '<p>Certains tracés sont redessinés d\'après des plans de Wikimedia Commons. Ces tracés sont partagés sous la même licence que le plan d\'origine.</p><ul>' +
         TRACK_CREDITS.map(function (c) {
-          return '<li>' + escapeHtml(c[0]) + ' : d\'après « ' + escapeHtml(c[1]) + ' », ' + escapeHtml(c[2]) + ', ' + escapeHtml(c[3]) + ' (commons.wikimedia.org)</li>';
+          return '<li>' + escapeHtml(c[0]) + ' : d\'après « ' + escapeHtml(c[1]) + ' », ' + escapeHtml(c[2]) + ', ' + escapeHtml(c[3]) + ' (' + escapeHtml(c[4] || 'commons.wikimedia.org') + ')</li>';
         }).join('') + '</ul>') +
       '</div>';
   }
@@ -10444,6 +10444,9 @@
     'nogaro': 'circuit-outlines/Nogaro.png',
     'most': 'circuit-outlines/Most.png',
     'pannonia-ring': 'circuit-outlines/Pannonia-Ring.png',
+    'charade': 'circuit-outlines/Charade.png',
+    'haute saintonge': 'circuit-outlines/Haute%20Saintonge.png',
+    'haute-saintonge': 'circuit-outlines/Haute%20Saintonge.png',
     'pannonia ring': 'circuit-outlines/Pannonia-Ring.png',
     'pannoniaring': 'circuit-outlines/Pannonia-Ring.png',
     'le vigeant': 'circuit-outlines/Le%20Vigeant.png',
@@ -10468,6 +10471,8 @@
     ['Le Vigeant', 'Circuit de vitesse du Vigeant.svg', 'Crochet.david', 'CC BY-SA 3.0'],
     ['Most', 'Autodrom Most layout.svg', 'VulcanSphere', 'CC BY-SA 4.0'],
     ['Pannonia-Ring', 'Pannonia-Ring Layout.png', 'DarthKrilasar2', 'CC BY-SA 4.0'],
+    ['Charade', 'Circuit Charade 1989.png', 'Franck rive', 'CC BY-SA 4.0'],
+    ['Haute Saintonge', 'plan du circuit', 'Circuit de Haute Saintonge', 'tracé simplifié', 'plan officiel du circuit'],
     ['Donington', 'Donington as of 2010.svg', 'Will Pittenger, bamse', 'CC BY-SA 3.0'],
     ['Magny Cours', 'Circuit de Nevers Magny-Cours.svg', 'Will Pittenger', 'domaine public'],
     ['Albi', 'Circuit Albi.svg', 'Gustavo Girardelli', 'CC BY-SA 4.0'],
