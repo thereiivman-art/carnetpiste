@@ -8424,7 +8424,9 @@
   }
   function tyreSetUsage(set, nextSet) {
     var list = tyreSetSessions(set, nextSet);
-    var out = { sessions: list.length, laps: 0, km: 0, kmMissing: false, days: 0 };
+    // priorKm : km déjà faits avant de les déclarer (pneus montés
+    // d'occasion), estimés par le pilote.
+    var out = { sessions: list.length, laps: 0, km: 0, kmMissing: false, days: 0, priorKm: Number(set.priorKm) || 0 };
     var days = {};
     list.forEach(function (x) {
       out.laps += x.laps.length;
@@ -8433,11 +8435,14 @@
       if (km) out.km += km * x.laps.length; else out.kmMissing = true;
     });
     out.days = Object.keys(days).length;
+    out.km += out.priorKm;
     return out;
   }
   function tyreUsageText(u) {
-    var parts = [u.sessions + (u.sessions > 1 ? ' sessions' : ' session'), u.laps + (u.laps > 1 ? L(' tours', ' laps') : L(' tour', ' lap'))];
-    if (u.km) parts.push((u.kmMissing ? '≥ ' : '≈ ') + Math.round(u.km) + ' km');
+    // Pluriel : dès 2 en français, sauf 1 en anglais (« 0 laps »).
+    function many(n) { return currentLang() === 'en' ? n !== 1 : n > 1; }
+    var parts = [u.sessions + (many(u.sessions) ? ' sessions' : ' session'), u.laps + (many(u.laps) ? L(' tours', ' laps') : L(' tour', ' lap'))];
+    if (u.km) parts.push((u.kmMissing ? '≥ ' : '≈ ') + Math.round(u.km) + ' km' + (u.priorKm ? L(' (dont ~', ' (incl. ~') + Math.round(u.priorKm) + L(' avant)', ' before)') : ''));
     return parts.join(' · ');
   }
   // « 8e session sur ce train » dans la fiche réglages d'une session.
@@ -8447,7 +8452,7 @@
     var list = tyreSetSessions(set, null);
     var i = list.map(function (s) { return s.id; }).indexOf(x.id);
     if (i === -1) return '';
-    var laps = 0, km = 0;
+    var laps = 0, km = Number(set.priorKm) || 0;
     list.slice(0, i + 1).forEach(function (s) { laps += s.laps.length; km += (circuitInfo(s.circuit).km || 0) * s.laps.length; });
     return '<br>' + L('Pneus : ', 'Tyres: ') + (set.label ? escapeHtml(set.label) + ', ' : '') +
       L((i + 1) + (i === 0 ? 're' : 'e') + ' session sur ce train', 'session ' + (i + 1) + ' on this set') + (km ? ' (≈ ' + Math.round(km) + ' km)' : '') + '.';
@@ -8458,15 +8463,15 @@
     if (myTyreSets === null) return '';
     if (!set) {
       return '<div class="card tyre-card tyre-card-empty"><div><strong>' + L('Combien de sessions sur tes pneus ?', 'How many sessions on your tyres?') + '</strong>' +
-        '<div class="help-text">' + L('Indique quand tu montes des pneus neufs : Pitbook compte les sessions, les tours et les km faits depuis.', 'Tell Pitbook when you fit new tyres: it counts the sessions, laps and km done since.') + '</div></div>' +
-        '<button type="button" class="ghost" data-action="tyre-new">' + L('J\'ai des pneus neufs', 'I fitted new tyres') + '</button></div>';
+        '<div class="help-text">' + L('Indique quand tu montes des pneus, neufs ou déjà roulés : Pitbook compte les sessions, les tours et les km faits depuis.', 'Tell Pitbook when you fit tyres, new or used: it counts the sessions, laps and km done since.') + '</div></div>' +
+        '<button type="button" class="ghost" data-action="tyre-new">' + L('Noter mes pneus', 'Log my tyres') + '</button></div>';
     }
     var u = tyreSetUsage(set, null);
     return '<div class="card tyre-card"><div class="tyre-card-main"><span class="outing-label">' + L('Mes pneus', 'My tyres') + '</span>' +
       '<strong class="tyre-card-label">' + escapeHtml(set.label || L('Train actuel', 'Current set')) + '</strong>' +
       '<span class="tyre-card-usage">' + escapeHtml(tyreUsageText(u)) + '</span>' +
-      '<span class="help-text">' + L('Montés le ', 'Fitted on ') + escapeHtml(formatDate(set.since)) + (set.bike ? ' · ' + escapeHtml(set.bike) : '') + '</span></div>' +
-      '<button type="button" class="ghost" data-action="tyre-new">' + L('Pneus neufs', 'New tyres') + '</button></div>';
+      '<span class="help-text">' + L('Montés le ', 'Fitted on ') + escapeHtml(formatDate(set.since)) + (set.priorKm ? L(', déjà roulés', ', already used') : L(', neufs', ', new')) + (set.bike ? ' · ' + escapeHtml(set.bike) : '') + '</span></div>' +
+      '<button type="button" class="ghost" data-action="tyre-new">' + L('Changer de pneus', 'Change tyres') + '</button></div>';
   }
   // ---- Mes pressions (Stats › Pneus) ----
   // Le pilote note ses propres pressions AV/AR, à froid et à chaud, par
@@ -8611,10 +8616,14 @@
     }).join('');
     var sheet = document.createElement('div');
     sheet.className = 'crop-modal-overlay setup-sheet tyre-sheet';
-    sheet.innerHTML = '<div class="crop-modal setup-modal"><h2 class="section-title">' + L('Pneus neufs', 'New tyres') + '</h2>' +
+    sheet.innerHTML = '<div class="crop-modal setup-modal"><h2 class="section-title">' + L('Mes pneus', 'My tyres') + '</h2>' +
       '<div class="help-text">' + L('À partir de cette date, Pitbook compte les sessions, les tours et les km sur ce train. Visible par toi seul.', 'From this date, Pitbook counts the sessions, laps and km on this set. Visible to you only.') + '</div>' +
+      '<div class="tyre-state" role="radiogroup" aria-label="' + escapeHtml(L('État des pneus', 'Tyre condition')) + '">' +
+      '<label><input type="radio" name="tyre-state" value="new" checked> ' + L('Neufs', 'New') + '</label>' +
+      '<label><input type="radio" name="tyre-state" value="used"> ' + L('Déjà roulés', 'Already used') + '</label></div>' +
       '<div class="setup-grid">' +
-      '<label class="setup-field"><span>' + L('Pneus', 'Tyres') + '</span><input type="text" id="tyre-label" maxlength="80" value="' + escapeHtml(cur && cur.label || '') + '" placeholder="' + L('Ex. Pirelli SC1 / SC0', 'E.g. Pirelli SC1 / SC0') + '"></label>' +
+      '<label class="setup-field"><span>' + L('Pneus', 'Tyres') + '</span><input type="text" id="tyre-label" maxlength="80" value="' + escapeHtml(cur && cur.label || '') + '" placeholder="' + L('Marque, gomme', 'Brand, compound') + '"></label>' +
+      '<label class="setup-field tyre-prior" hidden><span>' + L('Km déjà faits (ton estimation)', 'Km already done (your estimate)') + '</span><input type="number" id="tyre-prior" inputmode="numeric" min="1" max="99999" step="1"></label>' +
       '<label class="setup-field setup-half"><span>' + L('Montés le', 'Fitted on') + '</span><input type="date" id="tyre-since" value="' + dateKey(new Date()) + '"></label>' +
       '<label class="setup-field setup-half"><span>' + L('Moto', 'Bike') + '</span><input type="text" id="tyre-bike" maxlength="60" value="' + escapeHtml((currentUserProfile && currentUserProfile.bike) || '') + '"></label>' +
       '</div>' +
@@ -8625,15 +8634,32 @@
     function close() { if (sheet.parentNode) sheet.parentNode.removeChild(sheet); }
     sheet.addEventListener('click', function (e) { if (e.target === sheet) close(); });
     sheet.querySelector('[data-t="cancel"]').addEventListener('click', close);
+    var priorWrap = sheet.querySelector('.tyre-prior');
+    sheet.querySelectorAll('[name="tyre-state"]').forEach(function (r) {
+      r.addEventListener('change', function () {
+        priorWrap.hidden = r.value !== 'used' || !r.checked;
+        if (!priorWrap.hidden) sheet.querySelector('#tyre-prior').focus();
+      });
+    });
     sheet.querySelector('[data-t="save"]').addEventListener('click', function () {
       var since = sheet.querySelector('#tyre-since').value || dateKey(new Date());
       var set = { id: genId(), label: sheet.querySelector('#tyre-label').value.trim().slice(0, 80), since: since, at: Date.now() };
+      var used = sheet.querySelector('[name="tyre-state"]:checked').value === 'used';
+      if (used) {
+        var prior = Math.round(Number(sheet.querySelector('#tyre-prior').value));
+        if (!(prior >= 1 && prior <= 99999)) {
+          var inp = sheet.querySelector('#tyre-prior');
+          inp.setCustomValidity(L('Indique une estimation en km.', 'Enter an estimate in km.')); inp.reportValidity(); inp.setCustomValidity('');
+          return;
+        }
+        set.priorKm = prior;
+      }
       var bike = sheet.querySelector('#tyre-bike').value.trim().slice(0, 60);
       if (bike) set.bike = bike;
       myTyreSets = (myTyreSets || []).concat([set]).sort(function (a, b) { return a.since.localeCompare(b.since) || a.at - b.at; }).slice(-20);
       close(); renderRoot();
       db.collection('userPrivate').doc(auth.currentUser.uid).set({ tyreSets: myTyreSets }, { merge: true }).then(function () {
-        showToast(L('Pneus neufs notés.', 'New tyres saved.'), 'success');
+        showToast(set.priorKm ? L('Pneus notés, avec ~' + set.priorKm + ' km déjà faits.', 'Tyres saved, with ~' + set.priorKm + ' km already done.') : L('Pneus neufs notés.', 'New tyres saved.'), 'success');
       }).catch(function (err) { showToast(L('Pneus non enregistrés : ', 'Tyres not saved: ') + ((err && err.message) || err)); });
     });
   }

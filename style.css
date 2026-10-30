@@ -3751,3 +3751,8 @@ span.ph-sponsor { cursor: default; }
 .account-row-wrap > div:first-child { flex: 1 1 100%; min-width: 0; }
 .account-row-actions { display: flex; flex-wrap: wrap; gap: 0.35rem; margin: 0.15rem 0 0.2rem; }
 .account-row-actions .icon-btn { width: auto; min-width: 2rem; height: 2rem; padding: 0 0.45rem; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.02em; white-space: nowrap; }
+.tyre-state { display: flex; gap: 1.2rem; margin: 0.7rem 0 0.2rem; font-weight: 600; }
+.tyre-state label { display: flex; align-items: center; gap: 0.35rem; margin: 0; cursor: pointer; }
+.tyre-state input { width: auto; accent-color: var(--accent); }
+.tyre-sheet input[type="number"] { width: 100%; background: var(--surface-alt); border: 1px solid var(--border); border-radius: 7px; padding: 0.55rem 0.65rem; font-family: var(--font-body); font-size: 0.95rem; color: var(--text); }
+.tyre-prior[hidden] { display: none; }

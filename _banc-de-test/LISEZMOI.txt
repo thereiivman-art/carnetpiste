@@ -33,6 +33,8 @@ Scénarios
   reimp                import des roulages et mise à jour d'un existant.
   tyres-stats          Stats › Pneus.
   pressures            Stats › Pneus › Mes pressions.
+  tyres-used           pneus déjà roulés, avec les km estimés.
+  parrain              Gestion des comptes : corriger un parrain.
 
 Guide PDF
   node _banc-de-test/guide/faire-guide.js

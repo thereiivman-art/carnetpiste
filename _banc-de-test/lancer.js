@@ -58,7 +58,7 @@ function servir() {
 // [scénario, arguments] joués par « tout ».
 var TOUT = [
   ['crawl', 'fr'], ['crawl', 'en'], ['crawl2', 'fr'], ['crawl2', 'en'], ['crawl-admin'], ['crawl-admin2'],
-  ['feat', 'fr'], ['budget4', 'fr'], ['budget4', 'en'], ['budget-page', 'fr'], ['reimp'], ['tyres-stats', 'fr'], ['tyres-stats', 'en'], ['pressures', 'fr'], ['pressures', 'en'], ['parrain', 'fr'], ['parrain', 'en']
+  ['feat', 'fr'], ['budget4', 'fr'], ['budget4', 'en'], ['budget-page', 'fr'], ['reimp'], ['tyres-stats', 'fr'], ['tyres-stats', 'en'], ['pressures', 'fr'], ['pressures', 'en'], ['parrain', 'fr'], ['parrain', 'en'], ['tyres-used', 'fr'], ['tyres-used', 'en']
 ];
 function jouer(nom, args) {
   return new Promise(function (ok) {
