@@ -3841,3 +3841,20 @@ label.budget-row-title { cursor: pointer; margin: 0; }
 .album-row:last-of-type { border-bottom: 0; }
 .album-name { flex: 1; min-width: 0; font-weight: 600; }
 .album-open { white-space: nowrap; color: var(--accent); font-weight: 600; }
+/* Onglets qui défilent : flèche + dégradé collés au bord tant qu'il en reste */
+.pill-tabs, .sub-pills { scrollbar-width: none; }
+.pill-tabs::-webkit-scrollbar { display: none; }
+.pill-tabs.more-right::after, .sub-pills.more-right::after, .pill-tabs.more-left::before, .sub-pills.more-left::before {
+  content: '›'; position: sticky; right: 0; flex: 0 0 2.2rem; margin-left: -2.2rem; z-index: 2; pointer-events: none;
+  display: flex; align-items: center; justify-content: flex-end; padding-right: 0.1rem;
+  font-size: 1.6rem; font-weight: 700; line-height: 1; color: var(--accent);
+  background: linear-gradient(to right, rgba(244,243,239,0), var(--bg) 70%);
+}
+.pill-tabs.more-left::before, .sub-pills.more-left::before {
+  content: '‹'; right: auto; left: 0; order: -1; margin-left: 0; margin-right: -2.2rem; justify-content: flex-start; padding: 0 0 0 0.1rem;
+  background: linear-gradient(to left, rgba(244,243,239,0), var(--bg) 70%);
+}
+.pill-tabs.more-right .pill-btn:last-child, .sub-pills.more-right .sub-pill-btn:last-child { margin-right: 0; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .pill-tabs.more-right::after, :root:not([data-theme="light"]) .sub-pills.more-right::after { background: linear-gradient(to right, transparent, var(--bg) 70%); } :root:not([data-theme="light"]) .pill-tabs.more-left::before, :root:not([data-theme="light"]) .sub-pills.more-left::before { background: linear-gradient(to left, transparent, var(--bg) 70%); } }
+:root[data-theme="dark"] .pill-tabs.more-right::after, :root[data-theme="dark"] .sub-pills.more-right::after { background: linear-gradient(to right, transparent, var(--bg) 70%); }
+:root[data-theme="dark"] .pill-tabs.more-left::before, :root[data-theme="dark"] .sub-pills.more-left::before { background: linear-gradient(to left, transparent, var(--bg) 70%); }

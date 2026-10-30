@@ -9685,7 +9685,7 @@
     var notes = myTrackNotes(circuit);
     var outingPills = [['chronos', 'Chronos' + (sessions.length ? ' (' + sessions.length + ')' : '')]];
     if (!meIsNonRider()) outingPills.push(['moto', L('Moto', 'Bike')]);
-    outingPills.push(['infos', 'Infos'], ['reperes', 'Repères' + (notes.length ? ' (' + notes.length + ')' : '')]);
+    outingPills.push(['infos', 'Infos'], ['reperes', 'Repères']);
     if (outingBudgetRow(ev)) outingPills.push(['budget', 'Budget']);
     html += renderPills('outing', outingPills);
     var cur = pillState.outing;
@@ -14804,7 +14804,7 @@
       // Ma moto : mes pressions sur ce circuit d'abord, puis les autres, et
       // mes pneus (train en place et précédents). Pas pour un accompagnant.
       ['moto', L('Ma moto', 'My bike'), meIsNonRider() ? '' : renderTyresPanel(ev.circuit)],
-      ['reperes', 'Repères' + (nNotes ? ' (' + nNotes + ')' : ''), flatSections(renderTrackNotesReminder(ev.circuit))],
+      ['reperes', 'Repères', flatSections(renderTrackNotesReminder(ev.circuit))],
       ['amis', 'Amis', flatSections(renderFriendsGroupSection(ev))]
     ];
     {
@@ -18957,9 +18957,29 @@
     return '<div class="card">' + body + '</div>';
   }
 
+  // Rangées d'onglets qui défilent : un « › » à droite (et « ‹ » à
+  // gauche) tant qu'il reste des onglets cachés, et l'onglet actif ramené
+  // dans le champ après chaque rendu.
+  function markScrollableTabs() {
+    document.querySelectorAll('.pill-tabs, .sub-pills').forEach(function (row) {
+      var update = function () {
+        var max = row.scrollWidth - row.clientWidth;
+        row.classList.toggle('more-right', max > 2 && row.scrollLeft < max - 2);
+        row.classList.toggle('more-left', max > 2 && row.scrollLeft > 2);
+      };
+      var act = row.querySelector('.active');
+      if (act && row.scrollWidth > row.clientWidth + 2) {
+        var l = act.offsetLeft - row.offsetLeft, r = l + act.offsetWidth;
+        if (r > row.clientWidth - 28) row.scrollLeft = r - row.clientWidth + 36;
+      }
+      update();
+      if (!row.__tabsScroll) { row.__tabsScroll = true; row.addEventListener('scroll', update, { passive: true }); }
+    });
+  }
   function renderRoot() {
     try {
       renderRootUnsafe();
+      markScrollableTabs();
     } catch (err) {
       if (window.console) console.error('renderRoot failed', err);
       var root = document.getElementById('root');
