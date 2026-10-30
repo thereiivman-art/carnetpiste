@@ -9,7 +9,7 @@ const { chromium, BASE } = require('../lib');
   await p.click('[data-outing-event="e1"]'); await p.waitForTimeout(800);
   const l = await p.$('.event-price-line'); console.log('line', l ? await l.innerText() : 'none');
   await p.screenshot({ path: 'bp-outing-' + lang + '.png' });
-  await p.click('.event-price-line [data-action="budget-open"]'); await p.waitForTimeout(500);
+  await p.click('.event-price-line [data-action="outing-budget"]'); await p.waitForTimeout(500);
   await p.screenshot({ path: 'bp-sheet-' + lang + '.png' });
   console.log('errs', JSON.stringify(errs)); await b.close();
 })();

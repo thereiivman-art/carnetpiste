@@ -37,6 +37,7 @@ Scénarios
   tyres-sessions       pneus : cocher les sessions roulées depuis le montage.
   eybis                import du calendrier Eybis 2027, avec création du Team.
   amis                 fiche profil : la rangée de tous les amis.
+  budget-roulage       onglet Budget de la page d'un roulage.
   parrain              Gestion des comptes : corriger un parrain.
 
 Guide PDF

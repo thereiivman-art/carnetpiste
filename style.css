@@ -3775,3 +3775,9 @@ span.ph-sponsor { cursor: default; }
 .ph-count { font-size: 0.8em; color: var(--text-muted); font-weight: 600; }
 .ph-friends-row { display: flex; gap: 0.9rem; overflow-x: auto; scroll-snap-type: x proximity; -webkit-overflow-scrolling: touch; padding: 0.2rem 0.1rem 0.5rem; margin: 0 -0.1rem; scrollbar-width: thin; }
 .ph-friends-row .ph-fav-friend { flex: 0 0 4.6rem; scroll-snap-align: start; }
+
+/* Onglet Budget d'un roulage */
+.outing-budget-hero { min-height: 0; }
+.outing-budget-hero .ph-feature-time { font-size: 2.5rem; }
+.outing-budget-all { display: block; width: 100%; margin: 0.6rem 0 1rem; text-align: center; }
+label.budget-row-title { cursor: pointer; margin: 0; }
