@@ -3829,6 +3829,38 @@
     var pos = (sorted.length - 1) * q, lo = Math.floor(pos), hi = Math.ceil(pos);
     return sorted[lo] + (sorted[hi] - sorted[lo]) * (pos - lo);
   }
+  // Barème de correspondance entre circuits : temps équivalents d'un même
+  // pilote (en secondes), relevés sur un outil de comparaison de chronos.
+  // Seuls les rapports entre circuits comptent ; ils sont recalés sur les
+  // vrais chronos du pilote (voir estimateFromTable).
+  var CIRCUIT_REF_TIMES = {
+    'Le Mans': 115.0, 'Haute Saintonge': 71.4, 'Barcelone': 127.2, 'Mugello': 139.0, 'Navarra': 130.2, 'Carole': 71.4,
+    'Magny Cours': 121.2, 'Aragón': 138.0, 'Dijon-Prenois': 97.0, 'Valence': 116.8, 'Lédenon': 101.0, 'Nogaro': 107.0,
+    'Pau-Arnos': 96.0, 'Le Vigeant': 120.6, 'Calafat': 103.6, 'Bresse': 101.0, 'Alès': 89.4, 'Alcarràs': 114.0
+  };
+  function circuitRefTime(circuit) {
+    var k = circuitKey(circuit), hit = Object.keys(CIRCUIT_REF_TIMES).filter(function (c) { return circuitKey(c) === k; })[0];
+    return hit ? CIRCUIT_REF_TIMES[hit] : null;
+  }
+  // Mes circuits du barème -> estimation (médiane) ; la fourchette vient de
+  // l'écart habituel du barème sur mes propres chronos (chaque circuit
+  // prédit à partir des autres et comparé au vrai temps).
+  function estimateFromTable(mine, circuit) {
+    var refT = circuitRefTime(circuit);
+    if (!refT) return null;
+    var known = Object.keys(mine).filter(function (c) { return circuitRefTime(mine[c].circuit); });
+    if (!known.length) return null;
+    var ests = known.map(function (c) { return mine[c].best * refT / circuitRefTime(mine[c].circuit); }).sort(function (a, b) { return a - b; });
+    var errs = [];
+    if (known.length > 1) known.forEach(function (c) {
+      var others = known.filter(function (o) { return o !== c; }).map(function (o) { return mine[o].best * circuitRefTime(mine[c].circuit) / circuitRefTime(mine[o].circuit); }).sort(function (a, b) { return a - b; });
+      errs.push(Math.abs(quantile(others, 0.5) - mine[c].best) / mine[c].best);
+    });
+    errs.sort(function (a, b) { return a - b; });
+    var spread = Math.max(0.015, errs.length ? quantile(errs, 0.5) : 0.04);
+    var v = quantile(ests, 0.5);
+    return { value: v, low: v * (1 - spread), high: v * (1 + spread), riders: 0, via: known.map(function (c) { return mine[c].circuit; }), method: 'table', spread: spread, checked: errs.length };
+  }
   function estimateLapTime(rider, circuit) {
     var all = bestsByRiderCircuit(), mine = all[rider] || {}, target = circuitKey(circuit);
     if (!rider || mine[target]) return null;
@@ -3842,11 +3874,16 @@
         ests.push(mine[c].best * ratio); who[o] = true; via[mine[c].circuit] = true;
       });
     });
+    var peers = null;
     if (ests.length) {
       ests.sort(function (a, b) { return a - b; });
       var n = Object.keys(who).length;
-      return { value: quantile(ests, 0.5), low: quantile(ests, n > 2 ? 0.25 : 0), high: quantile(ests, n > 2 ? 0.75 : 1), riders: n, via: Object.keys(via), method: 'peers' };
+      peers = { value: quantile(ests, 0.5), low: quantile(ests, n > 2 ? 0.25 : 0), high: quantile(ests, n > 2 ? 0.75 : 1), riders: n, via: Object.keys(via), method: 'peers' };
     }
+    if (peers && peers.riders >= 2) return peers;
+    var table = estimateFromTable(mine, circuit);
+    if (table) return table;
+    if (peers) return peers;
     var km = circuitInfo(circuit).km, paces = [];
     if (!km) return null;
     Object.keys(mine).forEach(function (c) { var k2 = circuitInfo(mine[c].circuit).km; if (k2) paces.push(mine[c].best / k2); });
@@ -3858,6 +3895,8 @@
   function joinAnd(list) { return list.length < 2 ? list.join('') : list.slice(0, -1).join(', ') + L(' et ', ' and ') + list[list.length - 1]; }
   function estimateSourceText(e) {
     if (e.method === 'km') return L('d\'après ton rythme au km sur tes circuits : estimation grossière', 'from your pace per km on your circuits: a rough estimate');
+    if (e.method === 'table') return L('d\'après tes chronos à ', 'from your lap times at ') + joinAnd(e.via.slice(0, 3)) + (e.via.length > 3 ? L(' (+' + (e.via.length - 3) + ')', ' (+' + (e.via.length - 3) + ')') : '') +
+      L(' et un barème entre circuits', ' and a circuit-to-circuit scale') + (e.checked ? L(', vérifié sur tes vrais chronos (écart habituel ' + String(Math.round(e.spread * 1000) / 10).replace('.', ',') + ' %)', ', checked against your real lap times (usual gap ' + Math.round(e.spread * 1000) / 10 + '%)') : '');
     return L('d\'après ' + e.riders + (e.riders > 1 ? ' pilotes qui roulent' : ' pilote qui roule') + ' aussi à ', 'from ' + e.riders + (e.riders > 1 ? ' riders who also ride at ' : ' rider who also rides at ')) + joinAnd(e.via.slice(0, 3));
   }
   // Au dixième : une estimation au millième donnerait une fausse précision.
@@ -7442,8 +7481,22 @@
     // Chronos used to be its own tab; it's really always been about
     // "the currently active circuit", so it lives here now, right after
     // the circuit's own info.
+    html += renderEstimateCard(selectedCircuit);
     html += renderChronosTab();
     return html;
+  }
+  // Pas encore de chrono sur ce circuit : le chrono estimé, en tête de
+  // l'onglet Chronos (même carte que sur la page d'un roulage à venir).
+  function renderEstimateCard(circuit) {
+    var me = currentUserProfile && currentUserProfile.name;
+    if (!me || meIsNonRider()) return '';
+    var est = estimateLapTime(me, circuit);
+    return est ? '<div class="outing-best-card estimate-card">' + estimateCardInner(est) + '</div>' : '';
+  }
+  function estimateCardInner(est) {
+    return '<span class="outing-label light">' + L('Ton chrono estimé ici', 'Your estimated lap here') + '</span>' +
+      '<span class="outing-best-time">≈ ' + formatEstimate(est.value) + '</span><span class="outing-best-delta">' + escapeHtml([estimateRangeText(est), estimateSourceText(est)].filter(Boolean).join(' · ')) + '.<br>' +
+      L('Une estimation pour te situer, pas un objectif : roule à ton rythme.', 'An estimate to give you a rough idea, not a target: ride at your own pace.') + '</span>';
   }
 
   // Personal, per-circuit -- users/{uid}.chronoGoals[circuit] = free text,
@@ -7539,8 +7592,7 @@
       mine.forEach(function (s) { if (!myBestS || sessionBest(s) < sessionBest(myBestS)) myBestS = s; });
       var myDays = {}; mine.forEach(function (s) { myDays[s.date] = true; });
       html += infoRow('Mon record', myBestS ? '<strong>' + formatTime(sessionBest(myBestS)) + '</strong> (' + escapeHtml(formatDate(myBestS.date)) + ')' : 'Pas encore de chrono');
-      var est2 = !myBestS && !meIsNonRider() ? estimateLapTime(meName, selectedCircuit) : null;
-      if (est2) html += infoRow(L('Mon chrono estimé', 'My estimated lap'), '<strong>≈ ' + formatEstimate(est2.value) + '</strong><div class="help-text">' + escapeHtml([estimateRangeText(est2), estimateSourceText(est2)].filter(Boolean).join(' · ')) + '</div>');
+
       html += infoRow('Mes roulages ici', String(Object.keys(myDays).length));
     }
     html += infoRow(tr('distance_label'), info.km != null ? (escapeHtml(numFr(info.km)) + ' km') : '—');
@@ -9585,9 +9637,7 @@
         } else {
           var est = !meIsNonRider() && currentUserProfile ? estimateLapTime(currentUserProfile.name, circuit) : null;
           html += est
-            ? '<div class="outing-best-card"><span class="outing-label light">' + L('Ton chrono estimé ici', 'Your estimated lap here') + '</span>' +
-              '<span class="outing-best-time">≈ ' + formatEstimate(est.value) + '</span><span class="outing-best-delta">' + escapeHtml([estimateRangeText(est), estimateSourceText(est)].filter(Boolean).join(' · ')) + '.<br>' +
-              L('Une estimation pour te situer, pas un objectif : roule à ton rythme.', 'An estimate to give you a rough idea, not a target: ride at your own pace.') + '</span></div>'
+            ? '<div class="outing-best-card">' + estimateCardInner(est) + '</div>'
             : '<div class="outing-best-card"><span class="outing-label light">Mon record à battre</span>' +
               '<span class="outing-best-time">—</span><span class="outing-best-delta">Premier roulage sur ce circuit : ton premier chrono sera ton record.</span></div>';
         }
