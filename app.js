@@ -8422,17 +8422,44 @@
       return true;
     }).sort(compareSessionsInDay);
   }
+  // Durée d'une session en minutes : son créneau quand on le connaît
+  // (début/fin, ou « 9h00-9h20 »), sinon la durée habituelle réglée par le
+  // pilote pour ce train (20 min par défaut).
+  function sessionMinutes(x, set) {
+    if (x.slotStart != null && x.slotEnd != null && x.slotEnd > x.slotStart) return x.slotEnd - x.slotStart;
+    var m = String(x.slotLabel || '').match(/(\d{1,2})\s*[h:]\s*(\d{2})?\s*[-–à]\s*(\d{1,2})\s*[h:]\s*(\d{2})?/);
+    if (m) {
+      var d = (Number(m[3]) * 60 + Number(m[4] || 0)) - (Number(m[1]) * 60 + Number(m[2] || 0));
+      if (d > 0 && d <= 120) return d;
+    }
+    return Number(set && set.sessionMin) || 20;
+  }
+  // Tours roulés pendant une session : beaucoup ne saisissent que leur
+  // meilleur tour, donc on estime aussi durée ÷ temps moyen au tour (le
+  // meilleur tour + 3 % s'il n'y a qu'un ou deux chronos), et on garde le
+  // plus grand des deux.
+  function sessionLapCount(x, set) {
+    var rec = (x.laps || []).length;
+    if (!rec) return { laps: 0, estimated: false };
+    var sum = 0;
+    x.laps.forEach(function (t) { sum += t; });
+    var avg = sum / rec * (rec < 3 ? 1.03 : 1);
+    var est = avg > 0 ? Math.floor(sessionMinutes(x, set) * 60 / avg) : 0;
+    return est > rec ? { laps: est, estimated: true } : { laps: rec, estimated: false };
+  }
   function tyreSetUsage(set, nextSet) {
     var list = tyreSetSessions(set, nextSet);
     // priorKm : km déjà faits avant de les déclarer (pneus montés
     // d'occasion), estimés par le pilote.
-    var out = { sessions: list.length, laps: 0, km: 0, kmMissing: false, days: 0, priorKm: Number(set.priorKm) || 0 };
+    var out = { sessions: list.length, laps: 0, km: 0, kmMissing: false, days: 0, priorKm: Number(set.priorKm) || 0, estimated: false };
     var days = {};
     list.forEach(function (x) {
-      out.laps += x.laps.length;
+      var c = sessionLapCount(x, set);
+      out.laps += c.laps;
+      if (c.estimated) out.estimated = true;
       days[x.date + '|' + x.circuit] = true;
       var km = circuitInfo(x.circuit).km;
-      if (km) out.km += km * x.laps.length; else out.kmMissing = true;
+      if (km) out.km += km * c.laps; else out.kmMissing = true;
     });
     out.days = Object.keys(days).length;
     out.km += out.priorKm;
@@ -8441,7 +8468,7 @@
   function tyreUsageText(u) {
     // Pluriel : dès 2 en français, sauf 1 en anglais (« 0 laps »).
     function many(n) { return currentLang() === 'en' ? n !== 1 : n > 1; }
-    var parts = [u.sessions + (many(u.sessions) ? ' sessions' : ' session'), u.laps + (many(u.laps) ? L(' tours', ' laps') : L(' tour', ' lap'))];
+    var parts = [u.sessions + (many(u.sessions) ? ' sessions' : ' session'), (u.estimated ? '≈ ' : '') + u.laps + (many(u.laps) ? L(' tours', ' laps') : L(' tour', ' lap'))];
     if (u.km) parts.push((u.kmMissing ? '≥ ' : '≈ ') + Math.round(u.km) + ' km' + (u.priorKm ? L(' (dont ~', ' (incl. ~') + Math.round(u.priorKm) + L(' avant)', ' before)') : ''));
     return parts.join(' · ');
   }
@@ -8453,7 +8480,7 @@
     var i = list.map(function (s) { return s.id; }).indexOf(x.id);
     if (i === -1) return '';
     var laps = 0, km = Number(set.priorKm) || 0;
-    list.slice(0, i + 1).forEach(function (s) { laps += s.laps.length; km += (circuitInfo(s.circuit).km || 0) * s.laps.length; });
+    list.slice(0, i + 1).forEach(function (s) { var n = sessionLapCount(s, set).laps; laps += n; km += (circuitInfo(s.circuit).km || 0) * n; });
     return '<br>' + L('Pneus : ', 'Tyres: ') + (set.label ? escapeHtml(set.label) + ', ' : '') +
       L((i + 1) + (i === 0 ? 're' : 'e') + ' session sur ce train', 'session ' + (i + 1) + ' on this set') + (km ? ' (≈ ' + Math.round(km) + ' km)' : '') + '.';
   }
@@ -8470,6 +8497,7 @@
     return '<div class="card tyre-card"><div class="tyre-card-main"><span class="outing-label">' + L('Mes pneus', 'My tyres') + '</span>' +
       '<strong class="tyre-card-label">' + escapeHtml(set.label || L('Train actuel', 'Current set')) + '</strong>' +
       '<span class="tyre-card-usage">' + escapeHtml(tyreUsageText(u)) + '</span>' +
+      (u.estimated ? '<span class="help-text">' + L('Tours estimés d\'après la durée des sessions et ton temps au tour, même si tu n\'as saisi que ton meilleur chrono.', 'Laps estimated from session length and your lap time, even if you only entered your best lap.') + '</span>' : '') +
       '<span class="help-text">' + L('Montés le ', 'Fitted on ') + escapeHtml(formatDate(set.since)) + (set.priorKm ? L(', déjà roulés', ', already used') : L(', neufs', ', new')) + (set.bike ? ' · ' + escapeHtml(set.bike) : '') + '</span></div>' +
       '<button type="button" class="ghost" data-action="tyre-new">' + L('Changer de pneus', 'Change tyres') + '</button></div>';
   }
@@ -8626,6 +8654,7 @@
       '<label class="setup-field tyre-prior" hidden><span>' + L('Km déjà faits (ton estimation)', 'Km already done (your estimate)') + '</span><input type="number" id="tyre-prior" inputmode="numeric" min="1" max="99999" step="1"></label>' +
       '<label class="setup-field setup-half"><span>' + L('Montés le', 'Fitted on') + '</span><input type="date" id="tyre-since" value="' + dateKey(new Date()) + '"></label>' +
       '<label class="setup-field setup-half"><span>' + L('Moto', 'Bike') + '</span><input type="text" id="tyre-bike" maxlength="60" value="' + escapeHtml((currentUserProfile && currentUserProfile.bike) || '') + '"></label>' +
+      '<label class="setup-field"><span>' + L('Durée d\'une session (min), quand l\'horaire n\'est pas connu', 'Session length (min), when the schedule isn\'t known') + '</span><input type="number" id="tyre-session-min" inputmode="numeric" min="5" max="60" step="1" value="' + escapeHtml(String((cur && cur.sessionMin) || 20)) + '"></label>' +
       '</div>' +
       (history ? '<div class="tyre-history"><div class="outing-label">' + L('Trains précédents', 'Previous sets') + '</div>' + history + '</div>' : '') +
       '<div style="margin-top:0.8rem; display:flex; gap:0.5rem; flex-wrap:wrap;"><button type="button" class="primary" data-t="save">' + tr('save') + '</button>' +
@@ -8654,6 +8683,8 @@
         }
         set.priorKm = prior;
       }
+      var smin = Math.round(Number(sheet.querySelector('#tyre-session-min').value));
+      if (smin >= 5 && smin <= 60 && smin !== 20) set.sessionMin = smin;
       var bike = sheet.querySelector('#tyre-bike').value.trim().slice(0, 60);
       if (bike) set.bike = bike;
       myTyreSets = (myTyreSets || []).concat([set]).sort(function (a, b) { return a.since.localeCompare(b.since) || a.at - b.at; }).slice(-20);
