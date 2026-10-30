@@ -34,6 +34,7 @@ Scénarios
   tyres-stats          Stats › Pneus.
   pressures            Stats › Pneus › Mes pressions.
   tyres-used           pneus déjà roulés, avec les km estimés.
+  tyres-sessions       pneus : cocher les sessions roulées depuis le montage.
   parrain              Gestion des comptes : corriger un parrain.
 
 Guide PDF

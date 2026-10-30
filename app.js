@@ -8447,6 +8447,49 @@
     var est = avg > 0 ? Math.floor(sessionMinutes(x, set) * 60 / avg) : 0;
     return est > rec ? { laps: est, estimated: true } : { laps: rec, estimated: false };
   }
+  // Les journées roulées sur un train : celles des roulages où le pilote
+  // est inscrit et de ses chronos, depuis le montage (jusqu'au train
+  // suivant). Pour chaque journée, les sessions de son groupe d'après les
+  // horaires (matin / après-midi), chacune reliée à son chrono s'il existe.
+  // Le pilote coche celles qu'il a vraiment roulées (set.ridden) ; une
+  // journée sans horaires connus prend un nombre de sessions (set.extra).
+  function tyreSlotKey(date, circuit, start) { return date + '|' + circuitKey(circuit) + '|' + start; }
+  function tyreScheduleDays(set, nextSet) {
+    var me = currentUserProfile && currentUserProfile.name;
+    var today = dateKey(new Date());
+    var days = {};
+    function inRange(d) { return d >= set.since && d <= today && (!nextSet || d < nextSet.since); }
+    function day(date, circuit) {
+      var k = date + '|' + circuitKey(circuit);
+      return days[k] = days[k] || { key: k, date: date, circuit: circuit, slots: [], groups: [], chronos: [] };
+    }
+    eventsList().forEach(function (ev) {
+      if (!me || (ev.riders || []).indexOf(me) === -1) return;
+      datesInRange(ev.dateStart, ev.dateEnd).forEach(function (d) {
+        if (!inRange(d)) return;
+        var dd = day(d, ev.circuit), h = eventHoraires(ev, d);
+        [['matin', function (st) { return st < 780; }], ['apres-midi', function (st) { return st >= 780; }]].forEach(function (per) {
+          var g = riderGroupFor(ev, me, d, per[0]);
+          if (!g) return;
+          if (dd.groups.indexOf(g) === -1) dd.groups.push(g);
+          parseHoraireLine(h && h['group' + g]).forEach(function (sl) {
+            if (sl.start == null || !per[1](sl.start)) return;
+            if (dd.slots.some(function (o) { return o.start === sl.start; })) return;
+            dd.slots.push({ start: sl.start, end: sl.end, label: sl.label, key: tyreSlotKey(d, ev.circuit, sl.start) });
+          });
+        });
+      });
+    });
+    tyreSetSessions(set, nextSet).forEach(function (x) {
+      var dd = day(x.date, x.circuit);
+      var sl = x.slotStart != null ? dd.slots.filter(function (o) { return o.start === x.slotStart; })[0] : null;
+      if (sl) sl.chrono = x; else dd.chronos.push(x);
+    });
+    return Object.keys(days).map(function (k) {
+      days[k].slots.sort(function (a, b) { return a.start - b.start; });
+      return days[k];
+    }).sort(function (a, b) { return b.date.localeCompare(a.date); });
+  }
   function tyreSetUsage(set, nextSet) {
     var list = tyreSetSessions(set, nextSet);
     // priorKm : km déjà faits avant de les déclarer (pneus montés
@@ -8460,6 +8503,26 @@
       days[x.date + '|' + x.circuit] = true;
       var km = circuitInfo(x.circuit).km;
       if (km) out.km += km * c.laps; else out.kmMissing = true;
+    });
+    // Sessions cochées sans chrono, et sessions ajoutées sur une journée
+    // sans horaires : tours estimés avec le meilleur tour du pilote sur ce
+    // circuit (+ 3 %), à défaut les km de ce circuit restent inconnus.
+    var me = currentUserProfile && currentUserProfile.name;
+    function addEstimated(circuit, minutes) {
+      out.sessions++;
+      out.estimated = true;
+      var best = riderCircuitBest(me, circuit), km = circuitInfo(circuit).km;
+      var n = best ? Math.floor(minutes * 60 / (best * 1.03)) : 0;
+      out.laps += n;
+      if (km && n) out.km += km * n; else out.kmMissing = true;
+    }
+    tyreScheduleDays(set, nextSet).forEach(function (d) {
+      d.slots.forEach(function (sl) {
+        if (!sl.chrono && set.ridden && set.ridden[sl.key]) { days[d.date + '|' + d.circuit] = true; addEstimated(d.circuit, (sl.end > sl.start ? sl.end - sl.start : Number(set.sessionMin) || 20)); }
+      });
+      var extra = Number(set.extra && set.extra[d.key]) || 0;
+      if (extra) days[d.date + '|' + d.circuit] = true;
+      for (var i = 0; i < extra; i++) addEstimated(d.circuit, Number(set.sessionMin) || 20);
     });
     out.days = Object.keys(days).length;
     out.km += out.priorKm;
@@ -8499,7 +8562,8 @@
       '<span class="tyre-card-usage">' + escapeHtml(tyreUsageText(u)) + '</span>' +
       (u.estimated ? '<span class="help-text">' + L('Tours estimés d\'après la durée des sessions et ton temps au tour, même si tu n\'as saisi que ton meilleur chrono.', 'Laps estimated from session length and your lap time, even if you only entered your best lap.') + '</span>' : '') +
       '<span class="help-text">' + L('Montés le ', 'Fitted on ') + escapeHtml(formatDate(set.since)) + (set.priorKm ? L(', déjà roulés', ', already used') : L(', neufs', ', new')) + (set.bike ? ' · ' + escapeHtml(set.bike) : '') + '</span></div>' +
-      '<button type="button" class="ghost" data-action="tyre-new">' + L('Changer de pneus', 'Change tyres') + '</button></div>';
+      '<div class="tyre-card-actions"><button type="button" class="primary" data-action="tyre-sessions">' + L('Cocher mes sessions', 'Tick my sessions') + '</button>' +
+      '<button type="button" class="ghost" data-action="tyre-new">' + L('Changer de pneus', 'Change tyres') + '</button></div></div>';
   }
   // ---- Mes pressions (Stats › Pneus) ----
   // Le pilote note ses propres pressions AV/AR, à froid et à chaud, par
@@ -8631,6 +8695,53 @@
         '<div class="help-text">' + escapeHtml(tyreUsageText(tyreSetUsage(set, next))) + '</div></div>';
     }).join('');
     return renderPressuresCard() + renderTyreCard() + (history ? '<div class="card"><h2 class="section-title">' + L('Trains précédents', 'Previous sets') + '</h2><div class="tyre-history">' + history + '</div></div>' : '');
+  }
+  // « Cocher mes sessions » : les journées depuis le montage, avec les
+  // sessions de son groupe ; celles qui ont un chrono comptent d'office.
+  function openTyreSessionsSheet() {
+    if (!auth.currentUser || document.querySelector('.tyre-sessions-sheet')) return;
+    var sets = myTyreSets || [], set = sets[sets.length - 1];
+    if (!set) return;
+    var ridden = Object.assign({}, set.ridden || {}), extra = Object.assign({}, set.extra || {});
+    var days = tyreScheduleDays(set, null);
+    var me = currentUserProfile && currentUserProfile.name;
+    function fmtMin(m) { return Math.floor(m / 60) + L('h', ':') + ('0' + (m % 60)).slice(-2); }
+    var body = days.length ? days.map(function (d) {
+      var head = '<div class="tyre-day-head"><span class="outing-thumb">' + circuitThumbHtml(d.circuit) + '</span><div><strong>' + escapeHtml(d.circuit) + '</strong>' +
+        '<div class="help-text">' + escapeHtml(formatDate(d.date)) + (d.groups.length ? ' · ' + L('groupe ', 'group ') + d.groups.join('/') : '') + '</div></div></div>';
+      var items = d.slots.map(function (sl) {
+        var label = sl.start != null && sl.end != null ? fmtMin(sl.start) + ' – ' + fmtMin(sl.end) : sl.label;
+        return '<label class="tyre-slot' + (sl.chrono ? ' has-chrono' : '') + '"><input type="checkbox" data-slot="' + escapeHtml(sl.key) + '"' + (sl.chrono || ridden[sl.key] ? ' checked' : '') + (sl.chrono ? ' disabled' : '') + '>' +
+          '<span>' + escapeHtml(label) + '</span>' + (sl.chrono ? '<span class="tyre-slot-tag">' + L('chrono saisi', 'lap time logged') + '</span>' : '') + '</label>';
+      }).join('') + d.chronos.map(function (x) {
+        return '<label class="tyre-slot has-chrono"><input type="checkbox" checked disabled><span>' + escapeHtml(x.slotLabel ? String(x.slotLabel).replace(/\s*-\s*/, ' – ') : L('Session', 'Session')) + '</span><span class="tyre-slot-tag">' + L('chrono saisi', 'lap time logged') + '</span></label>';
+      }).join('');
+      var noBest = riderCircuitBest(me, d.circuit) === null;
+      var more = '<label class="tyre-extra">' + (d.slots.length ? L('Autres sessions ce jour', 'Other sessions that day') : L('Horaires inconnus : sessions roulées', 'Schedule unknown: sessions ridden')) +
+        ' <input type="number" min="0" max="12" step="1" inputmode="numeric" data-extra="' + escapeHtml(d.key) + '" value="' + escapeHtml(String(extra[d.key] || 0)) + '"></label>';
+      return '<div class="tyre-day">' + head + '<div class="tyre-slots">' + items + '</div>' + more +
+        (noBest ? '<div class="help-text">' + L('Pas encore de chrono sur ce circuit : ces sessions comptent, mais sans km.', 'No lap time on this circuit yet: these sessions count, but without km.') + '</div>' : '') + '</div>';
+    }).join('') : '<div class="help-text">' + L('Aucun roulage depuis le montage de ces pneus. Inscris-toi à tes roulages (« J\'y vais ») pour retrouver leurs sessions ici.', 'No trackday since these tyres were fitted. Join your trackdays (“Going”) to find their sessions here.') + '</div>';
+    var sheetEl = document.createElement('div');
+    sheetEl.className = 'crop-modal-overlay setup-sheet tyre-sessions-sheet';
+    sheetEl.innerHTML = '<div class="crop-modal setup-modal"><h2 class="section-title">' + L('Mes sessions sur ces pneus', 'My sessions on these tyres') + '</h2>' +
+      '<div class="help-text">' + L('Depuis le ', 'Since ') + escapeHtml(formatDate(set.since)) + L(' : coche les sessions que tu as roulées. Pitbook en estime les tours et les km avec ton temps au tour.', ': tick the sessions you rode. Pitbook estimates the laps and km from your lap time.') + '</div>' +
+      '<div class="tyre-days">' + body + '</div>' +
+      '<div class="tyre-sessions-actions"><button type="button" class="primary" data-ts="save">' + tr('save') + '</button><button type="button" class="ghost" data-ts="cancel">' + tr('cancel') + '</button></div></div>';
+    document.body.appendChild(sheetEl);
+    function close() { if (sheetEl.parentNode) sheetEl.parentNode.removeChild(sheetEl); }
+    sheetEl.addEventListener('click', function (e) { if (e.target === sheetEl) close(); });
+    sheetEl.querySelector('[data-ts="cancel"]').addEventListener('click', close);
+    sheetEl.querySelector('[data-ts="save"]').addEventListener('click', function () {
+      ridden = {}; extra = {};
+      sheetEl.querySelectorAll('[data-slot]').forEach(function (c) { if (c.checked && !c.disabled) ridden[c.getAttribute('data-slot')] = true; });
+      sheetEl.querySelectorAll('[data-extra]').forEach(function (i) { var n = Math.max(0, Math.min(12, Math.round(Number(i.value) || 0))); if (n) extra[i.getAttribute('data-extra')] = n; });
+      set.ridden = ridden; set.extra = extra;
+      close(); renderRoot();
+      db.collection('userPrivate').doc(auth.currentUser.uid).set({ tyreSets: myTyreSets }, { mergeFields: ['tyreSets'] }).then(function () {
+        showToast(L('Sessions enregistrées.', 'Sessions saved.'), 'success');
+      }).catch(function (err) { showToast(L('Sessions non enregistrées : ', 'Sessions not saved: ') + ((err && err.message) || err)); });
+    });
   }
   function openTyreSheet() {
     if (!auth.currentUser || document.querySelector('.tyre-sheet')) return;
@@ -20222,6 +20333,9 @@
     });
     document.querySelectorAll('[data-action="pressure-edit"]').forEach(function (btn) {
       btn.addEventListener('click', function () { openPressureSheet(btn.getAttribute('data-id')); });
+    });
+    document.querySelectorAll('[data-action="tyre-sessions"]').forEach(function (btn) {
+      btn.addEventListener('click', openTyreSessionsSheet);
     });
     document.querySelectorAll('[data-action="tyre-new"]').forEach(function (btn) {
       btn.addEventListener('click', openTyreSheet);

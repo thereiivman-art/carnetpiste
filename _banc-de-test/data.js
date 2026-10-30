@@ -13,7 +13,10 @@
     events: {
       e1: { id: 'e1', circuit: 'Barcelone', dateStart: d(30), dateEnd: d(31), riders: ['Alex', 'Sam'], note: '~420 € · test', horairesOverride: { groupB: '9h20-9h40, 11h20-11h40, 14h20-14h40' }, riderGroups: { Alex: (function () { var o = {}; o[d(30)] = { am: 'B' }; o[d(31)] = { am: 'B' }; return o; })() } },
       e2: { id: 'e2', circuit: 'Mugello', dateStart: d(-40), dateEnd: d(-39), riders: ['Alex', 'Sam'], note: '~350 €' },
-      e3: { id: 'e3', circuit: 'Le Mans', dateStart: '2025-05-10', dateEnd: '2025-05-11', riders: ['Alex'], note: '' }
+      e3: { id: 'e3', circuit: 'Le Mans', dateStart: '2025-05-10', dateEnd: '2025-05-11', riders: ['Alex'], note: '' },
+      // Roulages passés sans chrono : pour cocher ses sessions sur les pneus.
+      e4: { id: 'e4', circuit: 'Mugello', dateStart: d(-20), dateEnd: d(-19), riders: ['Alex'], note: '', horairesOverride: { groupB: '9h20-9h40, 11h20-11h40, 14h20-14h40, 16h20-16h40' }, riderGroups: { Alex: (function () { var o = {}; o[d(-20)] = { am: 'B', pm: 'B' }; o[d(-19)] = { am: 'B' }; return o; })() } },
+      e5: { id: 'e5', circuit: 'Barcelone', dateStart: d(-10), dateEnd: d(-10), riders: ['Alex'], note: '' }
     },
     sessions: {
       s1: { id: 's1', rider: 'Alex', date: d(-40), circuit: 'Mugello', laps: [118.2, 116.9, 115.4, 116.1], eventId: 'e2', bike: 'Yamaha R6', group: 'B', slotStart: 540, slotLabel: '9h00-9h20' },
