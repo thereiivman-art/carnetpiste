@@ -58,7 +58,7 @@ function servir() {
 // [scénario, arguments] joués par « tout ».
 var TOUT = [
   ['crawl', 'fr'], ['crawl', 'en'], ['crawl2', 'fr'], ['crawl2', 'en'], ['crawl-admin'], ['crawl-admin2'],
-  ['feat', 'fr'], ['budget4', 'fr'], ['budget4', 'en'], ['budget-page', 'fr'], ['reimp'], ['tyres-stats', 'fr'], ['tyres-stats', 'en'], ['pressures', 'fr'], ['pressures', 'en'], ['parrain', 'fr'], ['parrain', 'en'], ['tyres-used', 'fr'], ['tyres-used', 'en'], ['tyres-sessions', 'fr'], ['tyres-sessions', 'en'], ['eybis', 'fr'], ['amis', 'fr'], ['amis', 'en'], ['budget-roulage', 'fr'], ['budget-roulage', 'en'], ['team-rename', 'fr'], ['team-rename', 'en'], ['chrono-estime', 'fr'], ['chrono-estime', 'en'], ['moto-podium', 'fr'], ['moto-podium', 'en'], ['accompagnant', 'fr'], ['accompagnant', 'en']
+  ['feat', 'fr'], ['budget4', 'fr'], ['budget4', 'en'], ['budget-page', 'fr'], ['reimp'], ['tyres-stats', 'fr'], ['tyres-stats', 'en'], ['pressures', 'fr'], ['pressures', 'en'], ['parrain', 'fr'], ['parrain', 'en'], ['tyres-used', 'fr'], ['tyres-used', 'en'], ['tyres-sessions', 'fr'], ['tyres-sessions', 'en'], ['eybis', 'fr'], ['amis', 'fr'], ['amis', 'en'], ['budget-roulage', 'fr'], ['budget-roulage', 'en'], ['team-rename', 'fr'], ['team-rename', 'en'], ['chrono-estime', 'fr'], ['chrono-estime', 'en'], ['moto-podium', 'fr'], ['moto-podium', 'en'], ['accompagnant', 'fr'], ['accompagnant', 'en'], ['accompagnant-plus', 'fr'], ['accompagnant-plus', 'en']
 ];
 function jouer(nom, args) {
   return new Promise(function (ok) {

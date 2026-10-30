@@ -3811,3 +3811,19 @@ label.budget-row-title { cursor: pointer; margin: 0; }
 .subnav:has(+ .pill-tabs) .subnav-btn.active { position: relative; z-index: 1; margin-bottom: -1px; padding-bottom: calc(0.55rem + 0.25rem + 1px); border-radius: 9px 9px 0 0; box-shadow: none; border: 1px solid var(--border); border-bottom: 0; }
 .subnav + .pill-tabs { margin: 0 0 0.9rem; padding: 0 0.35rem; background: var(--surface); border: 1px solid var(--border); border-radius: 0 0 12px 12px; box-shadow: var(--shadow); }
 .subnav + .pill-tabs .pill-btn { padding: 0.6rem 0.45rem 0.55rem; }
+
+/* Mes potes en piste (accompagnant) */
+.friends-on-track { margin-bottom: 0.9rem; }
+.fot-row { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 0.6rem; align-items: center; padding: 0.5rem 0; border-top: 1px solid var(--border); }
+.fot-row:first-of-type { border-top: 0; }
+.fot-main strong { font-size: 0.98rem; }
+.fot-status { font-size: 0.86rem; color: var(--text-muted); font-weight: 600; font-variant-numeric: tabular-nums; }
+.fot-row.on-track .fot-status { color: var(--best, #1d8a4e); }
+.fot-row.soon .fot-status { color: var(--accent); }
+.jourj-friends { margin: 1rem 0; text-align: left; }
+.jourj-friends .section-title { color: inherit; }
+.jourj-friends .fot-row { border-top-color: rgba(255,255,255,0.15); }
+.jourj-friends .fot-status { color: inherit; opacity: 0.85; font-size: 1rem; }
+.jourj-friends .fot-row.on-track .fot-status { color: #4ade80; opacity: 1; }
+.jourj-friends .fot-row.soon .fot-status { color: #ff8a80; opacity: 1; }
+.jourj-friends .fot-main strong { font-size: 1.15rem; }

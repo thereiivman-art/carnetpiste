@@ -4694,6 +4694,8 @@
     html += '<label class="checklist-item" style="margin-top:0.4rem;"><input type="checkbox" id="profile-notify-adherent-requests"' + (p.notifyAdherentRequests !== false ? ' checked' : '') + '> ' + tr('notify_adherent_request') + '</label>';
     html += '<label class="checklist-item" style="margin-top:0.4rem;"><input type="checkbox" id="profile-notify-request-decisions"' + (p.notifyRequestDecisions !== false ? ' checked' : '') + '> ' + tr('notify_request_decision') + '</label>';
     html += '<label class="checklist-item" style="margin-top:0.4rem;"><input type="checkbox" id="profile-notify-chrono-certified"' + (p.notifyChronoCertified !== false ? ' checked' : '') + '> ' + tr('notify_chrono_certified') + '</label>';
+    html += '<label class="checklist-item" style="margin-top:0.4rem;"><input type="checkbox" id="profile-notify-friend-records"' + (p.notifyFriendRecords !== false ? ' checked' : '') + '> ' + L('Un pote bat son record ou monte sur un podium', 'A friend sets a record or climbs a podium') + '</label>';
+    html += '<label class="checklist-item" style="margin-top:0.4rem;"><input type="checkbox" id="profile-notify-chrono-proposals"' + (p.notifyChronoProposals !== false ? ' checked' : '') + '> ' + L('Un pote a saisi un chrono pour moi', 'A friend logged a lap time for me') + '</label>';
     html += '<label class="checklist-item" style="margin-top:0.4rem;"><input type="checkbox" id="profile-notify-reactions"' + (p.notifyReactions !== false ? ' checked' : '') + '> ' + tr('notify_reaction') + '</label>';
     html += '<label class="checklist-item" style="margin-top:0.4rem;"><input type="checkbox" id="profile-notify-pro-outings"' + (p.notifyProOutings !== false ? ' checked' : '') + '> ' + tr('notify_pro_outing') + '</label>';
     html += '<label class="checklist-item" style="margin-top:0.4rem;"><input type="checkbox" id="profile-notify-coach-messages"' + (p.notifyCoachMessages !== false ? ' checked' : '') + '> ' + tr('notify_coach_message') + '</label>';
@@ -5270,7 +5272,7 @@
     });
     friendRides(21).forEach(function (r) {
       var pc = podiumClimb(r);
-      if (pc && pc.place === 1 && !rideDuel(r)) items.push({ key: 'podium:' + r.key + ':' + pc.place, kind: 'trophy', time: r.createdAt + 2, html: podiumClimbText(r, pc), go: { to: 'podium', circuit: r.circuit } });
+      if (pc && (pc.place === 1 || meIsNonRider()) && !rideDuel(r)) items.push({ key: 'podium:' + r.key + ':' + pc.place, kind: 'trophy', time: r.createdAt + 2, html: podiumClimbText(r, pc), go: { to: 'podium', circuit: r.circuit } });
     });
     friendPhotoLinks().forEach(function (ph) {
       items.push({ key: ph.key, kind: 'camera', time: ph.createdAt, html: '<strong>' + escapeHtml(ph.rider) + '</strong>' + L(' a ajouté ses photos de ', ' added photos from ') + escapeHtml(ph.ev.circuit),
@@ -5406,6 +5408,7 @@
     if (!me) return 0;
     var n = 0;
     n += (STATE.friendRequests || []).filter(function (r) { return r.status === 'pending' && r.to === me.name; }).length;
+    n += myPendingChronoProposals().length;
     n += (STATE.teamInvites || []).filter(function (r) { return r.status === 'pending' && r.to === me.name; }).length;
     n += (STATE.coachRequests || []).filter(function (r) { return r.status === 'pending' && (r.from === me.name || r.to === me.name) && coachRequestAwaitingMe(r, me); }).length;
     n += (STATE.teamJoinRequests || []).filter(function (r) { return r.status === 'pending' && isLeaderOfTeam(r.teamId); }).length;
@@ -5432,6 +5435,13 @@
     var eventJoinReqs = (STATE.eventJoinRequests || []).filter(function (r) { return r.status === 'pending' && teamById(r.teamId) && isLeaderOfTeam(r.teamId); });
     var adherentReqs = pendingAdherentRequests();
     var rows = '';
+    myPendingChronoProposals().forEach(function (r) {
+      var best = Math.min.apply(null, r.laps);
+      rows += renderFriendRow(r.from, '<button type="button" class="primary" data-action="accept-chrono-proposal" data-id="' + escapeHtml(r.id) + '">' + L('Ajouter', 'Add') + '</button>' +
+        '<button type="button" class="ghost" data-action="refuse-chrono-proposal" data-id="' + escapeHtml(r.id) + '">' + L('Refuser', 'Decline') + '</button>', true) +
+        '<div class="help-text" style="margin:-0.3rem 0 0.6rem;">' + L('a saisi un chrono pour toi : ', 'logged a lap time for you: ') + escapeHtml(r.circuit) + ' · ' + escapeHtml(formatDate(r.date)) + (r.slotLabel ? ' · ' + escapeHtml(r.slotLabel) : '') +
+        ' · ' + formatTime(best) + (r.laps.length > 1 ? ' (' + r.laps.length + L(' tours)', ' laps)') : '') + '</div>';
+    });
     friendReqs.forEach(function (r) {
       rows += renderFriendRow(r.from, '<button type="button" class="primary" data-action="accept-friend" data-id="' + r.id + '">Accepter</button>' +
         '<button type="button" class="ghost" data-action="remove-friend" data-id="' + r.id + '">Refuser</button>', true) +
@@ -9847,8 +9857,14 @@
     var me = currentUserProfile && currentUserProfile.name;
     if (!me) return null;
     var today = dateKey(new Date());
-    return eventsList().filter(function (ev) {
+    var mineToday = eventsList().filter(function (ev) {
       return (ev.riders || []).indexOf(me) !== -1 && ev.dateStart <= today && (ev.dateEnd || ev.dateStart) >= today;
+    })[0];
+    if (mineToday || !meIsNonRider()) return mineToday || null;
+    // Un accompagnant pas inscrit lui-même : le roulage du jour de ses potes.
+    var friends = friendRiderNames();
+    return eventsList().filter(function (ev) {
+      return ev.dateStart <= today && (ev.dateEnd || ev.dateStart) >= today && (ev.riders || []).some(function (r) { return friends.indexOf(r) !== -1; });
     })[0] || null;
   }
   // Créneaux du jour pour mon groupe (le groupe du matin peut différer de
@@ -9892,9 +9908,11 @@
       var current = data.slots.filter(function (sl) { return nowSec >= sl.start * 60 && nowSec < sl.end * 60; })[0];
       var next = data.slots.filter(function (sl) { return sl.start * 60 > nowSec; })[0];
       var h = '<div class="jourj-top"><div><div class="jourj-circuit">' + escapeHtml(ev.circuit) + '</div>' +
-        '<div class="jourj-group">' + (data.group ? 'Groupe ' + escapeHtml(data.group) : 'Groupe non renseigné') + '</div></div>' +
+        '<div class="jourj-group">' + (meIsNonRider() ? L('Au paddock', 'In the paddock') : data.group ? 'Groupe ' + escapeHtml(data.group) : 'Groupe non renseigné') + '</div></div>' +
         '<button type="button" class="jourj-close" data-jj="close" aria-label="Fermer">✕</button></div>';
-      if (!data.slots.length) {
+      if (meIsNonRider()) {
+        h += renderFriendsOnTrack(ev, day, true);
+      } else if (!data.slots.length) {
         h += '<div class="jourj-main"><div class="jourj-label">Horaires</div><div class="jourj-sub">Pas encore d\'horaires pour ton groupe.</div>' +
           (canEditEventHoraires(ev) ? '<button type="button" class="jourj-btn" data-action="import-horaires" data-event-id="' + escapeHtml(ev.id) + '">Importer les horaires</button>' : '') + '</div>';
       } else if (current) {
@@ -10286,6 +10304,113 @@
     });
     return Object.keys(byKey).map(function (k) { return byKey[k]; }).sort(function (a, b) { return b.date.localeCompare(a.date); });
   }
+  // ---- Mes potes en piste (accompagnant) ----
+  // Pour un roulage et un jour : chaque pote pilote inscrit, son groupe
+  // (matin / après-midi) et sa prochaine session d'après les horaires.
+  function friendsOnTrack(ev, day) {
+    var friends = friendRiderNames(), now = new Date();
+    var nowMin = day === dateKey(now) ? now.getHours() * 60 + now.getMinutes() : (day < dateKey(now) ? 24 * 60 : -1);
+    var h = eventHoraires(ev, day);
+    return (ev.riders || []).filter(function (r) { return friends.indexOf(r) !== -1; }).map(function (r) {
+      var slots = [], groups = [];
+      [['matin', function (st) { return st < 780; }], ['apres-midi', function (st) { return st >= 780; }]].forEach(function (per) {
+        var g = riderGroupFor(ev, r, day, per[0]);
+        if (!g) return;
+        if (groups.indexOf(g) === -1) groups.push(g);
+        parseHoraireLine(h && h['group' + g]).forEach(function (sl) { if (sl.start != null && per[1](sl.start)) slots.push(sl); });
+      });
+      slots.sort(function (a, b) { return a.start - b.start; });
+      var cur = slots.filter(function (sl) { return nowMin >= sl.start && nowMin < sl.end; })[0];
+      var next = slots.filter(function (sl) { return sl.start > nowMin; })[0];
+      return { rider: r, groups: groups, slots: slots, current: cur || null, next: next || null, nowMin: nowMin };
+    }).sort(function (a, b) {
+      var ka = a.current ? -1 : a.next ? a.next.start : 9999, kb = b.current ? -1 : b.next ? b.next.start : 9999;
+      return ka - kb;
+    });
+  }
+  function fmtMinOfDay(m) { return Math.floor(m / 60) + L('h', ':') + ('0' + (m % 60)).slice(-2); }
+  function renderFriendsOnTrack(ev, day, big) {
+    var rows = friendsOnTrack(ev, day);
+    if (!rows.length) return big ? '<div class="jourj-main"><div class="jourj-label">' + L('Mes potes en piste', 'My friends on track') + '</div><div class="jourj-sub">' + L('Aucun de tes potes pilotes n\'est inscrit à ce roulage.', 'None of your rider friends is signed up for this trackday.') + '</div></div>' : '';
+    var list = rows.map(function (x) {
+      var u = (STATE.usersByName || {})[x.rider] || {}, status, cls = '';
+      if (x.current) { status = L('En piste · fin à ', 'On track · ends at ') + fmtMinOfDay(x.current.end); cls = ' on-track'; }
+      else if (x.next) {
+        var inMin = x.nowMin >= 0 ? x.next.start - x.nowMin : null;
+        status = L('Prochaine : ', 'Next: ') + fmtMinOfDay(x.next.start) + ' – ' + fmtMinOfDay(x.next.end) + (inMin !== null && inMin <= 180 ? L(' · dans ', ' · in ') + inMin + ' min' : '');
+        if (inMin !== null && inMin <= 15) cls = ' soon';
+      } else status = x.slots.length ? L('Journée terminée', 'Day over') : (x.groups.length ? L('Horaires non communiqués', 'Schedule not available') : L('Groupe pas encore attribué', 'No group yet'));
+      return '<div class="fot-row' + cls + '">' + avatarHtml(u, x.rider) + '<div class="fot-main"><strong>' + escapeHtml(x.rider) + '</strong>' +
+        (x.groups.length ? ' ' + x.groups.map(function (g) { return groupChip(g); }).join('') : '') + '<div class="fot-status">' + escapeHtml(status) + '</div></div></div>';
+    }).join('');
+    return '<div class="' + (big ? 'jourj-friends' : 'card friends-on-track') + '"><h2 class="section-title">' + L('Mes potes en piste', 'My friends on track') + '</h2>' + list + '</div>';
+  }
+  // ---- Saisir le chrono d'un pote (accompagnant) ----
+  // Un chrono n'appartient qu'à son pilote : l'accompagnant le propose
+  // (chronoProposals), le pilote le valide et il entre alors dans son
+  // carnet, à son nom. Visible seulement des deux.
+  function openChronoProposalSheet() {
+    if (!auth.currentUser || document.querySelector('.proposal-sheet')) return;
+    var friends = friendRiderNames().sort(function (a, b) { return a.localeCompare(b); });
+    if (!friends.length) { showToast(L('Ajoute d\'abord tes potes pilotes (Communauté › Amis).', 'First add your rider friends (Community › Friends).')); return; }
+    var evToday = todaysOutingForMe(), today = dateKey(new Date());
+    var sheet = document.createElement('div');
+    sheet.className = 'crop-modal-overlay setup-sheet proposal-sheet';
+    sheet.innerHTML = '<div class="crop-modal setup-modal"><h2 class="section-title">' + L('Le chrono d\'un pote', 'A friend\'s lap time') + '</h2>' +
+      '<div class="help-text">' + L('Ton pote le reçoit et le valide : il entre alors dans son carnet.', 'Your friend gets it and confirms it: it then goes into their logbook.') + '</div>' +
+      '<div class="setup-grid">' +
+      '<label class="setup-field"><span>' + L('Pote', 'Friend') + '</span><select id="cp-to">' + friends.map(function (n) { return '<option value="' + escapeHtml(n) + '">' + escapeHtml(n) + '</option>'; }).join('') + '</select></label>' +
+      '<label class="setup-field"><span>Circuit</span><input type="text" id="cp-circuit" list="cp-circuits" maxlength="60" value="' + escapeHtml(evToday ? evToday.circuit : '') + '"><datalist id="cp-circuits">' + circuitDatalist() + '</datalist></label>' +
+      '<label class="setup-field setup-half"><span>' + L('Date', 'Date') + '</span><input type="date" id="cp-date" value="' + today + '"></label>' +
+      '<label class="setup-field setup-half"><span>' + L('Session', 'Session') + '</span><input type="text" id="cp-slot" maxlength="30" placeholder="' + escapeHtml(L('Ex. 11h20-11h40', 'E.g. 11:20-11:40')) + '"></label>' +
+      '<label class="setup-field"><span>' + L('Temps au tour', 'Lap times') + '</span><textarea id="cp-laps" rows="3" placeholder="' + escapeHtml(L('Un temps par ligne, ou seulement le meilleur : 1\'53.6', 'One time per line, or just the best: 1\'53.6')) + '"></textarea></label>' +
+      '</div><div class="help-text pressure-error" hidden></div>' +
+      '<div style="margin-top:0.8rem; display:flex; gap:0.5rem; flex-wrap:wrap;"><button type="button" class="primary" data-cp="send">' + L('Envoyer à mon pote', 'Send to my friend') + '</button>' +
+      '<button type="button" class="ghost" data-cp="cancel">' + tr('cancel') + '</button></div></div>';
+    document.body.appendChild(sheet);
+    function close() { if (sheet.parentNode) sheet.parentNode.removeChild(sheet); }
+    function val(id) { return (sheet.querySelector('#' + id).value || '').trim(); }
+    sheet.addEventListener('click', function (e) { if (e.target === sheet) close(); });
+    sheet.querySelector('[data-cp="cancel"]').addEventListener('click', close);
+    sheet.querySelector('[data-cp="send"]').addEventListener('click', function () {
+      var laps = val('cp-laps').split(/[\n,;]+|\s{2,}/).map(function (t) { return parseTime(t); }).filter(function (t) { return t && t > 10 && t < 1200; });
+      var circuit = canonicalCircuitName(val('cp-circuit')), date = val('cp-date'), to = val('cp-to');
+      var err = sheet.querySelector('.pressure-error');
+      if (!circuit || !date || !laps.length) { err.textContent = !circuit ? L('Indique le circuit.', 'Enter the circuit.') : L('Indique au moins un temps, ex. 1\'53.6.', 'Enter at least one time, e.g. 1\'53.6.'); err.hidden = false; return; }
+      var me = currentUserProfile.name, id = genId();
+      var doc = { id: id, from: me, fromUid: myUid(), to: to, toUid: uidOf(to) || null, circuit: circuit, date: date, laps: laps, status: 'pending', createdAt: Date.now() };
+      var slot = val('cp-slot'); if (slot) doc.slotLabel = slot.slice(0, 30);
+      var ev = eventsList().filter(function (e) { return sameCircuit(e.circuit, circuit) && e.dateStart <= date && (e.dateEnd || e.dateStart) >= date && (e.riders || []).indexOf(to) !== -1; })[0];
+      if (ev) doc.eventId = ev.id;
+      close();
+      db.collection('chronoProposals').doc(id).set(doc).then(function () {
+        showToast(L('Envoyé à ' + to + ' : il le valide pour l\'ajouter à son carnet.', 'Sent to ' + to + ': they confirm it to add it to their logbook.'), 'success');
+      }).catch(function (err2) { showToast(tr('error_prefix') + ((err2 && err2.message) || err2)); });
+    });
+  }
+  function myPendingChronoProposals() {
+    var me = currentUserProfile && currentUserProfile.name;
+    return (STATE.chronoProposals || []).filter(function (r) { return r.to === me && r.status === 'pending'; });
+  }
+  function acceptChronoProposal(id) {
+    var r = (STATE.chronoProposals || []).filter(function (x) { return x.id === id; })[0], me = currentUserProfile && currentUserProfile.name;
+    if (!r || r.to !== me) return;
+    var done = function () { db.collection('chronoProposals').doc(id).set({ status: 'accepted' }, { merge: true }).catch(function () {}); };
+    if (findDuplicateSession(me, r.date, r.circuit, r.laps)) { done(); showToast(L('Ce chrono est déjà dans ton carnet.', 'This lap time is already in your logbook.')); return; }
+    var prevState = JSON.parse(JSON.stringify(STATE));
+    var session = { id: genId(), rider: me, date: r.date, circuit: r.circuit, laps: r.laps.slice(), loggedBy: r.from };
+    if (r.slotLabel) session.slotLabel = r.slotLabel;
+    var ev = r.eventId ? eventsList().filter(function (e) { return e.id === r.eventId; })[0] : null;
+    if (ev && (ev.riders || []).indexOf(me) !== -1) session.eventId = ev.id;
+    STATE.sessions.push(session);
+    renderRoot();
+    persist(prevState);
+    done();
+    showToast(L('Chrono ajouté à ton carnet. Merci ' + r.from + ' !', 'Lap time added to your logbook. Thanks ' + r.from + '!'), 'success');
+  }
+  function refuseChronoProposal(id) {
+    db.collection('chronoProposals').doc(id).set({ status: 'refused' }, { merge: true }).catch(function (err) { showToast(tr('error_prefix') + ((err && err.message) || err)); });
+  }
   function renderCompanionCarnet() {
     var me = currentUserProfile && currentUserProfile.name, friends = friendRiderNames(), today = dateKey(new Date());
     var past = friendsOutings();
@@ -10323,6 +10448,8 @@
       if (tgt && tgt.mode === 'ongoing') h += '<div class="card carnet-today-card"><strong>' + L('Tu es au paddock aujourd\'hui à ', 'You\'re in the paddock today at ') + escapeHtml(tgt.ev.circuit) + '</strong>' +
         '<button type="button" class="primary" data-action="open-jourj" style="margin-top:0.5rem;">' + L('Mode jour J', 'Race-day mode') + '</button></div>';
       if (canLogChronoForOthers()) h += '<button type="button" class="primary add-chrono-btn" id="carnet-add-chrono">' + L('+ Ajouter un chrono pour un pilote du team', '+ Add a lap time for a team rider') + '</button>';
+      else h += '<button type="button" class="primary add-chrono-btn" data-action="chrono-proposal">' + L('+ Saisir le chrono d\'un pote', '+ Log a friend\'s lap time') + '</button>' +
+        '<div class="help-text carnet-add-help">' + L('Ton pote le valide, puis il entre dans son carnet.', 'Your friend confirms it, then it goes into their logbook.') + '</div>';
       return h + renderCompanionCarnet();
     }
     var outings = myOutings();
@@ -14683,7 +14810,8 @@
 
     // Same pills as the other pages: what the orga provides (Programme)
     // vs. this rider's own prep (Ma prépa), then sub-pills for each rubrique.
-    return jourjHtml + renderClientPills('planning', [['programme', 'Programme'], ['prepa', 'Ma prépa']]) +
+    var friendsTrack = meIsNonRider() ? renderFriendsOnTrack(ev, isOngoing ? dateKey(new Date()) : ev.dateStart, false) : '';
+    return jourjHtml + friendsTrack + renderClientPills('planning', [['programme', 'Programme'], ['prepa', 'Ma prépa']]) +
       cpillSection('planning', 'programme') + html + renderSubPills('progsub', progItems) + '</div>' +
       cpillSection('planning', 'prepa') + renderSubPills('prepsub', prepItems) + '</div>';
   }
@@ -14899,7 +15027,8 @@
     var first = !sent, changed = false;
     sent = sent || {};
     activityItems().forEach(function (it) {
-      var cat = (it.key.indexOf('duel:') === 0 || it.key.indexOf('podium:') === 0) ? 'notifyDuels' : it.key.indexOf('going:') === 0 ? 'notifyFriendsRiding' : null;
+      // Records et podiums des potes : leur propre réglage ; duels à part.
+      var cat = it.key.indexOf('duel:') === 0 ? 'notifyDuels' : (it.key.indexOf('podium:') === 0 || it.key.indexOf('rec:') === 0) ? 'notifyFriendRecords' : it.key.indexOf('going:') === 0 ? 'notifyFriendsRiding' : null;
       if (!cat || sent[it.key]) return;
       sent[it.key] = 1;
       changed = true;
@@ -19496,6 +19625,10 @@
     if (notifyRequestDecisionsEl) {
       notifyRequestDecisionsEl.addEventListener('change', function () { saveOwnBooleanField('notifyRequestDecisions', notifyRequestDecisionsEl.checked); });
     }
+    [['friend-records', 'notifyFriendRecords'], ['chrono-proposals', 'notifyChronoProposals']].forEach(function (pair) {
+      var el = document.getElementById('profile-notify-' + pair[0]);
+      if (el) el.addEventListener('change', function () { saveOwnBooleanField(pair[1], el.checked); });
+    });
     var notifyChronoCertifiedEl = document.getElementById('profile-notify-chrono-certified');
     if (notifyChronoCertifiedEl) {
       notifyChronoCertifiedEl.addEventListener('change', function () { saveOwnBooleanField('notifyChronoCertified', notifyChronoCertifiedEl.checked); });
@@ -20761,6 +20894,9 @@
       btn.addEventListener('click', function () { openBudgetTab(btn.getAttribute('data-id') || null); });
     });
     attachBudgetTab();
+    document.querySelectorAll('[data-action="chrono-proposal"]').forEach(function (btn) { btn.addEventListener('click', openChronoProposalSheet); });
+    document.querySelectorAll('[data-action="accept-chrono-proposal"]').forEach(function (btn) { btn.addEventListener('click', function () { acceptChronoProposal(btn.getAttribute('data-id')); }); });
+    document.querySelectorAll('[data-action="refuse-chrono-proposal"]').forEach(function (btn) { btn.addEventListener('click', function () { refuseChronoProposal(btn.getAttribute('data-id')); }); });
     document.querySelectorAll('[data-action="open-ma-moto"]').forEach(function (btn) {
       btn.addEventListener('click', function () { profilePanelOpen = false; notificationsPanelOpen = false; outingView = null; activeView = 'planning'; pillState.planning = 'prepa'; pillState.prepsub = 'moto'; renderRoot(); window.scrollTo(0, 0); });
     });
@@ -22609,6 +22745,17 @@
         snap.forEach(function (d) { friendReqFrom[d.id] = Object.assign({ id: d.id }, d.data()); });
         maybeNotifyFriendDecline(friendReqFrom);
         mergeFriendRequests();
+      }, handleSyncError));
+      // Chronos saisis pour moi par un pote (à valider).
+      var knownProposals = null;
+      unsubscribers.push(db.collection('chronoProposals').where('to', '==', currentUserProfile.name).onSnapshot(function (snap) {
+        STATE.chronoProposals = snap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); });
+        var fresh = STATE.chronoProposals.filter(function (r) { return r.status === 'pending' && knownProposals && !knownProposals[r.id]; });
+        knownProposals = {}; STATE.chronoProposals.forEach(function (r) { knownProposals[r.id] = true; });
+        if (fresh.length && notifCategoryAllowed('notifyChronoProposals')) fresh.forEach(function (r) {
+          sendAppNotification(L(r.from + ' a saisi ton chrono à ' + r.circuit + ' : valide-le pour l\'ajouter à ton carnet.', r.from + ' logged your lap time at ' + r.circuit + ': confirm it to add it to your logbook.'));
+        });
+        renderRoot();
       }, handleSyncError));
       unsubscribers.push(db.collection('friendRequests').where('to', '==', currentUserProfile.name).onSnapshot(function (snap) {
         friendReqTo = {};

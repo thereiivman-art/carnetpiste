@@ -42,6 +42,7 @@ Scénarios
   chrono-estime        chrono estimé sur un circuit jamais roulé.
   moto-podium          onglet Moto d'un roulage, Ma prépa › Ma moto, Podium.
   accompagnant         un accompagnant (#role=acc) : roulages et podiums des potes.
+  accompagnant-plus    potes en piste, jour J, chrono saisi pour un pote et validé.
   parrain              Gestion des comptes : corriger un parrain.
 
 Guide PDF

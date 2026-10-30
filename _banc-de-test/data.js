@@ -13,6 +13,7 @@
       u7: { name: 'Zoé', role: 'pilote', email: 'zoe@example.com', lang: 'fr', tutorialSeen: true, country: 'FR', bike: 'Yamaha R1' },
       u8: { name: 'Théo', role: 'pilote', email: 'theo@example.com', lang: 'fr', tutorialSeen: true, country: 'FR', bike: 'Yamaha R1' }
     },
+    chronoProposals: { cp1: { id: 'cp1', from: 'Tom', to: 'Alex', circuit: 'Mugello', date: d(-40), laps: [115.2, 114.1], slotLabel: '16h00-16h20', status: 'pending', createdAt: Date.now() } },
     friendRequests: { f1: { id: 'f1', from: 'Alex', to: 'Sam', status: 'accepted' }, f2: { id: 'f2', from: 'Luca', to: 'Alex', status: 'pending' }, g0: { id: 'g0', from: 'Alex', to: 'Tom', status: 'accepted' }, g1: { id: 'g1', from: 'Alex', to: 'Ugo', status: 'accepted' }, g2: { id: 'g2', from: 'Alex', to: 'Victor', status: 'accepted' }, g3: { id: 'g3', from: 'Alex', to: 'Yann', status: 'accepted' }, g4: { id: 'g4', from: 'Alex', to: 'Zoé', status: 'accepted' }, g5: { id: 'g5', from: 'Alex', to: 'Théo', status: 'accepted' } },
     riders: { Alex: { name: 'Alex' }, Sam: { name: 'Sam' } },
     circuits: { Barcelone: { name: 'Barcelone', km: 4.657 }, Mugello: { name: 'Mugello' } },
@@ -25,7 +26,9 @@
       e5: { id: 'e5', circuit: 'Barcelone', dateStart: d(-10), dateEnd: d(-10), riders: ['Alex'], note: '' },
       e6: { id: 'e6', circuit: 'Misano', dateStart: d(60), dateEnd: d(61), riders: ['Alex'], note: '' },
       e7: { id: 'e7', circuit: 'Jerez', dateStart: d(90), dateEnd: d(91), riders: ['Alex'], note: '' },
-      e8: { id: 'e8', circuit: 'Navarra', dateStart: d(120), dateEnd: d(121), riders: ['Alex'], note: '' }
+      e8: { id: 'e8', circuit: 'Navarra', dateStart: d(120), dateEnd: d(121), riders: ['Alex'], note: '' },
+      // Aujourd'hui : Sam et Tom roulent (Mes potes en piste).
+      e9: { id: 'e9', circuit: 'Carole', dateStart: d(0), dateEnd: d(0), riders: ['Sam', 'Tom'], note: '', horairesOverride: { groupB: '9h00-9h20, 11h00-11h20, 14h00-14h20, 16h00-16h20, 18h00-18h20', groupC: '9h20-9h40, 11h20-11h40, 14h20-14h40, 16h20-16h40, 18h20-18h40' }, riderGroups: { Sam: (function () { var o = {}; o[d(0)] = { am: 'B', pm: 'B' }; return o; })(), Tom: (function () { var o = {}; o[d(0)] = { am: 'C', pm: 'C' }; return o; })() } }
     },
     sessions: {
       s1: { id: 's1', rider: 'Alex', date: d(-40), circuit: 'Mugello', laps: [118.2, 116.9, 115.4, 116.1], eventId: 'e2', bike: 'Yamaha R6', group: 'B', slotStart: 540, slotLabel: '9h00-9h20' },

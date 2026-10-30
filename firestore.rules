@@ -380,6 +380,19 @@ service cloud.firestore {
     // allows. A doc's status starts 'pending' and flips to 'accepted' only
     // by the recipient; either side deleting it covers cancel/decline/
     // un-friend alike, so there's no separate "removed" state to model.
+    // Chrono saisi par un pote (souvent un accompagnant) pour un pilote :
+    // simple proposition, lisible par les deux seulement. Le pilote la
+    // valide (status) et crée lui-même la session à son nom ; l'envoyeur
+    // peut retirer la sienne.
+    match /chronoProposals/{id} {
+      allow read: if verified() && (resource.data.from == myName() || resource.data.to == myName());
+      allow create: if verified() && request.resource.data.from == myName() && request.resource.data.to != myName()
+        && request.resource.data.status == 'pending';
+      allow update: if verified() && resource.data.to == myName()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])
+        && request.resource.data.status in ['accepted', 'refused'];
+      allow delete: if verified() && (resource.data.from == myName() || resource.data.to == myName());
+    }
     match /friendRequests/{id} {
       allow read: if verified();
       allow create: if verified()
