@@ -10435,10 +10435,12 @@
     if (!past.length) return html + '<div class="card help-text">' + L('Tes potes n\'ont pas encore de chrono. Dès qu\'ils en ajoutent, leurs roulages s\'affichent ici.', 'Your friends have no lap times yet. As soon as they add some, their trackdays show up here.') + '</div>';
     return html + '<div class="card outings-card">' + past.map(function (o) {
       var rs = Object.keys(o.riders).sort(function (a, b) { return o.riders[a] - o.riders[b]; });
+      var oev = o.eventId ? eventsList().filter(function (e) { return e.id === o.eventId; })[0] : null;
+      var albums = oev ? (oev.mediaLink ? 1 : 0) + Object.keys(oev.personalMediaLinks || {}).filter(function (n) { return oev.personalMediaLinks[n]; }).length : 0;
       return '<button type="button" class="outing-row" data-open-outing="' + escapeHtml(o.circuit) + '" data-outing-date="' + escapeHtml(o.date) + '" data-outing-event="' + escapeHtml(o.eventId || '') + '">' +
         '<span class="outing-thumb">' + circuitThumbHtml(o.circuit) + '</span>' +
         '<span class="outing-row-main"><strong>' + escapeHtml(o.circuit) + '</strong><span class="help-text">' + escapeHtml(formatDate(o.date)) + ' · ' +
-        escapeHtml(rs.slice(0, 3).join(', ') + (rs.length > 3 ? ' +' + (rs.length - 3) : '')) + '</span></span>' +
+        escapeHtml(rs.slice(0, 3).join(', ') + (rs.length > 3 ? ' +' + (rs.length - 3) : '')) + (albums ? ' · ' + (albums > 1 ? albums + L(' albums photos', ' photo albums') : L('album photos', 'photo album')) : '') + '</span></span>' +
         '<span class="outing-row-right"><span class="carnet-time">' + formatTime(o.riders[rs[0]]) + '</span><span class="help-text">' + escapeHtml(rs[0]) + '</span></span></button>';
     }).join('') + '</div>';
   }
@@ -14033,24 +14035,43 @@
   // collaborative model as everything else here). Feeds the accompagnant's
   // "Reporter" achievement below (see accompagnantAchievements).
   var editingMediaLinkFor = null; // event id currently showing the edit form, or null
+  // L'album « officiel » du roulage : posé par le leader du team (ou
+  // l'admin) ; sur un roulage perso, chacun pose plutôt le sien plus bas.
+  function canEditSharedAlbum(ev) {
+    return isAdmin() || (ev.teamId ? isLeaderOfTeam(ev.teamId) : false);
+  }
+  function albumHelpHtml() {
+    return '<div class="help-text">' + L('Crée un album partagé dans Google Photos, iCloud ou Drive, copie son lien de partage et colle-le ici. Les photos restent chez toi : Pitbook ne garde que le lien.',
+      'Create a shared album in Google Photos, iCloud or Drive, copy its share link and paste it here. The photos stay with you: Pitbook only keeps the link.') + '</div>';
+  }
+  function albumRow(label, url, editAction, evId) {
+    return '<div class="album-row"><span class="album-name">' + label + '</span>' +
+      '<a class="ghost album-open" href="' + escapeHtml(url) + '" target="_blank" rel="noopener">' + L('Ouvrir l\'album', 'Open album') + '</a>' +
+      (editAction ? '<button type="button" class="ghost icon-btn" data-action="' + editAction + '" data-id="' + evId + '" aria-label="' + escapeHtml(L('Modifier le lien', 'Edit the link')) + '" title="' + escapeHtml(L('Modifier', 'Edit')) + '">✎</button>' : '') + '</div>';
+  }
+  function albumEditForm(inputId, label, value, saveAction, cancelAction, evId) {
+    return '<div class="media-link-edit"><label for="' + inputId + '">' + label + '</label>' +
+      '<input type="url" id="' + inputId + '" placeholder="https://photos.app.goo.gl/..." value="' + escapeHtml(value || '') + '">' + albumHelpHtml() +
+      '<div style="margin-top:0.5rem; display:flex; gap:0.5rem;">' +
+      '<button type="button" class="primary" data-action="' + saveAction + '" data-id="' + evId + '">' + L('Enregistrer', 'Save') + '</button>' +
+      '<button type="button" class="ghost" data-action="' + cancelAction + '">' + tr('cancel') + '</button></div></div>';
+  }
   function renderMediaLinkSection(ev) {
-    if (editingMediaLinkFor === ev.id) {
-      return '<div class="media-link-edit">' +
-        '<label for="media-link-input">Lien photos/vidéos (Drive, WeTransfer...)</label>' +
-        '<input type="url" id="media-link-input" placeholder="https://..." value="' + escapeHtml(ev.mediaLink || '') + '">' +
-        '<div style="margin-top:0.5rem; display:flex; gap:0.5rem;">' +
-        '<button type="button" class="primary" data-action="save-media-link" data-id="' + ev.id + '">Enregistrer</button>' +
-        '<button type="button" class="ghost" data-action="cancel-media-link">Annuler</button></div></div>';
-    }
-    if (ev.mediaLink) {
-      return infoRow('Photos/vidéos', '<a class="ghost" href="' + escapeHtml(ev.mediaLink) + '" target="_blank" rel="noopener">Ouvrir</a>' +
-        (ev.mediaLinkAddedBy ? ' <span class="help-text" style="display:inline;">— ajouté par ' + escapeHtml(ev.mediaLinkAddedBy) + '</span>' : '') +
-        ' <button type="button" class="ghost icon-btn" data-action="edit-media-link" data-id="' + ev.id + '" aria-label="Modifier le lien" title="Modifier">✎</button>');
-    }
-    return '<div style="margin-top:0.6rem;"><button type="button" class="ghost" data-action="edit-media-link" data-id="' + ev.id + '">Ajouter un lien photos/vidéos</button></div>';
+    var can = canEditSharedAlbum(ev);
+    if (can && editingMediaLinkFor === ev.id) return albumEditForm('media-link-input', L('Album du roulage', 'Trackday album'), ev.mediaLink, 'save-media-link', 'cancel-media-link', ev.id);
+    if (ev.mediaLink) return albumRow(L('Album du roulage', 'Trackday album') + (ev.mediaLinkAddedBy ? ' <span class="help-text">· ' + escapeHtml(ev.mediaLinkAddedBy) + '</span>' : ''), ev.mediaLink, can ? 'edit-media-link' : '', ev.id);
+    return can ? '<div style="margin-top:0.6rem;"><button type="button" class="ghost" data-action="edit-media-link" data-id="' + ev.id + '">' + L('+ Album du roulage (pour tout le team)', '+ Trackday album (for the whole team)') + '</button></div>' : '';
+  }
+  function cleanAlbumUrl(url) {
+    url = (url || '').trim();
+    if (!url) return '';
+    if (!/^https?:\/\//i.test(url) && /^[\w.-]+\.[a-z]{2,}\//i.test(url)) url = 'https://' + url;
+    return /^https?:\/\/\S+$/i.test(url) && url.length <= 500 ? url : null;
   }
 
   function saveMediaLink(eventId, url) {
+    url = cleanAlbumUrl(url);
+    if (url === null) { showToast(L('Ce lien ne ressemble pas à une adresse web (https://...).', 'This doesn\'t look like a web link (https://...).')); return; }
     var prevState = JSON.parse(JSON.stringify(STATE));
     var ev = STATE.events.filter(function (e) { return e.id === eventId; })[0];
     if (!ev) return;
@@ -14079,34 +14100,20 @@
     var myName = currentUserProfile.name;
     var isOnRoster = (ev.riders || []).indexOf(myName) !== -1;
     var links = ev.personalMediaLinks || {};
-    var others = Object.keys(links).filter(function (n) { return n !== myName && links[n]; });
-    var html = '';
+    var others = Object.keys(links).filter(function (n) { return n !== myName && links[n]; }).sort();
+    var html = others.map(function (n) { return albumRow(L('Album de ', 'Album by ') + escapeHtml(n), links[n], '', ev.id); }).join('');
     if (isOnRoster) {
-      if (editingPersonalMediaLinkFor === ev.id) {
-        html += '<div class="media-link-edit">' +
-          '<label for="personal-media-link-input">Mon lien photos perso (Drive, WeTransfer...)</label>' +
-          '<input type="url" id="personal-media-link-input" placeholder="https://..." value="' + escapeHtml(links[myName] || '') + '">' +
-          '<div style="margin-top:0.5rem; display:flex; gap:0.5rem;">' +
-          '<button type="button" class="primary" data-action="save-personal-media-link" data-id="' + ev.id + '">Enregistrer</button>' +
-          '<button type="button" class="ghost" data-action="cancel-personal-media-link">Annuler</button></div></div>';
-      } else if (links[myName]) {
-        html += infoRow('Mon lien photos perso', '<a class="ghost" href="' + escapeHtml(links[myName]) + '" target="_blank" rel="noopener">Ouvrir</a>' +
-          ' <button type="button" class="ghost icon-btn" data-action="edit-personal-media-link" data-id="' + ev.id + '" aria-label="Modifier mon lien" title="Modifier">✎</button>');
-      } else {
-        html += '<div style="margin-top:0.6rem;"><button type="button" class="ghost" data-action="edit-personal-media-link" data-id="' + ev.id + '">Ajouter mon lien photos perso</button></div>';
-      }
-    }
-    if (others.length) {
-      html += collapsibleSection('personal-media-links-' + ev.id, 'Liens photos perso des autres (' + others.length + ')',
-        others.sort().map(function (n) {
-          return infoRow(n, '<a class="ghost" href="' + escapeHtml(links[n]) + '" target="_blank" rel="noopener">Ouvrir</a>');
-        }).join(''));
+      if (editingPersonalMediaLinkFor === ev.id) html += albumEditForm('personal-media-link-input', L('Mon album photos', 'My photo album'), links[myName], 'save-personal-media-link', 'cancel-personal-media-link', ev.id);
+      else if (links[myName]) html = albumRow(L('Mon album', 'My album'), links[myName], 'edit-personal-media-link', ev.id) + html;
+      else html += '<div style="margin-top:0.6rem;"><button type="button" class="ghost" data-action="edit-personal-media-link" data-id="' + ev.id + '">' + L('+ Partager mon album photos', '+ Share my photo album') + '</button></div>';
     }
     return html;
   }
 
   function savePersonalMediaLink(eventId, url) {
     if (!currentUserProfile) return;
+    url = cleanAlbumUrl(url);
+    if (url === null) { showToast(L('Ce lien ne ressemble pas à une adresse web (https://...).', 'This doesn\'t look like a web link (https://...).')); return; }
     var prevState = JSON.parse(JSON.stringify(STATE));
     var ev = STATE.events.filter(function (e) { return e.id === eventId; })[0];
     if (!ev) return;

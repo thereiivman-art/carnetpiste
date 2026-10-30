@@ -3836,3 +3836,8 @@ label.budget-row-title { cursor: pointer; margin: 0; }
 .team-gear { position: absolute; top: 0.6rem; right: 0.6rem; z-index: 3; width: 2.2rem; height: 2.2rem; padding: 0; border-radius: 50%; display: grid; place-items: center; background: var(--surface); color: var(--text); border: 1px solid var(--border); box-shadow: var(--shadow); cursor: pointer; }
 .team-settings-title { margin: 0.2rem 0 0.6rem; }
 .team-gear.team-gear-inline { position: static; flex: 0 0 auto; box-shadow: none; }
+/* Albums photos d'un roulage (liens partagés) */
+.album-row { display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem 0; border-bottom: 1px solid var(--border); }
+.album-row:last-of-type { border-bottom: 0; }
+.album-name { flex: 1; min-width: 0; font-weight: 600; }
+.album-open { white-space: nowrap; color: var(--accent); font-weight: 600; }
