@@ -4,7 +4,7 @@
   window.__MOCK_USER = { uid: 'u1', email: EMAIL, emailVerified: true, isAnonymous: false, displayName: 'Alex', getIdToken: function () { return Promise.resolve('x'); }, sendEmailVerification: function () { return Promise.resolve(); } };
   window.__MOCK_DATA = {
     users: {
-      u1: { name: 'Alex', role: 'pilote', email: EMAIL, lang: LANG, tutorialSeen: true, country: 'FR', bike: 'Yamaha R6', level: 'intermediaire' },
+      u1: { name: 'Alex', role: /role=acc/.test(location.hash) ? 'accompagnant' : 'pilote', email: EMAIL, lang: LANG, tutorialSeen: true, country: 'FR', bike: 'Yamaha R6', level: 'intermediaire' },
       u2: { name: 'Sam', role: 'pilote', email: 'sam@example.com', lang: 'fr', tutorialSeen: true, country: 'BE', bike: 'BMW S1000RR' },
       u3: { name: 'Tom', role: 'pilote', email: 'tom@example.com', lang: 'fr', tutorialSeen: true, country: 'FR', bike: 'Yamaha R1' },
       u4: { name: 'Ugo', role: 'pilote', email: 'ugo@example.com', lang: 'fr', tutorialSeen: true, country: 'FR', bike: 'Yamaha R1' },

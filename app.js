@@ -8024,11 +8024,15 @@
   var podiumFocusCircuit = null;
   function renderStatsPodiums() {
     var me = currentUserProfile && currentUserProfile.name;
+    // Un pilote : ses circuits. Un accompagnant : ceux de ses potes.
+    var who = meIsNonRider() ? friendRiderNames() : [me];
     var last = {};
-    (STATE.sessions || []).forEach(function (x) { if (x.rider === me && x.laps && x.laps.length && (!last[x.circuit] || x.date > last[x.circuit])) last[x.circuit] = x.date; });
+    (STATE.sessions || []).forEach(function (x) { if (who.indexOf(x.rider) !== -1 && x.laps && x.laps.length && (!last[x.circuit] || x.date > last[x.circuit])) last[x.circuit] = x.date; });
     var list = Object.keys(last).sort(function (a, b) { return last[b].localeCompare(last[a]); });
     if (podiumFocusCircuit && list.indexOf(podiumFocusCircuit) > 0) { list.splice(list.indexOf(podiumFocusCircuit), 1); list.unshift(podiumFocusCircuit); }
-    if (!list.length) return '<div class="card help-text">' + L('Ajoute tes chronos : le podium entre potes apparaît pour chaque circuit où tu as roulé.', 'Add your lap times: the friends\' podium shows for every circuit you\'ve ridden.') + '</div>';
+    if (!list.length) return '<div class="card help-text">' + (meIsNonRider()
+      ? L('Les podiums apparaissent dès que tes potes pilotes ajoutent leurs chronos.', 'Podiums show up as soon as your rider friends add their lap times.')
+      : L('Ajoute tes chronos : le podium entre potes apparaît pour chaque circuit où tu as roulé.', 'Add your lap times: the friends\' podium shows for every circuit you\'ve ridden.')) + '</div>';
     return list.map(renderFriendsPodium).join('');
   }
   function renderFriendsPodium(circuit) {
@@ -10263,7 +10267,64 @@
     }).join('') + '</div>';
   }
 
+  // ---- Carnet d'un accompagnant : les roulages de ses potes pilotes ----
+  function friendRiderNames() {
+    var me = currentUserProfile && currentUserProfile.name;
+    return friendsOf(me || '').map(function (f) { return f.name; }).filter(function (n) {
+      return !isNonRiderName(n) && ((STATE.usersByName || {})[n] || {}).shareSorties !== false;
+    });
+  }
+  function friendsOutings() {
+    var friends = friendRiderNames(), byKey = {};
+    (STATE.sessions || []).forEach(function (x) {
+      if (friends.indexOf(x.rider) === -1 || !x.laps || !x.laps.length) return;
+      var k = x.date + '|' + circuitKey(x.circuit);
+      var o = byKey[k] || (byKey[k] = { date: x.date, circuit: x.circuit, eventId: null, riders: {} });
+      if (x.eventId) o.eventId = x.eventId;
+      var b = sessionBest(x);
+      if (!o.riders[x.rider] || b < o.riders[x.rider]) o.riders[x.rider] = b;
+    });
+    return Object.keys(byKey).map(function (k) { return byKey[k]; }).sort(function (a, b) { return b.date.localeCompare(a.date); });
+  }
+  function renderCompanionCarnet() {
+    var me = currentUserProfile && currentUserProfile.name, friends = friendRiderNames(), today = dateKey(new Date());
+    var past = friendsOutings();
+    var upcoming = eventsList().filter(function (ev) {
+      if ((ev.dateEnd || ev.dateStart) < today) return false;
+      return (ev.riders || []).some(function (r) { return r === me || friends.indexOf(r) !== -1; });
+    }).sort(function (a, b) { return a.dateStart.localeCompare(b.dateStart); });
+    if (!pillState.compcarnet) pillState.compcarnet = upcoming.length && !past.length ? 'avenir' : 'passes';
+    var html = renderPills('compcarnet', [['passes', L('Passés', 'Past') + (past.length ? ' (' + past.length + ')' : '')], ['avenir', L('À venir', 'Upcoming') + (upcoming.length ? ' (' + upcoming.length + ')' : '')]]);
+    if (!friends.length) return html + '<div class="card help-text">' + L('Ajoute tes potes pilotes (Communauté › Amis) : leurs roulages, leurs chronos et leurs podiums apparaîtront ici.', 'Add your rider friends (Community › Friends): their trackdays, lap times and podiums will show up here.') + '</div>';
+    if (pillState.compcarnet === 'avenir') {
+      if (!upcoming.length) return html + '<div class="card help-text">' + L('Aucun roulage à venir pour toi ou tes potes.', 'No upcoming trackday for you or your friends.') + '</div>';
+      return html + '<div class="card outings-card">' + upcoming.map(function (ev) {
+        var going = (ev.riders || []).filter(function (r) { return friends.indexOf(r) !== -1; });
+        return '<button type="button" class="outing-row" data-open-outing="' + escapeHtml(ev.circuit) + '" data-outing-date="' + escapeHtml(ev.dateStart) + '" data-outing-event="' + escapeHtml(ev.id) + '">' +
+          '<span class="outing-thumb">' + circuitThumbHtml(ev.circuit) + '</span>' +
+          '<span class="outing-row-main"><strong>' + escapeHtml(ev.circuit) + '</strong><span class="help-text">' + escapeHtml(formatEventRange(ev, true)) +
+          (going.length ? ' · ' + escapeHtml(joinAnd(going.slice(0, 3)) + (going.length > 3 ? ' +' + (going.length - 3) : '')) : '') + '</span></span>' +
+          ((ev.riders || []).indexOf(me) !== -1 ? '<span class="outing-row-right"><span class="record-chip">' + L('J\'y vais', 'Going') + '</span></span>' : '') + '</button>';
+      }).join('') + '</div>';
+    }
+    if (!past.length) return html + '<div class="card help-text">' + L('Tes potes n\'ont pas encore de chrono. Dès qu\'ils en ajoutent, leurs roulages s\'affichent ici.', 'Your friends have no lap times yet. As soon as they add some, their trackdays show up here.') + '</div>';
+    return html + '<div class="card outings-card">' + past.map(function (o) {
+      var rs = Object.keys(o.riders).sort(function (a, b) { return o.riders[a] - o.riders[b]; });
+      return '<button type="button" class="outing-row" data-open-outing="' + escapeHtml(o.circuit) + '" data-outing-date="' + escapeHtml(o.date) + '" data-outing-event="' + escapeHtml(o.eventId || '') + '">' +
+        '<span class="outing-thumb">' + circuitThumbHtml(o.circuit) + '</span>' +
+        '<span class="outing-row-main"><strong>' + escapeHtml(o.circuit) + '</strong><span class="help-text">' + escapeHtml(formatDate(o.date)) + ' · ' +
+        escapeHtml(rs.slice(0, 3).join(', ') + (rs.length > 3 ? ' +' + (rs.length - 3) : '')) + '</span></span>' +
+        '<span class="outing-row-right"><span class="carnet-time">' + formatTime(o.riders[rs[0]]) + '</span><span class="help-text">' + escapeHtml(rs[0]) + '</span></span></button>';
+    }).join('') + '</div>';
+  }
   function renderCarnetTab() {
+    if (meIsNonRider()) {
+      var tgt = targetPlanningEvent(), h = '';
+      if (tgt && tgt.mode === 'ongoing') h += '<div class="card carnet-today-card"><strong>' + L('Tu es au paddock aujourd\'hui à ', 'You\'re in the paddock today at ') + escapeHtml(tgt.ev.circuit) + '</strong>' +
+        '<button type="button" class="primary" data-action="open-jourj" style="margin-top:0.5rem;">' + L('Mode jour J', 'Race-day mode') + '</button></div>';
+      if (canLogChronoForOthers()) h += '<button type="button" class="primary add-chrono-btn" id="carnet-add-chrono">' + L('+ Ajouter un chrono pour un pilote du team', '+ Add a lap time for a team rider') + '</button>';
+      return h + renderCompanionCarnet();
+    }
     var outings = myOutings();
     var html = carnetPillsHtml(outings);
     var target = targetPlanningEvent();
@@ -18829,7 +18890,9 @@
       else if (activeView === 'circuit') body = carnetSub + renderCircuitTab();
       else if (activeView === 'budget') body = carnetSub + renderBudgetTab();
       else if (activeView === 'stats') {
-        var statPills = [['records', 'Records'], ['podium', L('Podium', 'Podium')], ['trophees', 'Trophées'], ['donnees', 'Mes données']];
+        var statPills = meIsNonRider()
+          ? [['podium', L('Podium', 'Podium')], ['trophees', 'Trophées'], ['donnees', 'Mes données']]
+          : [['records', 'Records'], ['podium', L('Podium', 'Podium')], ['trophees', 'Trophées'], ['donnees', 'Mes données']];
         body = carnetSub + renderPills('stats', statPills) + (pillState.stats === 'podium' ? renderStatsPodiums() : renderStatsTab());
       }
       else if (activeView === 'planning') body = renderSubNav([['planning', 'Prochain roulage'], ['event', 'Calendrier']]) + renderTimesheetReminder() + renderPlanningTab();

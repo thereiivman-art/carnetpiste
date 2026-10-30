@@ -41,6 +41,7 @@ Scénarios
   team-rename          réglages d'un Team : le leader le renomme.
   chrono-estime        chrono estimé sur un circuit jamais roulé.
   moto-podium          onglet Moto d'un roulage, Ma prépa › Ma moto, Podium.
+  accompagnant         un accompagnant (#role=acc) : roulages et podiums des potes.
   parrain              Gestion des comptes : corriger un parrain.
 
 Guide PDF
