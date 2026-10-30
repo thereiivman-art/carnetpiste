@@ -3810,6 +3810,61 @@
     };
   }
 
+  // ---- Chrono estimé sur un circuit où le pilote n'a jamais roulé ----
+  // D'après les pilotes qui ont un temps à la fois sur ce circuit et sur
+  // l'un des miens : leur écart entre les deux, appliqué à mon record. On
+  // garde la médiane (et une fourchette). Sans eux, repli grossier sur mon
+  // rythme au km. Une estimation pour se situer, jamais un objectif.
+  function bestsByRiderCircuit() {
+    var out = {};
+    (STATE.sessions || []).forEach(function (s) {
+      if (!s.rider || !s.circuit || !s.laps || !s.laps.length) return;
+      var k = circuitKey(s.circuit), b = sessionBest(s), r = out[s.rider] = out[s.rider] || {};
+      if (!r[k] || b < r[k].best) r[k] = { best: b, circuit: s.circuit };
+    });
+    return out;
+  }
+  function quantile(sorted, q) {
+    if (!sorted.length) return null;
+    var pos = (sorted.length - 1) * q, lo = Math.floor(pos), hi = Math.ceil(pos);
+    return sorted[lo] + (sorted[hi] - sorted[lo]) * (pos - lo);
+  }
+  function estimateLapTime(rider, circuit) {
+    var all = bestsByRiderCircuit(), mine = all[rider] || {}, target = circuitKey(circuit);
+    if (!rider || mine[target]) return null;
+    var ests = [], who = {}, via = {};
+    Object.keys(all).forEach(function (o) {
+      if (o === rider || !all[o][target]) return;
+      Object.keys(mine).forEach(function (c) {
+        if (!all[o][c]) return;
+        var ratio = all[o][target].best / all[o][c].best;
+        if (!(ratio > 0.2 && ratio < 5)) return;
+        ests.push(mine[c].best * ratio); who[o] = true; via[mine[c].circuit] = true;
+      });
+    });
+    if (ests.length) {
+      ests.sort(function (a, b) { return a - b; });
+      var n = Object.keys(who).length;
+      return { value: quantile(ests, 0.5), low: quantile(ests, n > 2 ? 0.25 : 0), high: quantile(ests, n > 2 ? 0.75 : 1), riders: n, via: Object.keys(via), method: 'peers' };
+    }
+    var km = circuitInfo(circuit).km, paces = [];
+    if (!km) return null;
+    Object.keys(mine).forEach(function (c) { var k2 = circuitInfo(mine[c].circuit).km; if (k2) paces.push(mine[c].best / k2); });
+    if (!paces.length) return null;
+    paces.sort(function (a, b) { return a - b; });
+    var v = quantile(paces, 0.5) * km;
+    return { value: v, low: v * 0.94, high: v * 1.06, riders: 0, via: [], method: 'km' };
+  }
+  function joinAnd(list) { return list.length < 2 ? list.join('') : list.slice(0, -1).join(', ') + L(' et ', ' and ') + list[list.length - 1]; }
+  function estimateSourceText(e) {
+    if (e.method === 'km') return L('d\'après ton rythme au km sur tes circuits : estimation grossière', 'from your pace per km on your circuits: a rough estimate');
+    return L('d\'après ' + e.riders + (e.riders > 1 ? ' pilotes qui roulent' : ' pilote qui roule') + ' aussi à ', 'from ' + e.riders + (e.riders > 1 ? ' riders who also ride at ' : ' rider who also rides at ')) + joinAnd(e.via.slice(0, 3));
+  }
+  // Au dixième : une estimation au millième donnerait une fausse précision.
+  function formatEstimate(v) { return formatTime(Math.round(v * 10) / 10).replace(/00$/, ''); }
+  function estimateRangeText(e) {
+    return Math.abs(e.high - e.low) < 0.05 ? '' : L('entre ', 'between ') + formatEstimate(e.low) + L(' et ', ' and ') + formatEstimate(e.high);
+  }
   function riderCircuitBest(rider, circuit) {
     var best = null;
     STATE.sessions.forEach(function (s) {
@@ -7484,6 +7539,8 @@
       mine.forEach(function (s) { if (!myBestS || sessionBest(s) < sessionBest(myBestS)) myBestS = s; });
       var myDays = {}; mine.forEach(function (s) { myDays[s.date] = true; });
       html += infoRow('Mon record', myBestS ? '<strong>' + formatTime(sessionBest(myBestS)) + '</strong> (' + escapeHtml(formatDate(myBestS.date)) + ')' : 'Pas encore de chrono');
+      var est2 = !myBestS && !meIsNonRider() ? estimateLapTime(meName, selectedCircuit) : null;
+      if (est2) html += infoRow(L('Mon chrono estimé', 'My estimated lap'), '<strong>≈ ' + formatEstimate(est2.value) + '</strong><div class="help-text">' + escapeHtml([estimateRangeText(est2), estimateSourceText(est2)].filter(Boolean).join(' · ')) + '</div>');
       html += infoRow('Mes roulages ici', String(Object.keys(myDays).length));
     }
     html += infoRow(tr('distance_label'), info.km != null ? (escapeHtml(numFr(info.km)) + ' km') : '—');
@@ -9526,8 +9583,13 @@
             '<span class="outing-best-time">' + formatTime(prevBest) + '</span>' +
             '<span class="outing-best-delta">Établi le ' + escapeHtml(formatDate(prevBestSession.date)) + ' — voir ce roulage</span><span class="outing-best-arrow">›</span></button>';
         } else {
-          html += '<div class="outing-best-card"><span class="outing-label light">Mon record à battre</span>' +
-            '<span class="outing-best-time">—</span><span class="outing-best-delta">Premier roulage sur ce circuit : ton premier chrono sera ton record.</span></div>';
+          var est = !meIsNonRider() && currentUserProfile ? estimateLapTime(currentUserProfile.name, circuit) : null;
+          html += est
+            ? '<div class="outing-best-card"><span class="outing-label light">' + L('Ton chrono estimé ici', 'Your estimated lap here') + '</span>' +
+              '<span class="outing-best-time">≈ ' + formatEstimate(est.value) + '</span><span class="outing-best-delta">' + escapeHtml([estimateRangeText(est), estimateSourceText(est)].filter(Boolean).join(' · ')) + '.<br>' +
+              L('Une estimation pour te situer, pas un objectif : roule à ton rythme.', 'An estimate to give you a rough idea, not a target: ride at your own pace.') + '</span></div>'
+            : '<div class="outing-best-card"><span class="outing-label light">Mon record à battre</span>' +
+              '<span class="outing-best-time">—</span><span class="outing-best-delta">Premier roulage sur ce circuit : ton premier chrono sera ton record.</span></div>';
         }
       } else {
         // Opens this circuit's chronos history and progression curve.

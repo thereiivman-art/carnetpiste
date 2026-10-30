@@ -39,6 +39,7 @@ Scénarios
   amis                 fiche profil : la rangée de tous les amis.
   budget-roulage       onglet Budget de la page d'un roulage.
   team-rename          réglages d'un Team : le leader le renomme.
+  chrono-estime        chrono estimé sur un circuit jamais roulé.
   parrain              Gestion des comptes : corriger un parrain.
 
 Guide PDF
