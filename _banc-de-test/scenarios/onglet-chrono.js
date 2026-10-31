@@ -11,11 +11,10 @@ const { chromium, BASE } = require('../lib');
   await p.goto(BASE + 'index.html#lang=' + lang + '&jourj=1'); await p.waitForTimeout(1800);
   console.log('nav:', await p.$$eval('.bottom-nav-btn', e => e.map(x => x.innerText.trim()).join(' | ')));
   console.log('ouvre sur Chrono:', await p.$eval('.bottom-nav-btn.active', e => e.innerText.trim()), '| overlay:', !!(await p.$('#jourj-overlay')));
-  console.log('écran:', (await p.$eval('.chrono-hero', e => e.innerText.replace(/\n/g, ' | '))));
+  console.log('écran:', (await p.$eval('.chrono-hero', e => e.innerText.replace(/\n/g, ' | '))), '| titre de section:', !!(await p.$('.section-heading')));
   await p.screenshot({ path: 'chrono-jour-' + lang + '.png' });
   for (const t of ['1:12.400', '1:11.800']) {
-    await p.click('.chrono-big-btn'); await p.waitForTimeout(400);
-    console.log('formulaire circuit:', await p.$eval('#f-circuit', e => e.value));
+    console.log('formulaire:', await p.$eval('#cf-summary', e => e.innerText), '| options repliées:', !(await p.$eval('.cf-more', e => e.open)));
     await p.type('#f-laps', t); await p.click('#submit-btn'); await p.waitForTimeout(600);
     if (await p.$('#feeling-skip-btn')) { await p.click('#feeling-skip-btn'); await p.waitForTimeout(300); }
   }

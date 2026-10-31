@@ -3907,3 +3907,16 @@ label.budget-row-title { cursor: pointer; margin: 0; }
 .chrono-next .primary { margin-top: 0.5rem; }
 .chrono-later-btn { width: 100%; margin-top: 0.4rem; }
 .chrono-hor-link { align-self: flex-start; margin-top: 0.3rem; font-weight: 700; color: var(--accent); }
+/* Formulaire de chrono compact : résumé pré-rempli, Chronos, photo, ⋯ */
+.chrono-form-card { padding-top: 0.9rem; }
+.cf-summary { font-size: 0.88rem; color: var(--text-muted); margin-bottom: 0.6rem; }
+.cf-label { font-size: 1.1rem; font-weight: 800; }
+.cf-laps-row { display: flex; gap: 0.5rem; align-items: stretch; }
+.cf-laps-row textarea { flex: 1; min-height: 4.6rem; font-size: 1.15rem; }
+.cf-photo-btn { flex: 0 0 4.6rem; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.2rem; border: 1px dashed var(--border); border-radius: 12px; background: var(--surface-alt); color: var(--text); font-size: 0.72rem; font-weight: 700; cursor: pointer; padding: 0.3rem; }
+.cf-submit { width: 100%; margin-top: 0.7rem; padding: 0.95rem; font-size: 1.15rem; font-weight: 800; }
+.cf-more { margin-top: 0.7rem; }
+.cf-more > summary { cursor: pointer; color: var(--text-muted); font-weight: 700; list-style: none; padding: 0.3rem 0; }
+.cf-more > summary::-webkit-details-marker { display: none; }
+.cf-sep { margin: 0.9rem 0 0.2rem; font-size: 0.8rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; }
+.chrono-ev-btn { width: 100%; margin-top: 0.6rem; }

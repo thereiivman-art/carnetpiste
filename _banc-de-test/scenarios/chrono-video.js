@@ -12,6 +12,7 @@ const { chromium, BASE } = require('../lib');
   await p.click('.bottom-nav-btn[data-view^="carnet"]'); await p.waitForTimeout(300);
   await p.click('.subnav-btn[data-view="carnet"]'); await p.waitForTimeout(300);
   await p.click('#carnet-add-chrono'); await p.waitForTimeout(400);
+  await p.click('.cf-more > summary'); await p.waitForTimeout(200);
   await p.selectOption('#f-circuit', { index: 1 }); await p.waitForTimeout(200);
   await p.type('#f-laps', '1:45.200'); await p.keyboard.press('Enter'); await p.type('#f-laps', '1:44.800');
   await p.fill('#f-video', 'pas un lien'); await p.click('#submit-btn'); await p.waitForTimeout(300);

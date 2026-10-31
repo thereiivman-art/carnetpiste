@@ -6612,7 +6612,8 @@
     return !!(currentUserProfile && (currentUserProfile.role === 'accompagnant' || currentUserProfile.role === 'organisateur'));
   }
   function canLogChronoForOthers() { return isAdmin() || (currentUserProfile && currentUserProfile.role === 'organisateur' && Object.keys(myTeamPiloteChoices()).length > 0); }
-  function renderForm() {
+  function renderForm(opts) {
+    opts = opts || {};
     var admin = isAdmin();
     var teamPiloteChoices = myTeamPiloteChoices(); // name -> teamId, for pilotes on a team this account leads
     var teamPiloteNames = Object.keys(teamPiloteChoices);
@@ -6628,7 +6629,7 @@
     // Retracté par défaut -- juste un bouton pleine largeur en évidence,
     // le formulaire complet n'apparaît qu'une fois cliqué (et redisparaît
     // au profit du bouton une fois le chrono envoyé, voir onSubmit).
-    if (!addChronoOpen) {
+    if (!addChronoOpen && !opts.inline) {
       return '<button type="button" class="primary add-chrono-btn" id="add-chrono-toggle">' + tr('add_chrono_btn') + '</button>';
     }
     var rider = (selectedRiders && selectedRiders.size === 1) ? Array.from(selectedRiders)[0] : null;
@@ -6643,9 +6644,30 @@
     var groupHint = rider ? chronoGroupHint(selectedCircuit, todayStr, rider) : '';
     var slots = todaysGroupSlots(selectedCircuit, groupHint);
     var suggestedSlotIdx = suggestSlotIndex(slots);
-    var html = '<div class="card">';
-    html += '<h2 class="section-title">' + tr('new_chrono_heading') + '</h2>';
+    var formCircuitsKnown = allCircuits().length > 0;
+    var bikeGuess = (rider && riderBikeMap[rider]) || (rider && currentUserProfile && rider === currentUserProfile.name && currentUserProfile.bike) || '';
+    var slotGuess = suggestedSlotIdx !== -1 && slots[suggestedSlotIdx] ? slots[suggestedSlotIdx].label : '';
+    // Pilote, date, circuit, moto, groupe, session : tout est pré-rempli
+    // (résumé en une ligne) ; il ne reste que le champ Chronos. Le reste se
+    // déplie avec « ⋯ ».
+    var summary = [rider || '', formatDate(todayStr), selectedCircuit || '', bikeGuess, groupHint ? L('Groupe ', 'Group ') + groupHint : '', slotGuess].filter(Boolean).join(' · ');
+    var html = '<div class="card chrono-form-card">';
     html += '<form id="session-form" novalidate>';
+    html += '<div class="cf-summary" id="cf-summary">' + escapeHtml(summary) + '</div>';
+    html += '<label for="f-laps" class="cf-label">' + L('Chronos', 'Lap times') + '</label>';
+    html += '<div class="cf-laps-row"><textarea id="f-laps" placeholder="1:23.456' + String.fromCharCode(10) + '1:22.980" required></textarea>' +
+      '<button type="button" class="cf-photo-btn" id="import-photo-btn" aria-label="' + escapeHtml(L('Importer une photo ou un PDF de la feuille de temps', 'Import a photo or PDF of the timesheet')) + '" title="' + escapeHtml(L('Photo ou PDF', 'Photo or PDF')) + '">' +
+      '<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>' +
+      '<span>' + L('Photo / PDF', 'Photo / PDF') + '</span></button>' +
+      '<input type="file" id="import-photo-input" accept="image/*,application/pdf" hidden></div>';
+    html += '<div class="field-error" id="form-error"></div>';
+    html += '<button type="submit" class="primary cf-submit" id="submit-btn">' + L('Enregistrer', 'Save') + '</button>';
+    html += '<details class="cf-more"' + (formCircuitsKnown ? '' : ' open') + '><summary>⋯ ' + L('Note, vidéo, autres réglages', 'Note, video, other details') + '</summary>';
+    html += '<div style="margin-top:0.6rem;"><label for="f-note">' + tr('note_optional') + '</label>' +
+      '<input type="text" id="f-note" placeholder="' + tr('note_placeholder') + '"></div>';
+    html += '<div style="margin-top:0.7rem;"><label for="f-video">' + L('Lien vidéo (facultatif)', 'Video link (optional)') + '</label>' +
+      '<input type="url" id="f-video" placeholder="https://youtu.be/..."></div>';
+    html += '<div class="cf-sep">' + L('Pré-rempli, à changer si besoin', 'Pre-filled, change if needed') + '</div>';
     html += '<div class="field-row">';
     if (admin) {
       // Only the admin can enter a chrono for anyone at all -- everyone
@@ -6672,7 +6694,7 @@
       '</select>' +
       '<input type="text" id="f-circuit-other" placeholder="Nom du circuit" style="margin-top:0.4rem;' + (formCircuits.length ? ' display:none;' : '') + '"></div>';
     html += '<div><label for="f-bike">' + tr('bike_label') + '</label>' +
-      '<input type="text" id="f-bike" list="bike-options" placeholder="Ex. ST 765 RS" value="' + escapeHtml((rider && riderBikeMap[rider]) || '') + '">' +
+      '<input type="text" id="f-bike" list="bike-options" placeholder="Ex. ST 765 RS" value="' + escapeHtml((rider && riderBikeMap[rider]) || (rider && currentUserProfile && rider === currentUserProfile.name && currentUserProfile.bike) || '') + '">' +
       '<datalist id="bike-options">' + bikeDatalist() + '</datalist></div>';
     html += '</div>';
     // Entry granularity is deliberately flexible: one row can be just the
@@ -6688,23 +6710,9 @@
     html += '</div>';
     html += '<div class="help-text" id="f-group-hint"' + (groupHint ? '' : ' style="display:none;"') + '>' + tr('group_hint_prefix') + escapeHtml(groupHint) + '.</div>';
     html += '<div class="help-text" id="f-slot-hint"' + (suggestedSlotIdx !== -1 ? '' : ' style="display:none;"') + '>' + tr('slot_hint') + '</div>';
-    html += '<div class="import-chrono-row">' +
-      '<button type="button" class="ghost" id="import-photo-btn">Importer photo / capture / PDF</button>' +
-      '<button type="button" class="ghost" id="import-paste-btn">Coller une liste de temps</button>' +
-      '<input type="file" id="import-photo-input" accept="image/*,application/pdf" hidden>' +
-      '</div>';
-    html += '<label for="f-laps">' + tr('chronos_field_label') + '</label>' +
-      '<textarea id="f-laps" placeholder="1:23.456' + String.fromCharCode(10) + '1:22.980' + String.fromCharCode(10) + '1:23.120" required></textarea>' +
-      '<div class="help-text">' + tr('chronos_field_help') + '</div>';
-    html += '<div style="margin-top:0.9rem;"><label for="f-note">' + tr('note_optional') + '</label>' +
-      '<input type="text" id="f-note" placeholder="' + tr('note_placeholder') + '"></div>';
-    html += '<div style="margin-top:0.9rem;"><label for="f-video">' + L('Lien vidéo (facultatif)', 'Video link (optional)') + '</label>' +
-      '<input type="url" id="f-video" placeholder="https://youtu.be/..."><div class="help-text">' + L('Ta caméra embarquée sur YouTube, Instagram, Drive…', 'Your onboard camera on YouTube, Instagram, Drive…') + '</div></div>';
     html += '<div id="f-linked-event-wrap">' + renderLinkedEventField(selectedCircuit, todayStr) + '</div>';
-    html += '<div class="field-error" id="form-error"></div>';
-    html += '<div style="margin-top:0.9rem;">' +
-      '<button type="submit" class="primary" id="submit-btn">' + tr('submit_chrono') + '</button>' +
-      '</div>';
+    html += '<button type="button" class="ghost" id="import-paste-btn" style="margin-top:0.6rem;">' + L('Coller une liste de temps', 'Paste a list of times') + '</button>';
+    html += '</details>';
     html += '</form></div>';
     return html;
   }
@@ -10079,6 +10087,7 @@
   // Le circuit du jour, un gros bouton pour ajouter un chrono, ma
   // progression du jour (ou du roulage), le plan avec mes repères. Rien
   // d'autre : tout le reste est dans Carnet.
+  var chronoProgEvent = false;
   function renderChronoTab() {
     var me = currentUserProfile && currentUserProfile.name;
     if (!me) return '';
@@ -10087,6 +10096,7 @@
       return '<button type="button" class="link-btn back-link" data-action="chrono-cancel-add">‹ ' + L('Retour', 'Back') + '</button>' + renderForm();
     }
     if (!ev) return renderChronoNoRide(today);
+    if (!meCompanionOn(ev)) selectedCircuit = ev.circuit; // le formulaire se pré-remplit sur le circuit du jour
     var circuit = ev.circuit, asComp = meCompanionOn(ev), html = '';
     html += '<div class="chrono-hero"><span class="chrono-hero-label">' + L('Aujourd\'hui', 'Today') + '</span>' +
       '<span class="chrono-hero-circuit">' + escapeHtml(circuit) + '</span>';
@@ -10103,8 +10113,7 @@
       html += '<button type="button" class="chrono-big-btn" data-action="chrono-proposal">' + L('+ Chrono d\'un pote', '+ A friend\'s lap time') + '</button>';
       html += renderFriendsOnTrack(ev, today, false);
     } else {
-      html += '<button type="button" class="chrono-big-btn" data-action="chrono-add-today" data-circuit="' + escapeHtml(circuit) + '">' + L('+ Ajouter un chrono', '+ Add a lap time') + '</button>' +
-        '<button type="button" class="chrono-photo-btn" data-action="chrono-add-today" data-import="1" data-circuit="' + escapeHtml(circuit) + '">' + L('ou prends en photo la feuille de temps', 'or take a photo of the timesheet') + '</button>';
+      html += renderForm({ inline: true });
       html += renderChronoProgress(ev, circuit, today);
     }
     var nNotes = myTrackNotes(circuit).length, info = circuitInfo(circuit), img = info.mapImage || outlineImageFor(info, circuit);
@@ -10120,11 +10129,11 @@
     var evSess = mineAll.filter(function (x) { return x.date >= ev.dateStart && x.date <= end; });
     var daySess = evSess.filter(function (x) { return x.date === today; });
     var multi = evSess.length > daySess.length;
-    var useEv = multi && pillState.chronoprog === 'event';
+    var useEv = multi && chronoProgEvent;
     var list = (useEv ? evSess : daySess).slice().sort(compareSessionsInDay);
-    var html = '<div class="card chrono-progress"><h2 class="section-title">' + L('Ma progression', 'My progress') + '</h2>';
-    if (multi) html += renderSubPillRow('chronoprog', [['day', L('Aujourd\'hui', 'Today')], ['event', L('Tout le roulage', 'Whole trackday')]]);
-    if (!list.length) return html + '<div class="help-text">' + L('Ton premier chrono du jour apparaîtra ici.', 'Your first lap time of the day will show up here.') + '</div></div>';
+    var html = '<div class="card chrono-progress"><h2 class="section-title">' + (useEv ? L('Progression du roulage', 'Trackday progress') : L('Progression de la journée', 'Today\'s progress')) + '</h2>';
+    var evBtn = multi ? '<button type="button" class="ghost chrono-ev-btn" data-action="chrono-prog-toggle">' + (useEv ? L('Revenir à la journée', 'Back to today') : L('Afficher la progression du roulage', 'Show the trackday progress')) + '</button>' : '';
+    if (!list.length) return html + '<div class="help-text">' + L('Ton premier chrono du jour apparaîtra ici.', 'Your first lap time of the day will show up here.') + '</div>' + evBtn + '</div>';
     var bests = list.map(sessionBest), best = Math.min.apply(null, bests);
     var before = mineAll.filter(function (x) { return x.date < ev.dateStart; }).map(sessionBest), rec = before.length ? Math.min.apply(null, before) : null;
     html += '<div class="chrono-best"><span class="help-text">' + (useEv ? L('Meilleur tour du roulage', 'Best lap of the trackday') : L('Meilleur tour du jour', 'Best lap today')) + '</span>' +
@@ -10132,10 +10141,10 @@
       (rec !== null ? '<span class="' + (best < rec ? 'daily-recap-better' : 'help-text') + '">' + (best < rec ? L('Nouveau record ! −', 'New record! −') + formatGap(rec - best) : L('Record : ', 'Record: ') + formatTime(rec) + ' (+' + formatGap(best - rec) + ')') + '</span>' : '') + '</div>';
     // À partir de 2 sessions : la courbe et le détail session par session.
     var prog = renderDayProgression(list);
-    if (prog) return html + prog.replace(/^<div class="card[^"]*"[^>]*>/, '<div>').replace(/<h2 class="section-title">.*?<\/h2>/, '') + '</div>';
+    if (prog) return html + prog.replace(/^<div class="card[^"]*"[^>]*>/, '<div>').replace(/<h2 class="section-title">.*?<\/h2>/, '') + evBtn + '</div>';
     html += '<div class="chrono-sessions">' + list.map(function (x, i) {
       return '<div class="chrono-session"><span>' + escapeHtml(x.slotLabel || (useEv ? formatDate(x.date) + ' · ' : '') + L('Session ', 'Session ') + (i + 1)) + '</span><strong>' + formatTime(bests[i]) + '</strong></div>';
-    }).join('') + '</div></div>';
+    }).join('') + '</div>' + evBtn + '</div>';
     return html;
   }
   function renderChronoNoRide(today) {
@@ -19294,7 +19303,6 @@
       else if (activeView === 'coach') body = renderSubNav(communauteSubItems()) + renderCoachTab();
       else body = carnetSub + carnetPillsHtml(myOutings()) + renderEventTab(); // 'event' (Carnet › Roulages › Calendrier) and safety fallback
       // Big section title so it's always clear which main tab you're in.
-      if (activeView !== 'outing' && activeView !== 'person') body = renderSectionHeading(navTabFor(activeView)) + body;
     }
     var notifCount = pendingNotificationCount() + unreadActivityCount();
     root.innerHTML =
@@ -21188,6 +21196,9 @@
         if (btn.getAttribute('data-import')) { var inp = document.getElementById('import-photo-input'); if (inp) inp.click(); }
       });
     });
+    document.querySelectorAll('[data-action="chrono-prog-toggle"]').forEach(function (btn) {
+      btn.addEventListener('click', function () { chronoProgEvent = !chronoProgEvent; renderRoot(); });
+    });
     document.querySelectorAll('[data-action="chrono-cancel-add"]').forEach(function (btn) {
       btn.addEventListener('click', function () { addChronoOpen = false; renderRoot(); });
     });
@@ -21747,6 +21758,17 @@
     });
     var form = document.getElementById('session-form');
     if (form) form.addEventListener('submit', onSubmit);
+    if (form && document.getElementById('cf-summary')) {
+      var refreshSummary = function () {
+        if (!document.getElementById('cf-summary')) return; // formulaire déjà fermé
+        var v = function (id) { var e = document.getElementById(id); return e ? (e.tagName === 'SELECT' ? (e.value ? e.options[e.selectedIndex].text : '') : e.value.trim()) : ''; };
+        var riderTxt = v('f-rider') || ((form.querySelector('.static-field') || {}).textContent || '');
+        var circ = v('f-circuit'); if (document.getElementById('f-circuit') && document.getElementById('f-circuit').value === '__other__') circ = v('f-circuit-other');
+        var g = v('f-group'), sl = document.getElementById('f-slot') && document.getElementById('f-slot').value ? v('f-slot') : '';
+        document.getElementById('cf-summary').textContent = [riderTxt, v('f-date'), circ, v('f-bike'), g && g !== '—' ? L('Groupe ', 'Group ') + g : '', sl].filter(Boolean).join(' · ');
+      };
+      form.addEventListener('change', function (e) { if (e.target.id !== 'f-laps') setTimeout(refreshSummary, 0); });
+    }
     var fDateEl = document.getElementById('f-date');
     autoFormatFrDateInput(fDateEl);
     var fRiderEl = document.getElementById('f-rider');
