@@ -267,15 +267,21 @@ service cloud.firestore {
         || (myName() in resource.data.get('riders', [])
             && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['personalMediaLinks'])
             && onlyOwnKeyChanged(resource.data.get('personalMediaLinks', {}), request.resource.data.personalMediaLinks))
+        // Mon rôle sur ce roulage (riderRoles.<myName()> = 'accompagnant'),
+        // ma clé seulement : un pilote qui vient une fois en accompagnant.
+        || (myName() in resource.data.get('riders', [])
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['riderRoles'])
+            && onlyOwnKeyChanged(resource.data.get('riderRoles', {}), request.resource.data.riderRoles))
         // RGPD (droit à l'effacement) : anyone may take themselves off a
         // roulage entirely -- their name out of riders, and only their own
         // key out of the per-rider maps, nothing else touched.
-        || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['riders', 'riderGroups', 'personalMediaLinks', 'reactions', 'riderBikeNumbers'])
+        || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['riders', 'riderGroups', 'personalMediaLinks', 'reactions', 'riderBikeNumbers', 'riderRoles'])
             && request.resource.data.get('riders', []) == resource.data.get('riders', []).removeAll([myName()])
             && request.resource.data.get('riderGroups', {}).diff(resource.data.get('riderGroups', {})).affectedKeys().hasOnly([myName()])
             && request.resource.data.get('personalMediaLinks', {}).diff(resource.data.get('personalMediaLinks', {})).affectedKeys().hasOnly([myName()])
             && request.resource.data.get('reactions', {}).diff(resource.data.get('reactions', {})).affectedKeys().hasOnly([myName()])
-            && request.resource.data.get('riderBikeNumbers', {}).diff(resource.data.get('riderBikeNumbers', {})).affectedKeys().hasOnly([myName()]))
+            && request.resource.data.get('riderBikeNumbers', {}).diff(resource.data.get('riderBikeNumbers', {})).affectedKeys().hasOnly([myName()])
+            && request.resource.data.get('riderRoles', {}).diff(resource.data.get('riderRoles', {})).affectedKeys().hasOnly([myName()]))
       );
       // A personal roulage (no team) that only lists me can go with my account.
       allow delete: if verified() && (isAdmin() || (resource.data.get('teamId', null) != null && isTeamLeader(resource.data.teamId))

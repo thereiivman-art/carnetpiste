@@ -4574,8 +4574,11 @@
   // through. Reset whenever the pseudo field itself changes again, so an
   // armed confirm never silently applies to a different name.
   var pseudoRenameConfirmPending = false;
+  var roleChangeConfirmPending = false, roleChangePendingValue = null;
 
   function renderProfileProfilTab(p) {
+    // Avertissement affiché : le formulaire garde le rôle choisi.
+    if (roleChangeConfirmPending && roleChangePendingValue) p = Object.assign({}, p, { role: roleChangePendingValue });
     // "Accompagnant" and "Organisateur" both mean "doesn't ride" for the
     // rest of the form (no moto, no name-number, follows riders instead of
     // logging chronos) -- only the role label itself, the notify wording,
@@ -5199,6 +5202,27 @@
     var u = (STATE.usersByName || {})[n] || {};
     return u.role === 'accompagnant' || u.role === 'organisateur';
   }
+  // Rôle sur un roulage : un pilote peut venir en accompagnant une fois
+  // (ev.riderRoles[nom] = 'accompagnant') sans changer tout son compte.
+  function companionOnEvent(ev, n) {
+    return isNonRiderName(n) || !!(ev && ev.riderRoles && ev.riderRoles[n] === 'accompagnant');
+  }
+  function meCompanionOn(ev) {
+    return meIsNonRider() || !!(ev && currentUserProfile && companionOnEvent(ev, currentUserProfile.name));
+  }
+  function setMyRideRole(eventId, asCompanion) {
+    var me = currentUserProfile && currentUserProfile.name;
+    var ev = (STATE.events || []).filter(function (e) { return e.id === eventId; })[0];
+    if (!me || !ev || (ev.riders || []).indexOf(me) === -1) return;
+    var prevState = JSON.parse(JSON.stringify(STATE));
+    var roles = Object.assign({}, ev.riderRoles || {});
+    if (asCompanion) roles[me] = 'accompagnant'; else delete roles[me];
+    ev.riderRoles = roles;
+    renderRoot();
+    persist(prevState);
+    showToast(asCompanion ? L('Tu viens en accompagnant sur ce roulage : tes potes en piste et leurs chronos.', 'You\'re coming as a companion on this trackday: your friends on track and their lap times.')
+      : L('Tu roules sur ce roulage.', 'You\'re riding this trackday.'), 'success');
+  }
   // Upcoming roulages with friends on them (next 45 days): riders apart
   // from companions (« Maymay vient », not « roule »).
   function friendsUpcoming() {
@@ -5209,7 +5233,7 @@
     return eventsList().filter(function (ev) { return (ev.dateEnd || ev.dateStart) >= today && ev.dateStart <= limit; })
       .map(function (ev) {
         var on = (ev.riders || []).filter(function (n) { return friends.indexOf(n) !== -1; });
-        return { ev: ev, friends: on.filter(function (n) { return !isNonRiderName(n); }), companions: on.filter(isNonRiderName), mine: (ev.riders || []).indexOf(me) !== -1 };
+        return { ev: ev, friends: on.filter(function (n) { return !companionOnEvent(ev, n); }), companions: on.filter(function (n) { return companionOnEvent(ev, n); }), mine: (ev.riders || []).indexOf(me) !== -1 };
       })
       .filter(function (x) { return x.friends.length || x.companions.length; })
       .sort(function (a, b) { return a.ev.dateStart < b.ev.dateStart ? -1 : 1; });
@@ -6233,7 +6257,7 @@
       jobs.push(queryMine('feedback', 'authorUid', uid).then(del('feedback')));
       // 3. Off every roulage: my name and my keys in the per-rider maps.
       eventsList().forEach(function (ev) {
-        var maps = ['riderGroups', 'personalMediaLinks', 'reactions', 'riderBikeNumbers'];
+        var maps = ['riderGroups', 'personalMediaLinks', 'reactions', 'riderBikeNumbers', 'riderRoles'];
         var listed = (ev.riders || []).indexOf(name) !== -1;
         var inMaps = maps.some(function (m) { return ev[m] && Object.prototype.hasOwnProperty.call(ev[m], name); });
         if (!listed && !inMaps) return;
@@ -7353,7 +7377,7 @@
   function renderEventCertificationSection(ev) {
     if (!ev.teamId || !isLeaderOfTeam(ev.teamId)) return '';
     // Only pilotes have chronos to validate (not accompagnants/organisateurs).
-    var riders = (ev.riders || []).filter(function (n) { return !isNonRiderName(n); }).sort();
+    var riders = (ev.riders || []).filter(function (n) { return !companionOnEvent(ev, n); }).sort();
     if (!riders.length) return '';
     var rows = riders.map(function (rider) {
       // Linked to the roulage, or entered for its circuit on one of its days.
@@ -9647,7 +9671,8 @@
     // A non-rider has no group: show their role instead.
     var dayLaps = 0;
     sessions.forEach(function (x) { dayLaps += (x.laps || []).length; });
-    var groupMain = meIsNonRider()
+    var asComp = meCompanionOn(ev);
+    var groupMain = asComp
       ? '<span class="outing-label">' + L('Je viens en', 'I\'m coming as') + '</span><span class="outing-group-value outing-role-value">' + escapeHtml(currentUserProfile.role === 'organisateur' ? L('Organisateur', 'Organiser') : L('Accompagnant', 'Companion')) + '</span>'
       // Past and no group: what the day was, rather than an empty group.
       : (status === 'terminee' && !group)
@@ -9657,6 +9682,12 @@
         '<span class="help-text">' + (slotsAll.length ? escapeHtml(slotsAll.map(function (sl) { return sl.label; }).join(', ')) : (group ? 'Horaires non communiqués' : 'Groupe pas encore attribué')) + '</span>';
     html += '<div class="outing-group-card"><div class="outing-group-main">' + groupMain + '</div>' +
       '<div class="outing-group-status">' + statusHtml + '</div></div>';
+    // Un pilote inscrit choisit comment il vient sur CE roulage.
+    if (ev && !meIsNonRider() && me && (ev.riders || []).indexOf(me) !== -1) {
+      html += '<div class="ride-role-row" role="group" aria-label="' + escapeHtml(L('Sur ce roulage, je viens en', 'On this trackday, I\'m coming as')) + '"><span class="help-text">' + L('Sur ce roulage :', 'On this trackday:') + '</span>' +
+        '<button type="button" class="ride-role-btn' + (asComp ? '' : ' active') + '" data-action="ride-role" data-id="' + escapeHtml(ev.id) + '" data-role="pilote" aria-pressed="' + !asComp + '">' + L('Pilote', 'Rider') + '</button>' +
+        '<button type="button" class="ride-role-btn' + (asComp ? ' active' : '') + '" data-action="ride-role" data-id="' + escapeHtml(ev.id) + '" data-role="accompagnant" aria-pressed="' + asComp + '">' + L('Accompagnant', 'Companion') + '</button></div>';
+    }
 
     var meName = currentUserProfile && currentUserProfile.name;
     if (ev && joinBannerEventId === ev.id && (ev.riders || []).indexOf(meName) === -1) {
@@ -9684,7 +9715,7 @@
     // Same pills as everywhere else: Chronos / Infos / Repères.
     var notes = myTrackNotes(circuit);
     var outingPills = [['chronos', 'Chronos' + (sessions.length ? ' (' + sessions.length + ')' : '')]];
-    if (!meIsNonRider()) outingPills.push(['moto', L('Moto', 'Bike')]);
+    if (!asComp) outingPills.push(['moto', L('Moto', 'Bike')]);
     outingPills.push(['infos', 'Infos'], ['reperes', 'Repères']);
     if (outingBudgetRow(ev)) outingPills.push(['budget', 'Budget']);
     html += renderPills('outing', outingPills);
@@ -9692,8 +9723,10 @@
 
     if (cur === 'chronos') {
       // Meilleur tour
-      if (meIsNonRider()) {
-        // No chrono of my own: the friends' comparison is what matters here.
+      if (asComp) {
+        // No chrono of my own: friends on track and the friends' comparison.
+        if (ev && status !== 'terminee') html += renderFriendsOnTrack(ev, status === 'avenir' ? ev.dateStart : dateKey(new Date()), false);
+        html += '<button type="button" class="primary add-chrono-btn" data-action="chrono-proposal">' + L('+ Saisir le chrono d\'un pote', '+ Log a friend\'s lap time') + '</button>';
       } else if (status === 'avenir') {
         // The record to beat opens the roulage where it was set; with no
         // record yet there's nothing to open.
@@ -9702,7 +9735,7 @@
             '<span class="outing-best-time">' + formatTime(prevBest) + '</span>' +
             '<span class="outing-best-delta">Établi le ' + escapeHtml(formatDate(prevBestSession.date)) + ' — voir ce roulage</span><span class="outing-best-arrow">›</span></button>';
         } else {
-          var est = !meIsNonRider() && currentUserProfile ? estimateLapTime(currentUserProfile.name, circuit) : null;
+          var est = !asComp && currentUserProfile ? estimateLapTime(currentUserProfile.name, circuit) : null;
           html += est
             ? '<div class="outing-best-card">' + estimateCardInner(est) + '</div>'
             : '<div class="outing-best-card"><span class="outing-label light">Mon record à battre</span>' +
@@ -9719,9 +9752,9 @@
       // friends often ride the other day of a 2-day trackday.
       html += renderFriendsBattle(circuit, battleDates(ev, date));
       html += renderRecordSetupCard(circuit);
-      if (status !== 'avenir' && !meIsNonRider()) html += '<button type="button" class="primary add-chrono-btn" id="outing-add-chrono">+ Ajouter un chrono pour ce jour</button>';
+      if (status !== 'avenir' && !asComp) html += '<button type="button" class="primary add-chrono-btn" id="outing-add-chrono">+ Ajouter un chrono pour ce jour</button>';
       // Mes sessions du jour
-      if (!meIsNonRider()) {
+      if (!asComp) {
       html += renderDayProgression(sessions);
       html += '<div class="card">';
       if (!sessions.length) {
@@ -9907,10 +9940,11 @@
       var nowSec = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
       var current = data.slots.filter(function (sl) { return nowSec >= sl.start * 60 && nowSec < sl.end * 60; })[0];
       var next = data.slots.filter(function (sl) { return sl.start * 60 > nowSec; })[0];
+      var asComp = meCompanionOn(ev);
       var h = '<div class="jourj-top"><div><div class="jourj-circuit">' + escapeHtml(ev.circuit) + '</div>' +
-        '<div class="jourj-group">' + (meIsNonRider() ? L('Au paddock', 'In the paddock') : data.group ? 'Groupe ' + escapeHtml(data.group) : 'Groupe non renseigné') + '</div></div>' +
+        '<div class="jourj-group">' + (asComp ? L('Au paddock', 'In the paddock') : data.group ? 'Groupe ' + escapeHtml(data.group) : 'Groupe non renseigné') + '</div></div>' +
         '<button type="button" class="jourj-close" data-jj="close" aria-label="Fermer">✕</button></div>';
-      if (meIsNonRider()) {
+      if (asComp) {
         h += renderFriendsOnTrack(ev, day, true);
       } else if (!data.slots.length) {
         h += '<div class="jourj-main"><div class="jourj-label">Horaires</div><div class="jourj-sub">Pas encore d\'horaires pour ton groupe.</div>' +
@@ -9935,7 +9969,7 @@
         '<button type="button" class="jourj-btn" data-jj="notes">Mes repères<span>' + myTrackNotes(ev.circuit).length + '</span></button>' +
         '<button type="button" class="jourj-btn" data-jj="debrief">Débrief</button>' +
         (info.liveTimingUrl ? '<a class="jourj-btn" href="' + escapeHtml(info.liveTimingUrl) + '" target="_blank" rel="noopener">((•)) Live timing</a>' : '') +
-        (meIsNonRider() ? '' : '<button type="button" class="jourj-btn" data-jj="chrono">Ajouter un chrono</button>') + '</div>';
+        (asComp ? '<button type="button" class="jourj-btn" data-jj="propose">' + L('Chrono d\'un pote', 'A friend\'s lap time') + '</button>' : '<button type="button" class="jourj-btn" data-jj="chrono">Ajouter un chrono</button>') + '</div>';
       var deb = myDebriefs(ev.circuit, day);
       if (deb.length) {
         h += '<div class="jourj-debriefs"><div class="jourj-label">Mes débriefs</div>' + deb.map(function (d) {
@@ -9948,6 +9982,7 @@
       if ((b = overlay.querySelector('[data-jj="notes"]'))) b.addEventListener('click', function () { openTrackNotes(ev.circuit); });
       if ((b = overlay.querySelector('[data-jj="debrief"]'))) b.addEventListener('click', function () { openDebrief(ev, day, render); });
       if ((b = overlay.querySelector('[data-jj="chrono"]')) || (b = null)) b.addEventListener('click', function () { goAddChronoFor(ev.circuit, day, false); });
+      if ((b = overlay.querySelector('[data-jj="propose"]'))) b.addEventListener('click', openChronoProposalSheet);
       if ((b = overlay.querySelector('[data-jj="import"]'))) b.addEventListener('click', function () { goAddChronoFor(ev.circuit, day, true); });
       overlay.querySelectorAll('[data-action="import-horaires"]').forEach(function (x) { x.addEventListener('click', function () { openHorairesImport(x.getAttribute('data-event-id')); }); });
     }
@@ -10311,7 +10346,7 @@
     var friends = friendRiderNames(), now = new Date();
     var nowMin = day === dateKey(now) ? now.getHours() * 60 + now.getMinutes() : (day < dateKey(now) ? 24 * 60 : -1);
     var h = eventHoraires(ev, day);
-    return (ev.riders || []).filter(function (r) { return friends.indexOf(r) !== -1; }).map(function (r) {
+    return (ev.riders || []).filter(function (r) { return friends.indexOf(r) !== -1 && !companionOnEvent(ev, r); }).map(function (r) {
       var slots = [], groups = [];
       [['matin', function (st) { return st < 780; }], ['apres-midi', function (st) { return st >= 780; }]].forEach(function (per) {
         var g = riderGroupFor(ev, r, day, per[0]);
@@ -12102,10 +12137,10 @@
     var team = ev.teamId ? teamById(ev.teamId) : null;
     var logoTeam = storyTeamFor({ eventId: ev.id, rider: me });
     var friends = me ? friendsOf(me).map(function (f) { return f.name; }) : [];
-    var riders = (ev.riders || []).filter(function (n) { return !isNonRiderName(n) && (n === me || friends.indexOf(n) !== -1); });
+    var riders = (ev.riders || []).filter(function (n) { return !companionOnEvent(ev, n) && (n === me || friends.indexOf(n) !== -1); });
     riders.sort(function (a, b) { return a === me ? -1 : b === me ? 1 : a.localeCompare(b); });
-    var companions = (ev.riders || []).filter(function (n) { return isNonRiderName(n) && (n === me || friends.indexOf(n) !== -1); });
-    var others = Math.max(0, (ev.riders || []).filter(function (n) { return !isNonRiderName(n); }).length - riders.length);
+    var companions = (ev.riders || []).filter(function (n) { return companionOnEvent(ev, n) && (n === me || friends.indexOf(n) !== -1); });
+    var others = Math.max(0, (ev.riders || []).filter(function (n) { return !companionOnEvent(ev, n); }).length - riders.length);
     var groupOf = function (n) { return riderGroupFor(ev, n, ev.dateStart, 'matin') || riderGroupFor(ev, n, ev.dateStart, 'apres-midi') || ''; };
     var days = Math.max(0, Math.round((parseLocalDate(ev.dateStart) - parseLocalDate(dateKey(new Date()))) / 86400000));
     return Promise.all([shareFontsReady(), trackSrc ? loadImageEl(trackSrc) : null, logoTeam ? loadImageEl(logoTeam.logoURL) : null]).then(function (res) {
@@ -14831,7 +14866,7 @@
       ['objectif', 'Objectif', flatSections(renderChronoGoalsCard(ev.circuit, true))],
       // Ma moto : mes pressions sur ce circuit d'abord, puis les autres, et
       // mes pneus (train en place et précédents). Pas pour un accompagnant.
-      ['moto', L('Ma moto', 'My bike'), meIsNonRider() ? '' : renderTyresPanel(ev.circuit)],
+      ['moto', L('Ma moto', 'My bike'), meCompanionOn(ev) ? '' : renderTyresPanel(ev.circuit)],
       ['reperes', 'Repères', flatSections(renderTrackNotesReminder(ev.circuit))],
       ['amis', 'Amis', flatSections(renderFriendsGroupSection(ev))]
     ];
@@ -14845,7 +14880,7 @@
 
     // Same pills as the other pages: what the orga provides (Programme)
     // vs. this rider's own prep (Ma prépa), then sub-pills for each rubrique.
-    var friendsTrack = meIsNonRider() ? renderFriendsOnTrack(ev, isOngoing ? dateKey(new Date()) : ev.dateStart, false) : '';
+    var friendsTrack = meCompanionOn(ev) ? renderFriendsOnTrack(ev, isOngoing ? dateKey(new Date()) : ev.dateStart, false) : '';
     return jourjHtml + friendsTrack + renderClientPills('planning', [['programme', 'Programme'], ['prepa', 'Ma prépa']]) +
       cpillSection('planning', 'programme') + html + renderSubPills('progsub', progItems) + '</div>' +
       cpillSection('planning', 'prepa') + renderSubPills('prepsub', prepItems) + '</div>';
@@ -19906,6 +19941,19 @@
           renderRoot();
           return;
         }
+        // Pilote vers accompagnant ou organisateur : rien n'est effacé, mais
+        // ses chronos sont masqués ; on le dit avant d'enregistrer.
+        var wasRider = currentUserProfile.role !== 'accompagnant' && currentUserProfile.role !== 'organisateur';
+        if (wasRider && role !== 'pilote' && !roleChangeConfirmPending) {
+          roleChangeConfirmPending = true;
+          roleChangePendingValue = role;
+          profileSaveMessage = L('Rien n\'est effacé : tes chronos, réglages, pneus et budget restent enregistrés. Mais tant que tu n\'es pas pilote, ton carnet devient celui d\'un accompagnant et tes chronos sortent des podiums de tes potes. Pour accompagner un pote une seule fois, choisis plutôt « Je viens en Accompagnant » sur le roulage. Appuie de nouveau sur Enregistrer pour confirmer.',
+            'Nothing is deleted: your lap times, setup, tyres and budget stay saved. But while you\'re not a rider, your logbook becomes a companion\'s and your lap times leave your friends\' podiums. To go along with a friend just once, pick “I\'m coming as Companion” on the trackday instead. Press Save again to confirm.');
+          renderRoot();
+          return;
+        }
+        roleChangeConfirmPending = false;
+        roleChangePendingValue = null;
         saveProfile(role, notify, followedRiders, bike, bikeNumber, newName, firstName, lastName, chronoLink);
         pseudoEditUnlocked = false;
         pseudoRenameConfirmPending = false;
@@ -19914,6 +19962,7 @@
       profileForm.querySelectorAll('input[name="profile-role"]').forEach(function (radio) {
         radio.addEventListener('change', function () {
           var isNonRider = (radio.value === 'accompagnant' || radio.value === 'organisateur') && radio.checked;
+          if (radio.checked && radio.value !== roleChangePendingValue) { roleChangeConfirmPending = false; roleChangePendingValue = null; }
           if (radio.checked) {
             var wrap = document.getElementById('profile-followed-wrap');
             if (wrap) wrap.style.display = isNonRider ? 'block' : 'none';
@@ -20968,6 +21017,12 @@
     });
     attachBudgetTab();
     document.querySelectorAll('[data-action="chrono-proposal"]').forEach(function (btn) { btn.addEventListener('click', openChronoProposalSheet); });
+    document.querySelectorAll('[data-action="ride-role"]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        if (btn.classList.contains('active')) return;
+        setMyRideRole(btn.getAttribute('data-id'), btn.getAttribute('data-role') === 'accompagnant');
+      });
+    });
     document.querySelectorAll('[data-action="accept-chrono-proposal"]').forEach(function (btn) { btn.addEventListener('click', function () { acceptChronoProposal(btn.getAttribute('data-id')); }); });
     document.querySelectorAll('[data-action="refuse-chrono-proposal"]').forEach(function (btn) { btn.addEventListener('click', function () { refuseChronoProposal(btn.getAttribute('data-id')); }); });
     document.querySelectorAll('[data-action="open-ma-moto"]').forEach(function (btn) {

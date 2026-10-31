@@ -3858,3 +3858,8 @@ label.budget-row-title { cursor: pointer; margin: 0; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .pill-tabs.more-right::after, :root:not([data-theme="light"]) .sub-pills.more-right::after { background: linear-gradient(to right, transparent, var(--bg) 70%); } :root:not([data-theme="light"]) .pill-tabs.more-left::before, :root:not([data-theme="light"]) .sub-pills.more-left::before { background: linear-gradient(to left, transparent, var(--bg) 70%); } }
 :root[data-theme="dark"] .pill-tabs.more-right::after, :root[data-theme="dark"] .sub-pills.more-right::after { background: linear-gradient(to right, transparent, var(--bg) 70%); }
 :root[data-theme="dark"] .pill-tabs.more-left::before, :root[data-theme="dark"] .sub-pills.more-left::before { background: linear-gradient(to left, transparent, var(--bg) 70%); }
+/* Rôle sur un roulage : pilote ou accompagnant */
+.ride-role-row { display: flex; align-items: center; gap: 0.4rem; margin: 0.2rem 0 0.7rem; flex-wrap: wrap; }
+.ride-role-row .help-text { margin: 0 0.2rem 0 0; }
+.ride-role-btn { border: 1px solid var(--border); background: var(--surface); color: var(--text-muted); border-radius: 999px; padding: 0.35rem 0.85rem; font-weight: 700; font-size: 0.86rem; cursor: pointer; }
+.ride-role-btn.active { background: var(--text); border-color: var(--text); color: var(--surface); }

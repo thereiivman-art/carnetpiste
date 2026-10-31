@@ -46,6 +46,8 @@ Scénarios
   accompagnant-plus    potes en piste, jour J, chrono saisi pour un pote et validé.
   albums               albums photos d'un roulage : lien partagé, refus d'un
                        lien invalide, albums des potes.
+  role-roulage         un pilote vient en accompagnant sur un roulage ;
+                       avertissement en passant le compte accompagnant.
   parrain              Gestion des comptes : corriger un parrain.
 
 Guide PDF
