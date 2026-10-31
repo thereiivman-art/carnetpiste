@@ -770,17 +770,37 @@ service cloud.firestore {
         || (resource.data.get('teamId', '') != '' && isTeamLeader(resource.data.teamId)));
       allow create, update: if verified() && request.resource.data.viewer == myName() && request.resource.data.owner != myName();
     }
+    // Commentaires : publics (public == true) ou réservés aux uids de
+    // visibleTo (copiés du message « Mes amis » commenté). L'auteur ou
+    // l'admin complète les anciens commentaires (public / visibleTo).
     match /postComments/{id} {
-      allow read: if verified();
+      allow read: if isAdmin() || (verified() && (
+        resource.data.get('public', false) == true
+        || resource.data.get('authorUid', '') == request.auth.uid
+        || request.auth.uid in resource.data.get('visibleTo', [])));
       allow create: if verified() && request.resource.data.author == myName()
+        && request.resource.data.get('authorUid', '') == request.auth.uid
         && request.resource.data.text is string && request.resource.data.text.size() <= 500
-        && request.resource.data.postId is string;
+        && request.resource.data.postId is string
+        && request.resource.data.keys().hasOnly(['id', 'postId', 'author', 'authorUid', 'text', 'createdAt', 'public', 'visibleTo']);
       allow delete: if verified() && (resource.data.author == myName() || isAdmin());
-      allow update: if verified() && (canRenameField(resource, 'author', 'authorUid') || canBackfillUid(resource, 'author', 'authorUid'));
+      allow update: if verified() && (canRenameField(resource, 'author', 'authorUid') || canBackfillUid(resource, 'author', 'authorUid')
+        || ((resource.data.get('authorUid', '') == request.auth.uid || isAdmin())
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['public', 'visibleTo'])));
     }
+    // Messages : « Public » (audience all / followers) lisibles par tout
+    // compte vérifié ; « Mes amis » seulement par l'auteur et les uids de
+    // visibleTo, que l'auteur (ou l'admin) tient à jour.
     match /wallPosts/{id} {
-      allow read: if verified();
-      allow create: if verified() && request.resource.data.author == myName();
+      allow read: if isAdmin() || (verified() && (
+        resource.data.get('audience', 'friends') in ['all', 'followers']
+        || resource.data.get('authorUid', '') == request.auth.uid
+        || request.auth.uid in resource.data.get('visibleTo', [])));
+      allow create: if verified() && request.resource.data.author == myName()
+        && request.resource.data.get('authorUid', '') == request.auth.uid
+        && request.resource.data.get('audience', '') in ['all', 'friends', 'followers']
+        && (!('text' in request.resource.data) || (request.resource.data.text is string && request.resource.data.text.size() <= 5000))
+        && (!('linkUrl' in request.resource.data) || request.resource.data.linkUrl == null || request.resource.data.linkUrl.matches('^https?://.*'));
       // Emoji reaction, own key only -- same "anyone who can see it can
       // react to it" reasoning as teamFeed (see there for why this isn't
       // gated on friend/follower status: not cheaply checkable here, and
@@ -789,7 +809,11 @@ service cloud.firestore {
         (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reactions'])
           && onlyOwnKeyChanged(resource.data.get('reactions', {}), request.resource.data.reactions))
         || (resource.data.author == myName()
-            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['text', 'linkUrl', 'editedAt']))
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['text', 'linkUrl', 'editedAt'])
+            && (request.resource.data.get('linkUrl', null) == null || request.resource.data.linkUrl.matches('^https?://.*')))
+        || ((resource.data.get('authorUid', '') == request.auth.uid || isAdmin())
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['visibleTo'])
+            && request.resource.data.visibleTo is list && request.resource.data.visibleTo.size() <= 500)
         || canRenameField(resource, 'author', 'authorUid') || canBackfillUid(resource, 'author', 'authorUid')
       );
       allow delete: if verified() && (resource.data.author == myName() || isAdmin());

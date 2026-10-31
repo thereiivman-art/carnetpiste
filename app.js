@@ -8679,12 +8679,40 @@
     myBudgetExtras = {};
     myPressures = [];
     db.collection('userPrivate').doc(auth.currentUser.uid).get().then(function (doc) {
+      migratePrivateFields(doc.exists ? doc.data() : {});
       mySetups = (doc.exists && doc.data().setups) || {};
       myTyreSets = (doc.exists && doc.data().tyreSets) || [];
       myBudget = (doc.exists && doc.data().budget) || {};
       myBudgetExtras = (doc.exists && doc.data().budgetExtras) || {};
       myPressures = (doc.exists && doc.data().pressures) || [];
       renderRoot();
+    }).catch(function () {});
+  }
+  // Repères, débriefs et email étaient sur le profil public (users/{uid},
+  // lisible par tout compte connecté) : ils passent dans userPrivate, que
+  // seul le titulaire lit, et sont effacés du profil public.
+  function withPublicPrivate(p) {
+    if (p && (p.trackNotes || p.debriefs || p.email)) {
+      Object.defineProperty(p, '__publicPrivate', { value: { trackNotes: p.trackNotes, debriefs: p.debriefs, email: p.email }, writable: true, enumerable: false });
+    }
+    return p;
+  }
+  function migratePrivateFields(priv) {
+    var me = currentUserProfile, uid = auth.currentUser && auth.currentUser.uid;
+    if (!me || !uid) return;
+    if (priv.trackNotes) me.trackNotes = Object.assign({}, me.trackNotes || {}, priv.trackNotes);
+    if (priv.debriefs) me.debriefs = Object.assign({}, me.debriefs || {}, priv.debriefs);
+    var legacy = me.__publicPrivate || {};
+    var moveUp = {}, del = {}, any = false;
+    if (legacy.trackNotes) { moveUp.trackNotes = Object.assign({}, legacy.trackNotes, priv.trackNotes || {}); del.trackNotes = firebase.firestore.FieldValue.delete(); any = true; }
+    if (legacy.debriefs) { moveUp.debriefs = Object.assign({}, legacy.debriefs, priv.debriefs || {}); del.debriefs = firebase.firestore.FieldValue.delete(); any = true; }
+    if (legacy.email) { if (!priv.email) moveUp.email = legacy.email; del.email = firebase.firestore.FieldValue.delete(); any = true; }
+    // Le badge certifié de l'admin venait de son email public : on le fige.
+    if (legacy.email && isAdmin() && me.certified !== false) { del.certified = true; me.certified = true; }
+    if (!any) return;
+    me.__publicPrivate = null;
+    db.collection('userPrivate').doc(uid).set(moveUp, { merge: true }).then(function () {
+      return db.collection('users').doc(uid).update(del);
     }).catch(function () {});
   }
   function mySetupFor(sessionId) {
@@ -10288,7 +10316,7 @@
       all[key] = (all[key] || []).concat([entry]);
       currentUserProfile.debriefs = all;
       var patch = {}; patch[key] = all[key];
-      if (auth.currentUser) db.collection('users').doc(auth.currentUser.uid).set({ debriefs: patch }, { merge: true }).catch(function () {});
+      if (auth.currentUser) db.collection('userPrivate').doc(auth.currentUser.uid).set({ debriefs: patch }, { merge: true }).catch(function () {});
       overlay.remove();
       showToast('Débrief enregistré', 'success');
       if (onDone) onDone();
@@ -10473,7 +10501,7 @@
     var letter = escapeHtml((circuit || '?').charAt(0).toUpperCase());
     var styledAttr = src && !info.mapImage && src.indexOf('data:') !== 0 ? ' data-track-thumb="' + escapeHtml(src) + '"' : '';
     if (styledAttr && styledThumbs[src] && styledThumbs[src] !== 'x') src = styledThumbs[src];
-    return src ? '<img src="' + src + '" alt=""' + styledAttr + ' onerror="this.outerHTML=\'<span class=&quot;outing-thumb-letter&quot;>' + letter + '</span>\'">' : '<span class="outing-thumb-letter">' + letter + '</span>';
+    return src ? '<img src="' + src + '" alt=""' + styledAttr + ' data-fallback-letter="' + letter + '">' : '<span class="outing-thumb-letter">' + letter + '</span>';
   }
   function myUpcomingEvents() {
     var me = currentUserProfile && currentUserProfile.name;
@@ -10773,7 +10801,7 @@
     currentUserProfile.trackNotes = Object.assign({}, currentUserProfile.trackNotes || {});
     currentUserProfile.trackNotes[circuit] = list;
     var patch = {}; patch[circuit] = list;
-    return db.collection('users').doc(auth.currentUser.uid).set({ trackNotes: patch }, { merge: true }).catch(function (err) {
+    return db.collection('userPrivate').doc(auth.currentUser.uid).set({ trackNotes: patch }, { merge: true }).catch(function (err) {
       showToast(L('Repère non enregistré : ', 'Mark not saved: ') + ((err && err.message) || err));
     });
   }
@@ -17872,6 +17900,9 @@
     text = (text || '').trim().slice(0, 500);
     if (!me || !text) return;
     var id = genId(), doc = { id: id, postId: postId, author: me.name, authorUid: myUid(), text: text, createdAt: Date.now() };
+    var wp = (STATE.wallPosts || []).filter(function (p) { return p.id === postId; })[0];
+    if (wp && wp.audience === 'friends') doc.visibleTo = (wp.visibleTo || []).concat(wp.authorUid ? [wp.authorUid] : []).filter(function (u, i, a) { return u && a.indexOf(u) === i; });
+    else doc.public = true;
     STATE.postComments = [doc].concat(STATE.postComments || []);
     commentsOpen[postId] = true; commentsAll[postId] = true;
     renderRoot();
@@ -18222,13 +18253,14 @@
     var me = currentUserProfile;
     if (!me) return;
     text = (text || '').trim();
-    linkUrl = (linkUrl || '').trim();
+    linkUrl = normalizeUrl(linkUrl);
     if (!text && !linkUrl && !photoURL) {
       wallPostMessage = tr('add_text_link_photo');
       renderRoot();
       return;
     }
     var post = { id: genId(), author: me.name, authorUid: myUid(), audience: audience, createdAt: Date.now() };
+    if (audience === 'friends') post.visibleTo = friendUidsOf(me.name);
     if (text) post.text = text;
     if (linkUrl) post.linkUrl = linkUrl;
     if (photoURL) post.photoURL = photoURL;
@@ -18377,7 +18409,7 @@
 
   function updateWallPost(id, text, linkUrl) {
     text = (text || '').trim();
-    linkUrl = (linkUrl || '').trim();
+    linkUrl = normalizeUrl(linkUrl);
     if (!text && !linkUrl) { showToast(tr('message_cannot_be_empty')); return; }
     db.collection('wallPosts').doc(id).update({ text: text || null, linkUrl: linkUrl || null, editedAt: Date.now() }).then(function () {
       editingWallPostId = null;
@@ -20002,11 +20034,31 @@
       sx = null;
     }, { passive: true });
   })();
+  // Sécurité : un lien saisi par un utilisateur ne peut jamais exécuter
+  // de code (javascript:, data:…) — seuls http(s), mailto et tel restent.
+  function isSafeUrl(u) { return /^(https?:|mailto:|tel:|#|\/|\.\/|[a-z0-9._-]+\.(pdf|html)(\?|$))/i.test(String(u || '').trim()) && !/^\s*(javascript|data|vbscript):/i.test(String(u || '')); }
+  function sanitizeLinks(root) {
+    if (!root) return;
+    root.querySelectorAll('a[href]').forEach(function (a) {
+      if (!isSafeUrl(a.getAttribute('href'))) { a.setAttribute('href', '#'); a.removeAttribute('target'); }
+      if (a.getAttribute('target') === '_blank') a.setAttribute('rel', 'noopener noreferrer');
+    });
+  }
+  // Image de circuit introuvable : lettre de repli (remplace l'ancien
+  // onerror en ligne, pour pouvoir durcir la CSP).
+  document.addEventListener('error', function (e) {
+    var t = e.target;
+    if (t && t.tagName === 'IMG' && t.hasAttribute('data-fallback-letter')) {
+      var sp = document.createElement('span'); sp.className = 'outing-thumb-letter'; sp.textContent = t.getAttribute('data-fallback-letter');
+      t.replaceWith(sp);
+    }
+  }, true);
   function renderRoot() {
     navPreRenderY = window.scrollY || 0;
     try {
       renderRootUnsafe();
       markScrollableTabs();
+      sanitizeLinks(document.getElementById('root'));
       navTrack();
       observeViews();
       var appTitle = L('Carnet Piste', 'Pitbook'); // nom de l'appli selon la langue
@@ -20519,7 +20571,7 @@
         return user.getIdToken(true).then(function () {
           return db.collection('users').doc(user.uid).get();
         }).then(function (doc) {
-          if (doc.exists) currentUserProfile = doc.data();
+          if (doc.exists) currentUserProfile = withPublicPrivate(doc.data());
           authState = 'signed-in';
           canPersist = true;
           activeView = 'carnet';
@@ -22607,7 +22659,7 @@
     document.querySelectorAll('[data-action="open-external-url"]').forEach(function (btn) {
       btn.addEventListener('click', function () {
         var url = btn.getAttribute('data-url');
-        if (url) window.open(url, '_blank', 'noopener');
+        if (url && /^https?:\/\//i.test(url.trim())) window.open(url, '_blank', 'noopener,noreferrer');
       });
     });
     document.querySelectorAll('[data-action="discovery-view-mode"]').forEach(function (btn) {
@@ -24068,12 +24120,20 @@
     // Wall posts -- same cap-and-sync-all approach as the feed above;
     // visibleWallPosts() then filters to what this account's own
     // friends/follows relationships actually allow it to see.
-    unsubscribers.push(db.collection('wallPosts').orderBy('createdAt', 'desc').limit(200).onSnapshot(function (snap) {
-      STATE.wallPosts = snap.docs.map(function (d) { return d.data(); });
+    // Sécurité : un message « Mes amis » n'est lu par le serveur que pour
+    // l'auteur et les uids de visibleTo (voir firestore.rules). D'où trois
+    // requêtes (public, partagé avec moi, les miens) fusionnées ici.
+    subscribeMerged('wallPosts', 200, [
+      function (c) { return c.where('audience', 'in', ['all', 'followers']); },
+      function (c) { return c.where('visibleTo', 'array-contains', myUid()); },
+      function (c) { return c.where('authorUid', '==', myUid()); }
+    ], function (list) {
+      STATE.wallPosts = list;
       maybeNotifyWallPostReaction(STATE.wallPosts);
       markCoreSynced('wallPosts');
+      backfillPrivacy();
       renderRoot();
-    }, handleSyncError));
+    });
     // Tous les abonnements entre comptes (compteurs abonnés / abonnements,
     // suggestions) et les commentaires récents des messages.
     unsubscribers.push(db.collection('follows').limit(3000).onSnapshot(function (snap) {
@@ -24092,10 +24152,15 @@
       STATE.postReactions = snap.docs.map(function (d) { return d.data(); });
       renderRoot();
     }, handleSyncError));
-    unsubscribers.push(db.collection('postComments').orderBy('createdAt', 'desc').limit(500).onSnapshot(function (snap) {
-      STATE.postComments = snap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); });
+    subscribeMerged('postComments', 500, [
+      function (c) { return c.where('public', '==', true); },
+      function (c) { return c.where('visibleTo', 'array-contains', myUid()); },
+      function (c) { return c.where('authorUid', '==', myUid()); }
+    ], function (list) {
+      STATE.postComments = list;
+      backfillPrivacy();
       renderRoot();
-    }, handleSyncError));
+    });
     // Who this pilote follows (Personnalités and Teams) -- one-way, no
     // acceptance. Split by followeeType into two derived arrays so
     // existing user-follow code (myFollows) doesn't need to change.
@@ -24459,6 +24524,61 @@
     eventJoinRequestsIn = [];
   }
 
+  // Plusieurs requêtes Firestore fusionnées (dédoublonnées par id, triées
+  // du plus récent au plus ancien). L'admin lit tout en une requête. Si
+  // l'index composite (champ + createdAt) n'existe pas encore, la requête
+  // retombe sur une version sans tri serveur plutôt que de couper la synchro.
+  function subscribeMerged(coll, lim, builders, cb) {
+    var parts = {};
+    var emit = function () {
+      var seen = {}, out = [];
+      Object.keys(parts).forEach(function (k) { parts[k].forEach(function (d) { if (!seen[d.id]) { seen[d.id] = 1; out.push(d); } }); });
+      out.sort(function (a, b) { return (b.createdAt || 0) - (a.createdAt || 0); });
+      cb(out.slice(0, lim * 2));
+    };
+    var listen = function (key, q, fallback) {
+      unsubscribers.push(q.onSnapshot(function (snap) {
+        parts[key] = snap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); });
+        emit();
+      }, function (err) {
+        if (fallback && err && err.code === 'failed-precondition') { console.warn('[index manquant] ' + coll + ' : ' + err.message); listen(key, fallback, null); }
+        else handleSyncError(err);
+      }));
+    };
+    var base = db.collection(coll);
+    if (isAdmin()) { listen('all', base.orderBy('createdAt', 'desc').limit(lim), null); return; }
+    if (!myUid()) return;
+    builders.forEach(function (b, i) {
+      listen('q' + i, b(base).orderBy('createdAt', 'desc').limit(lim), b(base).limit(lim));
+    });
+  }
+  function friendUidsOf(name) {
+    return friendsOf(name).map(function (f) { return uidOf(f.name); }).filter(function (u, i, a) { return u && a.indexOf(u) === i; }).sort();
+  }
+  // Les messages « Mes amis » et leurs commentaires portent la liste des
+  // uids autorisés. L'auteur la tient à jour (nouvel ami, ami retiré) et
+  // complète ses anciens contenus ; l'admin complète ceux de tout le monde.
+  var privacyBackfillDone = {};
+  function backfillPrivacy() {
+    var uid = myUid(), me = currentUserProfile;
+    if (!uid || !me || !STATE.friendRequests || !STATE.usersByName) return;
+    var admin = isAdmin();
+    (STATE.wallPosts || []).forEach(function (p) {
+      if (p.audience !== 'friends' || !p.id || (!admin && p.authorUid !== uid)) return;
+      var want = friendUidsOf(p.author);
+      if (!want.length && !p.visibleTo) return;
+      if (JSON.stringify((p.visibleTo || []).slice().sort()) === JSON.stringify(want)) return;
+      var k = 'p' + p.id + want.join(); if (privacyBackfillDone[k]) return; privacyBackfillDone[k] = 1;
+      db.collection('wallPosts').doc(p.id).update({ visibleTo: want }).catch(function () {});
+    });
+    (STATE.postComments || []).forEach(function (c) {
+      if (!c.id || c.public || c.visibleTo || (!admin && c.authorUid !== uid)) return;
+      var wp = (STATE.wallPosts || []).filter(function (p) { return p.id === c.postId; })[0];
+      var patch = (wp && wp.audience === 'friends') ? { visibleTo: friendUidsOf(wp.author).concat(wp.authorUid ? [wp.authorUid] : []) } : { public: true };
+      if (privacyBackfillDone['c' + c.id]) return; privacyBackfillDone['c' + c.id] = 1;
+      db.collection('postComments').doc(c.id).update(patch).catch(function () {});
+    });
+  }
   function handleSyncError() {
     canPersist = false;
     updateBanner();
@@ -24598,7 +24718,7 @@
       }
       db.collection('users').doc(user.uid).get().then(function (doc) {
         if (doc.exists) {
-          currentUserProfile = doc.data();
+          currentUserProfile = withPublicPrivate(doc.data());
           authState = 'signed-in';
           canPersist = true;
           if (justAuthenticated) {
@@ -24617,6 +24737,7 @@
           }
           userPickedCircuit = false;
           startSync();
+          ensureSetupsLoaded();
           renderRoot();
           selfHealStaleNames(user.uid, currentUserProfile.name);
         } else {
