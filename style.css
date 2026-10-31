@@ -3925,3 +3925,46 @@ label.budget-row-title { cursor: pointer; margin: 0; }
 .update-banner span { font-size: 0.82rem; opacity: 0.9; }
 .app-version-row { display: flex; align-items: center; justify-content: space-between; gap: 0.6rem; margin-top: 1rem; padding-top: 0.8rem; border-top: 1px solid var(--border); }
 .chrono-prog-where { margin: -0.3rem 0 0.5rem; }
+/* ---- Communauté façon réseau social ---- */
+.composer-teaser { display: flex; align-items: center; gap: 0.6rem; padding: 0.7rem 0.9rem; }
+.composer-teaser .mini-avatar { width: 2.4rem; height: 2.4rem; flex: 0 0 auto; }
+.composer-teaser-btn { flex: 1; text-align: left; border: 1px solid var(--border); background: var(--surface-alt); color: var(--text-muted); border-radius: 999px; padding: 0.7rem 1rem; font-size: 1rem; cursor: pointer; }
+.feed-sug-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 0.6rem; }
+.feed-sug-head .link-btn { color: var(--accent); font-weight: 700; }
+.follow-cards { display: flex; gap: 0.6rem; overflow-x: auto; scroll-snap-type: x proximity; padding-bottom: 0.3rem; margin: 0 -0.2rem; scrollbar-width: none; }
+.follow-cards::-webkit-scrollbar { display: none; }
+.follow-card { flex: 0 0 8.4rem; scroll-snap-align: start; display: flex; flex-direction: column; align-items: center; gap: 0.5rem; padding: 0.8rem 0.5rem; border: 1px solid var(--border); border-radius: 14px; background: var(--surface); text-align: center; }
+.follow-card-who { display: flex; flex-direction: column; align-items: center; gap: 0.25rem; border: 0; background: none; padding: 0; cursor: pointer; color: var(--text); min-width: 0; width: 100%; }
+.follow-card-who .mini-avatar { width: 3.4rem; height: 3.4rem; font-size: 1.3rem; }
+.follow-card-who strong { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.follow-card-who .help-text { font-size: 0.76rem; line-height: 1.2; min-height: 1.9em; }
+.follow-btn { border-radius: 999px; font-weight: 700; }
+.follow-btn.small { padding: 0.35rem 0.9rem; font-size: 0.85rem; width: 100%; }
+.wall-post-head .follow-btn.small { width: auto; }
+.follow-btn.following { color: var(--text); }
+.people-row { display: flex; align-items: center; gap: 0.6rem; padding: 0.5rem 0; border-bottom: 1px solid var(--border); }
+.people-row:last-child { border-bottom: 0; }
+.people-row-who { flex: 1; display: flex; align-items: center; gap: 0.6rem; border: 0; background: none; padding: 0; text-align: left; cursor: pointer; color: var(--text); min-width: 0; }
+.people-row-who > span:last-child { display: flex; flex-direction: column; }
+.people-row .follow-btn.small { width: auto; flex: 0 0 auto; }
+.my-mini-profile { display: flex; flex-direction: column; gap: 0.6rem; }
+.mmp-who { display: flex; align-items: center; gap: 0.7rem; border: 0; background: none; padding: 0; text-align: left; cursor: pointer; color: var(--text); }
+.mmp-who .mini-avatar { width: 3.2rem; height: 3.2rem; font-size: 1.3rem; }
+.mmp-who > span:last-child { display: flex; flex-direction: column; font-size: 1.1rem; }
+.social-counts { display: flex; gap: 1.1rem; flex-wrap: wrap; margin: 0.2rem 0 0.8rem; }
+.my-mini-profile .social-counts { margin: 0; }
+.social-count { border: 0; background: none; padding: 0; color: var(--text-muted); font-size: 0.92rem; cursor: pointer; }
+span.social-count { cursor: default; }
+.social-count strong { color: var(--text); font-size: 1.05rem; }
+.feed-section-title { margin: 1rem 0 0.5rem; }
+.post-comments { margin-top: 0.6rem; border-top: 1px solid var(--border); padding-top: 0.5rem; display: flex; flex-direction: column; gap: 0.45rem; }
+.comments-more { align-self: flex-start; color: var(--text-muted); font-weight: 600; }
+.post-comment { display: flex; gap: 0.45rem; align-items: flex-start; }
+.post-comment .mini-avatar { width: 1.8rem; height: 1.8rem; font-size: 0.8rem; flex: 0 0 auto; }
+.post-comment-bubble { background: var(--surface-alt); border-radius: 14px; padding: 0.45rem 0.7rem; font-size: 0.92rem; line-height: 1.35; min-width: 0; }
+.post-comment-author { border: 0; background: none; padding: 0; font-weight: 700; color: var(--text); cursor: pointer; }
+.post-comment-time { display: block; font-size: 0.74rem; color: var(--text-muted); margin-top: 0.1rem; }
+.post-comment-time .link-btn { font-size: inherit; color: inherit; text-decoration: underline; }
+.post-comment-form { display: flex; gap: 0.4rem; }
+.post-comment-form input { flex: 1; border-radius: 999px; padding: 0.5rem 0.9rem; }
+.post-comment-form button { border-radius: 999px; flex: 0 0 auto; }

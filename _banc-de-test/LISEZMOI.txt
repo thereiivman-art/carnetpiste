@@ -55,6 +55,8 @@ Scénarios
                        rangés avec les potes et moi (valeurs fictives).
   onglet-chrono        onglet central Chrono le jour J (&jourj=1), sans
                        roulage, horaires d'un seul groupe, calendrier.
+  reseau               Communauté : Fil, Suivis, abonnés, commentaires,
+                       fiche d'un pilote non ami.
   parrain              Gestion des comptes : corriger un parrain.
 
 Guide PDF

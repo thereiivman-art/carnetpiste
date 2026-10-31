@@ -749,6 +749,16 @@ service cloud.firestore {
     // author's friend/follower" the way isTeamLeader() does for teams);
     // the audience field is a display-layer choice (see
     // visibleWallPosts), not a server-enforced boundary.
+    // Commentaires sous un message du fil : chacun écrit et supprime les
+    // siens (l'admin aussi) ; texte de 500 caractères au plus.
+    match /postComments/{id} {
+      allow read: if verified();
+      allow create: if verified() && request.resource.data.author == myName()
+        && request.resource.data.text is string && request.resource.data.text.size() <= 500
+        && request.resource.data.postId is string;
+      allow delete: if verified() && (resource.data.author == myName() || isAdmin());
+      allow update: if verified() && (canRenameField(resource, 'author', 'authorUid') || canBackfillUid(resource, 'author', 'authorUid'));
+    }
     match /wallPosts/{id} {
       allow read: if verified();
       allow create: if verified() && request.resource.data.author == myName();

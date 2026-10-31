@@ -11,7 +11,8 @@
       u5: { name: 'Victor', role: 'pilote', email: 'victor@example.com', lang: 'fr', tutorialSeen: true, country: 'FR', bike: 'Yamaha R1' },
       u6: { name: 'Yann', role: 'pilote', email: 'yann@example.com', lang: 'fr', tutorialSeen: true, country: 'FR', bike: 'Yamaha R1' },
       u7: { name: 'Zoé', role: 'pilote', email: 'zoe@example.com', lang: 'fr', tutorialSeen: true, country: 'FR', bike: 'Yamaha R1' },
-      u8: { name: 'Théo', role: 'pilote', email: 'theo@example.com', lang: 'fr', tutorialSeen: true, country: 'FR', bike: 'Yamaha R1' }
+      u8: { name: 'Théo', role: 'pilote', email: 'theo@example.com', lang: 'fr', tutorialSeen: true, country: 'FR', bike: 'Yamaha R1' },
+      u9: { name: 'Luca', role: 'pilote', email: 'luca@example.com', lang: 'fr', tutorialSeen: true, country: 'IT', bike: 'Ducati V4' }
     },
     chronoProposals: { cp1: { id: 'cp1', from: 'Tom', to: 'Alex', circuit: 'Mugello', date: d(-40), laps: [115.2, 114.1], slotLabel: '16h00-16h20', status: 'pending', createdAt: Date.now() } },
     friendRequests: { f1: { id: 'f1', from: 'Alex', to: 'Sam', status: 'accepted' }, f2: { id: 'f2', from: 'Luca', to: 'Alex', status: 'pending' }, g0: { id: 'g0', from: 'Alex', to: 'Tom', status: 'accepted' }, g1: { id: 'g1', from: 'Alex', to: 'Ugo', status: 'accepted' }, g2: { id: 'g2', from: 'Alex', to: 'Victor', status: 'accepted' }, g3: { id: 'g3', from: 'Alex', to: 'Yann', status: 'accepted' }, g4: { id: 'g4', from: 'Alex', to: 'Zoé', status: 'accepted' }, g5: { id: 'g5', from: 'Alex', to: 'Théo', status: 'accepted' } },
@@ -44,7 +45,19 @@
     },
     teams: { t1: { id: 't1', name: 'Team Piste', leader: 'Alex', pro: false, slogan: 'On roule ensemble', look: /look=1/.test(location.hash) ? { cover: 'trace', color: '#c8261f', bio: 'On roule ensemble' } : undefined }, t2: { id: 't2', name: 'Mototeam95', teamPro: true } },
     teamMembers: /noteam=1/.test(location.hash) ? { m2: { teamId: 't1', name: 'Sam', role: 'membre' } } : { m1: { teamId: 't1', name: 'Alex', role: 'leader' }, m2: { teamId: 't1', name: 'Sam', role: 'membre' } },
-    feedEvents: {}, wallPosts: {}, follows: {}, settings: {},
+    feedEvents: {},
+    // Réseau : un message public de Luca (pas encore ami), un de Sam (ami),
+    // et deux abonnés d'Alex.
+    wallPosts: {
+      w1: { id: 'w1', author: 'Luca', text: 'Premier roulage à Mugello, quelle piste !', audience: 'all', createdAt: Date.now() - 3 * 3600e3 },
+      w2: { id: 'w2', author: 'Sam', text: 'Pneus neufs pour Barcelone, qui vient ?', audience: 'friends', createdAt: Date.now() - 5 * 3600e3 }
+    },
+    follows: {
+      fo1: { follower: 'Luca', followee: 'Alex', createdAt: Date.now() - 86400e3 },
+      fo2: { follower: 'Sam', followee: 'Alex', createdAt: Date.now() - 2 * 86400e3 }
+    },
+    postComments: { c1: { id: 'c1', postId: 'w2', author: 'Tom', text: 'Moi je viens !', createdAt: Date.now() - 4 * 3600e3 } },
+    settings: {},
     userPrivate: { u1: { setups: {
       s1: { pFrontHot: '2.3', pRearHot: '2.0', fork: 'C8 R10', shock: 'R12' },
       s1b: { pFrontHot: '2.3', pRearHot: '1.9', fork: 'C8 R10', shock: 'R12' },
