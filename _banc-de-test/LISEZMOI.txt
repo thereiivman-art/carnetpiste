@@ -61,6 +61,8 @@ Scénarios
                        glissé depuis le bord) à la même position du fil.
   audience             vues des posts et visites de profil comptées,
                        tableau Audience (Carnet+) et kit média.
+  audience-team        audience d'un team dans ses réglages ; Bientôt en
+                       piste sur la fiche d'un pilote, réglage Vie privée.
   parrain              Gestion des comptes : corriger un parrain.
 
 Guide PDF

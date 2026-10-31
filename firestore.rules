@@ -761,11 +761,13 @@ service cloud.firestore {
     // Audience (impressions, visites de profil) : un document par lecteur,
     // par publication et par jour ; seul l'auteur les lit (statistiques).
     match /postViews/{id} {
-      allow read: if verified() && (resource.data.owner == myName() || resource.data.viewer == myName());
+      allow read: if verified() && (resource.data.owner == myName() || resource.data.viewer == myName()
+        || (resource.data.get('teamId', '') != '' && isTeamLeader(resource.data.teamId)));
       allow create, update: if verified() && request.resource.data.viewer == myName() && request.resource.data.owner != myName();
     }
     match /profileViews/{id} {
-      allow read: if verified() && (resource.data.owner == myName() || resource.data.viewer == myName());
+      allow read: if verified() && (resource.data.owner == myName() || resource.data.viewer == myName()
+        || (resource.data.get('teamId', '') != '' && isTeamLeader(resource.data.teamId)));
       allow create, update: if verified() && request.resource.data.viewer == myName() && request.resource.data.owner != myName();
     }
     match /postComments/{id} {

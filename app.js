@@ -4731,6 +4731,8 @@
       var privacy = '<div class="help-text">Tes chronos et roulages sont visibles des autres pilotes de l\'appli ; repères et débriefs ne sont affichés qu\'à toi ; ton email reste privé.</div>' +
         '<div class="help-text" style="margin-top:0.4rem;">' + tr('social_settings_help') + '</div>' +
         '<label class="checklist-item" style="margin-top:0.6rem;"><input type="checkbox" id="profile-share-sorties"' + (p.shareSorties !== false ? ' checked' : '') + '> ' + tr('share_events_chronos') + '</label>' +
+        '<label for="profile-share-upcoming" style="margin-top:0.7rem;">' + L('Mes prochains roulages (Bientôt en piste) visibles par', 'My next trackdays (Coming up) visible to') + '</label>' +
+        '<select id="profile-share-upcoming"><option value="friends"' + ((p.shareUpcoming || 'friends') === 'friends' ? ' selected' : '') + '>' + L('Mes amis', 'My friends') + '</option><option value="public"' + (p.shareUpcoming === 'public' ? ' selected' : '') + '>' + L('Tout le monde', 'Everyone') + '</option></select>' +
         '<label class="checklist-item" style="margin-top:0.4rem;"><input type="checkbox" id="profile-share-trophees"' + (p.shareTrophees !== false ? ' checked' : '') + '> ' + tr('share_trophies') + '</label>' +
         '<label class="checklist-item" style="margin-top:0.4rem;"><input type="checkbox" id="profile-share-travel-info"' + (p.shareTravelInfo !== false ? ' checked' : '') + '> ' + tr('share_travel_info') + '</label>';
       sections.confidentialite = privacy;
@@ -17224,6 +17226,7 @@
     }
     html += socialCountsHtml(name);
     if (!friendship && !isMe) {
+      if (upcomingVisible(u, name)) html += personUpcomingHtml(name);
       var pubPosts = (STATE.wallPosts || []).filter(function (p) { return !p.story && p.author === name && (p.audience === 'all' || (p.audience === 'followers' && iFollow(name))); });
       if (pubPosts.length) html += '<h2 class="section-title feed-section-title">' + L('Ses publications', 'Their posts') + '</h2>' + pubPosts.slice(0, 10).map(function (p) { return '<div class="card feed-card"' + viewAttrs(p.id, p.author) + '>' + renderWallPost(p) + '</div>'; }).join('');
       html += '<div class="card"><div class="empty-state">' + escapeHtml(L('Ajoute ' + name + ' en ami pour voir ses roulages, ses records et ses trophées, et vous comparer.', 'Add ' + name + ' as a friend to see their trackdays, records and trophies, and compare.')) + '</div></div>';
@@ -17233,9 +17236,11 @@
     if ((isPilote && (isMe || u.shareSorties !== false)) || withFeed) {
       var personPills = [['fiche', L('Fiche', 'Profile')]];
       if (isPilote && (isMe || u.shareSorties !== false)) personPills.push(['saisons', L('Saisons', 'Seasons')]);
+      if (!isMe && upcomingVisible(u, name)) personPills.push(['bientot', L('Bientôt en piste', 'Coming up')]);
       if (withFeed) personPills.push(['monfil', L('Mon fil', 'My feed')], ['bientot', L('Bientôt en piste', 'Coming up')]);
       html += renderPills('person', personPills);
       if (pillState.person === 'saisons') return html + renderRiderSeasons(name, look, isMe) + '</div>';
+      if (pillState.person === 'bientot' && !isMe) return html + (personUpcomingHtml(name) || '<div class="card help-text">' + L('Aucun roulage prévu pour l\'instant.', 'No trackday planned yet.') + '</div>') + '</div>';
       if (pillState.person === 'monfil' && withFeed) return html + renderMyFeedTab(u) + '</div>';
       if (pillState.person === 'bientot' && withFeed) return html + (renderFeedUpcoming(true) || '<div class="card help-text">' + L('Aucun roulage prévu par tes potes pour l\'instant.', 'No trackday planned by your friends yet.') + '</div>') + '</div>';
     }
@@ -17271,11 +17276,11 @@
             '<span class="person-record-right"><span class="carnet-time">' + formatTime(bests[c].best) + '</span>' + cmp + '</span></div>';
         }).join('') + '</div>';
       }
-      // Next roulages
+      // Next roulages (leur visibilité : voir upcomingVisible)
       var today = dateKey(new Date());
       var next = eventsList().filter(function (ev) { return (ev.riders || []).indexOf(name) !== -1 && (ev.dateEnd || ev.dateStart) >= today; })
         .sort(function (a, b) { return a.dateStart < b.dateStart ? -1 : 1; }).slice(0, 4);
-      if (next.length) {
+      if (next.length && (isMe || upcomingVisible(u, name))) {
         html += '<div class="card"><h2 class="section-title">' + (isMe ? L('Mes prochains roulages', 'My next trackdays') : L('Ses prochains roulages', 'Next trackdays')) + '</h2>' + next.map(function (ev) {
           var mineToo = me && (ev.riders || []).indexOf(me.name) !== -1;
           if (isMe) return '<div class="feed-upcoming-row"><span class="outing-thumb">' + circuitThumbHtml(ev.circuit) + '</span><span class="feed-upcoming-main"><strong>' + escapeHtml(ev.circuit) + '</strong><span class="help-text">' + escapeHtml(formatEventRange(ev, true)) + '</span></span></div>';
@@ -17576,6 +17581,26 @@
     var html = ce > 5 ? fiche.slice(0, ce) + extra + fiche.slice(ce) : extra + fiche;
     return html;
   }
+  // Les prochains roulages d'un pilote : ses amis les voient (sauf s'il
+  // les cache), tout le monde s'il a choisi « Tout le monde ».
+  function upcomingVisible(u, name) {
+    var me = currentUserProfile && currentUserProfile.name;
+    if (!u || name === me) return true;
+    var friend = friendsOf(me || '').some(function (f) { return f.name === name; });
+    var v = u.shareUpcoming || 'friends';
+    return v === 'public' || (friend && v === 'friends');
+  }
+  function personUpcomingHtml(name) {
+    var me = currentUserProfile, today = dateKey(new Date());
+    var next = eventsList().filter(function (ev) { return (ev.riders || []).indexOf(name) !== -1 && (ev.dateEnd || ev.dateStart) >= today; }).sort(function (a, b) { return a.dateStart < b.dateStart ? -1 : 1; });
+    if (!next.length) return '';
+    return '<div class="card feed-upcoming"><div class="feed-record-label">' + L('Bientôt en piste', 'Coming up') + '</div>' + next.map(function (ev) {
+      var mineToo = me && (ev.riders || []).indexOf(me.name) !== -1, days = Math.max(0, Math.round((parseLocalDate(ev.dateStart) - parseLocalDate(today)) / 86400000));
+      return '<div class="feed-upcoming-row"><button type="button" class="feed-upcoming-open" data-open-outing="' + escapeHtml(ev.circuit) + '" data-outing-date="' + escapeHtml(ev.dateStart) + '" data-outing-event="' + escapeHtml(ev.id) + '">' +
+        '<span class="outing-thumb">' + circuitThumbHtml(ev.circuit) + '</span><span class="feed-upcoming-main"><strong>' + cName(ev.circuit) + ' <span class="feed-upcoming-j">' + countdownLabel(days) + '</span></strong><span class="help-text">' + escapeHtml(formatEventRange(ev, true)) + '</span></span></button>' +
+        (mineToo ? '<span class="feed-upcoming-tag">' + L('Tu y vas aussi', 'You\'re going too') + '</span>' : '<button type="button" class="ghost" data-notif-go="event" data-id="' + escapeHtml(ev.id) + '" data-join="1">' + L('J\'y vais aussi', 'I\'m going too') + '</button>') + '</div>';
+    }).join('') + '</div>';
+  }
   // Profil › Mon fil : publier, puis mes publications et republications.
   var socialProfileCtx = false;
   function renderMyFeedTab(me) {
@@ -17677,17 +17702,18 @@
   // au moins une seconde ; comptée une fois par lecteur et par jour
   // (postViews/{post__lecteur__jour}). Pareil pour les visites de profil.
   // C'est ce que demanderont les marques aux pilotes influents (Carnet+).
-  function viewAttrs(key, owner) {
-    return key && owner ? ' data-view-key="' + escapeHtml(key) + '" data-view-owner="' + escapeHtml(owner) + '"' : '';
+  function viewAttrs(key, owner, teamId) {
+    return key && owner ? ' data-view-key="' + escapeHtml(key) + '" data-view-owner="' + escapeHtml(owner) + '"' + (teamId ? ' data-view-team="' + escapeHtml(teamId) + '"' : '') : '';
   }
   var viewsSent = {}, viewObserver = null, viewTimers = {};
-  function recordView(coll, key, owner) {
+  function recordView(coll, key, owner, teamId) {
     var me = currentUserProfile && currentUserProfile.name;
     if (!me || !owner || owner === me) return;
     var day = dateKey(new Date()), id = safeDocId(key + '__' + me + '__' + day).slice(0, 400);
     if (viewsSent[coll + id]) return;
     viewsSent[coll + id] = true;
     var doc = { postId: key, owner: owner, viewer: me, day: day, createdAt: Date.now() };
+    if (teamId) doc.teamId = teamId;
     db.collection(coll).doc(id).set(doc).catch(function () {});
   }
   function observeViews() {
@@ -17696,10 +17722,10 @@
       // Minuteur par publication (pas par élément) : le fil se redessine
       // souvent, une carte remplacée par sa copie ne remet pas le compteur à zéro.
       entries.forEach(function (en) {
-        var el = en.target, key = el.getAttribute('data-view-key'), owner = el.getAttribute('data-view-owner');
+        var el = en.target, key = el.getAttribute('data-view-key'), owner = el.getAttribute('data-view-owner'), vt = el.getAttribute('data-view-team');
         if (!el.isConnected) { viewObserver.unobserve(el); return; }
         if (en.isIntersecting && en.intersectionRatio >= 0.5) {
-          if (!viewTimers[key]) viewTimers[key] = setTimeout(function () { delete viewTimers[key]; recordView('postViews', key, owner); }, 1000);
+          if (!viewTimers[key]) viewTimers[key] = setTimeout(function () { delete viewTimers[key]; recordView('postViews', key, owner, vt); }, 1000);
         } else if (viewTimers[key]) { clearTimeout(viewTimers[key]); delete viewTimers[key]; }
       });
     }, { threshold: [0, 0.5] });
@@ -18038,7 +18064,7 @@
         if (h !== lastHeader) { head = h === 'Plus tôt' ? '' : '<div class="feed-day">' + h + '</div>'; lastHeader = h; }
         // A new friendship is a quiet line between cards, not a card.
         if (it.kind === 'activity' && it.data.type === 'friend') return head + '<div class="feed-line">' + inner + '</div>';
-        return head + '<div class="card feed-card"' + viewAttrs(vk, vo) + '>' + inner + '</div>';
+        return head + '<div class="card feed-card"' + viewAttrs(vk, vo, it.kind === 'team' ? it.teamId : null) + '>' + inner + '</div>';
       }).join('') + (items.length > visible.length ? '<div id="wall-feed-sentinel" class="empty-inline">' + tr('loading') + '</div>' : '');
     return withRepost(renderCircuitMoment(), 'moment:' + (circuitOfTheMoment() || {}).circuit, function () {
       var c = circuitOfTheMoment();
@@ -18574,6 +18600,53 @@
     return teamCard(tr('followers_label') + names.length + ')', body);
   }
 
+  // ---- Audience du team (Carnet+ motoclubs) ----
+  var teamAudienceCache = {};
+  function loadTeamAudience(teamId) {
+    if (teamAudienceCache[teamId] && Date.now() - teamAudienceCache[teamId].at < 60000) return;
+    teamAudienceCache[teamId] = { at: Date.now(), views: (teamAudienceCache[teamId] || {}).views || [], visits: (teamAudienceCache[teamId] || {}).visits || [] };
+    Promise.all([db.collection('postViews').where('teamId', '==', teamId).get(), db.collection('profileViews').where('teamId', '==', teamId).get()]).then(function (r) {
+      teamAudienceCache[teamId].views = r[0].docs.map(function (d) { return d.data(); });
+      teamAudienceCache[teamId].visits = r[1].docs.map(function (d) { return d.data(); });
+      renderRoot();
+    }).catch(function () {});
+  }
+  function renderTeamAudience(team) {
+    loadTeamAudience(team.id);
+    if (!pillState.teamauddays) pillState.teamauddays = '30';
+    var days = parseInt(pillState.teamauddays, 10), since = dateKey(new Date(Date.now() - (days - 1) * 86400000)), sinceMs = Date.now() - days * 86400000;
+    var c = teamAudienceCache[team.id] || { views: [], visits: [] };
+    var views = c.views.filter(function (v) { return v.day >= since; }), visits = c.visits.filter(function (v) { return v.day >= since; });
+    var reach = {}; views.forEach(function (v) { reach[v.viewer] = 1; });
+    var posts = (STATE.teamFeed || []).concat(STATE.followedTeamFeed || []).filter(function (f) { return f.teamId === team.id; });
+    var ids = {}; posts.forEach(function (f) { ids[f.id] = f; });
+    var reactions = 0, comments = 0, reposts = 0;
+    Object.keys(ids).forEach(function (k) {
+      reactions += Object.keys(ids[k].reactions || {}).length;
+      comments += (STATE.postComments || []).filter(function (x) { return x.postId === k && (x.createdAt || 0) >= sinceMs; }).length;
+      reposts += repostCount(k);
+    });
+    var followers = ((STATE.teamFollowersByTeam || {})[team.id] || []).length, members = membersOfTeam(team.id).length;
+    var likes = (STATE.teamLikes || []).filter(function (l) { return l.teamId === team.id; }).length;
+    var engagement = reactions + comments + reposts, rate = Object.keys(reach).length ? Math.round(engagement / Object.keys(reach).length * 1000) / 10 : 0;
+    var tile = function (n, label, sub) { return '<div class="aud-tile"><strong>' + n + '</strong><span>' + label + '</span>' + (sub ? '<em>' + sub + '</em>' : '') + '</div>'; };
+    var byPost = {}; views.forEach(function (v) { (byPost[v.postId] = byPost[v.postId] || {}).n = ((byPost[v.postId] || {}).n || 0) + 1; });
+    var top = Object.keys(byPost).sort(function (a, b) { return byPost[b].n - byPost[a].n; }).slice(0, 5);
+    return '<div class="card aud-card"><div class="aud-head"><h2 class="section-title">' + L('Audience du team', 'Team audience') + '</h2><span class="carnet-plus">Carnet+</span></div>' +
+      renderSubPillRow('teamauddays', [['7', L('7 jours', '7 days')], ['30', L('30 jours', '30 days')], ['90', L('90 jours', '90 days')]]) +
+      '<div class="aud-tiles">' +
+        tile(views.length, L('impressions', 'impressions'), L('vues des messages du team', 'views of team posts')) +
+        tile(Object.keys(reach).length, L('comptes touchés', 'accounts reached'), '') +
+        tile(engagement, L('interactions', 'interactions'), reactions + ' ' + L('réactions', 'reactions') + ' · ' + comments + ' ' + L('comm.', 'comm.') + ' · ' + reposts + ' ' + L('republ.', 'reposts')) +
+        tile(rate + ' %', L('taux d\'engagement', 'engagement rate'), '') +
+        tile(visits.length, L('visites de la page', 'page visits'), '') +
+        tile(followers, L('abonnés', 'followers'), members + ' ' + L('membres', 'members') + (likes ? ' · ' + likes + ' ' + L('j\'aime', 'likes') : '')) +
+      '</div>' +
+      '<h3 class="aud-sub">' + L('Messages les plus vus', 'Most viewed posts') + '</h3>' + (top.length ? top.map(function (k) {
+        var f = ids[k];
+        return '<div class="aud-post"><span class="aud-post-label">' + escapeHtml(f ? (f.text || f.question || L('Message', 'Post')) : L('Message', 'Post')) + '</span><span class="aud-post-nums"><b>' + byPost[k].n + '</b> ' + L('vues', 'views') + (f ? ' · ' + Object.keys(f.reactions || {}).length + ' ' + L('réac.', 'react.') + ' · ' + commentCount(k) + ' ' + L('comm.', 'comm.') : '') + '</span></div>';
+      }).join('') : '<div class="help-text">' + L('Pas encore de vues : publie sur le fil du team.', 'No views yet: post on the team feed.') + '</div>') + '</div>';
+  }
   function renderTeamSettings(team, isLeader) {
     if (!isLeader) {
       return teamCard('', '<div class="help-text">' + tr('leaders_only_reserved') + '</div>');
@@ -19063,9 +19136,10 @@
     // Moins de sous-onglets : Fiche (avec les saisons), Fil, Membres, et
     // Roulages pour le leader ; les Réglages s'ouvrent par l'engrenage.
     var seasonsHtml = renderTeamSeasons(team, tLook, isMember || !!myRoleInTeam(team.id));
+    if (!isLeader) recordView('profileViews', 'team:' + team.id, 'team:' + team.id, team.id);
     if (isLeader && teamSettingsOpenId === team.id) {
       return headHtml + (headClosed ? '' : '</div>') + '<button type="button" class="link-btn back-link" data-action="team-settings-close">‹ ' + L('Retour au team', 'Back to the team') + '</button>' +
-        '<h2 class="section-title team-settings-title">' + L('Réglages du team', 'Team settings') + '</h2>' + renderTeamSettings(team, isLeader);
+        '<h2 class="section-title team-settings-title">' + L('Réglages du team', 'Team settings') + '</h2>' + renderTeamAudience(team) + renderTeamSettings(team, isLeader);
     }
     var teamPills = [['fil', 'Fil'], ['membres', L('Membres', 'Members')]];
     teamPills.unshift(tLook ? ['fiche', L('Fiche', 'Page')] : ['saisons', L('Saisons', 'Seasons')]);
@@ -20596,6 +20670,8 @@
     if (feelingEnabledEl) {
       feelingEnabledEl.addEventListener('change', function () { saveOwnBooleanField('sessionFeelingEnabled', feelingEnabledEl.checked); });
     }
+    var shareUpcomingEl = document.getElementById('profile-share-upcoming');
+    if (shareUpcomingEl) shareUpcomingEl.addEventListener('change', function () { saveOwnBooleanField('shareUpcoming', shareUpcomingEl.value); });
     var shareSortiesEl = document.getElementById('profile-share-sorties');
     if (shareSortiesEl) {
       shareSortiesEl.addEventListener('change', function () { saveOwnBooleanField('shareSorties', shareSortiesEl.checked); });
