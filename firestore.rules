@@ -758,6 +758,16 @@ service cloud.firestore {
       allow create, update: if verified() && request.resource.data.author == myName() && request.resource.data.emoji is string && request.resource.data.emoji.size() <= 8;
       allow delete: if verified() && resource.data.author == myName();
     }
+    // Audience (impressions, visites de profil) : un document par lecteur,
+    // par publication et par jour ; seul l'auteur les lit (statistiques).
+    match /postViews/{id} {
+      allow read: if verified() && (resource.data.owner == myName() || resource.data.viewer == myName());
+      allow create, update: if verified() && request.resource.data.viewer == myName() && request.resource.data.owner != myName();
+    }
+    match /profileViews/{id} {
+      allow read: if verified() && (resource.data.owner == myName() || resource.data.viewer == myName());
+      allow create, update: if verified() && request.resource.data.viewer == myName() && request.resource.data.owner != myName();
+    }
     match /postComments/{id} {
       allow read: if verified();
       allow create: if verified() && request.resource.data.author == myName()

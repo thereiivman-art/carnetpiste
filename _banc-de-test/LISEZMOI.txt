@@ -59,6 +59,8 @@ Scénarios
                        fiche d'un pilote non ami.
   retour               revenir en arrière (bouton, retour du téléphone,
                        glissé depuis le bord) à la même position du fil.
+  audience             vues des posts et visites de profil comptées,
+                       tableau Audience (Carnet+) et kit média.
   parrain              Gestion des comptes : corriger un parrain.
 
 Guide PDF

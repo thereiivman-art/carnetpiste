@@ -16587,6 +16587,7 @@
     }
     var from = activeView === 'person' && personView ? personView.from : (activeView === 'outing' ? 'social' : activeView);
     personView = { name: name, from: from || 'social' };
+    recordView('profileViews', 'profile:' + name, name);
     activeView = 'person';
     notificationsPanelOpen = false; profilePanelOpen = false;
     pendingRemoveFriendId = null;
@@ -17223,7 +17224,7 @@
     html += socialCountsHtml(name);
     if (!friendship && !isMe) {
       var pubPosts = (STATE.wallPosts || []).filter(function (p) { return !p.story && p.author === name && (p.audience === 'all' || (p.audience === 'followers' && iFollow(name))); });
-      if (pubPosts.length) html += '<h2 class="section-title feed-section-title">' + L('Ses publications', 'Their posts') + '</h2>' + pubPosts.slice(0, 10).map(function (p) { return '<div class="card feed-card">' + renderWallPost(p) + '</div>'; }).join('');
+      if (pubPosts.length) html += '<h2 class="section-title feed-section-title">' + L('Ses publications', 'Their posts') + '</h2>' + pubPosts.slice(0, 10).map(function (p) { return '<div class="card feed-card"' + viewAttrs(p.id, p.author) + '>' + renderWallPost(p) + '</div>'; }).join('');
       html += '<div class="card"><div class="empty-state">' + escapeHtml(L('Ajoute ' + name + ' en ami pour voir ses roulages, ses records et ses trophées, et vous comparer.', 'Add ' + name + ' as a friend to see their trackdays, records and trophies, and compare.')) + '</div></div>';
       return html + '</div>';
     }
@@ -17231,10 +17232,11 @@
     if ((isPilote && (isMe || u.shareSorties !== false)) || withFeed) {
       var personPills = [['fiche', L('Fiche', 'Profile')]];
       if (isPilote && (isMe || u.shareSorties !== false)) personPills.push(['saisons', L('Saisons', 'Seasons')]);
-      if (withFeed) personPills.push(['monfil', L('Mon fil', 'My feed')]);
+      if (withFeed) personPills.push(['monfil', L('Mon fil', 'My feed')], ['audience', L('Audience', 'Audience')]);
       html += renderPills('person', personPills);
       if (pillState.person === 'saisons') return html + renderRiderSeasons(name, look, isMe) + '</div>';
       if (pillState.person === 'monfil' && withFeed) return html + renderMyFeedTab(u) + '</div>';
+      if (pillState.person === 'audience' && withFeed) return html + renderAudienceTab(u) + '</div>';
     }
     if (isPilote && u.shareSorties !== false) {
       var stats = riderStats(name);
@@ -17543,7 +17545,7 @@
     // découvrir du monde à suivre.
     var friendNames = friendsOf(me.name).map(function (f) { return f.name; });
     var pub = (STATE.wallPosts || []).filter(function (p) { return !p.story && p.audience === 'all' && p.author !== me.name && !iFollow(p.author) && friendNames.indexOf(p.author) === -1; }).slice(0, 6);
-    if (pub.length) html += '<h2 class="section-title feed-section-title">' + L('À découvrir', 'Discover') + '</h2>' + pub.map(function (p) { return '<div class="card feed-card">' + renderWallPost(p, true) + '</div>'; }).join('');
+    if (pub.length) html += '<h2 class="section-title feed-section-title">' + L('À découvrir', 'Discover') + '</h2>' + pub.map(function (p) { return '<div class="card feed-card"' + viewAttrs(p.id, p.author) + '>' + renderWallPost(p, true) + '</div>'; }).join('');
     var lists = [
       ['abonnements', L('Abonnements', 'Following') + ' (' + following.length + ')', '<div class="card">' + renderPeopleRows(following, true) + '</div>'],
       ['abonnes', L('Abonnés', 'Followers') + ' (' + followers.length + ')', '<div class="card">' + renderPeopleRows(followers, true) + '</div>']
@@ -17668,6 +17670,106 @@
       timer = setTimeout(function () { i++; show(); }, 6000);
     }
     show();
+  }
+  // ---- Audience : vues des publications et visites du profil ----
+  // Une vue = un lecteur (pas l'auteur) qui a eu la publication à l'écran
+  // au moins une seconde ; comptée une fois par lecteur et par jour
+  // (postViews/{post__lecteur__jour}). Pareil pour les visites de profil.
+  // C'est ce que demanderont les marques aux pilotes influents (Carnet+).
+  function viewAttrs(key, owner) {
+    return key && owner ? ' data-view-key="' + escapeHtml(key) + '" data-view-owner="' + escapeHtml(owner) + '"' : '';
+  }
+  var viewsSent = {}, viewObserver = null, viewTimers = {};
+  function recordView(coll, key, owner) {
+    var me = currentUserProfile && currentUserProfile.name;
+    if (!me || !owner || owner === me) return;
+    var day = dateKey(new Date()), id = safeDocId(key + '__' + me + '__' + day).slice(0, 400);
+    if (viewsSent[coll + id]) return;
+    viewsSent[coll + id] = true;
+    var doc = { postId: key, owner: owner, viewer: me, day: day, createdAt: Date.now() };
+    db.collection(coll).doc(id).set(doc).catch(function () {});
+  }
+  function observeViews() {
+    if (!window.IntersectionObserver) return;
+    if (!viewObserver) viewObserver = new IntersectionObserver(function (entries) {
+      // Minuteur par publication (pas par élément) : le fil se redessine
+      // souvent, une carte remplacée par sa copie ne remet pas le compteur à zéro.
+      entries.forEach(function (en) {
+        var el = en.target, key = el.getAttribute('data-view-key'), owner = el.getAttribute('data-view-owner');
+        if (!el.isConnected) { viewObserver.unobserve(el); return; }
+        if (en.isIntersecting && en.intersectionRatio >= 0.5) {
+          if (!viewTimers[key]) viewTimers[key] = setTimeout(function () { delete viewTimers[key]; recordView('postViews', key, owner); }, 1000);
+        } else if (viewTimers[key]) { clearTimeout(viewTimers[key]); delete viewTimers[key]; }
+      });
+    }, { threshold: [0, 0.5] });
+    document.querySelectorAll('[data-view-key]').forEach(function (el) { if (!el.__viewWatched) { el.__viewWatched = true; viewObserver.observe(el); } });
+  }
+  function myAudience(days) {
+    var me = currentUserProfile.name, since = dateKey(new Date(Date.now() - (days - 1) * 86400000));
+    var views = (STATE.myPostViews || []).filter(function (v) { return v.day >= since; });
+    var visits = (STATE.myProfileViews || []).filter(function (v) { return v.day >= since; });
+    var reach = {}; views.forEach(function (v) { reach[v.viewer] = 1; });
+    var byPost = {}; views.forEach(function (v) { (byPost[v.postId] = byPost[v.postId] || { views: 0, viewers: {} }).views++; byPost[v.postId].viewers[v.viewer] = 1; });
+    var perDay = {}; views.forEach(function (v) { perDay[v.day] = (perDay[v.day] || 0) + 1; });
+    var sinceMs = Date.now() - days * 86400000;
+    var myKeys = Object.keys(byPost);
+    (STATE.wallPosts || []).forEach(function (p) { if (p.author === me && !p.story && myKeys.indexOf(p.id) === -1) myKeys.push(p.id); });
+    var reactions = 0, comments = 0, reposts = 0;
+    myKeys.forEach(function (k) {
+      var wp = (STATE.wallPosts || []).filter(function (p) { return p.id === k; })[0];
+      reactions += Object.keys((wp && wp.reactions) || {}).length + Object.keys(itemReactions(k)).length;
+      comments += (STATE.postComments || []).filter(function (c) { return c.postId === k && c.author !== me && (c.createdAt || 0) >= sinceMs; }).length;
+      reposts += repostCount(k);
+    });
+    var newFollowers = (STATE.allUserFollows || []).filter(function (f) { return f.followee === me && (f.createdAt || 0) >= sinceMs; }).length;
+    return { impressions: views.length, reach: Object.keys(reach).length, visits: visits.length, visitors: Object.keys(visits.reduce(function (o, v) { o[v.viewer] = 1; return o; }, {})).length,
+      reactions: reactions, comments: comments, reposts: reposts, engagement: reactions + comments + reposts, followers: followersOf(me).length, newFollowers: newFollowers, byPost: byPost, perDay: perDay };
+  }
+  function postLabel(key) {
+    var wp = (STATE.wallPosts || []).filter(function (p) { return p.id === key; })[0];
+    if (wp) return wp.repostOf ? L('Republication · ', 'Repost · ') + (wp.repostOf.circuit || wp.repostOf.text || '') : (wp.text || (wp.photoURL ? L('Photo', 'Photo') : L('Message', 'Post')));
+    var m = /^ride:[^|]+\|([^|]+)\|(.+)$/.exec(key);
+    if (m) return L('Roulage · ', 'Trackday · ') + m[2] + ' · ' + formatDate(m[1]);
+    var fe = (STATE.feedEvents || []).filter(function (e) { return e.id === key; })[0];
+    if (fe && fe.type === 'record') return L('Record · ', 'Record · ') + fe.circuit + ' · ' + formatTime(fe.time);
+    return L('Publication', 'Post');
+  }
+  function renderAudienceTab(me) {
+    if (!pillState.auddays) pillState.auddays = '30';
+    var daysPills = renderSubPillRow('auddays', [['7', L('7 jours', '7 days')], ['30', L('30 jours', '30 days')], ['90', L('90 jours', '90 days')]]);
+    var a = myAudience(parseInt(pillState.auddays, 10) || 30), rate = a.reach ? Math.round(a.engagement / a.reach * 1000) / 10 : 0;
+    var tile = function (n, label, sub) { return '<div class="aud-tile"><strong>' + n + '</strong><span>' + label + '</span>' + (sub ? '<em>' + sub + '</em>' : '') + '</div>'; };
+    var html = '<div class="card aud-card"><div class="aud-head"><h2 class="section-title">' + L('Mon audience', 'My audience') + '</h2><span class="carnet-plus">Carnet+</span></div>' +
+      daysPills +
+      '<div class="aud-tiles">' +
+        tile(a.impressions, L('impressions', 'impressions'), L('vues de tes publications', 'views of your posts')) +
+        tile(a.reach, L('comptes touchés', 'accounts reached'), '') +
+        tile(a.engagement, L('interactions', 'interactions'), a.reactions + ' ' + L('réactions', 'reactions') + ' · ' + a.comments + ' ' + L('comm.', 'comm.') + ' · ' + a.reposts + ' ' + L('republ.', 'reposts')) +
+        tile(rate + ' %', L('taux d\'engagement', 'engagement rate'), L('interactions / comptes touchés', 'interactions / accounts reached')) +
+        tile(a.visits, L('visites du profil', 'profile visits'), a.visitors + ' ' + L('visiteurs', 'visitors')) +
+        tile(a.followers, L('abonnés', 'followers'), a.newFollowers ? '+' + a.newFollowers + ' ' + L('sur la période', 'this period') : '') +
+      '</div>';
+    // Impressions par jour (14 derniers jours)
+    var days = [], max = 1;
+    for (var i = 13; i >= 0; i--) { var dk = dateKey(new Date(Date.now() - i * 86400000)); days.push([dk, a.perDay[dk] || 0]); max = Math.max(max, a.perDay[dk] || 0); }
+    html += '<div class="aud-chart-title help-text">' + L('Impressions par jour (14 jours)', 'Impressions per day (14 days)') + '</div><div class="aud-chart">' + days.map(function (d) {
+      return '<span class="aud-bar" style="height:' + Math.max(4, Math.round(d[1] / max * 100)) + '%" title="' + escapeHtml(formatDate(d[0]) + ' : ' + d[1]) + '"><i>' + (d[1] || '') + '</i></span>';
+    }).join('') + '</div>';
+    var top = Object.keys(a.byPost).sort(function (x, y) { return a.byPost[y].views - a.byPost[x].views; }).slice(0, 5);
+    html += '<h3 class="aud-sub">' + L('Publications les plus vues', 'Most viewed posts') + '</h3>' + (top.length ? top.map(function (k) {
+      var b = a.byPost[k], wp = (STATE.wallPosts || []).filter(function (p) { return p.id === k; })[0];
+      var re = Object.keys((wp && wp.reactions) || {}).length + Object.keys(itemReactions(k)).length, co = commentCount(k), rp = repostCount(k);
+      return '<div class="aud-post"><span class="aud-post-label">' + escapeHtml(postLabel(k)) + '</span><span class="aud-post-nums"><b>' + b.views + '</b> ' + L('vues', 'views') + ' · ' + Object.keys(b.viewers).length + ' ' + L('comptes', 'accounts') + ' · ' + re + ' ' + L('réac.', 'react.') + ' · ' + co + ' ' + L('comm.', 'comm.') + ' · ' + rp + ' ' + L('republ.', 'reposts') + '</span></div>';
+    }).join('') : '<div class="help-text">' + L('Pas encore de vues : publie, republie, partage tes roulages.', 'No views yet: post, repost, share your trackdays.') + '</div>');
+    html += '<button type="button" class="primary aud-kit" data-action="media-kit">' + L('Partager mon kit média', 'Share my media kit') + '</button>' +
+      '<div class="help-text">' + L('Le résumé de ton audience à envoyer à une marque ou un sponsor.', 'Your audience summary to send to a brand or sponsor.') + '</div></div>';
+    return html;
+  }
+  function mediaKitText(me) {
+    var a = myAudience(30), rate = a.reach ? Math.round(a.engagement / a.reach * 1000) / 10 : 0;
+    return L('Kit média · ', 'Media kit · ') + me.name + (me.bike ? ' (' + me.bike + ')' : '') + L(' sur Carnet de Piste — 30 derniers jours : ', ' on Pitbook — last 30 days: ') +
+      a.impressions + L(' impressions, ', ' impressions, ') + a.reach + L(' comptes touchés, ', ' accounts reached, ') + a.engagement + L(' interactions (taux ', ' interactions (rate ') + rate + ' %), ' +
+      a.visits + L(' visites du profil, ', ' profile visits, ') + a.followers + L(' abonnés', ' followers') + (a.newFollowers ? ' (+' + a.newFollowers + ')' : '') + '. ' + referralLinkFor(me.name);
   }
   // ---- Commentaires des messages ----
   var commentsOpen = {}, commentsAll = {};
@@ -17928,12 +18030,14 @@
           if (inner) inner += feedSocialFooter(d.id, d.author, { kind: 'text', author: d.author, text: d.text || d.question || '', linkUrl: d.linkUrl || '', createdAt: d.createdAt }, d.reactions || {}, 'react-team-post');
         }
         inFeedRow = false;
+        var vk = it.kind === 'wall' ? d.id : it.kind === 'ride' || it.kind === 'photos' ? d.key : it.kind === 'recap' ? 'recap:' + circuitKey(d.circuit) + '|' + d.dates.join(',') : d.id;
+        var vo = it.kind === 'wall' ? d.author : it.kind === 'ride' || it.kind === 'photos' ? d.rider : it.kind === 'activity' ? d.actor : it.kind === 'recap' ? '' : d.author;
         if (!inner) return '';
         var h = feedDayHeader(it.createdAt), head = '';
         if (h !== lastHeader) { head = h === 'Plus tôt' ? '' : '<div class="feed-day">' + h + '</div>'; lastHeader = h; }
         // A new friendship is a quiet line between cards, not a card.
         if (it.kind === 'activity' && it.data.type === 'friend') return head + '<div class="feed-line">' + inner + '</div>';
-        return head + '<div class="card feed-card">' + inner + '</div>';
+        return head + '<div class="card feed-card"' + viewAttrs(vk, vo) + '>' + inner + '</div>';
       }).join('') + (items.length > visible.length ? '<div id="wall-feed-sentinel" class="empty-inline">' + tr('loading') + '</div>' : '');
     return renderFeedUpcoming() + withRepost(renderMonthRanking(), 'month:' + dateKey(new Date()).slice(0, 7), function () {
       var rows = monthProgressRanking().slice(0, 3);
@@ -19725,6 +19829,7 @@
       renderRootUnsafe();
       markScrollableTabs();
       navTrack();
+      observeViews();
       var appTitle = L('Carnet de Piste', 'Pitbook'); // nom de l'appli selon la langue
       if (document.title !== appTitle) document.title = appTitle;
     } catch (err) {
@@ -21166,6 +21271,13 @@
     });
     document.querySelectorAll('[data-open-person]').forEach(function (btn) {
       btn.addEventListener('click', function () { openPerson(btn.getAttribute('data-open-person')); });
+    });
+    document.querySelectorAll('[data-action="media-kit"]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var t = mediaKitText(currentUserProfile);
+        if (navigator.share) navigator.share({ title: L('Mon kit média', 'My media kit'), text: t }).catch(function () {});
+        else if (navigator.clipboard) navigator.clipboard.writeText(t).then(function () { showToast(L('Kit média copié : colle-le dans ton message à la marque.', 'Media kit copied: paste it in your message to the brand.'), 'success'); });
+      });
     });
     document.querySelectorAll('[data-action="repost-item"]').forEach(function (btn) {
       btn.addEventListener('click', function () { repostItem(btn.getAttribute('data-id')); });
@@ -23772,6 +23884,14 @@
       STATE.allUserFollows = snap.docs.map(function (d) { return d.data(); }).filter(function (f) { return (f.followeeType || 'user') === 'user'; });
       renderRoot();
     }, handleSyncError));
+    if (currentUserProfile && currentUserProfile.name) {
+      unsubscribers.push(db.collection('postViews').where('owner', '==', currentUserProfile.name).onSnapshot(function (snap) {
+        STATE.myPostViews = snap.docs.map(function (d) { return d.data(); });
+      }, handleSyncError));
+      unsubscribers.push(db.collection('profileViews').where('owner', '==', currentUserProfile.name).onSnapshot(function (snap) {
+        STATE.myProfileViews = snap.docs.map(function (d) { return d.data(); });
+      }, handleSyncError));
+    }
     unsubscribers.push(db.collection('postReactions').orderBy('createdAt', 'desc').limit(2000).onSnapshot(function (snap) {
       STATE.postReactions = snap.docs.map(function (d) { return d.data(); });
       renderRoot();

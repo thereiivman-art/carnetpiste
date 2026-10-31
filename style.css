@@ -4098,3 +4098,19 @@ span.social-count { cursor: default; }
 /* Nouveau record : avatar, nom et circuit bien espacés */
 .feed-record-line { display: flex; align-items: center; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.2rem; }
 .feed-record-line .mini-avatar { flex: 0 0 auto; margin: 0; }
+/* Audience (Carnet+) */
+.aud-head { display: flex; align-items: center; justify-content: space-between; }
+.carnet-plus { font-weight: 800; font-size: 0.78rem; color: #fff; background: linear-gradient(135deg, #c8261f, #14161a); padding: 0.2rem 0.6rem; border-radius: 999px; }
+.aud-tiles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.5rem; margin: 0.4rem 0 0.9rem; }
+.aud-tile { border: 1px solid var(--border); border-radius: 12px; padding: 0.6rem 0.7rem; display: flex; flex-direction: column; gap: 0.1rem; }
+.aud-tile strong { font-family: var(--font-display); font-style: italic; font-size: 1.7rem; line-height: 1; }
+.aud-tile span { font-weight: 700; font-size: 0.85rem; }
+.aud-tile em { font-style: normal; font-size: 0.72rem; color: var(--text-muted); }
+.aud-chart { display: flex; align-items: flex-end; gap: 3px; height: 90px; margin: 0.3rem 0 0.9rem; border-bottom: 1px solid var(--border); }
+.aud-bar { flex: 1; background: var(--accent); border-radius: 3px 3px 0 0; position: relative; min-height: 4px; }
+.aud-bar i { position: absolute; top: -1.1rem; left: 0; right: 0; text-align: center; font-style: normal; font-size: 0.65rem; color: var(--text-muted); }
+.aud-sub { font-size: 1rem; margin: 0.6rem 0 0.3rem; }
+.aud-post { display: flex; flex-direction: column; padding: 0.45rem 0; border-top: 1px solid var(--border); }
+.aud-post-label { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.aud-post-nums { font-size: 0.8rem; color: var(--text-muted); }
+.aud-kit { width: 100%; margin-top: 0.9rem; }
