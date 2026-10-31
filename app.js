@@ -10191,28 +10191,34 @@
     }).join('') + '</div>' + evBtn + '</div>';
     return html;
   }
-  // Pas de roulage aujourd'hui : la saisie reste en tête, puis la
-  // progression de mon dernier roulage et le prochain roulage.
+  // Pas de roulage aujourd'hui : le prochain roulage en tête, puis la
+  // saisie et la progression, toutes deux sur le circuit de ce prochain
+  // roulage (mon dernier passage là-bas, sinon mon chrono estimé). Sans
+  // roulage prévu : le circuit de mon dernier chrono.
   function renderChronoNoRide(today) {
-    var html = '';
-    if (!meIsNonRider()) {
-      html += renderForm({ inline: true });
-      var me = currentUserProfile.name;
-      var last = (STATE.sessions || []).filter(function (x) { return x.rider === me && x.laps && x.laps.length && x.date <= today; })
-        .sort(function (a, b) { return b.date.localeCompare(a.date); })[0];
-      if (last) {
-        var lev = (last.eventId && eventsList().filter(function (e) { return e.id === last.eventId; })[0]) || candidateEventsForCircuitDate(last.circuit, last.date)[0] || { dateStart: last.date, dateEnd: last.date };
-        html += renderChronoProgress(lev, last.circuit, last.date);
-      }
-    }
-    var tgt = targetPlanningEvent();
-    if (tgt && tgt.mode === 'upcoming') {
-      var ev = tgt.ev, days = Math.max(0, Math.round((parseLocalDate(ev.dateStart) - parseLocalDate(today)) / 86400000));
-      html += '<div class="card chrono-next"><span class="help-text">' + L('Prochain roulage', 'Next trackday') + '</span><strong class="chrono-next-circuit">' + escapeHtml(ev.circuit) + '</strong>' +
-        '<span>' + escapeHtml(formatEventRange(ev, true)) + ' · ' + escapeHtml(inDaysText(days)) + '</span>' +
+    var html = '', tgt = targetPlanningEvent(), next = tgt && tgt.mode === 'upcoming' ? tgt.ev : null;
+    var me = currentUserProfile.name, rider = !meIsNonRider();
+    if (next) {
+      var days = Math.max(0, Math.round((parseLocalDate(next.dateStart) - parseLocalDate(today)) / 86400000));
+      html += '<div class="card chrono-next"><span class="help-text">' + L('Prochain roulage', 'Next trackday') + '</span><strong class="chrono-next-circuit">' + escapeHtml(next.circuit) + '</strong>' +
+        '<span>' + escapeHtml(formatEventRange(next, true)) + ' · ' + escapeHtml(inDaysText(days)) + '</span>' +
         '<button type="button" class="ghost" data-view="planning">' + L('Préparer ce roulage', 'Get ready for it') + '</button></div>';
-    } else if (meIsNonRider()) {
+    } else if (!rider) {
       html += '<div class="card help-text">' + L('Aucun roulage prévu avec tes potes. Le jour J, leurs sessions et leurs chronos seront ici.', 'No trackday planned with your friends. On the day, their sessions and lap times will be here.') + '</div>';
+    }
+    if (!rider) return html;
+    var mine = (STATE.sessions || []).filter(function (x) { return x.rider === me && x.laps && x.laps.length && x.date <= today; })
+      .sort(function (a, b) { return b.date.localeCompare(a.date); });
+    var circuit = next ? next.circuit : (mine[0] && mine[0].circuit);
+    if (circuit) selectedCircuit = circuit;
+    html += renderForm({ inline: true });
+    if (!circuit) return html;
+    var last = mine.filter(function (x) { return sameCircuit(x.circuit, circuit); })[0];
+    if (last) {
+      var lev = (last.eventId && eventsList().filter(function (e) { return e.id === last.eventId; })[0]) || candidateEventsForCircuitDate(last.circuit, last.date)[0] || { dateStart: last.date, dateEnd: last.date };
+      html += renderChronoProgress(lev, last.circuit, last.date);
+    } else {
+      html += renderEstimateCard(circuit);
     }
     return html;
   }
