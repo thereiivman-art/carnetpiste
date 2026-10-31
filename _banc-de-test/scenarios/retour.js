@@ -11,11 +11,15 @@ const { chromium, BASE } = require('../lib');
   await p.goto(BASE + 'index.html#lang=' + lang); await p.waitForTimeout(1700);
   await p.click('.bottom-nav-btn:nth-child(3)'); await p.waitForTimeout(400);
   await p.click('[data-pill-group="social"][data-pill="fil"]'); await p.waitForTimeout(300);
-  // Bientôt sur la piste → le roulage, puis retour
+  // Profil › Bientôt en piste → le roulage, puis retour
+  await p.click('[data-pill-group="social"][data-pill="profil"]'); await p.waitForTimeout(400);
+  await p.click('[data-pill-group="person"][data-pill="bientot"]'); await p.waitForTimeout(300);
   await p.click('.feed-upcoming-open >> nth=1'); await p.waitForTimeout(600);
-  console.log('bientôt → page:', await p.$eval('.page-title-row, h1, .outing-title', e => e.innerText.split('\n')[0]).catch(() => '?'));
+  console.log('bientôt → roulage:', !!(await p.$('.outing-group-card')));
   await p.click('.back-chevron'); await p.waitForTimeout(500);
-  console.log('retour → fil:', !!(await p.$('.composer-teaser')));
+  console.log('retour → bientôt:', !!(await p.$('.feed-upcoming')));
+  await p.click('[data-pill-group="person"][data-pill="fiche"]'); await p.waitForTimeout(300);
+  await p.click('[data-pill-group="social"][data-pill="fil"]'); await p.waitForTimeout(400);
   // Défiler, ouvrir un circuit, revenir
   await p.evaluate(() => { const c = document.querySelectorAll('.feed-card .feed-ride-circuit'); c[c.length - 1].scrollIntoView(); });
   await p.waitForTimeout(300);
