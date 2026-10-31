@@ -17637,6 +17637,12 @@
     });
     return Object.keys(by).map(function (k) { return by[k]; }).sort(function (a, b) { return (a.who === me.name ? -1 : b.who === me.name ? 1 : 0) || b.at - a.at; });
   }
+  function storyTimeLeft(at) {
+    var ms = 86400e3 - (Date.now() - (at || 0));
+    if (ms <= 0) return '';
+    var h = Math.floor(ms / 3600e3), m = Math.max(1, Math.floor((ms % 3600e3) / 60e3));
+    return h >= 1 ? h + ' h' : m + ' min';
+  }
   function storySeen(st) { try { return localStorage.getItem('cdp-story-' + st.who) === String(st.at); } catch (e) { return false; } }
   function renderStoriesRow(me) {
     var list = storyItems(me);
@@ -17644,7 +17650,8 @@
       '<input type="file" id="story-input" accept="image/*" hidden>';
     return '<div class="stories-row">' + add + list.map(function (st, i) {
       var u = (STATE.usersByName || {})[st.who] || (st.who === me.name ? me : {});
-      return '<button type="button" class="story-bubble' + (storySeen(st) ? ' seen' : '') + '" data-action="open-story" data-index="' + i + '"><span class="story-ring">' + avatarHtml(u, st.who) + '</span><span class="story-name">' + escapeHtml(st.who === me.name ? L('Moi', 'Me') : st.who) + '</span></button>';
+      var left = st.posted && st.who === me.name ? storyTimeLeft(st.at) : '';
+      return '<button type="button" class="story-bubble' + (storySeen(st) ? ' seen' : '') + '" data-action="open-story" data-index="' + i + '"><span class="story-ring">' + avatarHtml(u, st.who) + (left ? '<span class="story-left">' + left + '</span>' : '') + '</span><span class="story-name">' + escapeHtml(st.who === me.name ? L('Moi', 'Me') : st.who) + '</span></button>';
     }).join('') + '</div>';
   }
   // Publier une story : une photo (et un mot), visible 24 h en haut du fil
@@ -17695,7 +17702,7 @@
         body = '<div class="story-card story-photo"><img src="' + escapeHtml(st.post.photoURL) + '" alt="">' + (st.post.text ? '<span class="story-caption">' + escapeHtml(st.post.text) + '</span>' : '') + '</div>';
       }
       ov.innerHTML = '<div class="story-bars">' + list.map(function (_, k) { return '<span class="' + (k < i ? 'done' : k === i ? 'now' : '') + '"></span>'; }).join('') + '</div>' +
-        '<div class="story-head">' + avatarHtml(u, st.who) + '<strong>' + escapeHtml(st.who) + '</strong><span>' + escapeHtml(relativeTime(st.at)) + '</span><button type="button" class="story-close" aria-label="' + escapeHtml(L('Fermer', 'Close')) + '">✕</button></div>' + body +
+        '<div class="story-head">' + avatarHtml(u, st.who) + '<strong>' + escapeHtml(st.who) + '</strong><span>' + escapeHtml(relativeTime(st.at)) + (st.posted && storyTimeLeft(st.at) ? ' · ' + L('encore ', '') + storyTimeLeft(st.at) + L('', ' left') : '') + '</span><button type="button" class="story-close" aria-label="' + escapeHtml(L('Fermer', 'Close')) + '">✕</button></div>' + body +
         '<button type="button" class="story-nav prev" aria-label="' + escapeHtml(L('Précédente', 'Previous')) + '"></button><button type="button" class="story-nav next" aria-label="' + escapeHtml(L('Suivante', 'Next')) + '"></button>' +
         (st.who !== me.name ? '<button type="button" class="story-profile" data-who="' + escapeHtml(st.who) + '">' + L('Voir son profil', 'See profile') + '</button>' : '');
       ov.querySelector('.story-close').addEventListener('click', close);
@@ -19918,11 +19925,11 @@
     return {
       view: activeView, outing: outingView ? JSON.parse(JSON.stringify(outingView)) : null, person: personView ? JSON.parse(JSON.stringify(personView)) : null,
       circuit: selectedCircuit, social: pillState.social, circuitPill: pillState.circuit, cards: carnetCardsMode,
-      profile: !!profilePanelOpen, notifs: !!notificationsPanelOpen, y: window.scrollY || 0
+      profile: !!profilePanelOpen, notifs: !!notificationsPanelOpen, team: expandedTeamId || null, teamSettings: teamSettingsOpenId || null, y: window.scrollY || 0
     };
   }
   function navSig(n) {
-    return [n.view, n.outing ? n.outing.circuit + n.outing.date : '', n.person ? n.person.name : '', n.view === 'circuit' ? n.circuit : '', n.view === 'social' ? n.social : '', n.profile ? 'P' : '', n.notifs ? 'N' : ''].join('|');
+    return [n.view, n.outing ? n.outing.circuit + n.outing.date : '', n.person ? n.person.name : '', n.view === 'circuit' ? n.circuit : '', n.view === 'social' ? n.social : '', n.profile ? 'P' : '', n.notifs ? 'N' : '', n.view === 'team' ? (n.team || '') + '/' + (n.teamSettings || '') : ''].join('|');
   }
   function navTrack() {
     if (!window.history || !history.pushState) return;
@@ -19943,6 +19950,7 @@
     activeView = prev.view; outingView = prev.outing; personView = prev.person; selectedCircuit = prev.circuit;
     pillState.social = prev.social; pillState.circuit = prev.circuitPill; carnetCardsMode = prev.cards;
     profilePanelOpen = prev.profile; notificationsPanelOpen = prev.notifs; addChronoOpen = false;
+    expandedTeamId = prev.team || null; teamSettingsOpenId = prev.teamSettings || null;
     renderRoot();
     navRestoring = false;
     navCurrent = navSnapshot();
