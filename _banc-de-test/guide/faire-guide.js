@@ -33,6 +33,7 @@ const svg = (k, cls) => '<svg class="' + (cls || 'ico') + '" viewBox="0 0 24 24"
 const Y = { y: true }, N = { n: true };
 const TXT = {
   fr: {
+    appName: 'Carnet de Piste',
     kicker: 'Le carnet de bord du pilote amateur',
     lead: 'Tes chronos, ta progression, tes potes, ta moto et ton budget, au même endroit. Même au paddock, sans réseau.',
     kpis: [['1 photo', 'de ta feuille de temps, et tes tours sont lus'], ['0 boîtier', 'à acheter : les chronos de l\'orga suffisent'], ['Hors ligne', 'tout marche au paddock, même sans réseau']],
@@ -45,9 +46,9 @@ const TXT = {
       ['euro', 'Tu tiens ton budget', 'Le prix des roulages, tes frais, et le total de ta saison.'],
       ['star', 'Tu gardes tes souvenirs', 'Tes saisons, tes trophées, et des stories à partager.']
     ],
-    whyH: 'Pourquoi Pitbook plutôt qu\'une autre appli ?',
-    whyLead: 'Un pistard amateur jongle souvent entre un tableur, un groupe de discussion et une appli de chrono. Pitbook réunit ce qui compte pour progresser d\'un roulage à l\'autre.',
-    cols: ['Tableur ou carnet', 'Groupe de discussion', 'Appli de chrono GPS', 'Pitbook'],
+    whyH: 'Pourquoi Carnet de Piste plutôt qu\'une autre appli ?',
+    whyLead: 'Un pistard amateur jongle souvent entre un tableur, un groupe de discussion et une appli de chrono. Carnet de Piste réunit ce qui compte pour progresser d\'un roulage à l\'autre.',
+    cols: ['Tableur ou carnet', 'Groupe de discussion', 'Appli de chrono GPS', 'Carnet de Piste'],
     rows: [
       ['Tes chronos, sans matériel', 'à recopier', 'photos en vrac', 'téléphone ou boîtier sur la moto', { y: true, t: 'une photo de la feuille de temps' }],
       ['Ta progression par circuit', 'si tu fais les formules', N, Y, Y],
@@ -56,27 +57,28 @@ const TXT = {
       ['Réglages, pressions, pneus', 'à la main', N, 'selon l\'appli', { y: true, t: 'liés à chaque session' }],
       ['Le budget de ta saison', 'à la main', N, N, Y]
     ],
-    tableNote: 'Une appli de chrono GPS donne tes trajectoires et tes secteurs : Pitbook ne la remplace pas, il garde tout le reste au même endroit.',
-    notH: 'Ce que Pitbook ne fait pas',
-    not: ['Pas d\'inscription ni de paiement : ça reste chez l\'organisateur.', 'Pas de chrono officiel : Pitbook lit celui de l\'orga.', 'Aucun conseil de réglage ni de pression : tu notes tes valeurs, c\'est tout.', 'Tes réglages, tes pressions et ton budget restent privés : visibles par toi seul.'],
+    tableNote: 'Une appli de chrono GPS donne tes trajectoires et tes secteurs : Carnet de Piste ne la remplace pas, il garde tout le reste au même endroit.',
+    notH: 'Ce que Carnet de Piste ne fait pas',
+    not: ['Pas d\'inscription ni de paiement : ça reste chez l\'organisateur.', 'Pas de chrono officiel : Carnet de Piste lit celui de l\'orga.', 'Aucun conseil de réglage ni de pression : tu notes tes valeurs, c\'est tout.', 'Tes réglages, tes pressions et ton budget restent privés : visibles par toi seul.'],
     tryH: 'Essaie-le',
     tryP: 'Ouvre ce lien sur ton téléphone :',
     trySteps: ['<b>iPhone</b> : Safari, Partager, « Sur l\'écran d\'accueil ».', '<b>Android</b> : Chrome, menu ⋮, « Installer l\'application ».', 'Crée ton compte, et c\'est parti.'],
     proto: 'C\'est un prototype : dis-moi ce qui t\'aide et ce qui manque.',
     detailK: 'En détail',
     detail: [
-      ['journee', 'Ta journée, session par session', 'Après le roulage, prends en photo la feuille de temps : Pitbook lit tes tours.', ['Ton meilleur temps et ce que tu as gagné d\'une session à l\'autre.', 'Ce que tu avais changé sur la moto entre deux sessions.', 'Une capture d\'écran ou le PDF de l\'orga marchent aussi.']],
+      ['journee', 'Ta journée, session par session', 'Après le roulage, prends en photo la feuille de temps : Carnet de Piste lit tes tours.', ['Ton meilleur temps et ce que tu as gagné d\'une session à l\'autre.', 'Ce que tu avais changé sur la moto entre deux sessions.', 'Une capture d\'écran ou le PDF de l\'orga marchent aussi.']],
       ['prochain', 'Le jour J', 'Le matin du roulage, l\'appli s\'ouvre sur l\'essentiel.', ['Ton groupe, tes horaires et un compte à rebours.', 'Horaires manquants ? Une photo du planning du paddock suffit.', 'Le roulage dans ton agenda, en un geste.']],
       ['potes', 'Entre potes', 'Chaque roulage se termine par un récap partagé avec tes amis.', ['Le podium entre potes sur chaque circuit, prêt à partager.', 'Tes accompagnants suivent tes roulages et peuvent saisir tes chronos.', 'Les albums photos de chacun, réunis sur le roulage.']],
-      ['pressions', 'Ta moto', 'Tout ce que tu notes sur ta moto, retrouvé au bon moment.', ['Tes réglages après chaque session, et ceux de ton record.', 'Tes pressions AV et AR, circuit par circuit.', 'Les sessions et les km faits sur chaque train de pneus.', 'Pitbook ne propose aucune valeur : ce sont les tiennes.']],
+      ['pressions', 'Ta moto', 'Tout ce que tu notes sur ta moto, retrouvé au bon moment.', ['Tes réglages après chaque session, et ceux de ton record.', 'Tes pressions AV et AR, circuit par circuit.', 'Les sessions et les km faits sur chaque train de pneus.', 'Carnet de Piste ne propose aucune valeur : ce sont les tiennes.']],
       ['budget', 'Ton budget', 'Ce que te coûte ta saison, sans tableur.', ['Le prix annoncé par l\'orga est repris tout seul.', 'Tes frais (déplacement, hôtel, pneus) et tes propres lignes.', 'Le total de la saison, ce qui est payé et ce qui reste.']],
       ['records', 'Tes records et ta saison', 'Ta progression, chiffrée, roulage après roulage.', ['Ton record sur chaque circuit, et l\'écart avec tes potes.', 'Ton chrono estimé sur un circuit où tu n\'as jamais roulé.', 'Des trophées qui se débloquent au fil des roulages.']]
     ],
-    startH: 'Ton premier roulage avec Pitbook',
+    startH: 'Ton premier roulage avec Carnet de Piste',
     start: [['Avant', 'Installe l\'appli, ouvre-la une minute avec du réseau et ajoute ton prochain roulage.'], ['Le matin', 'L\'écran du jour J affiche ton groupe et tes horaires.'], ['Après tes sessions', 'Prends en photo la feuille de temps, et note tes réglages.'], ['Le soir', 'Ta journée session par session, puis le podium des potes.']],
-    foot: 'Pitbook · prototype'
+    foot: 'Carnet de Piste · prototype'
   },
   en: {
+    appName: 'Pitbook',
     kicker: 'The amateur track rider\'s logbook',
     lead: 'Your lap times, your progress, your friends, your bike and your budget, all in one place. Even in the paddock, with no signal.',
     kpis: [['1 photo', 'of your timesheet, and your laps are read'], ['0 device', 'to buy: the organiser\'s timing is enough'], ['Offline', 'everything works in the paddock, even with no signal']],
@@ -215,7 +217,7 @@ function html(lang, shots) {
   const t = TXT[lang];
   const trace = path.join(DEPOT, 'circuit-outlines', 'Barcelone.png');
   const p1 = '<section class="page">' +
-    '<div class="hero"><img src="file://' + trace + '" alt=""><div class="k">' + t.kicker + '</div><h1 class="display">Pitbook</h1><p>' + t.lead + '</p></div>' +
+    '<div class="hero"><img src="file://' + trace + '" alt=""><div class="k">' + t.kicker + '</div><h1 class="display">' + t.appName + '</h1><p>' + t.lead + '</p></div>' +
     '<div class="kpis">' + t.kpis.map(k => '<div><strong>' + k[0] + '</strong><span>' + k[1] + '</span></div>').join('') + '</div>' +
     '<div class="heading"><span class="kerb"></span><h2 class="display">' + t.gainsH + '</h2></div>' +
     '<div class="gains">' + t.gains.map(g => '<div class="gain"><span class="ico-wrap">' + svg(g[0]) + '</span><div><b>' + g[1] + '</b><span>' + g[2] + '</span></div></div>').join('') + '</div>' +
@@ -235,7 +237,7 @@ function html(lang, shots) {
     t.detail.slice(0, 3).map((f, i) => feat(t, f, i, shots)).join('') + foot(t, 3) + '</section>';
   const p4 = '<section class="page"><div class="heading"><span class="kerb"></span><h2 class="display">' + t.detailK + '</h2></div>' +
     t.detail.slice(3).map((f, i) => feat(t, f, i + 3, shots)).join('') + foot(t, 4) + '</section>';
-  return '<!doctype html><html lang="' + lang + '"><head><meta charset="utf-8"><title>Pitbook</title><style>' + CSS + '</style></head><body>' + p1 + p2 + p3 + p4 + '</body></html>';
+  return '<!doctype html><html lang="' + lang + '"><head><meta charset="utf-8"><title>' + TXT[lang].appName + '</title><style>' + CSS + '</style></head><body>' + p1 + p2 + p3 + p4 + '</body></html>';
 }
 
 (async () => {

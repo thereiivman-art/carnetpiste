@@ -119,7 +119,7 @@
       visibility_label: 'Visibilité', vis_public_full: 'Public (visible par tous, invitation requise)', vis_ouvert_full: 'Ouvert (inscription libre)',
       teampro_only_help: 'Réservé aux Teams PRO – un team amateur reste visible par ses membres et les pilotes invités.',
       booking_url_label: 'Lien de réservation (optionnel)',
-      booking_url_help: 'Pitbook ne gère pas les paiements – ce lien renvoie vers ta billetterie (Billetweb ou autre) pour l\'inscription/le paiement.',
+      booking_url_help: 'Carnet de Piste ne gère pas les paiements – ce lien renvoie vers ta billetterie (Billetweb ou autre) pour l\'inscription/le paiement.',
       more_options_less: '− Moins d\'options', more_options_more: '+ Plus d\'options (horaires, pilotes, organisateur...)',
       horaires_this_event_label: 'Horaires par groupe (ce roulage – laisser vide pour utiliser les horaires habituels du circuit)',
       organizer_note_label: 'Organisateur (si absent de l\'app)', riders_label: 'Pilotes',
@@ -277,7 +277,7 @@
       role_info_organisateur_3: 'Partager un lien photos/vidéos après le roulage',
       role_info_organisateur_4: 'Suivre des pilotes et être notifié de leurs départs, comme un accompagnant',
       role_info_organisateur_5: 'Si tu es aussi Team Leader d\'un team : gérer ses membres, son fil d\'actualité, ses roulages et certifier les chronos de tes pilotes',
-      carnet_helps_you: 'Pitbook t\'aide à :',
+      carnet_helps_you: 'Carnet de Piste t\'aide à :',
       pseudo_label: 'Pseudo', rename_limit_prefix: '1 changement de pseudo par mois – possible à nouveau le ',
       rename_warning: '⚠ Renommer va changer ton identité partout dans l\'app (chronos, roulages, teams, coaching, amis...).',
       edit_pseudo_btn: 'Modifier le pseudo', firstname_label: 'Prénom', lastname_label: 'Nom',
@@ -285,14 +285,14 @@
       my_bike_label: 'Ma moto', bike_suggested_help: 'Suggérée automatiquement quand tu entres un chrono.',
       bike_number_label: 'N° de moto', bike_number_help: '1 à 3 chiffres.',
       chrono_app_link_label: 'Lien vers ton appli de chrono (optionnel)',
-      chrono_app_link_help: 'Pitbook reste déclaratif – ce lien renvoie vers ton appli de chrono officielle (Superlaps ou autre) si tu en utilises une.',
+      chrono_app_link_help: 'Carnet de Piste reste déclaratif – ce lien renvoie vers ton appli de chrono officielle (Superlaps ou autre) si tu en utilises une.',
       followed_riders_label: 'Pilotes que je suis', no_rider_registered: 'Aucun pilote enregistré pour l\'instant.',
       close_label: 'Fermer',
       my_badges_admin_heading: 'Mes badges (admin)',
       my_badges_admin_help: 'Pour tout autre compte, ces badges se gèrent depuis Gestion des comptes.',
       // Aide / Suggestion tabs
       about_heading: 'À propos',
-      about_text: 'Pitbook, c\'est ton carnet de pilote : avant le roulage (prépa, horaires, repères), pendant (jour J, chronos en direct de l\'orga), après (chronos, progression, partage). Il complète l\'appli de ton organisateur, il ne la remplace pas : la réservation, le paiement et le chronométrage officiel restent chez lui.',
+      about_text: 'Carnet de Piste, c\'est ton carnet de pilote : avant le roulage (prépa, horaires, repères), pendant (jour J, chronos en direct de l\'orga), après (chronos, progression, partage). Il complète l\'appli de ton organisateur, il ne la remplace pas : la réservation, le paiement et le chronométrage officiel restent chez lui.',
       review_tutorial_btn: 'Revoir le tutoriel',
       badges_legend_heading: 'Que veulent dire ces badges ?',
       team_pro_legend: 'Team PRO — club officiel certifié par l\'administrateur.',
@@ -301,7 +301,7 @@
       follower_legend: 'Suit un team sans en être membre – droits limités (voir la fiche du team).',
       no_partner_yet: 'Aucun partenaire pour l\'instant.',
       partners_input_label: 'Un par ligne : Nom | URL (URL optionnelle)',
-      our_partners_heading: 'Nos partenaires de Pitbook',
+      our_partners_heading: 'Nos partenaires de Carnet de Piste',
       optional_features_heading: 'Fonctionnalités optionnelles',
       optional_features_help: 'Masquées pour tout le monde par défaut – à activer seulement si un team en a besoin.',
       feature_teams_coaching_label: 'Teams et coaching (onglets de Communauté)',
@@ -958,8 +958,8 @@
 "Ex. vibreur rouge intérieur": "E.g. red inside kerb",
 "Ex. 2e vibreur, après la bosse": "E.g. 2nd kerb, after the bump",
 "Ex. laisser filer jusqu'au vibreur extérieur": "E.g. let it run out to the outside kerb",
-"Te signale au team sur Pitbook – ne réserve ni ne paie rien.": "Lets the team know on Pitbook – doesn't book or pay for anything.",
-"L'inscription et le paiement se font chez l'organisateur (« Réserver chez l'orga »). « J'y vais » te met seulement sur la liste des pilotes du roulage dans Pitbook, pour retrouver horaires, groupe et copains.": "Registration and payment are with the organiser (\"Book with the organiser\"). \"I'm going\" only puts you on the trackday's rider list in Pitbook, to find your schedule, group and friends.",
+"Te signale au team sur Carnet de Piste – ne réserve ni ne paie rien.": "Lets the team know on Pitbook – doesn't book or pay for anything.",
+"L'inscription et le paiement se font chez l'organisateur (« Réserver chez l'orga »). « J'y vais » te met seulement sur la liste des pilotes du roulage dans Carnet de Piste, pour retrouver horaires, groupe et copains.": "Registration and payment are with the organiser (\"Book with the organiser\"). \"I'm going\" only puts you on the trackday's rider list in Pitbook, to find your schedule, group and friends.",
 "Modifier le lien": "Edit the link",
 "Modifier": "Edit",
 "Modifier mon lien": "Edit my link",
@@ -1075,7 +1075,7 @@
 "Ton groupe part rouler": "Your group is heading out",
 "Prochaine session dans": "Next session in",
 "Ajoute au moins un pilote pour lui assigner un groupe de départ.": "Add at least one rider to assign them a starting group.",
-"C'est une demande au coach, à confirmer avec lui (et avec l'organisateur si besoin) : Pitbook ne réserve ni ne fait payer de créneau.": "This is a request to the coach, to confirm with them (and with the organiser if needed): Pitbook doesn't book or charge for any slot.",
+"C'est une demande au coach, à confirmer avec lui (et avec l'organisateur si besoin) : Carnet de Piste ne réserve ni ne fait payer de créneau.": "This is a request to the coach, to confirm with them (and with the organiser if needed): Pitbook doesn't book or charge for any slot.",
 "À découvrir": "Discover",
 "Quelque chose a mal tourné en construisant la page. Envoie ce message tel quel :": "Something went wrong building the page. Send this message as is:",
 "Hors ligne : tu vois les dernières données synchronisées. Tes chronos sont gardés sur le téléphone et envoyés dès que le réseau revient.": "Offline: you're seeing the last synced data. Your lap times are kept on the phone and sent as soon as you have a signal again.",
@@ -1114,7 +1114,7 @@
 "Ce chrono existe déjà (même pilote, même date, même circuit et mêmes tours) – rien n'a été ajouté.": "This lap time already exists (same rider, date, circuit and laps) – nothing was added.",
 "Nouveau lien partagé": "New link shared",
 "Nouvelle photo partagée": "New photo shared",
-"Rejoins-nous sur Pitbook !": "Join us on Pitbook!",
+"Rejoins-nous sur Carnet de Piste !": "Join us on Pitbook!",
 "+ Ajouter un chrono": "+ Add a lap time",
 "Saisie, photo de la feuille de temps, capture d'écran ou PDF.": "Type it in, or snap your timesheet, a screenshot or a PDF.",
 "Inviter un pilote": "Invite a rider",
@@ -1228,7 +1228,7 @@
 "Cet email est déjà utilisé — connecte-toi plutôt.": "This email is already in use — sign in instead.", "Email invalide.": "Invalid email.", "Trop de tentatives — attends quelques minutes avant de renvoyer l'email.": "Too many attempts — wait a few minutes before resending the email.",
 "Mot de passe trop court (6 caractères minimum).": "Password too short (6 characters minimum).", "Email ou mot de passe incorrect.": "Wrong email or password.",
 "Connecte-toi avec ton adresse email (la connexion par pseudo a été retirée pour des raisons de sécurité).": "Sign in with your email address (username sign-in was removed for security reasons).",
-"Pitbook": "Pitbook", "QR code indisponible hors connexion – partage le lien ci-dessous.": "QR code unavailable offline – share the link below.", "Accepter": "Accept", "Refuser": "Decline", "Demande d'ami": "Friend request",
+"Carnet de Piste": "Pitbook", "QR code indisponible hors connexion – partage le lien ci-dessous.": "QR code unavailable offline – share the link below.", "Accepter": "Accept", "Refuser": "Decline", "Demande d'ami": "Friend request",
 "Invite un pilote": "Invite a rider", "Fais scanner ce code : il s'inscrit avec ton lien et devient ton filleul.": "Have them scan this code: they sign up with your link and become your referral.",
 "Partager le lien": "Share the link", "Copier": "Copy", "Lien copié": "Link copied",
 "souhaite rejoindre": "wants to join", "Accepter comme membre": "Accept as member", "comme adhérent": "as club member", "comme Team Leader": "as Team Leader",
@@ -1437,7 +1437,7 @@
 "J'y vais": "I'm going",
 "En attente du team": "Waiting for the Team",
 "Tu y vas aussi ?": "Are you going too?",
-"« J'y vais » te met sur la liste du roulage dans Pitbook. L'inscription et le paiement se font chez l'orga.": "\"I'm going\" puts you on this trackday's list in Pitbook. Registration and payment are with the organiser.",
+"« J'y vais » te met sur la liste du roulage dans Carnet de Piste. L'inscription et le paiement se font chez l'orga.": "\"I'm going\" puts you on this trackday's list in Pitbook. Registration and payment are with the organiser.",
 "Roulage": "Trackday",
 "Créer mon carnet": "Create my Pitbook",
 "J'ai déjà un compte": "I already have an account",
@@ -2339,7 +2339,7 @@
   // "Nom | URL", parsed into {label, url} objects. A free-form textarea
   // rather than an add/remove-row widget, consistent with how riders/
   // horaires are typed elsewhere in this app.
-  // "Nos partenaires de Pitbook" -- one shared doc
+  // "Nos partenaires de Carnet de Piste" -- one shared doc
   // (settings/partners), admin-only (Xavier), shown in Profil > Aide >
   // À propos. Not to be confused with a Team's own Partenaires (see
   // renderTeamPartnersSection below) -- that one's per-Team, set by that
@@ -4877,7 +4877,7 @@
     html += '<div style="margin-top:1.1rem;"><button type="button" class="ghost" id="tutorial-open-btn">' + tr('review_tutorial_btn') + '</button></div>';
     // Guide en PDF (2 pages de résumé + 2 de détail), à lire ou à envoyer à un pote.
     var guideLink = function (lang, label) { return '<a class="ghost guide-link" href="guides/Pitbook-' + lang + '.pdf" target="_blank" rel="noopener">' + label + ' ↗</a>'; };
-    html += '<div class="guide-links"><div class="help-text">' + L('Le guide Pitbook : ce que l\'appli t\'apporte, en 4 pages, à lire ou à envoyer à un pote :', 'The Pitbook guide: what the app does for you, in 4 pages, to read or send to a friend:') + '</div>' +
+    html += '<div class="guide-links"><div class="help-text">' + L('Le guide Carnet de Piste : ce que l\'appli t\'apporte, en 4 pages, à lire ou à envoyer à un pote :', 'The Pitbook guide: what the app does for you, in 4 pages, to read or send to a friend:') + '</div>' +
       '<div class="guide-links-row">' + (currentLang() === 'en'
         ? guideLink('EN', 'Guide (English)') + guideLink('FR', 'Guide (français)')
         : guideLink('FR', 'Guide (français)') + guideLink('EN', 'Guide (English)')) + '</div></div>';
@@ -6209,7 +6209,7 @@
     return '<div class="legal">' +
       (currentLang() === 'en' ? '<p class="legal-note">Summary in English: Pitbook only keeps what the app needs (account, lap times, trackdays, posts), never sells it, shows no ads and uses no trackers. You can download or erase all your data yourself from Settings. The full policy below is in French.</p>' : '') +
       '<p class="help-text">Dernière mise à jour : ' + escapeHtml(LEGAL_INFO.updated) + '</p>' +
-      legalSection('Qui est responsable de tes données ?', '<p>' + escapeHtml(LEGAL_INFO.editor) + ', éditeur de Pitbook. Contact : ' + c + ', ou Profil → Suggestion dans l\'appli.</p>') +
+      legalSection('Qui est responsable de tes données ?', '<p>' + escapeHtml(LEGAL_INFO.editor) + ', éditeur de Carnet de Piste. Contact : ' + c + ', ou Profil → Suggestion dans l\'appli.</p>') +
       legalSection('Les données que l\'appli garde', '<ul>' +
         '<li><strong>Ton compte</strong> : e-mail, pseudo, rôle (pilote, accompagnant, organisateur) et, si tu les remplis, prénom, nom, photo, moto et numéro.</li>' +
         '<li><strong>Ta pratique</strong> : chronos, roulages, groupes, objectifs, repères sur les plans, débriefs, réglages de ta moto, infos de voyage.</li>' +
@@ -6245,7 +6245,7 @@
       legalSection('Éditeur', '<p>' + escapeHtml(LEGAL_INFO.editor) + '<br>' + escapeHtml(LEGAL_INFO.address) + '<br>Contact : ' + escapeHtml(LEGAL_INFO.contact) + '<br>Directeur de la publication : ' + escapeHtml(LEGAL_INFO.editor) + '</p>') +
       legalSection('Hébergement', '<p>Fichiers de l\'appli : GitHub Inc., 88 Colin P. Kelly Jr. Street, San Francisco, CA 94107, États-Unis.<br>Données : Google Firebase, Google Ireland Ltd, Gordon House, Barrow Street, Dublin 4, Irlande.</p>') +
       legalSection('Conditions d\'utilisation', '<ul>' +
-        '<li>Pitbook est un carnet personnel de pilote. Il ne vend ni réservation ni créneau : l\'inscription, le paiement et le chronométrage officiel restent chez l\'organisateur.</li>' +
+        '<li>Carnet de Piste est un carnet personnel de pilote. Il ne vend ni réservation ni créneau : l\'inscription, le paiement et le chronométrage officiel restent chez l\'organisateur.</li>' +
         '<li>Les chronos saisis ou importés sont <strong>non officiels</strong>, y compris ceux « validés par le team ». La référence reste le chronométrage de l\'organisateur.</li>' +
         '<li>Tu es responsable de ce que tu publies (messages, photos, liens). Pas de contenu illégal, injurieux ou portant atteinte aux droits d\'autrui ; l\'éditeur peut retirer un contenu signalé et suspendre un compte qui ne respecte pas ces règles.</li>' +
         '<li>Les horaires, groupes et infos pratiques sont reportés par les utilisateurs : vérifie-les toujours auprès de l\'organisateur. La pratique de la moto sur circuit se fait sous ta responsabilité et selon les règles du circuit.</li>' +
@@ -7637,7 +7637,7 @@
     if (est) return '<div class="outing-best-card estimate-card">' + estimateCardInner(est) + '</div>';
     // Pas d'estimation possible : dire ce qui manque.
     var why = !Object.keys(all[me] || {}).length
-      ? L('Ajoute un premier chrono sur n\'importe quel circuit : Pitbook pourra alors estimer ton temps ici.', 'Add a first lap time on any circuit: Pitbook can then estimate your time here.')
+      ? L('Ajoute un premier chrono sur n\'importe quel circuit : Carnet de Piste pourra alors estimer ton temps ici.', 'Add a first lap time on any circuit: Pitbook can then estimate your time here.')
       : L('Pas encore d\'estimation ici : il faudrait la longueur du circuit, ou un pilote qui roule à la fois ici et sur tes circuits.', 'No estimate here yet: it needs the circuit length, or a rider who rides both here and on your circuits.');
     return '<div class="card help-text estimate-none">' + why + '</div>';
   }
@@ -8096,7 +8096,7 @@
     overlay.querySelector('[data-q="close"]').addEventListener('click', close);
     var shareBtn = overlay.querySelector('[data-q="share"]');
     if (shareBtn) shareBtn.addEventListener('click', function () {
-      navigator.share({ text: (currentLang() === 'en' ? 'Join me on Pitbook, my lap times and track marks: ' : 'Rejoins-moi sur Pitbook, mon carnet de chronos et de repères : ') + link }).catch(function () {});
+      navigator.share({ text: (currentLang() === 'en' ? 'Join me on Pitbook, my lap times and track marks: ' : 'Rejoins-moi sur Carnet de Piste, mon carnet de chronos et de repères : ') + link }).catch(function () {});
     });
     overlay.querySelector('[data-q="copy"]').addEventListener('click', function () {
       if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(link).then(function () { showToast('Lien copié', 'success'); }).catch(function () {});
@@ -8934,7 +8934,7 @@
     if (myTyreSets === null) return '';
     if (!set) {
       return '<div class="card tyre-card tyre-card-empty"><div><strong>' + L('Combien de sessions sur tes pneus ?', 'How many sessions on your tyres?') + '</strong>' +
-        '<div class="help-text">' + L('Indique quand tu montes des pneus, neufs ou déjà roulés : Pitbook compte les sessions, les tours et les km faits depuis.', 'Tell Pitbook when you fit tyres, new or used: it counts the sessions, laps and km done since.') + '</div></div>' +
+        '<div class="help-text">' + L('Indique quand tu montes des pneus, neufs ou déjà roulés : Carnet de Piste compte les sessions, les tours et les km faits depuis.', 'Tell Pitbook when you fit tyres, new or used: it counts the sessions, laps and km done since.') + '</div></div>' +
         '<button type="button" class="ghost" data-action="tyre-new">' + L('Noter mes pneus', 'Log my tyres') + '</button></div>';
     }
     var u = tyreSetUsage(set, null);
@@ -8987,7 +8987,7 @@
     // Onglet Moto d'un roulage : seulement ce circuit.
     if (opts.only) order = hereKey ? [hereKey] : [];
     var html = '<div class="card pressures-card"><div class="budget-card-head"><h2 class="section-title">' + L('Mes pressions', 'My pressures') + '</h2></div>' +
-      '<div class="help-text">' + L('Tes relevés à toi, AV et AR, circuit par circuit. Pitbook ne conseille aucune pression : suis les préconisations du manufacturier de tes pneus ou du technicien pneus du circuit.', 'Your own readings, front and rear, circuit by circuit. Pitbook never recommends a pressure: follow your tyre manufacturer\'s guidance or the trackside tyre technician\'s.') + '</div>' +
+      '<div class="help-text">' + L('Tes relevés à toi, AV et AR, circuit par circuit. Carnet de Piste ne conseille aucune pression : suis les préconisations du manufacturier de tes pneus ou du technicien pneus du circuit.', 'Your own readings, front and rear, circuit by circuit. Pitbook never recommends a pressure: follow your tyre manufacturer\'s guidance or the trackside tyre technician\'s.') + '</div>' +
       '<button type="button" class="primary pressures-add" data-action="pressure-new"' + (circuit ? ' data-circuit="' + escapeHtml(circuit) + '"' : '') + (opts.date ? ' data-date="' + escapeHtml(opts.date) + '"' : '') + '>' + L('+ Noter mes pressions', '+ Log my pressures') + '</button>' +
       (circuit && !hereKey ? '<div class="help-text pressures-none-here">' + L('Pas encore de relevé à ', 'No reading yet at ') + escapeHtml(circuit) + '.</div>' : '');
     if (!order.length) return html + '</div>';
@@ -9030,7 +9030,7 @@
     var sheet = document.createElement('div');
     sheet.className = 'crop-modal-overlay setup-sheet pressure-sheet';
     sheet.innerHTML = '<div class="crop-modal setup-modal"><h2 class="section-title">' + L('Mes pressions', 'My pressures') + '</h2>' +
-      '<div class="help-text">' + L('Note ce que tu as mis. Aucune valeur n\'est proposée par Pitbook. Visible par toi seul.', 'Log what you used. Pitbook suggests no value. Visible to you only.') + '</div>' +
+      '<div class="help-text">' + L('Note ce que tu as mis. Aucune valeur n\'est proposée par Carnet de Piste. Visible par toi seul.', 'Log what you used. Pitbook suggests no value. Visible to you only.') + '</div>' +
       '<div class="setup-grid">' +
       '<label class="setup-field"><span>Circuit</span><input type="text" id="pr-circuit" list="pr-circuits" maxlength="60" value="' + escapeHtml(v.circuit || '') + '"><datalist id="pr-circuits">' + circuitDatalist() + '</datalist></label>' +
       '<label class="setup-field setup-half"><span>' + L('Date', 'Date') + '</span><input type="date" id="pr-date" value="' + escapeHtml(v.date || dateKey(new Date())) + '"></label>' +
@@ -9129,7 +9129,7 @@
     var sheetEl = document.createElement('div');
     sheetEl.className = 'crop-modal-overlay setup-sheet tyre-sessions-sheet';
     sheetEl.innerHTML = '<div class="crop-modal setup-modal"><h2 class="section-title">' + L('Mes sessions sur ces pneus', 'My sessions on these tyres') + '</h2>' +
-      '<div class="help-text">' + L('Depuis le ', 'Since ') + escapeHtml(formatDate(set.since)) + L(' : coche les sessions que tu as roulées. Pitbook en estime les tours et les km avec ton temps au tour.', ': tick the sessions you rode. Pitbook estimates the laps and km from your lap time.') + '</div>' +
+      '<div class="help-text">' + L('Depuis le ', 'Since ') + escapeHtml(formatDate(set.since)) + L(' : coche les sessions que tu as roulées. Carnet de Piste en estime les tours et les km avec ton temps au tour.', ': tick the sessions you rode. Pitbook estimates the laps and km from your lap time.') + '</div>' +
       '<div class="tyre-days">' + body + '</div>' +
       '<div class="tyre-sessions-actions"><button type="button" class="primary" data-ts="save">' + tr('save') + '</button><button type="button" class="ghost" data-ts="cancel">' + tr('cancel') + '</button></div></div>';
     document.body.appendChild(sheetEl);
@@ -9160,7 +9160,7 @@
     var sheet = document.createElement('div');
     sheet.className = 'crop-modal-overlay setup-sheet tyre-sheet';
     sheet.innerHTML = '<div class="crop-modal setup-modal"><h2 class="section-title">' + L('Mes pneus', 'My tyres') + '</h2>' +
-      '<div class="help-text">' + L('À partir de cette date, Pitbook compte les sessions, les tours et les km sur ce train. Visible par toi seul.', 'From this date, Pitbook counts the sessions, laps and km on this set. Visible to you only.') + '</div>' +
+      '<div class="help-text">' + L('À partir de cette date, Carnet de Piste compte les sessions, les tours et les km sur ce train. Visible par toi seul.', 'From this date, Pitbook counts the sessions, laps and km on this set. Visible to you only.') + '</div>' +
       '<div class="tyre-state" role="radiogroup" aria-label="' + escapeHtml(L('État des pneus', 'Tyre condition')) + '">' +
       '<label><input type="radio" name="tyre-state" value="new" checked> ' + L('Neufs', 'New') + '</label>' +
       '<label><input type="radio" name="tyre-state" value="used"> ' + L('Déjà roulés', 'Already used') + '</label></div>' +
@@ -9803,7 +9803,7 @@
 
     var meName = currentUserProfile && currentUserProfile.name;
     if (ev && joinBannerEventId === ev.id && (ev.riders || []).indexOf(meName) === -1) {
-      html += '<div class="card join-banner"><strong>Tu y vas aussi ?</strong><div class="help-text">« J\'y vais » te met sur la liste du roulage dans Pitbook. L\'inscription et le paiement se font chez l\'orga.</div>' +
+      html += '<div class="card join-banner"><strong>Tu y vas aussi ?</strong><div class="help-text">« J\'y vais » te met sur la liste du roulage dans Carnet de Piste. L\'inscription et le paiement se font chez l\'orga.</div>' +
         '<div class="join-banner-actions">' + (ev.bookingUrl ? '<button type="button" class="primary" data-action="open-external-url" data-url="' + escapeHtml(ev.bookingUrl) + '">Réserver chez l\'orga ↗</button>' : '') +
         '<button type="button" class="' + (ev.bookingUrl ? 'ghost' : 'primary') + '" data-action="join-roulage-link" data-id="' + escapeHtml(ev.id) + '">J\'y vais</button></div></div>';
     }
@@ -13202,7 +13202,7 @@
         ? '<button type="button" class="' + (ev.bookingUrl ? 'ghost' : 'primary') + '" data-action="event-join-ouvert" data-id="' + ev.id + '">J\'y vais</button>'
         : (myRequest
           ? '<span class="help-text">En attente du team</span>'
-          : '<button type="button" class="ghost" data-action="event-join-request" data-id="' + ev.id + '" title="Te signale au team sur Pitbook – ne réserve ni ne paie rien.">J\'y vais</button>');
+          : '<button type="button" class="ghost" data-action="event-join-request" data-id="' + ev.id + '" title="Te signale au team sur Carnet de Piste – ne réserve ni ne paie rien.">J\'y vais</button>');
       var actionHtml = (ev.bookingUrl ? '<button type="button" class="primary" data-action="open-external-url" data-url="' + escapeHtml(ev.bookingUrl) + '">Réserver chez l\'orga ↗</button> ' : '') + goHtml;
       // The Team leads here (avatar, name, ✓ badge) rather than a bare
       // name in the help-text -- the whole point of this card is "which
@@ -13213,7 +13213,7 @@
         ' · ' + (visTags[vis] || '') + '</span></div>' +
         '<div class="friend-row-actions">' + actionHtml + '</div></div>';
     }
-    var legend = '<div class="help-text" style="margin-bottom:0.7rem;">L\'inscription et le paiement se font chez l\'organisateur (« Réserver chez l\'orga »). « J\'y vais » te met seulement sur la liste des pilotes du roulage dans Pitbook, pour retrouver horaires, groupe et copains.</div>';
+    var legend = '<div class="help-text" style="margin-bottom:0.7rem;">L\'inscription et le paiement se font chez l\'organisateur (« Réserver chez l\'orga »). « J\'y vais » te met seulement sur la liste des pilotes du roulage dans Carnet de Piste, pour retrouver horaires, groupe et copains.</div>';
     var toggle = legend + '<div style="display:flex; flex-wrap:wrap; gap:0.5rem; margin-bottom:0.7rem;">' +
       '<button type="button" class="calendar-view-btn' + (discoveryViewMode === 'list' ? ' active' : '') + '" data-action="discovery-view-mode" data-mode="list">Liste</button>' +
       '<button type="button" class="calendar-view-btn' + (discoveryViewMode === 'month' ? ' active' : '') + '" data-action="discovery-view-mode" data-mode="month">Mois</button>' +
@@ -14343,7 +14343,7 @@
     return isAdmin() || (ev.teamId ? isLeaderOfTeam(ev.teamId) : false);
   }
   function albumHelpHtml() {
-    return '<div class="help-text">' + L('Crée un album partagé dans Google Photos, iCloud ou Drive, copie son lien de partage et colle-le ici. Les photos restent chez toi : Pitbook ne garde que le lien.',
+    return '<div class="help-text">' + L('Crée un album partagé dans Google Photos, iCloud ou Drive, copie son lien de partage et colle-le ici. Les photos restent chez toi : Carnet de Piste ne garde que le lien.',
       'Create a shared album in Google Photos, iCloud or Drive, copy its share link and paste it here. The photos stay with you: Pitbook only keeps the link.') + '</div>';
   }
   function albumRow(label, url, editAction, evId) {
@@ -15317,10 +15317,10 @@
   function sendAppNotification(body) {
     if (navigator.serviceWorker && navigator.serviceWorker.ready) {
       navigator.serviceWorker.ready.then(function (reg) {
-        reg.showNotification('Pitbook', { body: body, icon: 'icons/icon-192.png', badge: 'icons/icon-192.png' });
-      }).catch(function () { new Notification('Pitbook', { body: body }); });
+        reg.showNotification(L('Carnet de Piste', 'Pitbook'), { body: body, icon: 'icons/icon-192.png', badge: 'icons/icon-192.png' });
+      }).catch(function () { new Notification(L('Carnet de Piste', 'Pitbook'), { body: body }); });
     } else {
-      new Notification('Pitbook', { body: body });
+      new Notification(L('Carnet de Piste', 'Pitbook'), { body: body });
     }
   }
 
@@ -19190,7 +19190,7 @@
     });
     var html = '<div class="crop-modal-overlay"><div class="crop-modal">' +
       '<h2 class="section-title">' + tr('ask_for_slot_heading') + escapeHtml(coachSlotModal.slotLabel) + '</h2>' +
-      '<div class="help-text" style="margin-bottom:0.5rem;">C\'est une demande au coach, à confirmer avec lui (et avec l\'organisateur si besoin) : Pitbook ne réserve ni ne fait payer de créneau.</div>';
+      '<div class="help-text" style="margin-bottom:0.5rem;">C\'est une demande au coach, à confirmer avec lui (et avec l\'organisateur si besoin) : Carnet de Piste ne réserve ni ne fait payer de créneau.</div>';
     if (me && proposeRoles.indexOf(me.role || 'pilote') === -1) {
       html += '<div class="help-text">' + tr('coaching_riders_only') + '</div>';
     }
@@ -19613,7 +19613,7 @@
     var t = teamById(teamId);
     if (!t) return;
     var link = currentUserProfile ? referralLinkFor(currentUserProfile.name) : 'https://thereiivman-art.github.io/carnetpiste';
-    var text = L('Découvre le team ' + t.name + ' sur Pitbook : ', 'Check out the team ' + t.name + ' on Pitbook: ') + link;
+    var text = L('Découvre le team ' + t.name + ' sur Carnet de Piste : ', 'Check out the team ' + t.name + ' on Pitbook: ') + link;
     if (navigator.share) return navigator.share({ title: t.name, text: text }).catch(function () {});
     if (navigator.clipboard) navigator.clipboard.writeText(text).then(function () { showToast(L('Lien copié.', 'Link copied.'), 'success'); });
   }
@@ -19725,6 +19725,8 @@
       renderRootUnsafe();
       markScrollableTabs();
       navTrack();
+      var appTitle = L('Carnet de Piste', 'Pitbook'); // nom de l'appli selon la langue
+      if (document.title !== appTitle) document.title = appTitle;
     } catch (err) {
       if (window.console) console.error('renderRoot failed', err);
       var root = document.getElementById('root');
@@ -19759,7 +19761,7 @@
       else if (pendingRoulageId && !publicRoulageDismissed && authState !== 'verify-email') authBody = renderPublicRoulage();
       else authBody = renderAuthScreen();
       root.innerHTML =
-        '<header class="page-head"><div class="page-head-inner"><h1 class="title">Pitbook</h1><p class="app-tagline">' + L('Le carnet de bord de tes roulages', 'Your trackday logbook') + '</p></div></header>' +
+        '<header class="page-head"><div class="page-head-inner"><h1 class="title">Carnet de Piste</h1><p class="app-tagline">' + L('Le carnet de bord de tes roulages', 'Your trackday logbook') + '</p></div></header>' +
         '<div class="auth-screen">' + authBody + '</div>';
       var prSignup = document.getElementById('public-roulage-signup');
       if (prSignup) prSignup.addEventListener('click', function () { publicRoulageDismissed = true; authMode = 'signup'; renderRoot(); window.scrollTo(0, 0); });
@@ -22371,7 +22373,7 @@
         if (!currentUserProfile) return;
         var link = referralLinkFor(currentUserProfile.name);
         if (navigator.share) {
-          navigator.share({ title: 'Pitbook', text: 'Rejoins-nous sur Pitbook !', url: link }).catch(function () {});
+          navigator.share({ title: L('Carnet de Piste', 'Pitbook'), text: L('Rejoins-nous sur Carnet de Piste !', 'Join us on Pitbook!'), url: link }).catch(function () {});
         } else if (navigator.clipboard && navigator.clipboard.writeText) {
           navigator.clipboard.writeText(link).then(function () {
             showToast(tr('referral_link_copied'), 'success');
