@@ -17222,7 +17222,7 @@
     }
     html += socialCountsHtml(name);
     if (!friendship && !isMe) {
-      var pubPosts = (STATE.wallPosts || []).filter(function (p) { return p.author === name && (p.audience === 'all' || (p.audience === 'followers' && iFollow(name))); });
+      var pubPosts = (STATE.wallPosts || []).filter(function (p) { return !p.story && p.author === name && (p.audience === 'all' || (p.audience === 'followers' && iFollow(name))); });
       if (pubPosts.length) html += '<h2 class="section-title feed-section-title">' + L('Ses publications', 'Their posts') + '</h2>' + pubPosts.slice(0, 10).map(function (p) { return '<div class="card feed-card">' + renderWallPost(p) + '</div>'; }).join('');
       html += '<div class="card"><div class="empty-state">' + escapeHtml(L('Ajoute ' + name + ' en ami pour voir ses roulages, ses records et ses trophées, et vous comparer.', 'Add ' + name + ' as a friend to see their trackdays, records and trophies, and compare.')) + '</div></div>';
       return html + '</div>';
@@ -17542,7 +17542,7 @@
     // Messages publics de comptes que je ne suis pas encore : de quoi
     // découvrir du monde à suivre.
     var friendNames = friendsOf(me.name).map(function (f) { return f.name; });
-    var pub = (STATE.wallPosts || []).filter(function (p) { return p.audience === 'all' && p.author !== me.name && !iFollow(p.author) && friendNames.indexOf(p.author) === -1; }).slice(0, 6);
+    var pub = (STATE.wallPosts || []).filter(function (p) { return !p.story && p.audience === 'all' && p.author !== me.name && !iFollow(p.author) && friendNames.indexOf(p.author) === -1; }).slice(0, 6);
     if (pub.length) html += '<h2 class="section-title feed-section-title">' + L('À découvrir', 'Discover') + '</h2>' + pub.map(function (p) { return '<div class="card feed-card">' + renderWallPost(p, true) + '</div>'; }).join('');
     var lists = [
       ['abonnements', L('Abonnements', 'Following') + ' (' + following.length + ')', '<div class="card">' + renderPeopleRows(following, true) + '</div>'],
@@ -17577,7 +17577,7 @@
   var socialProfileCtx = false;
   function renderMyFeedTab(me) {
     var html = renderWallComposer();
-    var mine = (STATE.wallPosts || []).filter(function (p) { return p.author === me.name; });
+    var mine = (STATE.wallPosts || []).filter(function (p) { return p.author === me.name && !p.story; });
     var own = mine.filter(function (p) { return !p.repostOf; }).length, rep = mine.length - own;
     html += '<h2 class="section-title feed-section-title">' + L('Mes publications', 'My posts') + (own ? ' (' + own + ')' : '') + (rep ? ' · ' + plural(rep, L('republication', 'repost'), L('republications', 'reposts')) : '') + '</h2>';
     html += mine.length ? mine.map(function (p) { return '<div class="card feed-card">' + renderWallPost(p) + '</div>'; }).join('')
@@ -17593,18 +17593,45 @@
     ridesFor(names, 7).forEach(function (r) { if (!by[r.rider] || r.date > by[r.rider].date) by[r.rider] = { kind: 'ride', who: r.rider, ride: r, at: r.createdAt || parseLocalDate(r.date).getTime() }; });
     (STATE.wallPosts || []).forEach(function (p) {
       if (!p.photoURL || names.indexOf(p.author) === -1 || Date.now() - (p.createdAt || 0) > 86400e3) return;
-      if (!by[p.author] || (p.createdAt || 0) > by[p.author].at) by[p.author] = { kind: 'photo', who: p.author, post: p, at: p.createdAt };
+      if (p.story ? !(by[p.author] && by[p.author].posted && by[p.author].at > p.createdAt) : (!by[p.author] || (!by[p.author].posted && (p.createdAt || 0) > by[p.author].at)))
+        by[p.author] = { kind: 'photo', who: p.author, post: p, at: p.createdAt, posted: !!p.story };
     });
     return Object.keys(by).map(function (k) { return by[k]; }).sort(function (a, b) { return (a.who === me.name ? -1 : b.who === me.name ? 1 : 0) || b.at - a.at; });
   }
   function storySeen(st) { try { return localStorage.getItem('cdp-story-' + st.who) === String(st.at); } catch (e) { return false; } }
   function renderStoriesRow(me) {
     var list = storyItems(me);
-    if (!list.length) return '';
-    return '<div class="stories-row">' + list.map(function (st, i) {
+    var add = '<button type="button" class="story-bubble story-add" data-action="story-new"><span class="story-ring story-ring-add"><img src="icons/icon-192.png" alt=""><span class="story-plus">+</span></span><span class="story-name">' + L('Ta story', 'Your story') + '</span></button>' +
+      '<input type="file" id="story-input" accept="image/*" hidden>';
+    return '<div class="stories-row">' + add + list.map(function (st, i) {
       var u = (STATE.usersByName || {})[st.who] || (st.who === me.name ? me : {});
       return '<button type="button" class="story-bubble' + (storySeen(st) ? ' seen' : '') + '" data-action="open-story" data-index="' + i + '"><span class="story-ring">' + avatarHtml(u, st.who) + '</span><span class="story-name">' + escapeHtml(st.who === me.name ? L('Moi', 'Me') : st.who) + '</span></button>';
     }).join('') + '</div>';
+  }
+  // Publier une story : une photo (et un mot), visible 24 h en haut du fil
+  // de mes amis et abonnés. Stockée comme un message (story: true) qui
+  // n'apparaît pas dans le fil.
+  function openStoryComposer(dataUrl) {
+    var ov = document.createElement('div');
+    ov.className = 'story-overlay story-compose';
+    ov.innerHTML = '<div class="story-head"><strong>' + L('Ta story', 'Your story') + '</strong><span>' + L('visible 24 h', 'visible 24 h') + '</span><button type="button" class="story-close" aria-label="' + escapeHtml(L('Fermer', 'Close')) + '">✕</button></div>' +
+      '<div class="story-card story-photo"><img src="' + escapeHtml(dataUrl) + '" alt=""></div>' +
+      '<input type="text" class="story-text-input" maxlength="120" placeholder="' + escapeHtml(L('Ajoute un mot (facultatif)', 'Add a caption (optional)')) + '">' +
+      '<button type="button" class="primary story-publish">' + L('Publier ma story', 'Post my story') + '</button>';
+    document.body.appendChild(ov);
+    var close = function () { if (ov.parentNode) ov.parentNode.removeChild(ov); };
+    ov.querySelector('.story-close').addEventListener('click', close);
+    ov.querySelector('.story-publish').addEventListener('click', function () {
+      var me = currentUserProfile;
+      if (!me) return close();
+      var post = { id: genId(), author: me.name, authorUid: myUid(), audience: 'all', story: true, photoURL: dataUrl, createdAt: Date.now() };
+      var t = ov.querySelector('.story-text-input').value.trim();
+      if (t) post.text = t.slice(0, 120);
+      STATE.wallPosts = [post].concat(STATE.wallPosts || []);
+      close(); renderRoot();
+      showToast(L('Story publiée : visible 24 h.', 'Story posted: visible for 24 h.'), 'success');
+      db.collection('wallPosts').doc(post.id).set(post).catch(function (err) { showToast(tr('error_prefix') + ((err && err.message) || err)); });
+    });
   }
   function openStory(index) {
     var me = currentUserProfile, list = storyItems(me), i = index;
@@ -17722,6 +17749,7 @@
     var friendNames = friendsOf(me.name).map(function (f) { return f.name; });
     var followedNames = STATE.myFollows || [];
     return (STATE.wallPosts || []).filter(function (p) {
+      if (p.story) return false; // une story ne vit que dans la rangée du haut
       if (p.author === me.name) return true;
       if (friendNames.indexOf(p.author) !== -1 && (p.audience === 'friends' || p.audience === 'all')) return true;
       if (followedNames.indexOf(p.author) !== -1 && (p.audience === 'followers' || p.audience === 'all')) return true;
@@ -21181,6 +21209,20 @@
     document.querySelectorAll('[data-action="repost"]').forEach(function (btn) {
       btn.addEventListener('click', function () { repostWallPost(btn.getAttribute('data-id')); });
     });
+    var storyBtn = document.querySelector('[data-action="story-new"]'), storyInput = document.getElementById('story-input');
+    if (storyBtn && storyInput) {
+      storyBtn.addEventListener('click', function () { storyInput.click(); });
+      storyInput.addEventListener('change', function () {
+        var file = storyInput.files && storyInput.files[0];
+        storyInput.value = '';
+        if (!file || !/^image\//.test(file.type)) return;
+        resizeImageToDataUrl(file, 1080, 0.6, function (dataUrl) {
+          if (!dataUrl) return showToast(tr('cannot_read_image'));
+          if (dataUrl.length > 700000) return showToast(tr('photo_too_large_after_compression'));
+          openStoryComposer(dataUrl);
+        });
+      });
+    }
     document.querySelectorAll('[data-action="open-story"]').forEach(function (btn) {
       btn.addEventListener('click', function () { openStory(parseInt(btn.getAttribute('data-index'), 10) || 0); });
     });

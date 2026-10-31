@@ -4086,3 +4086,12 @@ span.social-count { cursor: default; }
 .feed-upcoming-row { flex-wrap: wrap; row-gap: 0.3rem; }
 .feed-upcoming-row > .feed-upcoming-open { flex: 1 1 100%; }
 .feed-upcoming-row > .feed-upcoming-open + * { margin-left: auto; }
+/* « Ta story » : le logo de l'appli avec un + */
+.story-ring-add { position: relative; background: var(--border); }
+.story-ring-add img { width: 3.6rem; height: 3.6rem; border-radius: 50%; border: 3px solid var(--bg); object-fit: cover; display: block; }
+.story-plus { position: absolute; right: -2px; bottom: -2px; width: 1.4rem; height: 1.4rem; border-radius: 50%; background: var(--accent); color: #fff; font-weight: 800; font-size: 1rem; line-height: 1.3rem; text-align: center; border: 2px solid var(--bg); }
+.story-compose .story-text-input { margin: 0.6rem 0; background: rgba(255,255,255,0.1); color: #fff; border: 1px solid rgba(255,255,255,0.3); border-radius: 999px; padding: 0.7rem 1rem; }
+.story-compose .story-publish { width: 100%; padding: 0.9rem; font-weight: 800; }
+.story-ring-add { overflow: visible; }
+.story-ring-add img { transform: scale(1); background: #fff; }
+.story-ring-add { background: conic-gradient(var(--border), var(--border)); }
