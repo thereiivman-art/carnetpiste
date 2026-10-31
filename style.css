@@ -3863,3 +3863,7 @@ label.budget-row-title { cursor: pointer; margin: 0; }
 .ride-role-row .help-text { margin: 0 0.2rem 0 0; }
 .ride-role-btn { border: 1px solid var(--border); background: var(--surface); color: var(--text-muted); border-radius: 999px; padding: 0.35rem 0.85rem; font-weight: 700; font-size: 0.86rem; cursor: pointer; }
 .ride-role-btn.active { background: var(--text); border-color: var(--text); color: var(--surface); }
+/* Chrono : lien vidéo et heure de saisie */
+.session-video-link { color: var(--accent); font-weight: 700; text-decoration: none; white-space: nowrap; }
+.outing-session-meta { display: flex; gap: 0.6rem; align-items: baseline; flex-wrap: wrap; margin-top: 0.2rem; }
+.outing-row-main .outing-entered, .outing-entered { display: block; font-size: 0.78rem; }

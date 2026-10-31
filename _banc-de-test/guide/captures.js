@@ -57,7 +57,7 @@ async function captures(base, dir, lang) {
   await p.click('[data-action="evimp-check"]'); await p.waitForTimeout(300);
   await p.click('[data-action="evimp-go"]'); await p.waitForTimeout(800);
   await p.click('.bottom-nav-btn[data-view^="carnet"]'); await p.waitForTimeout(500);
-  await p.click('.subnav-btn[data-view="budget"]'); await p.waitForTimeout(500);
+  await p.click('.subnav-btn[data-view="stats"]'); await p.waitForTimeout(400); await p.click('[data-pill-group="stats"][data-pill="budget"]'); await p.waitForTimeout(500);
   await p.click('[data-budget-season="2027"]'); await p.waitForTimeout(400);
   await p.click('[data-pill-group="budget"][data-pill="others"]'); await p.waitForTimeout(300);
   const ids = await p.$$eval('.budget-row', rs => rs.map(r => [r.getAttribute('data-row'), r.querySelector('strong').textContent]));

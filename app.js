@@ -4248,6 +4248,7 @@
       '<textarea id="se-laps" required>' + escapeHtml(s.laps.map(function (l) { return formatTimePlain(l); }).join('\n')) + '</textarea>' +
       '<div class="help-text">' + tr('session_edit_laps_help') + '</div>';
     html += '<div style="margin-top:0.6rem;"><label for="se-note">' + tr('note_optional') + '</label><input type="text" id="se-note" value="' + escapeHtml(s.note || '') + '"></div>';
+    html += '<div style="margin-top:0.6rem;"><label for="se-video">' + L('Lien vidéo (facultatif)', 'Video link (optional)') + '</label><input type="url" id="se-video" placeholder="https://youtu.be/..." value="' + escapeHtml(s.videoUrl || '') + '"></div>';
     html += '<div class="field-error" id="session-edit-error"></div>';
     html += '<div style="margin-top:0.7rem; display:flex; gap:0.6rem;">' +
       '<button type="submit" class="primary">' + tr('save') + '</button>' +
@@ -4304,6 +4305,9 @@
     session.laps = laps;
     if (bike) session.bike = bike; else delete session.bike;
     if (note) session.note = note; else delete session.note;
+    var seVideoEl = document.getElementById('se-video');
+    var seVideo = cleanAlbumUrl(seVideoEl ? seVideoEl.value : '');
+    if (seVideo) session.videoUrl = seVideo; else if (seVideo === '') delete session.videoUrl;
     if (group) session.group = group; else delete session.group;
     if (slotEl && slotEl.value) {
       var chosenSlot = todaysGroupSlots(session.circuit, group).filter(function (sl) { return String(sl.start) === slotEl.value; })[0];
@@ -4361,7 +4365,7 @@
         var deltaHtml = (personalBest !== null && best > personalBest)
           ? '<div class="lap-delta-line" title="Écart à ton record perso">+' + formatGap(best - personalBest) + '</div>'
           : (personalBest !== null && best === personalBest && !isRecord ? '<div class="lap-delta-line best">Record perso</div>' : '');
-        var noteHtml = s.note ? '<div class="note-text">' + escapeHtml(s.note) + '</div>' : '';
+        var noteHtml = (s.note ? '<div class="note-text">' + escapeHtml(s.note) + '</div>' : '') + (s.videoUrl ? '<div>' + sessionVideoHtml(s) + '</div>' : '');
         var periodLabel = s.period === 'matin' ? tr('period_morning') : s.period === 'apres-midi' ? tr('period_afternoon') : '';
         var sessionTagParts = [];
         if (s.slotLabel) sessionTagParts.push(s.slotLabel);
@@ -4730,7 +4734,11 @@
       '<button type="button" class="primary add-chrono-btn" data-action="export-my-data" style="margin-top:0.7rem;">' + L('Télécharger toutes mes données', 'Download all my data') + '</button>' +
       '<div class="my-data-links"><button type="button" class="link-btn" data-action="open-legal" data-kind="privacy">' + L('Politique de confidentialité', 'Privacy policy') + '</button>' +
       '<button type="button" class="link-btn" data-action="open-legal" data-kind="notice">' + L('Mentions légales', 'Legal notice') + '</button></div></div>';
-    sections.confidentialite = (sections.confidentialite ? sections.confidentialite : '') + myDataHtml;
+    // Mes données (venu de Stats) : export des chronos en tableur, puis
+    // l'export complet RGPD.
+    sections.donnees = (meIsNonRider() ? '' : '<div class="my-data-block"><div class="section-title" style="font-size:0.95rem;">' + L('Mes chronos', 'My lap times') + '</div>' +
+      '<div class="help-text">' + L('Tous tes chronos dans un tableur (CSV), pour Excel ou Numbers.', 'All your lap times in a spreadsheet (CSV), for Excel or Numbers.') + '</div>' +
+      '<button type="button" class="primary add-chrono-btn" data-action="export-chronos-csv" style="margin-top:0.7rem;">' + L('Exporter mes chronos (tableur CSV)', 'Export my lap times (CSV spreadsheet)') + '</button></div>') + myDataHtml;
     {
       sections.affichage = renderSubPills('generalsub', [['affichage', 'Affichage', sections.affichage], ['voyage', 'Voyage par défaut', flatSections(renderMyTravelDefaultsSection())]]);
     }
@@ -4778,7 +4786,7 @@
     accountHtml += '</div>';
     sections.compte = renderAccountBar(p) + accountHtml + (isAdmin() ? '<div style="margin-top:1.2rem;">' + renderSelfBadges(p) + '</div>' : '');
     var items = [['affichage', 'Général'], ['notifications', 'Notifications']];
-    items.push(['confidentialite', 'Vie privée']);
+    items.push(['confidentialite', 'Vie privée'], ['donnees', L('Mes données', 'My data')]);
     items.push(['compte', 'Compte']);
     if (profileEmailMessage || profilePasswordMessage || profileDeleteConfirmOpen) pillState.settings = 'compte';
     var pillsHtml = renderPills('settings', items);
@@ -6690,6 +6698,8 @@
       '<div class="help-text">' + tr('chronos_field_help') + '</div>';
     html += '<div style="margin-top:0.9rem;"><label for="f-note">' + tr('note_optional') + '</label>' +
       '<input type="text" id="f-note" placeholder="' + tr('note_placeholder') + '"></div>';
+    html += '<div style="margin-top:0.9rem;"><label for="f-video">' + L('Lien vidéo (facultatif)', 'Video link (optional)') + '</label>' +
+      '<input type="url" id="f-video" placeholder="https://youtu.be/..."><div class="help-text">' + L('Ta caméra embarquée sur YouTube, Instagram, Drive…', 'Your onboard camera on YouTube, Instagram, Drive…') + '</div></div>';
     html += '<div id="f-linked-event-wrap">' + renderLinkedEventField(selectedCircuit, todayStr) + '</div>';
     html += '<div class="field-error" id="form-error"></div>';
     html += '<div style="margin-top:0.9rem;">' +
@@ -7927,8 +7937,9 @@
     var byKey = {};
     mySessions().forEach(function (s) {
       var k = s.date + '|' + s.circuit;
-      var o = byKey[k] || (byKey[k] = { date: s.date, circuit: s.circuit, sessions: 0, laps: 0, best: null, groups: {}, eventId: null });
+      var o = byKey[k] || (byKey[k] = { date: s.date, circuit: s.circuit, sessions: 0, laps: 0, best: null, groups: {}, eventId: null, enteredAt: 0 });
       o.sessions++; o.laps += s.laps.length;
+      if (s.createdAt && s.createdAt > o.enteredAt) o.enteredAt = s.createdAt;
       if (s.group) o.groups[s.group] = true;
       if (s.eventId) o.eventId = s.eventId;
       var b = sessionBest(s);
@@ -9391,7 +9402,7 @@
       html += '<div class="card help-text">' + L('Aucun roulage cette saison. Ajoute-en un ou suis un Team pour voir son calendrier.', 'No trackdays this season. Add one or follow a Team to see its calendar.') + '</div>';
     } else {
       if (!pillState.budget || (pillState.budget === 'mine' && !kept.length)) pillState.budget = kept.length ? 'mine' : 'others';
-      if (others.length) html += renderPills('budget', [['mine', L('Dans mon budget', 'In my budget') + ' (' + kept.length + ')'], ['others', L('À ajouter', 'To add') + ' (' + others.length + ')']]);
+      if (others.length) html += renderSubPillRow('budget', [['mine', L('Dans mon budget', 'In my budget') + ' (' + kept.length + ')'], ['others', L('À ajouter', 'To add') + ' (' + others.length + ')']]);
       var rows = !others.length || pillState.budget === 'mine' ? kept : others;
       html += '<div class="card budget-list" data-budget-list>' + (rows.length ? rows.map(budgetRowHtml).join('')
         : '<div class="help-text">' + L('Aucun roulage gardé. Coche-les dans « À ajouter ».', 'No trackday kept yet. Tick them under “To add”.') + '</div>') + '</div>';
@@ -9765,6 +9776,7 @@
           var su = mySetupFor(x.id);
           html += '<div class="outing-session"><div><strong>' + escapeHtml(x.slotLabel || (x.group ? 'Groupe ' + x.group : 'Session')) + '</strong>' +
             '<div class="outing-session-laps">' + x.laps.map(function (l) { return l === b ? '<span class="best-lap">' + formatTime(l) + '</span>' : '<span class="other-lap">' + formatTime(l) + '</span>'; }).join(' ') + '</div>' +
+            (x.videoUrl || x.createdAt ? '<div class="outing-session-meta">' + sessionVideoHtml(x) + (x.createdAt ? '<span class="help-text">' + escapeHtml(enteredAtText(x.createdAt)) + '</span>' : '') + '</div>' : '') +
             (su ? '<div class="setup-summary">' + escapeHtml(setupSummary(su)) + '</div>' : '') +
             '<button type="button" class="link-btn inline-link setup-link" data-action="session-setup" data-id="' + escapeHtml(x.id) + '">' + (su ? 'Modifier mes réglages' : 'Noter mes réglages') + '</button></div>' +
             shareControl(x) + '</div>';
@@ -10268,6 +10280,16 @@
   }
   // Liste compacte des sorties (une ligne par sortie, petit tracé du
   // circuit) -- volontairement sobre et dense, pas de grandes cartes.
+  // « Saisi le 12/10 à 18h32 » (heure d'enregistrement du chrono ; les
+  // anciens chronos n'ont que la date du roulage).
+  function enteredAtText(ts) {
+    if (!ts) return '';
+    var d = new Date(ts), hh = d.getHours(), mm = ('0' + d.getMinutes()).slice(-2);
+    return L('Saisi le ', 'Logged ') + formatDate(dateKey(d)) + L(' à ' + hh + 'h' + mm, ' at ' + hh + ':' + mm);
+  }
+  function sessionVideoHtml(s) {
+    return s.videoUrl ? '<a class="session-video-link" href="' + escapeHtml(s.videoUrl) + '" target="_blank" rel="noopener">▶ ' + L('Vidéo', 'Video') + '</a>' : '';
+  }
   function outingRowHtml(o) {
     var grp = Object.keys(o.groups).join('/');
     var delta = '';
@@ -10277,7 +10299,8 @@
     } else delta = '<span class="help-text">1re fois</span>';
     return '<button type="button" class="outing-row" data-open-outing="' + escapeHtml(o.circuit) + '" data-outing-date="' + escapeHtml(o.date) + '" data-outing-event="' + escapeHtml(o.eventId || '') + '">' +
       '<span class="outing-thumb">' + circuitThumbHtml(o.circuit) + '</span>' +
-      '<span class="outing-row-main"><strong>' + escapeHtml(o.circuit) + (o.isRecord && o.prevBest !== null ? ' <span class="record-chip">' + L('Record', 'Record') + '</span>' : '') + '</strong><span class="help-text">' + escapeHtml(formatDate(o.date)) + (grp ? ' · ' + groupChip(grp) : '') + ' · ' + o.laps + ' t.</span></span>' +
+      '<span class="outing-row-main"><strong>' + escapeHtml(o.circuit) + (o.isRecord && o.prevBest !== null ? ' <span class="record-chip">' + L('Record', 'Record') + '</span>' : '') + '</strong><span class="help-text">' + escapeHtml(formatDate(o.date)) + (grp ? ' · ' + groupChip(grp) : '') + ' · ' + o.laps + ' t.</span>' +
+      (o.enteredAt ? '<span class="help-text outing-entered">' + escapeHtml(enteredAtText(o.enteredAt)) + '</span>' : '') + '</span>' +
       '<span class="outing-row-right"><span class="carnet-time">' + formatTime(o.best) + '</span>' + delta + '</span></button>';
   }
   function renderOutingCards(outings) {
@@ -10299,10 +10322,11 @@
             : '<span class="carnet-time">' + countdownLabel(Math.max(0, Math.round((parseLocalDate(ev.dateStart) - parseLocalDate(dateKey(new Date()))) / 86400000))) + '</span><span class="help-text">1re fois ici</span>') + '</span></button>';
       });
     } else {
-      var shown = carnetHistoryAll ? outings : outings.slice(0, 6);
+      // Les 3 derniers seulement ; le reste se déplie.
+      var shown = carnetHistoryAll ? outings : outings.slice(0, 3);
       shown.forEach(function (o) { html += outingRowHtml(o); });
-      if (outings.length > 6) {
-        html += '<button type="button" class="link-btn outings-more-btn" id="carnet-history-toggle">' + (carnetHistoryAll ? 'Réduire' : 'Voir les ' + outings.length + ' roulages') + '</button>';
+      if (outings.length > 3) {
+        html += '<button type="button" class="link-btn outings-more-btn" id="carnet-history-toggle">' + (carnetHistoryAll ? L('Réduire', 'Show less') : L('Voir les ' + (outings.length - 3) + ' autres roulages ▾', 'Show ' + (outings.length - 3) + ' more trackdays ▾')) + '</button>';
       }
     }
     html += '</div>';
@@ -10433,7 +10457,7 @@
     var done = function () { db.collection('chronoProposals').doc(id).set({ status: 'accepted' }, { merge: true }).catch(function () {}); };
     if (findDuplicateSession(me, r.date, r.circuit, r.laps)) { done(); showToast(L('Ce chrono est déjà dans ton carnet.', 'This lap time is already in your logbook.')); return; }
     var prevState = JSON.parse(JSON.stringify(STATE));
-    var session = { id: genId(), rider: me, date: r.date, circuit: r.circuit, laps: r.laps.slice(), loggedBy: r.from };
+    var session = { id: genId(), rider: me, date: r.date, circuit: r.circuit, laps: r.laps.slice(), loggedBy: r.from, createdAt: Date.now() };
     if (r.slotLabel) session.slotLabel = r.slotLabel;
     var ev = r.eventId ? eventsList().filter(function (e) { return e.id === r.eventId; })[0] : null;
     if (ev && (ev.riders || []).indexOf(me) !== -1) session.eventId = ev.id;
@@ -13205,6 +13229,14 @@
   // Pastilles (3e niveau, à l'intérieur d'un sous-onglet) : même style que
   // le filtre Passés/À venir du carnet. État mémorisé par groupe.
   var pillState = { person: 'fiche', profil: 'identite', settings: 'affichage', social: 'fil', events: 'avenir', circuit: 'plan', stats: 'records', teams: 'mine', team: 'fil', coach: 'demandes', planning: 'programme', outing: 'chronos', evmanage: 'participants', statsrec: 'circuits', passub: 'calendrier', outinfo: 'horaires' };
+  // Même chose que renderPills, en petites pastilles (sous une pastille).
+  function renderSubPillRow(group, items) {
+    var cur = pillState[group];
+    if (!items.some(function (it) { return it[0] === cur; })) cur = pillState[group] = items[0][0];
+    return '<div class="sub-pills">' + items.map(function (it) {
+      return '<button type="button" class="sub-pill-btn' + (it[0] === cur ? ' active' : '') + '" data-pill-group="' + group + '" data-pill="' + it[0] + '">' + it[1] + '</button>';
+    }).join('') + '</div>';
+  }
   function renderPills(group, items) {
     var cur = pillState[group];
     if (!items.some(function (it) { return it[0] === cur; })) cur = pillState[group] = items[0][0];
@@ -19114,17 +19146,18 @@
       if (activeView === 'outing' && !outingView) activeView = 'carnet';
       if (activeView === 'person' && !personView) activeView = 'social';
       if (activeView !== 'outing' && activeView !== 'person') lastSubView[navTabFor(activeView)] = activeView;
-      var carnetSub = renderSubNav([['carnet', L('Roulages', 'Trackdays')], ['circuit', 'Circuits'], ['stats', 'Stats'], ['budget', 'Budget']]);
+      // Budget est une pastille de Stats ; l'ancienne vue y renvoie.
+      if (activeView === 'budget') { activeView = 'stats'; pillState.stats = 'budget'; }
+      var carnetSub = renderSubNav([['carnet', L('Roulages', 'Trackdays')], ['circuit', 'Circuits'], ['stats', 'Stats']]);
       if (activeView === 'outing') body = renderOutingPage();
       else if (activeView === 'person') body = renderPersonPage();
       else if (activeView === 'carnet') body = carnetSub + renderCarnetTab();
       else if (activeView === 'circuit') body = carnetSub + renderCircuitTab();
-      else if (activeView === 'budget') body = carnetSub + renderBudgetTab();
       else if (activeView === 'stats') {
         var statPills = meIsNonRider()
-          ? [['podium', L('Podium', 'Podium')], ['trophees', 'Trophées'], ['donnees', 'Mes données']]
-          : [['records', 'Records'], ['podium', L('Podium', 'Podium')], ['trophees', 'Trophées'], ['donnees', 'Mes données']];
-        body = carnetSub + renderPills('stats', statPills) + (pillState.stats === 'podium' ? renderStatsPodiums() : renderStatsTab());
+          ? [['podium', L('Podium', 'Podium')], ['trophees', 'Trophées'], ['budget', 'Budget']]
+          : [['records', 'Records'], ['podium', L('Podium', 'Podium')], ['trophees', 'Trophées'], ['budget', 'Budget']];
+        body = carnetSub + renderPills('stats', statPills) + (pillState.stats === 'podium' ? renderStatsPodiums() : pillState.stats === 'budget' ? renderBudgetTab() : renderStatsTab());
       }
       else if (activeView === 'planning') body = renderSubNav([['planning', 'Prochain roulage'], ['event', 'Calendrier']]) + renderTimesheetReminder() + renderPlanningTab();
       else if (activeView === 'social') body = renderSubNav(communauteSubItems()) + renderSocialTab();
@@ -22637,7 +22670,15 @@
       return;
     }
     var previousBest = riderCircuitBest(rider, circuit);
-    var session = { id: genId(), rider: rider, date: date, circuit: circuit, laps: laps };
+    var videoEl = document.getElementById('f-video');
+    var videoUrl = cleanAlbumUrl(videoEl ? videoEl.value : '');
+    if (videoUrl === null) {
+      errEl.textContent = L('Le lien vidéo ne ressemble pas à une adresse web (https://...).', 'The video link doesn\'t look like a web link (https://...).');
+      errEl.classList.add('visible');
+      return;
+    }
+    var session = { id: genId(), rider: rider, date: date, circuit: circuit, laps: laps, createdAt: Date.now() };
+    if (videoUrl) session.videoUrl = videoUrl;
     if (bike) session.bike = bike;
     if (note) session.note = note;
     if (group) session.group = group;

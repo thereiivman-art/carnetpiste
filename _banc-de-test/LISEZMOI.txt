@@ -48,6 +48,8 @@ Scénarios
                        lien invalide, albums des potes.
   role-roulage         un pilote vient en accompagnant sur un roulage ;
                        avertissement en passant le compte accompagnant.
+  chrono-video         nouveau chrono avec lien vidéo, heure de saisie dans
+                       Passés et sur la page du roulage.
   parrain              Gestion des comptes : corriger un parrain.
 
 Guide PDF
