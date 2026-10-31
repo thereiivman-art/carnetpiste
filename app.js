@@ -17811,7 +17811,21 @@
     }, { threshold: [0, 0.5] });
     document.querySelectorAll('[data-view-key]').forEach(function (el) { if (!el.__viewWatched) { el.__viewWatched = true; viewObserver.observe(el); } });
   }
+  // Les vues grossissent sans fin (une ligne par visiteur, publication et
+  // jour) : on ne les lit que lorsqu'un écran d'audience est ouvert.
+  var audienceSynced = false;
+  function ensureAudienceSync() {
+    if (audienceSynced || !currentUserProfile || !currentUserProfile.name || !auth.currentUser) return;
+    audienceSynced = true;
+    unsubscribers.push(db.collection('postViews').where('owner', '==', currentUserProfile.name).onSnapshot(function (snap) {
+      STATE.myPostViews = snap.docs.map(function (d) { return d.data(); }); scheduleRender();
+    }, function () {}));
+    unsubscribers.push(db.collection('profileViews').where('owner', '==', currentUserProfile.name).onSnapshot(function (snap) {
+      STATE.myProfileViews = snap.docs.map(function (d) { return d.data(); }); scheduleRender();
+    }, function () {}));
+  }
   function myAudience(days) {
+    ensureAudienceSync();
     var me = currentUserProfile.name, since = dateKey(new Date(Date.now() - (days - 1) * 86400000));
     var views = (STATE.myPostViews || []).filter(function (v) { return v.day >= since; });
     var visits = (STATE.myProfileViews || []).filter(function (v) { return v.day >= since; });
@@ -20053,7 +20067,19 @@
       t.replaceWith(sp);
     }
   }, true);
+  // Les données Firestore arrivent par dizaines d'abonnements : au lieu
+  // de redessiner la page à chaque réponse, on regroupe en un seul rendu
+  // par image affichée. Les actions de l'utilisateur, elles, redessinent
+  // tout de suite (renderRoot direct).
+  var renderSeq = 0, renderQueuedSeq = -1;
+  function scheduleRender() {
+    if (renderQueuedSeq === renderSeq) return;
+    renderQueuedSeq = renderSeq;
+    var run = function () { if (renderQueuedSeq === renderSeq) renderRoot(); };
+    if (document.hidden || !window.requestAnimationFrame) setTimeout(run, 16); else requestAnimationFrame(run);
+  }
   function renderRoot() {
+    renderSeq++;
     navPreRenderY = window.scrollY || 0;
     try {
       renderRootUnsafe();
@@ -23981,14 +24007,14 @@
       maybeNotifyChronoCertified(STATE.sessions);
       markCoreSynced('sessions');
       try { maybeNotifyFriendActivity(); } catch (e) {}
-      renderRoot();
+      scheduleRender();
     }, handleSyncError));
     unsubscribers.push(db.collection('events').onSnapshot(function (snap) {
       STATE.events = snap.docs.map(function (d) { return d.data(); });
       maybeNotifyEndedEvents();
       markCoreSynced('events');
       try { maybeNotifyFriendActivity(); } catch (e) {}
-      renderRoot();
+      scheduleRender();
     }, handleSyncError));
     unsubscribers.push(db.collection('circuits').onSnapshot(function (snap) {
       var map = {};
@@ -23998,22 +24024,22 @@
       });
       STATE.circuits = map;
       markCoreSynced('circuits');
-      renderRoot();
+      scheduleRender();
     }, handleSyncError));
     unsubscribers.push(db.collection('riders').onSnapshot(function (snap) {
       STATE.riders = snap.docs.map(function (d) { return d.data().name; })
         .sort(function (a, b) { return a.localeCompare(b); });
       markCoreSynced('riders');
-      renderRoot();
+      scheduleRender();
     }, handleSyncError));
     unsubscribers.push(db.collection('settings').doc('checklist').onSnapshot(function (doc) {
       STATE.checklistTemplate = doc.exists ? doc.data() : null;
       ensureAvantSessionChecklistCategory();
-      renderRoot();
+      scheduleRender();
     }, handleSyncError));
     unsubscribers.push(db.collection('settings').doc('partners').onSnapshot(function (doc) {
       STATE.partners = doc.exists ? (doc.data().list || []) : [];
-      renderRoot();
+      scheduleRender();
     }, handleSyncError));
     // Admin-only kill switch for Météo/Baptêmes-coaching/Location, each
     // hidden for everyone by default (see featureEnabled) regardless of a
@@ -24023,7 +24049,7 @@
     // empty "add" buttons for things nobody uses.
     unsubscribers.push(db.collection('settings').doc('featureVisibility').onSnapshot(function (doc) {
       STATE.featureVisibility = doc.exists ? doc.data() : {};
-      renderRoot();
+      scheduleRender();
     }, handleSyncError));
     // Powers the chrono form's bike auto-suggest (see refreshChronoFormAux):
     // a rider's own motorcycle, set once in "Mon profil", instead of
@@ -24050,7 +24076,7 @@
         try { natDone = localStorage.getItem('cdp-nat-fr-2026'); } catch (e) {}
         if (!natDone) { try { localStorage.setItem('cdp-nat-fr-2026', '1'); } catch (e) {} setMissingNationalities('FR', true); }
       }
-      renderRoot();
+      scheduleRender();
     }, handleSyncError));
     // Social/amis: two live queries (Firestore can't OR across fields in
     // one query) merged into one list -- every request either sent or
@@ -24063,7 +24089,7 @@
       Object.keys(friendReqFrom).forEach(function (id) { byId[id] = friendReqFrom[id]; });
       Object.keys(friendReqTo).forEach(function (id) { byId[id] = friendReqTo[id]; });
       STATE.friendRequests = Object.keys(byId).map(function (id) { return byId[id]; });
-      renderRoot();
+      scheduleRender();
     }
     if (currentUserProfile && currentUserProfile.name) {
       unsubscribers.push(db.collection('friendRequests').where('from', '==', currentUserProfile.name).onSnapshot(function (snap) {
@@ -24081,7 +24107,7 @@
         if (fresh.length && notifCategoryAllowed('notifyChronoProposals')) fresh.forEach(function (r) {
           sendAppNotification(L(r.from + ' a saisi ton chrono à ' + r.circuit + ' : valide-le pour l\'ajouter à ton carnet.', r.from + ' logged your lap time at ' + r.circuit + ': confirm it to add it to your logbook.'));
         });
-        renderRoot();
+        scheduleRender();
       }, handleSyncError));
       unsubscribers.push(db.collection('friendRequests').where('to', '==', currentUserProfile.name).onSnapshot(function (snap) {
         friendReqTo = {};
@@ -24097,7 +24123,7 @@
         Object.keys(coachReqTo).forEach(function (id) { byId[id] = coachReqTo[id]; });
         STATE.coachRequests = Object.keys(byId).map(function (id) { return byId[id]; });
         refreshCoachMessagesSync();
-        renderRoot();
+        scheduleRender();
       }
       unsubscribers.push(db.collection('coachRequests').where('from', '==', currentUserProfile.name).onSnapshot(function (snap) {
         coachReqFrom = {};
@@ -24115,7 +24141,7 @@
     unsubscribers.push(db.collection('feedEvents').orderBy('createdAt', 'desc').limit(40).onSnapshot(function (snap) {
       STATE.feedEvents = snap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); });
       markCoreSynced('feedEvents');
-      renderRoot();
+      scheduleRender();
     }, handleSyncError));
     // Wall posts -- same cap-and-sync-all approach as the feed above;
     // visibleWallPosts() then filters to what this account's own
@@ -24132,25 +24158,18 @@
       maybeNotifyWallPostReaction(STATE.wallPosts);
       markCoreSynced('wallPosts');
       backfillPrivacy();
-      renderRoot();
+      scheduleRender();
     });
     // Tous les abonnements entre comptes (compteurs abonnés / abonnements,
     // suggestions) et les commentaires récents des messages.
     unsubscribers.push(db.collection('follows').limit(3000).onSnapshot(function (snap) {
       STATE.allUserFollows = snap.docs.map(function (d) { return d.data(); }).filter(function (f) { return (f.followeeType || 'user') === 'user'; });
-      renderRoot();
+      scheduleRender();
     }, handleSyncError));
-    if (currentUserProfile && currentUserProfile.name) {
-      unsubscribers.push(db.collection('postViews').where('owner', '==', currentUserProfile.name).onSnapshot(function (snap) {
-        STATE.myPostViews = snap.docs.map(function (d) { return d.data(); });
-      }, handleSyncError));
-      unsubscribers.push(db.collection('profileViews').where('owner', '==', currentUserProfile.name).onSnapshot(function (snap) {
-        STATE.myProfileViews = snap.docs.map(function (d) { return d.data(); });
-      }, handleSyncError));
-    }
+    audienceSynced = false; // l'audience ne se charge qu'à son ouverture (voir ensureAudienceSync)
     unsubscribers.push(db.collection('postReactions').orderBy('createdAt', 'desc').limit(2000).onSnapshot(function (snap) {
       STATE.postReactions = snap.docs.map(function (d) { return d.data(); });
-      renderRoot();
+      scheduleRender();
     }, handleSyncError));
     subscribeMerged('postComments', 500, [
       function (c) { return c.where('public', '==', true); },
@@ -24159,7 +24178,7 @@
     ], function (list) {
       STATE.postComments = list;
       backfillPrivacy();
-      renderRoot();
+      scheduleRender();
     });
     // Who this pilote follows (Personnalités and Teams) -- one-way, no
     // acceptance. Split by followeeType into two derived arrays so
@@ -24188,7 +24207,7 @@
         STATE.myTeamFollowDocs = byTeam;
         refreshFollowedTeamFeedSync();
         refreshTeamDetailSync();
-        renderRoot();
+        scheduleRender();
       }, handleSyncError));
     }
     // Teams: cheap to sync in full (id/name/createdBy only, no member
@@ -24198,7 +24217,7 @@
     // changes) rather than syncing every team's roster for everyone.
     unsubscribers.push(db.collection('teams').onSnapshot(function (snap) {
       STATE.teams = snap.docs.map(function (d) { return d.data(); });
-      renderRoot();
+      scheduleRender();
     }, handleSyncError));
     // Every Team Leader in the app, not just this account's own Teams --
     // cheap to sync in full like teams/teamLikes above (one small doc per
@@ -24207,7 +24226,7 @@
     // even in a Team this account isn't itself a part of.
     unsubscribers.push(db.collection('teamMembers').where('role', '==', 'leader').onSnapshot(function (snap) {
       STATE.allTeamLeaders = snap.docs.map(function (d) { return d.data(); });
-      renderRoot();
+      scheduleRender();
     }, handleSyncError));
     // Retours d'expérience (Profil -> Suggestion) -- read is admin-only
     // per firestore.rules, so this listener is only ever attached for the
@@ -24215,7 +24234,7 @@
     if (isAdmin()) {
       unsubscribers.push(db.collection('feedback').orderBy('createdAt', 'desc').onSnapshot(function (snap) {
         STATE.feedback = snap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); });
-        renderRoot();
+        scheduleRender();
       }, handleSyncError));
     }
     // Likes: cheap to sync in full, like teams itself -- a flat {teamId,
@@ -24223,7 +24242,7 @@
     // count/lookup client-side beats scoping it like teamMembers is.
     unsubscribers.push(db.collection('teamLikes').onSnapshot(function (snap) {
       STATE.teamLikes = snap.docs.map(function (d) { return d.data(); });
-      renderRoot();
+      scheduleRender();
     }, handleSyncError));
     if (currentUserProfile && currentUserProfile.name) {
       // My own outgoing join requests (see renderTeamDiscovery) -- the
@@ -24251,7 +24270,7 @@
         Object.keys(teamInviteFrom).forEach(function (id) { byId[id] = teamInviteFrom[id]; });
         Object.keys(teamInviteTo).forEach(function (id) { byId[id] = teamInviteTo[id]; });
         STATE.teamInvites = Object.keys(byId).map(function (id) { return byId[id]; });
-        renderRoot();
+        scheduleRender();
       }
       unsubscribers.push(db.collection('teamInvites').where('from', '==', currentUserProfile.name).onSnapshot(function (snap) {
         teamInviteFrom = {};
@@ -24277,7 +24296,7 @@
     myTeamJoinRequestsOut.forEach(function (r) { byId[r.id] = r; });
     teamJoinRequestsIn.forEach(function (r) { byId[r.id] = r; });
     STATE.teamJoinRequests = Object.keys(byId).map(function (id) { return byId[id]; });
-    renderRoot();
+    scheduleRender();
   }
   var myEventJoinRequestsOut = [], eventJoinRequestsIn = [];
   function mergeEventJoinRequests() {
@@ -24285,7 +24304,7 @@
     myEventJoinRequestsOut.forEach(function (r) { byId[r.id] = r; });
     eventJoinRequestsIn.forEach(function (r) { byId[r.id] = r; });
     STATE.eventJoinRequests = Object.keys(byId).map(function (id) { return byId[id]; });
-    renderRoot();
+    scheduleRender();
   }
 
   // Re-subscribed (not just a one-time listener) so a display-name change
@@ -24316,7 +24335,7 @@
         }
       });
       refreshTeamDetailSync();
-      renderRoot();
+      scheduleRender();
     }, handleSyncError);
   }
 
@@ -24366,7 +24385,7 @@
         byTeam[m.teamId].push(m);
       });
       STATE.teamMembersByTeam = byTeam;
-      renderRoot();
+      scheduleRender();
     }, handleSyncError));
     // Sorted client-side rather than orderBy('createdAt') server-side --
     // combined with where('teamId','in',...) that would need a composite
@@ -24389,7 +24408,7 @@
       maybeNotifyTeamFeedReaction(posts);
       STATE.teamFeed = posts;
       teamFeedSynced = true;
-      renderRoot();
+      scheduleRender();
     }, handleSyncError));
     // Followers (and adherents -- see requestTeamAdherent/setTeamMemberStatus) of every team
     // this account is in, so a Team Leader can manage its Adhérents list
@@ -24418,7 +24437,7 @@
         var t = teamById(f.followee);
         sendAppNotification(L(f.follower + ' souhaite devenir adhérent' + (t ? ' de ' + t.name : '') + '.', f.follower + ' wants to become a club member' + (t ? ' of ' + t.name : '') + '.'));
       });
-      renderRoot();
+      scheduleRender();
     }, handleSyncError));
     // Incoming join requests (see teamJoinRequests above) for every team
     // this account is in -- only the leader-facing UI actually reads
@@ -24448,7 +24467,7 @@
         }
       });
       STATE.eventAnnouncements = posts;
-      renderRoot();
+      scheduleRender();
     }, handleSyncError));
   }
 
@@ -24473,7 +24492,7 @@
       STATE.followedTeamFeed = snap.docs.map(function (d) { return d.data(); })
         .sort(function (a, b) { return (b.createdAt || 0) - (a.createdAt || 0); })
         .slice(0, 50);
-      renderRoot();
+      scheduleRender();
     }, handleSyncError));
   }
 
@@ -24502,7 +24521,7 @@
         }
       });
       STATE.coachMessages = messages.sort(function (a, b) { return (a.createdAt || 0) - (b.createdAt || 0); });
-      renderRoot();
+      scheduleRender();
     }, handleSyncError));
   }
 
