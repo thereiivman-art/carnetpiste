@@ -29,10 +29,11 @@ async function captures(base, dir, lang) {
   await go();
   await p.click('.bottom-nav-btn:nth-child(2)'); await p.waitForTimeout(800);
   await shot('prochain');
-  // Fil de la communauté (podium entre potes)
+  // Podium entre potes (Carnet › Stats › Podium)
   await go();
-  await p.click('.bottom-nav-btn:nth-child(3)'); await p.waitForTimeout(800);
-  await shot('potes', '.card:nth-of-type(2)', 120);
+  await p.click('.subnav-btn[data-view="stats"]'); await p.waitForTimeout(500);
+  await p.click('[data-pill-group="stats"][data-pill="podium"]'); await p.waitForTimeout(600);
+  await shot('potes', '.podium-head', 140);
   // Trophées
   await go();
   await p.click('.subnav-btn[data-view="stats"]'); await p.waitForTimeout(500);
