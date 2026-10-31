@@ -18246,7 +18246,27 @@
     repostSnapshots[key] = snapFn();
     return cardHtml.replace(/<\/div>$/, feedSocialFooter(key, '', null) + '</div>');
   }
+  // Anciennes republications (avant la copie fidèle) : on retrouve les
+  // données du post d'origine pour l'afficher pareil.
+  function upgradeLegacyRepost(o) {
+    if (o.data) return o;
+    var t = o.text || '';
+    if (o.kind === 'text' && /^(Classement du mois|This month's ranking)\s*:/.test(t)) {
+      var rows = [], re = /(\d+)\.\s+(.+?)\s+[−-]([0-9'’"”.,]+)\s+\((.+?)\)/g, m;
+      while ((m = re.exec(t))) { var g = parseTime(m[3].replace(',', '.')); if (g) rows.push({ rider: m[2], gain: g, circuit: m[4] }); }
+      if (rows.length >= 2) {
+        var month = new Date(o.createdAt || Date.now()).toLocaleDateString(currentLang() === 'en' ? 'en-GB' : 'fr-FR', { month: 'long' });
+        return Object.assign({}, o, { kind: 'month', data: { rows: rows, month: month } });
+      }
+    }
+    if (o.kind === 'ride' && o.circuit && o.best) {
+      var laps = parseInt(String(o.summary || '').replace(/\D+/g, ''), 10) || 0;
+      return Object.assign({}, o, { kind: 'ride2', data: { key: o.id, rider: o.rider || o.author, circuit: o.circuit, date: o.date, best: o.best, laps: laps, group: '', eventId: null, createdAt: o.createdAt } });
+    }
+    return o;
+  }
   function renderRepostBox(o) {
+    o = upgradeLegacyRepost(o);
     var who = o.author || o.rider || '', ou = (STATE.usersByName || {})[who] || {}, d = o.data, inner = '';
     var me = currentUserProfile;
     var keep = inFeedRow; inFeedRow = true; // pas de réactions internes dans la copie
@@ -18280,6 +18300,7 @@
   // Clic sur une republication : la publication d'origine dans le fil
   // (mise en évidence), sinon le roulage ou la fiche de son auteur.
   function goToOriginal(key, author, kind) {
+    if (/^month:/.test(key || '')) { activeView = 'stats'; pillState.stats = 'podium'; personView = null; outingView = null; renderRoot(); window.scrollTo(0, 0); return; }
     activeView = 'social'; pillState.social = 'fil'; personView = null; outingView = null;
     wallFeedVisibleCount = Math.max(wallFeedVisibleCount, 60);
     renderRoot();
