@@ -3920,3 +3920,7 @@ label.budget-row-title { cursor: pointer; margin: 0; }
 .cf-more > summary::-webkit-details-marker { display: none; }
 .cf-sep { margin: 0.9rem 0 0.2rem; font-size: 0.8rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; }
 .chrono-ev-btn { width: 100%; margin-top: 0.6rem; }
+/* Mise à jour de l'appli */
+.update-banner { position: fixed; left: 50%; transform: translateX(-50%); top: calc(env(safe-area-inset-top, 0px) + 0.6rem); z-index: 9999; display: flex; flex-direction: column; align-items: center; gap: 0.1rem; padding: 0.65rem 1.2rem; border: 0; border-radius: 14px; background: var(--accent); color: #fff; box-shadow: 0 6px 18px rgba(0,0,0,0.25); font-size: 0.95rem; cursor: pointer; max-width: calc(100% - 32px); }
+.update-banner span { font-size: 0.82rem; opacity: 0.9; }
+.app-version-row { display: flex; align-items: center; justify-content: space-between; gap: 0.6rem; margin-top: 1rem; padding-top: 0.8rem; border-top: 1px solid var(--border); }

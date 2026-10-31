@@ -4740,6 +4740,8 @@
       '<div class="help-text">' + L('Tous tes chronos dans un tableur (CSV), pour Excel ou Numbers.', 'All your lap times in a spreadsheet (CSV), for Excel or Numbers.') + '</div>' +
       '<button type="button" class="primary add-chrono-btn" data-action="export-chronos-csv" style="margin-top:0.7rem;">' + L('Exporter mes chronos (tableur CSV)', 'Export my lap times (CSV spreadsheet)') + '</button></div>') + myDataHtml;
     {
+      sections.affichage += '<div class="app-version-row"><span class="help-text">' + L('Version de l\'appli : ', 'App version: ') + escapeHtml(currentAppVersion()) + '</span>' +
+        '<button type="button" class="ghost" data-action="check-app-update">' + L('Mettre à jour', 'Update') + '</button></div>';
       sections.affichage = renderSubPills('generalsub', [['affichage', 'Affichage', sections.affichage], ['voyage', 'Voyage par défaut', flatSections(renderMyTravelDefaultsSection())]]);
     }
     var accountHtml = '';
@@ -4928,6 +4930,46 @@
   // up here instead, right when the header's profile-badge avatar is
   // clicked -- the fixed header itself only carries the avatar (see
   // renderRootUnsafe), not this whole bandeau.
+  // ---- Mise à jour de l'appli ----
+  // La version en cours est le ?v= de app.js ; on relit index.html sur le
+  // réseau (sans cache) pour savoir s'il y en a une plus récente. Si oui :
+  // bandeau « Nouvelle version », et un appui vide le cache de l'appli et
+  // recharge. Aussi un bouton dans Profil › Réglages › Général.
+  function currentAppVersion() {
+    var sc = document.querySelector('script[src*="app.js"]'), m = sc && sc.src.match(/v=(\d+)/);
+    return m ? m[1] : '';
+  }
+  var lastUpdateCheck = 0;
+  function checkForAppUpdate(manual) {
+    if (!manual && Date.now() - lastUpdateCheck < 10 * 60000) return;
+    lastUpdateCheck = Date.now();
+    if (!window.fetch) return;
+    fetch('index.html?check=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.text(); }).then(function (t) {
+      var m = t.match(/app\.js\?v=(\d+)/), latest = m ? m[1] : '';
+      if (latest && latest !== currentAppVersion() && latest > currentAppVersion()) {
+        if (manual) applyAppUpdate(latest); else showUpdateBanner(latest);
+      } else if (manual) showToast(L('Tu as déjà la dernière version.', 'You already have the latest version.'), 'success');
+    }).catch(function () { if (manual) showToast(L('Pas de réseau : réessaie plus tard.', 'No network: try again later.')); });
+  }
+  function applyAppUpdate(latest) {
+    var done = function () { location.replace(location.pathname + '?v=' + (latest || Date.now())); };
+    var clear = window.caches ? caches.keys().then(function (keys) {
+      return Promise.all(keys.filter(function (k) { return /^cdp-\d/.test(k); }).map(function (k) { return caches.delete(k); }));
+    }) : Promise.resolve();
+    var sw = navigator.serviceWorker && navigator.serviceWorker.getRegistration ? navigator.serviceWorker.getRegistration().then(function (reg) { return reg && reg.update(); }) : Promise.resolve();
+    Promise.all([clear, sw]).then(done, done);
+  }
+  function showUpdateBanner(latest) {
+    if (document.getElementById('update-banner')) return;
+    var b = document.createElement('button');
+    b.type = 'button'; b.id = 'update-banner'; b.className = 'update-banner';
+    b.innerHTML = '<strong>' + L('Nouvelle version de l\'appli', 'New version of the app') + '</strong><span>' + L('Touche pour mettre à jour', 'Tap to update') + '</span>';
+    b.addEventListener('click', function () { b.disabled = true; applyAppUpdate(latest); });
+    document.body.appendChild(b);
+  }
+  document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible') checkForAppUpdate(false); });
+  setTimeout(function () { checkForAppUpdate(false); }, 4000);
+
   function renderAccountBar(p) {
     return '<div class="account-bar" style="border-bottom:none; padding-bottom:0;">' +
       '<span class="account-bar-identity">' + escapeHtml(p.name) + badgesHtml(p) + ' · ' + roleLabel(p.role) + '</span>' +
@@ -21195,6 +21237,9 @@
         var cs = document.getElementById('f-circuit'); if (c && cs) { cs.value = c; cs.dispatchEvent(new Event('change', { bubbles: true })); }
         if (btn.getAttribute('data-import')) { var inp = document.getElementById('import-photo-input'); if (inp) inp.click(); }
       });
+    });
+    document.querySelectorAll('[data-action="check-app-update"]').forEach(function (btn) {
+      btn.addEventListener('click', function () { btn.disabled = true; checkForAppUpdate(true); });
     });
     document.querySelectorAll('[data-action="chrono-prog-toggle"]').forEach(function (btn) {
       btn.addEventListener('click', function () { chronoProgEvent = !chronoProgEvent; renderRoot(); });
