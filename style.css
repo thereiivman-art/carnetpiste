@@ -4032,3 +4032,7 @@ span.social-count { cursor: default; }
 .card-close { position: absolute; top: 0.6rem; right: 0.6rem; width: 2rem; height: 2rem; border-radius: 50%; border: 0; background: var(--surface-alt); color: var(--text-muted); font-size: 1rem; line-height: 1; cursor: pointer; display: grid; place-items: center; }
 .feed-upcoming-open { flex: 1; min-width: 0; display: flex; align-items: center; gap: 0.75rem; border: 0; background: none; padding: 0; margin: 0; text-align: left; color: var(--text); font: inherit; cursor: pointer; box-shadow: none; }
 .feed-upcoming-open .feed-upcoming-main { min-width: 0; }
+.name-link { cursor: pointer; text-decoration: none; }
+.name-link:hover, .name-link:active { text-decoration: underline; }
+.feed-month-title { display: block; font-family: var(--font-display); font-style: italic; font-size: 1.25rem; margin: 0.1rem 0; }
+.feed-record-line .mini-avatar { width: 1.5rem; height: 1.5rem; font-size: 0.7rem; vertical-align: middle; }

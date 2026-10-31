@@ -5176,8 +5176,8 @@
   }
   function duelText(d, r) {
     return d.mine
-      ? L('Tu passes devant ', 'You overtake ') + '<strong>' + escapeHtml(d.opp) + '</strong>' + L(' à ', ' at ') + escapeHtml(r.circuit) + ' · ' + formatGap(d.gap)
-      : '<strong>' + escapeHtml(r.rider) + '</strong>' + L(' t\'a pris la tête à ', ' just passed you at ') + escapeHtml(r.circuit) + ' · ' + formatGap(d.gap) + L('. À toi de jouer.', '. Your move.');
+      ? L('Tu passes devant ', 'You overtake ') + '<strong>' + pName(d.opp) + '</strong>' + L(' à ', ' at ') + cName(r.circuit) + ' · ' + formatGap(d.gap)
+      : '<strong>' + pName(r.rider) + '</strong>' + L(' t\'a pris la tête à ', ' just passed you at ') + cName(r.circuit) + ' · ' + formatGap(d.gap) + L('. À toi de jouer.', '. Your move.');
   }
   // Friends' photo links on recent roulages.
   function friendPhotoLinks() {
@@ -5230,11 +5230,11 @@
     var line = function (r, i) {
       var u = (STATE.usersByName || {})[r.rider] || {};
       return '<div class="feed-recap-row' + (r.rider === me ? ' me' : '') + '"><span class="feed-recap-pos">' + (i + 1) + '</span>' + avatarHtml(u, r.rider) +
-        '<span class="feed-recap-name">' + escapeHtml(r.rider) + '<span class="help-text"> · ' + escapeHtml(r.circuit) + '</span></span>' +
+        '<span class="feed-recap-name">' + pName(r.rider) + '<span class="help-text"> · ' + cName(r.circuit) + '</span></span>' +
         '<span class="feed-recap-time feed-gain">−' + formatGap(r.gain) + '</span></div>';
     };
     return '<div class="card feed-month"><div class="feed-record-label">' + L('Classement du mois', 'This month\'s ranking') + '</div>' +
-      '<strong class="feed-ride-circuit">' + escapeHtml(month.charAt(0).toUpperCase() + month.slice(1)) + L(' : qui a le plus progressé ?', ': who improved most?') + '</strong>' +
+      '<strong class="feed-month-title">' + escapeHtml(month.charAt(0).toUpperCase() + month.slice(1)) + L(' : qui a le plus progressé ?', ': who improved most?') + '</strong>' +
       '<div class="help-text">' + L('Temps gagné ce mois-ci sur son propre record, sur n\'importe quel circuit.', 'Time gained this month on their own record, on any circuit.') + '</div>' +
       '<div class="feed-recap-rows">' + shown.map(line).join('') + (myIdx >= 3 ? line(rows[myIdx], myIdx) : '') + '</div></div>';
   }
@@ -8157,7 +8157,7 @@
   function podiumClimbText(r, pc) {
     var me = currentUserProfile && currentUserProfile.name;
     var step = pc.place === 1 ? L('la 1re marche', 'the top step') : pc.place === 2 ? L('la 2e marche', 'the 2nd step') : L('la 3e marche', 'the 3rd step');
-    return (r.rider === me ? L('Tu montes sur ', 'You climb onto ') : '<strong>' + escapeHtml(r.rider) + '</strong>' + L(' monte sur ', ' climbs onto ')) + step + L(' du podium des potes à ', ' of the friends\' podium at ') + escapeHtml(r.circuit);
+    return (r.rider === me ? L('Tu montes sur ', 'You climb onto ') : '<strong>' + pName(r.rider) + '</strong>' + L(' monte sur ', ' climbs onto ')) + step + L(' du podium des potes à ', ' of the friends\' podium at ') + cName(r.circuit);
   }
   function podiumPlace(circuit, rider) {
     var rows = friendsPodium(circuit);
@@ -8189,7 +8189,7 @@
     var html = '<div class="card podium-card"><div class="podium-head">' +
       (outline ? '<img class="podium-trace" src="' + escapeHtml(outline) + '" alt="">' : '') +
       '<div class="podium-head-text"><span class="podium-kicker">' + L('Podium des potes', 'Friends\' podium') + '</span>' +
-      '<strong class="podium-circuit">' + (info.country ? countryBallHtml(info.country, 'inline') + ' ' : '') + escapeHtml(circuit) + '</strong>' +
+      '<strong class="podium-circuit">' + (info.country ? countryBallHtml(info.country, 'inline') + ' ' : '') + cName(circuit) + '</strong>' +
       '<span class="podium-sub">' + L('Meilleur tour de chacun', 'Everyone\'s best lap') + (rows.length > 1 ? ' · ' + rows.length + L(' pilotes', ' riders') : '') + '</span></div>' +
       (rows.length > 1 ? '<button type="button" class="ghost podium-share" data-action="share-podium" data-circuit="' + escapeHtml(circuit) + '">' + L('Partager', 'Share') + '</button>' : '') + '</div>';
     if (rows.length < 2) {
@@ -8414,7 +8414,7 @@
     html += rows.map(function (r, i) {
       var gap = i === 0 ? '<span class="battle-gap lead">Le plus rapide</span>' : '<span class="battle-gap">+' + formatGap(r.best - leader) + '</span>';
       return '<div class="battle-row' + (r.rider === me ? ' me' : '') + '"><span class="battle-rank">' + (i + 1) + '</span>' +
-        '<span class="battle-name">' + escapeHtml(r.rider) + (r.group ? ' ' + groupChip(r.group) : '') + '</span>' +
+        '<span class="battle-name">' + pName(r.rider) + (r.group ? ' ' + groupChip(r.group) : '') + '</span>' +
         '<span class="battle-time">' + formatTime(r.best) + gap + '</span></div>';
     }).join('');
     if (mine) {
@@ -16594,6 +16594,11 @@
     renderRoot();
     window.scrollTo(0, 0);
   }
+  // Noms cliquables partout (même dans un bouton) : pilote → sa fiche,
+  // circuit → la fiche circuit, team → la page du team.
+  function pName(n) { return n ? '<span class="name-link" data-person-link="' + escapeHtml(n) + '">' + escapeHtml(n) + '</span>' : ''; }
+  function cName(c) { return c ? '<span class="name-link" data-open-circuit="' + escapeHtml(c) + '">' + escapeHtml(c) + '</span>' : ''; }
+  function tName(t) { return t ? '<span class="name-link" data-team-link="' + escapeHtml(t.id) + '">' + escapeHtml(t.name) + '</span>' : ''; }
   function personLinkHtml(name) {
     var me = currentUserProfile && currentUserProfile.name;
     if (!name || (!(STATE.usersByName || {})[name] && name !== me)) return personNameHtml(name);
@@ -17434,8 +17439,9 @@
       return '<div class="feed-entry feed-entry-muted"><span class="feed-entry-text">' + escapeHtml(e.actor) + ' et ' + escapeHtml(e.target) + ' sont maintenant amis</span>' +
         '<span class="feed-entry-time">' + escapeHtml(relativeTime(e.createdAt)) + '</span></div>';
     } else if (e.type === 'record') {
-      text = '<span class="feed-record-label">Nouveau record</span><span class="feed-record-line">' + personLinkHtml(e.actor) + ' · ' + escapeHtml(e.circuit) + '</span>';
-      return '<div class="feed-entry feed-entry-record"><div class="feed-entry-row"><span class="outing-thumb feed-ride-thumb">' + circuitThumbHtml(e.circuit) + '</span><span class="feed-entry-text">' + text + '</span>' +
+      var eu = (STATE.usersByName || {})[e.actor] || {};
+      text = '<span class="feed-record-label">Nouveau record</span><span class="feed-record-line">' + avatarHtml(eu, e.actor) + ' ' + personLinkHtml(e.actor) + ' · ' + cName(e.circuit) + '</span>';
+      return '<div class="feed-entry feed-entry-record"><div class="feed-entry-row"><span class="outing-thumb feed-ride-thumb" data-open-circuit="' + escapeHtml(e.circuit) + '">' + circuitThumbHtml(e.circuit) + '</span><span class="feed-entry-text">' + text + '</span>' +
         '<span class="feed-record-time">' + formatTime(e.time) + '</span></div>' +
         '<div class="feed-entry-foot">' + renderReactionBar(e.reactions, 'react-feed-event', e.id) + '<span class="feed-entry-time">' + escapeHtml(relativeTime(e.createdAt)) + '</span></div></div>';
     } else {
@@ -17903,7 +17909,7 @@
     if (ms) out += '<div class="feed-highlight">' + notifIconHtml('medal') + '<span><strong>' + escapeHtml(r.rider) + '</strong> · ' + escapeHtml(ms) + '</span></div>';
     else {
       var prev = bestBefore(r.rider, r.circuit, r.date);
-      if (prev !== null && r.best < prev) out += '<div class="feed-highlight">' + notifIconHtml('trophy') + '<span><strong>' + escapeHtml(r.rider) + '</strong>' + L(' bat son record : ', ' beats their record: ') + '−' + formatGap(prev - r.best) + '</span></div>';
+      if (prev !== null && r.best < prev) out += '<div class="feed-highlight">' + notifIconHtml('trophy') + '<span><strong>' + pName(r.rider) + '</strong>' + L(' bat son record : ', ' beats their record: ') + '−' + formatGap(prev - r.best) + '</span></div>';
     }
     return out;
   }
@@ -17913,8 +17919,8 @@
     var when = days[0] === days[days.length - 1] ? formatDate(days[0]) : formatDate(days[0]) + ' → ' + formatDate(days[days.length - 1]);
     var mineRow = d.rows.filter(function (x) { return x.rider === me; })[0];
     var openDate = mineRow ? mineRow.date : d.date;
-    var html = '<div class="feed-recap-head"><span class="outing-thumb feed-ride-thumb">' + circuitThumbHtml(d.circuit) + '</span>' +
-      '<span class="feed-ride-main"><span class="feed-record-label">' + L('Récap du roulage', 'Trackday recap') + '</span><strong class="feed-ride-circuit">' + escapeHtml(d.circuit) + '</strong>' +
+    var html = '<div class="feed-recap-head"><span class="outing-thumb feed-ride-thumb" data-open-circuit="' + escapeHtml(d.circuit) + '">' + circuitThumbHtml(d.circuit) + '</span>' +
+      '<span class="feed-ride-main"><span class="feed-record-label">' + L('Récap du roulage', 'Trackday recap') + '</span><strong class="feed-ride-circuit" data-open-circuit="' + escapeHtml(d.circuit) + '">' + escapeHtml(d.circuit) + '</strong>' +
       '<span class="help-text">' + escapeHtml(when) + ' · ' + d.rows.length + L(' potes', ' friends') + '</span></span></div>';
     html += '<div class="feed-recap-rows">' + d.rows.slice(0, 5).map(function (x, i) {
       var u = (STATE.usersByName || {})[x.rider] || {};
@@ -17931,15 +17937,15 @@
   function renderFeedPhotos(ph) {
     var u = (STATE.usersByName || {})[ph.rider] || {};
     return '<div class="wall-post-head">' + avatarHtml(u, ph.rider) + personLinkHtml(ph.rider) + '<span class="feed-entry-time">' + escapeHtml(formatEventRange(ph.ev, true)) + '</span></div>' +
-      '<div class="feed-photos">' + notifIconHtml('camera') + '<span class="feed-ride-main"><span class="feed-record-label">' + L('Photos du roulage', 'Trackday photos') + '</span><strong class="feed-ride-circuit">' + escapeHtml(ph.ev.circuit) + '</strong></span></div>' +
+      '<div class="feed-photos">' + notifIconHtml('camera') + '<span class="feed-ride-main"><span class="feed-record-label">' + L('Photos du roulage', 'Trackday photos') + '</span><strong class="feed-ride-circuit" data-open-circuit="' + escapeHtml(ph.ev.circuit) + '">' + escapeHtml(ph.ev.circuit) + '</strong></span></div>' +
       postLinkHtml(ph.url);
   }
   function renderCircuitMoment() {
     var c = circuitOfTheMoment();
     if (!c) return '';
-    return '<div class="card feed-moment"><span class="outing-thumb feed-ride-thumb">' + circuitThumbHtml(c.circuit) + '</span>' +
-      '<span class="feed-ride-main"><span class="feed-record-label">' + L('Le circuit du moment', 'Circuit of the moment') + '</span><strong class="feed-ride-circuit">' + escapeHtml(c.circuit) + '</strong>' +
-      '<span class="help-text">' + c.n + L(' potes y ont roulé ce mois-ci · record des potes ', ' friends rode it this month · friends\' record ') + '<strong>' + formatTime(c.best) + '</strong> (' + escapeHtml(c.bestBy) + ')</span></span></div>';
+    return '<div class="card feed-moment"><span class="outing-thumb feed-ride-thumb" data-open-circuit="' + escapeHtml(c.circuit) + '">' + circuitThumbHtml(c.circuit) + '</span>' +
+      '<span class="feed-ride-main"><span class="feed-record-label">' + L('Le circuit du moment', 'Circuit of the moment') + '</span><strong class="feed-ride-circuit" data-open-circuit="' + escapeHtml(c.circuit) + '">' + escapeHtml(c.circuit) + '</strong>' +
+      '<span class="help-text">' + c.n + L(' potes y ont roulé ce mois-ci · record des potes ', ' friends rode it this month · friends\' record ') + '<strong>' + formatTime(c.best) + '</strong> (' + pName(c.bestBy) + ')</span></span></div>';
   }
   function feedDayHeader(ms) {
     if (!ms) return 'Plus tôt';
@@ -17960,8 +17966,8 @@
     if (myBest !== null && r.rider !== me) vs = r.best < myBest ? '<span class="feed-ride-vs">' + formatGap(myBest - r.best) + ' devant toi</span>' : '<span class="feed-ride-vs ahead">' + (past ? 'tu étais ' : 'tu es ') + formatGap(r.best - myBest) + ' devant</span>';
     return '<div class="wall-post-head">' + avatarHtml(u, r.rider) + personLinkHtml(r.rider) + badgesHtml(u) + '<span class="feed-entry-time">' + escapeHtml(relativeTime(r.createdAt)) + '</span></div>' +
       '<button type="button" class="feed-ride" data-open-outing="' + escapeHtml(r.circuit) + '" data-outing-date="' + escapeHtml(r.date) + '" data-outing-event="' + escapeHtml(r.eventId || '') + '">' +
-        '<span class="outing-thumb feed-ride-thumb">' + circuitThumbHtml(r.circuit) + '</span>' +
-        '<span class="feed-ride-main"><span class="feed-record-label">A roulé à</span><strong class="feed-ride-circuit">' + escapeHtml(r.circuit) + '</strong>' +
+        '<span class="outing-thumb feed-ride-thumb" data-open-circuit="' + escapeHtml(r.circuit) + '">' + circuitThumbHtml(r.circuit) + '</span>' +
+        '<span class="feed-ride-main"><span class="feed-record-label">A roulé à</span><strong class="feed-ride-circuit" data-open-circuit="' + escapeHtml(r.circuit) + '">' + escapeHtml(r.circuit) + '</strong>' +
           '<span class="help-text">' + escapeHtml(formatDate(r.date)) + ' · ' + r.laps + (r.laps > 1 ? L(' tours', ' laps') : L(' tour', ' lap')) + (r.group ? ' · ' + groupChip(r.group) : '') + '</span></span>' +
         '<span class="feed-ride-right"><span class="feed-record-time">' + formatTime(r.best) + '</span>' + vs + '</span>' +
       '</button>' + rideHighlightsHtml(r);
@@ -17974,9 +17980,9 @@
     return '<div class="card feed-upcoming"><div class="feed-record-label">Bientôt sur la piste</div>' + list.map(function (x) {
       var ev = x.ev;
       return '<div class="feed-upcoming-row"><button type="button" class="feed-upcoming-open" data-open-outing="' + escapeHtml(ev.circuit) + '" data-outing-date="' + escapeHtml(ev.dateStart) + '" data-outing-event="' + escapeHtml(ev.id) + '"><span class="outing-thumb">' + circuitThumbHtml(ev.circuit) + '</span>' +
-        '<span class="feed-upcoming-main"><strong>' + escapeHtml(ev.circuit) + ' <span class="feed-upcoming-j">' + countdownLabel(Math.max(0, Math.round((parseLocalDate(ev.dateStart) - parseLocalDate(dateKey(new Date()))) / 86400000))) + '</span></strong><span class="help-text">' + escapeHtml(formatEventRange(ev, true)) + '</span>' +
+        '<span class="feed-upcoming-main"><strong>' + cName(ev.circuit) + ' <span class="feed-upcoming-j">' + countdownLabel(Math.max(0, Math.round((parseLocalDate(ev.dateStart) - parseLocalDate(dateKey(new Date()))) / 86400000))) + '</span></strong><span class="help-text">' + escapeHtml(formatEventRange(ev, true)) + '</span>' +
         '<span class="feed-upcoming-who">' + x.friends.concat(x.companions).slice(0, 4).map(function (n) { return avatarHtml((STATE.usersByName || {})[n] || {}, n); }).join('') +
-        '<span class="help-text">' + x.friends.slice(0, 2).map(function (n) { var g = riderGroupFor(ev, n, ev.dateStart, 'matin') || riderGroupFor(ev, n, ev.dateStart, 'apres-midi'); return escapeHtml(n) + (g ? ' ' + groupChip(g) : ''); }).join(', ') + (x.friends.length > 2 ? ' +' + (x.friends.length - 2) : '') +
+        '<span class="help-text">' + x.friends.slice(0, 2).map(function (n) { var g = riderGroupFor(ev, n, ev.dateStart, 'matin') || riderGroupFor(ev, n, ev.dateStart, 'apres-midi'); return pName(n) + (g ? ' ' + groupChip(g) : ''); }).join(', ') + (x.friends.length > 2 ? ' +' + (x.friends.length - 2) : '') +
           (x.companions.length ? (x.friends.length ? ' · ' : '') + escapeHtml(x.companions.join(', ')) + L(x.companions.length > 1 ? ' viennent' : ' vient', x.companions.length > 1 ? ' are coming' : ' is coming') : '') + '</span></span></span></button>' +
         (x.mine ? '<span class="feed-upcoming-tag">Tu y vas</span>' : '<button type="button" class="ghost" data-notif-go="event" data-id="' + escapeHtml(ev.id) + '" data-join="1">J\'y vais aussi</button>') +
         '</div>';
@@ -18188,7 +18194,7 @@
     var myVote = votes[me.name];
     var html = '<div class="wall-post">';
     html += '<div class="wall-post-head">' + personLinkHtml(f.author) +
-      (teamName ? '<span class="friend-role-badge">' + escapeHtml(teamName) + '</span>' : '') +
+      (teamName ? '<span class="friend-role-badge">' + (teamById(f.teamId) ? tName(teamById(f.teamId)) : escapeHtml(teamName)) + '</span>' : '') +
       (f.audience === 'adherents' ? '<span class="friend-role-badge adherent-badge">' + tr('adherents_badge') + '</span>' : '') +
       '<span class="feed-entry-time">' + escapeHtml(relativeTime(f.createdAt)) + '</span></div>';
     html += '<div class="wall-post-text"><span class="feed-record-label">Sondage</span> ' + escapeHtml(f.question) + '</div>';
@@ -18221,7 +18227,7 @@
     }
     var html = '<div class="wall-post">';
     html += '<div class="wall-post-head">' + personLinkHtml(f.author) +
-      (teamName ? '<span class="friend-role-badge">' + escapeHtml(teamName) + '</span>' : '') +
+      (teamName ? '<span class="friend-role-badge">' + (teamById(f.teamId) ? tName(teamById(f.teamId)) : escapeHtml(teamName)) + '</span>' : '') +
       (f.audience === 'adherents' ? '<span class="friend-role-badge adherent-badge">' + tr('adherents_badge') + '</span>' : '') +
       '<span class="feed-entry-time">' + escapeHtml(relativeTime(f.editedAt || f.createdAt)) + (f.editedAt ? tr('edited_suffix') : '') + '</span>' +
       '</div>';
@@ -21112,18 +21118,25 @@
       rootEl.__socialLinks = true;
       rootEl.addEventListener('click', function (e) {
         if (e.target.closest('.back-chevron, .nav-back-btn') && navStack.length) { e.preventDefault(); e.stopPropagation(); navBack(); return; }
-        var inFeed = e.target.closest('.feed-card, .wall-post, .post-comment, .repost-box, .people-row, .feed-upcoming');
-        if (!inFeed) return;
-        var c = e.target.closest('[data-open-circuit], .feed-ride-circuit, .feed-ride-thumb, .feed-recap-head .outing-thumb');
+        // Partout dans l'appli : pilote, circuit, team.
+        var pl = e.target.closest('[data-person-link]');
+        if (pl) { e.preventDefault(); e.stopPropagation(); openPerson(pl.getAttribute('data-person-link')); return; }
+        var c = e.target.closest('[data-open-circuit]');
         if (c) {
-          var name = c.getAttribute('data-open-circuit') || (c.closest('.feed-ride, .feed-recap-head, .repost-ride') || c).querySelector('.feed-ride-circuit').textContent;
           e.preventDefault(); e.stopPropagation();
-          selectedCircuit = name; userPickedCircuit = true; activeView = 'circuit'; outingView = null; personView = null;
+          selectedCircuit = c.getAttribute('data-open-circuit'); userPickedCircuit = true; activeView = 'circuit'; outingView = null; personView = null;
+          renderRoot(); window.scrollTo(0, 0);
+          return;
+        }
+        var tl = e.target.closest('[data-team-link]');
+        if (tl) {
+          e.preventDefault(); e.stopPropagation();
+          expandedTeamId = tl.getAttribute('data-team-link'); managingEventId = null; teamMemberSearch = ''; activeView = 'team'; personView = null;
           renderRoot(); window.scrollTo(0, 0);
           return;
         }
         var a = e.target.closest('.mini-avatar[data-person]');
-        if (a && !e.target.closest('[data-open-person], .follow-card')) { e.preventDefault(); e.stopPropagation(); openPerson(a.getAttribute('data-person')); }
+        if (a && a.getAttribute('data-person') && !e.target.closest('[data-open-person], .follow-card, .page-head, .story-bubble, .crop-modal-overlay')) { e.preventDefault(); e.stopPropagation(); openPerson(a.getAttribute('data-person')); }
       }, true);
     }
     document.querySelectorAll('[data-action="repost"]').forEach(function (btn) {
