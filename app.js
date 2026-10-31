@@ -52,7 +52,7 @@
   // not-yet-translated EN key never renders blank.
   var TRANSLATIONS = {
     fr: {
-      nav_carnet: 'Carnet', nav_sorties: 'Roulages', nav_communaute: 'Communauté', nav_events: 'Roulages', nav_chronos: 'Circuits', nav_planning: 'EN PISTE', nav_social: 'Social', nav_team: 'Team',
+      nav_carnet: 'Carnet', nav_chrono: 'Chrono', nav_sorties: 'Roulages', nav_communaute: 'Communauté', nav_events: 'Roulages', nav_chronos: 'Circuits', nav_planning: 'EN PISTE', nav_social: 'Social', nav_team: 'Team',
       coach_label: 'Coach', stats_label: 'Stats', notifications_label: 'Notifications', my_profile_label: 'Mon profil',
       profile_theme: 'Thème', profile_theme_light: 'clair', profile_theme_dark: 'sombre', profile_theme_system: 'système',
       profile_lang: 'Langue', save: 'Enregistrer', cancel: 'Annuler',
@@ -448,7 +448,7 @@
       save_unavailable_banner: 'Sauvegarde indisponible dans cette vue : tes modifications ne seront pas conservées.'
     },
     en: {
-      nav_carnet: 'Pitbook', nav_sorties: 'Trackdays', nav_communaute: 'Community', nav_events: 'Trackdays', nav_chronos: 'Tracks', nav_planning: 'ON TRACK', nav_social: 'Social', nav_team: 'Team',
+      nav_carnet: 'Pitbook', nav_chrono: 'Lap times', nav_sorties: 'Trackdays', nav_communaute: 'Community', nav_events: 'Trackdays', nav_chronos: 'Tracks', nav_planning: 'ON TRACK', nav_social: 'Social', nav_team: 'Team',
       coach_label: 'Coach', stats_label: 'Stats', notifications_label: 'Notifications', my_profile_label: 'My profile',
       profile_theme: 'Theme', profile_theme_light: 'light', profile_theme_dark: 'dark', profile_theme_system: 'system',
       profile_lang: 'Language', save: 'Save', cancel: 'Cancel',
@@ -10071,7 +10071,86 @@
     var dismissed = null;
     try { dismissed = localStorage.getItem('cdp-jourj-dismissed'); } catch (e) {}
     if (dismissed === dateKey(new Date())) return;
-    openJourJ(ev);
+    // Un roulage aujourd'hui : l'appli s'ouvre sur l'onglet Chrono.
+    try { localStorage.setItem('cdp-jourj-dismissed', dateKey(new Date())); } catch (e) {}
+    if (activeView !== 'chrono') { activeView = 'chrono'; outingView = null; renderRoot(); }
+  }
+  // ---- Onglet Chrono : le jour du roulage, en très simple ----
+  // Le circuit du jour, un gros bouton pour ajouter un chrono, ma
+  // progression du jour (ou du roulage), le plan avec mes repères. Rien
+  // d'autre : tout le reste est dans Carnet.
+  function renderChronoTab() {
+    var me = currentUserProfile && currentUserProfile.name;
+    if (!me) return '';
+    var today = dateKey(new Date()), ev = todaysOutingForMe();
+    if (addChronoOpen) {
+      return '<button type="button" class="link-btn back-link" data-action="chrono-cancel-add">‹ ' + L('Retour', 'Back') + '</button>' + renderForm();
+    }
+    if (!ev) return renderChronoNoRide(today);
+    var circuit = ev.circuit, asComp = meCompanionOn(ev), html = '';
+    html += '<div class="chrono-hero"><span class="chrono-hero-label">' + L('Aujourd\'hui', 'Today') + '</span>' +
+      '<span class="chrono-hero-circuit">' + escapeHtml(circuit) + '</span>';
+    if (!asComp) {
+      var data = myDaySlots(ev, today), now = new Date(), nowMin = now.getHours() * 60 + now.getMinutes();
+      var cur = data.slots.filter(function (sl) { return nowMin >= sl.start && nowMin < sl.end; })[0];
+      var next = data.slots.filter(function (sl) { return sl.start > nowMin; })[0];
+      html += '<span class="chrono-hero-sub">' + (data.group ? L('Groupe ', 'Group ') + escapeHtml(data.group) + ' · ' : '') +
+        (cur ? L('En piste jusqu\'à ', 'On track until ') + fmtMinOfDay(cur.end) : next ? L('Prochaine session ', 'Next session ') + fmtMinOfDay(next.start) + (next.start - nowMin <= 120 ? L(' (dans ' + (next.start - nowMin) + ' min)', ' (in ' + (next.start - nowMin) + ' min)') : '')
+          : data.slots.length ? L('Journée terminée', 'Day over') : L('Horaires non communiqués', 'Schedule not available')) + '</span>';
+    } else html += '<span class="chrono-hero-sub">' + L('Tu accompagnes tes potes', 'You\'re with your friends') + '</span>';
+    html += '<button type="button" class="link-btn chrono-hor-link" data-view="planning">' + L('Horaires de tous les groupes ›', 'Every group\'s schedule ›') + '</button></div>';
+    if (asComp) {
+      html += '<button type="button" class="chrono-big-btn" data-action="chrono-proposal">' + L('+ Chrono d\'un pote', '+ A friend\'s lap time') + '</button>';
+      html += renderFriendsOnTrack(ev, today, false);
+    } else {
+      html += '<button type="button" class="chrono-big-btn" data-action="chrono-add-today" data-circuit="' + escapeHtml(circuit) + '">' + L('+ Ajouter un chrono', '+ Add a lap time') + '</button>' +
+        '<button type="button" class="chrono-photo-btn" data-action="chrono-add-today" data-import="1" data-circuit="' + escapeHtml(circuit) + '">' + L('ou prends en photo la feuille de temps', 'or take a photo of the timesheet') + '</button>';
+      html += renderChronoProgress(ev, circuit, today);
+    }
+    var nNotes = myTrackNotes(circuit).length, info = circuitInfo(circuit), img = info.mapImage || outlineImageFor(info, circuit);
+    html += '<button type="button" class="card chrono-plan" data-action="open-track-notes" data-circuit="' + escapeHtml(circuit) + '">' +
+      (img ? '<img src="' + escapeHtml(img) + '" alt="">' : '') +
+      '<span class="chrono-plan-txt"><strong>' + L('Le plan et mes repères', 'Track map and my marks') + '</strong><span class="help-text">' +
+      (nNotes ? nNotes + (nNotes > 1 ? L(' repères', ' marks') : L(' repère', ' mark')) : L('Touche pour ajouter tes repères', 'Tap to add your marks')) + '</span></span><span class="chrono-plan-arrow">›</span></button>';
+    return html;
+  }
+  function renderChronoProgress(ev, circuit, today) {
+    var me = currentUserProfile.name, end = ev.dateEnd || ev.dateStart;
+    var mineAll = (STATE.sessions || []).filter(function (x) { return x.rider === me && sameCircuit(x.circuit, circuit) && x.laps && x.laps.length; });
+    var evSess = mineAll.filter(function (x) { return x.date >= ev.dateStart && x.date <= end; });
+    var daySess = evSess.filter(function (x) { return x.date === today; });
+    var multi = evSess.length > daySess.length;
+    var useEv = multi && pillState.chronoprog === 'event';
+    var list = (useEv ? evSess : daySess).slice().sort(compareSessionsInDay);
+    var html = '<div class="card chrono-progress"><h2 class="section-title">' + L('Ma progression', 'My progress') + '</h2>';
+    if (multi) html += renderSubPillRow('chronoprog', [['day', L('Aujourd\'hui', 'Today')], ['event', L('Tout le roulage', 'Whole trackday')]]);
+    if (!list.length) return html + '<div class="help-text">' + L('Ton premier chrono du jour apparaîtra ici.', 'Your first lap time of the day will show up here.') + '</div></div>';
+    var bests = list.map(sessionBest), best = Math.min.apply(null, bests);
+    var before = mineAll.filter(function (x) { return x.date < ev.dateStart; }).map(sessionBest), rec = before.length ? Math.min.apply(null, before) : null;
+    html += '<div class="chrono-best"><span class="help-text">' + (useEv ? L('Meilleur tour du roulage', 'Best lap of the trackday') : L('Meilleur tour du jour', 'Best lap today')) + '</span>' +
+      '<span class="chrono-best-time">' + formatTime(best) + '</span>' +
+      (rec !== null ? '<span class="' + (best < rec ? 'daily-recap-better' : 'help-text') + '">' + (best < rec ? L('Nouveau record ! −', 'New record! −') + formatGap(rec - best) : L('Record : ', 'Record: ') + formatTime(rec) + ' (+' + formatGap(best - rec) + ')') + '</span>' : '') + '</div>';
+    // À partir de 2 sessions : la courbe et le détail session par session.
+    var prog = renderDayProgression(list);
+    if (prog) return html + prog.replace(/^<div class="card[^"]*"[^>]*>/, '<div>').replace(/<h2 class="section-title">.*?<\/h2>/, '') + '</div>';
+    html += '<div class="chrono-sessions">' + list.map(function (x, i) {
+      return '<div class="chrono-session"><span>' + escapeHtml(x.slotLabel || (useEv ? formatDate(x.date) + ' · ' : '') + L('Session ', 'Session ') + (i + 1)) + '</span><strong>' + formatTime(bests[i]) + '</strong></div>';
+    }).join('') + '</div></div>';
+    return html;
+  }
+  function renderChronoNoRide(today) {
+    var html = '<div class="chrono-hero chrono-hero-off"><span class="chrono-hero-label">' + L('Aujourd\'hui', 'Today') + '</span><span class="chrono-hero-circuit">' + L('Pas de roulage', 'No trackday') + '</span></div>';
+    var tgt = targetPlanningEvent();
+    if (tgt && tgt.mode === 'upcoming') {
+      var ev = tgt.ev, days = Math.max(0, Math.round((parseLocalDate(ev.dateStart) - parseLocalDate(today)) / 86400000));
+      html += '<div class="card chrono-next"><span class="help-text">' + L('Prochain roulage', 'Next trackday') + '</span><strong class="chrono-next-circuit">' + escapeHtml(ev.circuit) + '</strong>' +
+        '<span>' + escapeHtml(formatEventRange(ev, true)) + ' · ' + escapeHtml(inDaysText(days)) + '</span>' +
+        '<button type="button" class="primary" data-view="planning">' + L('Préparer ce roulage', 'Get ready for it') + '</button></div>';
+    } else {
+      html += '<div class="card help-text">' + L('Aucun roulage prévu. Ajoute-le dans Carnet › Roulages : le jour J, tout sera ici.', 'No trackday planned. Add it in Carnet › Trackdays: on the day, everything will be here.') + '</div>';
+    }
+    if (!meIsNonRider()) html += '<button type="button" class="ghost chrono-later-btn" data-action="chrono-add-today">' + L('+ Ajouter un chrono d\'un autre jour', '+ Add a lap time from another day') + '</button>';
+    return html;
   }
   function goAddChronoFor(circuit, day, withImport) {
     closeJourJ();
@@ -10368,13 +10447,14 @@
 
   function carnetPillsHtml(outings) {
     var upcoming = myUpcomingEvents();
-    if (!outings.length && !upcoming.length) return '';
+    if (!outings.length && !upcoming.length && activeView !== 'event') return '<div class="pill-tabs"><button type="button" class="pill-btn active">' + L('Roulages', 'Trackdays') + '</button><button type="button" class="pill-btn" data-view="event">' + L('Calendrier', 'Calendar') + '</button></div>';
     if (!carnetCardsMode) carnetCardsMode = outings.length ? 'passees' : 'avenir';
     if (!outings.length) carnetCardsMode = 'avenir';
     var items = [['passees', L('Passés', 'Past') + (outings.length ? ' (' + outings.length + ')' : '')], ['avenir', 'À venir' + (upcoming.length ? ' (' + upcoming.length + ')' : '')]];
+    var inCal = activeView === 'event';
     return '<div class="pill-tabs">' + items.map(function (it) {
-      return '<button type="button" class="pill-btn' + (carnetCardsMode === it[0] ? ' active' : '') + '" data-cards-mode="' + it[0] + '">' + it[1] + '</button>';
-    }).join('') + '</div>';
+      return '<button type="button" class="pill-btn' + (!inCal && carnetCardsMode === it[0] ? ' active' : '') + '" data-cards-mode="' + it[0] + '">' + it[1] + '</button>';
+    }).join('') + '<button type="button" class="pill-btn' + (inCal ? ' active' : '') + '" data-view="event">' + L('Calendrier', 'Calendar') + '</button></div>';
   }
 
   // ---- Carnet d'un accompagnant : les roulages de ses potes pilotes ----
@@ -13236,11 +13316,12 @@
   var NAV_SVG = {
     carnet: '<rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 8h6M9 12h6M9 16h3"/>',
     sorties: '<path d="M5 21V4M5 4h12l-2 4 2 4H5"/>',
+    chrono: '<circle cx="12" cy="13" r="8"/><path d="M12 9v4l3 2M9 2h6M12 2v3"/>',
     communaute: '<circle cx="9" cy="8" r="3"/><circle cx="17" cy="9" r="2.5"/><path d="M3 20c0-3 3-5 6-5s6 2 6 5M15 15c3 0 6 1.5 6 4.5"/>'
   };
   var MAIN_TABS = [
     ['carnet', 'nav_carnet', '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + NAV_SVG.carnet + '</svg>'],
-    ['sorties', 'nav_sorties', '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + NAV_SVG.sorties + '</svg>'],
+    ['chrono', 'nav_chrono', '<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + NAV_SVG.chrono + '</svg>'],
     ['communaute', 'nav_communaute', '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + NAV_SVG.communaute + '</svg>']
   ];
   // 3 onglets ; chacun regroupe plusieurs vues existantes (sous-onglets).
@@ -13249,21 +13330,25 @@
   function navTabFor(view) {
     if (view === 'outing' && outingView && outingView.from) return navTabFor(outingView.from);
     if (view === 'person') return personView && personView.from && personView.from !== 'person' ? navTabFor(personView.from) : 'communaute';
-    if (view === 'event' || view === 'planning') return 'sorties';
+    // Chrono : l'écran du jour (et la prépa du prochain roulage) ; le
+    // calendrier vit dans Carnet › Roulages.
+    if (view === 'chrono' || view === 'planning') return 'chrono';
+    if (view === 'event') return 'carnet';
     if (view === 'social' || view === 'team' || view === 'coach') return 'communaute';
     return 'carnet';
   }
-  var lastSubView = { carnet: 'carnet', sorties: 'planning', communaute: 'social' };
+  var lastSubView = { carnet: 'carnet', chrono: 'chrono', communaute: 'social' };
   // (la page d'une sortie est rattachée à l'onglet Carnet mais n'est pas
   // mémorisée comme sous-onglet : revenir à Carnet ramène à la liste)
   function renderSectionHeading(tab) {
-    var label = { carnet: tr('nav_carnet'), sorties: tr('nav_sorties'), communaute: tr('nav_communaute') }[tab] || '';
+    var label = { carnet: tr('nav_carnet'), chrono: tr('nav_chrono'), communaute: tr('nav_communaute') }[tab] || '';
     return '<div class="section-heading"><span class="section-heading-kerb" aria-hidden="true"></span><h1 class="section-heading-title">' + escapeHtml(label) + '</h1></div>';
   }
   function renderSubNav(items) {
     if (items.length < 2) return '';
     return '<div class="subnav" role="tablist">' + items.map(function (it) {
-      return '<button type="button" role="tab" class="subnav-btn' + (activeView === it[0] ? ' active' : '') + '" data-view="' + it[0] + '">' + it[1] + '</button>';
+      var on = activeView === it[0] || (it[0] === 'carnet' && activeView === 'event');
+      return '<button type="button" role="tab" class="subnav-btn' + (on ? ' active' : '') + '" data-view="' + it[0] + '">' + it[1] + '</button>';
     }).join('') + '</div>';
   }
   // Pastilles (3e niveau, à l'intérieur d'un sous-onglet) : même style que
@@ -13319,7 +13404,7 @@
     // Profile and notifications aren't one of the 3 tabs: none lit up then.
     var current = (profilePanelOpen || notificationsPanelOpen) ? null : navTabFor(activeView);
     visibleTabs.forEach(function (tab) {
-      html += '<button type="button" class="bottom-nav-btn' + (current === tab[0] ? ' active' : '') + '" data-view="' + (lastSubView[tab[0]] || tab[0]) + '">' +
+      html += '<button type="button" class="bottom-nav-btn' + (tab[0] === 'chrono' ? ' bottom-nav-main' : '') + (current === tab[0] ? ' active' : '') + '" data-view="' + (lastSubView[tab[0]] || tab[0]) + '">' +
         '<span class="bottom-nav-icon">' + tab[2] + '</span><span class="bottom-nav-label">' + tr(tab[1]) + '</span></button>';
     });
     html += '</nav>';
@@ -14377,12 +14462,14 @@
     past.sort(function (a, b) { return a.dateStart < b.dateStart ? 1 : a.dateStart > b.dateStart ? -1 : 0; });
     var html = '';
     var discovery = renderProEventDiscovery(me);
-    var pills = [['avenir', 'À venir' + ((ongoing.length + upcoming.length) ? ' (' + (ongoing.length + upcoming.length) + ')' : '')], ['passes', 'Passés'], ['calendrier', 'Mon calendrier']];
+    // Dans Carnet › Roulages › Calendrier : les roulages passés sont déjà
+    // dans « Passés », d'où de petites pastilles Liste / Mois / Découvrir.
+    var pills = [['avenir', L('Liste', 'List') + ((ongoing.length + upcoming.length) ? ' (' + (ongoing.length + upcoming.length) + ')' : '')], ['calendrier', L('Mois', 'Month')]];
     if (discovery) pills.push(['decouvrir', 'Découvrir']);
-    html += renderPills('events', pills);
+    html += renderSubPillRow('events', pills);
     if (editingEventId === 'new') {
       html += renderEventForm();
-    } else if (pillState.events !== 'passes') {
+    } else {
       html += '<button type="button" class="primary add-chrono-btn" data-action="quick-outing">+ Ajouter un roulage</button>';
       html += '<div class="help-text carnet-add-help">Circuit et date suffisent ; horaires et groupes peuvent venir après (photo de l\'affiche).</div>';
     }
@@ -14899,7 +14986,7 @@
 
       // Say what the letters do -- tapping them wasn't obvious.
       if (availableGroups.length >= 2) horairesInner += '<div class="planning-group-filter-label"><strong>' + L('Groupes affichés', 'Groups shown') + '</strong>' +
-        '<span class="help-text">' + L('Touche une lettre pour afficher ou masquer les horaires de ce groupe.', 'Tap a letter to show or hide that group\'s times.') + '</span></div>';
+        '<span class="help-text">' + (planningGroupFilter && planningGroupFilter.length === 1 ? L('Touche de nouveau la lettre pour revoir tous les groupes.', 'Tap the letter again to see every group.') : L('Touche une lettre pour n\'afficher que ce groupe.', 'Tap a letter to show only that group.')) + '</span></div>';
       horairesInner += '<div class="planning-group-filter"' + (availableGroups.length < 2 ? ' hidden' : '') + '>';
       availableGroups.forEach(function (g) {
         var checked = activeKeys.indexOf(g.key) !== -1;
@@ -19185,7 +19272,8 @@
       handlePendingRoulageSignedIn();
       if (activeView === 'outing' && !outingView) activeView = 'carnet';
       if (activeView === 'person' && !personView) activeView = 'social';
-      if (activeView !== 'outing' && activeView !== 'person') lastSubView[navTabFor(activeView)] = activeView;
+      // Le bouton Chrono ramène toujours à l'écran du jour, jamais à la prépa.
+      if (activeView !== 'outing' && activeView !== 'person' && activeView !== 'planning') lastSubView[navTabFor(activeView)] = activeView;
       // Budget est une pastille de Stats ; l'ancienne vue y renvoie.
       if (activeView === 'budget') { activeView = 'stats'; pillState.stats = 'budget'; }
       var carnetSub = renderSubNav([['carnet', L('Roulages', 'Trackdays')], ['circuit', 'Circuits'], ['stats', 'Stats']]);
@@ -19199,11 +19287,12 @@
           : [['records', 'Records'], ['podium', L('Podium', 'Podium')], ['trophees', 'Trophées'], ['budget', 'Budget']];
         body = carnetSub + renderPills('stats', statPills) + (pillState.stats === 'podium' ? renderStatsPodiums() : pillState.stats === 'budget' ? renderBudgetTab() : renderStatsTab());
       }
-      else if (activeView === 'planning') body = renderSubNav([['planning', 'Prochain roulage'], ['event', 'Calendrier']]) + renderTimesheetReminder() + renderPlanningTab();
+      else if (activeView === 'chrono') body = renderChronoTab();
+      else if (activeView === 'planning') body = '<button type="button" class="link-btn back-link" data-view="chrono">‹ ' + L('Chrono', 'Lap times') + '</button>' + renderTimesheetReminder() + renderPlanningTab();
       else if (activeView === 'social') body = renderSubNav(communauteSubItems()) + renderSocialTab();
       else if (activeView === 'team') body = renderSubNav(communauteSubItems()) + renderTeamTab();
       else if (activeView === 'coach') body = renderSubNav(communauteSubItems()) + renderCoachTab();
-      else body = renderSubNav([['planning', 'Prochain roulage'], ['event', 'Calendrier']]) + renderEventTab(); // 'event' and safety fallback
+      else body = carnetSub + carnetPillsHtml(myOutings()) + renderEventTab(); // 'event' (Carnet › Roulages › Calendrier) and safety fallback
       // Big section title so it's always clear which main tab you're in.
       if (activeView !== 'outing' && activeView !== 'person') body = renderSectionHeading(navTabFor(activeView)) + body;
     }
@@ -21090,6 +21179,18 @@
     });
     attachBudgetTab();
     document.querySelectorAll('[data-action="chrono-proposal"]').forEach(function (btn) { btn.addEventListener('click', openChronoProposalSheet); });
+    document.querySelectorAll('[data-action="chrono-add-today"]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var c = btn.getAttribute('data-circuit');
+        if (c) selectedCircuit = c;
+        addChronoOpen = true; renderRoot(); window.scrollTo(0, 0);
+        var cs = document.getElementById('f-circuit'); if (c && cs) { cs.value = c; cs.dispatchEvent(new Event('change', { bubbles: true })); }
+        if (btn.getAttribute('data-import')) { var inp = document.getElementById('import-photo-input'); if (inp) inp.click(); }
+      });
+    });
+    document.querySelectorAll('[data-action="chrono-cancel-add"]').forEach(function (btn) {
+      btn.addEventListener('click', function () { addChronoOpen = false; renderRoot(); });
+    });
     document.querySelectorAll('[data-action="ride-role"]').forEach(function (btn) {
       btn.addEventListener('click', function () {
         if (btn.classList.contains('active')) return;
@@ -22183,12 +22284,11 @@
       });
     });
     document.querySelectorAll('[data-planning-group]').forEach(function (cb) {
+      // Toucher un groupe n'affiche que lui ; le retoucher réaffiche tout.
       cb.addEventListener('change', function () {
-        var selected = [];
-        document.querySelectorAll('[data-planning-group]').forEach(function (b) {
-          if (b.checked) selected.push(b.getAttribute('data-planning-group'));
-        });
-        planningGroupFilter = selected;
+        var key = cb.getAttribute('data-planning-group');
+        var only = planningGroupFilter && planningGroupFilter.length === 1 && planningGroupFilter[0] === key;
+        planningGroupFilter = only ? null : [key];
         renderRoot();
       });
     });
@@ -22348,7 +22448,7 @@
     autotrimImages();
     styleTrackThumbs();
     document.querySelectorAll('[data-cards-mode]').forEach(function (b) {
-      b.addEventListener('click', function () { carnetCardsMode = b.getAttribute('data-cards-mode'); renderRoot(); });
+      b.addEventListener('click', function () { carnetCardsMode = b.getAttribute('data-cards-mode'); activeView = 'carnet'; renderRoot(); });
     });
     document.querySelectorAll('[data-open-outing]').forEach(function (b) {
       b.addEventListener('click', function () { openOuting(b.getAttribute('data-open-outing'), b.getAttribute('data-outing-date'), b.getAttribute('data-outing-event')); });

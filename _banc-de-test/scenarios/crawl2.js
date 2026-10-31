@@ -24,7 +24,8 @@ const FR = /[éèêàùçôîâœ]|\b(le|la|les|des|du|et|pour|avec|ton|ta|tes|v
   async function sweepPills(where) { const n = await p.$$eval('.pill-btn, .subnav-btn', e => e.length); for (let i = 0; i < n; i++) { const els = await p.$$('.pill-btn, .subnav-btn'); if (!els[i]) continue; try { await els[i].click({ timeout: 1000 }); await p.waitForTimeout(300); await harvest(where); } catch (e) {} } }
   const scenarios = [
     ['outing past', async () => { await clickText('Mugello'); }],
-    ['outing upcoming', async () => { await clickSel('[data-tab="sorties"], .bottom-nav button:nth-child(2)'); await clickText('Barcelon'); }],
+    ['outing upcoming', async () => { await clickSel('.subnav-btn[data-view="carnet"]'); await clickSel('[data-cards-mode="avenir"]'); await clickText('Barcelon'); }],
+    ['chrono tab', async () => { await clickSel('.bottom-nav-btn.bottom-nav-main'); await clickSel('#root [data-view="planning"]'); }],
     ['add lap form', async () => { await clickSel('.add-chrono-btn'); }],
     ['circuits', async () => { await clickText(LANG === 'en' ? 'Circuits' : 'Circuits'); await clickSel('[data-action="open-track-notes"]'); }],
     ['stats', async () => { await clickText('Stats'); }],
@@ -33,10 +34,10 @@ const FR = /[éèêàùçôîâœ]|\b(le|la|les|des|du|et|pour|avec|ton|ta|tes|v
     ['settings', async () => { await clickSel('#settings-toggle'); }],
     ['profile', async () => { await clickSel('#profile-toggle'); }],
     ['notifications', async () => { await clickSel('#notifications-toggle'); }],
-    ['calendar', async () => { await clickSel('[data-tab="sorties"], .bottom-nav button:nth-child(2)'); await clickText(LANG === 'en' ? 'Calendar' : 'Calendrier'); }],
+    ['calendar', async () => { await clickSel('.subnav-btn[data-view="carnet"]'); await clickSel('.pill-btn[data-view="event"]'); await clickSel('[data-pill-group="events"][data-pill="calendrier"]'); }],
     ['budget', async () => { await clickSel('.bottom-nav-btn[data-view^="carnet"]'); await clickSel('.subnav-btn[data-view="stats"]'); await clickSel('[data-pill-group="stats"][data-pill="budget"]'); const ys = await p.$$('[data-budget-season]'); for (const y of ys) { try { await y.click(); await p.waitForTimeout(300); await harvest('budget season'); await p.$$eval('details', d => d.forEach(x => x.open = true)); await p.$$eval('[data-budget-act="add-line"]', b => b.slice(0, 2).forEach(x => x.click())); await p.waitForTimeout(300); await harvest('budget details'); } catch (e) {} } }],
     ['budget past outing', async () => { await clickSel('.bottom-nav-btn[data-view^="carnet"]'); await clickSel('.subnav-btn[data-view="carnet"]'); await clickText('Mugello'); }],
-    ['new trackday', async () => { await clickSel('[data-tab="sorties"], .bottom-nav button:nth-child(2)'); await clickText(LANG === 'en' ? 'Add a trackday' : 'Ajouter un roulage'); }]
+    ['new trackday', async () => { await clickSel('.subnav-btn[data-view="carnet"]'); await clickSel('.pill-btn[data-view="event"]'); await clickText(LANG === 'en' ? 'Add a trackday' : 'Ajouter un roulage'); }]
   ];
   for (const [name, fn] of scenarios) {
     await home(); try { await fn(); } catch (e) {} await harvest(name); await sweepPills(name);

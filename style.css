@@ -3880,3 +3880,30 @@ label.budget-row-title { cursor: pointer; margin: 0; }
 .ci-records { grid-column: 1 / -1; }
 .ci-record-row { display: grid; grid-template-columns: 4rem 6.5rem 1fr; gap: 0.4rem; align-items: center; margin-top: 0.35rem; }
 .ci-record-row span { font-weight: 700; font-size: 0.85rem; }
+/* Onglet Chrono : gros bouton central dans la barre du bas */
+.bottom-nav-btn.bottom-nav-main .bottom-nav-icon { display: grid; place-items: center; width: 3.1rem; height: 3.1rem; margin-top: -1.3rem; border-radius: 50%; background: var(--accent); color: #fff; box-shadow: 0 4px 12px rgba(200,38,31,0.35); border: 3px solid var(--surface); }
+.bottom-nav-btn.bottom-nav-main { font-weight: 800; }
+.bottom-nav-btn.bottom-nav-main.active { background: none; color: var(--accent); }
+.bottom-nav-btn.bottom-nav-main.active::after { display: none; }
+@media (min-width: 960px) { .bottom-nav-btn.bottom-nav-main .bottom-nav-icon { width: auto; height: auto; margin: 0; background: none; color: inherit; box-shadow: none; border: 0; } .bottom-nav-btn.bottom-nav-main.active { background: var(--accent); color: var(--accent-ink); } }
+/* Écran Chrono : très simple, gros textes, gros boutons */
+.chrono-hero { display: flex; flex-direction: column; gap: 0.15rem; margin: 0.2rem 0 0.9rem; }
+.chrono-hero-label { font-weight: 700; color: var(--accent); text-transform: uppercase; letter-spacing: 0.06em; font-size: 0.85rem; }
+.chrono-hero-circuit { font-family: var(--font-display); font-style: italic; font-weight: 800; font-size: 2.3rem; line-height: 1.05; text-transform: uppercase; }
+.chrono-hero-sub { font-size: 1.05rem; font-weight: 600; }
+.chrono-hero-off .chrono-hero-circuit { color: var(--text-muted); }
+.chrono-big-btn { display: block; width: 100%; padding: 1.25rem 1rem; border: 0; border-radius: 16px; background: var(--accent); color: #fff; font-size: 1.35rem; font-weight: 800; cursor: pointer; box-shadow: var(--shadow); }
+.chrono-photo-btn { display: block; width: 100%; margin: 0.4rem 0 1rem; padding: 0.7rem; border: 1px dashed var(--border); border-radius: 12px; background: var(--surface); color: var(--text); font-size: 1rem; font-weight: 600; cursor: pointer; }
+.chrono-progress .chrono-best { display: flex; flex-direction: column; gap: 0.1rem; margin-bottom: 0.4rem; }
+.chrono-best-time { font-family: var(--font-display); font-style: italic; font-weight: 800; font-size: 2.4rem; line-height: 1.1; }
+.chrono-sessions { margin-top: 0.4rem; }
+.chrono-session { display: flex; justify-content: space-between; padding: 0.5rem 0; border-top: 1px solid var(--border); font-size: 1.05rem; }
+.chrono-plan { display: flex; align-items: center; gap: 0.8rem; width: 100%; text-align: left; cursor: pointer; color: var(--text); }
+.chrono-plan img { width: 6rem; height: 4.2rem; object-fit: contain; flex: 0 0 auto; }
+.chrono-plan-txt { flex: 1; display: flex; flex-direction: column; gap: 0.15rem; font-size: 1.05rem; }
+.chrono-plan-arrow { font-size: 1.6rem; color: var(--text-muted); }
+.chrono-next { display: flex; flex-direction: column; gap: 0.25rem; }
+.chrono-next-circuit { font-family: var(--font-display); font-style: italic; font-size: 1.6rem; text-transform: uppercase; }
+.chrono-next .primary { margin-top: 0.5rem; }
+.chrono-later-btn { width: 100%; margin-top: 0.4rem; }
+.chrono-hor-link { align-self: flex-start; margin-top: 0.3rem; font-weight: 700; color: var(--accent); }

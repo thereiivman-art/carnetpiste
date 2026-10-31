@@ -13,7 +13,8 @@ Il faut Node.js et Playwright (avec Chromium).
       Démarre le banc. Ouvrir http://localhost:8766/index.html#lang=fr
       Options dans l'adresse : #lang=fr ou #lang=en, &admin=1 (compte admin),
       &noteam=1 (ne mène aucun Team),
-      &look=1 (fiches personnalisées d'Alex et du Team Piste).
+      &look=1 (fiches personnalisées d'Alex et du Team Piste),
+      &jourj=1 (Alex roule aujourd'hui à Carole).
 
   node _banc-de-test/lancer.js tout
       Joue tous les scénarios puis s'arrête.
@@ -52,6 +53,8 @@ Scénarios
                        Passés et sur la page du roulage.
   records-piste        records MotoGP/Moto2/Moto3/FSBK saisis par l'admin,
                        rangés avec les potes et moi (valeurs fictives).
+  onglet-chrono        onglet central Chrono le jour J (&jourj=1), sans
+                       roulage, horaires d'un seul groupe, calendrier.
   parrain              Gestion des comptes : corriger un parrain.
 
 Guide PDF

@@ -9,7 +9,7 @@ const { chromium, BASE } = require('../lib');
   await p.goto(BASE + 'index.html#lang=' + lang + '&role=acc'); await p.waitForTimeout(1600);
   // Des potes roulent aujourd'hui : le jour J s'ouvre tout seul.
   if (await p.$('#jourj-overlay')) { console.log('jour J auto:', (await p.$eval('#jourj-overlay', e => e.innerText)).replace(/\n/g, ' | ').slice(0, 300)); await p.screenshot({ path: 'acc-jourj-' + lang + '.png' }); await p.click('[data-jj="close"]'); await p.waitForTimeout(300); }
-  await p.click('.bottom-nav-btn:nth-child(2)'); await p.waitForTimeout(600);
+  await p.click('.bottom-nav-btn.bottom-nav-main'); await p.waitForTimeout(600);
   console.log('potes en piste:', await p.$$eval('.friends-on-track .fot-row', e => e.map(x => x.innerText.replace(/\n/g, ' ')).join(' | ')).catch(() => 'aucune carte'));
   await p.screenshot({ path: 'acc-potes-piste-' + lang + '.png' });
   // Saisir le chrono d'un pote

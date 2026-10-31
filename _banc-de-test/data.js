@@ -28,7 +28,7 @@
       e7: { id: 'e7', circuit: 'Jerez', dateStart: d(90), dateEnd: d(91), riders: ['Alex'], note: '' },
       e8: { id: 'e8', circuit: 'Navarra', dateStart: d(120), dateEnd: d(121), riders: ['Alex'], note: '' },
       // Aujourd'hui : Sam et Tom roulent (Mes potes en piste).
-      e9: { id: 'e9', circuit: 'Carole', dateStart: d(0), dateEnd: d(0), riders: ['Sam', 'Tom'], note: '', horairesOverride: { groupB: '9h00-9h20, 11h00-11h20, 14h00-14h20, 16h00-16h20, 18h00-18h20', groupC: '9h20-9h40, 11h20-11h40, 14h20-14h40, 16h20-16h40, 18h20-18h40' }, riderGroups: { Sam: (function () { var o = {}; o[d(0)] = { am: 'B', pm: 'B' }; return o; })(), Tom: (function () { var o = {}; o[d(0)] = { am: 'C', pm: 'C' }; return o; })() } }
+      e9: { id: 'e9', circuit: 'Carole', dateStart: d(0), dateEnd: d(0), riders: /jourj=1/.test(location.hash) ? ['Sam', 'Tom', 'Alex'] : ['Sam', 'Tom'], note: '', horairesOverride: { groupB: '9h00-9h20, 11h00-11h20, 14h00-14h20, 16h00-16h20, 18h00-18h20', groupC: '9h20-9h40, 11h20-11h40, 14h20-14h40, 16h20-16h40, 18h20-18h40' }, riderGroups: { Alex: (function () { var o = {}; o[d(0)] = { am: 'B', pm: 'B' }; return o; })(), Sam: (function () { var o = {}; o[d(0)] = { am: 'B', pm: 'B' }; return o; })(), Tom: (function () { var o = {}; o[d(0)] = { am: 'C', pm: 'C' }; return o; })() } }
     },
     sessions: {
       s1: { id: 's1', rider: 'Alex', date: d(-40), circuit: 'Mugello', laps: [118.2, 116.9, 115.4, 116.1], eventId: 'e2', bike: 'Yamaha R6', group: 'B', slotStart: 540, slotLabel: '9h00-9h20' },

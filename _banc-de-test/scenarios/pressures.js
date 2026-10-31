@@ -8,7 +8,7 @@ const { chromium, BASE } = require('../lib');
   const errs = []; p.on('pageerror', e => errs.push(e.message));
   const stored = () => p.evaluate(() => Object.values(window.__MOCK_DATA.userPrivate || {}).map(d => d.pressures));
   await p.goto(BASE + 'index.html#lang=' + lang); await p.waitForTimeout(1600);
-  await p.click('.bottom-nav-btn:nth-child(2)'); await p.waitForTimeout(500); await p.click('[data-cpill-group="planning"][data-cpill="prepa"]'); await p.waitForTimeout(300); await p.click('[data-cpill-group="prepsub"][data-cpill="moto"]'); await p.waitForTimeout(300);
+  await p.click('.bottom-nav-btn.bottom-nav-main'); await p.waitForTimeout(400); await p.click('#root [data-view="planning"]'); await p.waitForTimeout(500); await p.click('[data-cpill-group="planning"][data-cpill="prepa"]'); await p.waitForTimeout(300); await p.click('[data-cpill-group="prepsub"][data-cpill="moto"]'); await p.waitForTimeout(300);
   await p.click('[data-action="pressure-new"]'); await p.waitForTimeout(300);
   console.log('prefilled pressures:', JSON.stringify(await p.$$eval('#pr-fc, #pr-rc, #pr-fh, #pr-rh', e => e.map(x => x.value + '|' + x.placeholder))));
   await p.fill('#pr-circuit', 'Barcelone'); await p.fill('#pr-fc', 'deux');

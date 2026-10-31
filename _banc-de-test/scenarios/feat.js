@@ -9,11 +9,11 @@ const { chromium, BASE } = require('../lib');
   await p.getByText('Mugello').first().click(); await p.waitForTimeout(900);
   await p.screenshot({ path: 'f-day-' + lang + '.png' });
   await p.goto('about:blank'); await p.goto(BASE + 'index.html#lang=' + lang); await p.waitForTimeout(1500);
-  await p.click('.bottom-nav-btn:nth-child(2)'); await p.waitForTimeout(500); await p.click('[data-cpill-group="planning"][data-cpill="prepa"]'); await p.waitForTimeout(300); await p.click('[data-cpill-group="prepsub"][data-cpill="moto"]'); await p.waitForTimeout(300);
+  await p.click('.bottom-nav-btn.bottom-nav-main'); await p.waitForTimeout(400); await p.click('#root [data-view="planning"]'); await p.waitForTimeout(500); await p.click('[data-cpill-group="planning"][data-cpill="prepa"]'); await p.waitForTimeout(300); await p.click('[data-cpill-group="prepsub"][data-cpill="moto"]'); await p.waitForTimeout(300);
   await p.click('[data-action="tyre-new"]'); await p.waitForTimeout(400);
   await p.screenshot({ path: 'f-tyre-' + lang + '.png' });
   await p.goto('about:blank'); await p.goto(BASE + 'index.html#lang=' + lang); await p.waitForTimeout(1500);
-  await p.click('.bottom-nav button:nth-child(2)'); await p.waitForTimeout(700);
+  await p.click('.bottom-nav-btn.bottom-nav-main'); await p.waitForTimeout(400); await p.click('#root [data-view="planning"]'); await p.waitForTimeout(500);
   const [dl] = await Promise.all([p.waitForEvent('download', { timeout: 5000 }).catch(() => null), p.click('[data-action="add-to-calendar"]')]);
   if (dl) { const path = 'f-cal-' + lang + '.ics'; await dl.saveAs(path); console.log(require('fs').readFileSync(path, 'utf8')); }
   await p.click('.bottom-nav button:nth-child(3)'); await p.waitForTimeout(600);
