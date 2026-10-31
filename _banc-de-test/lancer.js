@@ -28,13 +28,14 @@ function indexBanc() {
   var html = fs.readFileSync(path.join(DEPOT, 'index.html'), 'utf8');
   var app = fs.readFileSync(path.join(DEPOT, 'app.js'), 'utf8');
   var admin = (app.match(/var ADMIN_EMAIL = '([^']+)'/) || [])[1] || 'admin@example.com';
-  var faux = '<script>window.__BENCH_ADMIN_EMAIL = ' + JSON.stringify(admin) + ';</script>' +
-    '<script src="data.js"></script><script src="firebase-mock.js"></script><script>firebase.initializeApp({});</script>';
+  // Scripts externes (pas en ligne) : la CSP de l'app interdit le JavaScript en ligne.
+  var faux = '<script src="__banc-admin.js?e=' + encodeURIComponent(admin) + '"></script>' +
+    '<script src="data.js"></script><script src="firebase-mock.js"></script><script src="__banc-init.js"></script>';
   var avant = html;
   html = html.replace(/<script src="https:\/\/www\.gstatic\.com\/firebasejs\/[^"]+"><\/script>\s*/g, '')
     .replace(/<script src="firebase-config\.js"><\/script>/, faux)
-    .replace(/navigator\.serviceWorker\.register\([^)]*\)/, 'Promise.resolve()');
-  if (html === avant || html.indexOf('firebase-mock.js') === -1) throw new Error('index.html a changé : adapter indexBanc() dans lancer.js');
+    .replace(/<script src="sw-register\.js[^"]*"><\/script>/, '');
+  if (html === avant || html.indexOf('firebase-mock.js') === -1 || html.indexOf('sw-register') !== -1) throw new Error('index.html a changé : adapter indexBanc() dans lancer.js');
   return html;
 }
 
@@ -43,6 +44,8 @@ function servir() {
   var srv = http.createServer(function (req, res) {
     var p = decodeURIComponent(req.url.split('?')[0].split('#')[0]);
     if (p === '/' || p === '/index.html') { res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' }); return res.end(indexBanc()); }
+    if (p === '/__banc-admin.js') { res.writeHead(200, { 'Content-Type': 'text/javascript' }); return res.end('window.__BENCH_ADMIN_EMAIL = ' + JSON.stringify(new URL(req.url, 'http://x').searchParams.get('e') || '') + ';'); }
+    if (p === '/__banc-init.js') { res.writeHead(200, { 'Content-Type': 'text/javascript' }); return res.end('firebase.initializeApp({});'); }
     // data.js et firebase-mock.js viennent du banc, tout le reste du dépôt.
     var f = /^\/(data|firebase-mock)\.js$/.test(p) ? path.join(BANC, p) : path.join(DEPOT, p);
     if (f.indexOf(DEPOT) !== 0 || /(^|[\\/])\./.test(path.relative(DEPOT, f))) { res.writeHead(403); return res.end(); }

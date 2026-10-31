@@ -26,6 +26,18 @@ const { chromium, BASE } = require('../lib');
   await p.click('.bottom-nav-btn.bottom-nav-main'); await p.waitForTimeout(400);
   console.log('lien javascript neutralisé:', await p.evaluate(() => { const a = document.getElementById('piege'); return !a || a.getAttribute('href') === '#'; }), neutral);
 
+  // Identifiant de document piégé (choisi par un attaquant) : demande
+  // d'ami de Sam dont l'id tente d'ajouter un onmouseover.
+  await p.evaluate(() => firebase.firestore().collection('friendRequests').doc('x" onmouseover="window.__pwn=1" data-a="').set({ from: 'Luca', to: 'Alex', status: 'pending', createdAt: Date.now() }));
+  await p.waitForTimeout(400);
+  await p.click('#notifications-toggle').catch(() => {}); await p.waitForTimeout(600);
+  const handlers = await p.evaluate(() => { let n = 0; document.querySelectorAll('#root *').forEach(e => { for (const a of e.attributes) if (/^on/.test(a.name)) n++; }); document.querySelectorAll('[data-id]').forEach(e => e.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }))); return n; });
+  const injected = await p.evaluate(() => [...document.querySelectorAll('[data-id]')].some(e => e.getAttribute('data-id').indexOf('onmouseover') !== -1));
+  console.log('id piégé affiché (comme texte d\'attribut):', injected);
+  console.log('attributs on* dans la page:', handlers, '| code exécuté:', await p.evaluate(() => !!window.__pwn));
+  console.log('thème appliqué avant rendu (script externe):', await p.evaluate(() => !!document.querySelector('script[src^="theme-boot.js"]')));
+
+  await p.goto(BASE + 'index.html#lang=' + lang + '&jourj=1'); await p.waitForTimeout(1500);
   // Message « Mes amis » : visibleTo
   const post = await p.evaluate(() => new Promise(res => {
     const db = firebase.firestore(), uid = firebase.auth().currentUser.uid;

@@ -2703,7 +2703,7 @@
       }).join('') + '</div>';
     }
     if (isLeader) {
-      body += '<form data-action="team-partners-form" data-team="' + team.id + '" style="margin-top:0.8rem;">' +
+      body += '<form data-action="team-partners-form" data-team="' + escapeHtml(team.id) + '" style="margin-top:0.8rem;">' +
         '<label for="team-partners-' + team.id + '">Un par ligne : Nom | URL (URL optionnelle)</label>' +
         '<textarea id="team-partners-' + team.id + '" data-team-partners-input rows="3" placeholder="Concession Motos X | https://...\nGarage Y">' +
         escapeHtml(partners.map(function (p) { return p.url ? p.name + ' | ' + p.url : p.name; }).join('\n')) + '</textarea>' +
@@ -4232,7 +4232,7 @@
   // delete. Spans the full width of the table so it doesn't fight the
   // column layout with its own multi-field form.
   function renderSessionEditRow(s, colCount) {
-    var html = '<tr class="session-edit-row" data-session-id="' + s.id + '"><td colspan="' + colCount + '">';
+    var html = '<tr class="session-edit-row" data-session-id="' + escapeHtml(s.id) + '"><td colspan="' + colCount + '">';
     html += '<form id="session-edit-form" novalidate>';
     html += '<div class="field-row">';
     html += isAdmin()
@@ -4382,7 +4382,7 @@
         var feelingOpt = s.feeling ? FEELING_OPTIONS.filter(function (f) { return f.key === s.feeling; })[0] : null;
         var feelingTitle = feelingOpt ? tr('feeling_prefix') + feelingOpt.label + (s.feelingComment ? ' — ' + s.feelingComment : '') : '';
         var feelingHtml = feelingOpt ? ' <span class="feeling-tag" title="' + escapeHtml(feelingTitle) + '">' + feelingOpt.icon + '</span>' : '';
-        tableHtml += '<tr data-session-id="' + s.id + '">';
+        tableHtml += '<tr data-session-id="' + escapeHtml(s.id) + '">';
         tableHtml += '<td class="date-cell">' + formatDate(s.date) + feelingHtml + sessionTagHtml + deltaHtml + noteHtml + '</td>';
         if (showRider) tableHtml += '<td class="rider-cell">' + (s.rider ? renderRiderLink(s.rider) : '—') + '</td>';
         tableHtml += '<td class="laps-cell">' + lapsHtml + (isRecord ? '<span class="record-pill">' + tr('record_pill') + '</span>' : '') +
@@ -5021,10 +5021,10 @@
       '<div class="friend-row-main">' + avatarHtml(u, r.from) + personNameHtml(r.from) + badgesHtml(u) + '</div>' +
       '<div class="help-text">souhaite rejoindre <strong>' + escapeHtml(teamName) + '</strong></div>' +
       '<div class="team-join-request-actions">' +
-      '<button type="button" class="primary" data-action="team-join-request-accept" data-id="' + r.id + '" data-role="member">Accepter comme membre</button>' +
-      '<button type="button" class="ghost" data-action="team-join-request-accept" data-id="' + r.id + '" data-role="adherent">comme adhérent</button>' +
-      '<button type="button" class="ghost" data-action="team-join-request-accept" data-id="' + r.id + '" data-role="leader">comme Team Leader</button>' +
-      '<button type="button" class="ghost danger" data-action="team-join-request-remove" data-id="' + r.id + '">Refuser</button>' +
+      '<button type="button" class="primary" data-action="team-join-request-accept" data-id="' + escapeHtml(r.id) + '" data-role="member">Accepter comme membre</button>' +
+      '<button type="button" class="ghost" data-action="team-join-request-accept" data-id="' + escapeHtml(r.id) + '" data-role="adherent">comme adhérent</button>' +
+      '<button type="button" class="ghost" data-action="team-join-request-accept" data-id="' + escapeHtml(r.id) + '" data-role="leader">comme Team Leader</button>' +
+      '<button type="button" class="ghost danger" data-action="team-join-request-remove" data-id="' + escapeHtml(r.id) + '">Refuser</button>' +
       '</div></div>';
   }
 
@@ -5041,8 +5041,8 @@
     return '<div class="friend-row"><div class="friend-row-main">' + avatarHtml(u, r.from) + personNameHtml(r.from) + badgesHtml(u) +
       '<span class="help-text">indique venir à ' + escapeHtml(r.circuit || '') + (team ? ' (' + escapeHtml(team.name) + ')' : '') + '</span></div>' +
       '<div class="friend-row-actions">' +
-      '<button type="button" class="primary" data-action="event-join-request-accept" data-id="' + r.id + '">Accepter</button>' +
-      '<button type="button" class="ghost" data-action="event-join-request-remove" data-id="' + r.id + '">Refuser</button>' +
+      '<button type="button" class="primary" data-action="event-join-request-accept" data-id="' + escapeHtml(r.id) + '">Accepter</button>' +
+      '<button type="button" class="ghost" data-action="event-join-request-remove" data-id="' + escapeHtml(r.id) + '">Refuser</button>' +
       '</div></div>';
   }
 
@@ -5074,8 +5074,8 @@
     return '<div class="friend-row"><div class="friend-row-main">' + avatarHtml(u, f.follower) + personNameHtml(f.follower) + badgesHtml(u) +
       '<span class="help-text">souhaite devenir adhérent de ' + escapeHtml(team ? team.name : '') + '</span></div>' +
       '<div class="friend-row-actions">' +
-      '<button type="button" class="primary" data-action="team-adherent-accept" data-follow-id="' + f.id + '">Accepter</button>' +
-      '<button type="button" class="ghost" data-action="team-adherent-decline" data-follow-id="' + f.id + '">Refuser</button>' +
+      '<button type="button" class="primary" data-action="team-adherent-accept" data-follow-id="' + escapeHtml(f.id) + '">Accepter</button>' +
+      '<button type="button" class="ghost" data-action="team-adherent-decline" data-follow-id="' + escapeHtml(f.id) + '">Refuser</button>' +
       '</div></div>';
   }
 
@@ -5538,15 +5538,15 @@
         ' · ' + formatTime(best) + (r.laps.length > 1 ? ' (' + r.laps.length + L(' tours)', ' laps)') : '') + '</div>';
     });
     friendReqs.forEach(function (r) {
-      rows += renderFriendRow(r.from, '<button type="button" class="primary" data-action="accept-friend" data-id="' + r.id + '">Accepter</button>' +
-        '<button type="button" class="ghost" data-action="remove-friend" data-id="' + r.id + '">Refuser</button>', true) +
+      rows += renderFriendRow(r.from, '<button type="button" class="primary" data-action="accept-friend" data-id="' + escapeHtml(r.id) + '">Accepter</button>' +
+        '<button type="button" class="ghost" data-action="remove-friend" data-id="' + escapeHtml(r.id) + '">Refuser</button>', true) +
         '<div class="help-text" style="margin:-0.3rem 0 0.6rem;">Demande d\'ami</div>';
     });
     teamInvs.forEach(function (r) {
       rows += '<div class="friend-row"><div class="friend-row-main"><span class="friend-name-plain">' + escapeHtml((teamById(r.teamId) || {}).name || r.teamName) + '</span>' +
         '<span class="help-text">invité par ' + escapeHtml(r.from) + '</span></div><div class="friend-row-actions">' +
-        '<button type="button" class="primary" data-action="team-invite-accept" data-id="' + r.id + '">Accepter</button>' +
-        '<button type="button" class="ghost" data-action="team-invite-remove" data-id="' + r.id + '">Refuser</button>' +
+        '<button type="button" class="primary" data-action="team-invite-accept" data-id="' + escapeHtml(r.id) + '">Accepter</button>' +
+        '<button type="button" class="ghost" data-action="team-invite-remove" data-id="' + escapeHtml(r.id) + '">Refuser</button>' +
         '</div></div>';
     });
     coachReqs.forEach(function (r) {
@@ -5651,15 +5651,15 @@
           // Parrain : d'habitude posé tout seul à l'inscription par le lien
           // de parrainage ; l'admin le corrige ici quand l'inscription s'est
           // faite sans le lien.
-          '<label class="account-referrer">' + L('Parrain', 'Referrer') + ' <input type="text" list="account-names" data-action="set-referrer" data-uid="' + a.uid + '" value="' + escapeHtml(a.referredBy || '') + '" placeholder="' + escapeHtml(L('aucun', 'none')) + '" maxlength="40"></label></div>' +
+          '<label class="account-referrer">' + L('Parrain', 'Referrer') + ' <input type="text" list="account-names" data-action="set-referrer" data-uid="' + escapeHtml(a.uid) + '" value="' + escapeHtml(a.referredBy || '') + '" placeholder="' + escapeHtml(L('aucun', 'none')) + '" maxlength="40"></label></div>' +
           '<div class="account-row-actions">' +
-          (isPilote ? '' : '<button type="button" class="ghost icon-btn" data-action="demote-account" data-uid="' + a.uid + '" aria-label="' + tr('demote_to_rider') + '" title="' + tr('demote_to_rider') + '">↺</button>') +
+          (isPilote ? '' : '<button type="button" class="ghost icon-btn" data-action="demote-account" data-uid="' + escapeHtml(a.uid) + '" aria-label="' + tr('demote_to_rider') + '" title="' + tr('demote_to_rider') + '">↺</button>') +
           profileBadges().map(function (b) {
             var on = !!a[b.field];
             var title = (on ? tr('remove_generic') + ' ' : tr('mark_as_prefix')) + b.label;
-            return '<button type="button" class="ghost icon-btn' + (on ? ' confirm' : '') + '" data-action="toggle-account-badge" data-uid="' + a.uid + '" data-field="' + b.field + '" aria-label="' + escapeHtml(title) + '" title="' + escapeHtml(title) + '">' + b.icon + '</button>';
+            return '<button type="button" class="ghost icon-btn' + (on ? ' confirm' : '') + '" data-action="toggle-account-badge" data-uid="' + escapeHtml(a.uid) + '" data-field="' + b.field + '" aria-label="' + escapeHtml(title) + '" title="' + escapeHtml(title) + '">' + b.icon + '</button>';
           }).join('') +
-          '<button type="button" class="ghost icon-btn' + (isPendingDelete ? ' confirm' : ' danger') + '" data-action="delete-account-request" data-uid="' + a.uid + '" aria-label="' + tr('delete_account_aria') + '" title="' + tr('revoke_access_title') + '">' + (isPendingDelete ? '✓' : '×') + '</button>' +
+          '<button type="button" class="ghost icon-btn' + (isPendingDelete ? ' confirm' : ' danger') + '" data-action="delete-account-request" data-uid="' + escapeHtml(a.uid) + '" aria-label="' + tr('delete_account_aria') + '" title="' + tr('revoke_access_title') + '">' + (isPendingDelete ? '✓' : '×') + '</button>' +
           '</div>' +
           '</li>';
       }).join('') + '</ul>' +
@@ -5683,12 +5683,12 @@
     var html = '<div class="section-title" style="font-size:0.95rem; margin-top:1.2rem; border-top:1px solid var(--border); padding-top:0.9rem;">' + tr('team_management_heading') + '</div>';
     html += '<ul class="rider-manager-list">' + teams.map(function (t) {
       var deleteControl = pendingDeleteTeamId !== t.id
-        ? '<button type="button" class="ghost icon-btn danger" data-action="admin-team-delete-request" data-team="' + t.id + '" aria-label="' + tr('delete_team_btn') + '" title="' + tr('delete_team_btn') + '">×</button>'
+        ? '<button type="button" class="ghost icon-btn danger" data-action="admin-team-delete-request" data-team="' + escapeHtml(t.id) + '" aria-label="' + tr('delete_team_btn') + '" title="' + tr('delete_team_btn') + '">×</button>'
         : '';
       var row = '<li class="rider-manager-row account-manager-row">' +
         '<div><span class="rider-manager-name">' + escapeHtml(t.name) + '</span>' + teamBadgesHtml(t) +
         (t.createdBy ? '<div class="help-text">' + tr('created_by_prefix') + escapeHtml(t.createdBy) + '</div>' : '') + '</div>' +
-        '<button type="button" class="ghost icon-btn' + (t.teamPro ? ' confirm' : '') + '" data-action="toggle-team-pro" data-team="' + t.id + '" aria-label="' + (t.teamPro ? tr('remove_team_pro') : tr('mark_team_pro')) + '" title="' + (t.teamPro ? tr('remove_team_pro') : tr('mark_team_pro')) + '">✓</button>' +
+        '<button type="button" class="ghost icon-btn' + (t.teamPro ? ' confirm' : '') + '" data-action="toggle-team-pro" data-team="' + escapeHtml(t.id) + '" aria-label="' + (t.teamPro ? tr('remove_team_pro') : tr('mark_team_pro')) + '" title="' + (t.teamPro ? tr('remove_team_pro') : tr('mark_team_pro')) + '">✓</button>' +
         deleteControl +
         '</li>';
       // Same password-confirmation dance as a Team Leader deleting their
@@ -5697,7 +5697,7 @@
       // exception just because isAdmin() also happens to bypass the
       // ownership check server-side.
       if (pendingDeleteTeamId === t.id) {
-        row += '<li class="rider-manager-row"><form id="admin-team-delete-form" data-team="' + t.id + '" style="width:100%;">' +
+        row += '<li class="rider-manager-row"><form id="admin-team-delete-form" data-team="' + escapeHtml(t.id) + '" style="width:100%;">' +
           '<div class="help-text">' + tr('delete_team_irreversible_prefix') + escapeHtml(t.name) + tr('delete_team_irreversible_suffix') + '</div>' +
           '<label for="admin-team-delete-password" style="margin-top:0.6rem;">' + tr('current_password_label') + '</label>' +
           '<input type="password" id="admin-team-delete-password" autocomplete="current-password">' +
@@ -6664,7 +6664,7 @@
     if (!candidates.length) return '';
     var preselect = (selectedEventId && candidates.some(function (e) { return e.id === selectedEventId; })) ? selectedEventId : candidates[0].id;
     var options = candidates.map(function (e) {
-      return '<option value="' + e.id + '"' + (e.id === preselect ? ' selected' : '') + '>' + escapeHtml(formatEventRange(e, true)) + '</option>';
+      return '<option value="' + escapeHtml(e.id) + '"' + (e.id === preselect ? ' selected' : '') + '>' + escapeHtml(formatEventRange(e, true)) + '</option>';
     }).join('');
     return '<div style="margin-top:0.9rem;"><label for="f-linked-event">' + tr('linked_event_label') + '</label>' +
       '<select id="f-linked-event"><option value="">' + tr('none_option') + '</option>' + options + '</select></div>';
@@ -6996,7 +6996,7 @@
       }
       if (evOptions.length) {
         selectorHtml += '<select id="progression-event-select" style="margin-bottom:0.8rem;">' +
-          evOptions.map(function (e) { return '<option value="' + e.id + '"' + (e.id === progressionEventPick ? ' selected' : '') + '>' + escapeHtml(formatEventRange(e, true)) + '</option>'; }).join('') +
+          evOptions.map(function (e) { return '<option value="' + escapeHtml(e.id) + '"' + (e.id === progressionEventPick ? ' selected' : '') + '>' + escapeHtml(formatEventRange(e, true)) + '</option>'; }).join('') +
           '</select>';
       } else {
         selectorHtml += '<div class="help-text" style="margin-bottom:0.6rem;">Aucun roulage avec chrono sur ' + escapeHtml(circuit) + '.</div>';
@@ -7209,7 +7209,7 @@
 
   function deleteControl(session) {
     if (!canEditSession(session)) return '';
-    return '<button type="button" class="ghost icon-btn" data-action="delete-request" data-id="' + session.id + '" aria-label="Supprimer cette session" title="Supprimer">×</button>';
+    return '<button type="button" class="ghost icon-btn" data-action="delete-request" data-id="' + escapeHtml(session.id) + '" aria-label="Supprimer cette session" title="Supprimer">×</button>';
   }
 
   // ---- Carte de partage (story 1080x1920) ----
@@ -7390,12 +7390,12 @@
 
   function shareControl(session) {
     if (!currentUserProfile || session.rider !== currentUserProfile.name) return '';
-    return '<button type="button" class="ghost icon-btn" data-action="share-session" data-id="' + session.id + '" aria-label="' + L('Partager ce chrono en image', 'Share this lap time as an image') + '" title="' + L('Partager', 'Share') + '">⤴</button>';
+    return '<button type="button" class="ghost icon-btn" data-action="share-session" data-id="' + escapeHtml(session.id) + '" aria-label="' + L('Partager ce chrono en image', 'Share this lap time as an image') + '" title="' + L('Partager', 'Share') + '">⤴</button>';
   }
 
   function editControl(session) {
     if (!canEditSession(session)) return '';
-    return '<button type="button" class="ghost icon-btn" data-action="edit-session-request" data-id="' + session.id + '" aria-label="' + L('Modifier ce chrono', 'Edit this lap time') + '" title="' + L('Modifier', 'Edit') + '">✎</button>';
+    return '<button type="button" class="ghost icon-btn" data-action="edit-session-request" data-id="' + escapeHtml(session.id) + '" aria-label="' + L('Modifier ce chrono', 'Edit this lap time') + '" title="' + L('Modifier', 'Edit') + '">✎</button>';
   }
 
   // A chrono logged under a Team Event can be certified by that event's
@@ -7416,10 +7416,10 @@
       var verifiedDesc = 'Chrono validé par ' + escapeHtml(session.certifiedBy) + ' (team) — non officiel';
       var pill = '<span class="verified-pill" title="' + verifiedDesc + '" data-badge-info="' + verifiedDesc + '">✓ Vérifié</span>';
       if (!manageable) return pill;
-      return pill + '<button type="button" class="ghost icon-btn" data-action="uncertify-session" data-id="' + session.id + '" aria-label="Retirer la validation" title="Retirer la validation">×</button>';
+      return pill + '<button type="button" class="ghost icon-btn" data-action="uncertify-session" data-id="' + escapeHtml(session.id) + '" aria-label="Retirer la validation" title="Retirer la validation">×</button>';
     }
     if (!manageable) return '';
-    return '<button type="button" class="ghost icon-btn" data-action="certify-session" data-id="' + session.id + '" aria-label="Vérifier ce chrono" title="Vérifier ce chrono">✓</button>';
+    return '<button type="button" class="ghost icon-btn" data-action="certify-session" data-id="' + escapeHtml(session.id) + '" aria-label="Vérifier ce chrono" title="Vérifier ce chrono">✓</button>';
   }
   function certifyChrono(sessionId) {
     var me = currentUserProfile;
@@ -7760,7 +7760,7 @@
     html += infoRow(tr('circuit_record_label'), recordSession ? (formatTime(recordTime) + ' (' + escapeHtml(recordSession.rider) + ')') : '—');
     var upcoming = nextOutingForCircuit(selectedCircuit);
     html += infoRow(tr('next_event_label'), upcoming
-      ? '<button type="button" class="link-btn" id="next-outing-link" data-event-id="' + upcoming.id + '">' + escapeHtml(formatEventRange(upcoming, true)) + '</button>'
+      ? '<button type="button" class="link-btn" id="next-outing-link" data-event-id="' + escapeHtml(upcoming.id) + '">' + escapeHtml(formatEventRange(upcoming, true)) + '</button>'
       : '<button type="button" class="link-btn" id="plan-outing-link">' + tr('not_planned_plan_it') + '</button>');
     // Admin-only now (see firestore.rules' circuits match) -- this used to
     // be open to any pilote, which meant literally anyone could overwrite
@@ -7927,7 +7927,7 @@
     var allTeamsForOrganizer = (STATE.teams || []).slice().sort(function (a, b) { return a.name.localeCompare(b.name); });
     html += '<div><label for="ci-organizer">' + tr('ci_organizer') + '</label><select id="ci-organizer"><option value="">—</option>' +
       allTeamsForOrganizer.map(function (t) {
-        return '<option value="' + t.id + '"' + (t.id === info.organizerTeamId ? ' selected' : '') + '>' + escapeHtml(t.name) + (t.teamPro ? ' (PRO)' : '') + '</option>';
+        return '<option value="' + escapeHtml(t.id) + '"' + (t.id === info.organizerTeamId ? ' selected' : '') + '>' + escapeHtml(t.name) + (t.teamPro ? ' (PRO)' : '') + '</option>';
       }).join('') + '</select></div>';
     html += '<div><label for="ci-briefing">' + tr('ci_briefing') + '</label><input type="text" id="ci-briefing" value="' + escapeHtml(info.briefing || '') + '" placeholder="Ex. 8h15"></div>';
     // Shown in EN PISTE's orange card and next to "Mon groupe" (see
@@ -8377,7 +8377,16 @@
   }
   // "Mugello", "mugello ", "Mugello Circuit", "Autodromo del Mugello" are
   // the same circuit.
+  // Mise en cache : appelée des milliers de fois par rendu (allCircuits,
+  // sameCircuit…), avec normalisation Unicode et regex à chaque fois.
+  var circuitKeyCache = Object.create(null);
   function circuitKey(c) {
+    var raw = String(c || '');
+    var hit = circuitKeyCache[raw];
+    if (hit !== undefined) return hit;
+    return (circuitKeyCache[raw] = circuitKeyRaw(raw));
+  }
+  function circuitKeyRaw(c) {
     return String(c || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
       .replace(/\b(circuit|circuito|autodromo|autodrome|international|internazionale|world|ring|de|del|di|du|the|la|le)\b/g, ' ')
       .replace(/[^a-z0-9]+/g, ' ').trim();
@@ -9385,9 +9394,9 @@
   function budgetLinesHtml(lines, attrs) {
     return (lines || []).map(function (l) {
       return '<div class="budget-line">' +
-        '<input type="text" maxlength="60" id="bl-' + l.id + '-label" ' + attrs + ' data-line="' + l.id + '" data-f="label" value="' + escapeHtml(l.label || '') + '" placeholder="' + escapeHtml(L('Libellé', 'Label')) + '">' +
-        '<input type="number" inputmode="decimal" min="0" step="1" id="bl-' + l.id + '-amount" ' + attrs + ' data-line="' + l.id + '" data-f="amount" value="' + escapeHtml(l.amount != null ? String(l.amount) : '') + '" placeholder="€">' +
-        '<button type="button" class="budget-line-del" data-budget-act="del-line" ' + attrs + ' data-line="' + l.id + '" aria-label="' + escapeHtml(L('Supprimer la ligne', 'Delete line')) + '">×</button></div>';
+        '<input type="text" maxlength="60" id="bl-' + l.id + '-label" ' + attrs + ' data-line="' + escapeHtml(l.id) + '" data-f="label" value="' + escapeHtml(l.label || '') + '" placeholder="' + escapeHtml(L('Libellé', 'Label')) + '">' +
+        '<input type="number" inputmode="decimal" min="0" step="1" id="bl-' + l.id + '-amount" ' + attrs + ' data-line="' + escapeHtml(l.id) + '" data-f="amount" value="' + escapeHtml(l.amount != null ? String(l.amount) : '') + '" placeholder="€">' +
+        '<button type="button" class="budget-line-del" data-budget-act="del-line" ' + attrs + ' data-line="' + escapeHtml(l.id) + '" aria-label="' + escapeHtml(L('Supprimer la ligne', 'Delete line')) + '">×</button></div>';
     }).join('');
   }
   function budgetRowHtml(r, opts) {
@@ -9400,20 +9409,20 @@
         : formatEuros(r.info.amount, r.info.approx) + (r.info.perDay ? L(' par jour × ', ' per day × ') + eventDayCount(ev) : '')) + (team ? ' · ' + escapeHtml(team.name) : '')
       : L('Pas de prix annoncé', 'No announced price') + (team ? ' · ' + escapeHtml(team.name) : '');
     function idFor(k) { return 'bud-' + ev.id + '-' + k; }
-    var attrs = 'data-ev="' + ev.id + '"';
+    var attrs = 'data-ev="' + escapeHtml(ev.id) + '"';
     var fields = '<label class="setup-field setup-half"><span>' + L('Prix orga', 'Organiser price') + '</span><input type="number" inputmode="decimal" min="0" step="1" id="' + idFor('price') + '" ' + attrs + ' data-k="price" value="' + escapeHtml(r.entry.price != null ? String(r.entry.price) : '') + '" placeholder="' + escapeHtml(r.orga != null ? String(Math.round(r.orga)) : L('à saisir', 'enter')) + '"></label>' +
       (r.past ? '<span></span>' : '<label class="setup-field setup-half budget-paid"><input type="checkbox" id="' + idFor('paid') + '" ' + attrs + ' data-k="paid"' + (r.entry.paid ? ' checked' : '') + '><span>' + L('Déjà payé', 'Already paid') + '</span></label>') +
       budgetCosts().map(function (c) {
         return '<label class="setup-field setup-half"><span>' + c[1] + '</span><input type="number" inputmode="decimal" min="0" step="1" id="' + idFor(c[0]) + '" ' + attrs + ' data-k="' + c[0] + '" value="' + escapeHtml(r.entry[c[0]] != null ? String(r.entry[c[0]]) : '') + '" placeholder="' + escapeHtml(c[2]) + '"></label>';
       }).join('');
     var hasCosts = budgetCosts().some(function (c) { return r.entry[c[0]]; }) || r.entry.price != null || (r.entry.lines || []).length;
-    return '<div class="budget-row' + (r.on ? '' : ' budget-row-off') + '" data-row="' + ev.id + '">' +
+    return '<div class="budget-row' + (r.on ? '' : ' budget-row-off') + '" data-row="' + escapeHtml(ev.id) + '">' +
       '<div class="budget-row-head"><input type="checkbox" id="' + idFor('on') + '" ' + attrs + ' data-k="on" aria-label="' + escapeHtml(L('Dans mon budget', 'In my budget')) + '"' + (r.on ? ' checked' : '') + '>' +
       '<span class="outing-thumb">' + circuitThumbHtml(ev.circuit) + '</span>' +
       (opts.inOuting ? '<label class="budget-row-title" for="' + idFor('on') + '"><span class="budget-row-name"><strong>' + L('Dans mon budget', 'In my budget') + '</strong></span><span class="help-text">' + priceHelp + '</span></label>' :
       '<button type="button" class="budget-row-title" data-open-outing="' + escapeHtml(ev.circuit) + '" data-outing-date="' + escapeHtml(ev.dateStart) + '" data-outing-event="' + escapeHtml(ev.id) + '"><span class="budget-row-name"><strong>' + escapeHtml(ev.circuit) + '</strong>' + (going && !r.past ? '<span class="record-chip">' + L('J\'y vais', 'Going') + '</span>' : '') + '</span>' +
       '<span class="help-text">' + escapeHtml(formatEventRange(ev, true)) + ' · ' + priceHelp + '</span></button>') +
-      '<span class="budget-row-total" data-tot-ev="' + ev.id + '"></span></div>' +
+      '<span class="budget-row-total" data-tot-ev="' + escapeHtml(ev.id) + '"></span></div>' +
       '<details class="budget-row-more"' + (opts.inOuting || budgetFocusId === ev.id || (r.on && hasCosts) ? ' open' : '') + '><summary>' + (r.past ? L('Détail des dépenses', 'Spending details') : L('Mes frais', 'My costs')) + '</summary>' +
       '<div class="setup-grid">' + fields + '</div>' +
       '<div class="budget-lines">' + budgetLinesHtml(r.entry.lines, attrs) + '</div>' +
@@ -9503,7 +9512,7 @@
     var html = '<div data-budget-root>' +
       '<div class="card ph-feature budget-hero outing-budget-hero" style="' + lookStyle(look) + '">' +
       '<span class="ph-feature-k">' + (r.past ? L('Ce roulage t\'a coûté', 'This trackday cost you') : L('Ce roulage va te coûter', 'This trackday will cost you')) + '</span>' +
-      '<strong class="ph-feature-time" data-tot-big="' + ev.id + '">' + (r.on ? (r.orga === null && !r.perso ? '—' : formatEuros(r.total, r.approx)) : '—') + '</strong>' +
+      '<strong class="ph-feature-time" data-tot-big="' + escapeHtml(ev.id) + '">' + (r.on ? (r.orga === null && !r.perso ? '—' : formatEuros(r.total, r.approx)) : '—') + '</strong>' +
       '<span class="ph-feature-s">' + (r.on ? escapeHtml(parts.join(' · ')) || L('Ajoute tes frais ci-dessous.', 'Add your costs below.') : L('Pas dans ton budget pour l\'instant : coche-le ci-dessous.', 'Not in your budget yet: tick it below.')) +
       (r.on && !r.past && r.entry.paid ? L(' · orga payée', ' · organiser paid') : '') + '</span></div>' +
       '<div class="card budget-list" data-budget-list>' + budgetRowHtml(r, { inOuting: true }) + '</div>' +
@@ -9848,8 +9857,8 @@
       if (leaderHere) acts += '<button type="button" class="primary" data-action="manage-from-outing" data-id="' + escapeHtml(ev.id) + '" data-team="' + escapeHtml(ev.teamId) + '">' + L('Gérer le roulage', 'Manage the trackday') + '</button>';
       if (ev.bookingUrl && !isRiderHere) acts += '<button type="button" class="primary" data-action="open-external-url" data-url="' + escapeHtml(ev.bookingUrl) + '">' + tr('book_register') + '</button>';
       if ((isRiderHere || leaderHere) && status !== 'terminee') acts += '<button type="button" class="ghost" data-action="share-roulage" data-id="' + escapeHtml(ev.id) + '">' + L('Inviter', 'Invite') + '</button>';
-      if (!ev.teamId) acts += '<button type="button" class="ghost" id="edit-event-btn" data-id="' + ev.id + '">✎ ' + tr('modify') + '</button>';
-      acts += '<button type="button" class="ghost" data-action="export-event-recap" data-id="' + ev.id + '">' + L('Partager', 'Share') + '</button>';
+      if (!ev.teamId) acts += '<button type="button" class="ghost" id="edit-event-btn" data-id="' + escapeHtml(ev.id) + '">✎ ' + tr('modify') + '</button>';
+      acts += '<button type="button" class="ghost" data-action="export-event-recap" data-id="' + escapeHtml(ev.id) + '">' + L('Partager', 'Share') + '</button>';
       html += '<div class="outing-actions">' + acts + '</div>';
       if (status !== 'terminee') html += addToCalendarLink(ev);
       html += status !== 'terminee' ? eventPriceLine(ev) : eventSpendLine(ev);
@@ -10840,7 +10849,7 @@
       if (base) {
         h += '<div class="track-notes-scroll"><div class="track-notes-map' + (zoomed ? ' zoomed' : '') + '"><img src="' + styledPlanSrc(base) + '"' + styledPlanAttr(base, info) + ' alt="" draggable="false">';
         notes.forEach(function (n, i) {
-          h += '<button type="button" class="track-pin" data-pin="' + n.id + '" style="left:' + (n.x * 100) + '%; top:' + (n.y * 100) + '%;">' + (i + 1) + '</button>';
+          h += '<button type="button" class="track-pin" data-pin="' + escapeHtml(n.id) + '" style="left:' + (n.x * 100) + '%; top:' + (n.y * 100) + '%;">' + (i + 1) + '</button>';
         });
         h += '</div></div>';
       } else {
@@ -10849,7 +10858,7 @@
       h += '<div class="track-notes-list">';
       if (!notes.length) h += '<div class="empty-state">Aucun repère pour l\'instant.</div>';
       notes.forEach(function (n, i) {
-        h += '<button type="button" class="track-note-row" data-pin="' + n.id + '"><span class="track-pin static">' + (i + 1) + '</span>' +
+        h += '<button type="button" class="track-note-row" data-pin="' + escapeHtml(n.id) + '"><span class="track-pin static">' + (i + 1) + '</span>' +
           '<span class="track-note-text"><strong>' + (n.turn ? 'Virage ' + escapeHtml(n.turn) : 'Repère ' + (i + 1)) + '</strong>' +
           (trackNoteSummary(n) ? '<br><span class="help-text">' + escapeHtml(trackNoteSummary(n)) + '</span>' : '') + '</span></button>';
       });
@@ -12916,21 +12925,21 @@
       ? '<div class="empty-state">' + tr('no_announcements_yet') + '</div>'
       : posts.map(function (a) {
         if (isLeader && editingAnnouncementId === a.id) {
-          return '<form class="coach-message-form" data-action="event-announcement-edit-form" data-id="' + a.id + '">' +
+          return '<form class="coach-message-form" data-action="event-announcement-edit-form" data-id="' + escapeHtml(a.id) + '">' +
             '<input type="text" value="' + escapeHtml(a.text) + '" data-event-announcement-edit-input>' +
             '<button type="submit" class="primary">' + tr('save') + '</button>' +
             '<button type="button" class="ghost" data-action="event-announcement-edit-cancel">' + tr('cancel') + '</button></form>';
         }
         var actions = isLeader
-          ? '<button type="button" class="ghost icon-btn" data-action="event-announcement-edit" data-id="' + a.id + '" aria-label="' + tr('modify') + '" title="' + tr('modify') + '">✎</button>' +
-            '<button type="button" class="ghost icon-btn" data-action="event-announcement-delete" data-id="' + a.id + '" aria-label="' + tr('delete_label') + '" title="' + tr('delete_label') + '">×</button>'
+          ? '<button type="button" class="ghost icon-btn" data-action="event-announcement-edit" data-id="' + escapeHtml(a.id) + '" aria-label="' + tr('modify') + '" title="' + tr('modify') + '">✎</button>' +
+            '<button type="button" class="ghost icon-btn" data-action="event-announcement-delete" data-id="' + escapeHtml(a.id) + '" aria-label="' + tr('delete_label') + '" title="' + tr('delete_label') + '">×</button>'
           : '';
         return '<div class="coach-message"><div class="coach-message-head">' + personNameHtml(a.from) +
           '<span class="feed-entry-time">' + escapeHtml(relativeTime(a.editedAt || a.createdAt)) + (a.editedAt ? tr('edited_suffix') : '') + '</span>' + actions + '</div>' +
           '<div class="coach-message-text">' + escapeHtml(a.text) + '</div></div>';
       }).join('');
     if (isLeader) {
-      body += '<form class="coach-message-form" data-action="event-announcement-form" data-event-id="' + ev.id + '" data-team-id="' + ev.teamId + '">' +
+      body += '<form class="coach-message-form" data-action="event-announcement-form" data-event-id="' + escapeHtml(ev.id) + '" data-team-id="' + escapeHtml(ev.teamId) + '">' +
         '<input type="text" placeholder="' + tr('announcement_placeholder') + '" data-event-announcement-input>' +
         '<button type="submit" class="primary">' + tr('send_btn') + '</button></form>';
     }
@@ -12987,11 +12996,11 @@
     if (editing) {
       body = '<textarea id="' + opts.inputId + '" rows="3" placeholder="' + escapeHtml(tr(opts.placeholderKey)) + '">' + escapeHtml(value) + '</textarea>' +
         '<div style="margin-top:0.5rem; display:flex; gap:0.5rem;">' +
-        '<button type="button" class="primary" data-action="' + opts.saveAction + '" data-id="' + ev.id + '">' + tr('save') + '</button>' +
+        '<button type="button" class="primary" data-action="' + opts.saveAction + '" data-id="' + escapeHtml(ev.id) + '">' + tr('save') + '</button>' +
         '<button type="button" class="ghost" data-action="' + opts.cancelAction + '">' + tr('cancel') + '</button></div>';
     } else {
       body = value ? '<div class="help-text" style="white-space:pre-wrap;">' + escapeHtml(value) + '</div>' : '<div class="help-text">' + tr('nothing_filled_in_yet') + '</div>';
-      if (isLeader) body += '<button type="button" class="ghost" data-action="' + opts.editAction + '" data-id="' + ev.id + '" style="margin-top:0.5rem;">' + (value ? tr('modify') : tr('complete_btn')) + '</button>';
+      if (isLeader) body += '<button type="button" class="ghost" data-action="' + opts.editAction + '" data-id="' + escapeHtml(ev.id) + '" style="margin-top:0.5rem;">' + (value ? tr('modify') : tr('complete_btn')) + '</button>';
     }
     return collapsibleSection(opts.key + '-' + ev.id, tr(opts.labelKey), body, !!value);
   }
@@ -13081,12 +13090,12 @@
         '</select>' +
         '<input type="text" id="weather-temp-input" placeholder="' + tr('weather_temp_placeholder') + '" value="' + escapeHtml(ev.weatherTemp || '') + '" style="margin-top:0.5rem;">' +
         '<div style="margin-top:0.5rem; display:flex; gap:0.5rem;">' +
-        '<button type="button" class="primary" data-action="save-weather" data-id="' + ev.id + '">' + tr('save') + '</button>' +
+        '<button type="button" class="primary" data-action="save-weather" data-id="' + escapeHtml(ev.id) + '">' + tr('save') + '</button>' +
         '<button type="button" class="ghost" data-action="cancel-weather">' + tr('cancel') + '</button></div>';
     } else {
       var summary = weatherSummaryLine(ev);
       body = summary ? '<div class="help-text">' + escapeHtml(summary) + '</div>' : '<div class="help-text">' + tr('nothing_filled_in_yet') + '</div>';
-      if (isLeader) body += '<button type="button" class="ghost" data-action="edit-weather" data-id="' + ev.id + '" style="margin-top:0.5rem;">' + (hasAny ? tr('modify') : tr('complete_btn')) + '</button>';
+      if (isLeader) body += '<button type="button" class="ghost" data-action="edit-weather" data-id="' + escapeHtml(ev.id) + '" style="margin-top:0.5rem;">' + (hasAny ? tr('modify') : tr('complete_btn')) + '</button>';
     }
     return collapsibleSection('weather-' + ev.id, tr('weather_label'), body, hasAny);
   }
@@ -13230,10 +13239,10 @@
       // Piste (déclaratif). The actual inscription/payment is the orga's
       // own booking tool, offered first whenever the Team set one.
       var goHtml = vis === 'ouvert'
-        ? '<button type="button" class="' + (ev.bookingUrl ? 'ghost' : 'primary') + '" data-action="event-join-ouvert" data-id="' + ev.id + '">J\'y vais</button>'
+        ? '<button type="button" class="' + (ev.bookingUrl ? 'ghost' : 'primary') + '" data-action="event-join-ouvert" data-id="' + escapeHtml(ev.id) + '">J\'y vais</button>'
         : (myRequest
           ? '<span class="help-text">En attente du team</span>'
-          : '<button type="button" class="ghost" data-action="event-join-request" data-id="' + ev.id + '" title="Te signale au team sur Carnet Piste – ne réserve ni ne paie rien.">J\'y vais</button>');
+          : '<button type="button" class="ghost" data-action="event-join-request" data-id="' + escapeHtml(ev.id) + '" title="Te signale au team sur Carnet Piste – ne réserve ni ne paie rien.">J\'y vais</button>');
       var actionHtml = (ev.bookingUrl ? '<button type="button" class="primary" data-action="open-external-url" data-url="' + escapeHtml(ev.bookingUrl) + '">Réserver chez l\'orga ↗</button> ' : '') + goHtml;
       // The Team leads here (avatar, name, ✓ badge) rather than a bare
       // name in the help-text -- the whole point of this card is "which
@@ -13696,7 +13705,7 @@
       if (key === todayKey) classes += ' today';
       var dotHtml = (sessions && sessions.length) ? '<span class="cal-day-dot"></span>' : '';
       if (cell || (sessions && sessions.length)) {
-        html += '<button type="button" class="calendar-cell ' + classes + '" data-date="' + key + '"' + (cell ? ' data-event-id="' + cell.eventId + '"' : '') + '>' + d + dotHtml + '</button>';
+        html += '<button type="button" class="calendar-cell ' + classes + '" data-date="' + key + '"' + (cell ? ' data-event-id="' + escapeHtml(cell.eventId) + '"' : '') + '>' + d + dotHtml + '</button>';
       } else {
         html += '<span class="' + classes + '">' + d + '</span>';
       }
@@ -13732,7 +13741,7 @@
       if (cell) inner += '<span class="cal-day-label">' + escapeHtml(eventCircuitById(cell.eventId)) + '</span>';
       if (sessions && sessions.length) inner += '<span class="cal-day-dot"></span>';
       if (cell || (sessions && sessions.length)) {
-        html += '<button type="button" class="calendar-cell ' + classes + '" data-date="' + key + '"' + (cell ? ' data-event-id="' + cell.eventId + '"' : '') + '>' + inner + '</button>';
+        html += '<button type="button" class="calendar-cell ' + classes + '" data-date="' + key + '"' + (cell ? ' data-event-id="' + escapeHtml(cell.eventId) + '"' : '') + '>' + inner + '</button>';
       } else {
         html += '<span class="' + classes + '">' + inner + '</span>';
       }
@@ -13786,7 +13795,7 @@
       if (sessions && sessions.length) classes += ' has-session';
       if (key === todayKey) classes += ' today';
       var clickable = !!cell || (sessions && sessions.length);
-      html += '<div class="' + (clickable ? 'calendar-cell ' : '') + classes + '"' + (clickable ? ' data-date="' + key + '"' : '') + (cell ? ' data-event-id="' + cell.eventId + '"' : '') + '>';
+      html += '<div class="' + (clickable ? 'calendar-cell ' : '') + classes + '"' + (clickable ? ' data-date="' + key + '"' : '') + (cell ? ' data-event-id="' + escapeHtml(cell.eventId) + '"' : '') + '>';
       html += '<div class="cal-week-day-head">' + WEEKDAY_LETTERS_FR()[i] + ' ' + d.getDate() + '</div>';
       if (cell) {
         var ev = eventsList().filter(function (e) { return e.id === cell.eventId; })[0];
@@ -13823,7 +13832,7 @@
   function deleteEventControl(ev) {
     if (!isAdmin() && !(ev.teamId && isLeaderOfTeam(ev.teamId))) return '';
     var armed = pendingDeleteEvent === ev.id;
-    var btn = '<button type="button" class="ghost danger' + (armed ? ' confirm' : '') + '" data-action="delete-event-request" data-id="' + ev.id + '">' +
+    var btn = '<button type="button" class="ghost danger' + (armed ? ' confirm' : '') + '" data-action="delete-event-request" data-id="' + escapeHtml(ev.id) + '">' +
       (armed ? 'Confirmer la suppression' : 'Supprimer ce roulage') + '</button>';
     // Explicit Annuler once armed -- otherwise the only way out is to
     // notice the click didn't do what you expected and guess that
@@ -13959,7 +13968,7 @@
       var t = riderVerifiedBest(ev, name);
       var timeHtml = t != null ? ' <span class="verified-pill">' + formatTime(t) + '</span>' : '';
       var orphanHtml = isOrphan ? ' <span class="help-text">(' + tr('orphan_group_entry') + ')</span>' : '';
-      var removeBtn = ((removable || isOrphan) && canEdit) ? '<button type="button" class="ghost icon-btn" data-action="event-group-remove" data-id="' + ev.id + '" data-rider="' + escapeHtml(name) + '" aria-label="' + tr('remove_from_group_aria') + '" title="' + tr('remove_from_group_aria') + '">×</button>' : '';
+      var removeBtn = ((removable || isOrphan) && canEdit) ? '<button type="button" class="ghost icon-btn" data-action="event-group-remove" data-id="' + escapeHtml(ev.id) + '" data-rider="' + escapeHtml(name) + '" aria-label="' + tr('remove_from_group_aria') + '" title="' + tr('remove_from_group_aria') + '">×</button>' : '';
       // Drag-and-drop between groups, desktop mainly (touch browsers mostly
       // don't fire native HTML5 drag events) -- the search-to-add form and
       // the × button above still cover mobile either way. Not for orphans:
@@ -13986,7 +13995,7 @@
     function groupCol(title, body) { return '<div class="group-col-title">' + escapeHtml(title) + '</div>' + body; }
     if (unassigned.length) {
       var unassignedBody = canEdit
-        ? '<div class="group-drop-zone" data-drop-group="" data-event-id="' + ev.id + '">' + unassigned.map(function (r) { return riderRow(r, false); }).join('') + '</div>'
+        ? '<div class="group-drop-zone" data-drop-group="" data-event-id="' + escapeHtml(ev.id) + '">' + unassigned.map(function (r) { return riderRow(r, false); }).join('') + '</div>'
         : unassigned.map(function (r) { return riderRow(r, false); }).join('');
       groupItems.push(['none', 'Non attribués (' + unassigned.length + ')', groupCol(tr('unassigned_label') + ' (' + unassigned.length + ')', unassignedBody), 'grp-sub grp-sub-ORGA']);
     }
@@ -13995,7 +14004,7 @@
       var times = members.map(function (r) { return riderVerifiedBest(ev, r); }).filter(function (t) { return t != null; });
       var avg = times.length ? times.reduce(function (a, b) { return a + b; }, 0) / times.length : null;
       var membersHtml = members.length ? members.map(function (r) { return riderRow(r, true); }).join('') : '<div class="help-text">' + tr('nobody_yet') + '</div>';
-      var body = canEdit ? '<div class="group-drop-zone" data-drop-group="' + g + '" data-event-id="' + ev.id + '">' + membersHtml + '</div>' : membersHtml;
+      var body = canEdit ? '<div class="group-drop-zone" data-drop-group="' + g + '" data-event-id="' + escapeHtml(ev.id) + '">' + membersHtml + '</div>' : membersHtml;
       var candidates = riders.filter(function (r) { return members.indexOf(r) === -1; }).sort(function (a, b) {
         var ta = riderVerifiedBest(ev, a), tb = riderVerifiedBest(ev, b);
         if (avg != null) {
@@ -14008,7 +14017,7 @@
         return ta - tb;
       });
       if (canEdit && candidates.length) {
-        body += '<form class="team-event-add-rider-form" data-action="event-group-add-form" data-event-id="' + ev.id + '" data-group="' + g + '">' +
+        body += '<form class="team-event-add-rider-form" data-action="event-group-add-form" data-event-id="' + escapeHtml(ev.id) + '" data-group="' + g + '">' +
           '<input type="text" list="event-group-candidates-' + g + '-' + ev.id + '" placeholder="' + tr('search_rider') + '..." data-event-group-add-input>' +
           '<datalist id="event-group-candidates-' + g + '-' + ev.id + '">' + candidates.map(function (n) {
             var t = riderVerifiedBest(ev, n);
@@ -14193,8 +14202,8 @@
     // as its own permissive write rule.
     var canEditThisEvent = !ev.teamId || isLeaderOfTeam(ev.teamId);
     html += '<div class="event-detail-actions">' +
-      (canEditThisEvent ? '<button type="button" class="ghost" id="edit-event-btn" data-id="' + ev.id + '">' + tr('modify') + '</button>' : '') +
-      '<button type="button" class="ghost" data-action="export-event-recap" data-id="' + ev.id + '">' + tr('export_recap_btn') + '</button></div>';
+      (canEditThisEvent ? '<button type="button" class="ghost" id="edit-event-btn" data-id="' + escapeHtml(ev.id) + '">' + tr('modify') + '</button>' : '') +
+      '<button type="button" class="ghost" data-action="export-event-recap" data-id="' + escapeHtml(ev.id) + '">' + tr('export_recap_btn') + '</button></div>';
     html += '</div>';
     return html;
   }
@@ -14332,7 +14341,7 @@
     var body = '<div class="help-text">Visible par toi et par les comptes Accompagnant qui te suivent.</div>';
     if (!hasOwnInfo && hasDefaults) body += '<div class="help-text">' + tr('travel_prefilled_from_defaults') + '</div>';
     body += renderTravelInfoFieldsHtml('travel', effective);
-    body += '<div style="margin-top:0.6rem;"><button type="button" class="ghost" data-action="save-travel-info" data-event-id="' + ev.id + '">Enregistrer</button></div>';
+    body += '<div style="margin-top:0.6rem;"><button type="button" class="ghost" data-action="save-travel-info" data-event-id="' + escapeHtml(ev.id) + '">Enregistrer</button></div>';
     return collapsibleSection('travel-info-' + ev.id, 'Mes infos de voyage', body);
   }
 
@@ -14404,7 +14413,7 @@
     var can = canEditSharedAlbum(ev);
     if (can && editingMediaLinkFor === ev.id) return albumEditForm('media-link-input', L('Album du roulage', 'Trackday album'), ev.mediaLink, 'save-media-link', 'cancel-media-link', ev.id);
     if (ev.mediaLink) return albumRow(L('Album du roulage', 'Trackday album') + (ev.mediaLinkAddedBy ? ' <span class="help-text">· ' + escapeHtml(ev.mediaLinkAddedBy) + '</span>' : ''), ev.mediaLink, can ? 'edit-media-link' : '', ev.id);
-    return can ? '<div style="margin-top:0.6rem;"><button type="button" class="ghost" data-action="edit-media-link" data-id="' + ev.id + '">' + L('+ Album du roulage (pour tout le team)', '+ Trackday album (for the whole team)') + '</button></div>' : '';
+    return can ? '<div style="margin-top:0.6rem;"><button type="button" class="ghost" data-action="edit-media-link" data-id="' + escapeHtml(ev.id) + '">' + L('+ Album du roulage (pour tout le team)', '+ Trackday album (for the whole team)') + '</button></div>' : '';
   }
   function cleanAlbumUrl(url) {
     url = (url || '').trim();
@@ -14449,7 +14458,7 @@
     if (isOnRoster) {
       if (editingPersonalMediaLinkFor === ev.id) html += albumEditForm('personal-media-link-input', L('Mon album photos', 'My photo album'), links[myName], 'save-personal-media-link', 'cancel-personal-media-link', ev.id);
       else if (links[myName]) html = albumRow(L('Mon album', 'My album'), links[myName], 'edit-personal-media-link', ev.id) + html;
-      else html += '<div style="margin-top:0.6rem;"><button type="button" class="ghost" data-action="edit-personal-media-link" data-id="' + ev.id + '">' + L('+ Partager mon album photos', '+ Share my photo album') + '</button></div>';
+      else html += '<div style="margin-top:0.6rem;"><button type="button" class="ghost" data-action="edit-personal-media-link" data-id="' + escapeHtml(ev.id) + '">' + L('+ Partager mon album photos', '+ Share my photo album') + '</button></div>';
     }
     return html;
   }
@@ -14480,7 +14489,7 @@
   function renderEventRow(ev, opts) {
     opts = opts || {};
     var isOpen = false; // a roulage opens its own page (openEventPage), lists never expand in place
-    var html = '<div class="event-row event-row-toggle' + (isOpen ? ' selected' : '') + '" data-event-id="' + ev.id + '" aria-expanded="' + (isOpen ? 'true' : 'false') + '">';
+    var html = '<div class="event-row event-row-toggle' + (isOpen ? ' selected' : '') + '" data-event-id="' + escapeHtml(ev.id) + '" aria-expanded="' + (isOpen ? 'true' : 'false') + '">';
     // Same shape as the Carnet roulage rows: circuit + date/participants on
     // the left, how far away it is (or my group) on the right.
     var nRiders = (ev.riders || []).filter(function (n) { return !isNonRiderName(n); }).length;
@@ -14850,11 +14859,11 @@
       }
       var checked = !!checklist[item.id];
       html += '<div class="checklist-item-row">' +
-        '<label class="checklist-item"><input type="checkbox" data-checklist-key="' + item.id + '" data-event-id="' + ev.id + '"' + (checked ? ' checked' : '') + '> ' + escapeHtml(item.label) + '</label>' +
-        (admin ? '<button type="button" class="ghost icon-btn checklist-item-remove" data-action="remove-checklist-item" data-category="' + cat.id + '" data-item="' + item.id + '" aria-label="Retirer ' + escapeHtml(item.label) + '" title="Retirer">×</button>' : '') +
+        '<label class="checklist-item"><input type="checkbox" data-checklist-key="' + escapeHtml(item.id) + '" data-event-id="' + escapeHtml(ev.id) + '"' + (checked ? ' checked' : '') + '> ' + escapeHtml(item.label) + '</label>' +
+        (admin ? '<button type="button" class="ghost icon-btn checklist-item-remove" data-action="remove-checklist-item" data-category="' + escapeHtml(cat.id) + '" data-item="' + escapeHtml(item.id) + '" aria-label="Retirer ' + escapeHtml(item.label) + '" title="Retirer">×</button>' : '') +
         '</div>';
     });
-    html += '<form class="checklist-add-item-form" data-add-item-category="' + cat.id + '">' +
+    html += '<form class="checklist-add-item-form" data-add-item-category="' + escapeHtml(cat.id) + '">' +
       '<input type="text" placeholder="+ ajouter un objet" data-new-item-input>' +
       '<button type="submit" class="ghost">Ajouter</button></form>';
     html += '</div>';
@@ -14881,7 +14890,7 @@
       // removes every item other riders may already rely on. Adding is
       // still open to anyone, right below.
       if (admin) {
-        html += '<button type="button" class="ghost icon-btn' + (isPendingDelete ? ' confirm' : '') + '" data-action="remove-checklist-category" data-category="' + cat.id + '" aria-label="Supprimer la catégorie ' + escapeHtml(cat.name) + '" title="Supprimer la catégorie">' + (isPendingDelete ? '✓' : '×') + '</button>';
+        html += '<button type="button" class="ghost icon-btn' + (isPendingDelete ? ' confirm' : '') + '" data-action="remove-checklist-category" data-category="' + escapeHtml(cat.id) + '" aria-label="Supprimer la catégorie ' + escapeHtml(cat.name) + '" title="Supprimer la catégorie">' + (isPendingDelete ? '✓' : '×') + '</button>';
       }
       html += '</summary>';
       html += '<div class="planning-section-body">';
@@ -14892,11 +14901,11 @@
         // forwarded to the checkbox by the browser, toggling it as an
         // unwanted side effect of removing the item.
         html += '<div class="checklist-item-row">' +
-          '<label class="checklist-item"><input type="checkbox" data-checklist-key="' + item.id + '" data-event-id="' + ev.id + '"' + (checked ? ' checked' : '') + '> ' + escapeHtml(item.label) + '</label>' +
-          (admin ? '<button type="button" class="ghost icon-btn checklist-item-remove" data-action="remove-checklist-item" data-category="' + cat.id + '" data-item="' + item.id + '" aria-label="Retirer ' + escapeHtml(item.label) + '" title="Retirer">×</button>' : '') +
+          '<label class="checklist-item"><input type="checkbox" data-checklist-key="' + escapeHtml(item.id) + '" data-event-id="' + escapeHtml(ev.id) + '"' + (checked ? ' checked' : '') + '> ' + escapeHtml(item.label) + '</label>' +
+          (admin ? '<button type="button" class="ghost icon-btn checklist-item-remove" data-action="remove-checklist-item" data-category="' + escapeHtml(cat.id) + '" data-item="' + escapeHtml(item.id) + '" aria-label="Retirer ' + escapeHtml(item.label) + '" title="Retirer">×</button>' : '') +
           '</div>';
       });
-      html += '<form class="checklist-add-item-form" data-add-item-category="' + cat.id + '">' +
+      html += '<form class="checklist-add-item-form" data-add-item-category="' + escapeHtml(cat.id) + '">' +
         '<input type="text" placeholder="+ ajouter un objet" data-new-item-input>' +
         '<button type="submit" class="ghost">Ajouter</button></form>';
       html += '</div></details>';
@@ -15013,13 +15022,13 @@
       if (ev.horairesPhotoAddedBy) html += '<div class="help-text">Ajoutée par ' + escapeHtml(ev.horairesPhotoAddedBy) + '</div>';
       if (isLeader) {
         html += '<div style="margin-top:0.5rem; display:flex; gap:0.5rem;">' +
-          '<button type="button" class="ghost" data-action="horaires-photo-add" data-id="' + ev.id + '">Remplacer</button>' +
-          '<button type="button" class="ghost" data-action="horaires-photo-remove" data-id="' + ev.id + '">Retirer</button></div>';
+          '<button type="button" class="ghost" data-action="horaires-photo-add" data-id="' + escapeHtml(ev.id) + '">Remplacer</button>' +
+          '<button type="button" class="ghost" data-action="horaires-photo-remove" data-id="' + escapeHtml(ev.id) + '">Retirer</button></div>';
       }
     } else {
-      html += '<div style="margin-top:0.5rem;"><button type="button" class="ghost" data-action="horaires-photo-add" data-id="' + ev.id + '">Ajouter la photo de l\'organisateur</button></div>';
+      html += '<div style="margin-top:0.5rem;"><button type="button" class="ghost" data-action="horaires-photo-add" data-id="' + escapeHtml(ev.id) + '">Ajouter la photo de l\'organisateur</button></div>';
     }
-    html += '<input type="file" id="horaires-photo-input" accept="image/*" style="display:none;" data-id="' + ev.id + '">';
+    html += '<input type="file" id="horaires-photo-input" accept="image/*" style="display:none;" data-id="' + escapeHtml(ev.id) + '">';
     if (horairesPhotoMessage) html += '<div class="help-text">' + escapeHtml(horairesPhotoMessage) + '</div>';
     html += '</div>';
     return html;
@@ -15872,7 +15881,7 @@
       html += '<div style="margin-top:0.9rem;"><label for="ev-team">' + tr('team_organizer_label') + '</label>' +
         '<select id="ev-team"><option value="">' + tr('none_personal_event') + '</option>' +
         ledTeamsForEvent.map(function (t) {
-          return '<option value="' + t.id + '"' + (ev.teamId === t.id ? ' selected' : '') + '>' + escapeHtml(t.name) + (t.teamPro ? ' (PRO)' : '') + '</option>';
+          return '<option value="' + escapeHtml(t.id) + '"' + (ev.teamId === t.id ? ' selected' : '') + '>' + escapeHtml(t.name) + (t.teamPro ? ' (PRO)' : '') + '</option>';
         }).join('') + '</select></div>';
       var selectedTeam = ev.teamId ? teamById(ev.teamId) : null;
       html += '<div id="ev-visibility-wrap" style="margin-top:0.9rem; display:' + (selectedTeam && selectedTeam.teamPro ? 'block' : 'none') + ';">' +
@@ -17246,7 +17255,7 @@
     if (isMe) acts += myDraft ? '' : '<button type="button" class="primary" data-action="look-edit">' + (lookOf(u) ? L('Modifier', 'Edit') : L('Personnaliser', 'Customise')) + '</button>' +
       '<button type="button" class="ghost" data-action="open-my-profile">' + L('Mon compte', 'My account') + '</button>';
     else if (friendship) acts += '<button type="button" class="ghost" disabled>' + L('Amis', 'Friends') + '</button>';
-    else if (received) acts += '<button type="button" class="primary" data-action="accept-friend" data-id="' + received.id + '">' + L('Accepter son invitation', 'Accept the request') + '</button>';
+    else if (received) acts += '<button type="button" class="primary" data-action="accept-friend" data-id="' + escapeHtml(received.id) + '">' + L('Accepter son invitation', 'Accept the request') + '</button>';
     else if (sent) acts += '<button type="button" class="ghost" disabled>' + L('Demande envoyée', 'Request sent') + '</button>';
     else acts += '<button type="button" class="primary" data-action="quick-add-friend" data-name="' + escapeHtml(name) + '">' + L('Ajouter en ami', 'Add friend') + '</button>';
     if (!isMe) acts += followBtnHtml(name);
@@ -17347,10 +17356,10 @@
     html += '<div class="danger-zone" style="margin-top:0.9rem;">';
     if (pendingRemoveFriendId === friendship.id) {
       html += '<div class="help-text">' + tr('remove_friend_confirm') + escapeHtml(name) + tr('remove_friend_confirm_suffix') + '</div>' +
-        '<div style="margin-top:0.5rem; display:flex; gap:0.6rem;"><button type="button" class="ghost danger" data-action="remove-friend-confirm" data-id="' + friendship.id + '">' + tr('confirm_label') + '</button>' +
+        '<div style="margin-top:0.5rem; display:flex; gap:0.6rem;"><button type="button" class="ghost danger" data-action="remove-friend-confirm" data-id="' + escapeHtml(friendship.id) + '">' + tr('confirm_label') + '</button>' +
         '<button type="button" class="ghost" data-action="remove-friend-cancel">' + tr('cancel') + '</button></div>';
     } else {
-      html += '<button type="button" class="ghost danger" data-action="remove-friend-request" data-id="' + friendship.id + '">' + tr('remove_this_friend') + '</button>';
+      html += '<button type="button" class="ghost danger" data-action="remove-friend-request" data-id="' + escapeHtml(friendship.id) + '">' + tr('remove_this_friend') + '</button>';
     }
     html += '</div></div>';
     return html;
@@ -17411,10 +17420,10 @@
       if (pendingRemoveFriendId === friendship.id) {
         html += '<div class="help-text">' + tr('remove_friend_confirm') + escapeHtml(name) + tr('remove_friend_confirm_suffix') + '</div>' +
           '<div style="margin-top:0.5rem; display:flex; gap:0.6rem;">' +
-          '<button type="button" class="ghost danger" data-action="remove-friend-confirm" data-id="' + friendship.id + '">' + tr('confirm_label') + '</button>' +
+          '<button type="button" class="ghost danger" data-action="remove-friend-confirm" data-id="' + escapeHtml(friendship.id) + '">' + tr('confirm_label') + '</button>' +
           '<button type="button" class="ghost" data-action="remove-friend-cancel">' + tr('cancel') + '</button></div>';
       } else {
-        html += '<button type="button" class="ghost danger" data-action="remove-friend-request" data-id="' + friendship.id + '">' + tr('remove_this_friend') + '</button>';
+        html += '<button type="button" class="ghost danger" data-action="remove-friend-request" data-id="' + escapeHtml(friendship.id) + '">' + tr('remove_this_friend') + '</button>';
       }
       html += '</div>';
     }
@@ -17789,7 +17798,7 @@
   function recordView(coll, key, owner, teamId) {
     var me = currentUserProfile && currentUserProfile.name;
     if (!me || !owner || owner === me) return;
-    var day = dateKey(new Date()), id = safeDocId(key + '__' + me + '__' + day).slice(0, 400);
+    var day = dateKey(new Date()), id = safeDocId(key + '__' + me).slice(0, 250) + '__' + day; // le jour en fin d'id (vérifié par les règles)
     if (viewsSent[coll + id]) return;
     viewsSent[coll + id] = true;
     var doc = { postId: key, owner: owner, viewer: me, day: day, createdAt: Date.now() };
@@ -18024,7 +18033,7 @@
     var audienceLabel = p.audience === 'followers' ? tr('audience_followers') : (p.audience === 'all' ? tr('audience_all') : tr('audience_friends'));
     var canEdit = !!(currentUserProfile && p.author === currentUserProfile.name);
     if (canEdit && editingWallPostId === p.id) {
-      return '<div class="wall-post"><form data-action="wall-post-edit-form" data-id="' + p.id + '">' +
+      return '<div class="wall-post"><form data-action="wall-post-edit-form" data-id="' + escapeHtml(p.id) + '">' +
         '<textarea rows="2" placeholder="' + tr('wall_post_placeholder') + '" data-wall-post-edit-text>' + escapeHtml(p.text || '') + '</textarea>' +
         '<input type="url" value="' + escapeHtml(p.linkUrl || '') + '" placeholder="' + tr('link_optional_placeholder') + '" data-wall-post-edit-link>' +
         '<div style="display:flex; gap:0.5rem; margin-top:0.4rem;"><button type="submit" class="primary">' + tr('save') + '</button>' +
@@ -18463,14 +18472,14 @@
     if (incoming.length) {
       var incomingBody = incoming.map(function (r) {
         return renderFriendRow(r.from,
-          '<button type="button" class="primary" data-action="accept-friend" data-id="' + r.id + '">' + tr('accept') + '</button>' +
-          '<button type="button" class="ghost" data-action="remove-friend" data-id="' + r.id + '">' + tr('decline') + '</button>');
+          '<button type="button" class="primary" data-action="accept-friend" data-id="' + escapeHtml(r.id) + '">' + tr('accept') + '</button>' +
+          '<button type="button" class="ghost" data-action="remove-friend" data-id="' + escapeHtml(r.id) + '">' + tr('decline') + '</button>');
       }).join('');
       amisItems.push(['recues', 'Reçues (' + incoming.length + ')', incomingBody]);
     }
     if (outgoing.length) {
       var outgoingBody = outgoing.map(function (r) {
-        return renderFriendRow(r.to, '<button type="button" class="ghost" data-action="cancel-friend-request" data-id="' + r.id + '">' + tr('cancel') + '</button>');
+        return renderFriendRow(r.to, '<button type="button" class="ghost" data-action="cancel-friend-request" data-id="' + escapeHtml(r.id) + '">' + tr('cancel') + '</button>');
       }).join('');
       amisItems.push(['envoyees', 'Envoyées (' + outgoing.length + ')', outgoingBody]);
     }
@@ -18546,7 +18555,7 @@
     html += '<div class="wall-post-text"><span class="feed-record-label">Sondage</span> ' + escapeHtml(f.question) + '</div>';
     html += '<div class="poll-options">' + f.options.map(function (opt, i) {
       var pct = total ? Math.round(counts[i] / total * 100) : 0;
-      return '<button type="button" class="poll-option-btn' + (myVote === i ? ' voted' : '') + '" data-action="team-poll-vote" data-id="' + f.id + '" data-option="' + i + '">' +
+      return '<button type="button" class="poll-option-btn' + (myVote === i ? ' voted' : '') + '" data-action="team-poll-vote" data-id="' + escapeHtml(f.id) + '" data-option="' + i + '">' +
         '<span class="poll-option-bar" style="width:' + pct + '%"></span>' +
         '<span class="poll-option-label">' + escapeHtml(opt) + (myVote === i ? ' ✓' : '') + '</span>' +
         '<span class="poll-option-pct">' + pct + '% (' + counts[i] + ')</span>' +
@@ -18565,7 +18574,7 @@
     var canEdit = !!(me && f.author === me.name);
     var canDelete = !!(me && (f.author === me.name || isLeaderOfTeam(f.teamId)));
     if (canEdit && editingTeamPostId === f.id) {
-      return '<div class="wall-post"><form data-action="team-post-edit-form" data-id="' + f.id + '">' +
+      return '<div class="wall-post"><form data-action="team-post-edit-form" data-id="' + escapeHtml(f.id) + '">' +
         '<input type="text" value="' + escapeHtml(f.text || '') + '" placeholder="' + tr('write_to_team_placeholder') + '" data-team-post-edit-text>' +
         '<input type="url" value="' + escapeHtml(f.linkUrl || '') + '" placeholder="' + tr('link_optional_placeholder') + '" data-team-post-edit-link>' +
         '<div style="display:flex; gap:0.5rem; margin-top:0.4rem;"><button type="submit" class="primary">' + tr('save') + '</button>' +
@@ -18617,7 +18626,7 @@
       // destructive action here) instead of a native window.confirm().
       var armed = key === 'leader' && pendingLeaderToggle && pendingLeaderToggle.team === team.id && pendingLeaderToggle.name === name;
       var shownLabel = armed ? tr('confirm_question') : label;
-      return '<button type="button" class="team-status-pill' + (on ? ' active' : '') + (armed ? ' confirm' : '') + '" data-action="team-status-toggle" data-team="' + team.id + '" data-name="' + escapeHtml(name) + '" data-status="' + key + '" data-on="' + (on ? '0' : '1') + '">' + shownLabel + '</button>';
+      return '<button type="button" class="team-status-pill' + (on ? ' active' : '') + (armed ? ' confirm' : '') + '" data-action="team-status-toggle" data-team="' + escapeHtml(team.id) + '" data-name="' + escapeHtml(name) + '" data-status="' + key + '" data-on="' + (on ? '0' : '1') + '">' + shownLabel + '</button>';
     }
     var u = (STATE.usersByName || {})[name] || {};
     var isAdherent = !!(followDoc && followDoc.tier === 'adherent');
@@ -18627,9 +18636,9 @@
       if (!isAdherent) {
         actions += (followDoc && followDoc.adherentRequested)
           ? '<span class="help-text">' + tr('request_sent') + '</span>'
-          : '<button type="button" class="ghost" data-action="team-request-adherent" data-team="' + team.id + '">' + tr('become_adherent') + '</button>';
+          : '<button type="button" class="ghost" data-action="team-request-adherent" data-team="' + escapeHtml(team.id) + '">' + tr('become_adherent') + '</button>';
       }
-      actions += '<button type="button" class="ghost" data-action="team-leave" data-team="' + team.id + '">' + tr('leave_team') + '</button>';
+      actions += '<button type="button" class="ghost" data-action="team-leave" data-team="' + escapeHtml(team.id) + '">' + tr('leave_team') + '</button>';
     }
     var row = '<div style="display:flex; align-items:center; justify-content:space-between; gap:0.6rem;">' +
       '<div class="friend-row-main">' + avatarHtml(u, name) + nameLinkHtml(name) + badgesHtml(u) +
@@ -18654,12 +18663,12 @@
       // either way, this just makes sure the leader notices one's waiting.
       var pendingNote = (followDoc && followDoc.adherentRequested && !isAdherent)
         ? '<div class="team-manage-pending">' + tr('pending_adherent_request') +
-          ' <button type="button" class="ghost" data-action="team-adherent-accept" data-follow-id="' + followDoc.id + '">' + tr('accept') + '</button>' +
-          ' <button type="button" class="ghost" data-action="team-adherent-decline" data-follow-id="' + followDoc.id + '">' + tr('decline') + '</button></div>'
+          ' <button type="button" class="ghost" data-action="team-adherent-accept" data-follow-id="' + escapeHtml(followDoc.id) + '">' + tr('accept') + '</button>' +
+          ' <button type="button" class="ghost" data-action="team-adherent-decline" data-follow-id="' + escapeHtml(followDoc.id) + '">' + tr('decline') + '</button></div>'
         : '';
       var roleField = memberDoc
         ? '<div class="team-role-field"><input type="text" placeholder="' + tr('role_field_placeholder') + '" value="' + escapeHtml(memberDoc.teamRole || '') + '" data-team-role-input list="team-role-suggestions">' +
-          '<button type="button" class="ghost icon-btn" data-action="team-role-save" data-team="' + team.id + '" data-name="' + escapeHtml(name) + '" aria-label="' + tr('save_role_aria') + '" title="' + tr('save_aria') + '">✓</button></div>'
+          '<button type="button" class="ghost icon-btn" data-action="team-role-save" data-team="' + escapeHtml(team.id) + '" data-name="' + escapeHtml(name) + '" aria-label="' + tr('save_role_aria') + '" title="' + tr('save_aria') + '">✓</button></div>'
         : '';
       row += '<div class="team-status-pills">' + pills + '</div>' + pendingNote + roleField;
     }
@@ -18772,50 +18781,50 @@
     // Nom du Team : modifiable par ses leaders seulement (amateur ou PRO).
     var html = '<div style="margin-bottom:0.9rem;"><label for="team-name-' + team.id + '">' + L('Nom du Team', 'Team name') + '</label>' +
       '<div class="team-rename-row"><input type="text" id="team-name-' + team.id + '" maxlength="60" value="' + escapeHtml(team.name || '') + '">' +
-      '<button type="button" class="ghost" data-action="team-rename" data-team="' + team.id + '">' + L('Renommer', 'Rename') + '</button></div></div>' +
+      '<button type="button" class="ghost" data-action="team-rename" data-team="' + escapeHtml(team.id) + '">' + L('Renommer', 'Rename') + '</button></div></div>' +
       '<div><label>Photo (badge rond)</label>' +
       '<div style="margin-top:0.3rem; display:flex; align-items:center; gap:0.6rem; flex-wrap:wrap;">' +
-      '<button type="button" class="ghost" data-action="team-photo-btn" data-team="' + team.id + '">' + (team.photoURL ? tr('change_badge_photo') : tr('add_badge_photo')) + '</button>' +
-      (team.photoURL ? '<button type="button" class="ghost" data-action="team-photo-recrop" data-team="' + team.id + '">' + tr('edit_crop') + '</button>' : '') +
-      (team.photoURL ? '<button type="button" class="ghost" data-action="team-photo-remove" data-team="' + team.id + '">' + tr('remove_generic') + '</button>' : '') +
+      '<button type="button" class="ghost" data-action="team-photo-btn" data-team="' + escapeHtml(team.id) + '">' + (team.photoURL ? tr('change_badge_photo') : tr('add_badge_photo')) + '</button>' +
+      (team.photoURL ? '<button type="button" class="ghost" data-action="team-photo-recrop" data-team="' + escapeHtml(team.id) + '">' + tr('edit_crop') + '</button>' : '') +
+      (team.photoURL ? '<button type="button" class="ghost" data-action="team-photo-remove" data-team="' + escapeHtml(team.id) + '">' + tr('remove_generic') + '</button>' : '') +
       '</div>' +
       '<div class="help-text" style="margin-top:0.3rem;">' + tr('photo_round_help') + '</div>' +
       '</div>';
     var presentationHtml = '<div style="margin-top:0.9rem;"><label for="team-description-' + team.id + '">' + tr('presentation_label') + '</label>' +
       '<textarea id="team-description-' + team.id + '" rows="2" placeholder="' + tr('presentation_placeholder') + '">' + escapeHtml(team.description || '') + '</textarea>' +
-      '<button type="button" class="ghost" data-action="team-description-save" data-team="' + team.id + '" style="margin-top:0.4rem;">' + tr('save_presentation_btn') + '</button></div>';
+      '<button type="button" class="ghost" data-action="team-description-save" data-team="' + escapeHtml(team.id) + '" style="margin-top:0.4rem;">' + tr('save_presentation_btn') + '</button></div>';
     html += '<div style="margin-top:0.9rem;"><label>' + tr('logo_label') + '</label>' +
       '<div style="margin-top:0.3rem; display:flex; align-items:center; gap:0.6rem;">' +
-      '<button type="button" class="ghost" data-action="team-logo-btn" data-team="' + team.id + '">' + (team.logoURL ? tr('change_logo') : tr('add_logo')) + '</button>' +
-      (team.logoURL ? '<button type="button" class="ghost" data-action="team-logo-recrop" data-team="' + team.id + '">' + tr('edit_crop') + '</button>' : '') +
-      (team.logoURL ? '<button type="button" class="ghost" data-action="team-logo-remove" data-team="' + team.id + '">' + tr('remove_generic') + '</button>' : '') +
+      '<button type="button" class="ghost" data-action="team-logo-btn" data-team="' + escapeHtml(team.id) + '">' + (team.logoURL ? tr('change_logo') : tr('add_logo')) + '</button>' +
+      (team.logoURL ? '<button type="button" class="ghost" data-action="team-logo-recrop" data-team="' + escapeHtml(team.id) + '">' + tr('edit_crop') + '</button>' : '') +
+      (team.logoURL ? '<button type="button" class="ghost" data-action="team-logo-remove" data-team="' + escapeHtml(team.id) + '">' + tr('remove_generic') + '</button>' : '') +
       '</div>' +
       '<div class="help-text" style="margin-top:0.3rem;">' + tr('logo_help') + '</div>' +
       '</div>' + presentationHtml;
-    html += '<div style="margin-top:0.9rem;"><form data-action="team-links-form" data-team="' + team.id + '">' +
+    html += '<div style="margin-top:0.9rem;"><form data-action="team-links-form" data-team="' + escapeHtml(team.id) + '">' +
       '<label for="team-links-' + team.id + '">' + tr('links_label') + '</label>' +
       '<textarea id="team-links-' + team.id + '" data-team-links-input rows="3" placeholder="Site internet | https://...\nBoutique | https://...\nPhotographe | https://...">' +
       escapeHtml((team.links || []).map(function (l) { return l.label + ' | ' + l.url; }).join('\n')) + '</textarea>' +
       '<button type="submit" class="ghost" style="margin-top:0.4rem;">' + tr('save_links_btn') + '</button></form></div>';
     var profileCard = teamCard('Profil du team', html);
     html = '<label for="team-visibility-select-' + team.id + '">' + tr('visibility_who_label') + '</label>' +
-      '<select id="team-visibility-select-' + team.id + '" data-action="team-visibility" data-team="' + team.id + '">' +
+      '<select id="team-visibility-select-' + team.id + '" data-action="team-visibility" data-team="' + escapeHtml(team.id) + '">' +
       '<option value="private"' + (visibility === 'private' ? ' selected' : '') + '>' + tr('vis_invite_only') + '</option>' +
       '<option value="all"' + (visibility === 'all' ? ' selected' : '') + '>' + tr('vis_all') + '</option>' +
       '<option value="pro"' + (visibility === 'pro' ? ' selected' : '') + '>' + tr('vis_pro_riders') + '</option>' +
       '<option value="certified"' + (visibility === 'certified' ? ' selected' : '') + '>' + tr('vis_certified') + '</option>' +
       '</select>';
     html += '<label for="team-post-policy-select-' + team.id + '" style="margin-top:0.7rem;">' + tr('who_can_post_label') + '</label>' +
-      '<select id="team-post-policy-select-' + team.id + '" data-action="team-post-policy" data-team="' + team.id + '">' +
+      '<select id="team-post-policy-select-' + team.id + '" data-action="team-post-policy" data-team="' + escapeHtml(team.id) + '">' +
       '<option value="leaders"' + (team.postPolicy !== 'members' ? ' selected' : '') + '>' + tr('leaders_only_option') + '</option>' +
       '<option value="members"' + (team.postPolicy === 'members' ? ' selected' : '') + '>' + tr('all_members_option') + '</option>' +
       '</select>';
     var privacyCard = teamCard('Confidentialité', html);
     html = '<div class="danger-zone">';
     if (pendingDeleteTeamId !== team.id) {
-      html += '<button type="button" class="ghost danger" data-action="team-delete-request" data-team="' + team.id + '">' + tr('delete_team_btn') + '</button>';
+      html += '<button type="button" class="ghost danger" data-action="team-delete-request" data-team="' + escapeHtml(team.id) + '">' + tr('delete_team_btn') + '</button>';
     } else {
-      html += '<form id="team-delete-form" data-team="' + team.id + '">' +
+      html += '<form id="team-delete-form" data-team="' + escapeHtml(team.id) + '">' +
         '<div class="help-text">' + tr('delete_irreversible_password_help') + '</div>' +
         '<label for="team-delete-password" style="margin-top:0.6rem;">' + tr('current_password_label') + '</label>' +
         '<input type="password" id="team-delete-password" autocomplete="current-password">' +
@@ -18842,8 +18851,8 @@
       '<input type="text" list="team-pro-badge-names-' + team.id + '" placeholder="' + tr('search_person_placeholder') + '" data-team-pro-badge-name style="margin-top:0.5rem;">' +
       '<datalist id="team-pro-badge-names-' + team.id + '">' + options + '</datalist>' +
       '<div style="display:flex; gap:0.6rem; margin-top:0.6rem; flex-wrap:wrap;">' +
-      '<button type="button" class="ghost" data-action="team-pro-badge-toggle" data-team="' + team.id + '" data-field="coach">' + tr('coach_toggle_btn') + '</button>' +
-      '<button type="button" class="ghost" data-action="team-pro-badge-toggle" data-team="' + team.id + '" data-field="photographer">' + tr('photographer_toggle_btn') + '</button>' +
+      '<button type="button" class="ghost" data-action="team-pro-badge-toggle" data-team="' + escapeHtml(team.id) + '" data-field="coach">' + tr('coach_toggle_btn') + '</button>' +
+      '<button type="button" class="ghost" data-action="team-pro-badge-toggle" data-team="' + escapeHtml(team.id) + '" data-field="photographer">' + tr('photographer_toggle_btn') + '</button>' +
       '</div>';
     return teamCard(tr('grant_coach_photographer_heading'), body);
   }
@@ -18924,7 +18933,7 @@
     // period -- only the ones that have something in them.
     var body = (editingEventId === 'new' && prefillEventTeamId === team.id)
       ? teamCard('', renderEventForm())
-      : '<button type="button" class="primary add-chrono-btn" data-action="team-event-add" data-team="' + team.id + '">+ ' + tr('add_event_heading') + '</button>';
+      : '<button type="button" class="primary add-chrono-btn" data-action="team-event-add" data-team="' + escapeHtml(team.id) + '">+ ' + tr('add_event_heading') + '</button>';
     if (!all.length) {
       body += evCard('', '<div class="empty-state">' + tr('no_events_team') + '</div>');
     } else {
@@ -18940,7 +18949,7 @@
     // The "+ Ajouter" still lives right next to the title (collapsibleSection
     // now takes the same titleActionsHtml collapsibleCard does) instead
     // of buried at the bottom of a long list.
-    var addBtn = '<button type="button" class="ghost" data-action="team-event-add" data-team="' + team.id + '">+ ' + tr('add_event_heading') + '</button>';
+    var addBtn = '<button type="button" class="ghost" data-action="team-event-add" data-team="' + escapeHtml(team.id) + '">+ ' + tr('add_event_heading') + '</button>';
     // The card title's count is own.length, not all.length -- "Gestion"
     // in the title is about what's actually manageable here; the
     // cross-team, read-only events mixed into the buckets below aren't.
@@ -18974,7 +18983,7 @@
     // long stack of sections, easy to lose track of and easy to confuse
     // with the collapsible headers just above it.
     if (canEdit) {
-      html += '<div style="margin:0.6rem 0 0;"><button type="button" class="ghost" data-action="team-event-edit" data-id="' + ev.id + '">' + tr('edit_event_btn') + '</button></div>';
+      html += '<div style="margin:0.6rem 0 0;"><button type="button" class="ghost" data-action="team-event-edit" data-id="' + escapeHtml(ev.id) + '">' + tr('edit_event_btn') + '</button></div>';
       if (editingEventId === ev.id) html += renderEventForm();
     }
     // Résumé -- no dates here, already in the title above.
@@ -19016,9 +19025,9 @@
           var u = (STATE.usersByName || {})[name] || {};
           var eventNumber = eventBikeNumbers[name] || '';
           var actions = canEdit
-            ? '<div class="friend-row-actions"><button type="button" class="ghost icon-btn" data-action="team-event-remove-rider" data-id="' + ev.id + '" data-rider="' + escapeHtml(name) + '" aria-label="' + tr('remove_label') + '" title="' + tr('remove_label') + '">×</button></div>' +
+            ? '<div class="friend-row-actions"><button type="button" class="ghost icon-btn" data-action="team-event-remove-rider" data-id="' + escapeHtml(ev.id) + '" data-rider="' + escapeHtml(name) + '" aria-label="' + tr('remove_label') + '" title="' + tr('remove_label') + '">×</button></div>' +
               '<div class="team-role-field"><input type="text" placeholder="' + tr('event_bike_number_label') + '" value="' + escapeHtml(eventNumber) + '" data-event-bike-number-input inputmode="numeric">' +
-              '<button type="button" class="ghost icon-btn" data-action="event-bike-number-save" data-id="' + ev.id + '" data-rider="' + escapeHtml(name) + '" aria-label="' + tr('save_number_aria') + '" title="' + tr('save') + '">✓</button></div>'
+              '<button type="button" class="ghost icon-btn" data-action="event-bike-number-save" data-id="' + escapeHtml(ev.id) + '" data-rider="' + escapeHtml(name) + '" aria-label="' + tr('save_number_aria') + '" title="' + tr('save') + '">✓</button></div>'
             : (eventNumber ? '<div class="team-role-field"><span class="account-role-tag">' + tr('event_bike_number_prefix') + escapeHtml(eventNumber) + '</span></div>' : '');
           return '<div class="friend-row"><div class="friend-row-main">' + nameLinkHtml(name) + badgesHtml(u) + participantRoleTag(name) + (u.bikeNumber ? ' <span class="account-role-tag">#' + escapeHtml(u.bikeNumber) + '</span>' : '') + '</div>' +
             actions + '</div>' + maybeFicheHtml(name);
@@ -19030,7 +19039,7 @@
     if (canEdit) {
       var candidates = candidateRidersForTeamEvent(orgTeam, riders);
       if (candidates.length) {
-        riderRows += '<form class="team-event-add-rider-form" data-action="team-event-add-rider-form" data-event-id="' + ev.id + '">' +
+        riderRows += '<form class="team-event-add-rider-form" data-action="team-event-add-rider-form" data-event-id="' + escapeHtml(ev.id) + '">' +
           '<select data-team-event-add-rider-select>' + candidates.map(function (n) {
             var u = (STATE.usersByName || {})[n] || {};
             return '<option value="' + escapeHtml(n) + '">' + escapeHtml(n) + (u.bikeNumber ? ' #' + escapeHtml(u.bikeNumber) : '') + '</option>';
@@ -19051,8 +19060,8 @@
         var u = (STATE.usersByName || {})[r.from] || {};
         return '<div class="friend-row"><div class="friend-row-main">' + avatarHtml(u, r.from) + personNameHtml(r.from) + badgesHtml(u) + '</div>' +
           '<div class="friend-row-actions">' +
-          '<button type="button" class="primary" data-action="event-join-request-accept" data-id="' + r.id + '">' + tr('accept_btn') + '</button>' +
-          '<button type="button" class="ghost" data-action="event-join-request-remove" data-id="' + r.id + '">' + tr('refuse_generic') + '</button>' +
+          '<button type="button" class="primary" data-action="event-join-request-accept" data-id="' + escapeHtml(r.id) + '">' + tr('accept_btn') + '</button>' +
+          '<button type="button" class="ghost" data-action="event-join-request-remove" data-id="' + escapeHtml(r.id) + '">' + tr('refuse_generic') + '</button>' +
           '</div></div>';
       }).join('');
       participantsHtml = '<div class="card"><h2 class="section-title">' + tr('requests_to_accept_heading') + ' (' + reqs.length + ')</h2>' + reqRows + '</div>' + participantsHtml;
@@ -19126,11 +19135,11 @@
     var editing = !!(lookDraft && lookDraft.__team === team.id);
     // Réglages du team : un petit engrenage en haut de la fiche, pour ses
     // leaders seulement ; un simple suiveur garde « Ne plus suivre ».
-    var gearBtn = isLeader ? '<button type="button" class="team-gear" data-action="team-settings-open" data-team="' + team.id + '" aria-label="' + escapeHtml(L('Réglages du team', 'Team settings')) + '" title="' + escapeHtml(L('Réglages du team', 'Team settings')) + '">' +
+    var gearBtn = isLeader ? '<button type="button" class="team-gear" data-action="team-settings-open" data-team="' + escapeHtml(team.id) + '" aria-label="' + escapeHtml(L('Réglages du team', 'Team settings')) + '" title="' + escapeHtml(L('Réglages du team', 'Team settings')) + '">' +
       '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button>' : '';
     var unfollowBtn = !isMember && !isLeader && (STATE.myFollowedTeams || []).indexOf(team.id) !== -1
-      ? '<button type="button" class="ghost" data-action="unfollow-team" data-team="' + team.id + '">' + tr('unfollow') + '</button>' : '';
-    var lookBtn = isLeader && !editing ? '<button type="button" class="ghost" data-action="team-look-edit" data-team="' + team.id + '">' + (tLook ? L('Modifier', 'Edit') : L('Personnaliser', 'Customise')) + '</button>' : '';
+      ? '<button type="button" class="ghost" data-action="unfollow-team" data-team="' + escapeHtml(team.id) + '">' + tr('unfollow') + '</button>' : '';
+    var lookBtn = isLeader && !editing ? '<button type="button" class="ghost" data-action="team-look-edit" data-team="' + escapeHtml(team.id) + '">' + (tLook ? L('Modifier', 'Edit') : L('Personnaliser', 'Customise')) + '</button>' : '';
     lookBtn += unfollowBtn;
 
     headHtml = headHtml.replace('%%TEAM_GEAR%%', gearBtn.replace('class="team-gear"', 'class="team-gear team-gear-inline"'));
@@ -19161,7 +19170,7 @@
           '</select>'
         : '';
       if (teamComposerMode === 'message') {
-        composerHtml += '<form class="team-feed-form" data-action="team-feed-form" data-team="' + team.id + '">' +
+        composerHtml += '<form class="team-feed-form" data-action="team-feed-form" data-team="' + escapeHtml(team.id) + '">' +
           '<input type="text" placeholder="' + tr('write_to_team_placeholder') + '" data-team-feed-input autofocus>' +
           '<input type="url" placeholder="' + tr('link_optional_placeholder') + '" data-team-feed-link>' +
           (teamPostDraftPhotoTeamId === team.id && teamPostDraftPhotoURL
@@ -19170,7 +19179,7 @@
             : '') +
           audienceSelect +
           '<div style="display:flex; gap:0.5rem;">' +
-          '<button type="button" class="ghost icon-btn" data-action="team-feed-photo-btn" data-team="' + team.id + '" aria-label="' + tr('add_photo') + '">' + tr('photo_btn_short') + '</button>' +
+          '<button type="button" class="ghost icon-btn" data-action="team-feed-photo-btn" data-team="' + escapeHtml(team.id) + '" aria-label="' + tr('add_photo') + '">' + tr('photo_btn_short') + '</button>' +
           '<button type="submit" class="primary">' + tr('publish') + '</button>' +
           '<button type="button" class="ghost" data-action="team-composer-close">' + tr('cancel') + '</button>' +
           '</div></form>';
@@ -19178,7 +19187,7 @@
         var optionInputs = pollDraftOptions.map(function (val, pi) {
           return '<input type="text" placeholder="' + tr('poll_option_placeholder') + (pi + 1) + (pi >= 2 ? tr('poll_option_optional') : '') + '" value="' + escapeHtml(val) + '" data-poll-option>';
         }).join('');
-        composerHtml += '<form class="team-poll-form" data-action="team-poll-form" data-team="' + team.id + '">' +
+        composerHtml += '<form class="team-poll-form" data-action="team-poll-form" data-team="' + escapeHtml(team.id) + '">' +
           '<input type="text" placeholder="' + tr('poll_question_placeholder') + '" value="' + escapeHtml(pollDraftQuestion) + '" data-poll-question autofocus>' +
           optionInputs +
           '<button type="button" class="ghost" data-action="team-poll-add-option">' + tr('add_option') + '</button>' +
@@ -19219,7 +19228,7 @@
         ? (team.teamPro
           ? '<div class="help-text">' + tr('no_one_else_to_invite') + '</div>'
           : '<div class="help-text">' + tr('all_friends_in_team') + '</div>')
-        : '<form class="team-invite-form" data-action="team-invite-form" data-team="' + team.id + '">' +
+        : '<form class="team-invite-form" data-action="team-invite-form" data-team="' + escapeHtml(team.id) + '">' +
           (team.teamPro ? '<div class="help-text" style="margin-bottom:0.4rem;">' + tr('teampro_invite_help') + '</div>' : '') +
           '<select data-team-invite-select>' + candidates.map(function (n) {
             var cu = (STATE.usersByName || {})[n] || {};
@@ -19230,7 +19239,7 @@
       if (outgoingInvites.length) {
         var outgoingBody = outgoingInvites.map(function (r) {
           return '<div class="friend-row"><div class="friend-row-main">' + personNameHtml(r.to) + '</div>' +
-            '<div class="friend-row-actions"><button type="button" class="ghost" data-action="team-invite-remove" data-id="' + r.id + '">' + tr('cancel_invite') + '</button></div></div>';
+            '<div class="friend-row-actions"><button type="button" class="ghost" data-action="team-invite-remove" data-id="' + escapeHtml(r.id) + '">' + tr('cancel_invite') + '</button></div></div>';
         }).join('');
         sentInvitesCard = teamCard(tr('sent_invites_label') + outgoingInvites.length + ')', outgoingBody);
       }
@@ -19446,7 +19455,7 @@
       body += '<div class="help-text avail-legend">' + tr('availability_legend') + '</div>';
     }
     var wrapClass = editing ? 'coach-availability-painting' : 'coach-planning-clickable';
-    body += '<div class="' + wrapClass + '" data-event-id="' + ev.id + '" data-circuit="' + escapeHtml(ev.circuit) + '">' + groupsHtml + '</div>';
+    body += '<div class="' + wrapClass + '" data-event-id="' + escapeHtml(ev.id) + '" data-circuit="' + escapeHtml(ev.circuit) + '">' + groupsHtml + '</div>';
     return '<div class="card">' + (introHtml || '') + body + '</div>';
   }
 
@@ -19589,7 +19598,7 @@
       coachRequestSlotHtml(r);
     if (counterProposeRequestId === r.id) {
       var slotOptions = coachRequestSlotOptions(r, me.name);
-      html += '<form class="coach-slot-propose-form" data-action="coach-slot-propose-form" data-id="' + r.id + '" style="margin-top:0.5rem; display:flex; gap:0.5rem; flex-wrap:wrap; align-items:center;">';
+      html += '<form class="coach-slot-propose-form" data-action="coach-slot-propose-form" data-id="' + escapeHtml(r.id) + '" style="margin-top:0.5rem; display:flex; gap:0.5rem; flex-wrap:wrap; align-items:center;">';
       if (slotOptions.length) {
         html += '<select data-coach-slot-propose-select style="flex:1 1 140px;">' + slotOptions.map(function (s) {
           return '<option value="' + escapeHtml(s.label) + '"' + (s.label === r.slotLabel ? ' selected' : '') + '>' + escapeHtml(s.label) + '</option>';
@@ -19605,17 +19614,17 @@
       // picking which of them (see acceptCoachRequestSlot).
       html += '<div class="friend-row-actions" style="margin-top:0.5rem; flex-direction:column; align-items:stretch;">' +
         r.slotOptions.map(function (label) {
-          return '<button type="button" class="primary" data-action="coach-request-accept-slot" data-id="' + r.id + '" data-label="' + escapeHtml(label) + '">' + tr('accept_generic') + escapeHtml(label) + '</button>';
+          return '<button type="button" class="primary" data-action="coach-request-accept-slot" data-id="' + escapeHtml(r.id) + '" data-label="' + escapeHtml(label) + '">' + tr('accept_generic') + escapeHtml(label) + '</button>';
         }).join('') +
         '<div style="display:flex; gap:0.5rem; flex-wrap:wrap;">' +
-        (r.eventId ? '<button type="button" class="ghost" data-action="coach-slot-propose-open" data-id="' + r.id + '">' + tr('propose_other_time') + '</button>' : '') +
-        '<button type="button" class="ghost" data-action="coach-request-remove" data-id="' + r.id + '">' + tr('refuse_generic') + '</button>' +
+        (r.eventId ? '<button type="button" class="ghost" data-action="coach-slot-propose-open" data-id="' + escapeHtml(r.id) + '">' + tr('propose_other_time') + '</button>' : '') +
+        '<button type="button" class="ghost" data-action="coach-request-remove" data-id="' + escapeHtml(r.id) + '">' + tr('refuse_generic') + '</button>' +
         '</div></div>';
     } else {
       html += '<div class="friend-row-actions" style="margin-top:0.5rem;">' +
-        '<button type="button" class="primary" data-action="coach-request-accept" data-id="' + r.id + '">' + tr('accept') + '</button>' +
-        (r.slotLabel && r.eventId ? '<button type="button" class="ghost" data-action="coach-slot-propose-open" data-id="' + r.id + '">' + tr('propose_other_time') + '</button>' : '') +
-        '<button type="button" class="ghost" data-action="coach-request-remove" data-id="' + r.id + '">' + tr('refuse_generic') + '</button>' +
+        '<button type="button" class="primary" data-action="coach-request-accept" data-id="' + escapeHtml(r.id) + '">' + tr('accept') + '</button>' +
+        (r.slotLabel && r.eventId ? '<button type="button" class="ghost" data-action="coach-slot-propose-open" data-id="' + escapeHtml(r.id) + '">' + tr('propose_other_time') + '</button>' : '') +
+        '<button type="button" class="ghost" data-action="coach-request-remove" data-id="' + escapeHtml(r.id) + '">' + tr('refuse_generic') + '</button>' +
         '</div>';
     }
     return html + '</div>';
@@ -19629,7 +19638,7 @@
       ' <span class="friend-role-badge">' + (isBapteme ? tr('bapteme_option') : tr('coaching_option')) + '</span></div>' +
       coachRequestSlotHtml(r) +
       '<div class="help-text" style="margin-top:0.3rem;">' + tr('waiting_for_reply_from') + escapeHtml(otherName) + '.</div>' +
-      '<div class="friend-row-actions" style="margin-top:0.4rem;"><button type="button" class="ghost" data-action="coach-request-remove" data-id="' + r.id + '">' + tr('cancel_generic') + '</button></div></div>';
+      '<div class="friend-row-actions" style="margin-top:0.4rem;"><button type="button" class="ghost" data-action="coach-request-remove" data-id="' + escapeHtml(r.id) + '">' + tr('cancel_generic') + '</button></div></div>';
   }
   // Accepted -- coaching gets the plan/notes field, baptême doesn't (no
   // ongoing training to track for a single ride-along); both get the
@@ -19642,10 +19651,10 @@
       coachRequestSlotHtml(r);
     if (!isBapteme) {
       html += '<label for="coach-plan-' + r.id + '" style="margin-top:0.5rem;">' + tr('coaching_plan_notes_label') + '</label>' +
-        '<textarea id="coach-plan-' + r.id + '" rows="3" data-coach-plan="' + r.id + '">' + escapeHtml(r.plan || '') + '</textarea>' +
-        '<div style="margin-top:0.5rem;"><button type="button" class="ghost" data-action="coach-plan-save" data-id="' + r.id + '">' + tr('save') + '</button></div>';
+        '<textarea id="coach-plan-' + r.id + '" rows="3" data-coach-plan="' + escapeHtml(r.id) + '">' + escapeHtml(r.plan || '') + '</textarea>' +
+        '<div style="margin-top:0.5rem;"><button type="button" class="ghost" data-action="coach-plan-save" data-id="' + escapeHtml(r.id) + '">' + tr('save') + '</button></div>';
     }
-    html += '<div style="margin-top:0.5rem;"><button type="button" class="ghost danger" data-action="coach-request-remove" data-id="' + r.id + '">' +
+    html += '<div style="margin-top:0.5rem;"><button type="button" class="ghost danger" data-action="coach-request-remove" data-id="' + escapeHtml(r.id) + '">' +
       (isBapteme ? tr('remove_generic') : tr('stop_coaching')) + '</button></div>';
     html += renderCoachMessageThread(r.id);
     return html + '</div>';
@@ -19773,8 +19782,8 @@
       var incomingBody = incoming.map(function (r) {
         return '<div class="friend-row"><div class="friend-row-main"><span class="friend-name-plain">' + escapeHtml((teamById(r.teamId) || {}).name || r.teamName) + '</span> <span class="help-text">' + tr('invited_by') + escapeHtml(r.from) + '</span></div>' +
           '<div class="friend-row-actions">' +
-          '<button type="button" class="primary" data-action="team-invite-accept" data-id="' + r.id + '">' + tr('accept') + '</button>' +
-          '<button type="button" class="ghost" data-action="team-invite-remove" data-id="' + r.id + '">' + tr('decline') + '</button>' +
+          '<button type="button" class="primary" data-action="team-invite-accept" data-id="' + escapeHtml(r.id) + '">' + tr('accept') + '</button>' +
+          '<button type="button" class="ghost" data-action="team-invite-remove" data-id="' + escapeHtml(r.id) + '">' + tr('decline') + '</button>' +
           '</div></div>';
       }).join('');
       html += '<div class="card"><h2 class="section-title">' + tr('received_invites_label') + incoming.length + ')</h2>' + incomingBody + '</div>';
@@ -19867,7 +19876,7 @@
       desc +
       '<div class="team-tile-stats">' + memberCount + ' membre' + (memberCount === 1 ? '' : 's') + (likeCount ? ' · ' + likeCount + ' j\'aime' : '') + '</div>';
     var main = clickable
-      ? '<button type="button" class="team-tile-main" data-action="team-tile-open" data-team="' + t.id + '">' + mainInner + '</button>'
+      ? '<button type="button" class="team-tile-main" data-action="team-tile-open" data-team="' + escapeHtml(t.id) + '">' + mainInner + '</button>'
       : '<div class="team-tile-main">' + mainInner + '</div>';
     return '<div class="team-tile">' + main +
       (innerActionsHtml ? '<div class="team-tile-actions">' + innerActionsHtml + '</div>' : '') +
@@ -19892,14 +19901,14 @@
     var iLike = (STATE.teamLikes || []).some(function (l) { return l.teamId === t.id && l.name === me.name; });
     var following = (STATE.myFollowedTeams || []).indexOf(t.id) !== -1;
     var myRequest = (STATE.teamJoinRequests || []).filter(function (r) { return r.teamId === t.id && r.from === me.name; })[0];
-    var h = '<button type="button" class="' + (iLike ? 'primary' : 'ghost') + '" data-action="team-like-toggle" data-team="' + t.id + '" aria-pressed="' + (iLike ? 'true' : 'false') + '">' + (iLike ? L('Aimé', 'Liked') : L('J\'aime', 'Like')) + '</button>';
+    var h = '<button type="button" class="' + (iLike ? 'primary' : 'ghost') + '" data-action="team-like-toggle" data-team="' + escapeHtml(t.id) + '" aria-pressed="' + (iLike ? 'true' : 'false') + '">' + (iLike ? L('Aimé', 'Liked') : L('J\'aime', 'Like')) + '</button>';
     if (!isMember) h += following
-      ? '<button type="button" class="ghost" data-action="unfollow-team" data-team="' + t.id + '">' + L('Abonné', 'Following') + '</button>'
-      : '<button type="button" class="ghost" data-action="follow-team" data-team="' + t.id + '">' + L('Suivre', 'Follow') + '</button>';
+      ? '<button type="button" class="ghost" data-action="unfollow-team" data-team="' + escapeHtml(t.id) + '">' + L('Abonné', 'Following') + '</button>'
+      : '<button type="button" class="ghost" data-action="follow-team" data-team="' + escapeHtml(t.id) + '">' + L('Suivre', 'Follow') + '</button>';
     if (!isMember && !isLeaderOfTeam(t.id)) h += myRequest
       ? '<button type="button" class="ghost" disabled>' + L('Demande envoyée', 'Request sent') + '</button>'
-      : '<button type="button" class="ghost" data-action="team-join-request" data-team="' + t.id + '">' + L('Rejoindre', 'Join') + '</button>';
-    h += '<button type="button" class="ghost" data-action="share-team" data-team="' + t.id + '">' + L('Partager', 'Share') + '</button>';
+      : '<button type="button" class="ghost" data-action="team-join-request" data-team="' + escapeHtml(t.id) + '">' + L('Rejoindre', 'Join') + '</button>';
+    h += '<button type="button" class="ghost" data-action="share-team" data-team="' + escapeHtml(t.id) + '">' + L('Partager', 'Share') + '</button>';
     return '<div class="outing-actions team-actions">' + h + '</div>';
   }
   // A team's public fiche, for someone who isn't a member: identity,
@@ -20053,6 +20062,14 @@
   function isSafeUrl(u) { return /^(https?:|mailto:|tel:|#|\/|\.\/|[a-z0-9._-]+\.(pdf|html)(\?|$))/i.test(String(u || '').trim()) && !/^\s*(javascript|data|vbscript):/i.test(String(u || '')); }
   function sanitizeLinks(root) {
     if (!root) return;
+    // Ceinture et bretelles avec la CSP : aucun attribut onclick=, onerror=…
+    // ne survit dans la page (l'app n'en génère aucun ; seul un texte piégé
+    // pourrait en introduire).
+    var all = root.getElementsByTagName('*');
+    for (var i = 0; i < all.length; i++) {
+      var at = all[i].attributes;
+      for (var j = at.length - 1; j >= 0; j--) if (at[j].name.charCodeAt(0) === 111 && at[j].name.charCodeAt(1) === 110) all[i].removeAttribute(at[j].name);
+    }
     root.querySelectorAll('a[href]').forEach(function (a) {
       if (!isSafeUrl(a.getAttribute('href'))) { a.setAttribute('href', '#'); a.removeAttribute('target'); }
       if (a.getAttribute('target') === '_blank') a.setAttribute('rel', 'noopener noreferrer');

@@ -11,6 +11,15 @@ service cloud.firestore {
     function verified() {
       return request.auth != null && request.auth.token.email_verified == true;
     }
+    // Un vrai compte (email + mot de passe), jamais une session anonyme :
+    // sans ça, n'importe qui pourrait réserver tous les pseudos.
+    function realAccount() {
+      return request.auth != null && request.auth.token.firebase.sign_in_provider != 'anonymous';
+    }
+    // Un champ reste tel quel, ou disparaît (migration vers userPrivate).
+    function keptOrRemoved(k) {
+      return !(k in request.resource.data) || request.resource.data[k] == resource.data.get(k, null);
+    }
     // Pseudos are the identity key of this whole app (ownership, team
     // leadership...), so they have to be unique: names/{lowercased pseudo}
     // holds the claiming account's uid, and a users doc may only carry a
@@ -126,8 +135,9 @@ service cloud.firestore {
       // Own profile readable before the email is confirmed (the app loads
       // it right after signup); everyone else's only once verified.
       allow read: if verified() || (request.auth != null && request.auth.uid == userId);
-      allow create: if request.auth != null && request.auth.uid == userId
+      allow create: if realAccount() && request.auth.uid == userId
         && ownsNameAfter(request.resource.data.name)
+        && !request.resource.data.keys().hasAny(['trackNotes', 'debriefs', 'email', 'lastNameChangeAt'])
         && request.resource.data.get('certified', false) == false
         && request.resource.data.get('personality', false) == false
         && request.resource.data.get('pro', false) == false
@@ -148,8 +158,14 @@ service cloud.firestore {
           && request.resource.data.get('organizer', false) == resource.data.get('organizer', false)
           && request.resource.data.get('coach', false) == resource.data.get('coach', false)
           && request.resource.data.get('photographer', false) == resource.data.get('photographer', false)
-          && (request.resource.data.name == resource.data.name
+          // Repères, débriefs et email ne reviennent jamais sur le profil public.
+          && keptOrRemoved('trackNotes') && keptOrRemoved('debriefs') && keptOrRemoved('email')
+          // Le délai de 30 jours entre deux changements de pseudo ne se
+          // contourne plus en réécrivant soi-même lastNameChangeAt.
+          && ((request.resource.data.name == resource.data.name
+                && request.resource.data.get('lastNameChangeAt', null) == resource.data.get('lastNameChangeAt', null))
               || (request.time > resource.data.get('lastNameChangeAt', timestamp.date(1970, 1, 1)) + duration.value(30, 'd')
+                  && request.resource.data.get('lastNameChangeAt', null) == request.time
                   && ownsNameAfter(request.resource.data.name))))
         // Coach/Photographe officiel peuvent aussi être attribués/retirés
         // par le Team Leader d'un Team PRO, à n'importe quel compte --
@@ -174,7 +190,7 @@ service cloud.firestore {
     // admin so nobody can squat their name and inherit their chronos).
     match /names/{id} {
       allow read: if verified();
-      allow create: if (request.auth != null && request.resource.data.keys().hasOnly(['uid', 'name'])
+      allow create: if (realAccount() && request.resource.data.keys().hasOnly(['uid', 'name'])
           && request.resource.data.uid == request.auth.uid
           && request.resource.data.name.lower() == id) || isAdmin();
       allow update: if isAdmin();
@@ -356,11 +372,14 @@ service cloud.firestore {
     // old name stuck forever and blocking anyone from ever reusing it).
     match /riders/{id} {
       allow read: if verified();
-      allow create: if verified();
-      // Not open to everyone anymore: a pilote's own roster entry only
-      // (matched by name, which also covers the old name during a rename
-      // -- get() sees the pre-batch profile), or the admin.
-      allow update: if verified() && (isAdmin() || resource.data.name == myName() || request.resource.data.name == myName());
+      // Juste { name }. Personne ne peut plus « s'approprier » la fiche
+      // d'un autre pilote en y écrivant son propre nom : seule sa propre
+      // fiche, ou une réécriture identique (set idempotent), passe.
+      allow create: if verified() && request.resource.data.keys().hasOnly(['name'])
+        && request.resource.data.name is string && request.resource.data.name.size() <= 60;
+      allow update: if verified() && (isAdmin()
+        || (resource.data.name == myName() && request.resource.data.name == myName())
+        || request.resource.data == resource.data);
       allow delete: if verified() && (isAdmin() || resource.data.name == myName());
     }
     match /settings/{id} {
@@ -377,7 +396,11 @@ service cloud.firestore {
       // -- removing one is only gated admin-only client-side, a much
       // lower-stakes gap than partners/featureVisibility since it's
       // trivially recoverable.
-      allow write: if verified() && (id == 'checklist' || isAdmin());
+      // Ajouts collaboratifs oui, mais plus d'effacement complet ni de
+      // document géant : seul l'admin peut supprimer.
+      allow create, update: if isAdmin() || (verified() && id == 'checklist'
+        && request.resource.data.categories is list && request.resource.data.categories.size() <= 40);
+      allow delete: if isAdmin();
     }
     // Friendship is name-keyed, like everything else in this app, and
     // reduced to one collection instead of a `friends` array on each
@@ -571,7 +594,10 @@ service cloud.firestore {
       allow update: if verified() && (
         isAdmin()
         || (isTeamLeader(teamId) && request.resource.data.get('teamPro', false) == resource.data.get('teamPro', false))
-        || request.resource.data.diff(resource.data).affectedKeys().hasOnly(['memberCount'])
+        // Compteur de membres : +1 / -1 seulement (plus de « 10 000 membres »).
+        || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['memberCount'])
+            && request.resource.data.memberCount is int && request.resource.data.memberCount >= 0
+            && math.abs(request.resource.data.memberCount - resource.data.get('memberCount', 1)) <= 1)
       );
       allow delete: if verified() && (isAdmin() || isTeamLeader(teamId));
     }
@@ -755,7 +781,10 @@ service cloud.firestore {
     // (roulage, récap, photos) : une ligne par personne, la sienne seulement.
     match /postReactions/{id} {
       allow read: if verified();
-      allow create, update: if verified() && request.resource.data.author == myName() && request.resource.data.emoji is string && request.resource.data.emoji.size() <= 8;
+      allow create: if verified() && request.resource.data.author == myName() && request.resource.data.emoji is string && request.resource.data.emoji.size() <= 8;
+      // Sa propre réaction seulement (avant : on pouvait écraser celle d'un autre).
+      allow update: if verified() && resource.data.author == myName() && request.resource.data.author == myName()
+        && request.resource.data.emoji is string && request.resource.data.emoji.size() <= 8;
       allow delete: if verified() && resource.data.author == myName();
     }
     // Audience (impressions, visites de profil) : un document par lecteur,
@@ -763,12 +792,22 @@ service cloud.firestore {
     match /postViews/{id} {
       allow read: if verified() && (resource.data.owner == myName() || resource.data.viewer == myName()
         || (resource.data.get('teamId', '') != '' && isTeamLeader(resource.data.teamId)));
-      allow create, update: if verified() && request.resource.data.viewer == myName() && request.resource.data.owner != myName();
+      // Une vue par visiteur, publication et jour : l'id finit par __<jour>,
+      // et on ne peut modifier que ses propres vues.
+      allow create: if verified() && request.resource.data.viewer == myName() && request.resource.data.owner != myName()
+        && request.resource.data.day is string && id.matches('.*__' + request.resource.data.day + '$');
+      allow update: if verified() && resource.data.viewer == myName() && request.resource.data.viewer == myName()
+        && request.resource.data.owner == resource.data.owner;
     }
     match /profileViews/{id} {
       allow read: if verified() && (resource.data.owner == myName() || resource.data.viewer == myName()
         || (resource.data.get('teamId', '') != '' && isTeamLeader(resource.data.teamId)));
-      allow create, update: if verified() && request.resource.data.viewer == myName() && request.resource.data.owner != myName();
+      // Une vue par visiteur, publication et jour : l'id finit par __<jour>,
+      // et on ne peut modifier que ses propres vues.
+      allow create: if verified() && request.resource.data.viewer == myName() && request.resource.data.owner != myName()
+        && request.resource.data.day is string && id.matches('.*__' + request.resource.data.day + '$');
+      allow update: if verified() && resource.data.viewer == myName() && request.resource.data.viewer == myName()
+        && request.resource.data.owner == resource.data.owner;
     }
     // Commentaires : publics (public == true) ou réservés aux uids de
     // visibleTo (copiés du message « Mes amis » commenté). L'auteur ou
