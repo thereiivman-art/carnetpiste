@@ -1,4 +1,4 @@
-// Audience d'un motoclub dans les réglages du team (leader) ; « Bientôt en
+// Audience d'un motoclub : onglet Audience de la page du team (leader) ; « Bientôt en
 // piste » sur la fiche d'un pilote : ami (par défaut), non ami seulement
 // s'il a choisi « Tout le monde » ; réglage dans Mon compte › Vie privée.
 const { chromium, BASE } = require('../lib');
@@ -17,7 +17,8 @@ const { chromium, BASE } = require('../lib');
   await p.click('.bottom-nav-btn:nth-child(3)'); await p.waitForTimeout(500);
   await p.click('.subnav-btn[data-view="team"]'); await p.waitForTimeout(400);
   await p.getByText('Team Piste').first().click(); await p.waitForTimeout(700);
-  await p.click('[data-action="team-settings-open"]'); await p.waitForTimeout(800);
+  console.log('onglets du team:', await p.$$eval('[data-pill-group="team"]', e => e.map(x => x.innerText).join(' / ')));
+  await p.click('[data-pill-group="team"][data-pill="audience"]'); await p.waitForTimeout(800);
   console.log('audience du team:', await p.$$eval('.aud-card .aud-tile', e => e.map(x => x.innerText.replace(/\n/g, ' ')).join(' | ')).catch(() => 'absente'));
   await p.screenshot({ path: 'audience-team-' + lang + '.png', fullPage: true });
   // Fiche de Sam (ami) : sous-onglet Bientôt en piste

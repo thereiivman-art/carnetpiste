@@ -19169,13 +19169,13 @@
     if (!isLeader) recordView('profileViews', 'team:' + team.id, 'team:' + team.id, team.id);
     if (isLeader && teamSettingsOpenId === team.id) {
       return headHtml + (headClosed ? '' : '</div>') + '<button type="button" class="link-btn back-link" data-action="team-settings-close">‹ ' + L('Retour au team', 'Back to the team') + '</button>' +
-        '<h2 class="section-title team-settings-title">' + L('Réglages du team', 'Team settings') + '</h2>' + renderTeamAudience(team) + renderTeamSettings(team, isLeader);
+        '<h2 class="section-title team-settings-title">' + L('Réglages du team', 'Team settings') + '</h2>' + renderTeamSettings(team, isLeader);
     }
     var teamPills = [['fil', 'Fil'], ['membres', L('Membres', 'Members')]];
     teamPills.unshift(tLook ? ['fiche', L('Fiche', 'Page')] : ['saisons', L('Saisons', 'Seasons')]);
-    if (isLeader) teamPills.push(['roulages', 'Roulages']);
+    if (isLeader) teamPills.push(['roulages', 'Roulages'], ['audience', L('Audience', 'Audience')]);
     var pillsHtml = renderPills('team', teamPills);
-    var body = pillState.team === 'membres' ? bMembres : pillState.team === 'roulages' ? bRoulages
+    var body = pillState.team === 'membres' ? bMembres : pillState.team === 'roulages' ? bRoulages : (pillState.team === 'audience' && isLeader) ? renderTeamAudience(team)
       : (pillState.team === 'fiche' && tLook) ? renderTeamShowcase(team, tLook, true) + seasonsHtml
       : pillState.team === 'saisons' ? seasonsHtml : bFil;
     // Team header in its own card, then the pills outside it like on every
