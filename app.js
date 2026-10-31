@@ -17973,11 +17973,11 @@
     if (!list.length) return '';
     return '<div class="card feed-upcoming"><div class="feed-record-label">Bientôt sur la piste</div>' + list.map(function (x) {
       var ev = x.ev;
-      return '<div class="feed-upcoming-row"><span class="outing-thumb">' + circuitThumbHtml(ev.circuit) + '</span>' +
+      return '<div class="feed-upcoming-row"><button type="button" class="feed-upcoming-open" data-open-outing="' + escapeHtml(ev.circuit) + '" data-outing-date="' + escapeHtml(ev.dateStart) + '" data-outing-event="' + escapeHtml(ev.id) + '"><span class="outing-thumb">' + circuitThumbHtml(ev.circuit) + '</span>' +
         '<span class="feed-upcoming-main"><strong>' + escapeHtml(ev.circuit) + ' <span class="feed-upcoming-j">' + countdownLabel(Math.max(0, Math.round((parseLocalDate(ev.dateStart) - parseLocalDate(dateKey(new Date()))) / 86400000))) + '</span></strong><span class="help-text">' + escapeHtml(formatEventRange(ev, true)) + '</span>' +
         '<span class="feed-upcoming-who">' + x.friends.concat(x.companions).slice(0, 4).map(function (n) { return avatarHtml((STATE.usersByName || {})[n] || {}, n); }).join('') +
         '<span class="help-text">' + x.friends.slice(0, 2).map(function (n) { var g = riderGroupFor(ev, n, ev.dateStart, 'matin') || riderGroupFor(ev, n, ev.dateStart, 'apres-midi'); return escapeHtml(n) + (g ? ' ' + groupChip(g) : ''); }).join(', ') + (x.friends.length > 2 ? ' +' + (x.friends.length - 2) : '') +
-          (x.companions.length ? (x.friends.length ? ' · ' : '') + escapeHtml(x.companions.join(', ')) + L(x.companions.length > 1 ? ' viennent' : ' vient', x.companions.length > 1 ? ' are coming' : ' is coming') : '') + '</span></span></span>' +
+          (x.companions.length ? (x.friends.length ? ' · ' : '') + escapeHtml(x.companions.join(', ')) + L(x.companions.length > 1 ? ' viennent' : ' vient', x.companions.length > 1 ? ' are coming' : ' is coming') : '') + '</span></span></span></button>' +
         (x.mine ? '<span class="feed-upcoming-tag">Tu y vas</span>' : '<button type="button" class="ghost" data-notif-go="event" data-id="' + escapeHtml(ev.id) + '" data-join="1">J\'y vais aussi</button>') +
         '</div>';
     }).join('') + '</div>';
@@ -19594,10 +19594,64 @@
       if (!row.__tabsScroll) { row.__tabsScroll = true; row.addEventListener('scroll', update, { passive: true }); }
     });
   }
+  // ---- Revenir en arrière ----
+  // Chaque changement de page (onglet, roulage, circuit, fiche…) entre
+  // dans l'historique du navigateur avec la position de défilement : le
+  // retour du téléphone, un glissé depuis le bord gauche ou les flèches
+  // « ‹ » ramènent exactement où on était (dans le fil, par exemple).
+  var navStack = [], navCurrent = null, navRestoring = false, navPreRenderY = 0;
+  function navSnapshot() {
+    return {
+      view: activeView, outing: outingView ? JSON.parse(JSON.stringify(outingView)) : null, person: personView ? JSON.parse(JSON.stringify(personView)) : null,
+      circuit: selectedCircuit, social: pillState.social, circuitPill: pillState.circuit, cards: carnetCardsMode,
+      profile: !!profilePanelOpen, notifs: !!notificationsPanelOpen, y: window.scrollY || 0
+    };
+  }
+  function navSig(n) {
+    return [n.view, n.outing ? n.outing.circuit + n.outing.date : '', n.person ? n.person.name : '', n.view === 'circuit' ? n.circuit : '', n.view === 'social' ? n.social : '', n.profile ? 'P' : '', n.notifs ? 'N' : ''].join('|');
+  }
+  function navTrack() {
+    if (!window.history || !history.pushState) return;
+    var snap = navSnapshot();
+    if (navCurrent && !navRestoring && navSig(snap) !== navSig(navCurrent)) {
+      navCurrent.y = navPreRenderY; // position de la page qu'on quitte, lue avant que le nouveau contenu la change
+      navStack.push(navCurrent);
+      if (navStack.length > 50) navStack.shift();
+      try { history.pushState({ pitbookNav: navStack.length }, '', location.href); } catch (e) {}
+    }
+    navCurrent = snap;
+  }
+  function navBack() { if (navStack.length) history.back(); }
+  window.addEventListener('popstate', function () {
+    var prev = navStack.pop();
+    if (!prev) return;
+    navRestoring = true;
+    activeView = prev.view; outingView = prev.outing; personView = prev.person; selectedCircuit = prev.circuit;
+    pillState.social = prev.social; pillState.circuit = prev.circuitPill; carnetCardsMode = prev.cards;
+    profilePanelOpen = prev.profile; notificationsPanelOpen = prev.notifs; addChronoOpen = false;
+    renderRoot();
+    navRestoring = false;
+    navCurrent = navSnapshot();
+    var y = prev.y;
+    requestAnimationFrame(function () { window.scrollTo(0, y); setTimeout(function () { window.scrollTo(0, y); }, 60); });
+  });
+  // Glisser depuis le bord gauche vers la droite = retour.
+  (function () {
+    var sx = null, sy = 0;
+    document.addEventListener('touchstart', function (e) { var t = e.touches[0]; sx = t.clientX < 28 ? t.clientX : null; sy = t.clientY; }, { passive: true });
+    document.addEventListener('touchend', function (e) {
+      if (sx === null) return;
+      var t = e.changedTouches[0];
+      if (t.clientX - sx > 70 && Math.abs(t.clientY - sy) < 60 && !document.querySelector('.story-overlay, .jourj-overlay, .crop-modal-overlay')) navBack();
+      sx = null;
+    }, { passive: true });
+  })();
   function renderRoot() {
+    navPreRenderY = window.scrollY || 0;
     try {
       renderRootUnsafe();
       markScrollableTabs();
+      navTrack();
     } catch (err) {
       if (window.console) console.error('renderRoot failed', err);
       var root = document.getElementById('root');
@@ -19678,7 +19732,12 @@
       if (activeView === 'outing') body = renderOutingPage();
       else if (activeView === 'person') body = renderPersonPage();
       else if (activeView === 'carnet') body = carnetSub + renderCarnetTab();
-      else if (activeView === 'circuit') body = carnetSub + renderCircuitTab();
+      else if (activeView === 'circuit') {
+        // Ouvert depuis le fil, une fiche, un roulage… : « ‹ Retour » y ramène.
+        var prevNav = navCurrent && navCurrent.view !== 'circuit' ? navCurrent : navStack[navStack.length - 1];
+        var backHere = prevNav && ['carnet', 'circuit', 'stats', 'coach', 'event'].indexOf(prevNav.view) === -1;
+        body = (backHere ? '<button type="button" class="link-btn back-link nav-back-btn">‹ ' + L('Retour', 'Back') + '</button>' : '') + carnetSub + renderCircuitTab();
+      }
       else if (activeView === 'stats') {
         var statPills = meIsNonRider()
           ? [['podium', L('Podium', 'Podium')], ['trophees', 'Trophées'], ['budget', 'Budget']]
@@ -21052,6 +21111,7 @@
     if (rootEl && !rootEl.__socialLinks) {
       rootEl.__socialLinks = true;
       rootEl.addEventListener('click', function (e) {
+        if (e.target.closest('.back-chevron, .nav-back-btn') && navStack.length) { e.preventDefault(); e.stopPropagation(); navBack(); return; }
         var inFeed = e.target.closest('.feed-card, .wall-post, .post-comment, .repost-box, .people-row, .feed-upcoming');
         if (!inFeed) return;
         var c = e.target.closest('[data-open-circuit], .feed-ride-circuit, .feed-ride-thumb, .feed-recap-head .outing-thumb');

@@ -57,6 +57,8 @@ Scénarios
                        roulage, horaires d'un seul groupe, calendrier.
   reseau               Communauté : Fil, Suivis, abonnés, commentaires,
                        fiche d'un pilote non ami.
+  retour               revenir en arrière (bouton, retour du téléphone,
+                       glissé depuis le bord) à la même position du fil.
   parrain              Gestion des comptes : corriger un parrain.
 
 Guide PDF
