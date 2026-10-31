@@ -22,12 +22,26 @@ const { chromium, BASE } = require('../lib');
   // Publier
   await p.click('#wall-composer-toggle'); await p.waitForTimeout(300);
   console.log('audience par défaut:', await p.$eval('#wall-post-audience', e => e.value));
-  // Suivis
-  await p.click('[data-pill-group="social"][data-pill="suivis"]'); await p.waitForTimeout(400);
-  console.log('compteurs:', await p.$eval('.my-mini-profile .social-counts', e => e.innerText.replace(/\n/g, ' ')));
+  console.log('stories:', await p.$$eval('.story-bubble', e => e.map(x => x.innerText.replace(/\n/g, ' ')).join(', ')) || 'aucune');
+  if (await p.$('.story-bubble')) {
+    await p.click('.story-bubble'); await p.waitForTimeout(500);
+    console.log('story ouverte:', await p.$eval('.story-overlay', e => e.innerText.replace(/\n/g, ' | ')));
+    await p.screenshot({ path: 'reseau-story-' + lang + '.png' });
+    await p.click('.story-close'); await p.waitForTimeout(300);
+  }
+  console.log('lignes « sont amis »:', await p.$$eval('.feed-line', e => e.length), '| « Plus tôt »:', await p.$$eval('.feed-day', e => e.filter(x => /Plus tôt|Earlier/.test(x.innerText)).length));
+  // Profil
+  await p.click('[data-pill-group="social"][data-pill="profil"]'); await p.waitForTimeout(400);
+  console.log('profil:', await p.$eval('.social-profile-head', e => e.innerText.replace(/\n/g, ' ')), '| publications:', await p.$$eval('.feed-card', e => e.length));
+  await p.screenshot({ path: 'reseau-profil-' + lang + '.png', fullPage: true });
+  // Abonnements
+  await p.click('[data-pill-group="social"][data-pill="abonnements"]'); await p.waitForTimeout(400);
   console.log('suggestions:', await p.$$eval('.follow-card', e => e.map(x => x.innerText.replace(/\n/g, ' ')).slice(0, 4).join(' | ')));
   console.log('à découvrir:', await p.$$eval('.feed-card .wall-post-text', e => e.map(x => x.innerText).join(' | ')));
   await p.screenshot({ path: 'reseau-suivis-' + lang + '.png', fullPage: true });
+  console.log('sous-onglets:', await p.$$eval('[data-cpill-group="suivislist"], .sub-pill-btn', e => e.map(x => x.innerText).join(' / ')));
+  await p.click('[data-action="repost"]'); await p.waitForTimeout(500);
+  console.log('republié:', JSON.stringify(await p.evaluate(() => Object.values(window.__MOCK_DATA.wallPosts).filter(w => w.author === 'Alex' && w.repostOf).map(w => [w.repostOf.author, w.repostOf.text]))));
   await p.click('.follow-card [data-action="quick-follow"]'); await p.waitForTimeout(500);
   console.log('abonnements:', JSON.stringify(await p.evaluate(() => Object.values(window.__MOCK_DATA.follows).filter(f => f.follower === 'Alex').map(f => f.followee))));
   // Fiche de Luca (non ami)

@@ -5480,7 +5480,7 @@
       return openEventPage(el.getAttribute('data-id'));
     }
     if (to === 'fil') { activeView = 'social'; pillState.social = 'fil'; }
-    else if (to === 'suivis') { activeView = 'social'; pillState.social = 'suivis'; pillState.suivislist = 'abonnes'; }
+    else if (to === 'suivis') { activeView = 'social'; pillState.social = 'abonnements'; pillState.suivislist = 'abonnes'; }
     else if (to === 'trophees') { activeView = 'stats'; pillState.stats = 'trophees'; }
     else if (to === 'podium') { activeView = 'stats'; pillState.stats = 'podium'; podiumFocusCircuit = el.getAttribute('data-circuit') || null; }
     else if (to === 'stats') { activeView = 'stats'; pillState.stats = 'records'; }
@@ -13471,7 +13471,7 @@
     return '<div data-cpill-section="' + group + ':' + key + '"' + (pillState[group] === key ? '' : ' style="display:none;"') + '>';
   }
   function communauteSubItems() {
-    var items = [['social', 'Amis & fil']];
+    var items = [['social', L('Réseau', 'Network')]];
     // Prototype : Teams et Coaching restent masqués tant que l'admin ne les
     // active pas (Aide › Admin › Fonctions optionnelles), sauf pour qui
     // fait déjà partie d'un team.
@@ -17492,10 +17492,10 @@
       '<span><strong>' + escapeHtml(me.name) + '</strong><span class="help-text">' + L('Voir ma fiche', 'See my page') + ' ›</span></span></button>' + socialCountsHtml(me.name) + '</div>';
   }
   var socialListOpen = null;
-  function renderSuivisTab(me) {
+  function renderSuivisTab(me, addFriendCta, amisItems, nIncoming) {
     var following = followingOf(me.name).sort(function (a, b) { return a.localeCompare(b); });
     var followers = followersOf(me.name).sort(function (a, b) { return a.localeCompare(b); });
-    var html = renderMyMiniProfile(me);
+    var html = '';
     var sug = followSuggestions(me.name, 10);
     if (sug.length) html += '<div class="card"><h2 class="section-title">' + L('Suggestions pour toi', 'Suggested for you') + '</h2><div class="follow-cards">' + sug.map(renderFollowCard).join('') + '</div></div>';
     // Messages publics de comptes que je ne suis pas encore : de quoi
@@ -17503,11 +17503,89 @@
     var friendNames = friendsOf(me.name).map(function (f) { return f.name; });
     var pub = (STATE.wallPosts || []).filter(function (p) { return p.audience === 'all' && p.author !== me.name && !iFollow(p.author) && friendNames.indexOf(p.author) === -1; }).slice(0, 6);
     if (pub.length) html += '<h2 class="section-title feed-section-title">' + L('À découvrir', 'Discover') + '</h2>' + pub.map(function (p) { return '<div class="card feed-card">' + renderWallPost(p, true) + '</div>'; }).join('');
-    html += renderSubPills('suivislist', [
+    var lists = [
       ['abonnements', L('Abonnements', 'Following') + ' (' + following.length + ')', '<div class="card">' + renderPeopleRows(following, true) + '</div>'],
       ['abonnes', L('Abonnés', 'Followers') + ' (' + followers.length + ')', '<div class="card">' + renderPeopleRows(followers, true) + '</div>']
-    ], { noCard: true });
+    ];
+    // Amis (liste, demandes reçues / envoyées, personnalités) : même endroit.
+    (amisItems || []).forEach(function (it) { lists.push([it[0], it[1], '<div class="card">' + it[2] + '</div>']); });
+    if (nIncoming) pillState.suivislist = pillState.suivislist || 'recues';
+    html = (nIncoming ? '<button type="button" class="card friend-req-banner" data-action="open-friend-requests">' + plural(nIncoming, L('demande d\'ami', 'friend request'), L('demandes d\'ami', 'friend requests')) + ' ›</button>' : '') + html;
+    html += renderSubPills('suivislist', lists, { noCard: true }) + (addFriendCta || '');
     return html;
+  }
+  // Mon profil sur le réseau : en-tête, compteurs, publier, mes messages.
+  function renderSocialProfile(me) {
+    var look = lookOf(me), html = '';
+    html += '<div class="card social-profile-head">' + (look ? '<div class="sp-cover" style="' + lookStyle(look) + '"></div>' : '<div class="sp-cover"></div>') +
+      '<div class="sp-id">' + avatarHtml(me, me.name) + '<div><strong class="sp-name">' + escapeHtml(me.name) + badgesHtml(me) + '</strong>' +
+      '<span class="help-text">' + escapeHtml([roleLabel(me.role), me.bike, me.bikeNumber ? '#' + me.bikeNumber : ''].filter(Boolean).join(' · ')) + '</span></div></div>' +
+      (look && look.bio ? '<p class="sp-bio">' + escapeHtml(look.bio) + '</p>' : '') + socialCountsHtml(me.name) +
+      '<div class="outing-actions"><button type="button" class="ghost" data-action="open-my-fiche">' + L('Ma fiche pilote', 'My rider page') + '</button><button type="button" class="ghost" data-action="invite-qr">' + L('Inviter des potes', 'Invite friends') + '</button></div></div>';
+    html += renderWallComposer();
+    var mine = (STATE.wallPosts || []).filter(function (p) { return p.author === me.name; });
+    html += '<h2 class="section-title feed-section-title">' + L('Mes publications', 'My posts') + (mine.length ? ' (' + mine.length + ')' : '') + '</h2>';
+    html += mine.length ? mine.map(function (p) { return '<div class="card feed-card">' + renderWallPost(p) + '</div>'; }).join('')
+      : '<div class="card help-text">' + L('Partage ton dernier roulage, une photo de la moto, une question : tes abonnés le verront dans leur fil.', 'Share your last trackday, a bike photo, a question: your followers will see it in their feed.') + '</div>';
+    return html;
+  }
+  // ---- Stories : le dernier roulage (7 jours) ou la dernière photo
+  // (24 h) de mes amis et de ceux que je suis, en ronds en haut du Fil.
+  function storyItems(me) {
+    var names = friendsOf(me.name).map(function (f) { return f.name; }).concat(followingOf(me.name)).filter(function (v, i, a) { return a.indexOf(v) === i && !isNonRiderName(v); });
+    names.push(me.name);
+    var by = {};
+    ridesFor(names, 7).forEach(function (r) { if (!by[r.rider] || r.date > by[r.rider].date) by[r.rider] = { kind: 'ride', who: r.rider, ride: r, at: r.createdAt || parseLocalDate(r.date).getTime() }; });
+    (STATE.wallPosts || []).forEach(function (p) {
+      if (!p.photoURL || names.indexOf(p.author) === -1 || Date.now() - (p.createdAt || 0) > 86400e3) return;
+      if (!by[p.author] || (p.createdAt || 0) > by[p.author].at) by[p.author] = { kind: 'photo', who: p.author, post: p, at: p.createdAt };
+    });
+    return Object.keys(by).map(function (k) { return by[k]; }).sort(function (a, b) { return (a.who === me.name ? -1 : b.who === me.name ? 1 : 0) || b.at - a.at; });
+  }
+  function storySeen(st) { try { return localStorage.getItem('cdp-story-' + st.who) === String(st.at); } catch (e) { return false; } }
+  function renderStoriesRow(me) {
+    var list = storyItems(me);
+    if (!list.length) return '';
+    return '<div class="stories-row">' + list.map(function (st, i) {
+      var u = (STATE.usersByName || {})[st.who] || (st.who === me.name ? me : {});
+      return '<button type="button" class="story-bubble' + (storySeen(st) ? ' seen' : '') + '" data-action="open-story" data-index="' + i + '"><span class="story-ring">' + avatarHtml(u, st.who) + '</span><span class="story-name">' + escapeHtml(st.who === me.name ? L('Moi', 'Me') : st.who) + '</span></button>';
+    }).join('') + '</div>';
+  }
+  function openStory(index) {
+    var me = currentUserProfile, list = storyItems(me), i = index;
+    var ov = document.createElement('div');
+    ov.className = 'story-overlay';
+    document.body.appendChild(ov);
+    var timer = null;
+    function close() { clearTimeout(timer); if (ov.parentNode) ov.parentNode.removeChild(ov); renderRoot(); }
+    function show() {
+      var st = list[i];
+      if (!st) return close();
+      try { localStorage.setItem('cdp-story-' + st.who, String(st.at)); } catch (e) {}
+      var u = (STATE.usersByName || {})[st.who] || {}, body;
+      if (st.kind === 'ride') {
+        var r = st.ride, outline = outlineImageFor(circuitInfo(r.circuit), r.circuit), prev = bestBefore(r.rider, r.circuit, r.date);
+        body = '<div class="story-card">' + (outline ? '<img class="story-trace" src="' + escapeHtml(outline) + '" alt="">' : '') +
+          '<span class="story-k">' + L('A roulé à', 'Rode at') + '</span><strong class="story-circuit">' + escapeHtml(r.circuit) + '</strong>' +
+          '<span class="story-time">' + formatTime(r.best) + '</span>' +
+          (prev !== null && r.best < prev ? '<span class="story-rec">' + L('Nouveau record −', 'New record −') + formatGap(prev - r.best) + '</span>' : '') +
+          '<span class="story-date">' + escapeHtml(formatDate(r.date)) + ' · ' + plural(r.laps, L('tour', 'lap'), L('tours', 'laps')) + '</span></div>';
+      } else {
+        body = '<div class="story-card story-photo"><img src="' + escapeHtml(st.post.photoURL) + '" alt="">' + (st.post.text ? '<span class="story-caption">' + escapeHtml(st.post.text) + '</span>' : '') + '</div>';
+      }
+      ov.innerHTML = '<div class="story-bars">' + list.map(function (_, k) { return '<span class="' + (k < i ? 'done' : k === i ? 'now' : '') + '"></span>'; }).join('') + '</div>' +
+        '<div class="story-head">' + avatarHtml(u, st.who) + '<strong>' + escapeHtml(st.who) + '</strong><span>' + escapeHtml(relativeTime(st.at)) + '</span><button type="button" class="story-close" aria-label="' + escapeHtml(L('Fermer', 'Close')) + '">✕</button></div>' + body +
+        '<button type="button" class="story-nav prev" aria-label="' + escapeHtml(L('Précédente', 'Previous')) + '"></button><button type="button" class="story-nav next" aria-label="' + escapeHtml(L('Suivante', 'Next')) + '"></button>' +
+        (st.who !== me.name ? '<button type="button" class="story-profile" data-who="' + escapeHtml(st.who) + '">' + L('Voir son profil', 'See profile') + '</button>' : '');
+      ov.querySelector('.story-close').addEventListener('click', close);
+      ov.querySelector('.story-nav.prev').addEventListener('click', function () { if (i > 0) { i--; show(); } });
+      ov.querySelector('.story-nav.next').addEventListener('click', function () { i++; show(); });
+      var pb = ov.querySelector('.story-profile');
+      if (pb) pb.addEventListener('click', function () { close(); openPerson(pb.getAttribute('data-who')); });
+      clearTimeout(timer);
+      timer = setTimeout(function () { i++; show(); }, 6000);
+    }
+    show();
   }
   // ---- Commentaires des messages ----
   var commentsOpen = {};
@@ -17651,7 +17729,17 @@
     if (p.text) html += '<div class="wall-post-text">' + escapeHtml(p.text) + '</div>';
     if (p.linkUrl) html += postLinkHtml(p.linkUrl);
     if (p.photoURL) html += '<img class="wall-post-photo" src="' + escapeHtml(p.photoURL) + '" alt="">';
-    html += '<div class="feed-entry-foot">' + renderReactionBar(p.reactions, 'react-wall-post', p.id) + postEditLinks('wall-post-edit', 'delete-wall-post', p.id, canEdit, canEdit) + '</div>';
+    if (p.repostOf) {
+      var o = p.repostOf, ou = (STATE.usersByName || {})[o.author] || {};
+      html += '<div class="repost-label">' + L('a republié', 'reposted') + '</div><div class="repost-box"><div class="wall-post-head">' + avatarHtml(ou, o.author) + personLinkHtml(o.author) + badgesHtml(ou) +
+        '<span class="feed-entry-time">' + escapeHtml(relativeTime(o.createdAt)) + '</span></div>' +
+        (o.text ? '<div class="wall-post-text">' + escapeHtml(o.text) + '</div>' : '') + (o.linkUrl ? postLinkHtml(o.linkUrl) : '') +
+        (o.photoURL ? '<img class="wall-post-photo" src="' + escapeHtml(o.photoURL) + '" alt="">' : '') + '</div>';
+    }
+    var nRep = repostCount(p.repostOf ? p.repostOf.id : p.id), mine = currentUserProfile && (p.repostOf ? p.repostOf.author : p.author) === currentUserProfile.name;
+    var repostBtn = mine ? (nRep ? '<span class="repost-count">' + plural(nRep, L('republication', 'repost'), L('republications', 'reposts')) + '</span>' : '')
+      : '<button type="button" class="ghost repost-btn" data-action="repost" data-id="' + escapeHtml(p.id) + '"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 2l4 4-4 4"/><path d="M3 11V9a3 3 0 0 1 3-3h15"/><path d="M7 22l-4-4 4-4"/><path d="M21 13v2a3 3 0 0 1-3 3H3"/></svg> ' + L('Republier', 'Repost') + (nRep ? ' · ' + nRep : '') + '</button>';
+    html += '<div class="feed-entry-foot">' + renderReactionBar(p.reactions, 'react-wall-post', p.id) + repostBtn + postEditLinks('wall-post-edit', 'delete-wall-post', p.id, canEdit && !p.repostOf, canEdit) + '</div>';
     html += renderPostComments(p);
     html += '</div>';
     return html;
@@ -17676,6 +17764,7 @@
     // user n'est pas ami alors il ne voit pas les actualités sur son mur".
     (STATE.feedEvents || []).forEach(function (e) {
       if (e.actor !== me.name && friendNames.indexOf(e.actor) === -1) return;
+      if (e.type === 'friend') return; // « X et Y sont amis » : sans intérêt dans le fil
       items.push({ kind: 'activity', data: e, createdAt: e.createdAt });
     });
     var myTeamIds = (STATE.myTeamMemberships || []).map(function (m) { return m.teamId; });
@@ -17748,7 +17837,7 @@
         else { var t = teamById(it.teamId); inner = renderTeamFeedEntry(it.data, me, t ? t.name : null); }
         if (!inner) return '';
         var h = feedDayHeader(it.createdAt), head = '';
-        if (h !== lastHeader) { head = '<div class="feed-day">' + h + '</div>'; lastHeader = h; }
+        if (h !== lastHeader) { head = h === 'Plus tôt' ? '' : '<div class="feed-day">' + h + '</div>'; lastHeader = h; }
         // A new friendship is a quiet line between cards, not a card.
         if (it.kind === 'activity' && it.data.type === 'friend') return head + '<div class="feed-line">' + inner + '</div>';
         return head + '<div class="card feed-card">' + inner + '</div>';
@@ -17875,6 +17964,22 @@
     });
   }
 
+  // Republier : un message à moi qui reprend celui d'un autre (repostOf),
+  // avec un mot facultatif ; visible comme mes autres messages.
+  function repostWallPost(id) {
+    var me = currentUserProfile, src = (STATE.wallPosts || []).filter(function (p) { return p.id === id; })[0];
+    if (!me || !src) return;
+    var orig = src.repostOf ? src.repostOf : { id: src.id, author: src.author, text: src.text || '', linkUrl: src.linkUrl || '', photoURL: src.photoURL || '', createdAt: src.createdAt || 0 };
+    if (orig.author === me.name) { showToast(L('C\'est déjà ton message.', 'That\'s already your post.')); return; }
+    if ((STATE.wallPosts || []).some(function (p) { return p.author === me.name && p.repostOf && p.repostOf.id === orig.id; })) { showToast(L('Tu l\'as déjà republié.', 'You already reposted it.')); return; }
+    var post = { id: genId(), author: me.name, authorUid: myUid(), audience: 'all', createdAt: Date.now(), repostOf: orig };
+    STATE.wallPosts = [post].concat(STATE.wallPosts || []);
+    renderRoot();
+    showToast(L('Republié sur ton profil.', 'Reposted to your profile.'), 'success');
+    db.collection('wallPosts').doc(post.id).set(post).catch(function (err) { showToast(tr('error_prefix') + ((err && err.message) || err)); });
+  }
+  function repostCount(id) { return (STATE.wallPosts || []).filter(function (p) { return p.repostOf && p.repostOf.id === id; }).length; }
+
   function deleteWallPost(id) {
     db.collection('wallPosts').doc(id).delete().catch(function (err) {
       showToast(tr('error_prefix') + (err && err.message ? err.message : err));
@@ -17959,10 +18064,13 @@
     }
     amisItems.push(['perso', 'Personnalités', flatSections(renderPersonalitiesSection(me))]);
 
-    var html = renderPills('social', [['fil', L('Fil', 'Feed')], ['suivis', L('Suivis', 'Following')], ['amis', 'Amis' + (incoming.length ? ' (' + incoming.length + ')' : '')]]);
-    if (pillState.social === 'amis') html += addFriendCta + renderSubPills('amis', amisItems);
-    else if (pillState.social === 'suivis') html += renderSuivisTab(me);
+    // Réseau moto : Fil (stories en tête), Abonnements (et amis), Profil.
+    if (pillState.social === 'amis' || pillState.social === 'suivis') pillState.social = 'abonnements';
+    var html = renderPills('social', [['fil', L('Fil', 'Feed')], ['abonnements', L('Abonnements', 'Following') + (incoming.length ? ' (' + incoming.length + ')' : '')], ['profil', L('Profil', 'Profile')]]);
+    if (pillState.social === 'abonnements') html += renderSuivisTab(me, addFriendCta, amisItems, incoming.length);
+    else if (pillState.social === 'profil') html += renderSocialProfile(me);
     else {
+      html += renderStoriesRow(me);
       html += renderWallComposer();
       // Peu de choses dans le fil : des comptes à suivre juste en dessous.
       var sugs = followSuggestions(me.name, 6);
@@ -20829,13 +20937,22 @@
       btn.addEventListener('click', function () {
         var l = btn.getAttribute('data-list');
         activeView = 'social'; personView = null; profilePanelOpen = false;
-        if (l === 'amis') pillState.social = 'amis';
-        else { pillState.social = 'suivis'; if (l === 'abonnes' || l === 'abonnements') pillState.suivislist = l; }
+        pillState.social = 'abonnements';
+        pillState.suivislist = l === 'amis' ? 'liste' : (l === 'abonnes' || l === 'abonnements') ? l : pillState.suivislist;
         renderRoot(); window.scrollTo(0, 0);
       });
     });
     document.querySelectorAll('[data-open-person]').forEach(function (btn) {
       btn.addEventListener('click', function () { openPerson(btn.getAttribute('data-open-person')); });
+    });
+    document.querySelectorAll('[data-action="repost"]').forEach(function (btn) {
+      btn.addEventListener('click', function () { repostWallPost(btn.getAttribute('data-id')); });
+    });
+    document.querySelectorAll('[data-action="open-story"]').forEach(function (btn) {
+      btn.addEventListener('click', function () { openStory(parseInt(btn.getAttribute('data-index'), 10) || 0); });
+    });
+    document.querySelectorAll('[data-action="open-friend-requests"]').forEach(function (btn) {
+      btn.addEventListener('click', function () { pillState.suivislist = 'recues'; renderRoot(); });
     });
     document.querySelectorAll('[data-action="comments-more"]').forEach(function (btn) {
       btn.addEventListener('click', function () { commentsOpen[btn.getAttribute('data-id')] = true; renderRoot(); });
