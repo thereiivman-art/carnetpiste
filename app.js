@@ -17722,7 +17722,7 @@
       return '<div class="card composer-teaser">' + avatarHtml(meU, meU.name || '') + '<button type="button" class="composer-teaser-btn" id="wall-composer-toggle">' +
         escapeHtml(L('Quoi de neuf, ' + (meU.firstName || meU.name || '') + ' ?', 'What\'s new, ' + (meU.firstName || meU.name || '') + '?')) + '</button></div>';
     }
-    var html = '<div class="card"><h2 class="section-title">' + tr('post_to_journal_btn') + '</h2>';
+    var html = '<div class="card has-close"><button type="button" class="card-close" data-action="wall-composer-close" aria-label="' + escapeHtml(L('Fermer', 'Close')) + '">✕</button><h2 class="section-title">' + tr('post_to_journal_btn') + '</h2>';
     html += '<form id="wall-post-form">';
     html += '<label for="wall-post-text">' + tr('wall_post_placeholder') + '</label><textarea id="wall-post-text" rows="2"></textarea>';
     html += '<label for="wall-post-link" style="margin-top:0.6rem;">' + tr('link_optional_placeholder') + '</label><input type="url" id="wall-post-link" placeholder="https://...">';
@@ -17742,7 +17742,7 @@
       '<option value="all"' + (lastAud === 'all' ? ' selected' : '') + '>' + L('Public', 'Public') + '</option>' +
       '<option value="friends"' + (lastAud === 'friends' ? ' selected' : '') + '>' + L('Mes amis', 'My friends') + '</option>' +
       '</select></details>';
-    html += '<button type="submit" class="primary" style="margin-top:0.7rem;">' + tr('publish') + '</button>';
+    html += '<div style="display:flex; gap:0.5rem; margin-top:0.7rem;"><button type="submit" class="primary">' + tr('publish') + '</button><button type="button" class="ghost" data-action="wall-composer-close">' + tr('cancel') + '</button></div>';
     if (wallPostMessage) html += '<div class="help-text" style="margin-top:0.6rem;">' + escapeHtml(wallPostMessage) + '</div>';
     html += '</form></div>';
     return html;
@@ -18141,7 +18141,7 @@
           }).join('') + '</datalist>' +
           '<button type="submit" class="primary" style="margin-top:0.7rem;">' + tr('send_request_btn') + '</button></form>' +
           friendSuggestionChips(candidates);
-      addFriendCta = '<div class="card"><h2 class="section-title">' + escapeHtml(tr('add_friend_btn').replace(/^\+\s*/, '')) + '</h2>' + addFriendBody + '</div>';
+      addFriendCta = '<div class="card has-close"><button type="button" class="card-close" data-action="add-friend-close" aria-label="' + escapeHtml(L('Fermer', 'Close')) + '">✕</button><h2 class="section-title">' + escapeHtml(tr('add_friend_btn').replace(/^\+\s*/, '')) + '</h2>' + addFriendBody + '</div>';
     }
     amisItems.push(['perso', 'Personnalités', flatSections(renderPersonalitiesSection(me))]);
 
@@ -21274,6 +21274,13 @@
         pollDraftOptions = ['', ''];
         renderRoot();
       });
+    });
+    // Refermer un formulaire ouvert par erreur.
+    document.querySelectorAll('[data-action="wall-composer-close"]').forEach(function (btn) {
+      btn.addEventListener('click', function () { wallComposerOpen = false; wallPostDraftPhotoURL = null; wallPostMessage = ''; renderRoot(); });
+    });
+    document.querySelectorAll('[data-action="add-friend-close"]').forEach(function (btn) {
+      btn.addEventListener('click', function () { addFriendOpen = false; renderRoot(); });
     });
     document.querySelectorAll('[data-action="team-composer-close"]').forEach(function (btn) {
       btn.addEventListener('click', function () {
