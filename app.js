@@ -13473,6 +13473,17 @@
   function cpillSection(group, key) {
     return '<div data-cpill-section="' + group + ':' + key + '"' + (pillState[group] === key ? '' : ' style="display:none;"') + '>';
   }
+  // Communauté : Profil · Fil · Teams, sur une seule rangée d'onglets.
+  function renderCommunauteNav() {
+    var me = currentUserProfile, nIn = me ? incomingFriendRequests(me.name).length : 0;
+    var items = [['profil', L('Profil', 'Profile') + (nIn ? ' (' + nIn + ')' : '')], ['fil', L('Fil', 'Feed')]];
+    var html = '<div class="subnav" role="tablist">' + items.map(function (it) {
+      var on = activeView === 'social' && (pillState.social === it[0] || (it[0] === 'profil' && pillState.social === 'abonnements'));
+      return '<button type="button" role="tab" class="subnav-btn' + (on ? ' active' : '') + '" data-view="social" data-pill-group="social" data-pill="' + it[0] + '">' + it[1] + '</button>';
+    }).join('');
+    if (communauteSubItems().some(function (it) { return it[0] === 'team'; })) html += '<button type="button" role="tab" class="subnav-btn' + (activeView === 'team' ? ' active' : '') + '" data-view="team">Teams</button>';
+    return html + '</div>';
+  }
   function communauteSubItems() {
     var items = [['social', L('Réseau', 'Network')]];
     // Prototype : Teams et Coaching restent masqués tant que l'admin ne les
@@ -18410,9 +18421,7 @@
       html += renderSuivisTab(me, addFriendCta, amisItems, incoming.length);
       return html;
     }
-    html += renderPills('social', [['fil', L('Fil', 'Feed')], ['profil', L('Profil', 'Profile') + (incoming.length ? ' (' + incoming.length + ')' : '')]]);
-    if (false) {}
-    else if (pillState.social === 'profil') html += renderSocialProfile(me);
+    if (pillState.social === 'profil') html += renderSocialProfile(me);
     else {
       html += renderStoriesRow(me);
       html += renderWallComposer();
@@ -20056,8 +20065,8 @@
       }
       else if (activeView === 'chrono') body = renderChronoTab();
       else if (activeView === 'planning') body = '<button type="button" class="link-btn back-link" data-view="chrono">‹ ' + L('Chrono', 'Lap times') + '</button>' + renderTimesheetReminder() + renderPlanningTab();
-      else if (activeView === 'social') body = renderSubNav(communauteSubItems()) + renderSocialTab();
-      else if (activeView === 'team') body = renderSubNav(communauteSubItems()) + renderTeamTab();
+      else if (activeView === 'social') body = renderCommunauteNav() + renderSocialTab();
+      else if (activeView === 'team') body = renderCommunauteNav() + renderTeamTab();
       else if (activeView === 'coach') body = carnetSub + renderCoachTab();
       else body = carnetSub + carnetPillsHtml(myOutings()) + renderEventTab(); // 'event' (Carnet › Roulages › Calendrier) and safety fallback
       // Big section title so it's always clear which main tab you're in.
