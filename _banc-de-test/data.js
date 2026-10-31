@@ -47,7 +47,7 @@
     },
     teams: { t1: { id: 't1', name: 'Team Piste', leader: 'Alex', pro: false, slogan: 'On roule ensemble', look: /look=1/.test(location.hash) ? { cover: 'trace', color: '#c8261f', bio: 'On roule ensemble' } : undefined }, t2: { id: 't2', name: 'Mototeam95', teamPro: true } },
     teamMembers: /noteam=1/.test(location.hash) ? { m2: { teamId: 't1', name: 'Sam', role: 'membre' } } : { m1: { teamId: 't1', name: 'Alex', role: 'leader' }, m2: { teamId: 't1', name: 'Sam', role: 'membre' } },
-    feedEvents: {},
+    feedEvents: { fe1: { id: 'fe1', type: 'record', actor: 'Alex', circuit: 'Mugello', time: 113.6, createdAt: Date.now() - 2 * 3600e3 } },
     // Réseau : un message public de Luca (pas encore ami), un de Sam (ami),
     // et deux abonnés d'Alex.
     wallPosts: {

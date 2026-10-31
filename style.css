@@ -4095,3 +4095,6 @@ span.social-count { cursor: default; }
 .story-ring-add { overflow: visible; }
 .story-ring-add img { transform: scale(1); background: #fff; }
 .story-ring-add { background: conic-gradient(var(--border), var(--border)); }
+/* Nouveau record : avatar, nom et circuit bien espacés */
+.feed-record-line { display: flex; align-items: center; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.2rem; }
+.feed-record-line .mini-avatar { flex: 0 0 auto; margin: 0; }
