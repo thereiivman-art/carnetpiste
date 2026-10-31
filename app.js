@@ -17715,6 +17715,40 @@
     }
     show();
   }
+  // ---- Zoom sur une photo (profil) : plein écran, pincer pour zoomer,
+  // double-toucher pour agrandir / revenir, glisser pour se déplacer.
+  function openPhotoZoom(src) {
+    var ov = document.createElement('div');
+    ov.className = 'photo-zoom';
+    ov.innerHTML = '<button type="button" class="photo-zoom-close" aria-label="' + escapeHtml(L('Fermer', 'Close')) + '">✕</button><img src="' + escapeHtml(src) + '" alt="">';
+    document.body.appendChild(ov);
+    var img = ov.querySelector('img'), scale = 1, tx = 0, ty = 0, start = null, lastTap = 0;
+    function apply() { img.style.transform = 'translate(' + tx + 'px,' + ty + 'px) scale(' + scale + ')'; }
+    function close() { if (ov.parentNode) ov.parentNode.removeChild(ov); }
+    ov.querySelector('.photo-zoom-close').addEventListener('click', close);
+    ov.addEventListener('click', function (e) { if (e.target === ov) close(); });
+    var dist = function (t) { return Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY); };
+    img.addEventListener('touchstart', function (e) {
+      if (e.touches.length === 2) start = { d: dist(e.touches), s: scale };
+      else if (e.touches.length === 1) {
+        var now = Date.now();
+        if (now - lastTap < 300) { scale = scale > 1 ? 1 : 2.5; tx = ty = 0; apply(); }
+        lastTap = now;
+        start = { x: e.touches[0].clientX - tx, y: e.touches[0].clientY - ty };
+      }
+    }, { passive: true });
+    img.addEventListener('touchmove', function (e) {
+      if (!start) return;
+      e.preventDefault();
+      if (e.touches.length === 2 && start.d) { scale = Math.min(5, Math.max(1, start.s * dist(e.touches) / start.d)); if (scale === 1) { tx = ty = 0; } }
+      else if (e.touches.length === 1 && start.x != null && scale > 1) { tx = e.touches[0].clientX - start.x; ty = e.touches[0].clientY - start.y; }
+      apply();
+    }, { passive: false });
+    img.addEventListener('touchend', function () { start = null; });
+    // Souris / ordinateur : molette pour zoomer, double-clic pour basculer.
+    img.addEventListener('wheel', function (e) { e.preventDefault(); scale = Math.min(5, Math.max(1, scale * (e.deltaY < 0 ? 1.15 : 0.87))); if (scale === 1) tx = ty = 0; apply(); }, { passive: false });
+    img.addEventListener('dblclick', function () { scale = scale > 1 ? 1 : 2.5; tx = ty = 0; apply(); });
+  }
   // ---- Audience : vues des publications et visites du profil ----
   // Une vue = un lecteur (pas l'auteur) qui a eu la publication à l'écran
   // au moins une seconde ; comptée une fois par lecteur et par jour
@@ -21469,6 +21503,13 @@
           e.preventDefault(); e.stopPropagation();
           expandedTeamId = tl.getAttribute('data-team-link'); managingEventId = null; teamMemberSearch = ''; activeView = 'team'; personView = null;
           renderRoot(); window.scrollTo(0, 0);
+          return;
+        }
+        // Sur une fiche, la photo de profil s'agrandit (zoom) au lieu de rouvrir la fiche.
+        var big = e.target.closest('.person-avatar .mini-avatar, .profile-avatar');
+        if (big) {
+          var im = big.querySelector('img');
+          if (im && im.getAttribute('src')) { e.preventDefault(); e.stopPropagation(); openPhotoZoom(im.getAttribute('src')); }
           return;
         }
         var a = e.target.closest('.mini-avatar[data-person]');
