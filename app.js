@@ -17400,8 +17400,7 @@
     names.forEach(function (n) { var e = REACTION_EMOJIS.indexOf(reactions[n]) !== -1 ? reactions[n] : '👍'; counts[e] = (counts[e] || 0) + 1; });
     var top = Object.keys(counts).sort(function (a, b) { return counts[b] - counts[a]; }).slice(0, 3).join('');
     return '<div class="reaction-bar"><button type="button" class="reaction-btn reaction-open' + (mine ? ' active' : '') + '"' + (names.length ? ' title="' + escapeHtml(names.join(', ')) + '"' : '') + '>' +
-      (mine ? '<span class="reaction-mine">' + (REACTION_EMOJIS.indexOf(mine) !== -1 ? mine : '👍') + '</span> ' : '') + L('Réagir', 'React') + '</button>' +
-      (names.length ? '<span class="reaction-summary">' + top + ' ' + names.length + '</span>' : '') +
+      (names.length ? '<span class="reaction-top">' + top + '</span> ' + names.length : L('Réagir', 'React')) + '</button>' +
       '<div class="reaction-picker" hidden>' + REACTION_EMOJIS.map(function (e) {
         return '<button type="button" class="reaction-pick' + (mine === e ? ' active' : '') + '" data-action="' + dataAction + '" data-id="' + escapeHtml(id) + '" data-emoji="' + e + '" aria-label="' + e + '">' + e + '</button>';
       }).join('') + '</div></div>';
@@ -17448,7 +17447,7 @@
       text = '<span class="feed-record-label">Nouveau record</span><span class="feed-record-line">' + avatarHtml(eu, e.actor) + ' ' + personLinkHtml(e.actor) + ' · ' + cName(e.circuit) + '</span>';
       return '<div class="feed-entry feed-entry-record"><div class="feed-entry-row"><span class="outing-thumb feed-ride-thumb" data-open-circuit="' + escapeHtml(e.circuit) + '">' + circuitThumbHtml(e.circuit) + '</span><span class="feed-entry-text">' + text + '</span>' +
         '<span class="feed-record-time">' + formatTime(e.time) + '</span></div>' +
-        '<div class="feed-entry-foot">' + renderReactionBar(e.reactions, 'react-feed-event', e.id) + '<span class="feed-entry-time">' + escapeHtml(relativeTime(e.createdAt)) + '</span></div></div>';
+        '<div class="feed-entry-foot">' + (inFeedRow ? '' : renderReactionBar(e.reactions, 'react-feed-event', e.id)) + '<span class="feed-entry-time">' + escapeHtml(relativeTime(e.createdAt)) + '</span></div></div>';
     } else {
       return '';
     }
@@ -17644,18 +17643,19 @@
     show();
   }
   // ---- Commentaires des messages ----
-  var commentsOpen = {};
+  var commentsOpen = {}, commentsAll = {};
   function renderPostComments(p) {
+    if (!commentsOpen[p.id]) return '';
     var list = (STATE.postComments || []).filter(function (c) { return c.postId === p.id; }).sort(function (a, b) { return (a.createdAt || 0) - (b.createdAt || 0); });
-    var shown = commentsOpen[p.id] ? list : list.slice(-2);
+    var shown = commentsAll[p.id] ? list : list.slice(0, 1);
     var me = currentUserProfile && currentUserProfile.name;
     var html = '<div class="post-comments">';
-    if (list.length > shown.length) html += '<button type="button" class="link-btn comments-more" data-action="comments-more" data-id="' + escapeHtml(p.id) + '">' + L('Voir les ' + list.length + ' commentaires', 'See all ' + list.length + ' comments') + '</button>';
     html += shown.map(function (c) {
       var u = (STATE.usersByName || {})[c.author] || {};
       return '<div class="post-comment">' + avatarHtml(u, c.author) + '<div class="post-comment-bubble"><button type="button" class="post-comment-author" data-open-person="' + escapeHtml(c.author) + '">' + escapeHtml(c.author) + '</button> ' + escapeHtml(c.text) +
         '<span class="post-comment-time">' + escapeHtml(relativeTime(c.createdAt)) + (c.author === me ? ' · <button type="button" class="link-btn" data-action="delete-comment" data-id="' + escapeHtml(c.id) + '">' + L('Supprimer', 'Delete') + '</button>' : '') + '</span></div></div>';
     }).join('');
+    if (list.length > shown.length) html += '<button type="button" class="link-btn comments-more" data-action="comments-more" data-id="' + escapeHtml(p.id) + '">' + (list.length - shown.length > 1 ? L('Voir les ' + (list.length - shown.length) + ' autres commentaires', 'See ' + (list.length - shown.length) + ' more comments') : L('Voir l\'autre commentaire', 'See 1 more comment')) + '</button>';
     if (me) html += '<form class="post-comment-form" data-action="comment-form" data-id="' + escapeHtml(p.id) + '"><input type="text" maxlength="500" placeholder="' + escapeHtml(L('Écrire un commentaire…', 'Write a comment…')) + '" data-comment-text><button type="submit" class="ghost">' + L('Envoyer', 'Send') + '</button></form>';
     return html + '</div>';
   }
@@ -17665,7 +17665,7 @@
     if (!me || !text) return;
     var id = genId(), doc = { id: id, postId: postId, author: me.name, authorUid: myUid(), text: text, createdAt: Date.now() };
     STATE.postComments = [doc].concat(STATE.postComments || []);
-    commentsOpen[postId] = commentsOpen[postId] || false;
+    commentsOpen[postId] = true; commentsAll[postId] = true;
     renderRoot();
     db.collection('postComments').doc(id).set(doc).catch(function (err) { showToast(tr('error_prefix') + ((err && err.message) || err)); });
   }
@@ -17787,9 +17787,9 @@
     if (p.photoURL) html += '<img class="wall-post-photo" src="' + escapeHtml(p.photoURL) + '" alt="">';
     if (p.repostOf) html += renderRepostBox(p.repostOf);
     var nRep = repostCount(p.repostOf ? p.repostOf.id : p.id), mine = currentUserProfile && (p.repostOf ? p.repostOf.author : p.author) === currentUserProfile.name;
-    var repostBtn = mine ? (nRep ? '<span class="repost-count">' + plural(nRep, L('republication', 'repost'), L('republications', 'reposts')) + '</span>' : '')
-      : '<button type="button" class="ghost repost-btn" data-action="repost" data-id="' + escapeHtml(p.id) + '"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 2l4 4-4 4"/><path d="M3 11V9a3 3 0 0 1 3-3h15"/><path d="M7 22l-4-4 4-4"/><path d="M21 13v2a3 3 0 0 1-3 3H3"/></svg> ' + L('Republier', 'Repost') + (nRep ? ' · ' + nRep : '') + '</button>';
-    html += '<div class="feed-entry-foot">' + renderReactionBar(p.reactions, 'react-wall-post', p.id) + repostBtn + postEditLinks('wall-post-edit', 'delete-wall-post', p.id, canEdit && !p.repostOf, canEdit) + '</div>';
+    var repostBtn = mine ? '<span class="repost-count">' + (nRep ? plural(nRep, L('republication', 'repost'), L('republications', 'reposts')) : '') + '</span>'
+      : '<button type="button" class="ghost repost-btn" data-action="repost" data-id="' + escapeHtml(p.id) + '"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 2l4 4-4 4"/><path d="M3 11V9a3 3 0 0 1 3-3h15"/><path d="M7 22l-4-4 4-4"/><path d="M21 13v2a3 3 0 0 1-3 3H3"/></svg> ' + (nRep ? nRep : L('Republier', 'Repost')) + '</button>';
+    html += '<div class="feed-entry-foot social-row">' + renderReactionBar(p.reactions, 'react-wall-post', p.id) + commentToggleHtml(p.id) + repostBtn + postEditLinks('wall-post-edit', 'delete-wall-post', p.id, canEdit && !p.repostOf, canEdit) + '</div>';
     html += renderPostComments(p);
     html += '</div>';
     return html;
@@ -17880,10 +17880,11 @@
       : visible.map(function (it) {
         var inner;
         var d = it.data;
+        inFeedRow = true;
         if (it.kind === 'wall') inner = renderWallPost(d);
         else if (it.kind === 'activity') {
           inner = renderFeedEntry(d);
-          if (inner) inner += feedSocialFooter(d.id, '', (d.type === 'record' ? { kind: 'ride', rider: d.actor, circuit: d.circuit, date: d.createdAt ? dateKey(new Date(d.createdAt)) : dateKey(new Date()), best: d.time, summary: L('Nouveau record', 'New record'), createdAt: d.createdAt } : { kind: 'text', author: d.actor, text: '', createdAt: d.createdAt }), null);
+          if (inner) inner += feedSocialFooter(d.id, '', (d.type === 'record' ? { kind: 'ride', rider: d.actor, circuit: d.circuit, date: d.createdAt ? dateKey(new Date(d.createdAt)) : dateKey(new Date()), best: d.time, summary: L('Nouveau record', 'New record'), createdAt: d.createdAt } : { kind: 'text', author: d.actor, text: '', createdAt: d.createdAt }), d.reactions || {}, 'react-feed-event');
         } else if (it.kind === 'ride') {
           inner = renderFeedRide(d) + feedSocialFooter(d.key, '', { kind: 'ride', rider: d.rider, circuit: d.circuit, date: d.date, best: d.best, summary: plural(d.laps, L('tour', 'lap'), L('tours', 'laps')), createdAt: d.createdAt });
         } else if (it.kind === 'recap') {
@@ -17893,8 +17894,9 @@
           inner = renderFeedPhotos(d) + feedSocialFooter(d.key, '', { kind: 'text', author: d.rider, text: L('Photos du roulage à ', 'Trackday photos at ') + d.ev.circuit, linkUrl: d.url, createdAt: d.createdAt });
         } else {
           var t = teamById(it.teamId); inner = renderTeamFeedEntry(d, me, t ? t.name : null);
-          if (inner) inner += feedSocialFooter(d.id, d.author, { kind: 'text', author: d.author, text: d.text || d.question || '', linkUrl: d.linkUrl || '', createdAt: d.createdAt }, null);
+          if (inner) inner += feedSocialFooter(d.id, d.author, { kind: 'text', author: d.author, text: d.text || d.question || '', linkUrl: d.linkUrl || '', createdAt: d.createdAt }, d.reactions || {}, 'react-team-post');
         }
+        inFeedRow = false;
         if (!inner) return '';
         var h = feedDayHeader(it.createdAt), head = '';
         if (h !== lastHeader) { head = h === 'Plus tôt' ? '' : '<div class="feed-day">' + h + '</div>'; lastHeader = h; }
@@ -18060,21 +18062,30 @@
   }
   function repostButtonHtml(key, ownerName, action) {
     var n = repostCount(key);
-    if (currentUserProfile && ownerName === currentUserProfile.name) return n ? '<span class="repost-count">' + plural(n, L('republication', 'repost'), L('republications', 'reposts')) + '</span>' : '';
-    return '<button type="button" class="ghost repost-btn" data-action="' + (action || 'repost-item') + '" data-id="' + escapeHtml(key) + '"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 2l4 4-4 4"/><path d="M3 11V9a3 3 0 0 1 3-3h15"/><path d="M7 22l-4-4 4-4"/><path d="M21 13v2a3 3 0 0 1-3 3H3"/></svg> ' + L('Republier', 'Repost') + (n ? ' · ' + n : '') + '</button>';
+    if (currentUserProfile && ownerName === currentUserProfile.name) return '<span class="repost-count">' + (n ? plural(n, L('republication', 'repost'), L('republications', 'reposts')) : '') + '</span>';
+    return '<button type="button" class="ghost repost-btn" data-action="' + (action || 'repost-item') + '" data-id="' + escapeHtml(key) + '"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 2l4 4-4 4"/><path d="M3 11V9a3 3 0 0 1 3-3h15"/><path d="M7 22l-4-4 4-4"/><path d="M21 13v2a3 3 0 0 1-3 3H3"/></svg> ' + (n ? n : L('Republier', 'Repost')) + '</button>';
   }
   // Pied commun : réagir, republier, commentaires.
-  function feedSocialFooter(key, ownerName, snap, reactions, reactAction) {
-    repostSnapshots[key] = snap;
-    var bar = reactions === null ? '' : renderReactionBar(reactions || itemReactions(key), reactAction || 'react-item', key);
-    return '<div class="feed-entry-foot">' + bar + repostButtonHtml(key, ownerName) + '</div>' + renderPostComments({ id: key });
+  // Toujours la même ligne, au même endroit : Réagir · Commentaires ·
+  // Republier ; les commentaires restent repliés jusqu'au clic.
+  var inFeedRow = false;
+  function feedSocialFooter(key, ownerName, snap, reactions, reactAction, extraHtml) {
+    if (snap) repostSnapshots[key] = snap;
+    var bar = renderReactionBar(reactions || itemReactions(key), reactAction || 'react-item', key);
+    return '<div class="feed-entry-foot social-row">' + bar + commentToggleHtml(key) + (snap === false ? '' : repostButtonHtml(key, ownerName)) + (extraHtml || '') + '</div>' + renderPostComments({ id: key });
+  }
+  function commentCount(key) { return (STATE.postComments || []).filter(function (c) { return c.postId === key; }).length; }
+  function commentToggleHtml(key) {
+    var n = commentCount(key), open = !!commentsOpen[key];
+    return '<button type="button" class="ghost comment-btn' + (open ? ' active' : '') + '" data-action="comments-toggle" data-id="' + escapeHtml(key) + '"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.8 7L4 20l1.1-4.4A8 8 0 1 1 21 12z"/></svg> ' +
+      (n ? n : L('Commenter', 'Comment')) + '</button>';
   }
   // Une carte automatique (classement, circuit du moment) avec son bouton
   // Republier glissé avant sa fermeture.
   function withRepost(cardHtml, key, snapFn) {
     if (!cardHtml) return '';
     repostSnapshots[key] = snapFn();
-    return cardHtml.replace(/<\/div>$/, '<div class="feed-entry-foot">' + repostButtonHtml(key, '') + '</div></div>');
+    return cardHtml.replace(/<\/div>$/, feedSocialFooter(key, '', null) + '</div>');
   }
   function renderRepostBox(o) {
     var who = o.author || o.rider || '', ou = (STATE.usersByName || {})[who] || {};
@@ -18257,7 +18268,8 @@
     if (f.text) html += '<div class="wall-post-text">' + escapeHtml(f.text) + '</div>';
     if (f.linkUrl) html += postLinkHtml(f.linkUrl);
     if (f.photoURL) html += '<img class="wall-post-photo" src="' + escapeHtml(f.photoURL) + '" alt="">';
-    html += '<div class="feed-entry-foot">' + renderReactionBar(f.reactions, 'react-team-post', f.id) + postEditLinks('team-post-edit', 'team-post-delete', f.id, canEdit, canDelete) + '</div>';
+    html += inFeedRow ? (canEdit || canDelete ? '<div class="feed-entry-foot">' + postEditLinks('team-post-edit', 'team-post-delete', f.id, canEdit, canDelete) + '</div>' : '')
+      : '<div class="feed-entry-foot">' + renderReactionBar(f.reactions, 'react-team-post', f.id) + postEditLinks('team-post-edit', 'team-post-delete', f.id, canEdit, canDelete) + '</div>';
     html += '</div>';
     return html;
   }
@@ -21175,7 +21187,15 @@
       btn.addEventListener('click', function () { pillState.suivislist = 'recues'; renderRoot(); });
     });
     document.querySelectorAll('[data-action="comments-more"]').forEach(function (btn) {
-      btn.addEventListener('click', function () { commentsOpen[btn.getAttribute('data-id')] = true; renderRoot(); });
+      btn.addEventListener('click', function () { commentsAll[btn.getAttribute('data-id')] = true; renderRoot(); });
+    });
+    document.querySelectorAll('[data-action="comments-toggle"]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var id = btn.getAttribute('data-id');
+        commentsOpen[id] = !commentsOpen[id];
+        renderRoot();
+        if (commentsOpen[id] && !commentCount(id)) setTimeout(function () { var f = document.querySelector('form[data-action="comment-form"][data-id="' + id.replace(/"/g, '\\"') + '"] input'); if (f) f.focus(); }, 0);
+      });
     });
     document.querySelectorAll('form[data-action="comment-form"]').forEach(function (f) {
       f.addEventListener('submit', function (evt) { evt.preventDefault(); addComment(f.getAttribute('data-id'), f.querySelector('[data-comment-text]').value); });

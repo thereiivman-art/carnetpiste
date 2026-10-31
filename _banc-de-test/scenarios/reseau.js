@@ -27,7 +27,12 @@ const { chromium, BASE } = require('../lib');
   const rp = await p.$('.feed-card:has(.feed-ride) [data-action="repost-item"]');
   if (rp) { await rp.click(); await p.waitForTimeout(400); }
   console.log('republié:', JSON.stringify(await p.evaluate(() => Object.values(window.__MOCK_DATA.wallPosts).filter(w => w.author === 'Alex' && w.repostOf).map(w => [w.repostOf.kind, w.repostOf.circuit]))));
-  // Commenter un message
+  // Commentaires repliés : « Voir les commentaires · 1 » puis le premier seulement
+  console.log('ligne d\'actions:', await p.$$eval('.feed-card', e => e.map(c => [...c.querySelectorAll('.social-row > *')].map(x => x.className.split(' ').find(k => /reaction-bar|comment-btn|repost-btn|repost-count|post-edit-links/.test(k)) || '').filter(Boolean).join(',')).slice(0, 4).join(' | ')));
+  console.log('commentaires visibles au départ:', await p.$$eval('.post-comment', e => e.length));
+  const tg = await p.$('[data-action="comments-toggle"]:has-text("1")');
+  if (tg) { await tg.click(); await p.waitForTimeout(300); }
+  console.log('après « voir »:', await p.$$eval('.post-comment', e => e.length), '| bouton:', await p.$eval('[data-action="comments-toggle"].active', e => e.innerText).catch(() => '?'));
   const form = await p.$('form[data-action="comment-form"]');
   if (form) { await form.$eval('[data-comment-text]', e => e.value = 'Je prends ma place !'); await form.$eval('button', e => e.click()); await p.waitForTimeout(400); }
   console.log('commentaire:', await p.evaluate(() => Object.values(window.__MOCK_DATA.postComments || {}).filter(c => c.author === 'Alex').length));

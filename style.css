@@ -4036,3 +4036,29 @@ span.social-count { cursor: default; }
 .name-link:hover, .name-link:active { text-decoration: underline; }
 .feed-month-title { display: block; font-family: var(--font-display); font-style: italic; font-size: 1.25rem; margin: 0.1rem 0; }
 .feed-record-line .mini-avatar { width: 1.5rem; height: 1.5rem; font-size: 0.7rem; vertical-align: middle; }
+/* Ligne d'actions identique sur tous les posts : Réagir · Commentaires · Republier */
+.feed-entry-foot.social-row { display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; margin-top: 0.6rem; }
+.social-row .reaction-bar { order: 1; }
+.social-row .comment-btn { order: 2; }
+.social-row .repost-btn, .social-row .repost-count { order: 3; }
+.social-row .post-edit-links { order: 4; margin-left: auto; }
+.comment-btn { display: inline-flex; align-items: center; gap: 0.3rem; border-radius: 999px; padding: 0.3rem 0.8rem; font-size: 0.85rem; font-weight: 700; }
+.comment-btn.active { background: var(--surface-alt); }
+.feed-entry-foot.social-row { flex-wrap: nowrap; justify-content: flex-start; gap: 0.3rem; }
+.social-row > * { flex: 0 1 auto; min-width: 0; }
+.social-row .reaction-btn, .social-row .comment-btn, .social-row .repost-btn { padding: 0.3rem 0.6rem; font-size: 0.8rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.social-row .reaction-summary { font-size: 0.78rem; white-space: nowrap; }
+.social-row .post-edit-links { flex: 0 0 auto; }
+.social-row .post-edit-links .link-btn { font-size: 0.78rem; }
+/* Trois boutons égaux : Réagir · Commenter · Republier, toujours au même endroit */
+.feed-entry-foot.social-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.35rem; }
+.social-row .reaction-bar { grid-column: 1; display: block; }
+.social-row .comment-btn { grid-column: 2; }
+.social-row .repost-btn, .social-row .repost-count { grid-column: 3; }
+.social-row .reaction-btn, .social-row .comment-btn, .social-row .repost-btn { width: 100%; justify-content: center; display: inline-flex; align-items: center; gap: 0.3rem; padding: 0.4rem 0.3rem; font-size: 0.82rem; overflow: visible; text-overflow: clip; }
+.social-row .repost-count { align-self: center; text-align: center; font-size: 0.75rem; }
+.social-row .post-edit-links { grid-column: 1 / -1; justify-self: end; margin: 0; }
+.reaction-top { letter-spacing: -0.1em; }
+.social-row .reaction-bar { width: 100%; }
+.social-row .reaction-bar .reaction-btn { width: 100% !important; margin: 0; }
+.social-row svg { flex: 0 0 auto; }
