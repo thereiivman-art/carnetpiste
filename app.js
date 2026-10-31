@@ -17227,9 +17227,14 @@
       html += '<div class="card"><div class="empty-state">' + escapeHtml(L('Ajoute ' + name + ' en ami pour voir ses roulages, ses records et ses trophées, et vous comparer.', 'Add ' + name + ' as a friend to see their trackdays, records and trophies, and compare.')) + '</div></div>';
       return html + '</div>';
     }
-    if (isPilote && (isMe || u.shareSorties !== false)) {
-      html += renderPills('person', [['fiche', L('Fiche', 'Profile')], ['saisons', L('Saisons', 'Seasons')]]);
+    var withFeed = isMe && socialProfileCtx;
+    if ((isPilote && (isMe || u.shareSorties !== false)) || withFeed) {
+      var personPills = [['fiche', L('Fiche', 'Profile')]];
+      if (isPilote && (isMe || u.shareSorties !== false)) personPills.push(['saisons', L('Saisons', 'Seasons')]);
+      if (withFeed) personPills.push(['monfil', L('Mon fil', 'My feed')]);
+      html += renderPills('person', personPills);
       if (pillState.person === 'saisons') return html + renderRiderSeasons(name, look, isMe) + '</div>';
+      if (pillState.person === 'monfil' && withFeed) return html + renderMyFeedTab(u) + '</div>';
     }
     if (isPilote && u.shareSorties !== false) {
       var stats = riderStats(name);
@@ -17556,9 +17561,9 @@
   // mes publications.
   function renderSocialProfile(me) {
     var saved = personView, savedView = activeView;
-    personView = { name: me.name, from: 'social' }; activeView = 'person';
+    personView = { name: me.name, from: 'social' }; activeView = 'person'; socialProfileCtx = true;
     var fiche = renderPersonPage();
-    personView = saved; activeView = savedView;
+    personView = saved; activeView = savedView; socialProfileCtx = false;
     fiche = fiche.replace(/<button type="button" class="back-chevron"[^>]*>‹<\/button>/, '');
     // Juste sous l'en-tête (et ses compteurs) : demandes d'ami et pilotes
     // à suivre, avant le reste de la fiche.
@@ -17568,9 +17573,15 @@
     if (sugs.length) extra += '<div class="card"><div class="feed-sug-head"><strong>' + L('Des pilotes à suivre', 'Riders to follow') + '</strong><button type="button" class="link-btn" data-action="open-social" data-list="suggestions">' + L('Tout voir', 'See all') + '</button></div><div class="follow-cards">' + sugs.map(renderFollowCard).join('') + '</div></div>';
     var ci = fiche.indexOf('<div class="social-counts">'), ce = ci === -1 ? -1 : fiche.indexOf('</div>', ci) + 6;
     var html = ce > 5 ? fiche.slice(0, ce) + extra + fiche.slice(ce) : extra + fiche;
-    html += renderWallComposer();
+    return html;
+  }
+  // Profil › Mon fil : publier, puis mes publications et republications.
+  var socialProfileCtx = false;
+  function renderMyFeedTab(me) {
+    var html = renderWallComposer();
     var mine = (STATE.wallPosts || []).filter(function (p) { return p.author === me.name; });
-    html += '<h2 class="section-title feed-section-title">' + L('Mes publications', 'My posts') + (mine.length ? ' (' + mine.length + ')' : '') + '</h2>';
+    var own = mine.filter(function (p) { return !p.repostOf; }).length, rep = mine.length - own;
+    html += '<h2 class="section-title feed-section-title">' + L('Mes publications', 'My posts') + (own ? ' (' + own + ')' : '') + (rep ? ' · ' + plural(rep, L('republication', 'repost'), L('republications', 'reposts')) : '') + '</h2>';
     html += mine.length ? mine.map(function (p) { return '<div class="card feed-card">' + renderWallPost(p) + '</div>'; }).join('')
       : '<div class="card help-text">' + L('Partage ton dernier roulage, une photo de la moto, une question : tes abonnés le verront dans leur fil.', 'Share your last trackday, a bike photo, a question: your followers will see it in their feed.') + '</div>';
     return html;
@@ -17873,14 +17884,14 @@
         if (it.kind === 'wall') inner = renderWallPost(d);
         else if (it.kind === 'activity') {
           inner = renderFeedEntry(d);
-          if (inner) inner += feedSocialFooter(d.id, d.actor, { kind: 'text', author: d.actor, text: d.type === 'record' ? L('Nouveau record à ', 'New record at ') + d.circuit + ' : ' + formatTime(d.time) : '', createdAt: d.createdAt }, null);
+          if (inner) inner += feedSocialFooter(d.id, '', (d.type === 'record' ? { kind: 'ride', rider: d.actor, circuit: d.circuit, date: d.createdAt ? dateKey(new Date(d.createdAt)) : dateKey(new Date()), best: d.time, summary: L('Nouveau record', 'New record'), createdAt: d.createdAt } : { kind: 'text', author: d.actor, text: '', createdAt: d.createdAt }), null);
         } else if (it.kind === 'ride') {
-          inner = renderFeedRide(d) + feedSocialFooter(d.key, d.rider, { kind: 'ride', rider: d.rider, circuit: d.circuit, date: d.date, best: d.best, summary: plural(d.laps, L('tour', 'lap'), L('tours', 'laps')), createdAt: d.createdAt });
+          inner = renderFeedRide(d) + feedSocialFooter(d.key, '', { kind: 'ride', rider: d.rider, circuit: d.circuit, date: d.date, best: d.best, summary: plural(d.laps, L('tour', 'lap'), L('tours', 'laps')), createdAt: d.createdAt });
         } else if (it.kind === 'recap') {
           var rk = 'recap:' + circuitKey(d.circuit) + '|' + d.dates.join(',');
           inner = renderFeedRecap(d) + feedSocialFooter(rk, '', { kind: 'recap', author: d.rows[0].rider, circuit: d.circuit, date: d.date, best: d.rows[0].best, summary: d.rows.slice(0, 3).map(function (x) { return x.rider; }).join(', '), createdAt: it.createdAt });
         } else if (it.kind === 'photos') {
-          inner = renderFeedPhotos(d) + feedSocialFooter(d.key, d.rider, { kind: 'text', author: d.rider, text: L('Photos du roulage à ', 'Trackday photos at ') + d.ev.circuit, linkUrl: d.url, createdAt: d.createdAt });
+          inner = renderFeedPhotos(d) + feedSocialFooter(d.key, '', { kind: 'text', author: d.rider, text: L('Photos du roulage à ', 'Trackday photos at ') + d.ev.circuit, linkUrl: d.url, createdAt: d.createdAt });
         } else {
           var t = teamById(it.teamId); inner = renderTeamFeedEntry(d, me, t ? t.name : null);
           if (inner) inner += feedSocialFooter(d.id, d.author, { kind: 'text', author: d.author, text: d.text || d.question || '', linkUrl: d.linkUrl || '', createdAt: d.createdAt }, null);
@@ -17892,7 +17903,13 @@
         if (it.kind === 'activity' && it.data.type === 'friend') return head + '<div class="feed-line">' + inner + '</div>';
         return head + '<div class="card feed-card">' + inner + '</div>';
       }).join('') + (items.length > visible.length ? '<div id="wall-feed-sentinel" class="empty-inline">' + tr('loading') + '</div>' : '');
-    return renderFeedUpcoming() + renderMonthRanking() + renderCircuitMoment() + body;
+    return renderFeedUpcoming() + withRepost(renderMonthRanking(), 'month:' + dateKey(new Date()).slice(0, 7), function () {
+      var rows = monthProgressRanking().slice(0, 3);
+      return { kind: 'text', author: me.name, text: L('Classement du mois : ', 'This month\'s ranking: ') + rows.map(function (r, i) { return (i + 1) + '. ' + r.rider + ' −' + formatGap(r.gain) + ' (' + r.circuit + ')'; }).join(' · '), createdAt: Date.now() };
+    }) + withRepost(renderCircuitMoment(), 'moment:' + (circuitOfTheMoment() || {}).circuit, function () {
+      var c = circuitOfTheMoment();
+      return { kind: 'ride', rider: c.bestBy, circuit: c.circuit, date: dateKey(new Date()), best: c.best, summary: L('Le circuit du moment · ', 'Circuit of the moment · ') + c.n + L(' potes', ' friends'), createdAt: Date.now() };
+    }) + body;
   }
   // Duel / palier / record lines under a ride.
   // In a recap, a duel between two riders of its own ranking is already
@@ -18052,6 +18069,13 @@
     repostSnapshots[key] = snap;
     var bar = reactions === null ? '' : renderReactionBar(reactions || itemReactions(key), reactAction || 'react-item', key);
     return '<div class="feed-entry-foot">' + bar + repostButtonHtml(key, ownerName) + '</div>' + renderPostComments({ id: key });
+  }
+  // Une carte automatique (classement, circuit du moment) avec son bouton
+  // Republier glissé avant sa fermeture.
+  function withRepost(cardHtml, key, snapFn) {
+    if (!cardHtml) return '';
+    repostSnapshots[key] = snapFn();
+    return cardHtml.replace(/<\/div>$/, '<div class="feed-entry-foot">' + repostButtonHtml(key, '') + '</div></div>');
   }
   function renderRepostBox(o) {
     var who = o.author || o.rider || '', ou = (STATE.usersByName || {})[who] || {};
