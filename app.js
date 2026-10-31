@@ -119,7 +119,7 @@
       visibility_label: 'Visibilité', vis_public_full: 'Public (visible par tous, invitation requise)', vis_ouvert_full: 'Ouvert (inscription libre)',
       teampro_only_help: 'Réservé aux Teams PRO – un team amateur reste visible par ses membres et les pilotes invités.',
       booking_url_label: 'Lien de réservation (optionnel)',
-      booking_url_help: 'Carnet de Piste ne gère pas les paiements – ce lien renvoie vers ta billetterie (Billetweb ou autre) pour l\'inscription/le paiement.',
+      booking_url_help: 'Carnet Piste ne gère pas les paiements – ce lien renvoie vers ta billetterie (Billetweb ou autre) pour l\'inscription/le paiement.',
       more_options_less: '− Moins d\'options', more_options_more: '+ Plus d\'options (horaires, pilotes, organisateur...)',
       horaires_this_event_label: 'Horaires par groupe (ce roulage – laisser vide pour utiliser les horaires habituels du circuit)',
       organizer_note_label: 'Organisateur (si absent de l\'app)', riders_label: 'Pilotes',
@@ -277,7 +277,7 @@
       role_info_organisateur_3: 'Partager un lien photos/vidéos après le roulage',
       role_info_organisateur_4: 'Suivre des pilotes et être notifié de leurs départs, comme un accompagnant',
       role_info_organisateur_5: 'Si tu es aussi Team Leader d\'un team : gérer ses membres, son fil d\'actualité, ses roulages et certifier les chronos de tes pilotes',
-      carnet_helps_you: 'Carnet de Piste t\'aide à :',
+      carnet_helps_you: 'Carnet Piste t\'aide à :',
       pseudo_label: 'Pseudo', rename_limit_prefix: '1 changement de pseudo par mois – possible à nouveau le ',
       rename_warning: '⚠ Renommer va changer ton identité partout dans l\'app (chronos, roulages, teams, coaching, amis...).',
       edit_pseudo_btn: 'Modifier le pseudo', firstname_label: 'Prénom', lastname_label: 'Nom',
@@ -285,14 +285,14 @@
       my_bike_label: 'Ma moto', bike_suggested_help: 'Suggérée automatiquement quand tu entres un chrono.',
       bike_number_label: 'N° de moto', bike_number_help: '1 à 3 chiffres.',
       chrono_app_link_label: 'Lien vers ton appli de chrono (optionnel)',
-      chrono_app_link_help: 'Carnet de Piste reste déclaratif – ce lien renvoie vers ton appli de chrono officielle (Superlaps ou autre) si tu en utilises une.',
+      chrono_app_link_help: 'Carnet Piste reste déclaratif – ce lien renvoie vers ton appli de chrono officielle (Superlaps ou autre) si tu en utilises une.',
       followed_riders_label: 'Pilotes que je suis', no_rider_registered: 'Aucun pilote enregistré pour l\'instant.',
       close_label: 'Fermer',
       my_badges_admin_heading: 'Mes badges (admin)',
       my_badges_admin_help: 'Pour tout autre compte, ces badges se gèrent depuis Gestion des comptes.',
       // Aide / Suggestion tabs
       about_heading: 'À propos',
-      about_text: 'Carnet de Piste, c\'est ton carnet de pilote : avant le roulage (prépa, horaires, repères), pendant (jour J, chronos en direct de l\'orga), après (chronos, progression, partage). Il complète l\'appli de ton organisateur, il ne la remplace pas : la réservation, le paiement et le chronométrage officiel restent chez lui.',
+      about_text: 'Carnet Piste, c\'est ton carnet de pilote : avant le roulage (prépa, horaires, repères), pendant (jour J, chronos en direct de l\'orga), après (chronos, progression, partage). Il complète l\'appli de ton organisateur, il ne la remplace pas : la réservation, le paiement et le chronométrage officiel restent chez lui.',
       review_tutorial_btn: 'Revoir le tutoriel',
       badges_legend_heading: 'Que veulent dire ces badges ?',
       team_pro_legend: 'Team PRO — club officiel certifié par l\'administrateur.',
@@ -301,7 +301,7 @@
       follower_legend: 'Suit un team sans en être membre – droits limités (voir la fiche du team).',
       no_partner_yet: 'Aucun partenaire pour l\'instant.',
       partners_input_label: 'Un par ligne : Nom | URL (URL optionnelle)',
-      our_partners_heading: 'Nos partenaires de Carnet de Piste',
+      our_partners_heading: 'Nos partenaires de Carnet Piste',
       optional_features_heading: 'Fonctionnalités optionnelles',
       optional_features_help: 'Masquées pour tout le monde par défaut – à activer seulement si un team en a besoin.',
       feature_teams_coaching_label: 'Teams et coaching (onglets de Communauté)',
@@ -958,8 +958,8 @@
 "Ex. vibreur rouge intérieur": "E.g. red inside kerb",
 "Ex. 2e vibreur, après la bosse": "E.g. 2nd kerb, after the bump",
 "Ex. laisser filer jusqu'au vibreur extérieur": "E.g. let it run out to the outside kerb",
-"Te signale au team sur Carnet de Piste – ne réserve ni ne paie rien.": "Lets the team know on Pitbook – doesn't book or pay for anything.",
-"L'inscription et le paiement se font chez l'organisateur (« Réserver chez l'orga »). « J'y vais » te met seulement sur la liste des pilotes du roulage dans Carnet de Piste, pour retrouver horaires, groupe et copains.": "Registration and payment are with the organiser (\"Book with the organiser\"). \"I'm going\" only puts you on the trackday's rider list in Pitbook, to find your schedule, group and friends.",
+"Te signale au team sur Carnet Piste – ne réserve ni ne paie rien.": "Lets the team know on Pitbook – doesn't book or pay for anything.",
+"L'inscription et le paiement se font chez l'organisateur (« Réserver chez l'orga »). « J'y vais » te met seulement sur la liste des pilotes du roulage dans Carnet Piste, pour retrouver horaires, groupe et copains.": "Registration and payment are with the organiser (\"Book with the organiser\"). \"I'm going\" only puts you on the trackday's rider list in Pitbook, to find your schedule, group and friends.",
 "Modifier le lien": "Edit the link",
 "Modifier": "Edit",
 "Modifier mon lien": "Edit my link",
@@ -1075,7 +1075,7 @@
 "Ton groupe part rouler": "Your group is heading out",
 "Prochaine session dans": "Next session in",
 "Ajoute au moins un pilote pour lui assigner un groupe de départ.": "Add at least one rider to assign them a starting group.",
-"C'est une demande au coach, à confirmer avec lui (et avec l'organisateur si besoin) : Carnet de Piste ne réserve ni ne fait payer de créneau.": "This is a request to the coach, to confirm with them (and with the organiser if needed): Pitbook doesn't book or charge for any slot.",
+"C'est une demande au coach, à confirmer avec lui (et avec l'organisateur si besoin) : Carnet Piste ne réserve ni ne fait payer de créneau.": "This is a request to the coach, to confirm with them (and with the organiser if needed): Pitbook doesn't book or charge for any slot.",
 "À découvrir": "Discover",
 "Quelque chose a mal tourné en construisant la page. Envoie ce message tel quel :": "Something went wrong building the page. Send this message as is:",
 "Hors ligne : tu vois les dernières données synchronisées. Tes chronos sont gardés sur le téléphone et envoyés dès que le réseau revient.": "Offline: you're seeing the last synced data. Your lap times are kept on the phone and sent as soon as you have a signal again.",
@@ -1114,7 +1114,7 @@
 "Ce chrono existe déjà (même pilote, même date, même circuit et mêmes tours) – rien n'a été ajouté.": "This lap time already exists (same rider, date, circuit and laps) – nothing was added.",
 "Nouveau lien partagé": "New link shared",
 "Nouvelle photo partagée": "New photo shared",
-"Rejoins-nous sur Carnet de Piste !": "Join us on Pitbook!",
+"Rejoins-nous sur Carnet Piste !": "Join us on Pitbook!",
 "+ Ajouter un chrono": "+ Add a lap time",
 "Saisie, photo de la feuille de temps, capture d'écran ou PDF.": "Type it in, or snap your timesheet, a screenshot or a PDF.",
 "Inviter un pilote": "Invite a rider",
@@ -1228,7 +1228,7 @@
 "Cet email est déjà utilisé — connecte-toi plutôt.": "This email is already in use — sign in instead.", "Email invalide.": "Invalid email.", "Trop de tentatives — attends quelques minutes avant de renvoyer l'email.": "Too many attempts — wait a few minutes before resending the email.",
 "Mot de passe trop court (6 caractères minimum).": "Password too short (6 characters minimum).", "Email ou mot de passe incorrect.": "Wrong email or password.",
 "Connecte-toi avec ton adresse email (la connexion par pseudo a été retirée pour des raisons de sécurité).": "Sign in with your email address (username sign-in was removed for security reasons).",
-"Carnet de Piste": "Pitbook", "QR code indisponible hors connexion – partage le lien ci-dessous.": "QR code unavailable offline – share the link below.", "Accepter": "Accept", "Refuser": "Decline", "Demande d'ami": "Friend request",
+"Carnet Piste": "Pitbook", "QR code indisponible hors connexion – partage le lien ci-dessous.": "QR code unavailable offline – share the link below.", "Accepter": "Accept", "Refuser": "Decline", "Demande d'ami": "Friend request",
 "Invite un pilote": "Invite a rider", "Fais scanner ce code : il s'inscrit avec ton lien et devient ton filleul.": "Have them scan this code: they sign up with your link and become your referral.",
 "Partager le lien": "Share the link", "Copier": "Copy", "Lien copié": "Link copied",
 "souhaite rejoindre": "wants to join", "Accepter comme membre": "Accept as member", "comme adhérent": "as club member", "comme Team Leader": "as Team Leader",
@@ -1437,7 +1437,7 @@
 "J'y vais": "I'm going",
 "En attente du team": "Waiting for the Team",
 "Tu y vas aussi ?": "Are you going too?",
-"« J'y vais » te met sur la liste du roulage dans Carnet de Piste. L'inscription et le paiement se font chez l'orga.": "\"I'm going\" puts you on this trackday's list in Pitbook. Registration and payment are with the organiser.",
+"« J'y vais » te met sur la liste du roulage dans Carnet Piste. L'inscription et le paiement se font chez l'orga.": "\"I'm going\" puts you on this trackday's list in Pitbook. Registration and payment are with the organiser.",
 "Roulage": "Trackday",
 "Créer mon carnet": "Create my Pitbook",
 "J'ai déjà un compte": "I already have an account",
@@ -2339,7 +2339,7 @@
   // "Nom | URL", parsed into {label, url} objects. A free-form textarea
   // rather than an add/remove-row widget, consistent with how riders/
   // horaires are typed elsewhere in this app.
-  // "Nos partenaires de Carnet de Piste" -- one shared doc
+  // "Nos partenaires de Carnet Piste" -- one shared doc
   // (settings/partners), admin-only (Xavier), shown in Profil > Aide >
   // À propos. Not to be confused with a Team's own Partenaires (see
   // renderTeamPartnersSection below) -- that one's per-Team, set by that
@@ -4877,7 +4877,7 @@
     html += '<div style="margin-top:1.1rem;"><button type="button" class="ghost" id="tutorial-open-btn">' + tr('review_tutorial_btn') + '</button></div>';
     // Guide en PDF (2 pages de résumé + 2 de détail), à lire ou à envoyer à un pote.
     var guideLink = function (lang, label) { return '<a class="ghost guide-link" href="guides/Pitbook-' + lang + '.pdf" target="_blank" rel="noopener">' + label + ' ↗</a>'; };
-    html += '<div class="guide-links"><div class="help-text">' + L('Le guide Carnet de Piste : ce que l\'appli t\'apporte, en 4 pages, à lire ou à envoyer à un pote :', 'The Pitbook guide: what the app does for you, in 4 pages, to read or send to a friend:') + '</div>' +
+    html += '<div class="guide-links"><div class="help-text">' + L('Le guide Carnet Piste : ce que l\'appli t\'apporte, en 4 pages, à lire ou à envoyer à un pote :', 'The Pitbook guide: what the app does for you, in 4 pages, to read or send to a friend:') + '</div>' +
       '<div class="guide-links-row">' + (currentLang() === 'en'
         ? guideLink('EN', 'Guide (English)') + guideLink('FR', 'Guide (français)')
         : guideLink('FR', 'Guide (français)') + guideLink('EN', 'Guide (English)')) + '</div></div>';
@@ -5221,11 +5221,11 @@
     });
     return out.sort(function (a, b) { return b.gain - a.gain; });
   }
-  function renderMonthRanking() {
-    var rows = monthProgressRanking();
+  function renderMonthRanking(snapRows, snapMonth) {
+    var rows = snapRows || monthProgressRanking();
     if (rows.length < 2) return '';
     var me = currentUserProfile && currentUserProfile.name;
-    var month = new Date().toLocaleDateString(currentLang() === 'en' ? 'en-GB' : 'fr-FR', { month: 'long' });
+    var month = snapMonth || new Date().toLocaleDateString(currentLang() === 'en' ? 'en-GB' : 'fr-FR', { month: 'long' });
     var shown = rows.slice(0, 3), myIdx = -1;
     rows.forEach(function (r, i) { if (r.rider === me) myIdx = i; });
     var line = function (r, i) {
@@ -6210,7 +6210,7 @@
     return '<div class="legal">' +
       (currentLang() === 'en' ? '<p class="legal-note">Summary in English: Pitbook only keeps what the app needs (account, lap times, trackdays, posts), never sells it, shows no ads and uses no trackers. You can download or erase all your data yourself from Settings. The full policy below is in French.</p>' : '') +
       '<p class="help-text">Dernière mise à jour : ' + escapeHtml(LEGAL_INFO.updated) + '</p>' +
-      legalSection('Qui est responsable de tes données ?', '<p>' + escapeHtml(LEGAL_INFO.editor) + ', éditeur de Carnet de Piste. Contact : ' + c + ', ou Profil → Suggestion dans l\'appli.</p>') +
+      legalSection('Qui est responsable de tes données ?', '<p>' + escapeHtml(LEGAL_INFO.editor) + ', éditeur de Carnet Piste. Contact : ' + c + ', ou Profil → Suggestion dans l\'appli.</p>') +
       legalSection('Les données que l\'appli garde', '<ul>' +
         '<li><strong>Ton compte</strong> : e-mail, pseudo, rôle (pilote, accompagnant, organisateur) et, si tu les remplis, prénom, nom, photo, moto et numéro.</li>' +
         '<li><strong>Ta pratique</strong> : chronos, roulages, groupes, objectifs, repères sur les plans, débriefs, réglages de ta moto, infos de voyage.</li>' +
@@ -6246,7 +6246,7 @@
       legalSection('Éditeur', '<p>' + escapeHtml(LEGAL_INFO.editor) + '<br>' + escapeHtml(LEGAL_INFO.address) + '<br>Contact : ' + escapeHtml(LEGAL_INFO.contact) + '<br>Directeur de la publication : ' + escapeHtml(LEGAL_INFO.editor) + '</p>') +
       legalSection('Hébergement', '<p>Fichiers de l\'appli : GitHub Inc., 88 Colin P. Kelly Jr. Street, San Francisco, CA 94107, États-Unis.<br>Données : Google Firebase, Google Ireland Ltd, Gordon House, Barrow Street, Dublin 4, Irlande.</p>') +
       legalSection('Conditions d\'utilisation', '<ul>' +
-        '<li>Carnet de Piste est un carnet personnel de pilote. Il ne vend ni réservation ni créneau : l\'inscription, le paiement et le chronométrage officiel restent chez l\'organisateur.</li>' +
+        '<li>Carnet Piste est un carnet personnel de pilote. Il ne vend ni réservation ni créneau : l\'inscription, le paiement et le chronométrage officiel restent chez l\'organisateur.</li>' +
         '<li>Les chronos saisis ou importés sont <strong>non officiels</strong>, y compris ceux « validés par le team ». La référence reste le chronométrage de l\'organisateur.</li>' +
         '<li>Tu es responsable de ce que tu publies (messages, photos, liens). Pas de contenu illégal, injurieux ou portant atteinte aux droits d\'autrui ; l\'éditeur peut retirer un contenu signalé et suspendre un compte qui ne respecte pas ces règles.</li>' +
         '<li>Les horaires, groupes et infos pratiques sont reportés par les utilisateurs : vérifie-les toujours auprès de l\'organisateur. La pratique de la moto sur circuit se fait sous ta responsabilité et selon les règles du circuit.</li>' +
@@ -7638,7 +7638,7 @@
     if (est) return '<div class="outing-best-card estimate-card">' + estimateCardInner(est) + '</div>';
     // Pas d'estimation possible : dire ce qui manque.
     var why = !Object.keys(all[me] || {}).length
-      ? L('Ajoute un premier chrono sur n\'importe quel circuit : Carnet de Piste pourra alors estimer ton temps ici.', 'Add a first lap time on any circuit: Pitbook can then estimate your time here.')
+      ? L('Ajoute un premier chrono sur n\'importe quel circuit : Carnet Piste pourra alors estimer ton temps ici.', 'Add a first lap time on any circuit: Pitbook can then estimate your time here.')
       : L('Pas encore d\'estimation ici : il faudrait la longueur du circuit, ou un pilote qui roule à la fois ici et sur tes circuits.', 'No estimate here yet: it needs the circuit length, or a rider who rides both here and on your circuits.');
     return '<div class="card help-text estimate-none">' + why + '</div>';
   }
@@ -8097,7 +8097,7 @@
     overlay.querySelector('[data-q="close"]').addEventListener('click', close);
     var shareBtn = overlay.querySelector('[data-q="share"]');
     if (shareBtn) shareBtn.addEventListener('click', function () {
-      navigator.share({ text: (currentLang() === 'en' ? 'Join me on Pitbook, my lap times and track marks: ' : 'Rejoins-moi sur Carnet de Piste, mon carnet de chronos et de repères : ') + link }).catch(function () {});
+      navigator.share({ text: (currentLang() === 'en' ? 'Join me on Pitbook, my lap times and track marks: ' : 'Rejoins-moi sur Carnet Piste, mon carnet de chronos et de repères : ') + link }).catch(function () {});
     });
     overlay.querySelector('[data-q="copy"]').addEventListener('click', function () {
       if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(link).then(function () { showToast('Lien copié', 'success'); }).catch(function () {});
@@ -8935,7 +8935,7 @@
     if (myTyreSets === null) return '';
     if (!set) {
       return '<div class="card tyre-card tyre-card-empty"><div><strong>' + L('Combien de sessions sur tes pneus ?', 'How many sessions on your tyres?') + '</strong>' +
-        '<div class="help-text">' + L('Indique quand tu montes des pneus, neufs ou déjà roulés : Carnet de Piste compte les sessions, les tours et les km faits depuis.', 'Tell Pitbook when you fit tyres, new or used: it counts the sessions, laps and km done since.') + '</div></div>' +
+        '<div class="help-text">' + L('Indique quand tu montes des pneus, neufs ou déjà roulés : Carnet Piste compte les sessions, les tours et les km faits depuis.', 'Tell Pitbook when you fit tyres, new or used: it counts the sessions, laps and km done since.') + '</div></div>' +
         '<button type="button" class="ghost" data-action="tyre-new">' + L('Noter mes pneus', 'Log my tyres') + '</button></div>';
     }
     var u = tyreSetUsage(set, null);
@@ -8988,7 +8988,7 @@
     // Onglet Moto d'un roulage : seulement ce circuit.
     if (opts.only) order = hereKey ? [hereKey] : [];
     var html = '<div class="card pressures-card"><div class="budget-card-head"><h2 class="section-title">' + L('Mes pressions', 'My pressures') + '</h2></div>' +
-      '<div class="help-text">' + L('Tes relevés à toi, AV et AR, circuit par circuit. Carnet de Piste ne conseille aucune pression : suis les préconisations du manufacturier de tes pneus ou du technicien pneus du circuit.', 'Your own readings, front and rear, circuit by circuit. Pitbook never recommends a pressure: follow your tyre manufacturer\'s guidance or the trackside tyre technician\'s.') + '</div>' +
+      '<div class="help-text">' + L('Tes relevés à toi, AV et AR, circuit par circuit. Carnet Piste ne conseille aucune pression : suis les préconisations du manufacturier de tes pneus ou du technicien pneus du circuit.', 'Your own readings, front and rear, circuit by circuit. Pitbook never recommends a pressure: follow your tyre manufacturer\'s guidance or the trackside tyre technician\'s.') + '</div>' +
       '<button type="button" class="primary pressures-add" data-action="pressure-new"' + (circuit ? ' data-circuit="' + escapeHtml(circuit) + '"' : '') + (opts.date ? ' data-date="' + escapeHtml(opts.date) + '"' : '') + '>' + L('+ Noter mes pressions', '+ Log my pressures') + '</button>' +
       (circuit && !hereKey ? '<div class="help-text pressures-none-here">' + L('Pas encore de relevé à ', 'No reading yet at ') + escapeHtml(circuit) + '.</div>' : '');
     if (!order.length) return html + '</div>';
@@ -9031,7 +9031,7 @@
     var sheet = document.createElement('div');
     sheet.className = 'crop-modal-overlay setup-sheet pressure-sheet';
     sheet.innerHTML = '<div class="crop-modal setup-modal"><h2 class="section-title">' + L('Mes pressions', 'My pressures') + '</h2>' +
-      '<div class="help-text">' + L('Note ce que tu as mis. Aucune valeur n\'est proposée par Carnet de Piste. Visible par toi seul.', 'Log what you used. Pitbook suggests no value. Visible to you only.') + '</div>' +
+      '<div class="help-text">' + L('Note ce que tu as mis. Aucune valeur n\'est proposée par Carnet Piste. Visible par toi seul.', 'Log what you used. Pitbook suggests no value. Visible to you only.') + '</div>' +
       '<div class="setup-grid">' +
       '<label class="setup-field"><span>Circuit</span><input type="text" id="pr-circuit" list="pr-circuits" maxlength="60" value="' + escapeHtml(v.circuit || '') + '"><datalist id="pr-circuits">' + circuitDatalist() + '</datalist></label>' +
       '<label class="setup-field setup-half"><span>' + L('Date', 'Date') + '</span><input type="date" id="pr-date" value="' + escapeHtml(v.date || dateKey(new Date())) + '"></label>' +
@@ -9130,7 +9130,7 @@
     var sheetEl = document.createElement('div');
     sheetEl.className = 'crop-modal-overlay setup-sheet tyre-sessions-sheet';
     sheetEl.innerHTML = '<div class="crop-modal setup-modal"><h2 class="section-title">' + L('Mes sessions sur ces pneus', 'My sessions on these tyres') + '</h2>' +
-      '<div class="help-text">' + L('Depuis le ', 'Since ') + escapeHtml(formatDate(set.since)) + L(' : coche les sessions que tu as roulées. Carnet de Piste en estime les tours et les km avec ton temps au tour.', ': tick the sessions you rode. Pitbook estimates the laps and km from your lap time.') + '</div>' +
+      '<div class="help-text">' + L('Depuis le ', 'Since ') + escapeHtml(formatDate(set.since)) + L(' : coche les sessions que tu as roulées. Carnet Piste en estime les tours et les km avec ton temps au tour.', ': tick the sessions you rode. Pitbook estimates the laps and km from your lap time.') + '</div>' +
       '<div class="tyre-days">' + body + '</div>' +
       '<div class="tyre-sessions-actions"><button type="button" class="primary" data-ts="save">' + tr('save') + '</button><button type="button" class="ghost" data-ts="cancel">' + tr('cancel') + '</button></div></div>';
     document.body.appendChild(sheetEl);
@@ -9161,7 +9161,7 @@
     var sheet = document.createElement('div');
     sheet.className = 'crop-modal-overlay setup-sheet tyre-sheet';
     sheet.innerHTML = '<div class="crop-modal setup-modal"><h2 class="section-title">' + L('Mes pneus', 'My tyres') + '</h2>' +
-      '<div class="help-text">' + L('À partir de cette date, Carnet de Piste compte les sessions, les tours et les km sur ce train. Visible par toi seul.', 'From this date, Pitbook counts the sessions, laps and km on this set. Visible to you only.') + '</div>' +
+      '<div class="help-text">' + L('À partir de cette date, Carnet Piste compte les sessions, les tours et les km sur ce train. Visible par toi seul.', 'From this date, Pitbook counts the sessions, laps and km on this set. Visible to you only.') + '</div>' +
       '<div class="tyre-state" role="radiogroup" aria-label="' + escapeHtml(L('État des pneus', 'Tyre condition')) + '">' +
       '<label><input type="radio" name="tyre-state" value="new" checked> ' + L('Neufs', 'New') + '</label>' +
       '<label><input type="radio" name="tyre-state" value="used"> ' + L('Déjà roulés', 'Already used') + '</label></div>' +
@@ -9804,7 +9804,7 @@
 
     var meName = currentUserProfile && currentUserProfile.name;
     if (ev && joinBannerEventId === ev.id && (ev.riders || []).indexOf(meName) === -1) {
-      html += '<div class="card join-banner"><strong>Tu y vas aussi ?</strong><div class="help-text">« J\'y vais » te met sur la liste du roulage dans Carnet de Piste. L\'inscription et le paiement se font chez l\'orga.</div>' +
+      html += '<div class="card join-banner"><strong>Tu y vas aussi ?</strong><div class="help-text">« J\'y vais » te met sur la liste du roulage dans Carnet Piste. L\'inscription et le paiement se font chez l\'orga.</div>' +
         '<div class="join-banner-actions">' + (ev.bookingUrl ? '<button type="button" class="primary" data-action="open-external-url" data-url="' + escapeHtml(ev.bookingUrl) + '">Réserver chez l\'orga ↗</button>' : '') +
         '<button type="button" class="' + (ev.bookingUrl ? 'ghost' : 'primary') + '" data-action="join-roulage-link" data-id="' + escapeHtml(ev.id) + '">J\'y vais</button></div></div>';
     }
@@ -13203,7 +13203,7 @@
         ? '<button type="button" class="' + (ev.bookingUrl ? 'ghost' : 'primary') + '" data-action="event-join-ouvert" data-id="' + ev.id + '">J\'y vais</button>'
         : (myRequest
           ? '<span class="help-text">En attente du team</span>'
-          : '<button type="button" class="ghost" data-action="event-join-request" data-id="' + ev.id + '" title="Te signale au team sur Carnet de Piste – ne réserve ni ne paie rien.">J\'y vais</button>');
+          : '<button type="button" class="ghost" data-action="event-join-request" data-id="' + ev.id + '" title="Te signale au team sur Carnet Piste – ne réserve ni ne paie rien.">J\'y vais</button>');
       var actionHtml = (ev.bookingUrl ? '<button type="button" class="primary" data-action="open-external-url" data-url="' + escapeHtml(ev.bookingUrl) + '">Réserver chez l\'orga ↗</button> ' : '') + goHtml;
       // The Team leads here (avatar, name, ✓ badge) rather than a bare
       // name in the help-text -- the whole point of this card is "which
@@ -13214,7 +13214,7 @@
         ' · ' + (visTags[vis] || '') + '</span></div>' +
         '<div class="friend-row-actions">' + actionHtml + '</div></div>';
     }
-    var legend = '<div class="help-text" style="margin-bottom:0.7rem;">L\'inscription et le paiement se font chez l\'organisateur (« Réserver chez l\'orga »). « J\'y vais » te met seulement sur la liste des pilotes du roulage dans Carnet de Piste, pour retrouver horaires, groupe et copains.</div>';
+    var legend = '<div class="help-text" style="margin-bottom:0.7rem;">L\'inscription et le paiement se font chez l\'organisateur (« Réserver chez l\'orga »). « J\'y vais » te met seulement sur la liste des pilotes du roulage dans Carnet Piste, pour retrouver horaires, groupe et copains.</div>';
     var toggle = legend + '<div style="display:flex; flex-wrap:wrap; gap:0.5rem; margin-bottom:0.7rem;">' +
       '<button type="button" class="calendar-view-btn' + (discoveryViewMode === 'list' ? ' active' : '') + '" data-action="discovery-view-mode" data-mode="list">Liste</button>' +
       '<button type="button" class="calendar-view-btn' + (discoveryViewMode === 'month' ? ' active' : '') + '" data-action="discovery-view-mode" data-mode="month">Mois</button>' +
@@ -14344,7 +14344,7 @@
     return isAdmin() || (ev.teamId ? isLeaderOfTeam(ev.teamId) : false);
   }
   function albumHelpHtml() {
-    return '<div class="help-text">' + L('Crée un album partagé dans Google Photos, iCloud ou Drive, copie son lien de partage et colle-le ici. Les photos restent chez toi : Carnet de Piste ne garde que le lien.',
+    return '<div class="help-text">' + L('Crée un album partagé dans Google Photos, iCloud ou Drive, copie son lien de partage et colle-le ici. Les photos restent chez toi : Carnet Piste ne garde que le lien.',
       'Create a shared album in Google Photos, iCloud or Drive, copy its share link and paste it here. The photos stay with you: Pitbook only keeps the link.') + '</div>';
   }
   function albumRow(label, url, editAction, evId) {
@@ -15318,10 +15318,10 @@
   function sendAppNotification(body) {
     if (navigator.serviceWorker && navigator.serviceWorker.ready) {
       navigator.serviceWorker.ready.then(function (reg) {
-        reg.showNotification(L('Carnet de Piste', 'Pitbook'), { body: body, icon: 'icons/icon-192.png', badge: 'icons/icon-192.png' });
-      }).catch(function () { new Notification(L('Carnet de Piste', 'Pitbook'), { body: body }); });
+        reg.showNotification(L('Carnet Piste', 'Pitbook'), { body: body, icon: 'icons/icon-192.png', badge: 'icons/icon-192.png' });
+      }).catch(function () { new Notification(L('Carnet Piste', 'Pitbook'), { body: body }); });
     } else {
-      new Notification(L('Carnet de Piste', 'Pitbook'), { body: body });
+      new Notification(L('Carnet Piste', 'Pitbook'), { body: body });
     }
   }
 
@@ -17233,10 +17233,11 @@
     if ((isPilote && (isMe || u.shareSorties !== false)) || withFeed) {
       var personPills = [['fiche', L('Fiche', 'Profile')]];
       if (isPilote && (isMe || u.shareSorties !== false)) personPills.push(['saisons', L('Saisons', 'Seasons')]);
-      if (withFeed) personPills.push(['monfil', L('Mon fil', 'My feed')]);
+      if (withFeed) personPills.push(['monfil', L('Mon fil', 'My feed')], ['bientot', L('Bientôt en piste', 'Coming up')]);
       html += renderPills('person', personPills);
       if (pillState.person === 'saisons') return html + renderRiderSeasons(name, look, isMe) + '</div>';
       if (pillState.person === 'monfil' && withFeed) return html + renderMyFeedTab(u) + '</div>';
+      if (pillState.person === 'bientot' && withFeed) return html + (renderFeedUpcoming(true) || '<div class="card help-text">' + L('Aucun roulage prévu par tes potes pour l\'instant.', 'No trackday planned by your friends yet.') + '</div>') + '</div>';
     }
     if (isPilote && u.shareSorties !== false) {
       var stats = riderStats(name);
@@ -17767,7 +17768,7 @@
   }
   function mediaKitText(me) {
     var a = myAudience(30), rate = a.reach ? Math.round(a.engagement / a.reach * 1000) / 10 : 0;
-    return L('Kit média · ', 'Media kit · ') + me.name + (me.bike ? ' (' + me.bike + ')' : '') + L(' sur Carnet de Piste — 30 derniers jours : ', ' on Pitbook — last 30 days: ') +
+    return L('Kit média · ', 'Media kit · ') + me.name + (me.bike ? ' (' + me.bike + ')' : '') + L(' sur Carnet Piste — 30 derniers jours : ', ' on Pitbook — last 30 days: ') +
       a.impressions + L(' impressions, ', ' impressions, ') + a.reach + L(' comptes touchés, ', ' accounts reached, ') + a.engagement + L(' interactions (taux ', ' interactions (rate ') + rate + ' %), ' +
       a.visits + L(' visites du profil, ', ' profile visits, ') + a.followers + L(' abonnés', ' followers') + (a.newFollowers ? ' (+' + a.newFollowers + ')' : '') + '. ' + referralLinkFor(me.name);
   }
@@ -18017,17 +18018,17 @@
         if (it.kind === 'wall') inner = renderWallPost(d);
         else if (it.kind === 'activity') {
           inner = renderFeedEntry(d);
-          if (inner) inner += feedSocialFooter(d.id, '', (d.type === 'record' ? { kind: 'ride', rider: d.actor, circuit: d.circuit, date: d.createdAt ? dateKey(new Date(d.createdAt)) : dateKey(new Date()), best: d.time, summary: L('Nouveau record', 'New record'), createdAt: d.createdAt } : { kind: 'text', author: d.actor, text: '', createdAt: d.createdAt }), d.reactions || {}, 'react-feed-event');
+          if (inner) inner += feedSocialFooter(d.id, '', { kind: 'record', author: d.actor, createdAt: d.createdAt, data: { id: d.id, type: d.type, actor: d.actor, circuit: d.circuit, time: d.time, createdAt: d.createdAt } }, d.reactions || {}, 'react-feed-event');
         } else if (it.kind === 'ride') {
-          inner = renderFeedRide(d) + feedSocialFooter(d.key, '', { kind: 'ride', rider: d.rider, circuit: d.circuit, date: d.date, best: d.best, summary: plural(d.laps, L('tour', 'lap'), L('tours', 'laps')), createdAt: d.createdAt });
+          inner = renderFeedRide(d) + feedSocialFooter(d.key, '', { kind: 'ride2', author: d.rider, createdAt: d.createdAt, data: JSON.parse(JSON.stringify(d)) });
         } else if (it.kind === 'recap') {
           var rk = 'recap:' + circuitKey(d.circuit) + '|' + d.dates.join(',');
-          inner = renderFeedRecap(d) + feedSocialFooter(rk, '', { kind: 'recap', author: d.rows[0].rider, circuit: d.circuit, date: d.date, best: d.rows[0].best, summary: d.rows.slice(0, 3).map(function (x) { return x.rider; }).join(', '), createdAt: it.createdAt });
+          inner = renderFeedRecap(d) + feedSocialFooter(rk, '', { kind: 'recap2', author: d.rows[0].rider, createdAt: it.createdAt, data: { circuit: d.circuit, rows: JSON.parse(JSON.stringify(d.rows)), dates: d.dates, date: d.date, rides: JSON.parse(JSON.stringify(d.rides || [])), evId: d.ev ? d.ev.id : null } });
         } else if (it.kind === 'photos') {
-          inner = renderFeedPhotos(d) + feedSocialFooter(d.key, '', { kind: 'text', author: d.rider, text: L('Photos du roulage à ', 'Trackday photos at ') + d.ev.circuit, linkUrl: d.url, createdAt: d.createdAt });
+          inner = renderFeedPhotos(d) + feedSocialFooter(d.key, '', { kind: 'photos', author: d.rider, createdAt: d.createdAt, data: { key: d.key, rider: d.rider, url: d.url, createdAt: d.createdAt, ev: { id: d.ev.id, circuit: d.ev.circuit, dateStart: d.ev.dateStart, dateEnd: d.ev.dateEnd || d.ev.dateStart } } });
         } else {
           var t = teamById(it.teamId); inner = renderTeamFeedEntry(d, me, t ? t.name : null);
-          if (inner) inner += feedSocialFooter(d.id, d.author, { kind: 'text', author: d.author, text: d.text || d.question || '', linkUrl: d.linkUrl || '', createdAt: d.createdAt }, d.reactions || {}, 'react-team-post');
+          if (inner) inner += feedSocialFooter(d.id, d.author, { kind: 'team', author: d.author, createdAt: d.createdAt, data: { id: d.id, teamId: d.teamId, author: d.author, text: d.text || '', linkUrl: d.linkUrl || '', photoURL: d.photoURL || '', type: d.type || '', question: d.question || '', options: d.options || null, createdAt: d.createdAt } }, d.reactions || {}, 'react-team-post');
         }
         inFeedRow = false;
         var vk = it.kind === 'wall' ? d.id : it.kind === 'ride' || it.kind === 'photos' ? d.key : it.kind === 'recap' ? 'recap:' + circuitKey(d.circuit) + '|' + d.dates.join(',') : d.id;
@@ -18039,12 +18040,9 @@
         if (it.kind === 'activity' && it.data.type === 'friend') return head + '<div class="feed-line">' + inner + '</div>';
         return head + '<div class="card feed-card"' + viewAttrs(vk, vo) + '>' + inner + '</div>';
       }).join('') + (items.length > visible.length ? '<div id="wall-feed-sentinel" class="empty-inline">' + tr('loading') + '</div>' : '');
-    return renderFeedUpcoming() + withRepost(renderMonthRanking(), 'month:' + dateKey(new Date()).slice(0, 7), function () {
-      var rows = monthProgressRanking().slice(0, 3);
-      return { kind: 'text', author: me.name, text: L('Classement du mois : ', 'This month\'s ranking: ') + rows.map(function (r, i) { return (i + 1) + '. ' + r.rider + ' −' + formatGap(r.gain) + ' (' + r.circuit + ')'; }).join(' · '), createdAt: Date.now() };
-    }) + withRepost(renderCircuitMoment(), 'moment:' + (circuitOfTheMoment() || {}).circuit, function () {
+    return withRepost(renderCircuitMoment(), 'moment:' + (circuitOfTheMoment() || {}).circuit, function () {
       var c = circuitOfTheMoment();
-      return { kind: 'ride', rider: c.bestBy, circuit: c.circuit, date: dateKey(new Date()), best: c.best, summary: L('Le circuit du moment · ', 'Circuit of the moment · ') + c.n + L(' potes', ' friends'), createdAt: Date.now() };
+      return { kind: 'moment', author: c.bestBy, createdAt: Date.now(), data: JSON.parse(JSON.stringify(c)) };
     }) + body;
   }
   // Duel / palier / record lines under a ride.
@@ -18093,8 +18091,8 @@
       '<div class="feed-photos">' + notifIconHtml('camera') + '<span class="feed-ride-main"><span class="feed-record-label">' + L('Photos du roulage', 'Trackday photos') + '</span><strong class="feed-ride-circuit" data-open-circuit="' + escapeHtml(ph.ev.circuit) + '">' + escapeHtml(ph.ev.circuit) + '</strong></span></div>' +
       postLinkHtml(ph.url);
   }
-  function renderCircuitMoment() {
-    var c = circuitOfTheMoment();
+  function renderCircuitMoment(snapC) {
+    var c = snapC || circuitOfTheMoment();
     if (!c) return '';
     return '<div class="card feed-moment"><span class="outing-thumb feed-ride-thumb" data-open-circuit="' + escapeHtml(c.circuit) + '">' + circuitThumbHtml(c.circuit) + '</span>' +
       '<span class="feed-ride-main"><span class="feed-record-label">' + L('Le circuit du moment', 'Circuit of the moment') + '</span><strong class="feed-ride-circuit" data-open-circuit="' + escapeHtml(c.circuit) + '">' + escapeHtml(c.circuit) + '</strong>' +
@@ -18127,8 +18125,8 @@
   }
   // « Bientôt sur la piste » : where my friends ride next, with « J'y vais
   // aussi » straight from the feed.
-  function renderFeedUpcoming() {
-    var list = friendsUpcoming().slice(0, 3);
+  function renderFeedUpcoming(all) {
+    var list = friendsUpcoming().slice(0, all ? 30 : 3);
     if (!list.length) return '';
     return '<div class="card feed-upcoming"><div class="feed-record-label">Bientôt sur la piste</div>' + list.map(function (x) {
       var ev = x.ev;
@@ -18223,18 +18221,53 @@
     return cardHtml.replace(/<\/div>$/, feedSocialFooter(key, '', null) + '</div>');
   }
   function renderRepostBox(o) {
-    var who = o.author || o.rider || '', ou = (STATE.usersByName || {})[who] || {};
-    var head = '<div class="wall-post-head">' + avatarHtml(ou, who) + personLinkHtml(who) + '<span class="feed-entry-time">' + escapeHtml(relativeTime(o.createdAt)) + '</span></div>';
-    var body = '';
-    if (o.kind === 'ride' || o.kind === 'recap') {
-      body = '<div class="repost-ride"><span class="outing-thumb feed-ride-thumb">' + circuitThumbHtml(o.circuit) + '</span><span class="feed-ride-main"><span class="feed-record-label">' +
+    var who = o.author || o.rider || '', ou = (STATE.usersByName || {})[who] || {}, d = o.data, inner = '';
+    var me = currentUserProfile;
+    var keep = inFeedRow; inFeedRow = true; // pas de réactions internes dans la copie
+    try {
+      if (d && o.kind === 'ride2') inner = renderFeedRide(d);
+      else if (d && o.kind === 'recap2') inner = renderFeedRecap(Object.assign({}, d, { ev: d.evId ? eventsList().filter(function (e) { return e.id === d.evId; })[0] || null : null }));
+      else if (d && o.kind === 'record') inner = renderFeedEntry(d);
+      else if (d && o.kind === 'photos') inner = renderFeedPhotos(d);
+      else if (d && o.kind === 'team') { var t = teamById(d.teamId); inner = renderTeamFeedEntry(d, me, t ? t.name : null); }
+      else if (d && o.kind === 'month') inner = renderMonthRanking(d.rows, d.month);
+      else if (d && o.kind === 'moment') inner = renderCircuitMoment(d);
+    } catch (e) { inner = ''; }
+    inFeedRow = keep;
+    if (inner) {
+      inner = inner.replace(/^<div class="card /, '<div class="');
+    } else if (o.kind === 'ride' || o.kind === 'recap') {
+      // Anciennes republications (avant la copie fidèle)
+      inner = '<div class="wall-post-head">' + avatarHtml(ou, who) + personLinkHtml(who) + '<span class="feed-entry-time">' + escapeHtml(relativeTime(o.createdAt)) + '</span></div>' +
+        '<div class="repost-ride"><span class="outing-thumb feed-ride-thumb" data-open-circuit="' + escapeHtml(o.circuit) + '">' + circuitThumbHtml(o.circuit) + '</span><span class="feed-ride-main"><span class="feed-record-label">' +
         (o.kind === 'recap' ? L('Récap du roulage', 'Trackday recap') : L('A roulé à', 'Rode at')) + '</span><strong class="feed-ride-circuit" data-open-circuit="' + escapeHtml(o.circuit) + '">' + escapeHtml(o.circuit) + '</strong>' +
         '<span class="help-text">' + escapeHtml(formatDate(o.date)) + (o.summary ? ' · ' + escapeHtml(o.summary) : '') + '</span></span>' + (o.best ? '<span class="feed-record-time">' + formatTime(o.best) + '</span>' : '') + '</div>';
     } else {
       var oText = !!(o.text || o.linkUrl);
-      body = (o.photoURL ? '<img class="wall-post-photo' + (oText ? ' side' : '') + '" src="' + escapeHtml(o.photoURL) + '" alt="">' : '') + (o.text ? '<div class="wall-post-text">' + escapeHtml(o.text) + '</div>' : '') + (o.linkUrl ? postLinkHtml(o.linkUrl) : '') + (o.photoURL && oText ? '<div class="clear"></div>' : '');
+      inner = '<div class="wall-post-head">' + avatarHtml(ou, who) + personLinkHtml(who) + badgesHtml(ou) + '<span class="feed-entry-time">' + escapeHtml(relativeTime(o.createdAt)) + '</span></div>' +
+        (o.photoURL ? '<img class="wall-post-photo' + (oText ? ' side' : '') + '" src="' + escapeHtml(o.photoURL) + '" alt="">' : '') + (o.text ? '<div class="wall-post-text">' + escapeHtml(o.text) + '</div>' : '') +
+        (o.linkUrl ? postLinkHtml(o.linkUrl) : '') + (o.photoURL && oText ? '<div class="clear"></div>' : '');
     }
-    return '<div class="repost-label">' + L('a republié', 'reposted') + '</div><div class="repost-box">' + head + body + '</div>';
+    return '<div class="repost-label">' + L('a republié', 'reposted') + '</div><div class="repost-box" data-orig-key="' + escapeHtml(o.id || '') + '" data-orig-author="' + escapeHtml(who) + '" data-orig-kind="' + escapeHtml(o.kind || '') + '">' + inner +
+      '<div class="repost-open">' + L('Voir la publication d\'origine ›', 'See the original post ›') + '</div></div>';
+  }
+  // Clic sur une republication : la publication d'origine dans le fil
+  // (mise en évidence), sinon le roulage ou la fiche de son auteur.
+  function goToOriginal(key, author, kind) {
+    activeView = 'social'; pillState.social = 'fil'; personView = null; outingView = null;
+    wallFeedVisibleCount = Math.max(wallFeedVisibleCount, 60);
+    renderRoot();
+    var el = null;
+    document.querySelectorAll('[data-view-key]').forEach(function (x) { if (!el && x.getAttribute('data-view-key') === key && !x.querySelector('.repost-box')) el = x; });
+    if (el) {
+      el.scrollIntoView({ block: 'center' });
+      el.classList.add('flash-original');
+      setTimeout(function () { el.classList.remove('flash-original'); }, 1800);
+      return;
+    }
+    var m = /^ride:([^|]+)\|([^|]+)\|(.+)$/.exec(key || '');
+    if (m) { openOuting(m[3], m[2], ''); return; }
+    if (author) openPerson(author);
   }
 
   function deleteWallPost(id) {
@@ -19294,7 +19327,7 @@
     });
     var html = '<div class="crop-modal-overlay"><div class="crop-modal">' +
       '<h2 class="section-title">' + tr('ask_for_slot_heading') + escapeHtml(coachSlotModal.slotLabel) + '</h2>' +
-      '<div class="help-text" style="margin-bottom:0.5rem;">C\'est une demande au coach, à confirmer avec lui (et avec l\'organisateur si besoin) : Carnet de Piste ne réserve ni ne fait payer de créneau.</div>';
+      '<div class="help-text" style="margin-bottom:0.5rem;">C\'est une demande au coach, à confirmer avec lui (et avec l\'organisateur si besoin) : Carnet Piste ne réserve ni ne fait payer de créneau.</div>';
     if (me && proposeRoles.indexOf(me.role || 'pilote') === -1) {
       html += '<div class="help-text">' + tr('coaching_riders_only') + '</div>';
     }
@@ -19717,7 +19750,7 @@
     var t = teamById(teamId);
     if (!t) return;
     var link = currentUserProfile ? referralLinkFor(currentUserProfile.name) : 'https://thereiivman-art.github.io/carnetpiste';
-    var text = L('Découvre le team ' + t.name + ' sur Carnet de Piste : ', 'Check out the team ' + t.name + ' on Pitbook: ') + link;
+    var text = L('Découvre le team ' + t.name + ' sur Carnet Piste : ', 'Check out the team ' + t.name + ' on Pitbook: ') + link;
     if (navigator.share) return navigator.share({ title: t.name, text: text }).catch(function () {});
     if (navigator.clipboard) navigator.clipboard.writeText(text).then(function () { showToast(L('Lien copié.', 'Link copied.'), 'success'); });
   }
@@ -19830,7 +19863,7 @@
       markScrollableTabs();
       navTrack();
       observeViews();
-      var appTitle = L('Carnet de Piste', 'Pitbook'); // nom de l'appli selon la langue
+      var appTitle = L('Carnet Piste', 'Pitbook'); // nom de l'appli selon la langue
       if (document.title !== appTitle) document.title = appTitle;
     } catch (err) {
       if (window.console) console.error('renderRoot failed', err);
@@ -19866,7 +19899,7 @@
       else if (pendingRoulageId && !publicRoulageDismissed && authState !== 'verify-email') authBody = renderPublicRoulage();
       else authBody = renderAuthScreen();
       root.innerHTML =
-        '<header class="page-head"><div class="page-head-inner"><h1 class="title">Carnet de Piste</h1><p class="app-tagline">' + L('Le carnet de bord de tes roulages', 'Your trackday logbook') + '</p></div></header>' +
+        '<header class="page-head"><div class="page-head-inner"><h1 class="title">Carnet Piste</h1><p class="app-tagline">' + L('Le carnet de bord de tes roulages', 'Your trackday logbook') + '</p></div></header>' +
         '<div class="auth-screen">' + authBody + '</div>';
       var prSignup = document.getElementById('public-roulage-signup');
       if (prSignup) prSignup.addEventListener('click', function () { publicRoulageDismissed = true; authMode = 'signup'; renderRoot(); window.scrollTo(0, 0); });
@@ -19922,7 +19955,9 @@
         var statPills = meIsNonRider()
           ? [['podium', L('Podium', 'Podium')], ['trophees', 'Trophées'], ['budget', 'Budget']]
           : [['records', 'Records'], ['podium', L('Podium', 'Podium')], ['trophees', 'Trophées'], ['budget', 'Budget']];
-        body = carnetSub + renderPills('stats', statPills) + (pillState.stats === 'podium' ? renderStatsPodiums() : pillState.stats === 'budget' ? renderBudgetTab() : renderStatsTab());
+        body = carnetSub + renderPills('stats', statPills) + (pillState.stats === 'podium' ? withRepost(renderMonthRanking(), 'month:' + dateKey(new Date()).slice(0, 7), function () {
+          return { kind: 'month', author: currentUserProfile.name, createdAt: Date.now(), data: { rows: JSON.parse(JSON.stringify(monthProgressRanking().slice(0, 5))), month: new Date().toLocaleDateString(currentLang() === 'en' ? 'en-GB' : 'fr-FR', { month: 'long' }) } };
+        }) + renderStatsPodiums() : pillState.stats === 'budget' ? renderBudgetTab() : renderStatsTab());
       }
       else if (activeView === 'chrono') body = renderChronoTab();
       else if (activeView === 'planning') body = '<button type="button" class="link-btn back-link" data-view="chrono">‹ ' + L('Chrono', 'Lap times') + '</button>' + renderTimesheetReminder() + renderPlanningTab();
@@ -21279,6 +21314,12 @@
         else if (navigator.clipboard) navigator.clipboard.writeText(t).then(function () { showToast(L('Kit média copié : colle-le dans ton message à la marque.', 'Media kit copied: paste it in your message to the brand.'), 'success'); });
       });
     });
+    document.querySelectorAll('.repost-box[data-orig-key]').forEach(function (box) {
+      box.addEventListener('click', function (e) {
+        if (e.target.closest('button, a, [data-open-circuit], [data-person-link], .mini-avatar')) return;
+        goToOriginal(box.getAttribute('data-orig-key'), box.getAttribute('data-orig-author'), box.getAttribute('data-orig-kind'));
+      });
+    });
     document.querySelectorAll('[data-action="repost-item"]').forEach(function (btn) {
       btn.addEventListener('click', function () { repostItem(btn.getAttribute('data-id')); });
     });
@@ -22485,7 +22526,7 @@
         if (!currentUserProfile) return;
         var link = referralLinkFor(currentUserProfile.name);
         if (navigator.share) {
-          navigator.share({ title: L('Carnet de Piste', 'Pitbook'), text: L('Rejoins-nous sur Carnet de Piste !', 'Join us on Pitbook!'), url: link }).catch(function () {});
+          navigator.share({ title: L('Carnet Piste', 'Pitbook'), text: L('Rejoins-nous sur Carnet Piste !', 'Join us on Pitbook!'), url: link }).catch(function () {});
         } else if (navigator.clipboard && navigator.clipboard.writeText) {
           navigator.clipboard.writeText(link).then(function () {
             showToast(tr('referral_link_copied'), 'success');

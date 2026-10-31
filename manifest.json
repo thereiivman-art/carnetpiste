@@ -1,7 +1,7 @@
 {
-  "name": "Carnet de Piste",
-  "short_name": "Carnet de Piste",
-  "description": "Carnet de Piste, le carnet de bord de tes roulages moto : chronos, records par circuit, jour J et podium entre potes.",
+  "name": "Carnet Piste",
+  "short_name": "Carnet Piste",
+  "description": "Carnet Piste, le carnet de bord de tes roulages moto : chronos, records par circuit, jour J et podium entre potes.",
   "start_url": "./?pwa=1",
   "scope": "./",
   "display": "standalone",

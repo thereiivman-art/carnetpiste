@@ -4114,3 +4114,11 @@ span.social-count { cursor: default; }
 .aud-post-label { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .aud-post-nums { font-size: 0.8rem; color: var(--text-muted); }
 .aud-kit { width: 100%; margin-top: 0.9rem; }
+/* Republication : copie fidèle, cliquable vers l'original */
+.repost-box { cursor: pointer; }
+.repost-box .feed-entry-foot { display: none; }
+.repost-open { margin-top: 0.4rem; font-size: 0.8rem; font-weight: 700; color: var(--accent); }
+.flash-original { animation: flashorig 1.8s ease; }
+@keyframes flashorig { 0%, 40% { box-shadow: 0 0 0 3px var(--accent); } 100% { box-shadow: var(--shadow); } }
+/* Bientôt sur la piste, mis en avant */
+.feed-upcoming { border: 2px solid var(--accent); }
