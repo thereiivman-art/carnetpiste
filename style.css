@@ -4016,3 +4016,15 @@ span.social-count { cursor: default; }
 .story-nav { position: absolute; top: 15%; bottom: 15%; width: 35%; border: 0; background: none; cursor: pointer; z-index: 1; }
 .story-nav.prev { left: 0; } .story-nav.next { right: 0; }
 .story-profile { align-self: center; z-index: 2; border: 1px solid rgba(255,255,255,0.5); background: none; color: #fff; border-radius: 999px; padding: 0.5rem 1.2rem; font-weight: 700; cursor: pointer; }
+/* Réactions : palette d'emojis */
+.reaction-bar { position: relative; display: inline-flex; align-items: center; gap: 0.4rem; }
+.reaction-btn { border-radius: 999px; padding: 0.3rem 0.8rem; font-size: 0.85rem; font-weight: 700; }
+.reaction-summary { font-size: 0.85rem; color: var(--text-muted); }
+.reaction-picker { position: absolute; bottom: calc(100% + 6px); left: 0; z-index: 20; display: flex; gap: 0.15rem; padding: 0.3rem 0.4rem; background: var(--surface); border: 1px solid var(--border); border-radius: 999px; box-shadow: 0 6px 18px rgba(0,0,0,0.18); }
+.reaction-picker[hidden] { display: none; }
+.reaction-pick { border: 0; background: none; font-size: 1.5rem; line-height: 1; padding: 0.15rem 0.2rem; border-radius: 50%; cursor: pointer; transition: transform .12s; }
+.reaction-pick:hover, .reaction-pick.active { transform: scale(1.25); }
+.reaction-pick.active { background: var(--surface-alt); }
+.repost-ride { display: flex; align-items: center; gap: 0.6rem; }
+.feed-card .mini-avatar[data-person], .feed-ride-circuit, .feed-ride-thumb { cursor: pointer; }
+.audience-more { margin-top: 0.6rem; }

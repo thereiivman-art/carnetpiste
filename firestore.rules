@@ -751,6 +751,13 @@ service cloud.firestore {
     // visibleWallPosts), not a server-enforced boundary.
     // Commentaires sous un message du fil : chacun écrit et supprime les
     // siens (l'admin aussi) ; texte de 500 caractères au plus.
+    // Réaction (un emoji) sur un élément du fil qui n'est pas un document
+    // (roulage, récap, photos) : une ligne par personne, la sienne seulement.
+    match /postReactions/{id} {
+      allow read: if verified();
+      allow create, update: if verified() && request.resource.data.author == myName() && request.resource.data.emoji is string && request.resource.data.emoji.size() <= 8;
+      allow delete: if verified() && resource.data.author == myName();
+    }
     match /postComments/{id} {
       allow read: if verified();
       allow create: if verified() && request.resource.data.author == myName()

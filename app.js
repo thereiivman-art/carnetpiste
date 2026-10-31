@@ -13423,7 +13423,7 @@
     // calendrier vit dans Carnet › Roulages.
     if (view === 'chrono' || view === 'planning') return 'chrono';
     if (view === 'event') return 'carnet';
-    if (view === 'social' || view === 'team' || view === 'coach') return 'communaute';
+    if (view === 'social' || view === 'team') return 'communaute';
     return 'carnet';
   }
   var lastSubView = { carnet: 'carnet', chrono: 'chrono', communaute: 'social' };
@@ -13478,7 +13478,6 @@
     var full = isAdmin() || featureEnabled('teamsCoaching') || (STATE.myTeamMemberships || []).length > 0;
     if (!full) return items;
     items.push(['team', 'Teams']);
-    if (canAccessCoachSpace()) items.push(['coach', 'Coaching']);
     return items;
   }
 
@@ -16549,7 +16548,7 @@
     var initial = escapeHtml((name || '?').trim().charAt(0).toUpperCase() || '?');
     var flag = u && !u.photoURL && u.nationality ? countryBallHtml(u.nationality, 'avatar-ball') : '';
     var look = lookOf(u);
-    return '<span class="mini-avatar' + (flag ? ' has-flag' : '') + (look ? ' has-look' : '') + '"' + (look ? ' style="--ring:' + escapeHtml(look.color || '#c8261f') + '"' : '') + (flag ? ' title="' + escapeHtml(countryName(u.nationality)) + '"' : '') + '>' + (u && u.photoURL
+    return '<span class="mini-avatar' + (flag ? ' has-flag' : '') + (look ? ' has-look' : '') + '" data-person="' + escapeHtml(name || '') + '"' + (look ? ' style="--ring:' + escapeHtml(look.color || '#c8261f') + '"' : '') + (flag ? ' title="' + escapeHtml(countryName(u.nationality)) + '"' : '') + '>' + (u && u.photoURL
       ? '<img src="' + escapeHtml(u.photoURL) + '" alt="">'
       // The flag alone (the pseudo is always shown next to it).
       : (flag || '<span class="mini-avatar-placeholder">' + initial + '</span>')) + '</span>';
@@ -16580,6 +16579,12 @@
   var personView = null; // { name, from }
   function openPerson(name) {
     if (!name) return;
+    if (currentUserProfile && name === currentUserProfile.name) {
+      activeView = 'social'; pillState.social = 'profil'; personView = null;
+      notificationsPanelOpen = false; profilePanelOpen = false;
+      renderRoot(); window.scrollTo(0, 0);
+      return;
+    }
     var from = activeView === 'person' && personView ? personView.from : (activeView === 'outing' ? 'social' : activeView);
     personView = { name: name, from: from || 'social' };
     activeView = 'person';
@@ -17374,13 +17379,39 @@
   // post (visually noisy). Same data: reactions.<name> = emoji; older
   // 👍/💪/🎉 reactions still count in the total, and tapping removes
   // whichever one I had left.
-  var REACTION_EMOJIS = ['🔥', '👍', '💪', '🎉'];
+  // Réactions : un emoji au choix (un par personne, retoucher le même
+  // l'enlève). Le bouton « Réagir » ouvre la palette.
+  var REACTION_EMOJIS = ['👍', '🔥', '🏁', '👏', '😂', '😮'];
   function renderReactionBar(reactions, dataAction, id) {
     reactions = reactions || {};
     var mine = currentUserProfile ? reactions[currentUserProfile.name] : null;
     var names = Object.keys(reactions).filter(function (n) { return reactions[n]; });
-    return '<div class="reaction-bar"><button type="button" class="reaction-btn' + (mine ? ' active' : '') + '" data-action="' + dataAction + '" data-id="' + id + '" data-emoji="' + (mine || '🔥') + '"' +
-      (names.length ? ' title="' + escapeHtml(names.join(', ')) + '"' : '') + '>' + tr('bravo_btn') + (names.length ? ' · ' + names.length : '') + '</button></div>';
+    var counts = {};
+    names.forEach(function (n) { var e = REACTION_EMOJIS.indexOf(reactions[n]) !== -1 ? reactions[n] : '👍'; counts[e] = (counts[e] || 0) + 1; });
+    var top = Object.keys(counts).sort(function (a, b) { return counts[b] - counts[a]; }).slice(0, 3).join('');
+    return '<div class="reaction-bar"><button type="button" class="reaction-btn reaction-open' + (mine ? ' active' : '') + '"' + (names.length ? ' title="' + escapeHtml(names.join(', ')) + '"' : '') + '>' +
+      (mine ? '<span class="reaction-mine">' + (REACTION_EMOJIS.indexOf(mine) !== -1 ? mine : '👍') + '</span> ' : '') + L('Réagir', 'React') + '</button>' +
+      (names.length ? '<span class="reaction-summary">' + top + ' ' + names.length + '</span>' : '') +
+      '<div class="reaction-picker" hidden>' + REACTION_EMOJIS.map(function (e) {
+        return '<button type="button" class="reaction-pick' + (mine === e ? ' active' : '') + '" data-action="' + dataAction + '" data-id="' + escapeHtml(id) + '" data-emoji="' + e + '" aria-label="' + e + '">' + e + '</button>';
+      }).join('') + '</div></div>';
+  }
+  // Réactions sur un élément du fil qui n'est pas un document (roulage,
+  // récap, photos) : une ligne par personne dans postReactions.
+  function itemReactions(key) {
+    var out = {};
+    (STATE.postReactions || []).forEach(function (r) { if (r.postId === key && r.emoji) out[r.author] = r.emoji; });
+    return out;
+  }
+  function reactItem(key, emoji) {
+    var me = currentUserProfile;
+    if (!me) return;
+    var id = safeDocId(key + '__' + me.name).slice(0, 300), already = itemReactions(key)[me.name] === emoji;
+    STATE.postReactions = (STATE.postReactions || []).filter(function (r) { return !(r.postId === key && r.author === me.name); });
+    if (!already) STATE.postReactions.push({ postId: key, author: me.name, emoji: emoji, createdAt: Date.now() });
+    renderRoot();
+    var ref = db.collection('postReactions').doc(id);
+    (already ? ref.delete() : ref.set({ postId: key, author: me.name, authorUid: myUid(), emoji: emoji, createdAt: Date.now() })).catch(function (err) { showToast(tr('error_prefix') + ((err && err.message) || err)); });
   }
   // A link in a post: a short label + the site's name, not the raw URL.
   function postLinkHtml(url) {
@@ -17514,14 +17545,23 @@
     html += renderSubPills('suivislist', lists, { noCard: true }) + (addFriendCta || '');
     return html;
   }
-  // Mon profil sur le réseau : en-tête, compteurs, publier, mes messages.
+  // Mon profil sur le réseau = ma fiche pilote (couverture, records,
+  // vitrine…) avec, en plus : demandes d'ami, pilotes à suivre, publier,
+  // mes publications.
   function renderSocialProfile(me) {
-    var look = lookOf(me), html = '';
-    html += '<div class="card social-profile-head">' + (look ? '<div class="sp-cover" style="' + lookStyle(look) + '"></div>' : '<div class="sp-cover"></div>') +
-      '<div class="sp-id">' + avatarHtml(me, me.name) + '<div><strong class="sp-name">' + escapeHtml(me.name) + badgesHtml(me) + '</strong>' +
-      '<span class="help-text">' + escapeHtml([roleLabel(me.role), me.bike, me.bikeNumber ? '#' + me.bikeNumber : ''].filter(Boolean).join(' · ')) + '</span></div></div>' +
-      (look && look.bio ? '<p class="sp-bio">' + escapeHtml(look.bio) + '</p>' : '') + socialCountsHtml(me.name) +
-      '<div class="outing-actions"><button type="button" class="ghost" data-action="open-my-fiche">' + L('Ma fiche pilote', 'My rider page') + '</button><button type="button" class="ghost" data-action="invite-qr">' + L('Inviter des potes', 'Invite friends') + '</button></div></div>';
+    var saved = personView, savedView = activeView;
+    personView = { name: me.name, from: 'social' }; activeView = 'person';
+    var fiche = renderPersonPage();
+    personView = saved; activeView = savedView;
+    fiche = fiche.replace(/<button type="button" class="back-chevron"[^>]*>‹<\/button>/, '');
+    // Juste sous l'en-tête (et ses compteurs) : demandes d'ami et pilotes
+    // à suivre, avant le reste de la fiche.
+    var extra = '', incoming = incomingFriendRequests(me.name);
+    if (incoming.length) extra += '<button type="button" class="card friend-req-banner" data-action="open-social" data-list="recues">' + plural(incoming.length, L('demande d\'ami', 'friend request'), L('demandes d\'ami', 'friend requests')) + ' ›</button>';
+    var sugs = followSuggestions(me.name, 8);
+    if (sugs.length) extra += '<div class="card"><div class="feed-sug-head"><strong>' + L('Des pilotes à suivre', 'Riders to follow') + '</strong><button type="button" class="link-btn" data-action="open-social" data-list="suggestions">' + L('Tout voir', 'See all') + '</button></div><div class="follow-cards">' + sugs.map(renderFollowCard).join('') + '</div></div>';
+    var ci = fiche.indexOf('<div class="social-counts">'), ce = ci === -1 ? -1 : fiche.indexOf('</div>', ci) + 6;
+    var html = ce > 5 ? fiche.slice(0, ce) + extra + fiche.slice(ce) : extra + fiche;
     html += renderWallComposer();
     var mine = (STATE.wallPosts || []).filter(function (p) { return p.author === me.name; });
     html += '<h2 class="section-title feed-section-title">' + L('Mes publications', 'My posts') + (mine.length ? ' (' + mine.length + ')' : '') + '</h2>';
@@ -17683,7 +17723,6 @@
         escapeHtml(L('Quoi de neuf, ' + (meU.firstName || meU.name || '') + ' ?', 'What\'s new, ' + (meU.firstName || meU.name || '') + '?')) + '</button></div>';
     }
     var html = '<div class="card"><h2 class="section-title">' + tr('post_to_journal_btn') + '</h2>';
-    html += '<div class="help-text">' + tr('post_to_journal_help') + '</div>';
     html += '<form id="wall-post-form">';
     html += '<label for="wall-post-text">' + tr('wall_post_placeholder') + '</label><textarea id="wall-post-text" rows="2"></textarea>';
     html += '<label for="wall-post-link" style="margin-top:0.6rem;">' + tr('link_optional_placeholder') + '</label><input type="url" id="wall-post-link" placeholder="https://...">';
@@ -17696,12 +17735,13 @@
     }
     html += '<input type="file" id="wall-post-photo-input" accept="image/*" style="display:none;">';
     html += '</div>';
-    html += '<label for="wall-post-audience" style="margin-top:0.6rem;">' + tr('visible_by_label') + '</label>' +
-      '<select id="wall-post-audience">' +
-      '<option value="all">' + tr('audience_all') + '</option>' +
-      '<option value="friends">' + tr('my_friends_option') + '</option>' +
-      '<option value="followers">' + tr('my_followers_option') + '</option>' +
-      '</select>';
+    var lastAud = 'all';
+    try { lastAud = localStorage.getItem('cdp-post-audience') === 'friends' ? 'friends' : 'all'; } catch (e) {}
+    html += '<details class="cf-more audience-more"><summary>' + L('Visible par : ', 'Visible to: ') + '<strong>' + (lastAud === 'friends' ? L('Mes amis', 'My friends') : L('Public', 'Public')) + '</strong></summary>' +
+      '<select id="wall-post-audience" style="margin-top:0.4rem;">' +
+      '<option value="all"' + (lastAud === 'all' ? ' selected' : '') + '>' + L('Public', 'Public') + '</option>' +
+      '<option value="friends"' + (lastAud === 'friends' ? ' selected' : '') + '>' + L('Mes amis', 'My friends') + '</option>' +
+      '</select></details>';
     html += '<button type="submit" class="primary" style="margin-top:0.7rem;">' + tr('publish') + '</button>';
     if (wallPostMessage) html += '<div class="help-text" style="margin-top:0.6rem;">' + escapeHtml(wallPostMessage) + '</div>';
     html += '</form></div>';
@@ -17724,18 +17764,12 @@
     html += '<div class="wall-post-head">' + avatarHtml(u, p.author) +
       personLinkHtml(p.author) + badgesHtml(u) + (showFollow ? followBtnHtml(p.author, true) : '') +
       // Friends-only is the default: only flag the wider audiences.
-      (p.audience === 'all' || p.audience === 'followers' ? '<span class="friend-role-badge">' + escapeHtml(audienceLabel) + '</span>' : '') +
+      (p.audience === 'friends' ? '<span class="friend-role-badge">' + escapeHtml(L('Amis', 'Friends')) + '</span>' : '') +
       '<span class="feed-entry-time">' + escapeHtml(relativeTime(p.editedAt || p.createdAt)) + (p.editedAt ? tr('edited_suffix') : '') + '</span></div>';
     if (p.text) html += '<div class="wall-post-text">' + escapeHtml(p.text) + '</div>';
     if (p.linkUrl) html += postLinkHtml(p.linkUrl);
     if (p.photoURL) html += '<img class="wall-post-photo" src="' + escapeHtml(p.photoURL) + '" alt="">';
-    if (p.repostOf) {
-      var o = p.repostOf, ou = (STATE.usersByName || {})[o.author] || {};
-      html += '<div class="repost-label">' + L('a republié', 'reposted') + '</div><div class="repost-box"><div class="wall-post-head">' + avatarHtml(ou, o.author) + personLinkHtml(o.author) + badgesHtml(ou) +
-        '<span class="feed-entry-time">' + escapeHtml(relativeTime(o.createdAt)) + '</span></div>' +
-        (o.text ? '<div class="wall-post-text">' + escapeHtml(o.text) + '</div>' : '') + (o.linkUrl ? postLinkHtml(o.linkUrl) : '') +
-        (o.photoURL ? '<img class="wall-post-photo" src="' + escapeHtml(o.photoURL) + '" alt="">' : '') + '</div>';
-    }
+    if (p.repostOf) html += renderRepostBox(p.repostOf);
     var nRep = repostCount(p.repostOf ? p.repostOf.id : p.id), mine = currentUserProfile && (p.repostOf ? p.repostOf.author : p.author) === currentUserProfile.name;
     var repostBtn = mine ? (nRep ? '<span class="repost-count">' + plural(nRep, L('republication', 'repost'), L('republications', 'reposts')) + '</span>' : '')
       : '<button type="button" class="ghost repost-btn" data-action="repost" data-id="' + escapeHtml(p.id) + '"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 2l4 4-4 4"/><path d="M3 11V9a3 3 0 0 1 3-3h15"/><path d="M7 22l-4-4 4-4"/><path d="M21 13v2a3 3 0 0 1-3 3H3"/></svg> ' + L('Republier', 'Repost') + (nRep ? ' · ' + nRep : '') + '</button>';
@@ -17829,12 +17863,22 @@
       ? (coreDataLoading() ? '<div class="card"><div class="empty-state">' + tr('loading') + '</div></div>' : '<div class="card">' + emptyFeedHtml() + '</div>')
       : visible.map(function (it) {
         var inner;
-        if (it.kind === 'wall') inner = renderWallPost(it.data);
-        else if (it.kind === 'activity') inner = renderFeedEntry(it.data);
-        else if (it.kind === 'ride') inner = renderFeedRide(it.data);
-        else if (it.kind === 'recap') inner = renderFeedRecap(it.data);
-        else if (it.kind === 'photos') inner = renderFeedPhotos(it.data);
-        else { var t = teamById(it.teamId); inner = renderTeamFeedEntry(it.data, me, t ? t.name : null); }
+        var d = it.data;
+        if (it.kind === 'wall') inner = renderWallPost(d);
+        else if (it.kind === 'activity') {
+          inner = renderFeedEntry(d);
+          if (inner) inner += feedSocialFooter(d.id, d.actor, { kind: 'text', author: d.actor, text: d.type === 'record' ? L('Nouveau record à ', 'New record at ') + d.circuit + ' : ' + formatTime(d.time) : '', createdAt: d.createdAt }, null);
+        } else if (it.kind === 'ride') {
+          inner = renderFeedRide(d) + feedSocialFooter(d.key, d.rider, { kind: 'ride', rider: d.rider, circuit: d.circuit, date: d.date, best: d.best, summary: plural(d.laps, L('tour', 'lap'), L('tours', 'laps')), createdAt: d.createdAt });
+        } else if (it.kind === 'recap') {
+          var rk = 'recap:' + circuitKey(d.circuit) + '|' + d.dates.join(',');
+          inner = renderFeedRecap(d) + feedSocialFooter(rk, '', { kind: 'recap', author: d.rows[0].rider, circuit: d.circuit, date: d.date, best: d.rows[0].best, summary: d.rows.slice(0, 3).map(function (x) { return x.rider; }).join(', '), createdAt: it.createdAt });
+        } else if (it.kind === 'photos') {
+          inner = renderFeedPhotos(d) + feedSocialFooter(d.key, d.rider, { kind: 'text', author: d.rider, text: L('Photos du roulage à ', 'Trackday photos at ') + d.ev.circuit, linkUrl: d.url, createdAt: d.createdAt });
+        } else {
+          var t = teamById(it.teamId); inner = renderTeamFeedEntry(d, me, t ? t.name : null);
+          if (inner) inner += feedSocialFooter(d.id, d.author, { kind: 'text', author: d.author, text: d.text || d.question || '', linkUrl: d.linkUrl || '', createdAt: d.createdAt }, null);
+        }
         if (!inner) return '';
         var h = feedDayHeader(it.createdAt), head = '';
         if (h !== lastHeader) { head = h === 'Plus tôt' ? '' : '<div class="feed-day">' + h + '</div>'; lastHeader = h; }
@@ -17979,6 +18023,43 @@
     db.collection('wallPosts').doc(post.id).set(post).catch(function (err) { showToast(tr('error_prefix') + ((err && err.message) || err)); });
   }
   function repostCount(id) { return (STATE.wallPosts || []).filter(function (p) { return p.repostOf && p.repostOf.id === id; }).length; }
+  // Republier un roulage, un récap, un message de team ou une activité :
+  // une copie figée (repostOf.kind) qui s'affiche sur mon profil.
+  var repostSnapshots = {};
+  function repostItem(key) {
+    var me = currentUserProfile, snap = repostSnapshots[key];
+    if (!me || !snap) return;
+    if ((STATE.wallPosts || []).some(function (p) { return p.author === me.name && p.repostOf && p.repostOf.id === key; })) { showToast(L('Tu l\'as déjà republié.', 'You already reposted it.')); return; }
+    var post = { id: genId(), author: me.name, authorUid: myUid(), audience: 'all', createdAt: Date.now(), repostOf: Object.assign({ id: key }, snap) };
+    STATE.wallPosts = [post].concat(STATE.wallPosts || []);
+    renderRoot();
+    showToast(L('Republié sur ton profil.', 'Reposted to your profile.'), 'success');
+    db.collection('wallPosts').doc(post.id).set(post).catch(function (err) { showToast(tr('error_prefix') + ((err && err.message) || err)); });
+  }
+  function repostButtonHtml(key, ownerName, action) {
+    var n = repostCount(key);
+    if (currentUserProfile && ownerName === currentUserProfile.name) return n ? '<span class="repost-count">' + plural(n, L('republication', 'repost'), L('republications', 'reposts')) + '</span>' : '';
+    return '<button type="button" class="ghost repost-btn" data-action="' + (action || 'repost-item') + '" data-id="' + escapeHtml(key) + '"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 2l4 4-4 4"/><path d="M3 11V9a3 3 0 0 1 3-3h15"/><path d="M7 22l-4-4 4-4"/><path d="M21 13v2a3 3 0 0 1-3 3H3"/></svg> ' + L('Republier', 'Repost') + (n ? ' · ' + n : '') + '</button>';
+  }
+  // Pied commun : réagir, republier, commentaires.
+  function feedSocialFooter(key, ownerName, snap, reactions, reactAction) {
+    repostSnapshots[key] = snap;
+    var bar = reactions === null ? '' : renderReactionBar(reactions || itemReactions(key), reactAction || 'react-item', key);
+    return '<div class="feed-entry-foot">' + bar + repostButtonHtml(key, ownerName) + '</div>' + renderPostComments({ id: key });
+  }
+  function renderRepostBox(o) {
+    var who = o.author || o.rider || '', ou = (STATE.usersByName || {})[who] || {};
+    var head = '<div class="wall-post-head">' + avatarHtml(ou, who) + personLinkHtml(who) + '<span class="feed-entry-time">' + escapeHtml(relativeTime(o.createdAt)) + '</span></div>';
+    var body = '';
+    if (o.kind === 'ride' || o.kind === 'recap') {
+      body = '<div class="repost-ride"><span class="outing-thumb feed-ride-thumb">' + circuitThumbHtml(o.circuit) + '</span><span class="feed-ride-main"><span class="feed-record-label">' +
+        (o.kind === 'recap' ? L('Récap du roulage', 'Trackday recap') : L('A roulé à', 'Rode at')) + '</span><strong class="feed-ride-circuit" data-open-circuit="' + escapeHtml(o.circuit) + '">' + escapeHtml(o.circuit) + '</strong>' +
+        '<span class="help-text">' + escapeHtml(formatDate(o.date)) + (o.summary ? ' · ' + escapeHtml(o.summary) : '') + '</span></span>' + (o.best ? '<span class="feed-record-time">' + formatTime(o.best) + '</span>' : '') + '</div>';
+    } else {
+      body = (o.text ? '<div class="wall-post-text">' + escapeHtml(o.text) + '</div>' : '') + (o.linkUrl ? postLinkHtml(o.linkUrl) : '') + (o.photoURL ? '<img class="wall-post-photo" src="' + escapeHtml(o.photoURL) + '" alt="">' : '');
+    }
+    return '<div class="repost-label">' + L('a republié', 'reposted') + '</div><div class="repost-box">' + head + body + '</div>';
+  }
 
   function deleteWallPost(id) {
     db.collection('wallPosts').doc(id).delete().catch(function (err) {
@@ -18066,15 +18147,19 @@
 
     // Réseau moto : Fil (stories en tête), Abonnements (et amis), Profil.
     if (pillState.social === 'amis' || pillState.social === 'suivis') pillState.social = 'abonnements';
-    var html = renderPills('social', [['fil', L('Fil', 'Feed')], ['abonnements', L('Abonnements', 'Following') + (incoming.length ? ' (' + incoming.length + ')' : '')], ['profil', L('Profil', 'Profile')]]);
-    if (pillState.social === 'abonnements') html += renderSuivisTab(me, addFriendCta, amisItems, incoming.length);
+    var html = '';
+    if (pillState.social === 'abonnements') {
+      // Pas un onglet : on y arrive par les compteurs du profil.
+      html += '<button type="button" class="link-btn back-link" data-action="social-back-profile">‹ ' + L('Mon profil', 'My profile') + '</button>';
+      html += renderSuivisTab(me, addFriendCta, amisItems, incoming.length);
+      return html;
+    }
+    html += renderPills('social', [['fil', L('Fil', 'Feed')], ['profil', L('Profil', 'Profile') + (incoming.length ? ' (' + incoming.length + ')' : '')]]);
+    if (false) {}
     else if (pillState.social === 'profil') html += renderSocialProfile(me);
     else {
       html += renderStoriesRow(me);
       html += renderWallComposer();
-      // Peu de choses dans le fil : des comptes à suivre juste en dessous.
-      var sugs = followSuggestions(me.name, 6);
-      if (sugs.length && followingOf(me.name).length < 5) html += '<div class="card"><div class="feed-sug-head"><strong>' + L('Des pilotes à suivre', 'Riders to follow') + '</strong><button type="button" class="link-btn" data-action="open-social" data-list="suggestions">' + L('Tout voir', 'See all') + '</button></div><div class="follow-cards">' + sugs.map(renderFollowCard).join('') + '</div></div>';
       html += renderWallFeed(me);
     }
     return html;
@@ -19587,7 +19672,9 @@
       if (activeView !== 'outing' && activeView !== 'person' && activeView !== 'planning') lastSubView[navTabFor(activeView)] = activeView;
       // Budget est une pastille de Stats ; l'ancienne vue y renvoie.
       if (activeView === 'budget') { activeView = 'stats'; pillState.stats = 'budget'; }
-      var carnetSub = renderSubNav([['carnet', L('Roulages', 'Trackdays')], ['circuit', 'Circuits'], ['stats', 'Stats']]);
+      var carnetItems = [['carnet', L('Roulages', 'Trackdays')], ['circuit', 'Circuits'], ['stats', 'Stats']];
+      if (canAccessCoachSpace() && (isAdmin() || featureEnabled('teamsCoaching') || (STATE.myTeamMemberships || []).length > 0)) carnetItems.push(['coach', 'Coaching']);
+      var carnetSub = renderSubNav(carnetItems);
       if (activeView === 'outing') body = renderOutingPage();
       else if (activeView === 'person') body = renderPersonPage();
       else if (activeView === 'carnet') body = carnetSub + renderCarnetTab();
@@ -19602,7 +19689,7 @@
       else if (activeView === 'planning') body = '<button type="button" class="link-btn back-link" data-view="chrono">‹ ' + L('Chrono', 'Lap times') + '</button>' + renderTimesheetReminder() + renderPlanningTab();
       else if (activeView === 'social') body = renderSubNav(communauteSubItems()) + renderSocialTab();
       else if (activeView === 'team') body = renderSubNav(communauteSubItems()) + renderTeamTab();
-      else if (activeView === 'coach') body = renderSubNav(communauteSubItems()) + renderCoachTab();
+      else if (activeView === 'coach') body = carnetSub + renderCoachTab();
       else body = carnetSub + carnetPillsHtml(myOutings()) + renderEventTab(); // 'event' (Carnet › Roulages › Calendrier) and safety fallback
       // Big section title so it's always clear which main tab you're in.
     }
@@ -20663,6 +20750,7 @@
         var textEl = document.getElementById('wall-post-text');
         var linkEl = document.getElementById('wall-post-link');
         var audienceEl = document.getElementById('wall-post-audience');
+        try { localStorage.setItem('cdp-post-audience', audienceEl.value); } catch (e) {}
         postToWall(textEl.value, linkEl.value, wallPostDraftPhotoURL, audienceEl.value);
       });
     }
@@ -20938,18 +21026,54 @@
         var l = btn.getAttribute('data-list');
         activeView = 'social'; personView = null; profilePanelOpen = false;
         pillState.social = 'abonnements';
-        pillState.suivislist = l === 'amis' ? 'liste' : (l === 'abonnes' || l === 'abonnements') ? l : pillState.suivislist;
+        pillState.suivislist = l === 'amis' ? 'liste' : (l === 'abonnes' || l === 'abonnements' || l === 'recues') ? l : pillState.suivislist;
         renderRoot(); window.scrollTo(0, 0);
       });
     });
     document.querySelectorAll('[data-open-person]').forEach(function (btn) {
       btn.addEventListener('click', function () { openPerson(btn.getAttribute('data-open-person')); });
     });
+    document.querySelectorAll('[data-action="repost-item"]').forEach(function (btn) {
+      btn.addEventListener('click', function () { repostItem(btn.getAttribute('data-id')); });
+    });
+    document.querySelectorAll('[data-action="react-item"]').forEach(function (btn) {
+      btn.addEventListener('click', function () { reactItem(btn.getAttribute('data-id'), btn.getAttribute('data-emoji')); });
+    });
+    document.querySelectorAll('.reaction-open').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var pk = btn.parentNode.querySelector('.reaction-picker');
+        document.querySelectorAll('.reaction-picker').forEach(function (x) { if (x !== pk) x.hidden = true; });
+        if (pk) pk.hidden = !pk.hidden;
+      });
+    });
+    // Nom, avatar → profil ; nom ou vignette de circuit → fiche circuit,
+    // sur tous les éléments du fil (avant le clic de la carte elle-même).
+    var rootEl = document.getElementById('root');
+    if (rootEl && !rootEl.__socialLinks) {
+      rootEl.__socialLinks = true;
+      rootEl.addEventListener('click', function (e) {
+        var inFeed = e.target.closest('.feed-card, .wall-post, .post-comment, .repost-box, .people-row, .feed-upcoming');
+        if (!inFeed) return;
+        var c = e.target.closest('[data-open-circuit], .feed-ride-circuit, .feed-ride-thumb, .feed-recap-head .outing-thumb');
+        if (c) {
+          var name = c.getAttribute('data-open-circuit') || (c.closest('.feed-ride, .feed-recap-head, .repost-ride') || c).querySelector('.feed-ride-circuit').textContent;
+          e.preventDefault(); e.stopPropagation();
+          selectedCircuit = name; userPickedCircuit = true; activeView = 'circuit'; outingView = null; personView = null;
+          renderRoot(); window.scrollTo(0, 0);
+          return;
+        }
+        var a = e.target.closest('.mini-avatar[data-person]');
+        if (a && !e.target.closest('[data-open-person], .follow-card')) { e.preventDefault(); e.stopPropagation(); openPerson(a.getAttribute('data-person')); }
+      }, true);
+    }
     document.querySelectorAll('[data-action="repost"]').forEach(function (btn) {
       btn.addEventListener('click', function () { repostWallPost(btn.getAttribute('data-id')); });
     });
     document.querySelectorAll('[data-action="open-story"]').forEach(function (btn) {
       btn.addEventListener('click', function () { openStory(parseInt(btn.getAttribute('data-index'), 10) || 0); });
+    });
+    document.querySelectorAll('[data-action="social-back-profile"]').forEach(function (btn) {
+      btn.addEventListener('click', function () { pillState.social = 'profil'; renderRoot(); window.scrollTo(0, 0); });
     });
     document.querySelectorAll('[data-action="open-friend-requests"]').forEach(function (btn) {
       btn.addEventListener('click', function () { pillState.suivislist = 'recues'; renderRoot(); });
@@ -23475,6 +23599,10 @@
     // suggestions) et les commentaires récents des messages.
     unsubscribers.push(db.collection('follows').limit(3000).onSnapshot(function (snap) {
       STATE.allUserFollows = snap.docs.map(function (d) { return d.data(); }).filter(function (f) { return (f.followeeType || 'user') === 'user'; });
+      renderRoot();
+    }, handleSyncError));
+    unsubscribers.push(db.collection('postReactions').orderBy('createdAt', 'desc').limit(2000).onSnapshot(function (snap) {
+      STATE.postReactions = snap.docs.map(function (d) { return d.data(); });
       renderRoot();
     }, handleSyncError));
     unsubscribers.push(db.collection('postComments').orderBy('createdAt', 'desc').limit(500).onSnapshot(function (snap) {

@@ -1,52 +1,57 @@
-// Communauté façon réseau social : Fil (« Quoi de neuf ? », pilotes à
-// suivre, commentaires), Suivis (suggestions, à découvrir, abonnements,
-// abonnés), fiche d'un pilote non ami (compteurs, Suivre, publications).
+// Communauté › Réseau : Fil (stories, « Quoi de neuf ? », réactions emoji,
+// commentaires, republier sur tous les posts, liens profil / circuit),
+// Profil (= fiche pilote + pilotes à suivre + publier), abonnements via
+// les compteurs, fiche d'un pilote non ami. Coaching dans Carnet.
 const { chromium, BASE } = require('../lib');
 (async () => {
   const lang = process.argv[2] || 'fr';
   const b = await chromium.launch();
   const p = await b.newPage({ viewport: { width: 380, height: 1000 } });
   const errs = []; p.on('pageerror', e => errs.push(e.message));
-  await p.goto(BASE + 'index.html#lang=' + lang); await p.waitForTimeout(1700);
-  await p.click('.bottom-nav-btn:nth-child(3)'); await p.waitForTimeout(500);
-  await p.click('.subnav-btn[data-view="social"]').catch(() => {}); await p.waitForTimeout(300);
-  console.log('pastilles:', await p.$$eval('[data-pill-group="social"]', e => e.map(x => x.innerText).join(' / ')));
-  console.log('composer:', await p.$eval('.composer-teaser', e => e.innerText).catch(() => 'absent'));
-  console.log('à suivre:', await p.$$eval('.follow-card strong', e => e.map(x => x.innerText).join(', ')));
-  console.log('commentaires:', await p.$$eval('.post-comment', e => e.map(x => x.innerText.replace(/\n/g, ' ')).join(' | ')));
-  await p.screenshot({ path: 'reseau-fil-' + lang + '.png', fullPage: true });
-  // Commenter le message de Sam
+  const goFil = async () => {
+    await p.click('.bottom-nav-btn:nth-child(3)'); await p.waitForTimeout(400);
+    await p.click('.subnav-btn[data-view="social"]').catch(() => {}); await p.waitForTimeout(300);
+    await p.click('[data-pill-group="social"][data-pill="fil"]'); await p.waitForTimeout(300);
+  };
+  await p.goto(BASE + 'index.html#lang=' + lang + '&admin=1'); await p.waitForTimeout(1700);
+  console.log('carnet:', await p.$$eval('.subnav-btn', e => e.map(x => x.innerText).join(' / ')));
+  await goFil();
+  console.log('communauté:', await p.$$eval('.subnav-btn', e => e.map(x => x.innerText).join(' / ')), '| pastilles:', await p.$$eval('[data-pill-group="social"]', e => e.map(x => x.innerText).join(' / ')));
+  console.log('stories:', await p.$$eval('.story-bubble', e => e.map(x => x.innerText.replace(/\n/g, ' ')).join(', ')));
+  console.log('« Gaz ! » restant:', await p.$$eval('.reaction-btn', e => e.filter(x => /Gaz/.test(x.innerText)).length), '| pieds de post:', await p.$$eval('.feed-card', e => e.filter(c => c.querySelector('.post-comment-form')).length) + '/' + await p.$$eval('.feed-card', e => e.length));
+  // Réagir avec 🔥 sur un roulage
+  const ride = await p.$('.feed-card:has(.feed-ride) .reaction-open');
+  if (ride) { await ride.click(); await p.waitForTimeout(200); await p.click('.feed-card:has(.feed-ride) .reaction-picker:not([hidden]) [data-emoji="🔥"]'); await p.waitForTimeout(400); }
+  console.log('réaction stockée:', JSON.stringify(await p.evaluate(() => Object.values(window.__MOCK_DATA.postReactions || {}).map(r => [r.postId.slice(0, 30), r.emoji]))));
+  // Republier un roulage
+  const rp = await p.$('.feed-card:has(.feed-ride) [data-action="repost-item"]');
+  if (rp) { await rp.click(); await p.waitForTimeout(400); }
+  console.log('republié:', JSON.stringify(await p.evaluate(() => Object.values(window.__MOCK_DATA.wallPosts).filter(w => w.author === 'Alex' && w.repostOf).map(w => [w.repostOf.kind, w.repostOf.circuit]))));
+  // Commenter un message
   const form = await p.$('form[data-action="comment-form"]');
-  if (form) { await form.$eval('[data-comment-text]', e => e.value = 'Je prends ma place !'); await form.$eval('button', e => e.click()); await p.waitForTimeout(500); }
-  console.log('commentaire stocké:', JSON.stringify(await p.evaluate(() => Object.values(window.__MOCK_DATA.postComments || {}).filter(c => c.author === 'Alex').map(c => [c.postId, c.text]))));
-  // Publier
+  if (form) { await form.$eval('[data-comment-text]', e => e.value = 'Je prends ma place !'); await form.$eval('button', e => e.click()); await p.waitForTimeout(400); }
+  console.log('commentaire:', await p.evaluate(() => Object.values(window.__MOCK_DATA.postComments || {}).filter(c => c.author === 'Alex').length));
+  await p.screenshot({ path: 'reseau-fil-' + lang + '.png', fullPage: true });
+  // Composer : visibilité repliée, Public / Mes amis
   await p.click('#wall-composer-toggle'); await p.waitForTimeout(300);
-  console.log('audience par défaut:', await p.$eval('#wall-post-audience', e => e.value));
-  console.log('stories:', await p.$$eval('.story-bubble', e => e.map(x => x.innerText.replace(/\n/g, ' ')).join(', ')) || 'aucune');
-  if (await p.$('.story-bubble')) {
-    await p.click('.story-bubble'); await p.waitForTimeout(500);
-    console.log('story ouverte:', await p.$eval('.story-overlay', e => e.innerText.replace(/\n/g, ' | ')));
-    await p.screenshot({ path: 'reseau-story-' + lang + '.png' });
-    await p.click('.story-close'); await p.waitForTimeout(300);
-  }
-  console.log('lignes « sont amis »:', await p.$$eval('.feed-line', e => e.length), '| « Plus tôt »:', await p.$$eval('.feed-day', e => e.filter(x => /Plus tôt|Earlier/.test(x.innerText)).length));
-  // Profil
-  await p.click('[data-pill-group="social"][data-pill="profil"]'); await p.waitForTimeout(400);
-  console.log('profil:', await p.$eval('.social-profile-head', e => e.innerText.replace(/\n/g, ' ')), '| publications:', await p.$$eval('.feed-card', e => e.length));
+  console.log('visibilité:', await p.$eval('.audience-more', e => [e.open, e.querySelector('summary').innerText, [...e.querySelectorAll('option')].map(o => o.innerText).join('/')].join(' | ')));
+  // Circuit cliquable
+  await p.click('.feed-card .feed-ride-circuit'); await p.waitForTimeout(500);
+  console.log('circuit ouvert:', await p.$eval('.subnav-btn.active', e => e.innerText).catch(() => '?'));
+  // Avatar cliquable → profil
+  await goFil();
+  await p.click('.feed-card .wall-post-head .mini-avatar[data-person="Sam"]').catch(() => {}); await p.waitForTimeout(500);
+  console.log('avatar → fiche de:', await p.$eval('.person-name, .ph-name', e => e.innerText).catch(() => '?'));
+  // Profil (photo en haut à gauche)
+  await p.click('.hello-text'); await p.waitForTimeout(500);
+  console.log('profil:', await p.$eval('.bottom-nav-btn.active', e => e.innerText.trim()), '|', await p.$eval('[data-pill-group="social"].active', e => e.innerText).catch(() => '?'), '| à suivre:', await p.$$eval('.follow-card strong', e => e.map(x => x.innerText).slice(0, 3).join(', ')), '| composer:', !!(await p.$('#wall-composer-toggle, #wall-post-form')));
   await p.screenshot({ path: 'reseau-profil-' + lang + '.png', fullPage: true });
-  // Abonnements
-  await p.click('[data-pill-group="social"][data-pill="abonnements"]'); await p.waitForTimeout(400);
-  console.log('suggestions:', await p.$$eval('.follow-card', e => e.map(x => x.innerText.replace(/\n/g, ' ')).slice(0, 4).join(' | ')));
-  console.log('à découvrir:', await p.$$eval('.feed-card .wall-post-text', e => e.map(x => x.innerText).join(' | ')));
-  await p.screenshot({ path: 'reseau-suivis-' + lang + '.png', fullPage: true });
-  console.log('sous-onglets:', await p.$$eval('[data-cpill-group="suivislist"], .sub-pill-btn', e => e.map(x => x.innerText).join(' / ')));
-  await p.click('[data-action="repost"]'); await p.waitForTimeout(500);
-  console.log('republié:', JSON.stringify(await p.evaluate(() => Object.values(window.__MOCK_DATA.wallPosts).filter(w => w.author === 'Alex' && w.repostOf).map(w => [w.repostOf.author, w.repostOf.text]))));
-  await p.click('.follow-card [data-action="quick-follow"]'); await p.waitForTimeout(500);
+  // Abonnements par les compteurs
+  await p.click('.social-count[data-list="abonnes"]'); await p.waitForTimeout(400);
+  console.log('abonnés:', await p.$$eval('[data-cpill-section="suivislist:abonnes"] .people-row strong', e => e.map(x => x.innerText).join(', ')));
+  await p.click('.follow-card [data-action="quick-follow"]'); await p.waitForTimeout(400);
   console.log('abonnements:', JSON.stringify(await p.evaluate(() => Object.values(window.__MOCK_DATA.follows).filter(f => f.follower === 'Alex').map(f => f.followee))));
-  // Fiche de Luca (non ami)
   await p.click('[data-open-person="Luca"]'); await p.waitForTimeout(600);
   console.log('fiche Luca:', await p.$eval('.social-counts', e => e.innerText.replace(/\n/g, ' ')), '| bouton:', await p.$eval('.follow-btn', e => e.innerText).catch(() => 'aucun'), '| publications:', await p.$$eval('.feed-card .wall-post-text', e => e.length));
-  await p.screenshot({ path: 'reseau-fiche-' + lang + '.png', fullPage: true });
   console.log('errs', JSON.stringify(errs)); await b.close();
 })();
