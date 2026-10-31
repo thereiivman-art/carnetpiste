@@ -17569,8 +17569,7 @@
     // à suivre, avant le reste de la fiche.
     var extra = '', incoming = incomingFriendRequests(me.name);
     if (incoming.length) extra += '<button type="button" class="card friend-req-banner" data-action="open-social" data-list="recues">' + plural(incoming.length, L('demande d\'ami', 'friend request'), L('demandes d\'ami', 'friend requests')) + ' ›</button>';
-    var sugs = followSuggestions(me.name, 8);
-    if (sugs.length) extra += '<div class="card"><div class="feed-sug-head"><strong>' + L('Des pilotes à suivre', 'Riders to follow') + '</strong><button type="button" class="link-btn" data-action="open-social" data-list="suggestions">' + L('Tout voir', 'See all') + '</button></div><div class="follow-cards">' + sugs.map(renderFollowCard).join('') + '</div></div>';
+    // Les pilotes à suivre : dans la page qu'ouvrent les compteurs (amis, abonnés…).
     var ci = fiche.indexOf('<div class="social-counts">'), ce = ci === -1 ? -1 : fiche.indexOf('</div>', ci) + 6;
     var html = ce > 5 ? fiche.slice(0, ce) + extra + fiche.slice(ce) : extra + fiche;
     return html;
