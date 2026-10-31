@@ -7528,8 +7528,34 @@
     // "the currently active circuit", so it lives here now, right after
     // the circuit's own info.
     html += renderEstimateCard(selectedCircuit);
+    html += renderTrackRecordsCard(selectedCircuit);
     html += renderChronosTab();
     return html;
+  }
+  // Records de la piste par catégorie (saisis par l'admin dans la fiche
+  // circuit), rangés avec mon record et ceux de mes potes : l'échelle
+  // complète, de la MotoGP à moi.
+  var TRACK_RECORD_CLASSES = [['motogp', 'MotoGP'], ['moto2', 'Moto2'], ['moto3', 'Moto3'], ['fsbk', 'FSBK']];
+  function renderTrackRecordsCard(circuit) {
+    var recs = circuitInfo(circuit).trackRecords || {};
+    var rows = TRACK_RECORD_CLASSES.filter(function (c) { return recs[c[0]] && recs[c[0]].t; }).map(function (c) {
+      return { label: c[1], who: recs[c[0]].who || '', t: recs[c[0]].t, kind: 'pro' };
+    });
+    if (!rows.length) return '';
+    var me = currentUserProfile && currentUserProfile.name, all = bestsByRiderCircuit(), k = circuitKey(circuit);
+    var mine = me && !meIsNonRider() && all[me] && all[me][k] ? all[me][k].best : null;
+    var friends = friendsOf(me || '').map(function (f) { return f.name; }).filter(function (n) { return !isNonRiderName(n) && all[n] && all[n][k]; })
+      .map(function (n) { return { label: n, t: all[n][k].best, kind: 'pote' }; }).sort(function (a, b) { return a.t - b.t; }).slice(0, 3);
+    rows = rows.concat(friends);
+    if (mine !== null) rows.push({ label: L('Moi', 'Me'), t: mine, kind: 'me' });
+    rows.sort(function (a, b) { return a.t - b.t; });
+    return '<div class="card track-records"><h2 class="section-title">' + L('Records de la piste', 'Track records') + '</h2>' +
+      rows.map(function (r) {
+        var gap = mine !== null && r.kind !== 'me' ? '<span class="tr-gap">' + (r.t < mine ? '−' : '+') + formatGap(Math.abs(mine - r.t)) + '</span>' : '<span class="tr-gap"></span>';
+        return '<div class="tr-row tr-' + r.kind + '"><span class="tr-label"><strong>' + escapeHtml(r.label) + '</strong>' + (r.who ? '<span class="help-text">' + escapeHtml(r.who) + '</span>' : '') + '</span>' +
+          '<span class="carnet-time">' + formatTime(r.t) + '</span>' + gap + '</div>';
+      }).join('') +
+      (mine !== null ? '<div class="help-text tr-foot">' + L('Écarts mesurés depuis ton record.', 'Gaps measured from your record.') + '</div>' : '') + '</div>';
   }
   // Pas encore de chrono sur ce circuit : le chrono estimé, en tête de
   // l'onglet Chronos (même carte que sur la page d'un roulage à venir).
@@ -7836,6 +7862,12 @@
     // renderPlanningTab/renderMyGroupSection) -- one link per circuit, not
     // per event, since the timing provider's URL for a given circuit is
     // normally the same every time a Team rides there.
+    var tRecs = info.trackRecords || {};
+    html += '<div class="ci-records"><label>' + L('Records de la piste (tour en course)', 'Track records (race lap)') + '</label>' + TRACK_RECORD_CLASSES.map(function (c) {
+      var r = tRecs[c[0]] || {};
+      return '<div class="ci-record-row"><span>' + c[1] + '</span><input type="text" id="ci-rec-' + c[0] + '" value="' + (r.t ? escapeHtml(formatTimePlain(r.t)) : '') + '" placeholder="1:39.283">' +
+        '<input type="text" id="ci-rec-' + c[0] + '-who" maxlength="40" value="' + escapeHtml(r.who || '') + '" placeholder="' + escapeHtml(L('Pilote, année', 'Rider, year')) + '"></div>';
+    }).join('') + '</div>';
     html += '<div><label for="ci-live-timing-url">' + tr('ci_live_timing_url') + '</label><input type="url" id="ci-live-timing-url" value="' + escapeHtml(info.liveTimingUrl || '') + '" placeholder="Ex. https://mugellocircuit.cronorapino.it/"></div>';
     html += '</div>';
     // These usual times pre-remplissent automatiquement une nouvelle sortie
@@ -9762,6 +9794,7 @@
       // Whole roulage (every day of the event), not only the day opened --
       // friends often ride the other day of a 2-day trackday.
       html += renderFriendsBattle(circuit, battleDates(ev, date));
+      html += renderTrackRecordsCard(circuit);
       html += renderRecordSetupCard(circuit);
       if (status !== 'avenir' && !asComp) html += '<button type="button" class="primary add-chrono-btn" id="outing-add-chrono">+ Ajouter un chrono pour ce jour</button>';
       // Mes sessions du jour
@@ -10752,9 +10785,16 @@
       var v = el ? el.value.trim() : '';
       if (v) { horaires[g.key] = v; anyHoraire = true; }
     });
+    var trackRecords = {}, anyRec = false;
+    TRACK_RECORD_CLASSES.forEach(function (c) {
+      var tEl = document.getElementById('ci-rec-' + c[0]), wEl = document.getElementById('ci-rec-' + c[0] + '-who');
+      var t = tEl && tEl.value.trim() ? parseTime(tEl.value.trim()) : null;
+      if (t) { trackRecords[c[0]] = { t: t, who: wEl ? wEl.value.trim().slice(0, 40) : '' }; anyRec = true; }
+    });
     var prevState = JSON.parse(JSON.stringify(STATE));
     STATE.circuits = STATE.circuits || {};
     var entry = STATE.circuits[selectedCircuit] || {};
+    entry.trackRecords = anyRec ? trackRecords : null;
     entry.km = (km != null && !isNaN(km)) ? km : null;
     entry.turnsRight = (right != null && !isNaN(right)) ? right : null;
     entry.turnsLeft = (left != null && !isNaN(left)) ? left : null;

@@ -50,6 +50,8 @@ Scénarios
                        avertissement en passant le compte accompagnant.
   chrono-video         nouveau chrono avec lien vidéo, heure de saisie dans
                        Passés et sur la page du roulage.
+  records-piste        records MotoGP/Moto2/Moto3/FSBK saisis par l'admin,
+                       rangés avec les potes et moi (valeurs fictives).
   parrain              Gestion des comptes : corriger un parrain.
 
 Guide PDF
