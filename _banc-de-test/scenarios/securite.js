@@ -55,6 +55,34 @@ const { chromium, BASE } = require('../lib');
   }));
   console.log('migration:', JSON.stringify(mig));
 
+  // Notes de chrono privées : une ancienne note sur le chrono public migre
+  // vers userPrivate et disparaît du document public ; une nouvelle saisie
+  // n'écrit jamais la note sur le chrono.
+  const notes = await p.evaluate(() => new Promise(res => {
+    const db = firebase.firestore(), uid = firebase.auth().currentUser.uid;
+    db.collection('sessions').doc('s1').update({ note: 'secret pneus', feelingComment: 'avant glisse' }).then(() => setTimeout(() =>
+      Promise.all([db.collection('sessions').doc('s1').get(), db.collection('userPrivate').doc(uid).get()]).then(([s, v]) => {
+        const pub = s.data() || {}, priv = ((v.data() || {}).sessionNotes || {}).s1 || {};
+        res({ publique: pub.note || null, ressentiPublic: pub.feelingComment || null, privee: priv.note || null, ressentiPrive: priv.feelingComment || null });
+      }), 600));
+  }));
+  console.log('note de chrono:', JSON.stringify(notes));
+  if (await p.$('#f-laps')) {
+    await p.evaluate(() => { const d = document.querySelector('.cf-more'); if (d) d.open = true; });
+    await p.type('#f-laps', '1:12.300'); await p.fill('#f-note', 'note perso test');
+    await p.click('#submit-btn'); await p.waitForTimeout(700);
+    if (await p.$('#feeling-skip-btn')) { await p.click('#feeling-skip-btn'); await p.waitForTimeout(300); }
+    const nv = await p.evaluate(() => new Promise(res => {
+      const db = firebase.firestore(), uid = firebase.auth().currentUser.uid;
+      Promise.all([db.collection('sessions').get(), db.collection('userPrivate').doc(uid).get()]).then(([all, v]) => {
+        const pub = all.docs.map(d => d.data()).filter(x => x.note === 'note perso test').length;
+        const priv = Object.values((v.data() || {}).sessionNotes || {}).filter(x => x && x.note === 'note perso test').length;
+        res({ surChronoPublic: pub, dansCoffrePrive: priv });
+      });
+    }));
+    console.log('nouvelle note:', JSON.stringify(nv), '| affichée:', await p.$eval('#root', e => e.innerText.indexOf('note perso test') !== -1));
+  }
+
   // Jour J sans réseau (le banc n'a pas de service worker : le
   // rechargement hors ligne se vérifie sur le téléphone, voir la check-list)
   await ctx.setOffline(true); await p.waitForTimeout(300);

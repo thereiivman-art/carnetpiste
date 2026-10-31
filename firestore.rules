@@ -212,11 +212,15 @@ service cloud.firestore {
       // certifiedBy is the event organiser's seal on a chrono -- a pilote
       // (or a team leader entering one for a teammate) can never set or
       // change it on their own write; only the dedicated clause below can.
+      // La note et le ressenti d'un chrono sont privés (userPrivate) : ils
+      // ne peuvent plus être écrits sur le chrono, lisible par tous.
       allow create: if verified() && (isAdmin() || (request.resource.data.get('certifiedBy', null) == null
+        && !request.resource.data.keys().hasAny(['note', 'feelingComment'])
         && (ownsChrono(request.resource.data.rider)
             || ownsChronoViaTeam(request.resource.data.rider, request.resource.data.get('teamId', null)))));
       allow update: if verified() && (isAdmin()
         || (request.resource.data.get('certifiedBy', null) == resource.data.get('certifiedBy', null)
+            && keptOrRemoved('note') && keptOrRemoved('feelingComment')
             && ((ownsChrono(resource.data.rider) && ownsChrono(request.resource.data.rider))
                 || (ownsChronoViaTeam(resource.data.rider, resource.data.get('teamId', null))
                     && ownsChronoViaTeam(request.resource.data.rider, request.resource.data.get('teamId', null)))))
@@ -423,7 +427,10 @@ service cloud.firestore {
       allow delete: if verified() && (resource.data.from == myName() || resource.data.to == myName());
     }
     match /friendRequests/{id} {
-      allow read: if verified();
+      // Privé : une amitié (ou une demande) n'est lisible que par ses deux
+      // personnes. Plus personne ne peut reconstituer qui est ami avec qui.
+      allow read: if verified() && (resource.data.from == myName() || resource.data.to == myName()
+        || resource.data.get('fromUid', '') == request.auth.uid || resource.data.get('toUid', '') == request.auth.uid || isAdmin());
       allow create: if verified()
         && request.resource.data.from == myName()
         && request.resource.data.to != myName()
@@ -511,7 +518,8 @@ service cloud.firestore {
     // everyone's Journal.
     match /feedEvents/{id} {
       allow read: if verified();
-      allow create: if verified() && request.resource.data.actor == myName();
+      // Seuls les nouveaux records sont publiés (plus d'amitiés : liste d'amis privée).
+      allow create: if verified() && request.resource.data.actor == myName() && request.resource.data.type == 'record';
       // Emoji reaction -- reactions.<myName()> only, own key untouched by
       // anyone else (see onlyOwnKeyChanged).
       allow update: if verified()

@@ -1,4 +1,5 @@
-// Fiche profil : la rangée de tous les amis (la mienne et celle d'un ami).
+// Fiche profil : la rangée de tous mes amis sur mon profil ; sur la fiche
+// d'un ami, plus de liste (liste d'amis privée), juste « Ami avec toi ».
 const { chromium, BASE } = require('../lib');
 (async () => {
   const lang = process.argv[2] || 'fr';
@@ -13,10 +14,11 @@ const { chromium, BASE } = require('../lib');
   await p.click('[data-cpill-group="suivislist"][data-cpill="liste"]'); await p.waitForTimeout(300);
   await p.click('[data-cpill-section="suivislist:liste"] [data-name="Sam"]'); await p.waitForTimeout(1200);
   const row = async () => (await p.$('.ph-friends-row')) ? await p.$$eval('.ph-friends-row .ph-fav-friend span', e => e.map(x => x.innerText).join(', ')) : 'aucune rangée';
-  console.log('Sam :', await row());
+  console.log('Sam :', await row(), '| compteurs:', await p.$eval('.social-counts', e => e.innerText.replace(/\n/g, ' ')).catch(() => '?'));
   await p.screenshot({ path: 'amis-sam-' + lang + '.png' });
-  // Ma fiche (Alex) depuis la rangée de Sam
-  await p.click('.ph-friends-row [data-name="Alex"]').catch(() => {}); await p.waitForTimeout(1200);
+  // Mon profil (Alex)
+  await p.click('.bottom-nav-btn:nth-child(3)'); await p.waitForTimeout(400);
+  await p.click('[data-pill-group="social"][data-pill="profil"]'); await p.waitForTimeout(800);
   console.log('Alex :', await row());
   const sc = await p.$eval('.ph-friends-row', e => [e.scrollWidth, e.clientWidth]).catch(() => null);
   console.log('scroll width / visible:', sc);

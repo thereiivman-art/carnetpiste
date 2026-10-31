@@ -1678,7 +1678,7 @@
     var req = (STATE.friendRequests || []).filter(function (r) { return r.id === id; })[0];
     db.collection('friendRequests').doc(id).update({ status: 'accepted' }).then(function () {
       showToast(tr('now_friends'), 'success');
-      if (req) writeFeedEvent('friend', { target: req.from });
+      // Plus d'événement public « X et Y sont amis » : la liste d'amis est privée.
     }).catch(function (err) {
       showToast(tr('error_prefix') + (err && err.message ? err.message : err));
     });
@@ -2839,7 +2839,8 @@
     var session = (STATE.sessions || []).filter(function (s) { return s.id === sessionId; })[0];
     if (session) { session.feeling = feeling; session.feelingComment = comment || null; }
     closeFeelingModal();
-    db.collection('sessions').doc(sessionId).update({ feeling: feeling, feelingComment: comment || null }).catch(function (err) {
+    if (session) setSessionPrivate(sessionId, { note: session.note || null, feelingComment: comment || null });
+    db.collection('sessions').doc(sessionId).update({ feeling: feeling }).catch(function (err) {
       showToast(tr('error_prefix') + (err && err.message ? err.message : err));
     });
   }
@@ -6216,7 +6217,7 @@
       legalSection('Les données que l\'appli garde', '<ul>' +
         '<li><strong>Ton compte</strong> : e-mail, pseudo, rôle (pilote, accompagnant, organisateur) et, si tu les remplis, prénom, nom, photo, moto et numéro.</li>' +
         '<li><strong>Ta pratique</strong> : chronos, roulages, groupes, objectifs, repères sur les plans, débriefs, réglages de ta moto, infos de voyage.</li>' +
-        '<li><strong>La partie communauté</strong> : amis, teams, messages, « Gaz ! », demandes de coaching et leurs messages, liens photos.</li>' +
+        '<li><strong>La partie communauté</strong> : amis, teams, messages, réactions, commentaires, stories, demandes de coaching et leurs messages, liens photos.</li>' +
         '<li><strong>Tes suggestions</strong> envoyées depuis Profil → Suggestion.</li>' +
         '<li><strong>Sur ton téléphone seulement</strong> : tes préférences d\'affichage et ce que tu as déjà lu (stockage local, pas de cookie).</li>' +
         '<li><strong>Des compteurs anonymes</strong> : langues des visiteurs, et usage de l\'appli (nombre d\'inscriptions, de chronos, d\'imports, de stories partagées, par mois). Un simple chiffre par mesure : ni nom, ni adresse IP, ni identifiant.</li>' +
@@ -6226,7 +6227,9 @@
         '<li>T\'envoyer des notifications, seulement si tu les as activées (consentement, réversible dans Réglages).</li></ul>' +
         '<p>Aucune publicité, aucune revente, aucun pistage, aucun profilage.</p>') +
       legalSection('Qui voit quoi', '<ul><li>Tes chronos, roulages et trophées sont visibles des autres pilotes de l\'appli (classements, roulages en commun). Tu peux les masquer dans Réglages → Vie privée.</li>' +
-        '<li>Tes repères, débriefs, objectifs et réglages moto ne sont visibles que de toi.</li>' +
+        '<li>Tes repères, débriefs, notes et ressentis de chrono, objectifs, réglages moto, pneus, pressions et budget ne sont visibles que de toi : ils sont rangés dans un espace privé que le serveur ne montre à personne d\'autre.</li>' +
+        '<li>Ta liste d\'amis n\'est visible que de toi : une amitié n\'est connue que des deux personnes concernées.</li>' +
+        '<li>Un message « Mes amis » (et ses commentaires) n\'est envoyé par le serveur qu\'à tes amis ; un message « Public » est visible de tous les comptes.</li>' +
         '<li>Ton e-mail n\'est jamais affiché aux autres.</li>' +
         '<li>Tes infos de voyage ne sont visibles que de toi et des accompagnants qui te suivent, si tu l\'as accepté.</li></ul>') +
       legalSection('Où elles sont stockées', '<ul><li><strong>Google Firebase</strong> (Google Ireland Ltd / Google LLC) : comptes et base de données. Les transferts éventuels hors de l\'Union européenne sont encadrés par les clauses contractuelles types de la Commission européenne et le Data Privacy Framework.</li>' +
@@ -8665,6 +8668,53 @@
   // rattachés à son chrono. Stockés dans userPrivate/{uid}.setups
   // ({sessionId: setup}) : visibles par le pilote seul, jamais par les
   // autres comptes (contrairement aux chronos eux-mêmes).
+  // Notes de chrono et commentaire de ressenti : privés. Ils vivent dans
+  // userPrivate/{uid}.sessionNotes[sessionId] (lisible par moi seul) et
+  // sont fusionnés en mémoire dans STATE.sessions pour l'affichage.
+  var SESSION_PRIVATE_FIELDS = ['note', 'feelingComment'];
+  var mySessionNotes = {};
+  var sessionNotesMigrated = {};
+  function mergeSessionNotes(list) {
+    (list || []).forEach(function (s) {
+      var n = mySessionNotes[s.id];
+      if (!n) return;
+      SESSION_PRIVATE_FIELDS.forEach(function (f) { if (n[f]) s[f] = n[f]; });
+    });
+    return list;
+  }
+  function sessionPrivatePart(sess) {
+    var out = {};
+    SESSION_PRIVATE_FIELDS.forEach(function (f) { out[f] = sess && sess[f] ? sess[f] : null; });
+    return out;
+  }
+  function setSessionPrivate(id, part, batch) {
+    var uid = auth.currentUser && auth.currentUser.uid;
+    if (!uid) return;
+    if (part && typeof part === 'object' && !part.isEqual) mySessionNotes[id] = Object.assign({}, mySessionNotes[id] || {}, part);
+    else delete mySessionNotes[id];
+    var patch = {}; patch[id] = part;
+    var ref = db.collection('userPrivate').doc(uid);
+    if (batch) batch.set(ref, { sessionNotes: patch }, { merge: true });
+    else ref.set({ sessionNotes: patch }, { merge: true }).catch(function () {});
+  }
+  // Anciennes notes encore sur le chrono public : copiées dans le coffre
+  // privé puis effacées du document public (par leur auteur seulement).
+  function migratePublicSessionNotes(rawList) {
+    var me = currentUserProfile && currentUserProfile.name, uid = myUid();
+    if (!me || !uid) return;
+    rawList.forEach(function (s) {
+      if (!s || !s.id || sessionNotesMigrated[s.id]) return;
+      if (s.rider !== me && s.uid !== uid) return;
+      if (!SESSION_PRIVATE_FIELDS.some(function (f) { return f in s; })) return;
+      sessionNotesMigrated[s.id] = true;
+      var part = sessionPrivatePart(s), del = {};
+      SESSION_PRIVATE_FIELDS.forEach(function (f) { if (f in s) del[f] = firebase.firestore.FieldValue.delete(); });
+      var keep = mySessionNotes[s.id] || {};
+      SESSION_PRIVATE_FIELDS.forEach(function (f) { if (keep[f]) part[f] = keep[f]; });
+      db.collection('userPrivate').doc(uid).set({ sessionNotes: (function () { var o = {}; o[s.id] = part; return o; })() }, { merge: true })
+        .then(function () { mySessionNotes[s.id] = part; return db.collection('sessions').doc(s.id).update(del); }).catch(function () {});
+    });
+  }
   var mySetups = null; // null = pas encore chargé
   var myTyreSets = null; // trains de pneus, même document privé (voir plus bas)
   var myBudget = null; // budget des roulages, même document privé (voir renderBudgetTab)
@@ -8689,6 +8739,8 @@
     myPressures = [];
     db.collection('userPrivate').doc(auth.currentUser.uid).get().then(function (doc) {
       migratePrivateFields(doc.exists ? doc.data() : {});
+      mySessionNotes = Object.assign({}, (doc.exists && doc.data().sessionNotes) || {}, mySessionNotes);
+      mergeSessionNotes(STATE.sessions);
       mySetups = (doc.exists && doc.data().setups) || {};
       myTyreSets = (doc.exists && doc.data().tyreSets) || [];
       myBudget = (doc.exists && doc.data().budget) || {};
@@ -16834,7 +16886,7 @@
 
   // What a customised profile shows (all on by default).
   var LOOK_SECTIONS_TEAM = function () { return [['dates', L('Prochaines dates', 'Upcoming dates')], ['links', L('Réseaux et liens', 'Socials and links')], ['sponsors', L('Sponsors', 'Sponsors')], ['palmares', L('Palmarès', 'Records')], ['riders', L('Pilotes du team', 'Team riders')]]; };
-  var LOOK_SECTIONS = function () { return [['links', L('Réseaux et liens', 'Socials and links')], ['sponsors', L('Sponsors', 'Sponsors')], ['featured', L('Chrono vedette', 'Featured lap')], ['vitrine', L('Vitrine', 'Showcase')], ['season', L('Saison', 'Season')], ['circuits', L('Circuits préférés', 'Favourite circuits')], ['teams', L('Teams préférés', 'Favourite teams')], ['friends', L('Amis', 'Friends')]]; };
+  var LOOK_SECTIONS = function () { return [['links', L('Réseaux et liens', 'Socials and links')], ['sponsors', L('Sponsors', 'Sponsors')], ['featured', L('Chrono vedette', 'Featured lap')], ['vitrine', L('Vitrine', 'Showcase')], ['season', L('Saison', 'Season')], ['circuits', L('Circuits préférés', 'Favourite circuits')], ['teams', L('Teams préférés', 'Favourite teams')]]; };
   function lookShows(l, key) { return !l.show || l.show[key] !== false; }
   function normalizeUrl(u) {
     u = (u || '').trim();
@@ -16907,22 +16959,11 @@
   // Tous les amis du profil, sur une rangée qui défile au doigt (avant :
   // 5 « amis préférés » choisis à la main). Les miens sont déjà en
   // mémoire ; ceux d'un autre pilote sont lus une fois puis gardés.
-  var personFriendsCache = {};
+  // Liste d'amis privée (firestore.rules) : seules les deux personnes
+  // concernées lisent une amitié, donc on n'affiche que la mienne.
   function personFriendNames(name) {
     var me = currentUserProfile && currentUserProfile.name;
-    if (name === me) return friendsOf(me).map(function (f) { return f.name; });
-    if (personFriendsCache[name]) return personFriendsCache[name];
-    if (personFriendsCache[name] === undefined) {
-      personFriendsCache[name] = null;
-      var q = function (field) { return db.collection('friendRequests').where(field, '==', name).where('status', '==', 'accepted').get(); };
-      Promise.all([q('from'), q('to')]).then(function (res) {
-        var names = {};
-        res.forEach(function (snap) { snap.docs.forEach(function (d) { var r = d.data(); names[r.from === name ? r.to : r.from] = true; }); });
-        personFriendsCache[name] = Object.keys(names);
-        renderRoot();
-      }).catch(function () { personFriendsCache[name] = []; });
-    }
-    return null;
+    return name === me ? friendsOf(me).map(function (f) { return f.name; }) : [];
   }
   function renderPersonFriends(name, l) {
     if (l && !lookShows(l, 'friends')) return '';
@@ -17547,7 +17588,7 @@
       var inner = '<strong>' + n + '</strong> ' + (n > 1 ? many : one);
       return mine ? '<button type="button" class="social-count" data-action="open-social" data-list="' + list + '">' + inner + '</button>' : '<span class="social-count">' + inner + '</span>';
     };
-    return '<div class="social-counts">' + item(nf, L('ami', 'friend'), L('amis', 'friends'), 'amis') + item(nfo, L('abonné', 'follower'), L('abonnés', 'followers'), 'abonnes') + item(nfg, L('abonnement', 'following'), L('abonnements', 'following'), 'abonnements') + '</div>';
+    return '<div class="social-counts">' + (mine ? item(nf, L('ami', 'friend'), L('amis', 'friends'), 'amis') : (friendsOf(currentUserProfile ? currentUserProfile.name : '').some(function (f) { return f.name === name; }) ? '<span class="social-count"><strong>' + L('Ami', 'Friend') + '</strong> ' + L('avec toi', 'with you') + '</span>' : '')) + item(nfo, L('abonné', 'follower'), L('abonnés', 'followers'), 'abonnes') + item(nfg, L('abonnement', 'following'), L('abonnements', 'following'), 'abonnements') + '</div>';
   }
   function followBtnHtml(name, small) {
     if (!currentUserProfile || name === currentUserProfile.name) return '';
@@ -24020,7 +24061,9 @@
     mySetups = null; // reload this account's private setups
     coreSyncPending = new Set(CORE_SYNC_KEYS);
     unsubscribers.push(db.collection('sessions').onSnapshot(function (snap) {
-      STATE.sessions = snap.docs.map(function (d) { return d.data(); });
+      var rawSessions = snap.docs.map(function (d) { return d.data(); });
+      migratePublicSessionNotes(rawSessions);
+      STATE.sessions = mergeSessionNotes(rawSessions);
       maybeNotifyChronoCertified(STATE.sessions);
       markCoreSynced('sessions');
       try { maybeNotifyFriendActivity(); } catch (e) {}
@@ -24156,7 +24199,13 @@
     // Social feed -- most recent first, capped since it's a scrolling
     // activity log, not something that needs full history loaded.
     unsubscribers.push(db.collection('feedEvents').orderBy('createdAt', 'desc').limit(40).onSnapshot(function (snap) {
-      STATE.feedEvents = snap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); });
+      var me = currentUserProfile && currentUserProfile.name;
+      STATE.feedEvents = snap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); }).filter(function (e) {
+        // Anciennes amitiés publiées : masquées, et effacées par leur auteur.
+        if (e.type !== 'friend') return true;
+        if (me && e.actor === me) db.collection('feedEvents').doc(e.id).delete().catch(function () {});
+        return false;
+      });
       markCoreSynced('feedEvents');
       scheduleRender();
     }, handleSyncError));
@@ -24600,7 +24649,9 @@
     if (!uid || !me || !STATE.friendRequests || !STATE.usersByName) return;
     var admin = isAdmin();
     (STATE.wallPosts || []).forEach(function (p) {
-      if (p.audience !== 'friends' || !p.id || (!admin && p.authorUid !== uid)) return;
+      // Seul l'auteur connaît sa liste d'amis (elle est privée) : l'admin ne
+      // touche pas aux messages des autres.
+      if (p.audience !== 'friends' || !p.id || p.authorUid !== uid) return;
       var want = friendUidsOf(p.author);
       if (!want.length && !p.visibleTo) return;
       if (JSON.stringify((p.visibleTo || []).slice().sort()) === JSON.stringify(want)) return;
@@ -24610,7 +24661,8 @@
     (STATE.postComments || []).forEach(function (c) {
       if (!c.id || c.public || c.visibleTo || (!admin && c.authorUid !== uid)) return;
       var wp = (STATE.wallPosts || []).filter(function (p) { return p.id === c.postId; })[0];
-      var patch = (wp && wp.audience === 'friends') ? { visibleTo: friendUidsOf(wp.author).concat(wp.authorUid ? [wp.authorUid] : []) } : { public: true };
+      if (wp && wp.audience === 'friends' && !wp.visibleTo) return; // attend que l'auteur du message l'ait complété
+      var patch = (wp && wp.audience === 'friends') ? { visibleTo: wp.visibleTo.concat(wp.authorUid ? [wp.authorUid] : []).filter(function (u, i, a) { return a.indexOf(u) === i; }) } : { public: true };
       if (privacyBackfillDone['c' + c.id]) return; privacyBackfillDone['c' + c.id] = 1;
       db.collection('postComments').doc(c.id).update(patch).catch(function () {});
     });
@@ -24631,12 +24683,22 @@
     (nextArr || []).forEach(function (item) { nextById[item.id] = item; });
     Object.keys(nextById).forEach(function (id) {
       if (JSON.stringify(nextById[id]) !== JSON.stringify(prevById[id])) {
-        batch.set(db.collection(coll).doc(id), nextById[id]);
+        var doc = nextById[id];
+        if (coll === 'sessions') {
+          // La note et le ressenti partent dans le coffre privé, jamais sur le chrono public.
+          var priv = sessionPrivatePart(doc), privBefore = sessionPrivatePart(prevById[id]);
+          if (JSON.stringify(priv) !== JSON.stringify(privBefore)) setSessionPrivate(id, priv, batch);
+          doc = Object.assign({}, doc); SESSION_PRIVATE_FIELDS.forEach(function (f) { delete doc[f]; });
+        }
+        batch.set(db.collection(coll).doc(id), doc);
         n++;
       }
     });
     Object.keys(prevById).forEach(function (id) {
-      if (!nextById[id]) { batch.delete(db.collection(coll).doc(id)); n++; }
+      if (!nextById[id]) {
+        batch.delete(db.collection(coll).doc(id)); n++;
+        if (coll === 'sessions' && mySessionNotes[id]) setSessionPrivate(id, firebase.firestore.FieldValue.delete(), batch);
+      }
     });
     return n;
   }
