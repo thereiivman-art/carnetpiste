@@ -17782,9 +17782,12 @@
       // Friends-only is the default: only flag the wider audiences.
       (p.audience === 'friends' ? '<span class="friend-role-badge">' + escapeHtml(L('Amis', 'Friends')) + '</span>' : '') +
       '<span class="feed-entry-time">' + escapeHtml(relativeTime(p.editedAt || p.createdAt)) + (p.editedAt ? tr('edited_suffix') : '') + '</span></div>';
+    // Texte à gauche, image dans l'espace libre à droite (comme partout).
+    var hasText = !!(p.text || p.linkUrl);
+    if (p.photoURL) html += '<img class="wall-post-photo' + (hasText ? ' side' : '') + '" src="' + escapeHtml(p.photoURL) + '" alt="">';
     if (p.text) html += '<div class="wall-post-text">' + escapeHtml(p.text) + '</div>';
     if (p.linkUrl) html += postLinkHtml(p.linkUrl);
-    if (p.photoURL) html += '<img class="wall-post-photo" src="' + escapeHtml(p.photoURL) + '" alt="">';
+    if (p.photoURL && hasText) html += '<div class="clear"></div>';
     if (p.repostOf) html += renderRepostBox(p.repostOf);
     var nRep = repostCount(p.repostOf ? p.repostOf.id : p.id), mine = currentUserProfile && (p.repostOf ? p.repostOf.author : p.author) === currentUserProfile.name;
     var repostBtn = mine ? '<span class="repost-count">' + (nRep ? plural(nRep, L('republication', 'repost'), L('republications', 'reposts')) : '') + '</span>'
@@ -18096,7 +18099,8 @@
         (o.kind === 'recap' ? L('Récap du roulage', 'Trackday recap') : L('A roulé à', 'Rode at')) + '</span><strong class="feed-ride-circuit" data-open-circuit="' + escapeHtml(o.circuit) + '">' + escapeHtml(o.circuit) + '</strong>' +
         '<span class="help-text">' + escapeHtml(formatDate(o.date)) + (o.summary ? ' · ' + escapeHtml(o.summary) : '') + '</span></span>' + (o.best ? '<span class="feed-record-time">' + formatTime(o.best) + '</span>' : '') + '</div>';
     } else {
-      body = (o.text ? '<div class="wall-post-text">' + escapeHtml(o.text) + '</div>' : '') + (o.linkUrl ? postLinkHtml(o.linkUrl) : '') + (o.photoURL ? '<img class="wall-post-photo" src="' + escapeHtml(o.photoURL) + '" alt="">' : '');
+      var oText = !!(o.text || o.linkUrl);
+      body = (o.photoURL ? '<img class="wall-post-photo' + (oText ? ' side' : '') + '" src="' + escapeHtml(o.photoURL) + '" alt="">' : '') + (o.text ? '<div class="wall-post-text">' + escapeHtml(o.text) + '</div>' : '') + (o.linkUrl ? postLinkHtml(o.linkUrl) : '') + (o.photoURL && oText ? '<div class="clear"></div>' : '');
     }
     return '<div class="repost-label">' + L('a republié', 'reposted') + '</div><div class="repost-box">' + head + body + '</div>';
   }

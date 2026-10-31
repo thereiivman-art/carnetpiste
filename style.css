@@ -4062,3 +4062,27 @@ span.social-count { cursor: default; }
 .social-row .reaction-bar { width: 100%; }
 .social-row .reaction-bar .reaction-btn { width: 100% !important; margin: 0; }
 .social-row svg { flex: 0 0 auto; }
+/* Toutes les publications : le texte à gauche, l'image (tracé, vignette,
+   photo) dans l'espace libre à droite. */
+.feed-ride > .outing-thumb, .feed-recap-head > .outing-thumb, .feed-entry-row > .outing-thumb, .feed-moment > .outing-thumb,
+.repost-ride > .outing-thumb, .feed-upcoming-open > .outing-thumb { order: 3; margin-left: auto; flex: 0 0 auto; }
+.feed-ride > .feed-ride-main, .feed-recap-head > .feed-ride-main, .feed-moment > .feed-ride-main, .repost-ride > .feed-ride-main, .feed-upcoming-open > .feed-upcoming-main { order: 1; }
+.feed-ride > .feed-ride-right, .repost-ride > .feed-record-time, .feed-entry-row > .feed-record-time { order: 2; }
+.feed-entry-row > .feed-entry-text { order: 1; flex: 1; min-width: 0; }
+.feed-ride-thumb, .feed-recap-head > .outing-thumb, .feed-moment > .outing-thumb, .feed-upcoming-open > .outing-thumb { width: 64px; height: 64px; }
+.feed-moment, .feed-recap-head { display: flex; align-items: center; gap: 0.8rem; }
+.feed-upcoming-open .feed-upcoming-main { flex: 1; }
+.wall-post-photo.side { float: right; width: 42%; max-height: 11rem; object-fit: cover; margin: 0.15rem 0 0.5rem 0.8rem; border-radius: 10px; }
+.clear { clear: both; }
+.feed-photos { display: flex; align-items: center; gap: 0.8rem; }
+.feed-photos > .feed-ride-main { order: 1; flex: 1; min-width: 0; }
+.feed-photos > :first-child:not(.feed-ride-main) { order: 3; margin-left: auto; }
+/* Carte de roulage : circuit, date puis chrono à gauche ; tracé à droite */
+.feed-ride, .repost-ride { display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "main thumb" "right thumb"; column-gap: 0.8rem; row-gap: 0.2rem; align-items: center; }
+.feed-ride > .feed-ride-main, .repost-ride > .feed-ride-main { grid-area: main; }
+.feed-ride > .feed-ride-right, .repost-ride > .feed-record-time { grid-area: right; align-items: flex-start; flex-direction: row; flex-wrap: wrap; gap: 0.5rem; align-self: start; justify-self: start; }
+.feed-ride > .outing-thumb, .repost-ride > .outing-thumb { grid-area: thumb; margin-left: 0; width: 72px; height: 72px; }
+.feed-ride-right .feed-ride-vs { align-self: center; }
+.feed-upcoming-row { flex-wrap: wrap; row-gap: 0.3rem; }
+.feed-upcoming-row > .feed-upcoming-open { flex: 1 1 100%; }
+.feed-upcoming-row > .feed-upcoming-open + * { margin-left: auto; }
