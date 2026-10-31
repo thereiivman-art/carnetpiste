@@ -1,12 +1,15 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <rect width="512" height="512" fill="#c8261f"/>
-  <g transform="translate(256 256) scale(0.78) translate(-256 -256)">
-  <path d="M256 150 L62 104 L62 382 L256 424 Z" fill="#f4f3ef"/>
-  <path d="M256 150 L450 104 L450 382 L256 424 Z" fill="#ffffff"/>
-  <path d="M84 170 L236 203" stroke="#14161a" stroke-opacity="0.18" stroke-width="5" stroke-linecap="round"/><path d="M84 205 L236 238" stroke="#14161a" stroke-opacity="0.18" stroke-width="5" stroke-linecap="round"/><path d="M84 240 L236 273" stroke="#14161a" stroke-opacity="0.18" stroke-width="5" stroke-linecap="round"/><path d="M84 275 L236 308" stroke="#14161a" stroke-opacity="0.18" stroke-width="5" stroke-linecap="round"/><path d="M84 310 L236 343" stroke="#14161a" stroke-opacity="0.18" stroke-width="5" stroke-linecap="round"/>
-  <path d="M62 382 L256 424 L450 382 L450 398 L256 442 L62 398 Z" fill="#14161a" opacity="0.9"/>
-  <path d="M256 150 L256 424" stroke="#14161a" stroke-width="6" stroke-linecap="round"/>
-  <path d="M402.5 311.4 L431.5 311.4 L433.0 304.2 L429.7 300.9 L416.4 298.1 L409.8 293.9 L407.1 289.0 L408.6 284.2 L412.2 279.4 L413.6 274.5 L410.4 271.1 L402.5 269.1 L380.7 263.0 L373.5 261.2 L368.6 263.6 L364.0 265.8 L359.0 263.9 L354.1 260.2 L315.4 230.0 L294.8 214.0 L290.0 212.6 L286.1 215.8 L285.4 219.5 L290.0 224.7 L298.5 231.2 L310.6 241.9 L321.5 252.5 L324.1 257.6 L325.1 263.0 L323.3 267.5 L319.3 269.4 L314.4 267.3 L305.7 257.6 L298.5 249.7 L291.2 243.7 L283.0 240.0 L277.9 241.6 L275.0 246.7 L275.5 251.5 L277.9 254.9 L287.6 261.8 L293.0 267.3 L303.3 281.8 L307.5 283.7 L313.2 282.5 L317.8 288.1 L325.3 299.9 L332.3 304.5 L344.4 308.4 L359.0 311.3 L402.5 311.4 Z" fill="none" stroke="#14161a" stroke-width="8" stroke-linejoin="round" stroke-linecap="round"/>
-  <path d="M402.5 300.4 L402.5 322.4" stroke="#c8261f" stroke-width="7" stroke-linecap="round"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><defs>
+ <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#e9e6df"/></linearGradient>
+ <linearGradient id="pl" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#fbfaf7"/><stop offset="0.85" stop-color="#f1efe9"/><stop offset="1" stop-color="#dcd8cf"/></linearGradient>
+ <linearGradient id="pr" x1="1" y1="0" x2="0" y2="0"><stop offset="0" stop-color="#ffffff"/><stop offset="0.85" stop-color="#f6f4ef"/><stop offset="1" stop-color="#e2ded6"/></linearGradient>
+ <filter id="sh" x="-20%" y="-20%" width="140%" height="150%"><feDropShadow dx="0" dy="10" stdDeviation="12" flood-color="#14161a" flood-opacity="0.22"/></filter>
+</defs>
+<rect width="512" height="512" fill="url(#bg)"/><g transform="translate(256 256) scale(0.8) translate(-256 -256)">
+<g filter="url(#sh)">
+ <path d="M256 120 C210 136 140 150 76 150 L76 392 C140 392 210 380 256 364 Z" fill="url(#pl)"/>
+ <path d="M256 120 C302 136 372 150 436 150 L436 392 C372 392 302 380 256 364 Z" fill="url(#pr)"/>
 </g>
-</svg>
+<path d="M256 120 L256 364" stroke="#14161a" stroke-opacity="0.25" stroke-width="3"/>
+<path d="M110 210 Q180 206 236 186" fill="none" stroke="#14161a" stroke-opacity="0.16" stroke-width="5" stroke-linecap="round"/><path d="M110 230 Q180 236 236 216" fill="none" stroke="#14161a" stroke-opacity="0.16" stroke-width="5" stroke-linecap="round"/><path d="M110 260 Q180 266 236 246" fill="none" stroke="#14161a" stroke-opacity="0.16" stroke-width="5" stroke-linecap="round"/><path d="M110 290 Q180 296 236 276" fill="none" stroke="#14161a" stroke-opacity="0.16" stroke-width="5" stroke-linecap="round"/><path d="M110 320 Q180 326 236 306" fill="none" stroke="#14161a" stroke-opacity="0.16" stroke-width="5" stroke-linecap="round"/>
+<path d="M394.1 304.9 L421.6 304.9 L423.0 298.0 L419.9 294.9 L407.3 292.3 L400.9 288.3 L398.4 283.7 L399.8 279.1 L403.2 274.5 L404.6 269.9 L401.5 266.7 L394.1 264.7 L373.4 259.0 L366.5 257.3 L361.9 259.6 L357.5 261.6 L352.7 259.8 L348.1 256.3 L311.4 227.6 L291.8 212.5 L287.2 211.1 L283.6 214.2 L282.9 217.6 L287.2 222.6 L295.3 228.8 L306.8 238.9 L317.1 249.0 L319.6 253.8 L320.5 259.0 L318.8 263.2 L315.0 265.1 L310.4 263.0 L302.2 253.8 L295.3 246.3 L288.4 240.6 L280.6 237.2 L275.8 238.6 L273.0 243.5 L273.5 248.1 L275.8 251.3 L284.9 257.8 L290.1 263.0 L299.9 276.8 L303.9 278.6 L309.3 277.5 L313.7 282.8 L320.8 294.0 L327.4 298.4 L338.9 302.0 L352.7 304.8 L394.1 304.9 Z" fill="none" stroke="#14161a" stroke-width="7" stroke-linejoin="round" stroke-linecap="round"/><path d="M394.1 294.9 L394.1 314.9" stroke="#c8261f" stroke-width="7" stroke-linecap="round"/>
+</g></svg>
