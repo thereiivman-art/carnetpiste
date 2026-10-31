@@ -37,8 +37,9 @@ const { chromium, BASE } = require('../lib');
   // Sans roulage aujourd'hui
   await p.goto('about:blank'); await p.goto(BASE + 'index.html#lang=' + lang); await p.waitForTimeout(1600);
   await p.click('.bottom-nav-btn.bottom-nav-main'); await p.waitForTimeout(400);
-  console.log('sans roulage:', await p.$eval('#root', e => e.innerText.split('\n').filter(Boolean).slice(0, 12).join(' | ')));
-  await p.click('[data-view="planning"].primary'); await p.waitForTimeout(500);
+  console.log('sans roulage:', await p.$eval('#root', e => e.innerText.split('\n').filter(Boolean).slice(0, 18).join(' | ')));
+  await p.screenshot({ path: 'chrono-sans-roulage-' + lang + '.png', fullPage: true });
+  await p.click('.chrono-next [data-view="planning"]'); await p.waitForTimeout(500);
   console.log('prépa ouverte:', !!(await p.$('[data-cpill-group="planning"]')), '| nav:', await p.$eval('.bottom-nav-btn.active', e => e.innerText.trim()));
   // Calendrier dans Carnet › Roulages
   await p.click('.bottom-nav-btn[data-view^="carnet"], .bottom-nav-btn:nth-child(1)'); await p.waitForTimeout(300);

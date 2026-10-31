@@ -10173,7 +10173,9 @@
     var multi = evSess.length > daySess.length;
     var useEv = multi && chronoProgEvent;
     var list = (useEv ? evSess : daySess).slice().sort(compareSessionsInDay);
-    var html = '<div class="card chrono-progress"><h2 class="section-title">' + (useEv ? L('Progression du roulage', 'Trackday progress') : L('Progression de la journée', 'Today\'s progress')) + '</h2>';
+    var isToday = today === dateKey(new Date());
+    var html = '<div class="card chrono-progress"><h2 class="section-title">' + (useEv ? L('Progression du roulage', 'Trackday progress') : L('Progression de la journée', 'Day progress')) + '</h2>' +
+      (isToday ? '' : '<div class="help-text chrono-prog-where">' + escapeHtml(circuit) + ' · ' + escapeHtml(useEv ? formatEventRange(ev, true) : formatDate(today)) + '</div>');
     var evBtn = multi ? '<button type="button" class="ghost chrono-ev-btn" data-action="chrono-prog-toggle">' + (useEv ? L('Revenir à la journée', 'Back to today') : L('Afficher la progression du roulage', 'Show the trackday progress')) + '</button>' : '';
     if (!list.length) return html + '<div class="help-text">' + L('Ton premier chrono du jour apparaîtra ici.', 'Your first lap time of the day will show up here.') + '</div>' + evBtn + '</div>';
     var bests = list.map(sessionBest), best = Math.min.apply(null, bests);
@@ -10189,18 +10191,29 @@
     }).join('') + '</div>' + evBtn + '</div>';
     return html;
   }
+  // Pas de roulage aujourd'hui : la saisie reste en tête, puis la
+  // progression de mon dernier roulage et le prochain roulage.
   function renderChronoNoRide(today) {
-    var html = '<div class="chrono-hero chrono-hero-off"><span class="chrono-hero-label">' + L('Aujourd\'hui', 'Today') + '</span><span class="chrono-hero-circuit">' + L('Pas de roulage', 'No trackday') + '</span></div>';
+    var html = '';
+    if (!meIsNonRider()) {
+      html += renderForm({ inline: true });
+      var me = currentUserProfile.name;
+      var last = (STATE.sessions || []).filter(function (x) { return x.rider === me && x.laps && x.laps.length && x.date <= today; })
+        .sort(function (a, b) { return b.date.localeCompare(a.date); })[0];
+      if (last) {
+        var lev = (last.eventId && eventsList().filter(function (e) { return e.id === last.eventId; })[0]) || candidateEventsForCircuitDate(last.circuit, last.date)[0] || { dateStart: last.date, dateEnd: last.date };
+        html += renderChronoProgress(lev, last.circuit, last.date);
+      }
+    }
     var tgt = targetPlanningEvent();
     if (tgt && tgt.mode === 'upcoming') {
       var ev = tgt.ev, days = Math.max(0, Math.round((parseLocalDate(ev.dateStart) - parseLocalDate(today)) / 86400000));
       html += '<div class="card chrono-next"><span class="help-text">' + L('Prochain roulage', 'Next trackday') + '</span><strong class="chrono-next-circuit">' + escapeHtml(ev.circuit) + '</strong>' +
         '<span>' + escapeHtml(formatEventRange(ev, true)) + ' · ' + escapeHtml(inDaysText(days)) + '</span>' +
-        '<button type="button" class="primary" data-view="planning">' + L('Préparer ce roulage', 'Get ready for it') + '</button></div>';
-    } else {
-      html += '<div class="card help-text">' + L('Aucun roulage prévu. Ajoute-le dans Carnet › Roulages : le jour J, tout sera ici.', 'No trackday planned. Add it in Carnet › Trackdays: on the day, everything will be here.') + '</div>';
+        '<button type="button" class="ghost" data-view="planning">' + L('Préparer ce roulage', 'Get ready for it') + '</button></div>';
+    } else if (meIsNonRider()) {
+      html += '<div class="card help-text">' + L('Aucun roulage prévu avec tes potes. Le jour J, leurs sessions et leurs chronos seront ici.', 'No trackday planned with your friends. On the day, their sessions and lap times will be here.') + '</div>';
     }
-    if (!meIsNonRider()) html += '<button type="button" class="ghost chrono-later-btn" data-action="chrono-add-today">' + L('+ Ajouter un chrono d\'un autre jour', '+ Add a lap time from another day') + '</button>';
     return html;
   }
   function goAddChronoFor(circuit, day, withImport) {
