@@ -53,7 +53,7 @@
   var TRANSLATIONS = {
     fr: {
       nav_carnet: 'Carnet', nav_chrono: 'Chrono', nav_sorties: 'Roulages', nav_communaute: 'Communauté', nav_events: 'Roulages', nav_chronos: 'Circuits', nav_planning: 'EN PISTE', nav_social: 'Social', nav_team: 'Team',
-      coach_label: 'Coach', stats_label: 'Stats', notifications_label: 'Notifications', my_profile_label: 'Mon profil',
+      coach_label: 'Coach', stats_label: 'Stats', notifications_label: 'Notifications', my_profile_label: 'Mon compte',
       profile_theme: 'Thème', profile_theme_light: 'clair', profile_theme_dark: 'sombre', profile_theme_system: 'système',
       profile_lang: 'Langue', save: 'Enregistrer', cancel: 'Annuler',
       // Circuit / Chronos tab
@@ -449,7 +449,7 @@
     },
     en: {
       nav_carnet: 'Pitbook', nav_chrono: 'Lap times', nav_sorties: 'Trackdays', nav_communaute: 'Community', nav_events: 'Trackdays', nav_chronos: 'Tracks', nav_planning: 'ON TRACK', nav_social: 'Social', nav_team: 'Team',
-      coach_label: 'Coach', stats_label: 'Stats', notifications_label: 'Notifications', my_profile_label: 'My profile',
+      coach_label: 'Coach', stats_label: 'Stats', notifications_label: 'Notifications', my_profile_label: 'My account',
       profile_theme: 'Theme', profile_theme_light: 'light', profile_theme_dark: 'dark', profile_theme_system: 'system',
       profile_lang: 'Language', save: 'Save', cancel: 'Cancel',
       // Circuit / Chronos tab
@@ -4518,7 +4518,7 @@
   // signup (see resolveUniquePseudo) if the new pseudo collides with
   // someone else's.
   function renderProfileTabBar() {
-    var tabs = [['profil', tr('tab_profil')], ['reglages', tr('tab_reglages')], ['aide', tr('tab_aide')], ['suggestion', tr('tab_suggestion')]];
+    var tabs = [['profil', tr('tab_profil')], ['audience', L('Audience', 'Audience')], ['reglages', tr('tab_reglages')], ['aide', tr('tab_aide')], ['suggestion', tr('tab_suggestion')]];
     return '<div class="subnav profile-tabs" role="tablist">' + tabs.map(function (t) {
       return '<button type="button" class="subnav-btn profile-tab-btn' + (profileSubTab === t[0] ? ' active' : '') + '" role="tab" aria-selected="' + (profileSubTab === t[0]) + '" data-profile-tab="' + t[0] + '">' + t[1] + '</button>';
     }).join('') + '</div>';
@@ -4999,7 +4999,8 @@
     html += '<div class="profile-tab-body">';
     if (profileSubTab === 'parrainage') profileSubTab = 'profil'; // fusionné dans le QR d'invitation
     if (profileSubTab === 'moto') profileSubTab = 'profil'; // Ma moto est dans Roulages › Ma prépa
-    if (profileSubTab === 'reglages') html += renderProfileReglagesTab(p);
+    if (profileSubTab === 'audience') html += renderAudienceTab(p);
+    else if (profileSubTab === 'reglages') html += renderProfileReglagesTab(p);
     else if (profileSubTab === 'aide') html += renderProfileAideTab(p);
     else if (profileSubTab === 'suggestion') html += '<div class="card">' + renderProfileSuggestionTab(p) + '</div>';
     else html += renderProfileProfilTab(p);
@@ -17202,7 +17203,7 @@
     // Actions
     var acts = '';
     if (isMe) acts += myDraft ? '' : '<button type="button" class="primary" data-action="look-edit">' + (lookOf(u) ? L('Modifier', 'Edit') : L('Personnaliser', 'Customise')) + '</button>' +
-      '<button type="button" class="ghost" data-action="open-my-profile">' + L('Mon profil', 'My profile') + '</button>';
+      '<button type="button" class="ghost" data-action="open-my-profile">' + L('Mon compte', 'My account') + '</button>';
     else if (friendship) acts += '<button type="button" class="ghost" disabled>' + L('Amis', 'Friends') + '</button>';
     else if (received) acts += '<button type="button" class="primary" data-action="accept-friend" data-id="' + received.id + '">' + L('Accepter son invitation', 'Accept the request') + '</button>';
     else if (sent) acts += '<button type="button" class="ghost" disabled>' + L('Demande envoyée', 'Request sent') + '</button>';
@@ -17232,11 +17233,10 @@
     if ((isPilote && (isMe || u.shareSorties !== false)) || withFeed) {
       var personPills = [['fiche', L('Fiche', 'Profile')]];
       if (isPilote && (isMe || u.shareSorties !== false)) personPills.push(['saisons', L('Saisons', 'Seasons')]);
-      if (withFeed) personPills.push(['monfil', L('Mon fil', 'My feed')], ['audience', L('Audience', 'Audience')]);
+      if (withFeed) personPills.push(['monfil', L('Mon fil', 'My feed')]);
       html += renderPills('person', personPills);
       if (pillState.person === 'saisons') return html + renderRiderSeasons(name, look, isMe) + '</div>';
       if (pillState.person === 'monfil' && withFeed) return html + renderMyFeedTab(u) + '</div>';
-      if (pillState.person === 'audience' && withFeed) return html + renderAudienceTab(u) + '</div>';
     }
     if (isPilote && u.shareSorties !== false) {
       var stats = riderStats(name);
