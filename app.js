@@ -4560,7 +4560,7 @@
   // signup (see resolveUniquePseudo) if the new pseudo collides with
   // someone else's.
   function renderProfileTabBar() {
-    var tabs = [['profil', tr('tab_profil')], ['audience', L('Audience', 'Audience')], ['reglages', tr('tab_reglages')], ['aide', tr('tab_aide')], ['suggestion', tr('tab_suggestion')]];
+    var tabs = [['profil', tr('tab_profil')], ['plus', 'Carnet+'], ['audience', L('Audience', 'Audience')], ['reglages', tr('tab_reglages')], ['aide', tr('tab_aide')], ['suggestion', tr('tab_suggestion')]];
     return '<div class="subnav profile-tabs" role="tablist">' + tabs.map(function (t) {
       return '<button type="button" class="subnav-btn profile-tab-btn' + (profileSubTab === t[0] ? ' active' : '') + '" role="tab" aria-selected="' + (profileSubTab === t[0]) + '" data-profile-tab="' + t[0] + '">' + t[1] + '</button>';
     }).join('') + '</div>';
@@ -5049,7 +5049,8 @@
     html += '<div class="profile-tab-body">';
     if (profileSubTab === 'parrainage') profileSubTab = 'profil'; // fusionné dans le QR d'invitation
     if (profileSubTab === 'moto') profileSubTab = 'profil'; // Ma moto est dans Roulages › Ma prépa
-    if (profileSubTab === 'audience') html += renderAudienceTab(p);
+    if (profileSubTab === 'plus') html += renderCarnetPlusTab(p);
+    else if (profileSubTab === 'audience') html += renderAudienceTab(p);
     else if (profileSubTab === 'reglages') html += renderProfileReglagesTab(p);
     else if (profileSubTab === 'aide') html += renderProfileAideTab(p);
     else if (profileSubTab === 'suggestion') html += '<div class="card">' + renderProfileSuggestionTab(p) + '</div>';
@@ -16581,7 +16582,9 @@
       { field: 'pro', icon: 'PRO', label: tr('badge_pro_label'), desc: tr('badge_pro_desc'), cssClass: 'pro-badge', check: isPro },
       { field: 'organizer', icon: 'ORGA', label: tr('badge_organizer_label'), desc: tr('badge_organizer_desc'), cssClass: 'organizer-badge', check: isOrganizerBadge },
       { field: 'coach', icon: 'COACH', label: tr('coach_label'), desc: tr('badge_coach_desc'), cssClass: 'coach-badge', check: isCoachBadge },
-      { field: 'photographer', icon: 'PHOTO', label: tr('badge_photographer_label'), desc: tr('badge_photographer_desc'), cssClass: 'photographer-badge', check: isPhotographerBadge }
+      { field: 'photographer', icon: 'PHOTO', label: tr('badge_photographer_label'), desc: tr('badge_photographer_desc'), cssClass: 'photographer-badge', check: isPhotographerBadge },
+      // Abonné Carnet+ (simulation : attribué par l'admin, sans paiement).
+      { field: 'plus', icon: 'C+', label: 'Carnet+', desc: L('Membre Carnet+ : soutient l\'appli et profite des fonctions avancées.', 'Carnet+ member: supports the app and gets the advanced features.'), cssClass: 'plus-badge', check: function (u) { return !!(u && u.plus); } }
     ];
   }
 
@@ -18110,6 +18113,42 @@
     var fe = (STATE.feedEvents || []).filter(function (e) { return e.id === key; })[0];
     if (fe && fe.type === 'record') return L('Record · ', 'Record · ') + fe.circuit + ' · ' + formatTime(fe.time);
     return L('Publication', 'Post');
+  }
+  // ---- Espace Carnet+ (simulation de l'offre payante) ----
+  // Ce qui est compris, le prix, et le statut du compte. Pas de paiement :
+  // l'admin attribue Carnet+ depuis la gestion des comptes ; « Ça
+  // m'intéresse » remonte une suggestion pour mesurer la demande.
+  var CARNET_PLUS_PRICE = { get month() { return L('2,99 €', '€2.99'); }, get year() { return L('24,99 €', '€24.99'); }, get team() { return L('19 €', '€19'); } };
+  function hasCarnetPlus(u) { return !!((u || currentUserProfile || {}).plus); }
+  function renderCarnetPlusTab(p) {
+    var on = hasCarnetPlus(p);
+    var check = '<svg class="cp-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7"/></svg>';
+    var feats = [
+      [L('Badge Carnet+', 'Carnet+ badge'), L('Le badge C+ à côté de ton nom, partout dans l\'appli.', 'The C+ badge next to your name, everywhere in the app.'), 'ok'],
+      [L('Fiche personnalisée', 'Custom profile'), L('Couverture, plaque de course, couleur, sponsors, chrono vedette et vitrine.', 'Cover, race plate, colour, sponsors, featured lap and showcase.'), 'ok'],
+      [L('Audience et media kit', 'Audience and media kit'), L('Impressions, comptes touchés, engagement, visites : à montrer aux marques.', 'Impressions, reach, engagement, visits: to show to brands.'), 'ok'],
+      [L('Rapport de saison', 'Season report'), L('Ta saison en PDF : records, progression, roulages, budget.', 'Your season as a PDF: records, progress, trackdays, budget.'), 'soon'],
+      [L('Garage multi-véhicules', 'Multi-vehicle garage'), L('Plusieurs motos ou voitures, réglages et pneus séparés pour chacune.', 'Several bikes or cars, separate setups and tyres for each.'), 'soon']
+    ];
+    var free = [L('Chronos, roulages et jour J', 'Lap times, trackdays and race day'), L('Classements et podiums entre potes', 'Rankings and podiums with friends'), L('Import des feuilles de temps', 'Timesheet import'), L('Réglages, pneus, pressions, budget', 'Setup, tyres, pressures, budget'), L('Communauté, stories, teams', 'Community, stories, teams')];
+    var h = '<div class="card cp-hero"><div class="cp-hero-top"><span class="cp-logo">C+</span><div><div class="cp-title">Carnet+</div><div class="cp-sub">' +
+      L('Pour les pilotes qui veulent aller plus loin et soutenir l\'appli.', 'For riders who want to go further and support the app.') + '</div></div></div>' +
+      '<div class="cp-status ' + (on ? 'on' : 'off') + '">' + (on ? L('Carnet+ actif sur ton compte', 'Carnet+ is active on your account') : L('Tu es sur la version gratuite', 'You\'re on the free version')) + '</div>' +
+      '<div class="cp-prices"><div class="cp-price"><strong>' + CARNET_PLUS_PRICE.month + '</strong><span>' + L('par mois', 'per month') + '</span></div>' +
+      '<div class="cp-price best"><span class="cp-tag">' + L('−30 %', '−30%') + '</span><strong>' + CARNET_PLUS_PRICE.year + '</strong><span>' + L('par an', 'per year') + '</span></div></div>' +
+      (on ? '' : '<button type="button" class="primary cp-cta" data-action="carnet-plus-interest">' + L('Ça m\'intéresse', 'I\'m interested') + '</button>') +
+      '<div class="help-text cp-note">' + L('Simulation : aucun paiement pour l\'instant. Pendant la phase de test, tout reste offert.', 'Simulation: no payment for now. Everything stays free during the test phase.') + '</div></div>';
+    h += '<div class="card"><h2 class="section-title">' + L('Compris dans Carnet+', 'Included in Carnet+') + '</h2>' + feats.map(function (f) {
+      return '<div class="cp-feat">' + check + '<div><strong>' + escapeHtml(f[0]) + (f[2] === 'soon' ? ' <span class="cp-soon">' + L('bientôt', 'soon') + '</span>' : '') + '</strong><div class="help-text">' + escapeHtml(f[1]) + '</div></div></div>';
+    }).join('') + '</div>';
+    h += '<div class="card"><h2 class="section-title">' + L('Toujours gratuit', 'Always free') + '</h2><div class="help-text" style="margin-bottom:0.5rem;">' +
+      L('L\'essentiel ne sera jamais payant : tes potes doivent pouvoir te suivre sans payer.', 'The essentials will never be paid: your friends must be able to follow you for free.') + '</div>' +
+      free.map(function (f) { return '<div class="cp-feat free">' + check + '<div>' + escapeHtml(f) + '</div></div>'; }).join('') + '</div>';
+    h += '<div class="card cp-team"><h2 class="section-title">' + L('Pour les motoclubs : Team PRO', 'For clubs: Team PRO') + '</h2><div class="help-text">' +
+      L('Roulages visibles par niveau (membres, adhérents, public), coach et photographe officiels, chronos validés, audience du club. À partir de ', 'Trackdays visible by level (members, club members, public), official coach and photographer, validated lap times, club audience. From ') +
+      '<strong>' + CARNET_PLUS_PRICE.team + L(' par mois', ' per month') + '</strong>.</div>' +
+      '<button type="button" class="ghost" data-action="team-pro-interest">' + L('Mon club est intéressé', 'My club is interested') + '</button></div>';
+    return h;
   }
   function renderAudienceTab(me) {
     if (!pillState.auddays) pillState.auddays = '30';
@@ -21081,6 +21120,14 @@
     var natEl = document.getElementById('profile-nationality');
     if (natEl) natEl.addEventListener('change', function () { saveNationality(natEl.value); });
     document.querySelectorAll('[data-action="export-my-data"]').forEach(function (b) { b.addEventListener('click', exportMyData); });
+    document.querySelectorAll('[data-action="carnet-plus-interest"], [data-action="team-pro-interest"]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        var team = b.getAttribute('data-action') === 'team-pro-interest';
+        sendFeedback(team ? '[Team PRO] Mon club est intéressé par Team PRO.' : '[Carnet+] Je suis intéressé par Carnet+.');
+        b.disabled = true;
+        b.textContent = L('Merci, c\'est noté !', 'Thanks, noted!');
+      });
+    });
     document.querySelectorAll('[data-rail="account"]').forEach(function (b) {
       b.addEventListener('click', function () { var t = document.getElementById('settings-toggle'); if (t) t.click(); });
     });

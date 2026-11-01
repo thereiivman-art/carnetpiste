@@ -4248,3 +4248,32 @@ span.social-count { cursor: default; }
 }
 /* Un seul trait au-dessus de « Version de l'appli ». */
 .settings-block + .app-version-row { border-top: 0; }
+
+/* ===== Carnet+ ===== */
+.plus-badge { display: inline-flex; align-items: center; justify-content: center; padding: 0.02em 0.4em; border-radius: 6px; font-family: var(--font-display); font-style: italic; font-weight: 800; font-size: 0.72em; line-height: 1.35; letter-spacing: 0.02em; color: #fff; background: linear-gradient(135deg, #c8261f, #e8892a); vertical-align: middle; cursor: help; }
+.cp-hero { position: relative; overflow: hidden; border: 0; color: #fff; background: linear-gradient(140deg, #14161a 0%, #2a1412 55%, #c8261f 130%); }
+.cp-hero-top { display: flex; align-items: center; gap: 0.9rem; }
+.cp-logo { flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; width: 3.2rem; height: 3.2rem; border-radius: 14px; font-family: var(--font-display); font-style: italic; font-weight: 800; font-size: 1.5rem; color: #fff; background: linear-gradient(135deg, #c8261f, #e8892a); box-shadow: 0 6px 16px rgba(200,38,31,0.4); }
+.cp-title { font-family: var(--font-display); font-style: italic; font-weight: 800; font-size: 2rem; line-height: 1; text-transform: uppercase; }
+.cp-sub { margin-top: 0.3rem; font-size: 0.92rem; opacity: 0.85; }
+.cp-status { display: inline-block; margin: 1rem 0 0.2rem; padding: 0.3rem 0.7rem; border-radius: 999px; font-size: 0.82rem; font-weight: 700; background: rgba(255,255,255,0.12); }
+.cp-status.on { background: #1d8a4e; }
+.cp-prices { display: flex; gap: 0.7rem; margin: 0.9rem 0; }
+.cp-price { position: relative; flex: 1; padding: 0.8rem 0.9rem; border-radius: 14px; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.18); }
+.cp-price.best { border-color: #e8892a; background: rgba(232,137,42,0.14); }
+.cp-price strong { display: block; font-family: var(--font-display); font-style: italic; font-weight: 800; font-size: 1.6rem; }
+.cp-price span { font-size: 0.8rem; opacity: 0.85; }
+.cp-tag { position: absolute; top: -0.6rem; right: 0.6rem; padding: 0.1rem 0.45rem; border-radius: 6px; font-size: 0.7rem !important; font-weight: 800; color: #fff; opacity: 1 !important; background: #e8892a; }
+.cp-hero .cp-cta { width: 100%; margin-top: 0.2rem; background: #fff; color: #c8261f; border: 0; font-weight: 800; }
+.cp-hero .cp-cta:disabled { opacity: 0.8; }
+.cp-hero .cp-note { margin-top: 0.7rem; color: rgba(255,255,255,0.7); }
+.cp-feat { display: flex; gap: 0.7rem; align-items: flex-start; padding: 0.55rem 0; border-bottom: 1px solid var(--border); }
+.cp-feat:last-child { border-bottom: 0; }
+.cp-ico { flex: 0 0 auto; width: 20px; height: 20px; margin-top: 0.1rem; color: var(--accent); }
+.cp-feat.free .cp-ico { color: #1d8a4e; }
+.cp-soon { display: inline-block; margin-left: 0.3rem; padding: 0.05rem 0.4rem; border-radius: 6px; font-size: 0.7rem; font-weight: 700; color: var(--text-muted); background: var(--surface-alt); vertical-align: middle; }
+.cp-team .ghost { margin-top: 0.7rem; }
+/* Mon compte : 6 onglets, la rangée défile au doigt au lieu d'élargir la page. */
+.subnav.profile-tabs { overflow-x: auto; scrollbar-width: none; flex-wrap: nowrap; }
+.subnav.profile-tabs::-webkit-scrollbar { display: none; }
+.subnav.profile-tabs .subnav-btn { flex: 0 0 auto; padding-left: 0.7rem; padding-right: 0.7rem; }
