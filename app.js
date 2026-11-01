@@ -13853,6 +13853,12 @@
     var label = { carnet: tr('nav_carnet'), chrono: tr('nav_chrono'), communaute: tr('nav_communaute') }[tab] || '';
     return '<div class="section-heading"><span class="section-heading-kerb" aria-hidden="true"></span><h1 class="section-heading-title">' + escapeHtml(label) + '</h1></div>';
   }
+  function myProfileNavPills() {
+    var me = currentUserProfile, isPilote = !me.role || me.role === 'pilote';
+    var out = [['monfil', L('Mon fil', 'My feed')], ['fiche', L('Fiche', 'Profile')], ['bientot', L('Bientôt en piste', 'Coming up')]];
+    if (isPilote) out.push(['saisons', L('Saisons', 'Seasons')]);
+    return out;
+  }
   function carnetSubItems() {
     var items = [['carnet', L('Roulages', 'Trackdays')], ['circuit', 'Circuits'], ['stats', 'Stats']];
     if (canAccessCoachSpace() && (isAdmin() || featureEnabled('teamsCoaching') || (STATE.myTeamMemberships || []).length > 0)) items.push(['coach', 'Coaching']);
@@ -13969,17 +13975,25 @@
     });
     if (desk && currentUserProfile) {
       var sub = function (order, items) {
-        return '<div class="nav-sub" style="order:' + order + '">' + items.map(function (it) { return '<button type="button" class="nav-sub-btn' + (it[2] ? ' active' : '') + '" ' + it[1] + '>' + it[0] + '</button>'; }).join('') + '</div>';
+        return '<div class="nav-sub" style="order:' + order + '">' + items.map(function (it) { return '<button type="button" class="nav-sub-btn' + (/data-level="3"/.test(it[1]) ? ' nav-sub3' : '') + (it[2] ? ' active' : '') + '" ' + it[1] + '>' + it[0] + '</button>'; }).join('') + '</div>';
       };
+      // Sous-menus repliés : seuls ceux du menu ouvert s'affichent.
       var onPanel = profilePanelOpen || notificationsPanelOpen;
-      html += sub(1, carnetSubItems().map(function (it) {
+      if (current === 'carnet') html += sub(1, carnetSubItems().map(function (it) {
         return [it[1], 'data-view="' + it[0] + '"', !onPanel && (activeView === it[0] || (it[0] === 'carnet' && (activeView === 'event' || activeView === 'outing')))];
       }));
-      var me = currentUserProfile, nIn = incomingFriendRequests(me.name).length;
-      var comm = [[L('Profil', 'Profile') + (nIn ? ' (' + nIn + ')' : ''), 'data-view="social" data-pill-group="social" data-pill="profil"', !onPanel && activeView === 'social' && (pillState.social === 'profil' || pillState.social === 'abonnements')],
-        [L('Fil', 'Feed'), 'data-view="social" data-pill-group="social" data-pill="fil"', !onPanel && activeView === 'social' && pillState.social === 'fil']];
-      if (communauteSubItems().some(function (it) { return it[0] === 'team'; })) comm.push(['Teams', 'data-view="team"', !onPanel && activeView === 'team']);
-      html += sub(5, comm);
+      if (current === 'communaute') {
+        var me = currentUserProfile, nIn = incomingFriendRequests(me.name).length;
+        var onProfil = !onPanel && activeView === 'social' && (pillState.social === 'profil' || pillState.social === 'abonnements');
+        var comm = [[L('Profil', 'Profile') + (nIn ? ' (' + nIn + ')' : ''), 'data-view="social" data-pill-group="social" data-pill="profil"', onProfil]];
+        // 3e niveau sous Profil : Mon fil, Fiche, Bientôt en piste, Saisons.
+        if (onProfil) myProfileNavPills().forEach(function (it) {
+          comm.push([it[1], 'data-nav-person="' + it[0] + '" data-level="3"', pillState.person === it[0]]);
+        });
+        comm.push([L('Fil', 'Feed'), 'data-view="social" data-pill-group="social" data-pill="fil"', !onPanel && activeView === 'social' && pillState.social === 'fil']);
+        if (communauteSubItems().some(function (it) { return it[0] === 'team'; })) comm.push(['Teams', 'data-view="team"', !onPanel && activeView === 'team']);
+        html += sub(5, comm);
+      }
     }
     html += '</nav>';
     return html;
@@ -17764,7 +17778,7 @@
       personPills.push(['fiche', L('Fiche', 'Profile')]);
       if (withFeed || (!isMe && upcomingVisible(u, name))) personPills.push(['bientot', L('Bientôt en piste', 'Coming up')]);
       if (isPilote && (isMe || u.shareSorties !== false)) personPills.push(['saisons', L('Saisons', 'Seasons')]);
-      html += renderPills('person', personPills);
+      html += withFeed ? renderPills('person', personPills).replace('<div class="pill-tabs">', '<div class="pill-tabs main-subnav-pills">') : renderPills('person', personPills);
       if (pillState.person === 'fil' && !isMe) return html + (theirPosts.length ? theirPosts.slice(0, 30).map(function (p) { return '<div class="card feed-card"' + viewAttrs(p.id, p.author) + '>' + renderWallPost(p) + '</div>'; }).join('') : '<div class="card help-text">' + L('Aucune publication pour l\'instant.', 'No posts yet.') + '</div>') + '</div>';
       if (pillState.person === 'saisons') return html + renderRiderSeasons(name, look, isMe) + '</div>';
       if (pillState.person === 'bientot' && !isMe) return html + (personUpcomingHtml(name) || '<div class="card help-text">' + L('Aucun roulage prévu pour l\'instant.', 'No trackday planned yet.') + '</div>') + '</div>';
@@ -23668,6 +23682,13 @@
         // that scroll itself, the way a native app's tab bar always opens
         // each tab at its top.
         window.scrollTo(0, 0);
+      });
+    });
+    document.querySelectorAll('[data-nav-person]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        activeView = 'social'; pillState.social = 'profil'; pillState.person = btn.getAttribute('data-nav-person');
+        personView = null; profilePanelOpen = false; notificationsPanelOpen = false;
+        renderRoot(); window.scrollTo(0, 0);
       });
     });
     document.querySelectorAll('[data-calendar-view]').forEach(function (btn) {
