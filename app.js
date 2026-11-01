@@ -4584,15 +4584,39 @@
     }).join('') + '</div>';
   }
 
+  // Images de profil prêtes à l'emploi (SVG légers, sans photo).
+  function avatarPresets(name) {
+    var ini = escapeHtml(((name || '?').trim().charAt(0) || '?').toUpperCase());
+    var helmet = function (bg, shell, visor) {
+      return '<rect width="96" height="96" fill="' + bg + '"/><path d="M18 64c0-23 15-40 34-40 17 0 28 13 28 30v12H52l-7 10H22z" fill="' + shell + '"/><path d="M50 42h30v14H50z" fill="' + visor + '"/><path d="M30 34c6-5 12-7 20-7" stroke="' + visor + '" stroke-width="4" fill="none" stroke-linecap="round"/>';
+    };
+    var chk = '';
+    for (var r = 0; r < 6; r++) for (var c = 0; c < 6; c++) if ((r + c) % 2) chk += '<rect x="' + c * 16 + '" y="' + r * 16 + '" width="16" height="16" fill="#14161a"/>';
+    var kerb = '';
+    for (var k = -2; k < 8; k++) kerb += '<path d="M' + (k * 16) + ' 96l16 0 40-96-16 0z" fill="' + (k % 2 ? '#c8261f' : '#f4f3ef') + '"/>';
+    var svgs = [
+      helmet('#14161a', '#c8261f', '#f4f3ef'),
+      helmet('#c8261f', '#14161a', '#e1b10f'),
+      helmet('#f4f3ef', '#2f6fd6', '#14161a'),
+      '<rect width="96" height="96" fill="#f4f3ef"/>' + chk,
+      kerb,
+      '<rect width="96" height="96" fill="#14161a"/><circle cx="48" cy="48" r="32" fill="none" stroke="#f4f3ef" stroke-width="12"/><circle cx="48" cy="48" r="10" fill="#c8261f"/>',
+      '<rect width="96" height="96" fill="#e1b10f"/><rect x="14" y="22" width="68" height="52" rx="10" fill="#f4f3ef" stroke="#14161a" stroke-width="4"/><text x="48" y="62" text-anchor="middle" font-family="Arial, sans-serif" font-weight="900" font-style="italic" font-size="34" fill="#14161a">' + ini + '</text>'
+    ];
+    return svgs.map(function (b) { return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96">' + b + '</svg>'); });
+  }
   function renderProfileAvatar(p) {
     var initial = escapeHtml((p.name || '?').trim().charAt(0).toUpperCase() || '?');
     return '<div class="profile-avatar-row">' +
       '<div class="profile-avatar' + (!p.photoURL && p.nationality ? ' has-flag' : '') + '">' + (p.photoURL ? '<img src="' + escapeHtml(p.photoURL) + '" alt="' + tr('profile_photo_alt') + '">' : (p.nationality && COUNTRY_BALLS[p.nationality] ? countryBallHtml(p.nationality, 'avatar-ball') : '<span class="profile-avatar-placeholder">' + initial + '</span>')) + '</div>' +
       '<div class="profile-avatar-actions">' +
         '<button type="button" class="ghost" id="profile-photo-btn">' + (p.photoURL ? tr('change_photo') : tr('add_photo_plain')) + '</button>' +
-        (p.photoURL ? '<button type="button" class="ghost" id="profile-photo-recrop-btn">' + tr('edit_crop') + '</button>' : '') +
+        (p.photoURL && !/^data:image\/svg/.test(p.photoURL) ? '<button type="button" class="ghost" id="profile-photo-recrop-btn">' + tr('edit_crop') + '</button>' : '') +
         (p.photoURL ? '<button type="button" class="ghost" id="profile-photo-remove-btn">' + tr('remove_generic') + '</button>' : '') +
         '<input type="file" id="profile-photo-input" accept="image/*" style="display:none;">' +
+        '<div class="avatar-presets"><span class="help-text">' + L('Ou une image prête :', 'Or a ready-made image:') + '</span><div class="avatar-preset-row">' +
+          avatarPresets(p.name).map(function (src, i) { return '<button type="button" class="avatar-preset' + (p.photoURL === src ? ' active' : '') + '" data-avatar-preset="' + i + '" aria-label="' + L('Image ', 'Image ') + (i + 1) + '"><img src="' + src + '" alt=""></button>'; }).join('') +
+        '</div></div>' +
         (profilePhotoMessage ? '<div class="help-text">' + escapeHtml(profilePhotoMessage) + '</div>' : '') +
       '</div>' +
       '</div>';
@@ -4798,6 +4822,11 @@
         '<label class="checklist-item" style="margin-top:0.6rem;"><input type="checkbox" id="profile-share-sorties"' + (p.shareSorties !== false ? ' checked' : '') + '> ' + tr('share_events_chronos') + '</label>' +
         '<label for="profile-share-upcoming" style="margin-top:0.7rem;">' + L('Mes prochains roulages (Bientôt en piste) visibles par', 'My next trackdays (Coming up) visible to') + '</label>' +
         '<select id="profile-share-upcoming"><option value="friends"' + ((p.shareUpcoming || 'friends') === 'friends' ? ' selected' : '') + '>' + L('Mes amis', 'My friends') + '</option><option value="public"' + (p.shareUpcoming === 'public' ? ' selected' : '') + '>' + L('Tout le monde', 'Everyone') + '</option></select>' +
+        '<label for="profile-visibility" style="margin-top:0.7rem;">' + L('Ma fiche (présentation, bannière, publications) visible par', 'My profile (about, banner, posts) visible to') + '</label>' +
+        '<select id="profile-visibility"><option value="public"' + (p.profileVisibility !== 'friends' ? ' selected' : '') + '>' + L('Tout le monde', 'Everyone') + '</option><option value="friends"' + (p.profileVisibility === 'friends' ? ' selected' : '') + '>' + L('Mes amis', 'My friends') + '</option></select>' +
+        '<label for="lists-visibility" style="margin-top:0.7rem;">' + L('Mes abonnés et abonnements visibles par', 'My followers and following visible to') + '</label>' +
+        '<select id="lists-visibility"><option value="public"' + (p.listsVisibility !== 'private' ? ' selected' : '') + '>' + L('Tout le monde', 'Everyone') + '</option><option value="private"' + (p.listsVisibility === 'private' ? ' selected' : '') + '>' + L('Moi seul', 'Only me') + '</option></select>' +
+        '<div class="help-text" style="margin-top:0.3rem;">' + L('Ta liste d\'amis n\'est jamais montrée aux autres.', 'Your friend list is never shown to others.') + '</div>' +
         '<label class="checklist-item" style="margin-top:0.4rem;"><input type="checkbox" id="profile-share-trophees"' + (p.shareTrophees !== false ? ' checked' : '') + '> ' + tr('share_trophies') + '</label>' +
         '<label class="checklist-item" style="margin-top:0.4rem;"><input type="checkbox" id="profile-share-travel-info"' + (p.shareTravelInfo !== false ? ' checked' : '') + '> ' + tr('share_travel_info') + '</label>';
       sections.confidentialite = privacy;
@@ -6820,12 +6849,17 @@
       '<span>' + L('Photo / PDF', 'Photo / PDF') + '</span></button>' +
       '<input type="file" id="import-photo-input" accept="image/*,application/pdf" multiple hidden></div>';
     html += '<div class="field-error" id="form-error"></div>';
+    html += '<button type="submit" class="primary cf-submit" id="submit-btn">' + L('Enregistrer', 'Save') + '</button>';
+    html += '<details class="cf-more"' + (formCircuitsKnown ? '' : ' open') + '><summary>⋯ ' + L('Piste, note, vidéo, autres réglages', 'Track, note, video, other details') + '</summary>';
+    var trackIco = {
+      sec: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
+      humide: '<path d="M7 15a4 4 0 0 1 .5-8 5 5 0 0 1 9.5 1.5A3.5 3.5 0 0 1 17 15z"/><path d="M12 18.5v.5"/>',
+      pluie: '<path d="M7 13a4 4 0 0 1 .5-8 5 5 0 0 1 9.5 1.5A3.5 3.5 0 0 1 17 13z"/><path d="M8 16l-1 3M12 16l-1 3M16 16l-1 3"/>'
+    };
     html += '<div class="track-cond" role="radiogroup" aria-label="' + escapeHtml(L('État de la piste', 'Track condition')) + '"><span class="help-text">' + L('Piste', 'Track') + '</span>' +
       [['sec', L('Sèche', 'Dry')], ['humide', L('Humide', 'Damp')], ['pluie', L('Pluie', 'Rain')]].map(function (o, i) {
-        return '<label class="track-opt"><input type="radio" name="f-track" value="' + o[0] + '"' + (i === 0 ? ' checked' : '') + '><span>' + o[1] + '</span></label>';
+        return '<label class="track-opt" title="' + o[1] + '"><input type="radio" name="f-track" value="' + o[0] + '"' + (i === 0 ? ' checked' : '') + ' aria-label="' + o[1] + '"><span><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + trackIco[o[0]] + '</svg></span></label>';
       }).join('') + '</div>';
-    html += '<button type="submit" class="primary cf-submit" id="submit-btn">' + L('Enregistrer', 'Save') + '</button>';
-    html += '<details class="cf-more"' + (formCircuitsKnown ? '' : ' open') + '><summary>⋯ ' + L('Note, vidéo, autres réglages', 'Note, video, other details') + '</summary>';
     html += '<div style="margin-top:0.6rem;"><label for="f-note">' + tr('note_optional') + '</label>' +
       '<input type="text" id="f-note" placeholder="' + tr('note_placeholder') + '"></div>';
     html += '<div style="margin-top:0.7rem;"><label for="f-video">' + L('Lien vidéo (facultatif)', 'Video link (optional)') + '</label>' +
@@ -13828,7 +13862,7 @@
   }
   // Pastilles (3e niveau, à l'intérieur d'un sous-onglet) : même style que
   // le filtre Passés/À venir du carnet. État mémorisé par groupe.
-  var pillState = { person: 'fiche', profil: 'identite', settings: 'affichage', social: 'fil', events: 'avenir', circuit: 'plan', stats: 'records', teams: 'mine', team: 'fil', coach: 'demandes', planning: 'programme', outing: 'chronos', evmanage: 'participants', statsrec: 'circuits', passub: 'calendrier', outinfo: 'horaires' };
+  var pillState = { person: 'monfil', profil: 'identite', settings: 'affichage', social: 'fil', events: 'avenir', circuit: 'plan', stats: 'records', teams: 'mine', team: 'fil', coach: 'demandes', planning: 'programme', outing: 'chronos', evmanage: 'participants', statsrec: 'circuits', passub: 'calendrier', outinfo: 'horaires' };
   // Même chose que renderPills, en petites pastilles (sous une pastille).
   function renderSubPillRow(group, items) {
     var cur = pillState[group];
@@ -16744,7 +16778,9 @@
   // identically on touch and desktop.
   function badgesHtml(u) {
     return profileBadges().map(function (b) {
-      return b.check(u) ? ' <span class="' + b.cssClass + (b.icon.length > 1 ? ' badge-text' : '') + '" title="' + escapeHtml(b.desc) + '" data-badge-info="' + escapeHtml(b.desc) + '">' + b.icon + '</span>' : '';
+      // Vérifié et Carnet+ : un appui mène à l'espace Carnet+.
+      var toPlus = b.field === 'plus' || b.field === 'certified';
+      return b.check(u) ? ' <span class="' + b.cssClass + (b.icon.length > 1 ? ' badge-text' : '') + '" title="' + escapeHtml(b.desc) + '" data-badge-info="' + escapeHtml(b.desc) + '"' + (toPlus ? ' data-badge-plus="1" role="link" tabindex="0"' : '') + '>' + b.icon + '</span>' : '';
     }).join('');
   }
 
@@ -16997,7 +17033,7 @@
     var initial = escapeHtml((name || '?').trim().charAt(0).toUpperCase() || '?');
     var flag = u && !u.photoURL && u.nationality ? countryBallHtml(u.nationality, 'avatar-ball') : '';
     var look = lookOf(u);
-    return '<span class="mini-avatar' + (flag ? ' has-flag' : '') + (look ? ' has-look' : '') + '" data-person="' + escapeHtml(name || '') + '"' + (look ? ' style="--ring:' + escapeHtml(look.color || '#c8261f') + '"' : '') + (flag ? ' title="' + escapeHtml(countryName(u.nationality)) + '"' : '') + '>' + (u && u.photoURL
+    return '<span class="mini-avatar' + (flag ? ' has-flag' : '') + (look ? ' has-look' : '') + '" data-person="' + escapeHtml(name || '') + '"' + (look ? ' style="--ring:' + safeColor(look.color) + '"' : '') + (flag ? ' title="' + escapeHtml(countryName(u.nationality)) + '"' : '') + '>' + (u && u.photoURL
       ? '<img src="' + escapeHtml(u.photoURL) + '" alt="">'
       // The flag alone (the pseudo is always shown next to it).
       : (flag || '<span class="mini-avatar-placeholder">' + initial + '</span>')) + '</span>';
@@ -17029,12 +17065,13 @@
   function openPerson(name) {
     if (!name) return;
     if (currentUserProfile && name === currentUserProfile.name) {
-      activeView = 'social'; pillState.social = 'profil'; personView = null;
+      activeView = 'social'; pillState.social = 'profil'; pillState.person = 'monfil'; personView = null;
       notificationsPanelOpen = false; profilePanelOpen = false;
       renderRoot(); window.scrollTo(0, 0);
       return;
     }
     var from = activeView === 'person' && personView ? personView.from : (activeView === 'outing' ? 'social' : activeView);
+    if (!personView || personView.name !== name) pillState.person = 'fil';
     personView = { name: name, from: from || 'social' };
     recordView('profileViews', 'profile:' + name, name);
     activeView = 'person';
@@ -17066,7 +17103,10 @@
     return l && (l.cover || l.plate || l.bio || l.color) ? l : null;
   }
   function lookInk(color) { return color === '#e1b10f' ? '#14161a' : '#ffffff'; }
-  function lookStyle(l) { return '--sig:' + escapeHtml(l.color || '#c8261f') + ';--sig-ink:' + lookInk(l.color); }
+  // Couleur choisie par l'utilisateur : seulement « #rrggbb » (rien qui
+  // puisse ajouter du CSS, ex. une image externe qui trace les visiteurs).
+  function safeColor(c) { return /^#[0-9a-f]{6}$/i.test(c || '') ? c : '#c8261f'; }
+  function lookStyle(l) { return '--sig:' + safeColor(l.color) + ';--sig-ink:' + lookInk(safeColor(l.color)); }
   // Best lap per circuit for a rider: { circuit: { best, date, first } }.
   function riderBestsByCircuit(name) {
     var out = {};
@@ -17240,22 +17280,24 @@
     if (!/^https?:\/\//i.test(u)) u = 'https://' + u;
     return /^https?:\/\/[^\s\/]+\.[^\s]+$/i.test(u) || /^https?:\/\/[^\s\/]+\.[a-z]{2,}\/?$/i.test(u) ? u : '';
   }
-  // Which network a link points to: label + line icon.
-  var LINK_ICONS = {
-    instagram: '<rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="0.6"/>',
-    youtube: '<rect x="2.5" y="5.5" width="19" height="13" rx="4"/><path d="M10 9.5v5l4.5-2.5z"/>',
-    tiktok: '<path d="M14 3v11.5a3.5 3.5 0 1 1-3.5-3.5"/><path d="M14 3c.5 2.6 2.4 4.4 5 4.6"/>',
-    facebook: '<path d="M14 21v-8h3l.5-3.5H14V7.8c0-1 .4-1.8 1.9-1.8H18V3.2A22 22 0 0 0 15.3 3C12.6 3 11 4.6 11 7.5v2H8V13h3v8"/>',
-    strava: '<path d="M10 3 4 15h4l2-4 2 4h4z"/><path d="m14 15 2 4 2-4"/>',
-    x: '<path d="M4 4l16 16M20 4 4 20"/>',
-    link: '<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>'
+  // Which network a link points to: label + logo (pictogramme blanc sur
+  // la couleur de la marque).
+  var LINK_BRANDS = {
+    instagram: { bg: 'radial-gradient(circle at 30% 107%, #fdf497 0%, #fd5949 45%, #d6249f 60%, #285aeb 90%)', g: '<rect x="4" y="4" width="16" height="16" rx="4.5" fill="none" stroke="#fff" stroke-width="2"/><circle cx="12" cy="12" r="3.6" fill="none" stroke="#fff" stroke-width="2"/><circle cx="16.6" cy="7.4" r="1.2" fill="#fff"/>' },
+    youtube: { bg: '#ff0000', g: '<path d="M9.5 8.2v7.6l6.6-3.8z" fill="#fff"/>' },
+    tiktok: { bg: '#000', g: '<path d="M13.2 4h2.6c.3 2 1.6 3.4 3.6 3.6v2.7a6.4 6.4 0 0 1-3.6-1.1v5.6a4.9 4.9 0 1 1-4.9-4.9h.4v2.7h-.4a2.2 2.2 0 1 0 2.3 2.2z" fill="#fff"/>' },
+    facebook: { bg: '#1877f2', g: '<path d="M13.4 20v-6.6h2.3l.4-2.7h-2.7V9c0-.8.3-1.3 1.4-1.3h1.4V5.3a17 17 0 0 0-2.1-.1c-2.1 0-3.5 1.3-3.5 3.6v1.9H8.3v2.7h2.3V20z" fill="#fff"/>' },
+    strava: { bg: '#fc4c02', g: '<path d="M10.6 3.5 5.8 13h2.9l1.9-3.7 1.9 3.7h2.9z" fill="#fff"/><path d="m15.4 13-1.4 2.8-1.5-2.8h-2.1l3.6 7 3.5-7z" fill="#fff" opacity=".7"/>' },
+    x: { bg: '#000', g: '<path d="M5.5 5h4l3.2 4.4L16.6 5h1.8l-4.8 5.5L19 19h-4l-3.5-4.8L7.3 19H5.5l5.1-5.8z" fill="#fff"/>' },
+    link: { bg: 'var(--text)', g: '<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"/>' }
   };
   function linkKind(url) {
     var host = '';
     try { host = new URL(url).hostname.replace(/^www\./, ''); } catch (e) {}
     var k = /instagram\.com$/.test(host) ? ['instagram', 'Instagram'] : /(youtube\.com|youtu\.be)$/.test(host) ? ['youtube', 'YouTube'] : /tiktok\.com$/.test(host) ? ['tiktok', 'TikTok']
       : /facebook\.com$/.test(host) ? ['facebook', 'Facebook'] : /strava\.com$/.test(host) ? ['strava', 'Strava'] : /(twitter\.com|x\.com)$/.test(host) ? ['x', 'X'] : ['link', host || url];
-    return { icon: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + LINK_ICONS[k[0]] + '</svg>', label: k[1] };
+    var b = LINK_BRANDS[k[0]];
+    return { icon: '<span class="brand-logo brand-' + k[0] + '" style="background:' + b.bg + '"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">' + b.g + '</svg></span>', label: k[1] };
   }
   function renderLinksAndSponsors(l) {
     var html = '';
@@ -17366,7 +17408,7 @@
       var memberNames = membersOfTeam(team.id).map(function (m) { return m.name; }).sort();
       if (lookShows(d, 'riders')) html += '<div class="look-field"><span class="look-label">' + L('Pilotes du team (5 max)', 'Team riders (up to 5)') + '</span>' +
         (memberNames.length ? pick('favRiders', memberNames, memberNames, 5) : '<div class="help-text">' + L('Les membres du team apparaîtront ici.', 'Team members will show here.') + '</div>') + '</div>';
-      html += '<div class="look-field"><label class="look-label" for="look-bio">' + L('Présentation', 'About') + '</label><textarea id="look-bio" maxlength="240" rows="3" placeholder="' + L('Ex. Roulages circuit en France et en Espagne depuis 2012.', 'E.g. Track days in France and Spain since 2012.') + '">' + escapeHtml(d.bio || '') + '</textarea></div>';
+      html += '<div class="look-field"><label class="look-label" for="look-bio">' + L('Présentation', 'About') + '</label><textarea id="look-bio" maxlength="250" rows="3" placeholder="' + L('Ex. Roulages circuit en France et en Espagne depuis 2012.', 'E.g. Track days in France and Spain since 2012.') + '">' + escapeHtml(d.bio || '') + '</textarea><span class="help-text look-bio-count" id="look-bio-count">' + (d.bio || '').length + ' / 250</span></div>';
       html += '<div class="look-actions"><button type="button" class="primary" data-action="look-save">' + L('Enregistrer', 'Save') + '</button><button type="button" class="ghost" data-action="look-cancel">' + L('Annuler', 'Cancel') + '</button>' +
         (lookOf(team) ? '<button type="button" class="link-btn" data-action="look-reset">' + L('Revenir à la fiche standard', 'Back to the standard page') + '</button>' : '') + '</div>' +
         (lookMessage ? '<div class="help-text">' + escapeHtml(lookMessage) + '</div>' : '') + '</div>';
@@ -17380,7 +17422,7 @@
     var teamChoices = lookTeamChoices(me.name);
     if (lookShows(d, 'teams')) html += '<div class="look-field"><span class="look-label">' + L('Teams préférés (3 max)', 'Favourite teams (up to 3)') + '</span>' +
       (teamChoices.length ? pick('favTeams', teamChoices.map(function (t) { return t.id; }), teamChoices.map(function (t) { return t.name; }), 3) : '<div class="help-text">' + L('Rejoins ou suis un team pour l\'afficher ici.', 'Join or follow a team to show it here.') + '</div>') + '</div>';
-    html += '<div class="look-field"><label class="look-label" for="look-bio">' + L('Bio', 'Bio') + '</label><textarea id="look-bio" maxlength="140" rows="2" placeholder="' + L('Ex. Pistard depuis 2019, objectif sous les 2’00” à Misano.', 'E.g. Track rider since 2019, aiming under 2’00” at Misano.') + '">' + escapeHtml(d.bio || '') + '</textarea></div>';
+    html += '<div class="look-field"><label class="look-label" for="look-bio">' + L('Bio', 'Bio') + '</label><textarea id="look-bio" maxlength="250" rows="3" placeholder="' + L('Ex. Pistard depuis 2019, objectif sous les 2’00” à Misano.', 'E.g. Track rider since 2019, aiming under 2’00” at Misano.') + '">' + escapeHtml(d.bio || '') + '</textarea><span class="help-text look-bio-count" id="look-bio-count">' + (d.bio || '').length + ' / 250</span></div>';
     if (earned.length) html += '<div class="look-field"><span class="look-label">' + L('Vitrine (3 trophées)', 'Showcase (3 trophies)') + '</span><div class="look-pins">' + earned.map(function (a) {
       var on = (d.pinned || []).indexOf(a.name) !== -1;
       return '<button type="button" data-look-pin="' + escapeHtml(a.name) + '" aria-pressed="' + on + '">' + escapeHtml(a.name || a.label) + (a.tierName && a.maxLevel > 1 ? ' · ' + escapeHtml(a.tierName) : '') + '</button>';
@@ -17409,7 +17451,7 @@
     if (lookDraft && lookDraft.__team) {
       var teamId = lookDraft.__team, t = teamById(teamId);
       var tv = reset ? null : {
-        color: lookDraft.color, cover: lookDraft.cover || '', bio: (lookDraft.bio || '').trim().slice(0, 240),
+        color: lookDraft.color, cover: lookDraft.cover || '', bio: (lookDraft.bio || '').trim().slice(0, 250),
         links: (lookDraft.links || []).slice(0, 6), sponsors: (lookDraft.sponsors || []).slice(0, 6), show: lookDraft.show || {},
         favRiders: (lookDraft.favRiders || []).slice(0, 5), coverPhoto: lookDraft.cover === 'photo' ? (lookDraft.coverPhoto || null) : null
       };
@@ -17423,7 +17465,7 @@
       return;
     }
     var value = reset ? null : {
-      color: lookDraft.color, cover: lookDraft.cover || '', plate: lookDraft.plate || '', bio: (lookDraft.bio || '').trim().slice(0, 140),
+      color: lookDraft.color, cover: lookDraft.cover || '', plate: lookDraft.plate || '', bio: (lookDraft.bio || '').trim().slice(0, 250),
       featured: lookDraft.featured || '', pinned: (lookDraft.pinned || []).slice(0, 3),
       links: (lookDraft.links || []).slice(0, 6), sponsors: (lookDraft.sponsors || []).slice(0, 6),
       show: lookDraft.show || {}, favCircuits: (lookDraft.favCircuits || []).slice(0, 3), favTeams: (lookDraft.favTeams || []).slice(0, 3), favFriends: (lookDraft.favFriends || []).slice(0, 5), coverPhoto: lookDraft.cover === 'photo' ? (lookDraft.coverPhoto || null) : null
@@ -17632,6 +17674,9 @@
     if (isMe) u = Object.assign({}, u, me);
     var myDraft = lookDraft && !lookDraft.__team ? lookDraft : null;
     var look = isMe && myDraft ? myDraft : lookOf(u);
+    // Fiche réservée aux amis : un non-ami ne voit que le nom et l'avatar.
+    var privateProfile = !isMe && !friendship && !isAdmin() && u.profileVisibility === 'friends';
+    if (privateProfile) look = null;
     var html = '<div class="outing-page person-page">';
     // Identity
     var sub = [];
@@ -17640,6 +17685,7 @@
     // Actions
     var acts = '';
     if (isMe) acts += myDraft ? '' : '<button type="button" class="primary" data-action="look-edit">' + (lookOf(u) ? L('Modifier', 'Edit') : L('Personnaliser', 'Customise')) + '</button>' +
+      '<button type="button" class="ghost" data-action="pick-cover">' + L('Bannière', 'Banner') + '</button>' +
       '<button type="button" class="ghost" data-action="open-my-profile">' + L('Mon compte', 'My account') + '</button>';
     else if (friendship) acts += '<button type="button" class="ghost" disabled>' + L('Amis', 'Friends') + '</button>';
     else if (received) acts += '<button type="button" class="primary" data-action="accept-friend" data-id="' + escapeHtml(received.id) + '">' + L('Accepter son invitation', 'Accept the request') + '</button>';
@@ -17660,6 +17706,10 @@
       html += '<div class="outing-actions">' + acts + '</div></div>';
     }
     html += socialCountsHtml(name);
+    if (privateProfile) {
+      html += '<div class="card"><div class="empty-state">' + escapeHtml(L('Fiche privée, réservée aux amis de ' + name + '. Ajoute ' + name + ' en ami pour la voir.', 'Private profile, for ' + name + '\'s friends only. Add ' + name + ' as a friend to see it.')) + '</div></div>';
+      return html + '</div>';
+    }
     if (!friendship && !isMe) {
       if (upcomingVisible(u, name)) html += personUpcomingHtml(name);
       var pubPosts = (STATE.wallPosts || []).filter(function (p) { return !p.story && p.author === name && (p.audience === 'all' || (p.audience === 'followers' && iFollow(name))); });
@@ -17669,11 +17719,16 @@
     }
     var withFeed = isMe && socialProfileCtx;
     if ((isPilote && (isMe || u.shareSorties !== false)) || withFeed) {
-      var personPills = [['fiche', L('Fiche', 'Profile')]];
+      // Fil d'abord, puis Fiche, Bientôt en piste, Saisons.
+      var theirPosts = !isMe ? (STATE.wallPosts || []).filter(function (p) { return !p.story && p.author === name; }) : [];
+      var personPills = [];
+      if (withFeed) personPills.push(['monfil', L('Mon fil', 'My feed')]);
+      else if (!isMe) personPills.push(['fil', L('Fil', 'Feed')]);
+      personPills.push(['fiche', L('Fiche', 'Profile')]);
+      if (withFeed || (!isMe && upcomingVisible(u, name))) personPills.push(['bientot', L('Bientôt en piste', 'Coming up')]);
       if (isPilote && (isMe || u.shareSorties !== false)) personPills.push(['saisons', L('Saisons', 'Seasons')]);
-      if (!isMe && upcomingVisible(u, name)) personPills.push(['bientot', L('Bientôt en piste', 'Coming up')]);
-      if (withFeed) personPills.push(['monfil', L('Mon fil', 'My feed')], ['bientot', L('Bientôt en piste', 'Coming up')]);
       html += renderPills('person', personPills);
+      if (pillState.person === 'fil' && !isMe) return html + (theirPosts.length ? theirPosts.slice(0, 30).map(function (p) { return '<div class="card feed-card"' + viewAttrs(p.id, p.author) + '>' + renderWallPost(p) + '</div>'; }).join('') : '<div class="card help-text">' + L('Aucune publication pour l\'instant.', 'No posts yet.') + '</div>') + '</div>';
       if (pillState.person === 'saisons') return html + renderRiderSeasons(name, look, isMe) + '</div>';
       if (pillState.person === 'bientot' && !isMe) return html + (personUpcomingHtml(name) || '<div class="card help-text">' + L('Aucun roulage prévu pour l\'instant.', 'No trackday planned yet.') + '</div>') + '</div>';
       if (pillState.person === 'monfil' && withFeed) return html + renderMyFeedTab(u) + '</div>';
@@ -17941,11 +17996,12 @@
   function socialCountsHtml(name) {
     var nf = friendsOf(name).length, nfo = followersOf(name).length, nfg = followingOf(name).length;
     var mine = currentUserProfile && currentUserProfile.name === name;
+    var hideLists = !mine && !isAdmin() && ((STATE.usersByName || {})[name] || {}).listsVisibility === 'private';
     var item = function (n, one, many, list) {
       var inner = '<strong>' + n + '</strong> ' + (n > 1 ? many : one);
       return mine ? '<button type="button" class="social-count" data-action="open-social" data-list="' + list + '">' + inner + '</button>' : '<span class="social-count">' + inner + '</span>';
     };
-    return '<div class="social-counts">' + (mine ? item(nf, L('ami', 'friend'), L('amis', 'friends'), 'amis') : (friendsOf(currentUserProfile ? currentUserProfile.name : '').some(function (f) { return f.name === name; }) ? '<span class="social-count"><strong>' + L('Ami', 'Friend') + '</strong> ' + L('avec toi', 'with you') + '</span>' : '')) + item(nfo, L('abonné', 'follower'), L('abonnés', 'followers'), 'abonnes') + item(nfg, L('abonnement', 'following'), L('abonnements', 'following'), 'abonnements') + '</div>';
+    return '<div class="social-counts">' + (mine ? item(nf, L('ami', 'friend'), L('amis', 'friends'), 'amis') : (friendsOf(currentUserProfile ? currentUserProfile.name : '').some(function (f) { return f.name === name; }) ? '<span class="social-count"><strong>' + L('Ami', 'Friend') + '</strong> ' + L('avec toi', 'with you') + '</span>' : '')) + (hideLists ? '' : item(nfo, L('abonné', 'follower'), L('abonnés', 'followers'), 'abonnes') + item(nfg, L('abonnement', 'following'), L('abonnements', 'following'), 'abonnements')) + '</div>';
   }
   function followBtnHtml(name, small) {
     if (!currentUserProfile || name === currentUserProfile.name) return '';
@@ -20413,12 +20469,14 @@
     var followedTeamIds = (STATE.myFollowedTeams || []).filter(function (id) { return myTeamIds.indexOf(id) === -1; });
     var discoverable = (STATE.teams || []).filter(function (t) {
       if (myTeamIds.indexOf(t.id) !== -1) return false;
+      // Seuls les teams validés (Team PRO) sont proposés à la découverte.
+      if (!t.teamPro) return false;
       if (t.visibility === 'all') return true;
       if (t.visibility === 'pro') return isPro(me);
       if (t.visibility === 'certified') return isCertified(me);
       return false;
     }).sort(function (a, b) { return a.name.localeCompare(b.name); });
-    if (!discoverable.length && !followedTeamIds.length) return '<div class="card"><div class="empty-state">Aucun team à découvrir pour l\'instant.</div></div>';
+    if (!discoverable.length && !followedTeamIds.length) return '<div class="card"><div class="empty-state">' + L('Aucun team PRO à découvrir pour l\'instant.', 'No PRO team to discover yet.') + '</div></div>';
     var body = '';
     if (followedTeamIds.length) {
       body += '<div class="team-section-title">Teams suivis</div><div class="team-tile-grid">';
@@ -21207,6 +21265,40 @@
   var pendingDeleteChecklistCategory = null;
   var profilePanelOpen = false; // pure UI state, not persisted
   var notificationsPanelOpen = false; // pure UI state, not persisted
+  // Bannière en un geste : choix de la photo, réduite, enregistrée telle
+  // quelle (sans passer par « Personnaliser »).
+  function pickCoverPhoto() {
+    var me = currentUserProfile, uid = auth.currentUser && auth.currentUser.uid;
+    if (!me || !uid) return;
+    var input = document.createElement('input');
+    input.type = 'file'; input.accept = 'image/*'; input.style.display = 'none';
+    document.body.appendChild(input);
+    input.addEventListener('change', function () {
+      var f = input.files && input.files[0];
+      input.remove();
+      if (!f) return;
+      var save = function (url) {
+        if (url && url.length >= 450000) { showToast(L('Image trop lourde : essaie une capture d\'écran de la photo.', 'Image too large: try a screenshot of the photo.')); return; }
+        if (!url) { showToast(L('Cette image n\'a pas pu être ouverte. Essaie une capture d\'écran ou une photo JPEG.', 'This image could not be opened. Try a screenshot or a JPEG photo.')); return; }
+        var value = Object.assign({ color: '#c8261f' }, me.look || {}, { cover: 'photo', coverPhoto: url });
+        db.collection('users').doc(uid).update({ look: value }).then(function () {
+          me.look = value;
+          if (STATE.usersByName && STATE.usersByName[me.name]) STATE.usersByName[me.name].look = value;
+          showToast(L('Bannière enregistrée.', 'Banner saved.'), 'success');
+          renderRoot();
+        }).catch(function (err) { showToast(tr('error_prefix') + (err && err.message ? err.message : err)); });
+      };
+      resizeImageToDataUrl(f, 900, 0.72, function (url) {
+        if (url && url.length > 300000) return resizeImageToDataUrl(f, 700, 0.6, save);
+        save(url);
+      });
+    });
+    input.click();
+  }
+  function openCarnetPlusSpace() {
+    profilePanelOpen = true; profileSubTab = 'plus'; notificationsPanelOpen = false; profileSaveMessage = '';
+    renderRoot(); window.scrollTo(0, 0);
+  }
   var profileSubTab = 'profil'; // 'profil' | 'reglages' | 'aide' -- pure UI state, not persisted
   var profileDeleteConfirmOpen = false; // pure UI state, not persisted
   var riderManagerOpen = false; // pure UI state, not persisted
@@ -21223,7 +21315,10 @@
     // way to hover on mobile. Tapping one shows the same text as a toast,
     // which works identically on touch and desktop.
     document.querySelectorAll('[data-badge-info]').forEach(function (el) {
-      el.addEventListener('click', function () { showToast(el.getAttribute('data-badge-info')); });
+      el.addEventListener('click', function (e) {
+        if (el.hasAttribute('data-badge-plus') && currentUserProfile) { e.stopPropagation(); openCarnetPlusSpace(); return; }
+        showToast(el.getAttribute('data-badge-info'));
+      });
     });
     document.querySelectorAll('[data-action="copy-location"]').forEach(function (btn) {
       btn.addEventListener('click', function () {
@@ -21397,6 +21492,10 @@
     if (shareUpcomingEl) shareUpcomingEl.addEventListener('change', function () { saveOwnBooleanField('shareUpcoming', shareUpcomingEl.value); });
     var bientotShareEl = document.getElementById('bientot-share-upcoming');
     if (bientotShareEl) bientotShareEl.addEventListener('change', function () { saveOwnBooleanField('shareUpcoming', bientotShareEl.value); });
+    ['profile-visibility', 'lists-visibility'].forEach(function (id) {
+      var el = document.getElementById(id);
+      if (el) el.addEventListener('change', function () { saveOwnBooleanField(id === 'profile-visibility' ? 'profileVisibility' : 'listsVisibility', el.value); });
+    });
     var shareSortiesEl = document.getElementById('profile-share-sorties');
     if (shareSortiesEl) {
       shareSortiesEl.addEventListener('change', function () { saveOwnBooleanField('shareSorties', shareSortiesEl.checked); });
@@ -21631,6 +21730,12 @@
       });
     }
     var profilePhotoBtn = document.getElementById('profile-photo-btn');
+    document.querySelectorAll('[data-avatar-preset]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var src = avatarPresets(currentUserProfile && currentUserProfile.name)[+btn.getAttribute('data-avatar-preset')];
+        if (src) savePhoto(src);
+      });
+    });
     var profilePhotoInput = document.getElementById('profile-photo-input');
     if (profilePhotoBtn && profilePhotoInput) {
       profilePhotoBtn.addEventListener('click', function () { profilePhotoInput.click(); });
@@ -21980,6 +22085,7 @@
     });
     document.querySelectorAll('[data-action="team-look-edit"]').forEach(function (btn) { btn.addEventListener('click', function () { openTeamLookEditor(btn.getAttribute('data-team')); }); });
     document.querySelectorAll('[data-action="look-cancel"]').forEach(function (btn) { btn.addEventListener('click', function () { lookDraft = null; lookMessage = ''; renderRoot(); }); });
+    document.querySelectorAll('[data-action="pick-cover"]').forEach(function (btn) { btn.addEventListener('click', pickCoverPhoto); });
     document.querySelectorAll('[data-action="look-save"]').forEach(function (btn) { btn.addEventListener('click', function () { saveLook(false); }); });
     document.querySelectorAll('[data-action="look-reset"]').forEach(function (btn) { btn.addEventListener('click', function () { saveLook(true); }); });
     document.querySelectorAll('[data-look-set]').forEach(function (btn) {
@@ -22074,6 +22180,7 @@
     var lookBio = document.getElementById('look-bio');
     if (lookBio) {
       lookBio.addEventListener('input', function () {
+        var cnt = document.getElementById('look-bio-count'); if (cnt) cnt.textContent = lookBio.value.length + ' / 250';
         if (!lookDraft) return;
         lookDraft.bio = lookBio.value;
         var p = document.querySelector('.person-hero .ph-bio');
@@ -22088,7 +22195,7 @@
         var f = lookCoverInput.files && lookCoverInput.files[0];
         if (!f || !lookDraft) return;
         resizeImageToDataUrl(f, 900, 0.72, function (url) {
-          if (url && url.length > 350000) return resizeImageToDataUrl(f, 700, 0.6, function (u2) { if (lookDraft) { lookDraft.coverPhoto = u2; renderRoot(); } });
+          if (url && url.length > 350000) return resizeImageToDataUrl(f, 700, 0.6, function (u2) { if (lookDraft && u2 && u2.length < 450000) { lookDraft.coverPhoto = u2; renderRoot(); } else showToast(L('Image trop lourde : essaie une capture d\'écran de la photo.', 'Image too large: try a screenshot of the photo.')); });
           if (lookDraft) { lookDraft.coverPhoto = url; renderRoot(); }
         });
       });

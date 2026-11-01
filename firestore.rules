@@ -11,6 +11,14 @@ service cloud.firestore {
     function verified() {
       return request.auth != null && request.auth.token.email_verified == true;
     }
+    // Fiche personnalisée (lue par tous) : présentation et bannière
+    // plafonnées ; une fiche inchangée reste acceptée telle quelle.
+    function lookOk(d, before) {
+      return d.get('look', null) == before.get('look', null) || d.get('look', null) == null || (d.look is map
+        && (d.look.get('bio', null) == null || (d.look.bio is string && d.look.bio.size() <= 250))
+        && (d.look.get('color', null) == null || (d.look.color is string && d.look.color.matches('^#[0-9a-fA-F]{6}$')))
+        && (d.look.get('coverPhoto', null) == null || (d.look.coverPhoto is string && d.look.coverPhoto.size() < 450000)));
+    }
     // Un vrai compte (email + mot de passe), jamais une session anonyme :
     // sans ça, n'importe qui pourrait réserver tous les pseudos.
     function realAccount() {
@@ -165,6 +173,7 @@ service cloud.firestore {
           && keptOrRemoved('trackNotes') && keptOrRemoved('debriefs') && keptOrRemoved('email')
           // Photo de profil lue par tous les comptes : taille plafonnée.
           && (request.resource.data.get('photoURL', null) == null || (request.resource.data.photoURL is string && request.resource.data.photoURL.size() < 500000))
+          && lookOk(request.resource.data, resource.data)
           // prevName : mon pseudo précédent, posé seulement au moment d'un
           // changement de pseudo (sert à me renommer dans les roulages).
           && (request.resource.data.get('prevName', null) == resource.data.get('prevName', null)
@@ -216,8 +225,16 @@ service cloud.firestore {
     // can only be created/edited/deleted by its own pilote or the admin --
     // never by another pilote, never by an accompagnant, and a pilote
     // can't reassign one to someone else's name either.
+    function shortStr(d, k, n) { return d.get(k, null) == null || (d[k] is string && d[k].size() <= n); }
+    function sessionFieldsOk(d) {
+      return shortStr(d, 'rider', 80) && shortStr(d, 'circuit', 100) && shortStr(d, 'bike', 100)
+        && shortStr(d, 'group', 10) && shortStr(d, 'slotLabel', 60) && shortStr(d, 'videoUrl', 600)
+        && d.get('track', 'sec') in ['sec', 'humide', 'pluie']
+        && d.get('discipline', 'moto') in ['moto', 'auto'];
+    }
     match /sessions/{id} {
       allow read: if verified();
+      // Chronos lus par tous : champs texte plafonnés, valeurs connues.
       // certifiedBy is the event organiser's seal on a chrono -- a pilote
       // (or a team leader entering one for a teammate) can never set or
       // change it on their own write; only the dedicated clause below can.
@@ -226,11 +243,13 @@ service cloud.firestore {
       allow create: if verified() && (isAdmin() || (request.resource.data.get('certifiedBy', null) == null
         && !request.resource.data.keys().hasAny(['note', 'feelingComment'])
         && request.resource.data.laps is list && request.resource.data.laps.size() >= 1 && request.resource.data.laps.size() <= 300
+        && sessionFieldsOk(request.resource.data)
         && (ownsChrono(request.resource.data.rider)
             || ownsChronoViaTeam(request.resource.data.rider, request.resource.data.get('teamId', null)))));
       allow update: if verified() && (isAdmin()
         || (request.resource.data.get('certifiedBy', null) == resource.data.get('certifiedBy', null)
             && keptOrRemoved('note') && keptOrRemoved('feelingComment')
+            && sessionFieldsOk(request.resource.data)
             && ((ownsChrono(resource.data.rider) && ownsChrono(request.resource.data.rider))
                 || (ownsChronoViaTeam(resource.data.rider, resource.data.get('teamId', null))
                     && ownsChronoViaTeam(request.resource.data.rider, request.resource.data.get('teamId', null)))))
@@ -912,6 +931,7 @@ service cloud.firestore {
         && request.resource.data.get('authorUid', '') == request.auth.uid
         && request.resource.data.get('audience', '') in ['all', 'friends', 'followers']
         && (!('text' in request.resource.data) || (request.resource.data.text is string && request.resource.data.text.size() <= 5000))
+        && (!('visibleTo' in request.resource.data) || (request.resource.data.visibleTo is list && request.resource.data.visibleTo.size() <= 500))
         && (!('linkUrl' in request.resource.data) || request.resource.data.linkUrl == null || request.resource.data.linkUrl.matches('^https?://.*'));
       // Emoji reaction, own key only -- same "anyone who can see it can
       // react to it" reasoning as teamFeed (see there for why this isn't
@@ -922,6 +942,7 @@ service cloud.firestore {
           && onlyOwnKeyChanged(resource.data.get('reactions', {}), request.resource.data.reactions))
         || (resource.data.author == myName()
             && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['text', 'linkUrl', 'editedAt'])
+            && (!('text' in request.resource.data) || (request.resource.data.text is string && request.resource.data.text.size() <= 5000))
             && (request.resource.data.get('linkUrl', null) == null || request.resource.data.linkUrl.matches('^https?://.*')))
         || ((resource.data.get('authorUid', '') == request.auth.uid || isAdmin())
             && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['visibleTo'])
