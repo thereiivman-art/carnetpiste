@@ -721,10 +721,10 @@
     cursor: pointer;
   }
   .coach-availability-type-btn.active { color: var(--accent-ink); background: var(--accent); border-color: var(--accent); font-weight: 600; }
-  /* Same blue/orange language as .coach-name/.pro-leader-name -- a slot
-     available for coaching reads blue, for baptême piste orange, both at
+  /* Same green as the COACH badge -- a slot
+     available for coaching reads green, for baptême piste orange, both at
      once gets its own purple rather than mixing the two. */
-  .schedule-slot.slot-avail-coaching { background: color-mix(in srgb, #1d7fd6 22%, var(--surface-alt)); box-shadow: inset 0 0 0 1px #1d7fd6; }
+  .schedule-slot.slot-avail-coaching { background: color-mix(in srgb, #1c8f5a 22%, var(--surface-alt)); box-shadow: inset 0 0 0 1px #1c8f5a; }
   .schedule-slot.slot-avail-bapteme { background: color-mix(in srgb, var(--accent) 22%, var(--surface-alt)); box-shadow: inset 0 0 0 1px var(--accent); }
   .schedule-slot.slot-avail-both { background: color-mix(in srgb, var(--series-3) 22%, var(--surface-alt)); box-shadow: inset 0 0 0 1px var(--series-3); }
   /* The drag-paint surface (see attachHandlers) -- no text selection
@@ -968,7 +968,7 @@
      regardless of which element/color it's layered onto (a plain span, a
      clickable name button, the admin's account list...), hence
      !important rather than fighting each one's own specificity. */
-  .pro-leader-name { color: var(--accent) !important; font-weight: 700; }
+  .pro-leader-name { color: #1d7fd6 !important; font-weight: 700; }
   /* Same blue as .team-pro-badge's coche, reused here so "blue = an
      official trust marker" reads consistently across the app. */
   .coach-name { color: #1d7fd6 !important; font-weight: 700; }
@@ -3192,10 +3192,10 @@ body { min-height: 100%; min-height: 100dvh; }
 .avail-legend { display: flex; flex-wrap: wrap; align-items: center; gap: 0.3rem 0.5rem; margin-bottom: 0.5rem; }
 .avail-sw { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-left: 0.3rem; vertical-align: -1px; }
 .avail-sw:first-child { margin-left: 0; }
-.avail-sw.sw-coaching { background: color-mix(in srgb, #1d7fd6 22%, var(--surface-alt)); box-shadow: inset 0 0 0 1px #1d7fd6; }
+.avail-sw.sw-coaching { background: color-mix(in srgb, #1c8f5a 22%, var(--surface-alt)); box-shadow: inset 0 0 0 1px #1c8f5a; }
 .avail-sw.sw-bapteme { background: color-mix(in srgb, var(--accent) 22%, var(--surface-alt)); box-shadow: inset 0 0 0 1px var(--accent); }
 .avail-sw.sw-both { background: color-mix(in srgb, var(--series-3) 22%, var(--surface-alt)); box-shadow: inset 0 0 0 1px var(--series-3); }
-.schedule-slot.sched-row.slot-avail-coaching { background: color-mix(in srgb, #1d7fd6 22%, var(--surface-alt)); }
+.schedule-slot.sched-row.slot-avail-coaching { background: color-mix(in srgb, #1c8f5a 22%, var(--surface-alt)); }
 .schedule-slot.sched-row.slot-avail-bapteme { background: color-mix(in srgb, var(--accent) 22%, var(--surface-alt)); }
 .schedule-slot.sched-row.slot-avail-both { background: color-mix(in srgb, var(--series-3) 22%, var(--surface-alt)); }
 
@@ -4351,5 +4351,16 @@ span.social-count { cursor: default; }
 .people-card-count { font-size: 0.78rem; font-weight: 700; color: var(--text-muted); }
 .people-card-bio { font-size: 0.78rem; line-height: 1.3; color: var(--text-muted); min-height: 2.6em; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .people-card .follow-btn.small { width: 100%; }
-/* Coach : badge COACH en bleu (le nom n'est plus coloré). */
-.coach-badge.badge-text, .legend-swatch.coach-badge { background: #1d7fd6; color: #fff; }
+/* Badges en couleur, un sens par couleur :
+   bleu = PRO (pilote PRO comme Team PRO), vert = COACH, violet = ORGA,
+   magenta = PHOTO, or = personnalité, rouge = vérifié, dégradé = Carnet+. */
+.pro-badge.badge-text, .legend-swatch.pro-badge { background: #1d7fd6; color: #fff; }
+.coach-badge.badge-text, .legend-swatch.coach-badge { background: #1c8f5a; color: #fff; }
+.organizer-badge.badge-text, .legend-swatch.organizer-badge { background: #6a4fa0; color: #fff; }
+.photographer-badge.badge-text, .legend-swatch.photographer-badge { background: #c2185b; color: #fff; }
+.legend-swatch.personality-badge { background: #d4a017; color: #14161a; }
+.legend-swatch.certified-badge { background: var(--accent); color: var(--accent-ink); }
+.legend-swatch.plus-badge { background: linear-gradient(135deg, #c8261f, #e8892a); color: #fff; }
+.legend-swatch.team-pro-badge { background: #1d7fd6; color: #fff; }
+.plus-badge.badge-text { font-size: 0.62rem; padding: 0.12rem 0.38rem; line-height: 1.2; border-radius: 4px; }
+.legend-swatch.certified-badge, .legend-swatch.personality-badge, .legend-swatch.team-pro-badge { width: 1.5rem; height: 1.5rem; min-width: 1.5rem; padding: 0; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 0.85rem; line-height: 1; }

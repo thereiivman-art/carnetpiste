@@ -4952,7 +4952,7 @@
   // have no equivalent entry there.
   function renderBadgesLegend() {
     var rows = profileBadges().map(function (b) {
-      return '<div class="legend-row"><span class="legend-swatch' + (b.field === 'coach' ? ' coach-badge badge-text' : '') + '">' + b.icon + '</span><span>' + escapeHtml(b.desc) + '</span></div>';
+      return '<div class="legend-row"><span class="legend-swatch ' + b.cssClass + (b.icon.length > 1 ? ' badge-text' : '') + '">' + b.icon + '</span><span>' + escapeHtml(b.desc) + '</span></div>';
     }).join('');
     rows += '<div class="legend-row"><span class="legend-swatch team-pro-badge">✓</span><span>' + tr('team_pro_legend') + '</span></div>';
     rows += '<div class="legend-row"><span class="legend-swatch pro-leader-name">Nom</span><span>' + tr('team_pro_leader_legend') + '</span></div>';
