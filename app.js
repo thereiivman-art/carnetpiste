@@ -18273,56 +18273,111 @@
   function canPostVideoStory() { return !!(currentUserProfile && (hasCarnetPlus(currentUserProfile) || isAdmin())); }
   var STORY_VIDEO_MAX_S = 10;
   function prepareStoryVideo(file) {
-    var Rec = window.MediaRecorder, cv = document.createElement('canvas');
-    if (!Rec || !cv.captureStream) return showToast(L('Ton navigateur ne permet pas encore les stories vidéo.', 'Your browser does not support video stories yet.'));
+    var Rec = window.MediaRecorder, probe = document.createElement('canvas');
+    if (!Rec || !probe.captureStream) return showToast(L('Ton navigateur ne permet pas encore les stories vidéo.', 'Your browser does not support video stories yet.'));
     var wait = document.createElement('div');
     wait.className = 'story-overlay story-compose';
-    wait.innerHTML = '<div class="story-head"><strong>' + L('Préparation de la vidéo…', 'Preparing the video…') + '</strong></div><p class="story-prep" id="story-prep">' + L('Compression sur ton téléphone : quelques secondes.', 'Compressing on your phone: a few seconds.') + '</p>';
+    wait.innerHTML = '<div class="story-head"><strong>' + L('Préparation de la vidéo…', 'Preparing the video…') + '</strong><button type="button" class="story-close" aria-label="' + escapeHtml(L('Annuler', 'Cancel')) + '">✕</button></div><p class="story-prep" id="story-prep">' + L('Compression sur ton téléphone : quelques secondes.', 'Compressing on your phone: a few seconds.') + '</p>';
     document.body.appendChild(wait);
+    var cancelled = false;
     var done = function () { if (wait.parentNode) wait.parentNode.removeChild(wait); };
+    wait.querySelector('.story-close').addEventListener('click', function () { cancelled = true; done(); });
+    var finish = function (err, res) {
+      if (cancelled) return;
+      done();
+      if (err) return showToast(err);
+      openStoryComposer(res.poster, { dataUrl: res.dataUrl, mime: res.mime, duration: res.duration });
+    };
+    // 1er essai avec le son ; si l'enregistreur du téléphone n'y arrive
+    // pas (iPhone surtout), 2e essai sans le son.
+    encodeStoryVideo(file, true, function (err, res) {
+      if (cancelled) return;
+      if (!err) return finish(null, res);
+      if (err === 'too-big') return finish(L('Vidéo trop lourde même compressée : essaie un passage plus court ou moins animé.', 'Video too large even compressed: try a shorter or calmer clip.'));
+      var el = document.getElementById('story-prep'); if (el) el.textContent = L('Nouvel essai, sans le son…', 'Trying again, without sound…');
+      encodeStoryVideo(file, false, function (err2, res2) {
+        if (err2) return finish(err2 === 'too-big' ? L('Vidéo trop lourde même compressée : essaie un passage plus court ou moins animé.', 'Video too large even compressed: try a shorter or calmer clip.') : L('Ton téléphone n\'a pas réussi à compresser cette vidéo. Essaie une vidéo plus courte, ou depuis un autre navigateur.', 'Your phone could not compress this video. Try a shorter clip, or another browser.'));
+        finish(null, res2);
+      });
+    });
+  }
+  // Rejoue la vidéo dans un canevas réduit (480 px) et l'enregistre à
+  // faible débit. cb(erreur, { dataUrl, mime, poster, duration }).
+  function encodeStoryVideo(file, withAudio, cb) {
+    var Rec = window.MediaRecorder, cv = document.createElement('canvas');
     var url = URL.createObjectURL(file), v = document.createElement('video');
+    var settled = false, ac = null, rec = null, stopTimer = null, stallTimer = null;
+    var end = function (err, res) {
+      if (settled) return;
+      settled = true;
+      clearTimeout(stopTimer); clearTimeout(stallTimer);
+      try { v.pause(); } catch (e) {}
+      if (ac) try { ac.close(); } catch (e) {}
+      URL.revokeObjectURL(url);
+      if (v.parentNode) v.parentNode.removeChild(v);
+      if (cv.parentNode) cv.parentNode.removeChild(cv);
+      cb(err, res);
+    };
     v.src = url; v.playsInline = true; v.setAttribute('playsinline', ''); v.preload = 'auto';
-    var fail = function (msg) { done(); URL.revokeObjectURL(url); showToast(msg || L('Cette vidéo n\'a pas pu être lue.', 'This video could not be read.')); };
-    v.onerror = function () { fail(); };
+    if (!withAudio) { v.muted = true; v.setAttribute('muted', ''); }
+    // Hors écran mais dans la page : certains téléphones ne décodent pas
+    // une vidéo ou un canevas absents de la page.
+    [v, cv].forEach(function (el) { el.style.cssText = 'position:fixed;left:-9999px;top:0;width:2px;height:2px;opacity:0;pointer-events:none;'; document.body.appendChild(el); });
+    v.onerror = function () { end('read'); };
     v.onloadedmetadata = function () {
-      var dur = Math.min(STORY_VIDEO_MAX_S, v.duration || STORY_VIDEO_MAX_S);
+      var dur = Math.min(STORY_VIDEO_MAX_S, isFinite(v.duration) && v.duration > 0 ? v.duration : STORY_VIDEO_MAX_S);
       var sc = Math.min(1, 480 / Math.max(v.videoWidth || 480, v.videoHeight || 480));
       cv.width = Math.max(2, Math.round((v.videoWidth || 480) * sc / 2) * 2); cv.height = Math.max(2, Math.round((v.videoHeight || 480) * sc / 2) * 2);
-      var ctx = cv.getContext('2d'), stream = cv.captureStream(24), ac = null;
-      try {
-        var AC = window.AudioContext || window.webkitAudioContext;
-        if (AC) { ac = new AC(); var src = ac.createMediaElementSource(v), dest = ac.createMediaStreamDestination(); src.connect(dest); dest.stream.getAudioTracks().forEach(function (t) { stream.addTrack(t); }); }
-      } catch (e) { ac = null; }
-      var mime = ['video/mp4;codecs=avc1.42E01E,mp4a.40.2', 'video/mp4', 'video/webm;codecs=vp8,opus', 'video/webm'].filter(function (m) { return Rec.isTypeSupported && Rec.isTypeSupported(m); })[0] || '';
-      var rec;
-      try { rec = new Rec(stream, mime ? { mimeType: mime, videoBitsPerSecond: 420000, audioBitsPerSecond: 48000 } : { videoBitsPerSecond: 420000 }); } catch (e) { return fail(); }
+      var ctx = cv.getContext('2d'), stream = cv.captureStream(24);
+      if (withAudio) {
+        try {
+          var AC = window.AudioContext || window.webkitAudioContext;
+          if (AC) { ac = new AC(); var src = ac.createMediaElementSource(v), dest = ac.createMediaStreamDestination(); src.connect(dest); dest.stream.getAudioTracks().forEach(function (t) { stream.addTrack(t); }); }
+        } catch (e) { ac = null; }
+      }
+      var mime = ['video/mp4', 'video/webm;codecs=vp8,opus', 'video/webm'].filter(function (m) { return !Rec.isTypeSupported || Rec.isTypeSupported(m); })[0] || '';
+      try { rec = new Rec(stream, mime ? { mimeType: mime, videoBitsPerSecond: 420000, audioBitsPerSecond: 48000 } : { videoBitsPerSecond: 420000 }); } catch (e) { return end('recorder'); }
       var chunks = [], poster = null, stopped = false;
-      rec.ondataavailable = function (e) { if (e.data && e.data.size) chunks.push(e.data); };
-      rec.onstop = function () {
-        if (ac) try { ac.close(); } catch (e) {}
-        URL.revokeObjectURL(url);
-        var blob = new Blob(chunks, { type: (rec.mimeType || mime || 'video/webm').split(';')[0] });
+      var build = function () {
+        if (!chunks.length) return end('empty');
+        var type = ((rec && rec.mimeType) || mime || 'video/mp4').split(';')[0];
+        var blob = new Blob(chunks, { type: type });
         var fr = new FileReader();
         fr.onload = function () {
-          done();
-          if (fr.result.length > 980000) return showToast(L('Vidéo trop lourde même compressée : essaie un passage plus court ou moins animé.', 'Video too large even compressed: try a shorter or calmer clip.'));
-          openStoryComposer(poster, { dataUrl: fr.result, mime: blob.type, duration: dur });
+          if (!/^data:video\/(mp4|webm)/.test(fr.result)) return end('format');
+          if (fr.result.length > 980000) return end('too-big');
+          end(null, { dataUrl: fr.result, mime: type, poster: poster || cv.toDataURL('image/jpeg', 0.6), duration: dur });
         };
+        fr.onerror = function () { end('read'); };
         fr.readAsDataURL(blob);
       };
-      var draw = function () {
+      rec.ondataavailable = function (e) { if (e.data && e.data.size) chunks.push(e.data); };
+      rec.onstop = function () { setTimeout(build, 50); };
+      rec.onerror = function () { end('recorder'); };
+      var stopRec = function () {
         if (stopped) return;
-        ctx.drawImage(v, 0, 0, cv.width, cv.height);
-        if (!poster && v.currentTime > 0.05) { poster = cv.toDataURL('image/jpeg', 0.6); }
+        stopped = true;
+        try { v.pause(); } catch (e) {}
+        try { if (rec.state !== 'inactive') { if (rec.requestData) rec.requestData(); rec.stop(); } else build(); } catch (e) { build(); }
+        // Si la fin d'enregistrement ne vient pas : on prend ce qu'on a.
+        stopTimer = setTimeout(build, 3000);
+      };
+      var lastT = -1;
+      var draw = function () {
+        if (stopped || settled) return;
+        try { ctx.drawImage(v, 0, 0, cv.width, cv.height); } catch (e) {}
+        if (!poster && v.currentTime > 0.05) { try { poster = cv.toDataURL('image/jpeg', 0.6); } catch (e) {} }
         var left = Math.max(0, Math.ceil(dur - v.currentTime)), el = document.getElementById('story-prep');
         if (el) el.textContent = L('Compression sur ton téléphone : encore ', 'Compressing on your phone: ') + left + L(' s', ' s left');
-        if (v.currentTime >= dur || v.ended) { stopped = true; v.pause(); rec.stop(); return; }
+        if (v.currentTime >= dur - 0.05 || v.ended) return stopRec();
+        if (v.currentTime !== lastT) { lastT = v.currentTime; clearTimeout(stallTimer); stallTimer = setTimeout(function () { if (!stopped) { if (v.currentTime > 1) stopRec(); else end('stall'); } }, 4000); }
         requestAnimationFrame(draw);
       };
-      var go = function () { rec.start(500); requestAnimationFrame(draw); };
-      if (ac && ac.resume) ac.resume();
+      v.onended = stopRec;
+      var go = function () { try { rec.start(); } catch (e) { return end('recorder'); } requestAnimationFrame(draw); };
+      if (ac && ac.resume) { try { ac.resume(); } catch (e) {} }
       var pl = v.play();
-      if (pl && pl.then) pl.then(go).catch(function () { v.muted = true; v.play().then(go).catch(function () { fail(); }); });
+      if (pl && pl.then) pl.then(go).catch(function () { v.muted = true; v.play().then(go).catch(function () { end('play'); }); });
       else go();
     };
   }
