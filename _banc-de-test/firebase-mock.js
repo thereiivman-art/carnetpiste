@@ -43,7 +43,18 @@
       id: id, path: coll + '/' + id,
       get: function () { return Promise.resolve(docSnap(coll, id)); },
       set: function (data, opt) { DATA[coll] = DATA[coll] || {}; DATA[coll][id] = opt && (opt.merge || opt.mergeFields) ? Object.assign({}, DATA[coll][id], clone(data)) : clone(data); notify(); return Promise.resolve(); },
-      update: function (data) { DATA[coll] = DATA[coll] || {}; DATA[coll][id] = Object.assign({}, DATA[coll][id], clone(data)); notify(); return Promise.resolve(); },
+      update: function (data) {
+        DATA[coll] = DATA[coll] || {};
+        var cur = Object.assign({}, DATA[coll][id]), d = clone(data);
+        // Chemins « a.b » (comme Firestore) ; null = FieldValue.delete().
+        Object.keys(d).forEach(function (k) {
+          if (k.indexOf('.') === -1) { cur[k] = d[k]; return; }
+          var parts = k.split('.'), o = cur;
+          for (var i = 0; i < parts.length - 1; i++) { o[parts[i]] = Object.assign({}, o[parts[i]] || {}); o = o[parts[i]]; }
+          if (d[k] === null) delete o[parts[parts.length - 1]]; else o[parts[parts.length - 1]] = d[k];
+        });
+        DATA[coll][id] = cur; notify(); return Promise.resolve();
+      },
       delete: function () { if (DATA[coll]) delete DATA[coll][id]; notify(); return Promise.resolve(); },
       onSnapshot: function (cb) { var l = function () { cb(docSnap(coll, id)); }; listeners.push(l); setTimeout(l, 0); return function () {}; },
       collection: function (sub) { return query(coll + '/' + id + '/' + sub, []); }

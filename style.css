@@ -4398,3 +4398,24 @@ span.social-count { cursor: default; }
 .story-prep-preview { display: flex; justify-content: center; margin-top: 12vh; }
 .story-prep-canvas { max-width: 70vw; max-height: 45vh; border-radius: 12px; background: #000; }
 .story-prep-preview + .story-prep { margin-top: 1rem; }
+/* Publication : image entière sous le texte, plein écran au toucher. */
+.wall-post-media { position: relative; margin-top: 0.6rem; border-radius: 10px; overflow: hidden; background: var(--surface-alt); display: flex; justify-content: center; cursor: zoom-in; }
+.wall-post-media .wall-post-photo, .wall-post-media .wall-post-photo.side { float: none; display: block; width: auto; max-width: 100%; max-height: 560px; margin: 0; border: 0; border-radius: 0; object-fit: contain; }
+.wall-post-media.is-video { cursor: pointer; }
+.wall-post-play { position: absolute; inset: 0; margin: auto; width: 3.6rem; height: 3.6rem; border-radius: 50%; background: rgba(0,0,0,0.55); color: #fff; display: grid; place-items: center; pointer-events: none; }
+.wall-post-video { width: 100%; max-height: 560px; background: #000; display: block; }
+.mention-link { display: inline; width: auto; min-width: 0; padding: 0; border: 0; background: none; color: var(--accent); font: inherit; font-weight: 700; cursor: pointer; }
+.mention-wrap { position: relative; }
+.mention-suggest { position: absolute; left: 0; right: 0; top: 100%; z-index: 30; margin-top: 0.2rem; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.15); overflow: hidden; }
+.mention-opt { display: flex; align-items: center; gap: 0.6rem; width: 100%; padding: 0.5rem 0.7rem; background: none; border: 0; border-bottom: 1px solid var(--border); color: var(--text); font: inherit; text-align: left; cursor: pointer; border-radius: 0; }
+.mention-opt:last-child { border-bottom: 0; }
+.mention-opt:hover { background: var(--surface-alt); }
+.mention-opt .mini-avatar { width: 28px; height: 28px; font-size: 0.8rem; }
+.mention-opt .help-text { margin-left: auto; }
+.story-mine-foot { position: absolute; left: 1rem; right: 1rem; bottom: calc(env(safe-area-inset-bottom, 0px) + 1.1rem); z-index: 3; display: flex; align-items: center; gap: 0.9rem; flex-wrap: wrap; color: #fff; font-size: 0.85rem; font-weight: 600; }
+.story-mine-foot .story-likes { position: static; }
+.story-views { display: inline-flex; align-items: center; gap: 0.35rem; }
+.story-to-feed { margin-left: auto; width: auto; min-width: 0; padding: 0.45rem 0.9rem; border-radius: 999px; border: 1px solid rgba(255,255,255,0.55); background: rgba(255,255,255,0.12); color: #fff; font-weight: 700; font-size: 0.82rem; cursor: pointer; }
+.story-infeed { margin-left: auto; opacity: 0.8; }
+.story-feed-opt { display: flex; align-items: center; gap: 0.5rem; color: #fff; font-weight: 600; margin: 0.4rem 0 0.2rem; }
+.story-feed-opt input { width: auto; }

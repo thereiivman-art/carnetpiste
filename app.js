@@ -17834,7 +17834,7 @@
     }
     if (!friendship && !isMe) {
       if (upcomingVisible(u, name)) html += personUpcomingHtml(name);
-      var pubPosts = (STATE.wallPosts || []).filter(function (p) { return !p.story && p.author === name && (p.audience === 'all' || (p.audience === 'followers' && iFollow(name))); });
+      var pubPosts = (STATE.wallPosts || []).filter(function (p) { return inFeed(p) && p.author === name && (p.audience === 'all' || (p.audience === 'followers' && iFollow(name))); });
       if (pubPosts.length) html += '<h2 class="section-title feed-section-title">' + L('Ses publications', 'Their posts') + '</h2>' + pubPosts.slice(0, 10).map(function (p) { return '<div class="card feed-card"' + viewAttrs(p.id, p.author) + '>' + renderWallPost(p) + '</div>'; }).join('');
       html += '<div class="card"><div class="empty-state">' + escapeHtml(L('Ajoute ' + name + ' en ami pour voir ses roulages, ses records et ses trophées, et vous comparer.', 'Add ' + name + ' as a friend to see their trackdays, records and trophies, and compare.')) + '</div></div>';
       return html + '</div>';
@@ -17842,7 +17842,7 @@
     var withFeed = isMe && socialProfileCtx;
     if ((isPilote && (isMe || u.shareSorties !== false)) || withFeed) {
       // Fil d'abord, puis Fiche, Bientôt en piste, Saisons.
-      var theirPosts = !isMe ? (STATE.wallPosts || []).filter(function (p) { return !p.story && p.author === name; }) : [];
+      var theirPosts = !isMe ? (STATE.wallPosts || []).filter(function (p) { return inFeed(p) && p.author === name; }) : [];
       var personPills = [];
       if (withFeed) personPills.push(['monfil', L('Mon fil', 'My feed')]);
       else if (!isMe) personPills.push(['fil', L('Fil', 'Feed')]);
@@ -18182,7 +18182,7 @@
     // Messages publics de comptes que je ne suis pas encore : de quoi
     // découvrir du monde à suivre.
     var friendNames = friendsOf(me.name).map(function (f) { return f.name; });
-    var pub = (STATE.wallPosts || []).filter(function (p) { return !p.story && p.audience === 'all' && p.author !== me.name && !iFollow(p.author) && friendNames.indexOf(p.author) === -1; }).slice(0, 6);
+    var pub = (STATE.wallPosts || []).filter(function (p) { return inFeed(p) && p.audience === 'all' && p.author !== me.name && !iFollow(p.author) && friendNames.indexOf(p.author) === -1; }).slice(0, 6);
     if (pub.length) html += '<h2 class="section-title feed-section-title">' + L('À découvrir', 'Discover') + '</h2>' + pub.map(function (p) { return '<div class="card feed-card"' + viewAttrs(p.id, p.author) + '>' + renderWallPost(p, true) + '</div>'; }).join('');
     var lists = [
       ['abonnements', L('Abonnements', 'Following') + ' (' + following.length + ')', '<div class="card">' + renderPeopleGrid(following, true) + '</div>'],
@@ -18238,7 +18238,7 @@
   var socialProfileCtx = false;
   function renderMyFeedTab(me) {
     var html = renderWallComposer();
-    var mine = (STATE.wallPosts || []).filter(function (p) { return p.author === me.name && !p.story; });
+    var mine = (STATE.wallPosts || []).filter(function (p) { return p.author === me.name && inFeed(p); });
     var own = mine.filter(function (p) { return !p.repostOf; }).length, rep = mine.length - own;
     html += '<h2 class="section-title feed-section-title">' + L('Mes publications', 'My posts') + (own ? ' (' + own + ')' : '') + (rep ? ' · ' + plural(rep, L('republication', 'repost'), L('republications', 'reposts')) : '') + '</h2>';
     html += mine.length ? mine.map(function (p) { return '<div class="card feed-card">' + renderWallPost(p) + '</div>'; }).join('')
@@ -18400,7 +18400,8 @@
     if (storyMediaCleaned || !auth.currentUser) return;
     storyMediaCleaned = true;
     db.collection('storyMedia').where('authorUid', '==', auth.currentUser.uid).get().then(function (snap) {
-      snap.forEach(function (d) { if (Date.now() - (d.data().createdAt || 0) > 86400e3) d.ref.delete().catch(function () {}); });
+      var keep = {}; (STATE.wallPosts || []).forEach(function (p) { if (p.alsoInFeed) keep[p.mediaId || p.id] = 1; });
+      snap.forEach(function (d) { if (!keep[d.id] && Date.now() - (d.data().createdAt || 0) > 86400e3) d.ref.delete().catch(function () {}); });
     }).catch(function () {});
   }
   function storySeen(st) { try { return localStorage.getItem('cdp-story-' + st.who) === String(st.at); } catch (e) { return false; } }
@@ -18423,6 +18424,7 @@
     ov.innerHTML = '<div class="story-head"><strong>' + L('Ta story', 'Your story') + '</strong><span>' + L('visible 24 h', 'visible 24 h') + '</span><button type="button" class="story-close" aria-label="' + escapeHtml(L('Fermer', 'Close')) + '">✕</button></div>' +
       '<div class="story-card story-photo">' + (video ? '<video src="' + escapeHtml(video.dataUrl) + '" autoplay loop playsinline muted></video>' : '<img src="' + escapeHtml(dataUrl) + '" alt="">') + '</div>' +
       '<input type="text" class="story-text-input" maxlength="120" placeholder="' + escapeHtml(L('Ajoute un mot (facultatif)', 'Add a caption (optional)')) + '">' +
+      '<label class="story-feed-opt"><input type="checkbox" class="story-also-feed"> ' + L('Publier aussi dans mon fil', 'Also post to my feed') + '</label>' +
       '<button type="button" class="primary story-publish">' + L('Publier ma story', 'Post my story') + '</button>';
     document.body.appendChild(ov);
     var close = function () { if (ov.parentNode) ov.parentNode.removeChild(ov); };
@@ -18434,6 +18436,7 @@
       var t = ov.querySelector('.story-text-input').value.trim();
       if (t) post.text = t.slice(0, 120);
       if (video) { post.video = true; post.mediaId = post.id; post.duration = Math.round(video.duration * 10) / 10; }
+      var af = ov.querySelector('.story-also-feed'); if (af && af.checked) post.alsoInFeed = true;
       close();
       var publish = function () {
         STATE.wallPosts = [post].concat(STATE.wallPosts || []);
@@ -18469,14 +18472,19 @@
       } else {
         body = '<div class="story-card story-photo"' + (st.post.video ? ' data-story-video="' + escapeHtml(st.post.mediaId || st.post.id) + '"' : '') + '><img src="' + escapeHtml(st.post.photoURL) + '" alt="">' + (st.post.text ? '<span class="story-caption">' + escapeHtml(st.post.text) + '</span>' : '') + '</div>';
       }
-      // J'aime : sur les stories publiées (photo ou vidéo).
-      var likeKey = st.post ? 'story:' + st.post.id : null;
+      // J'aime : rangé sur le message de la story (le même qu'une fois
+      // publiée dans le fil : J'aime, réactions et commentaires liés).
+      var likeKey = st.post ? st.post.id : null;
       if (likeKey) {
-        var likes = itemReactions(likeKey), nLikes = Object.keys(likes).length, iLike = !!likes[me.name];
+        var likes = st.post.reactions || {}, nLikes = Object.keys(likes).length, iLike = !!likes[me.name];
         var heart = '<svg viewBox="0 0 24 24" width="22" height="22" fill="' + (iLike ? 'currentColor' : 'none') + '" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/></svg>';
         body += st.who !== me.name
           ? '<button type="button" class="story-like' + (iLike ? ' on' : '') + '" data-like-key="' + escapeHtml(likeKey) + '" aria-pressed="' + iLike + '" aria-label="' + escapeHtml(L('J\'aime', 'Like')) + '">' + heart + '</button>'
-          : (nLikes ? '<span class="story-likes">' + heart + ' ' + escapeHtml(Object.keys(likes).slice(0, 3).join(', ') + (nLikes > 3 ? L(' et ' + (nLikes - 3) + ' autres', ' and ' + (nLikes - 3) + ' more') : '')) + '</span>' : '');
+          : '<div class="story-mine-foot">' + (nLikes ? '<span class="story-likes">' + heart + ' ' + escapeHtml(Object.keys(likes).slice(0, 3).join(', ') + (nLikes > 3 ? L(' et ' + (nLikes - 3) + ' autres', ' and ' + (nLikes - 3) + ' more') : '')) + '</span>' : '') +
+            '<span class="story-views" data-views-for="' + escapeHtml(st.post.id) + '"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg> ' + storyViewCount(st.post) + '</span>' +
+            (st.post.alsoInFeed ? '<span class="story-infeed">' + L('Aussi dans ton fil', 'Also in your feed') + '</span>' : '<button type="button" class="story-to-feed" data-id="' + escapeHtml(st.post.id) + '">' + L('Publier dans le fil', 'Post to feed') + '</button>') + '</div>';
+        // Une vue par compte et par jour (l'auteur voit le total).
+        if (st.who !== me.name) recordView('postViews', st.post.id, st.who);
       }
       ov.innerHTML = '<div class="story-bars">' + list.map(function (_, k) { return '<span class="' + (k < i ? 'done' : k === i ? 'now' : '') + '"></span>'; }).join('') + '</div>' +
         '<div class="story-head"><button type="button" class="story-author" data-who="' + escapeHtml(st.who) + '">' + avatarHtml(u, st.who) + '<strong>' + escapeHtml(st.who) + '</strong></button><span>' + escapeHtml(relativeTime(st.at)) + (st.posted && storyTimeLeft(st.at) ? ' · ' + L('encore ', '') + storyTimeLeft(st.at) + L('', ' left') : '') + '</span><button type="button" class="story-close" aria-label="' + escapeHtml(L('Fermer', 'Close')) + '">✕</button></div>' + body +
@@ -18487,13 +18495,32 @@
       ov.querySelector('.story-nav.next').addEventListener('click', function () { i++; show(); });
       var pb = ov.querySelector('.story-profile');
       if (pb) pb.addEventListener('click', function () { close(); openPerson(pb.getAttribute('data-who')); });
+      var sv = ov.querySelector('[data-views-for]');
+      if (sv) db.collection('postViews').where('owner', '==', me.name).where('postId', '==', sv.getAttribute('data-views-for')).get().then(function (snap) {
+        var seen = {}; snap.forEach(function (d) { seen[d.data().viewer] = 1; });
+        var n = Object.keys(seen).length, txt = sv.lastChild;
+        if (txt && txt.nodeType === 3) txt.nodeValue = ' ' + n; else sv.appendChild(document.createTextNode(' ' + n));
+      }).catch(function () {});
+      var tf = ov.querySelector('.story-to-feed');
+      if (tf) tf.addEventListener('click', function (e) {
+        e.stopPropagation();
+        var post = list[i] && list[i].post; if (!post) return;
+        post.alsoInFeed = true;
+        db.collection('wallPosts').doc(post.id).update({ alsoInFeed: true }).then(function () { showToast(L('Story publiée aussi dans ton fil.', 'Story also posted to your feed.'), 'success'); })
+          .catch(function (err) { showToast(tr('error_prefix') + ((err && err.message) || err)); });
+        tf.outerHTML = '<span class="story-infeed">' + L('Aussi dans ton fil', 'Also in your feed') + '</span>';
+      });
       var au = ov.querySelector('.story-author');
       if (au) au.addEventListener('click', function (e) { e.stopPropagation(); var w = au.getAttribute('data-who'); close(); openPerson(w); });
       var lb = ov.querySelector('.story-like');
       if (lb) lb.addEventListener('click', function (e) {
         e.stopPropagation();
-        var on = !lb.classList.contains('on');
-        reactItem(lb.getAttribute('data-like-key'), '❤️');
+        var on = !lb.classList.contains('on'), post = list[i] && list[i].post;
+        if (post) {
+          toggleReaction('wallPosts', post.id, '❤️', post.reactions);
+          post.reactions = Object.assign({}, post.reactions || {});
+          if (on) post.reactions[me.name] = '❤️'; else delete post.reactions[me.name];
+        }
         lb.classList.toggle('on', on); lb.setAttribute('aria-pressed', String(on));
         var path = lb.querySelector('svg'); if (path) path.setAttribute('fill', on ? 'currentColor' : 'none');
       });
@@ -18611,7 +18638,7 @@
     var perDay = {}; views.forEach(function (v) { perDay[v.day] = (perDay[v.day] || 0) + 1; });
     var sinceMs = Date.now() - days * 86400000;
     var myKeys = Object.keys(byPost);
-    (STATE.wallPosts || []).forEach(function (p) { if (p.author === me && !p.story && myKeys.indexOf(p.id) === -1) myKeys.push(p.id); });
+    (STATE.wallPosts || []).forEach(function (p) { if (p.author === me && inFeed(p) && myKeys.indexOf(p.id) === -1) myKeys.push(p.id); });
     var reactions = 0, comments = 0, reposts = 0;
     myKeys.forEach(function (k) {
       var wp = (STATE.wallPosts || []).filter(function (p) { return p.id === k; })[0];
@@ -18789,7 +18816,7 @@
     var friendNames = friendsOf(me.name).map(function (f) { return f.name; });
     var followedNames = STATE.myFollows || [];
     return (STATE.wallPosts || []).filter(function (p) {
-      if (p.story) return false; // une story ne vit que dans la rangée du haut
+      if (!inFeed(p)) return false; // une story ne vit que dans la rangée du haut, sauf publiée aussi dans le fil
       if (p.author === me.name) return true;
       if (friendNames.indexOf(p.author) !== -1 && (p.audience === 'friends' || p.audience === 'all')) return true;
       if (followedNames.indexOf(p.author) !== -1 && (p.audience === 'followers' || p.audience === 'all')) return true;
@@ -18808,7 +18835,8 @@
     }
     var html = '<div class="card has-close"><button type="button" class="card-close" data-action="wall-composer-close" aria-label="' + escapeHtml(L('Fermer', 'Close')) + '"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button><h2 class="section-title">' + tr('post_to_journal_btn') + '</h2>';
     html += '<form id="wall-post-form">';
-    html += '<label for="wall-post-text">' + tr('wall_post_placeholder') + '</label><textarea id="wall-post-text" rows="2"></textarea>';
+    html += '<label for="wall-post-text">' + tr('wall_post_placeholder') + '</label><div class="mention-wrap"><textarea id="wall-post-text" rows="2" data-mentions="1"></textarea><div class="mention-suggest" hidden></div></div>' +
+      '<div class="help-text">' + L('Tape @ pour citer un ami.', 'Type @ to mention a friend.') + '</div>';
     html += '<label for="wall-post-link" style="margin-top:0.6rem;">' + tr('link_optional_placeholder') + '</label><input type="url" id="wall-post-link" placeholder="https://...">';
     html += '<div style="margin-top:0.6rem;">';
     if (wallPostDraftPhotoURL) {
@@ -18833,6 +18861,64 @@
   }
 
   var editingWallPostId = null; // id of the one wallPost currently shown as an inline edit form, or null -- same pattern as editingTeamPostId
+  // @pseudo dans un texte : lien vers le profil (pseudos connus seulement).
+  function mentionsHtml(text) {
+    var names = Object.keys(STATE.usersByName || {}).sort(function (a, b) { return b.length - a.length; });
+    var out = escapeHtml(text);
+    if (!names.length || out.indexOf('@') === -1) return out;
+    var esc = function (x) { return x.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); };
+    var re = new RegExp('@(' + names.map(function (n) { return esc(escapeHtml(n)); }).join('|') + ')(?![\\wÀ-ÿ])', 'g');
+    var byEsc = {}; names.forEach(function (n) { byEsc[escapeHtml(n)] = n; });
+    return out.replace(re, function (m, n) { return '<button type="button" class="mention-link" data-open-person="' + escapeHtml(byEsc[n] || n) + '">@' + n + '</button>'; });
+  }
+  // Suggestions @ : amis d'abord, puis abonnements / abonnés, puis les autres.
+  // Une story vit dans la rangée du haut ; publiée aussi dans le fil, c'est
+  // le même message (mêmes J'aime, réactions, commentaires, vues).
+  function storyViewCount(post) {
+    var seen = {};
+    (STATE.myPostViews || []).forEach(function (v) { if (v.postId === post.id) seen[v.viewer] = 1; });
+    return Object.keys(seen).length;
+  }
+  function inFeed(p) { return !p.story || !!p.alsoInFeed; }
+  function mentionCandidates(q) {
+    var me = currentUserProfile ? currentUserProfile.name : '';
+    var friends = friendsOf(me).map(function (f) { return f.name; });
+    var follow = followingOf(me).concat(followersOf(me));
+    var rank = function (n) { return friends.indexOf(n) !== -1 ? 0 : follow.indexOf(n) !== -1 ? 1 : 2; };
+    q = (q || '').toLowerCase();
+    return allKnownUserNames().filter(function (n) { return n !== me && n.toLowerCase().indexOf(q) === 0; })
+      .sort(function (a, b) { return rank(a) - rank(b) || a.localeCompare(b); }).slice(0, 6);
+  }
+  function attachMentionInput(ta) {
+    var box = ta.parentNode.querySelector('.mention-suggest');
+    if (!box) return;
+    var hide = function () { box.hidden = true; box.innerHTML = ''; };
+    var at = function () {
+      var before = ta.value.slice(0, ta.selectionStart || 0), m = before.match(/(^|\s)@([^\s@]{0,30})$/);
+      return m ? { q: m[2], start: before.length - m[2].length - 1 } : null;
+    };
+    var refresh = function () {
+      var a = at();
+      if (!a) return hide();
+      var list = mentionCandidates(a.q);
+      if (!list.length) return hide();
+      var me = currentUserProfile ? currentUserProfile.name : '', friends = friendsOf(me).map(function (f) { return f.name; });
+      box.innerHTML = list.map(function (n) { var u = (STATE.usersByName || {})[n] || {}; return '<button type="button" class="mention-opt" data-name="' + escapeHtml(n) + '">' + avatarHtml(u, n) + '<span>' + escapeHtml(n) + '</span>' + (friends.indexOf(n) !== -1 ? '<span class="help-text">' + L('ami', 'friend') + '</span>' : '') + '</button>'; }).join('');
+      box.hidden = false;
+      box.querySelectorAll('.mention-opt').forEach(function (b) {
+        b.addEventListener('mousedown', function (e) { e.preventDefault(); });
+        b.addEventListener('click', function () {
+          var a2 = at(); if (!a2) return hide();
+          var name = b.getAttribute('data-name'), pos = ta.selectionStart || 0;
+          ta.value = ta.value.slice(0, a2.start) + '@' + name + ' ' + ta.value.slice(pos);
+          var c = a2.start + name.length + 2; ta.focus(); ta.setSelectionRange(c, c); hide();
+        });
+      });
+    };
+    ta.addEventListener('input', refresh);
+    ta.addEventListener('click', refresh);
+    ta.addEventListener('blur', function () { setTimeout(hide, 150); });
+  }
   function renderWallPost(p, showFollow) {
     var u = (STATE.usersByName || {})[p.author] || {};
     var audienceLabel = p.audience === 'followers' ? tr('audience_followers') : (p.audience === 'all' ? tr('audience_all') : tr('audience_friends'));
@@ -18850,12 +18936,11 @@
       // Friends-only is the default: only flag the wider audiences.
       (p.audience === 'friends' ? '<span class="friend-role-badge">' + escapeHtml(L('Amis', 'Friends')) + '</span>' : '') +
       '<span class="feed-entry-time">' + escapeHtml(relativeTime(p.editedAt || p.createdAt)) + (p.editedAt ? tr('edited_suffix') : '') + '</span></div>';
-    // Texte à gauche, image dans l'espace libre à droite (comme partout).
-    var hasText = !!(p.text || p.linkUrl);
-    if (p.photoURL) html += '<img class="wall-post-photo' + (hasText ? ' side' : '') + '" src="' + escapeHtml(p.photoURL) + '" alt="">';
-    if (p.text) html += '<div class="wall-post-text">' + escapeHtml(p.text) + '</div>';
+    // Le texte, puis l'image entière en dessous (un appui : plein écran).
+    if (p.text) html += '<div class="wall-post-text">' + mentionsHtml(p.text) + '</div>';
     if (p.linkUrl) html += postLinkHtml(p.linkUrl);
-    if (p.photoURL && hasText) html += '<div class="clear"></div>';
+    if (p.photoURL) html += '<div class="wall-post-media' + (p.video ? ' is-video' : '') + '"' + (p.video ? ' data-feed-video="' + escapeHtml(p.mediaId || p.id) + '"' : '') + '><img class="wall-post-photo" src="' + escapeHtml(p.photoURL) + '" alt="">' +
+      (p.video ? '<span class="wall-post-play" aria-hidden="true"><svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></span>' : '') + '</div>';
     if (p.repostOf) html += renderRepostBox(p.repostOf);
     var nRep = repostCount(p.repostOf ? p.repostOf.id : p.id), mine = currentUserProfile && (p.repostOf ? p.repostOf.author : p.author) === currentUserProfile.name;
     var repostBtn = mine ? '<span class="repost-count">' + (nRep ? plural(nRep, L('republication', 'repost'), L('republications', 'reposts')) : '') + '</span>'
@@ -22653,6 +22738,19 @@
           return;
         }
         // Sur une fiche, la photo de profil s'agrandit (zoom) au lieu de rouvrir la fiche.
+        var fv = e.target.closest('[data-feed-video]');
+        if (fv) {
+          e.preventDefault(); e.stopPropagation();
+          if (fv.querySelector('video')) return;
+          db.collection('storyMedia').doc(fv.getAttribute('data-feed-video')).get().then(function (d) {
+            if (!d.exists) return showToast(L('Vidéo plus disponible.', 'Video no longer available.'));
+            var vid = document.createElement('video'); vid.src = d.data().video; vid.controls = true; vid.autoplay = true; vid.playsInline = true; vid.setAttribute('playsinline', ''); vid.className = 'wall-post-video';
+            fv.innerHTML = ''; fv.appendChild(vid); vid.play().catch(function () {});
+          }).catch(function () {});
+          return;
+        }
+        var wp = e.target.closest('.wall-post-media img.wall-post-photo, .wall-post-photo');
+        if (wp && wp.getAttribute('src')) { e.preventDefault(); e.stopPropagation(); openPhotoZoom(wp.getAttribute('src')); return; }
         var cov = e.target.closest('.ph-cover[data-own-cover]');
         if (cov && !e.target.closest('.ph-back, button')) { e.preventDefault(); e.stopPropagation(); openOwnMedia('cover'); return; }
         var otherCov = e.target.closest('.ph-cover');
@@ -22670,7 +22768,7 @@
           return;
         }
         var a = e.target.closest('.mini-avatar[data-person]');
-        if (a && a.getAttribute('data-person') && !e.target.closest('[data-open-person], .follow-card, .page-head, .story-bubble, .crop-modal-overlay')) { e.preventDefault(); e.stopPropagation(); openPerson(a.getAttribute('data-person')); }
+        if (a && a.getAttribute('data-person') && !e.target.closest('[data-open-person], .follow-card, .page-head, .story-bubble, .crop-modal-overlay, .mention-opt')) { e.preventDefault(); e.stopPropagation(); openPerson(a.getAttribute('data-person')); }
       }, true);
     }
     document.querySelectorAll('[data-action="repost"]').forEach(function (btn) {
@@ -24058,6 +24156,7 @@
         window.scrollTo(0, 0);
       });
     });
+    document.querySelectorAll('textarea[data-mentions]').forEach(attachMentionInput);
     document.querySelectorAll('[data-nav-person]').forEach(function (btn) {
       btn.addEventListener('click', function () {
         activeView = 'social'; pillState.social = 'profil'; pillState.person = btn.getAttribute('data-nav-person');
