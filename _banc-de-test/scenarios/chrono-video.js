@@ -17,7 +17,9 @@ const { chromium, BASE } = require('../lib');
   await p.type('#f-laps', '1:45.200'); await p.keyboard.press('Enter'); await p.type('#f-laps', '1:44.800');
   await p.fill('#f-video', 'pas un lien'); await p.click('#submit-btn'); await p.waitForTimeout(300);
   console.log('refus:', await p.$eval('#form-error', e => e.innerText));
-  await p.fill('#f-video', 'youtu.be/abc123'); await p.click('#submit-btn'); await p.waitForTimeout(700);
+  await p.fill('#f-video', 'youtu.be/abc123'); await p.click('#submit-btn'); await p.waitForTimeout(500);
+  // Garde-fou de date (pas de roulage ce jour-là sur ce circuit) : « Oui, aujourd'hui ».
+  if (await p.$('.mini-sheet')) { await p.click('.mini-sheet [data-pick-date].primary'); await p.waitForTimeout(700); }
   const s = await p.evaluate(() => Object.values(window.__MOCK_DATA.sessions).filter(x => x.videoUrl)[0]);
   console.log('stocké:', s && s.videoUrl, '| tours:', s && JSON.stringify(s.laps), '| createdAt:', !!(s && s.createdAt), '| circuit:', s && s.circuit);
   // Après l'enregistrement, la fenêtre « ressenti » s'ouvre.

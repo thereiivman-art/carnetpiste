@@ -8606,7 +8606,7 @@
         ctx.font = 'italic 800 64px ' + CONDENSED; ctx.textAlign = 'right';
         ctx.fillText(formatTime(r.best), W - 300, y + 78);
         ctx.fillStyle = i === 0 ? C.red : C.muted; ctx.font = '700 38px "Barlow", sans-serif';
-        ctx.fillText(i === 0 ? (EN ? 'fastest' : 'devant') : '+' + formatGap(r.best - leader), W - 100, y + 74);
+        ctx.fillText(i === 0 ? (EN ? '1st' : '1er') : '+' + formatGap(r.best - leader), W - 100, y + 74);
         ctx.textAlign = 'left';
       });
       ctx.fillStyle = C.line; ctx.fillRect(80, H - 250, W - 160, 2);
@@ -10007,6 +10007,15 @@
       if (status !== 'terminee') html += eventPriceLine(ev); // les dépenses d'un roulage passé : onglet Budget
       if (ev.bookingUrl && !isRiderHere) html += '<div class="help-text outing-actions-help">Inscription et paiement chez l\'organisateur.</div>';
     }
+    if (sessions.length && !outingIsLinked(circuit, date, sessions.filter(function (x) { return x.eventId; }).map(function (x) { return x.eventId; })[0])) {
+      // Mes chronos de ce jour ne sont rattachés à aucun de MES roulages :
+      // avertissement, puis les déplacer (vers mon roulage) ou les supprimer.
+      html += '<div class="unlinked-warning"><strong>' + L('Attention : chronos rattachés à aucun roulage.', 'Warning: these lap times aren\'t linked to any trackday.') + '</strong> ' +
+        L('Mauvaise date ? « Déplacer » les range au bon jour et les relie à ton roulage.', 'Wrong date? “Move” puts them on the right day and links them to your trackday.') + '</div>';
+      html += '<div class="outing-actions">' +
+        '<button type="button" class="ghost" data-action="outing-move-day">' + L('Déplacer', 'Move') + '</button>' +
+        '<button type="button" class="ghost danger" data-action="outing-delete-day">' + L('Supprimer', 'Delete') + '</button></div>';
+    }
     // Same pills as everywhere else: Chronos / Infos / Repères.
     var notes = myTrackNotes(circuit);
     var outingPills = [['chronos', 'Chronos' + (sessions.length ? ' (' + sessions.length + ')' : '')]];
@@ -10077,6 +10086,9 @@
           return '<div class="outing-session"><div><strong>' + (d.feeling || '') + ' ' + escapeHtml(d.time || '') + '</strong><div>' + escapeHtml(d.note || '') + '</div></div></div>';
         }).join('') + '</div>';
       }
+      // Chronos validés par le team : avec les autres chronos (avant : dans Infos).
+      var certifChronos = ev ? renderEventCertificationSection(ev) : '';
+      if (certifChronos) html += '<div class="card"><h2 class="section-title">' + L('Chronos validés', 'Validated lap times') + '</h2>' + flatSections(certifChronos) + '</div>';
     } else if (cur === 'infos') {
       // Une sous-pastille par sujet, au lieu d'une longue carte (team,
       // chronos validés, formulaire voyage, photos…) à faire défiler.
@@ -10110,8 +10122,6 @@
           var photos = renderMediaLinkSection(ev) + renderPersonalMediaLinksSection(ev);
           if (mine && isPast) photos = '<div class="help-text">' + tr('how_was_it') + '</div>' + renderReactionBar(ev.reactions, 'react-event', ev.id) + photos;
           if (photos) items.push(['photos', 'Photos', '<div class="card">' + photos + '</div>']);
-          var certif = renderEventCertificationSection(ev);
-          if (certif) items.push(['valides', 'Chronos validés', '<div class="card">' + flatSections(certif) + '</div>']);
         }
         html += items.length > 1 ? renderSubPills('outinfo', items, { noCard: true }) : hor;
       }
@@ -10675,8 +10685,16 @@
   function sessionVideoHtml(s) {
     return s.videoUrl ? '<a class="session-video-link" href="' + escapeHtml(s.videoUrl) + '" target="_blank" rel="noopener">▶ ' + L('Vidéo', 'Video') + '</a>' : '';
   }
+  // Une journée de chronos est « rattachée » si un de mes roulages couvre
+  // ce circuit à cette date (lien explicite ou date/circuit qui collent).
+  function outingIsLinked(circuit, date, eventId) {
+    var me = currentUserProfile && currentUserProfile.name;
+    if (eventId && eventsList().some(function (e) { return e.id === eventId; })) return true;
+    return candidateEventsForCircuitDate(circuit, date).some(function (e) { return (e.riders || []).indexOf(me) !== -1; });
+  }
   function outingRowHtml(o) {
     var grp = Object.keys(o.groups).join('/');
+    var unlinked = !outingIsLinked(o.circuit, o.date, o.eventId);
     var delta = '';
     if (o.prevBest !== null) {
       var d = o.best - o.prevBest;
@@ -10685,7 +10703,7 @@
     return '<button type="button" class="outing-row" data-open-outing="' + escapeHtml(o.circuit) + '" data-outing-date="' + escapeHtml(o.date) + '" data-outing-event="' + escapeHtml(o.eventId || '') + '">' +
       '<span class="outing-thumb">' + circuitThumbHtml(o.circuit) + '</span>' +
       '<span class="outing-row-main"><strong>' + escapeHtml(o.circuit) + (o.isRecord && o.prevBest !== null ? ' <span class="record-chip">' + L('Record', 'Record') + '</span>' : '') + '</strong><span class="help-text">' + escapeHtml(formatDate(o.date)) + (grp ? ' · ' + groupChip(grp) : '') + ' · ' + o.laps + ' t.</span>' +
-      (o.enteredAt ? '<span class="help-text outing-entered">' + escapeHtml(enteredAtText(o.enteredAt)) + '</span>' : '') + '</span>' +
+      (unlinked ? '<span class="unlinked-tag">' + L('Sans roulage', 'No trackday') + '</span>' : '') + (o.enteredAt ? '<span class="help-text outing-entered">' + escapeHtml(enteredAtText(o.enteredAt)) + '</span>' : '') + '</span>' +
       '<span class="outing-row-right"><span class="carnet-time">' + formatTime(o.best) + '</span>' + delta + '</span></button>';
   }
   function renderOutingCards(outings) {
@@ -12500,7 +12518,7 @@
           ctx.fillStyle = C.ink; ctx.font = 'italic 800 56px ' + CONDENSED; ctx.textAlign = 'right';
           ctx.fillText(formatTime(r.best), W - 270, ry + 68);
           ctx.fillStyle = i === 0 ? C.red : C.muted; ctx.font = '700 34px "Barlow", sans-serif';
-          ctx.fillText(i === 0 ? L('devant', 'fastest') : '+' + formatGap(r.best - leader), W - 90, ry + 64);
+          ctx.fillText(i === 0 ? L('1er', '1st') : '+' + formatGap(r.best - leader), W - 90, ry + 64);
           ctx.textAlign = 'left';
         });
         y += 70 + Math.min(rows.length, 6) * 112;
@@ -20992,6 +21010,17 @@
     var natEl = document.getElementById('profile-nationality');
     if (natEl) natEl.addEventListener('change', function () { saveNationality(natEl.value); });
     document.querySelectorAll('[data-action="export-my-data"]').forEach(function (b) { b.addEventListener('click', exportMyData); });
+    document.querySelectorAll('[data-action="outing-move-day"]').forEach(function (b) {
+      b.addEventListener('click', function () { if (outingView) openMoveDaySheet(outingView.circuit, outingView.date); });
+    });
+    document.querySelectorAll('[data-action="outing-delete-day"]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        if (!outingView) return;
+        var me = currentUserProfile && currentUserProfile.name;
+        var n = (STATE.sessions || []).filter(function (x) { return x.rider === me && x.circuit === outingView.circuit && x.date === outingView.date; }).length;
+        openDeleteDaySheet(outingView.circuit, outingView.date, n);
+      });
+    });
     document.querySelectorAll('[data-action="set-discipline"]').forEach(function (b) {
       b.addEventListener('click', function () { if (b.getAttribute('data-discipline') !== myDiscipline()) setMyDiscipline(b.getAttribute('data-discipline')); });
     });
@@ -24042,6 +24071,118 @@
     });
   }
 
+  // --- Garde-fous sur la date d'un chrono ---
+  var chronoDateConfirmed = false;
+  function myDatesOnCircuit(rider, circuit) {
+    var today = dateKey(new Date()), seen = {}, out = [];
+    eventsList().forEach(function (e) {
+      if ((e.riders || []).indexOf(rider) === -1 || !sameCircuit(e.circuit, circuit) || e.dateStart > today) return;
+      if (!seen[e.dateStart]) { seen[e.dateStart] = 1; out.push({ date: e.dateStart, label: formatEventRange(e, true), kind: 'event' }); }
+    });
+    (STATE.sessions || []).forEach(function (x) {
+      if (x.rider !== rider || !sameCircuit(x.circuit, circuit) || seen[x.date]) return;
+      seen[x.date] = 1; out.push({ date: x.date, label: formatDate(x.date), kind: 'chrono' });
+    });
+    return out.sort(function (a, b) { return a.date < b.date ? 1 : -1; });
+  }
+  // La date colle si j'ai un roulage sur ce circuit ce jour-là, ou déjà des
+  // chronos ce jour-là sur ce circuit.
+  function chronoDateLooksRight(rider, circuit, date) {
+    if (candidateEventsForCircuitDate(circuit, date).some(function (e) { return (e.riders || []).indexOf(rider) !== -1; })) return true;
+    return (STATE.sessions || []).some(function (x) { return x.rider === rider && sameCircuit(x.circuit, circuit) && x.date === date; });
+  }
+  function openMiniSheet(innerHtml) {
+    var old = document.getElementById('mini-sheet'); if (old) old.remove();
+    var ov = document.createElement('div');
+    ov.id = 'mini-sheet'; ov.className = 'mini-sheet-overlay';
+    ov.innerHTML = '<div class="mini-sheet" role="dialog" aria-modal="true">' + innerHtml + '</div>';
+    document.body.appendChild(ov);
+    ov.addEventListener('click', function (e) { if (e.target === ov || e.target.closest('[data-mini-close]')) ov.remove(); });
+    return ov;
+  }
+  function openChronoDateCheck(rider, circuit, date) {
+    var dates = myDatesOnCircuit(rider, circuit).filter(function (d) { return d.date !== date; }).slice(0, 4);
+    var isToday = date === dateKey(new Date());
+    var html = '<h2 class="section-title">' + L('Ces chronos sont de quel jour ?', 'Which day are these lap times from?') + '</h2>' +
+      '<p class="help-text">' + (isToday ? L('Tu n\'as pas de roulage aujourd\'hui à ', 'You have no trackday today at ') : L('Tu n\'as pas de roulage le ' + formatDate(date) + ' à ', 'You have no trackday on ' + formatDate(date) + ' at ')) + escapeHtml(circuit) + '.</p>' +
+      '<div class="mini-sheet-choices">' + dates.map(function (d) {
+        return '<button type="button" class="ghost" data-pick-date="' + escapeHtml(d.date) + '">' + escapeHtml(d.label) + (d.kind === 'event' ? ' · ' + L('mon roulage', 'my trackday') : '') + '</button>';
+      }).join('') +
+      '<button type="button" class="ghost" data-pick-date="__other__">' + L('Autre date…', 'Another date…') + '</button>' +
+      '<button type="button" class="primary" data-pick-date="' + escapeHtml(date) + '">' + (isToday ? L('Oui, aujourd\'hui', 'Yes, today') : L('Oui, le ', 'Yes, on ') + escapeHtml(formatDate(date))) + '</button></div>' +
+      '<button type="button" class="link-btn" data-mini-close>' + L('Annuler', 'Cancel') + '</button>';
+    var ov = openMiniSheet(html);
+    ov.querySelectorAll('[data-pick-date]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        var d = b.getAttribute('data-pick-date'), dateEl = document.getElementById('f-date');
+        ov.remove();
+        if (!dateEl) return;
+        if (d === '__other__') {
+          var more = document.querySelector('.cf-more'); if (more) more.open = true;
+          chronoDateConfirmed = true; // la date tapée à la main fait foi
+          dateEl.focus(); dateEl.select();
+          return;
+        }
+        dateEl.value = isoToFrDate(d);
+        dateEl.dispatchEvent(new Event('input', { bubbles: true }));
+        chronoDateConfirmed = true;
+        var btn = document.getElementById('submit-btn'); if (btn) btn.click();
+      });
+    });
+  }
+  // Une journée sans roulage (que des chronos) : la déplacer ou la supprimer.
+  function moveMyDay(circuit, fromDate, toDate) {
+    var me = currentUserProfile && currentUserProfile.name;
+    if (!me || !toDate || toDate === fromDate) return;
+    var prevState = JSON.parse(JSON.stringify(STATE));
+    var target = candidateEventsForCircuitDate(circuit, toDate).filter(function (e) { return (e.riders || []).indexOf(me) !== -1; })[0];
+    var n = 0;
+    STATE.sessions.forEach(function (x) {
+      if (x.rider === me && x.circuit === circuit && x.date === fromDate) { x.date = toDate; if (target) x.eventId = target.id; else delete x.eventId; n++; }
+    });
+    if (!n) return;
+    outingView = Object.assign({}, outingView, { date: toDate, eventId: target ? target.id : null });
+    renderRoot();
+    persist(prevState);
+    showToast(plural(n, L('chrono déplacé', 'lap time moved'), L('chronos déplacés', 'lap times moved')) + L(' au ', ' to ') + formatDate(toDate) + '.', 'success');
+  }
+  function deleteMyDay(circuit, date) {
+    var me = currentUserProfile && currentUserProfile.name;
+    var ids = (STATE.sessions || []).filter(function (x) { return x.rider === me && x.circuit === circuit && x.date === date; }).map(function (x) { return x.id; });
+    if (!ids.length) return;
+    var prevState = JSON.parse(JSON.stringify(STATE));
+    STATE.sessions = STATE.sessions.filter(function (x) { return ids.indexOf(x.id) === -1; });
+    outingView = null;
+    activeView = 'carnet';
+    renderRoot();
+    persist(prevState);
+    showToast(plural(ids.length, L('chrono supprimé', 'lap time deleted'), L('chronos supprimés', 'lap times deleted')) + '.', 'success');
+  }
+  function openMoveDaySheet(circuit, date) {
+    var me = currentUserProfile && currentUserProfile.name;
+    var dates = myDatesOnCircuit(me, circuit).filter(function (d) { return d.date !== date && d.kind === 'event'; }).slice(0, 4);
+    var html = '<h2 class="section-title">' + L('Déplacer à quelle date ?', 'Move to which date?') + '</h2>' +
+      '<div class="mini-sheet-choices">' + dates.map(function (d) { return '<button type="button" class="ghost" data-move-to="' + escapeHtml(d.date) + '">' + escapeHtml(d.label) + ' · ' + L('mon roulage', 'my trackday') + '</button>'; }).join('') + '</div>' +
+      '<label for="move-day-date">' + L('Ou une date', 'Or a date') + '</label><input type="text" id="move-day-date" inputmode="numeric" placeholder="JJ/MM/AAAA" value="' + escapeHtml(isoToFrDate(date)) + '">' +
+      '<div class="form-error" id="move-day-err"></div>' +
+      '<div class="mini-sheet-actions"><button type="button" class="link-btn" data-mini-close>' + L('Annuler', 'Cancel') + '</button><button type="button" class="primary" data-move-go>' + L('Déplacer', 'Move') + '</button></div>';
+    var ov = openMiniSheet(html);
+    var go = function (iso) {
+      var err = ov.querySelector('#move-day-err');
+      if (!iso) { err.textContent = tr('invalid_date_format'); err.classList.add('visible'); return; }
+      if (iso > dateKey(new Date())) { err.textContent = L('Pas de date dans le futur pour des chronos.', 'No future date for lap times.'); err.classList.add('visible'); return; }
+      ov.remove(); moveMyDay(circuit, date, iso);
+    };
+    ov.querySelectorAll('[data-move-to]').forEach(function (b) { b.addEventListener('click', function () { go(b.getAttribute('data-move-to')); }); });
+    ov.querySelector('[data-move-go]').addEventListener('click', function () { go(frDateToIso(ov.querySelector('#move-day-date').value)); });
+  }
+  function openDeleteDaySheet(circuit, date, n) {
+    var html = '<h2 class="section-title">' + L('Supprimer cette journée ?', 'Delete this day?') + '</h2>' +
+      '<p class="help-text">' + plural(n, L('chrono', 'lap time'), L('chronos', 'lap times')) + L(' du ', ' from ') + escapeHtml(formatDate(date)) + L(' à ', ' at ') + escapeHtml(circuit) + (n > 1 ? L(' seront supprimés.', ' will be deleted.') : L(' sera supprimé.', ' will be deleted.')) + '</p>' +
+      '<div class="mini-sheet-actions"><button type="button" class="link-btn" data-mini-close>' + L('Annuler', 'Cancel') + '</button><button type="button" class="primary danger" data-del-go>' + L('Supprimer', 'Delete') + '</button></div>';
+    var ov = openMiniSheet(html);
+    ov.querySelector('[data-del-go]').addEventListener('click', function () { ov.remove(); deleteMyDay(circuit, date); });
+  }
   function onSubmit(ev) {
     ev.preventDefault();
     var riderEl = document.getElementById('f-rider');
@@ -24120,6 +24261,14 @@
       errEl.classList.add('visible');
       return;
     }
+    // Garde-fou : un chrono rangé à une date où je n'ai pas roulé sur ce
+    // circuit (typiquement la date du jour laissée par défaut pour un
+    // roulage passé) → on demande (une fois la saisie valide) de quel jour il s'agit.
+    if (!chronoDateConfirmed && currentUserProfile && rider === currentUserProfile.name && !chronoDateLooksRight(rider, circuit, date)) {
+      openChronoDateCheck(rider, circuit, date);
+      return;
+    }
+    chronoDateConfirmed = false;
     var session = { id: genId(), rider: rider, date: date, circuit: circuit, laps: laps, createdAt: Date.now() };
     // Discipline du pilote du chrono (moi, ou l'équipier pour un Team Leader).
     if ((rider === (currentUserProfile && currentUserProfile.name) ? isCarMode() : disciplineOf((STATE.usersByName || {})[rider]) === 'auto')) session.discipline = 'auto';

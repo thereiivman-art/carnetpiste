@@ -4144,3 +4144,46 @@ span.social-count { cursor: default; }
 .upcoming-more { justify-content: center; height: 2.7rem; font-size: 0.8rem; font-weight: 700; color: var(--text-muted, #888); }
 .bientot-share { margin: 0.1rem 0 0.6rem; }
 .bientot-share .inline-select { display: inline-block; width: auto; padding: 0.15rem 0.4rem; margin-left: 0.2rem; font-size: inherit; }
+
+/* ===== Passe PC (≥ 960 px) =====
+   Barre latérale : boutons empilés en haut, à leur taille (sur mobile ils
+   s'étirent en barre du bas). Contenu : une colonne lisible de 920 px
+   centrée dans l'espace à droite de la barre, plutôt qu'une page étirée
+   sur tout l'écran. Boutons d'action à leur taille, plus de longues barres. */
+@media (min-width: 960px) {
+  :root { --content-w: 920px; }
+  .bottom-nav { justify-content: flex-start; gap: 0.35rem; }
+  .bottom-nav-btn, .bottom-nav-btn.bottom-nav-main { flex: 0 0 auto; margin: 0; min-height: 0; padding: 0.7rem 0.9rem; border-radius: 12px; }
+  .bottom-nav-btn:not(.active):hover { background: var(--surface-alt); color: var(--text); }
+  .wrap {
+    max-width: none;
+    margin: 0 0 0 var(--sidebar-w);
+    padding-left: max(2.2rem, calc((100vw - var(--sidebar-w) - var(--content-w)) / 2));
+    padding-right: max(2.2rem, calc((100vw - var(--sidebar-w) - var(--content-w)) / 2));
+  }
+  .page-head-inner { max-width: calc(var(--content-w) + 4.4rem); margin: 0 auto; }
+  /* Actions d'un roulage, d'une fiche, d'un team : à leur taille, alignées à gauche. */
+  .outing-actions, .planning-actions { flex-wrap: wrap; }
+  .outing-actions > button, .planning-actions > button, .outing-actions > button.primary,
+  .person-hero .outing-actions > button { flex: 0 0 auto; min-width: 7.5rem; padding-left: 1.1rem; padding-right: 1.1rem; }
+  /* Enregistrer un chrono, et les gros boutons d'action pleine largeur. */
+  #submit-btn, .chrono-hero button.primary, form > button.primary[type="submit"] { width: auto; min-width: 14rem; padding-left: 1.6rem; padding-right: 1.6rem; }
+  #carnet-add-chrono, .add-chrono-btn, .cta-btn, button.primary.add-chrono-btn, button.primary.cta-btn, .add-chrono-btn[data-action="quick-outing"] { display: block; width: auto; min-width: 16rem; margin-left: auto; margin-right: auto; padding-left: 2rem; padding-right: 2rem; }
+  .card { border-radius: 16px; }
+}
+
+/* Petite fenêtre de choix (date d'un chrono, déplacer / supprimer une journée). */
+.mini-sheet-overlay { position: fixed; inset: 0; z-index: 2000; background: rgba(10, 12, 16, 0.55); display: flex; align-items: flex-end; justify-content: center; padding: 1rem; }
+.mini-sheet { width: 100%; max-width: 440px; background: var(--surface); color: var(--text); border-radius: 18px; padding: 1.2rem 1.2rem 1rem; box-shadow: 0 20px 50px rgba(0,0,0,0.3); margin-bottom: env(safe-area-inset-bottom); }
+.mini-sheet .section-title { margin-top: 0; }
+.mini-sheet-choices { display: flex; flex-direction: column; gap: 0.5rem; margin: 0.8rem 0; }
+.mini-sheet-choices > button { width: 100%; text-align: left; justify-content: flex-start; }
+.mini-sheet-choices > button.primary { text-align: center; justify-content: center; }
+.mini-sheet-actions { display: flex; justify-content: flex-end; align-items: center; gap: 0.8rem; margin-top: 0.9rem; }
+.mini-sheet .form-error { display: none; } .mini-sheet .form-error.visible { display: block; }
+@media (min-width: 960px) { .mini-sheet-overlay { align-items: center; } }
+
+/* Chronos rattachés à aucun roulage : signalés en rouge. */
+.unlinked-tag { display: inline-block; align-self: flex-start; margin-top: 0.2rem; padding: 0.05rem 0.45rem; border-radius: 6px; font-size: 0.72rem; font-weight: 700; color: var(--accent); background: rgba(200, 38, 31, 0.1); }
+.unlinked-warning { margin: 0 0 0.7rem; padding: 0.7rem 0.9rem; border-radius: 12px; border: 1px solid rgba(200, 38, 31, 0.35); background: rgba(200, 38, 31, 0.08); color: var(--text); font-size: 0.9rem; line-height: 1.35; }
+.unlinked-warning strong { color: var(--accent); }

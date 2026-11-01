@@ -35,7 +35,9 @@ const { chromium, BASE } = require('../lib');
   // Nouveau chrono : marqué voiture
   await p.click('.bottom-nav-main'); await p.waitForTimeout(500);
   if (await p.$('#f-laps')) {
-    await p.type('#f-laps', '1:40.500'); await p.click('#submit-btn'); await p.waitForTimeout(700);
+    await p.type('#f-laps', '1:40.500'); await p.click('#submit-btn'); await p.waitForTimeout(500);
+    // Garde-fou de date (pas de roulage aujourd'hui sur ce circuit) : « Oui, aujourd'hui ».
+    if (await p.$('.mini-sheet')) { await p.click('.mini-sheet [data-pick-date].primary'); await p.waitForTimeout(700); }
     if (await p.$('#feeling-skip-btn')) { await p.click('#feeling-skip-btn'); await p.waitForTimeout(300); }
     console.log('nouveau chrono:', await p.evaluate(() => firebase.firestore().collection('sessions').get().then(s => { const x = s.docs.map(d => d.data()).filter(d => d.laps && d.laps.indexOf(100.5) !== -1)[0]; return x ? (x.discipline || 'moto') : 'absent'; })));
   }
