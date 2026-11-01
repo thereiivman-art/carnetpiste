@@ -32,7 +32,9 @@ const { chromium, BASE } = require('../lib');
   await p.waitForTimeout(900);
   console.log('choix:', await p.$$eval('input[name="imp-cand"]', e => e.map(x => x.parentNode.innerText.replace(/\s+/g, ' ').trim()).join(' | ')));
   console.log('consigne:', await p.$eval('.import-modal', e => (e.innerText.match(/Plusieurs journées[^\n]*|Several days[^\n]*/) || ['?'])[0]));
-  console.log('journée 1:', await p.$eval('#imp-laps', e => e.value.split('\n').length + ' tours'), '| date', await p.$eval('#imp-date', e => e.value));
+  console.log('journée 1:', await p.$eval('#imp-laps', e => e.value.split('\n').filter(Boolean).length + ' tours'), '| date', await p.$eval('#imp-date', e => e.value));
+  // Heures de passage : 14:52 → 14:58 puis 16:04, deux sessions.
+  console.log('sessions journée 1:', await p.$eval('#imp-split', e => e.innerText.replace(/\n/g, ' | ')).catch(() => 'aucune'));
   await p.click('input[name="imp-cand"][value="1"]'); await p.waitForTimeout(200);
   console.log('journée 2:', await p.$eval('#imp-laps', e => e.value.replace(/\n/g, ' ')), '| date', await p.$eval('#imp-date', e => e.value));
   await p.click('[data-imp="apply"]'); await p.waitForTimeout(300);

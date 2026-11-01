@@ -3910,6 +3910,20 @@ label.budget-row-title { cursor: pointer; margin: 0; }
 /* Formulaire de chrono compact : résumé pré-rempli, Chronos, photo, ⋯ */
 .chrono-form-card { padding-top: 0.9rem; }
 .cf-summary { font-size: 0.88rem; color: var(--text-muted); margin-bottom: 0.6rem; }
+.chrono-clock { margin-left: 0.5rem; color: var(--text); font-variant-numeric: tabular-nums; text-transform: none; letter-spacing: 0; }
+.chrono-clock-line { display: flex; justify-content: flex-end; font-weight: 700; font-size: 0.95rem; margin: 0 0 0.3rem; }
+.chrono-clock-line .chrono-clock { margin-left: 0; }
+.cf-confirm { border: 2px solid var(--accent); border-radius: 12px; padding: 0.7rem 0.8rem; margin: 0 0 0.8rem; display: flex; flex-direction: column; gap: 0.35rem; }
+.cf-confirm-q { font-weight: 700; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--accent); }
+.cf-confirm-slot { font-size: 1.15rem; font-weight: 600; }
+.cf-confirm-actions { display: flex; gap: 0.5rem; margin-top: 0.2rem; }
+.cf-confirm-actions button { flex: 1; width: auto; }
+.cf-confirm.done { border-color: var(--border); padding: 0.45rem 0.8rem; }
+.cf-confirm.done .cf-confirm-slot { font-size: 0.95rem; }
+.imp-split { margin-top: 0.6rem; padding: 0.6rem 0.7rem; border: 1px solid var(--border); border-radius: 10px; }
+.imp-split label { display: flex; gap: 0.5rem; align-items: flex-start; font-weight: 600; }
+.imp-split label input { width: auto; margin-top: 0.2rem; }
+.imp-split-list { margin: 0.35rem 0 0; padding-left: 1.1rem; font-size: 0.9rem; }
 .cf-label { font-size: 1.1rem; font-weight: 800; }
 .cf-laps-row { display: flex; gap: 0.5rem; align-items: stretch; }
 .cf-laps-row textarea { flex: 1; min-height: 4.6rem; font-size: 1.15rem; }

@@ -683,7 +683,8 @@
     var res = analyze(text || '', opts);
     res.candidates = cols.map(function (c) {
       var laps = c.laps.map(function (l) { return l.sec; });
-      return { label: c.label, named: false, laps: laps, kind: 'day', date: c.date, outliers: outlierIndexes(laps), score: 0 };
+      var clocks = c.laps.every(function (l) { return l.clock != null; }) ? c.laps.map(function (l) { return l.clock; }) : null;
+      return { label: c.label, named: false, laps: laps, clocks: clocks, kind: 'day', date: c.date, outliers: outlierIndexes(laps), score: 0 };
     });
     res.selected = 0;
     res.columns = true;
@@ -693,7 +694,80 @@
     return res;
   }
 
+  // Découpe une journée de tours en sessions.
+  //  - avec l'heure de passage de chaque tour : rattachement au créneau du
+  //    groupe (slots = [{start, end, label, group}] en minutes) ou, sans
+  //    horaires, coupure dès 10 min sans passage ;
+  //  - sans heure : nombre de tours attendu par session (durée du créneau
+  //    / rythme du pilote en s), coupure ajustée sur le tour lent voisin
+  //    (tour de rentrée).
+  // Rend [{ laps: [...], slot: slot|null, from, to }] (from/to en minutes
+  // quand l'heure est connue), ou [] si une seule session.
+  function median(arr) {
+    var a = arr.slice().sort(function (x, y) { return x - y; });
+    return a.length ? a[Math.floor(a.length / 2)] : null;
+  }
+  function splitSessions(laps, clocks, slots, pace) {
+    laps = laps || []; slots = (slots || []).filter(function (s) { return s.start != null; });
+    if (laps.length < 2) return [];
+    var blocks = [];
+    if (clocks && clocks.length === laps.length) {
+      if (slots.length) {
+        var bySlot = {};
+        laps.forEach(function (sec, i) {
+          var c = clocks[i], hit = null, bestD = Infinity;
+          slots.forEach(function (sl, k) {
+            var end = sl.end != null ? sl.end : sl.start + 20;
+            var d = c < sl.start - 5 ? sl.start - 5 - c : c > end + 10 ? c - end - 10 : 0;
+            if (d < bestD) { bestD = d; hit = k; }
+          });
+          var key = bestD <= 20 ? 's' + hit : 'h' + Math.floor(c / 30);
+          if (!bySlot[key]) { bySlot[key] = { laps: [], slot: bestD <= 20 ? slots[hit] : null, from: c, to: c }; blocks.push(bySlot[key]); }
+          var b = bySlot[key]; b.laps.push(sec); b.to = Math.max(b.to, c); b.from = Math.min(b.from, c);
+        });
+      } else {
+        laps.forEach(function (sec, i) {
+          var last = blocks[blocks.length - 1];
+          if (!last || clocks[i] - last.to > 10) { last = { laps: [], slot: null, from: clocks[i], to: clocks[i] }; blocks.push(last); }
+          last.laps.push(sec); last.to = clocks[i];
+        });
+      }
+      blocks.sort(function (a, b) { return a.from - b.from; });
+      return blocks.length >= 2 ? blocks : [];
+    }
+    var p = pace || median(laps);
+    if (!p) return [];
+    var durs = slots.length ? slots.map(function (sl) { return (sl.end != null ? sl.end : sl.start + 20) - sl.start; }) : [20];
+    var per = durs.map(function (d) { return Math.max(2, Math.floor(d * 60 / p)); });
+    var perAvg = per.reduce(function (a, b) { return a + b; }, 0) / per.length;
+    var k = Math.round(laps.length / perAvg);
+    if (k < 2) return [];
+    // Créneaux connus et nombre de tours cohérent avec toute la journée : on les nomme.
+    var named = slots.length && k === slots.length;
+    var med = median(laps), cuts = [], pos = 0;
+    for (var i = 0; i < k - 1; i++) {
+      var target = Math.round((laps.length - pos) / (k - i)) + pos;
+      if (named) target = pos + per[i];
+      // Coupure entre un tour de rentrée et un tour de sortie (tours lents)
+      // au voisinage du compte attendu.
+      var cut = target, bestScore = 0, bestDist = Infinity;
+      for (var j = Math.max(pos + 1, target - 2); j <= Math.min(laps.length - 1, target + 2); j++) {
+        var score = (laps[j - 1] > med * 1.08 ? 1 : 0) + (laps[j] > med * 1.08 ? 1 : 0);
+        if (score > bestScore || (score === bestScore && score > 0 && Math.abs(j - target) < bestDist)) { bestScore = score; bestDist = Math.abs(j - target); cut = j; }
+      }
+      if (cut <= pos || cut >= laps.length) break;
+      cuts.push(cut); pos = cut;
+    }
+    var start = 0;
+    cuts.concat([laps.length]).forEach(function (c, idx) {
+      blocks.push({ laps: laps.slice(start, c), slot: named ? slots[idx] : null, from: null, to: null });
+      start = c;
+    });
+    return blocks.length >= 2 ? blocks : [];
+  }
+
   root.ChronoImport = {
+    splitSessions: splitSessions,
     columnsFromWords: columnsFromWords,
     mergeColumns: mergeColumns,
     analyzeColumns: analyzeColumns,
