@@ -17131,11 +17131,11 @@
     return '<div class="card person-hero" data-cover="' + escapeHtml(l.cover === 'photo' && !l.coverPhoto ? 'vibreur' : (l.cover || 'none')) + '" data-plate="' + escapeHtml(l.plate || '') + '" style="' + lookStyle(l) + '">' +
       '<div class="ph-cover">' + coverInner + '<button type="button" class="back-chevron ph-back" ' + o.backAttr + ' aria-label="' + L('Retour', 'Back') + '">‹</button>' + (o.plateHtml || '') + '</div>' +
       '<div class="ph-body"><div class="ph-id"><span class="person-avatar ph-avatar">' + o.avatar + '</span>' +
-      '<span class="person-id"><strong class="person-name">' + o.nameHtml + '</strong><span class="help-text">' + o.subHtml + '</span></span></div>' +
+      '<span class="person-id"><strong class="person-name">' + o.nameHtml + '</strong><span class="help-text">' + o.subHtml + '</span></span>' + (o.idExtra || '') + '</div>' +
       (o.bio ? '<p class="ph-bio">' + escapeHtml(o.bio) + '</p>' : '') +
       (o.acts ? '<div class="outing-actions">' + o.acts + '</div>' : '') + '</div></div>';
   }
-  function renderPersonHero(u, name, l, sub, acts, backTo) {
+  function renderPersonHero(u, name, l, sub, acts, backTo, idExtra) {
     var f = l.cover === 'trace' ? featuredChrono(name, l) : null;
     return renderLookHero(l, {
       backAttr: 'data-view="' + escapeHtml(backTo) + '"',
@@ -17144,7 +17144,7 @@
       avatar: avatarHtml(u, name),
       nameHtml: escapeHtml(name) + badgesHtml(u),
       subHtml: '<span class="friend-role-badge">' + roleLabel(u.role) + '</span>' + (sub.length ? ' ' + sub.join(' · ') : ''),
-      bio: l.bio, acts: acts
+      bio: l.bio, acts: acts, idExtra: idExtra
     });
   }
   function renderFeaturedChrono(name, l) {
@@ -17155,10 +17155,22 @@
       '<span class="ph-feature-k">' + L('Chrono vedette', 'Featured lap') + '</span><strong class="ph-feature-time">' + formatTime(f.best) + '</strong>' +
       '<span class="ph-feature-s">' + escapeHtml(f.circuit) + ' · ' + escapeHtml(formatDate(f.date)) + (f.gain > 0.05 ? ' · −' + formatGap(f.gain) + L(' depuis son premier roulage ici', ' since the first trackday here') : '') + '</span></div>';
   }
-  function renderVitrine(ach, l) {
+  function vitrineTrophies(ach, l) {
     var earned = ach.filter(function (a) { return a.earned; });
-    var pinned = (l.pinned || []).map(function (n) { return earned.filter(function (a) { return a.name === n; })[0]; }).filter(Boolean);
-    if (!pinned.length) pinned = earned.slice().sort(function (a, b) { return (b.level || 0) - (a.level || 0); }).slice(0, 3);
+    var pinned = ((l && l.pinned) || []).map(function (n) { return earned.filter(function (a) { return a.name === n; })[0]; }).filter(Boolean);
+    if (!pinned.length) pinned = earned.slice().sort(function (a, b) { return (b.level || 0) - (a.level || 0); });
+    return pinned.slice(0, 3);
+  }
+  // Les 3 trophées de la vitrine, en petit à côté du nom ; un appui mène
+  // aux trophées de la fiche.
+  function miniVitrineHtml(ach, l, name) {
+    var top = vitrineTrophies(ach, l);
+    if (!top.length) return '';
+    return '<button type="button" class="mini-vitrine" data-action="open-trophies" data-key="person-achievements-' + escapeHtml(name) + '" aria-label="' + L('Voir les trophées', 'See the trophies') + '">' +
+      top.map(function (a) { return '<span title="' + escapeHtml(a.name || a.label || '') + '">' + trophyIconHtml(a, false) + '</span>'; }).join('') + '</button>';
+  }
+  function renderVitrine(ach, l) {
+    var pinned = vitrineTrophies(ach, l);
     if (!pinned.length) return '';
     return '<div class="card"><h2 class="section-title">' + L('Vitrine', 'Showcase') + '</h2><div class="ph-vitrine">' + pinned.slice(0, 3).map(function (a) {
       return '<span class="ph-trophy">' + trophyIconHtml(a, true) + '<strong>' + escapeHtml(a.name || a.label) + '</strong>' + (a.tierName && a.maxLevel > 1 ? '<span class="trophy-tier tier-' + Math.min(a.level, 6) + '">' + escapeHtml(a.tierName) + '</span>' : '') + '</span>';
@@ -17685,7 +17697,6 @@
     // Actions
     var acts = '';
     if (isMe) acts += myDraft ? '' : '<button type="button" class="primary" data-action="look-edit">' + (lookOf(u) ? L('Modifier', 'Edit') : L('Personnaliser', 'Customise')) + '</button>' +
-      '<button type="button" class="ghost" data-action="pick-cover">' + L('Bannière', 'Banner') + '</button>' +
       '<button type="button" class="ghost" data-action="open-my-profile">' + L('Mon compte', 'My account') + '</button>';
     else if (friendship) acts += '<button type="button" class="ghost" disabled>' + L('Amis', 'Friends') + '</button>';
     else if (received) acts += '<button type="button" class="primary" data-action="accept-friend" data-id="' + escapeHtml(received.id) + '">' + L('Accepter son invitation', 'Accept the request') + '</button>';
@@ -17695,14 +17706,15 @@
     if (isPilote && u.chronoLink && friendship) acts += '<button type="button" class="ghost" data-action="open-external-url" data-url="' + escapeHtml(u.chronoLink) + '">' + L('Ses chronos officiels ↗', 'Official lap times ↗') + '</button>';
     var achList = null;
     var getAch = function () { return achList || (achList = isPilote ? riderAchievements(name, riderStats(name)) : (u.role === 'organisateur' ? organisateurAchievements(u) : accompagnantAchievements(u))); };
+    var miniVit = isPilote && u.shareTrophees !== false && (isMe || friendship) && !privateProfile && (!look || lookShows(look, 'vitrine')) ? miniVitrineHtml(getAch(), look, name) : '';
     if (look) {
-      html += renderPersonHero(u, name, look, sub, acts, personView.from);
+      html += renderPersonHero(u, name, look, sub, acts, personView.from, miniVit);
       if (isMe && myDraft) html += renderLookEditor(u, getAch());
     } else {
       html += '<div class="card person-head"><div class="page-title-row"><button type="button" class="back-chevron" data-view="' + escapeHtml(personView.from) + '" aria-label="' + L('Retour', 'Back') + '">‹</button>' +
         '<span class="person-avatar">' + avatarHtml(u, name) + '</span>' +
         '<span class="person-id"><strong class="person-name">' + escapeHtml(name) + badgesHtml(u) + '</strong>' +
-        '<span class="help-text"><span class="friend-role-badge">' + roleLabel(u.role) + '</span>' + (sub.length ? ' ' + sub.join(' · ') : '') + '</span></span></div>';
+        '<span class="help-text"><span class="friend-role-badge">' + roleLabel(u.role) + '</span>' + (sub.length ? ' ' + sub.join(' · ') : '') + '</span></span>' + miniVit + '</div>';
       html += '<div class="outing-actions">' + acts + '</div></div>';
     }
     html += socialCountsHtml(name);
@@ -17763,7 +17775,7 @@
       });
       var circuits = Object.keys(bests).sort();
       if (look) html += renderLinksAndSponsors(look);
-      if (look) html += (lookShows(look, 'vitrine') ? renderVitrine(getAch(), look) : '') + (lookShows(look, 'season') ? renderSeasonGrid(name, look) : '') + renderFavourites(name, look);
+      if (look) html += (lookShows(look, 'season') ? renderSeasonGrid(name, look) : '') + renderFavourites(name, look);
       html += renderPersonFriends(name, look);
       if (circuits.length) {
         html += '<div class="card"><h2 class="section-title">' + (isMe ? L('Mes records', 'My records') : L('Ses records', 'Their records')) + '</h2>' + circuits.map(function (c) {
@@ -21265,36 +21277,6 @@
   var pendingDeleteChecklistCategory = null;
   var profilePanelOpen = false; // pure UI state, not persisted
   var notificationsPanelOpen = false; // pure UI state, not persisted
-  // Bannière en un geste : choix de la photo, réduite, enregistrée telle
-  // quelle (sans passer par « Personnaliser »).
-  function pickCoverPhoto() {
-    var me = currentUserProfile, uid = auth.currentUser && auth.currentUser.uid;
-    if (!me || !uid) return;
-    var input = document.createElement('input');
-    input.type = 'file'; input.accept = 'image/*'; input.style.display = 'none';
-    document.body.appendChild(input);
-    input.addEventListener('change', function () {
-      var f = input.files && input.files[0];
-      input.remove();
-      if (!f) return;
-      var save = function (url) {
-        if (url && url.length >= 450000) { showToast(L('Image trop lourde : essaie une capture d\'écran de la photo.', 'Image too large: try a screenshot of the photo.')); return; }
-        if (!url) { showToast(L('Cette image n\'a pas pu être ouverte. Essaie une capture d\'écran ou une photo JPEG.', 'This image could not be opened. Try a screenshot or a JPEG photo.')); return; }
-        var value = Object.assign({ color: '#c8261f' }, me.look || {}, { cover: 'photo', coverPhoto: url });
-        db.collection('users').doc(uid).update({ look: value }).then(function () {
-          me.look = value;
-          if (STATE.usersByName && STATE.usersByName[me.name]) STATE.usersByName[me.name].look = value;
-          showToast(L('Bannière enregistrée.', 'Banner saved.'), 'success');
-          renderRoot();
-        }).catch(function (err) { showToast(tr('error_prefix') + (err && err.message ? err.message : err)); });
-      };
-      resizeImageToDataUrl(f, 900, 0.72, function (url) {
-        if (url && url.length > 300000) return resizeImageToDataUrl(f, 700, 0.6, save);
-        save(url);
-      });
-    });
-    input.click();
-  }
   function openCarnetPlusSpace() {
     profilePanelOpen = true; profileSubTab = 'plus'; notificationsPanelOpen = false; profileSaveMessage = '';
     renderRoot(); window.scrollTo(0, 0);
@@ -22085,7 +22067,15 @@
     });
     document.querySelectorAll('[data-action="team-look-edit"]').forEach(function (btn) { btn.addEventListener('click', function () { openTeamLookEditor(btn.getAttribute('data-team')); }); });
     document.querySelectorAll('[data-action="look-cancel"]').forEach(function (btn) { btn.addEventListener('click', function () { lookDraft = null; lookMessage = ''; renderRoot(); }); });
-    document.querySelectorAll('[data-action="pick-cover"]').forEach(function (btn) { btn.addEventListener('click', pickCoverPhoto); });
+    document.querySelectorAll('[data-action="open-trophies"]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var key = btn.getAttribute('data-key');
+        pillState.person = 'fiche'; planningSectionsOpen[key] = true;
+        renderRoot();
+        var card = document.querySelector('.achievements-card');
+        if (card) card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+    });
     document.querySelectorAll('[data-action="look-save"]').forEach(function (btn) { btn.addEventListener('click', function () { saveLook(false); }); });
     document.querySelectorAll('[data-action="look-reset"]').forEach(function (btn) { btn.addEventListener('click', function () { saveLook(true); }); });
     document.querySelectorAll('[data-look-set]').forEach(function (btn) {
