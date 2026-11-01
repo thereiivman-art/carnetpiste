@@ -17715,7 +17715,9 @@
   function reactItem(key, emoji) {
     var me = currentUserProfile;
     if (!me) return;
-    var id = safeDocId(key + '__' + me.name).slice(0, 300), already = itemReactions(key)[me.name] === emoji;
+    // Id imposé par les règles : uid__publication (une réaction par compte).
+    var id = myUid() + '__' + String(key).replace(/\//g, '_'), legacyId = safeDocId(key + '__' + me.name).slice(0, 300), already = itemReactions(key)[me.name] === emoji;
+    db.collection('postReactions').doc(legacyId).delete().catch(function () {}); // ancienne forme d'id
     STATE.postReactions = (STATE.postReactions || []).filter(function (r) { return !(r.postId === key && r.author === me.name); });
     if (!already) STATE.postReactions.push({ postId: key, author: me.name, emoji: emoji, createdAt: Date.now() });
     renderRoot();
@@ -18043,7 +18045,7 @@
   function recordView(coll, key, owner, teamId) {
     var me = currentUserProfile && currentUserProfile.name;
     if (!me || !owner || owner === me) return;
-    var day = dateKey(new Date()), id = safeDocId(key + '__' + me).slice(0, 250) + '__' + day; // le jour en fin d'id (vérifié par les règles)
+    var day = dateKey(new Date()), id = myUid() + '__' + day + '__' + String(key).replace(/\//g, '_'); // une vue par compte, publication et jour (id vérifié par les règles)
     if (viewsSent[coll + id]) return;
     viewsSent[coll + id] = true;
     var doc = { postId: key, owner: owner, viewer: me, day: day, createdAt: Date.now() };
@@ -24413,12 +24415,13 @@
     userPickedCircuit = true;
     addChronoOpen = false;
     renderRoot();
-    persist(prevState);
+    var saved = persist(prevState);
 
     var newBest = sessionBest(session);
     if (previousBest === null || newBest < previousBest) {
       showToast(tr('new_personal_record_prefix') + circuit + ' : ' + formatTime(newBest) + tr('exclaim_suffix'), 'success');
-      if (previousBest !== null) writeFeedEvent('record', { circuit: circuit, time: newBest, sessionId: session.id });
+      // Après l'enregistrement du chrono : les règles vérifient qu'il existe.
+      if (previousBest !== null && rider === (currentUserProfile && currentUserProfile.name)) saved.then(function (ok) { if (ok !== false) writeFeedEvent('record', { circuit: circuit, time: newBest, sessionId: session.id }); });
     } else {
       showToast(tr('chrono_saved'), 'success');
     }

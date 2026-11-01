@@ -160,6 +160,8 @@ service cloud.firestore {
           && request.resource.data.get('photographer', false) == resource.data.get('photographer', false)
           // Repères, débriefs et email ne reviennent jamais sur le profil public.
           && keptOrRemoved('trackNotes') && keptOrRemoved('debriefs') && keptOrRemoved('email')
+          // Photo de profil lue par tous les comptes : taille plafonnée.
+          && (request.resource.data.get('photoURL', null) == null || (request.resource.data.photoURL is string && request.resource.data.photoURL.size() < 500000))
           // prevName : mon pseudo précédent, posé seulement au moment d'un
           // changement de pseudo (sert à me renommer dans les roulages).
           && (request.resource.data.get('prevName', null) == resource.data.get('prevName', null)
@@ -220,6 +222,7 @@ service cloud.firestore {
       // ne peuvent plus être écrits sur le chrono, lisible par tous.
       allow create: if verified() && (isAdmin() || (request.resource.data.get('certifiedBy', null) == null
         && !request.resource.data.keys().hasAny(['note', 'feelingComment'])
+        && request.resource.data.laps is list && request.resource.data.laps.size() >= 1 && request.resource.data.laps.size() <= 300
         && (ownsChrono(request.resource.data.rider)
             || ownsChronoViaTeam(request.resource.data.rider, request.resource.data.get('teamId', null)))));
       allow update: if verified() && (isAdmin()
@@ -568,7 +571,11 @@ service cloud.firestore {
     match /feedEvents/{id} {
       allow read: if verified();
       // Seuls les nouveaux records sont publiés (plus d'amitiés : liste d'amis privée).
-      allow create: if verified() && request.resource.data.actor == myName() && request.resource.data.type == 'record';
+      // …et seulement pour un vrai chrono à moi (plus de faux records).
+      allow create: if verified() && request.resource.data.actor == myName() && request.resource.data.type == 'record'
+        && request.resource.data.get('sessionId', '') != ''
+        && exists(/databases/$(database)/documents/sessions/$(request.resource.data.sessionId))
+        && get(/databases/$(database)/documents/sessions/$(request.resource.data.sessionId)).data.rider == myName();
       // Emoji reaction -- reactions.<myName()> only, own key untouched by
       // anyone else (see onlyOwnKeyChanged).
       allow update: if verified()
@@ -642,6 +649,7 @@ service cloud.firestore {
       // voit la case Team PRO à la création (voir renderCreateTeamCard).
       // Un Pilote/Accompagnant passe toujours par l'admin après coup.
       allow create: if verified() && request.resource.data.createdBy == myName()
+        && request.resource.data.get('memberCount', 1) == 1
         && (request.resource.data.get('teamPro', false) == false
             || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('role', 'pilote') == 'organisateur');
       // memberCount is a display-only counter (member tiles/discovery, see
@@ -838,7 +846,10 @@ service cloud.firestore {
     // (roulage, récap, photos) : une ligne par personne, la sienne seulement.
     match /postReactions/{id} {
       allow read: if verified();
-      allow create: if verified() && request.resource.data.author == myName() && request.resource.data.emoji is string && request.resource.data.emoji.size() <= 8;
+      // Une réaction par compte et par publication : l'id est imposé
+      // (uid__publication), on ne peut plus gonfler un compteur.
+      allow create: if verified() && request.resource.data.author == myName() && request.resource.data.emoji is string && request.resource.data.emoji.size() <= 8
+        && request.resource.data.postId is string && id == request.auth.uid + '__' + request.resource.data.postId.replace('/', '_');
       // Sa propre réaction seulement (avant : on pouvait écraser celle d'un autre).
       allow update: if verified() && resource.data.author == myName() && request.resource.data.author == myName()
         && request.resource.data.emoji is string && request.resource.data.emoji.size() <= 8;
@@ -852,7 +863,8 @@ service cloud.firestore {
       // Une vue par visiteur, publication et jour : l'id finit par __<jour>,
       // et on ne peut modifier que ses propres vues.
       allow create: if verified() && request.resource.data.viewer == myName() && request.resource.data.owner != myName()
-        && request.resource.data.day is string && id.matches('.*__' + request.resource.data.day + '$');
+        && request.resource.data.day is string && request.resource.data.postId is string
+        && id == request.auth.uid + '__' + request.resource.data.day + '__' + request.resource.data.postId.replace('/', '_');
       allow update: if verified() && resource.data.viewer == myName() && request.resource.data.viewer == myName()
         && request.resource.data.owner == resource.data.owner;
     }
@@ -862,7 +874,8 @@ service cloud.firestore {
       // Une vue par visiteur, publication et jour : l'id finit par __<jour>,
       // et on ne peut modifier que ses propres vues.
       allow create: if verified() && request.resource.data.viewer == myName() && request.resource.data.owner != myName()
-        && request.resource.data.day is string && id.matches('.*__' + request.resource.data.day + '$');
+        && request.resource.data.day is string && request.resource.data.postId is string
+        && id == request.auth.uid + '__' + request.resource.data.day + '__' + request.resource.data.postId.replace('/', '_');
       allow update: if verified() && resource.data.viewer == myName() && request.resource.data.viewer == myName()
         && request.resource.data.owner == resource.data.owner;
     }
