@@ -4364,3 +4364,12 @@ span.social-count { cursor: default; }
 .legend-swatch.team-pro-badge { background: #1d7fd6; color: #fff; }
 .plus-badge.badge-text { font-size: 0.62rem; padding: 0.12rem 0.38rem; line-height: 1.2; border-radius: 4px; }
 .legend-swatch.certified-badge, .legend-swatch.personality-badge, .legend-swatch.team-pro-badge { width: 1.5rem; height: 1.5rem; min-width: 1.5rem; padding: 0; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 0.85rem; line-height: 1; }
+/* Agrandir sa photo / sa bannière : Recadrer, Changer. */
+.photo-zoom.has-actions img { max-height: calc(100% - 9rem); }
+.photo-zoom:not(.is-wide).has-actions img { max-width: min(80vw, 420px); border-radius: 50%; aspect-ratio: 1; object-fit: cover; }
+.photo-zoom.is-wide img { width: min(96vw, 900px); border-radius: 10px; }
+.photo-zoom-actions { position: absolute; left: 0; right: 0; bottom: calc(env(safe-area-inset-bottom, 0px) + 1.2rem); display: flex; gap: 0.6rem; justify-content: center; padding: 0 1rem; }
+.photo-zoom-actions button { width: auto; min-width: 8rem; }
+.photo-zoom-actions .ghost { background: rgba(255,255,255,0.12); color: #fff; border-color: rgba(255,255,255,0.3); }
+.photo-zoom-close { display: grid; place-items: center; padding: 0; min-width: 0; line-height: 1; }
+.ph-cover[data-own-cover] { cursor: pointer; }

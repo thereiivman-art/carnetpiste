@@ -2791,6 +2791,7 @@
   var cropOffsetXPx = 0;
   var cropOffsetYPx = 0;
   function cropViewportSize() {
+    if (cropModalKind === 'cover') return { w: 312, h: 104 }; // bannière, 3:1
     return cropModalKind === 'logo' ? { w: CROP_LOGO_W, h: CROP_LOGO_H } : { w: CROP_VIEWPORT, h: CROP_VIEWPORT };
   }
 
@@ -2925,6 +2926,12 @@
       cropNaturalW = probe.naturalWidth;
       cropNaturalH = probe.naturalHeight;
       cropZoom = 100;
+      if (kind === 'cover') {
+        // Bannière : l'image remplit tout le cadre au départ.
+        var vpc = cropViewportSize();
+        var fill = Math.max(vpc.w / cropNaturalW, vpc.h / cropNaturalH) / Math.min(vpc.w / cropNaturalW, vpc.h / cropNaturalH);
+        cropZoom = Math.min(400, Math.ceil(fill * 100));
+      }
       cropOffsetXPx = 0;
       cropOffsetYPx = 0;
       renderRoot();
@@ -2953,14 +2960,14 @@
   }
   function renderCropModal() {
     if (!cropModalOpen || !cropModalSrc) return '';
-    var isLogo = cropModalKind === 'logo';
+    var isLogo = cropModalKind === 'logo' || cropModalKind === 'cover';
     var vp = cropViewportSize();
-    var helpText = isLogo
+    var helpText = cropModalKind === 'cover' ? L('Comme elle apparaîtra en haut de ta fiche : fais glisser l\'image, pince ou utilise la molette pour zoomer.', 'As it will appear at the top of your profile: drag the image, pinch or scroll to zoom.') : isLogo
       ? 'Comme il apparaîtra en pleine largeur – fais glisser l\'image (doigt ou souris), pince ou utilise la molette pour zoomer, ou passe par les curseurs.'
       : 'Comme elle apparaîtra en badge rond – fais glisser l\'image (doigt ou souris), pince ou utilise la molette pour zoomer, ou passe par les curseurs. Dézoome autant que tu veux, l\'image peut rester petite dans le cercle.';
     return '<div class="crop-modal-overlay">' +
       '<div class="crop-modal">' +
-      '<h2 class="section-title">' + (isLogo ? 'Recadrer le logo' : 'Recadrer la photo') + '</h2>' +
+      '<h2 class="section-title">' + (cropModalKind === 'cover' ? L('Recadrer la bannière', 'Crop the banner') : isLogo ? 'Recadrer le logo' : 'Recadrer la photo') + '</h2>' +
       '<div class="help-text">' + helpText + '</div>' +
       '<div class="crop-modal-viewport' + (isLogo ? ' crop-modal-viewport-rect' : '') + '" id="crop-modal-viewport" style="width:' + vp.w + 'px; height:' + vp.h + 'px;">' +
       '<img id="crop-modal-img" src="' + escapeHtml(cropModalSrc) + '" style="' + cropImgTransform() + '"></div>' +
@@ -2986,8 +2993,8 @@
       // transparent there); the round badge/avatar stays PNG+transparent
       // since it's small either way and needs to show the surface
       // through when zoomed out.
-      var isLogo = kind === 'logo';
-      var OUT_W = isLogo ? 1000 : 400;
+      var isLogo = kind === 'logo' || kind === 'cover';
+      var OUT_W = kind === 'cover' ? 960 : isLogo ? 1000 : 400;
       var OUT_H = isLogo ? Math.round(OUT_W * vp.h / vp.w) : 400;
       var k = OUT_W / vp.w;
       var size = cropDisplaySize();
@@ -3003,12 +3010,13 @@
         ctx.fillRect(0, 0, OUT_W, OUT_H);
       }
       ctx.drawImage(img, 0, 0, img.naturalWidth, img.naturalHeight, outX, outY, outW, outH);
-      var dataUrl = isLogo ? canvas.toDataURL('image/jpeg', 0.85) : canvas.toDataURL('image/png');
+      var dataUrl = isLogo ? canvas.toDataURL('image/jpeg', kind === 'cover' ? 0.8 : 0.85) : canvas.toDataURL('image/png');
       if (dataUrl.length > 700000) {
         showToast(tr('image_too_large_detailed'));
         return;
       }
-      if (kind === 'team') saveTeamPhoto(teamId, dataUrl);
+      if (kind === 'cover') saveCoverPhoto(dataUrl);
+      else if (kind === 'team') saveTeamPhoto(teamId, dataUrl);
       else if (kind === 'logo') saveTeamLogo(teamId, dataUrl);
       else savePhoto(dataUrl);
       closeCropModal();
@@ -17229,7 +17237,7 @@
   function renderLookHero(l, o) {
     var coverInner = l.cover === 'photo' && l.coverPhoto ? '<img class="ph-photo" src="' + escapeHtml(l.coverPhoto) + '" alt="">' : (o.outline ? '<img class="ph-trace" src="' + escapeHtml(o.outline) + '" alt="">' : '');
     return '<div class="card person-hero" data-cover="' + escapeHtml(l.cover === 'photo' && !l.coverPhoto ? 'vibreur' : (l.cover || 'none')) + '" data-plate="' + escapeHtml(l.plate || '') + '" style="' + lookStyle(l) + '">' +
-      '<div class="ph-cover">' + coverInner + '<button type="button" class="back-chevron ph-back" ' + o.backAttr + ' aria-label="' + L('Retour', 'Back') + '">‹</button>' + (o.plateHtml || '') + '</div>' +
+      '<div class="ph-cover"' + (o.ownCover ? ' data-own-cover="1" role="button" tabindex="0" aria-label="' + escapeHtml(L('Bannière : agrandir, recadrer ou changer', 'Banner: enlarge, crop or change')) + '"' : '') + '>' + coverInner + '<button type="button" class="back-chevron ph-back" ' + o.backAttr + ' aria-label="' + L('Retour', 'Back') + '">‹</button>' + (o.plateHtml || '') + '</div>' +
       '<div class="ph-body"><div class="ph-id"><span class="person-avatar ph-avatar">' + o.avatar + '</span>' +
       '<span class="person-id"><strong class="person-name">' + o.nameHtml + '</strong><span class="help-text">' + o.subHtml + '</span></span>' + (o.idExtra || '') + '</div>' +
       (o.bio ? '<p class="ph-bio">' + escapeHtml(o.bio) + '</p>' : '') +
@@ -17244,7 +17252,7 @@
       avatar: avatarHtml(u, name),
       nameHtml: escapeHtml(name) + badgesHtml(u),
       subHtml: '<span class="friend-role-badge">' + roleLabel(u.role) + '</span>' + (sub.length ? ' ' + sub.join(' · ') : ''),
-      bio: l.bio, acts: acts, idExtra: idExtra
+      bio: l.bio, acts: acts, idExtra: idExtra, ownCover: !!(currentUserProfile && name === currentUserProfile.name)
     });
   }
   function renderFeaturedChrono(name, l) {
@@ -17485,11 +17493,15 @@
     var html = '<div class="card look-editor"><h2 class="section-title">' + (team ? L('Personnaliser la fiche du team', 'Customise the team page') : L('Personnaliser ma fiche', 'Customise my profile')) + '</h2>' +
       '<div class="help-text">' + (team ? L('Offert pendant la phase de test. Cette personnalisation fera partie de Team PRO, l\'offre payante prévue plus tard.', 'Free during the test phase. This will be part of Team PRO, the paid plan planned later.')
         : L('Offert pendant la phase de test. Cette personnalisation fera partie de Carnet+, l\'offre payante prévue plus tard.', 'Free during the test phase. This will be part of Carnet+, the paid plan planned later.')) + '</div>';
+    // La bio d'abord ; photo de profil et bannière se changent en touchant
+    // l'image sur la fiche.
+    if (!team) html += '<div class="look-field"><label class="look-label" for="look-bio">' + L('Bio', 'Bio') + '</label><textarea id="look-bio" maxlength="250" rows="3" placeholder="' + L('Ex. Pistard depuis 2019, objectif sous les 2’00” à Misano.', 'E.g. Track rider since 2019, aiming under 2’00” at Misano.') + '">' + escapeHtml(d.bio || '') + '</textarea><span class="help-text look-bio-count" id="look-bio-count">' + (d.bio || '').length + ' / 250</span></div>';
     html += '<div class="look-field"><span class="look-label">' + L('Couleur', 'Colour') + '</span><div class="look-swatches">' + LOOK_COLORS.map(function (c) {
       return '<button type="button" class="look-sw" style="background:' + c[0] + '" data-look-set="color" data-val="' + c[0] + '" aria-label="' + c[1] + '" aria-pressed="' + (d.color === c[0]) + '"></button>';
     }).join('') + '</div></div>';
     html += '<div class="look-field"><span class="look-label">' + L('Couverture', 'Cover') + '</span>' + seg('cover', lookCovers());
-    if (d.cover === 'photo') html += '<div class="look-photo-row"><button type="button" class="ghost" id="look-cover-btn">' + (d.coverPhoto ? L('Changer la photo', 'Change photo') : L('Choisir une photo', 'Choose a photo')) + '</button><input type="file" id="look-cover-input" accept="image/*" style="display:none;"><span class="help-text">' + L('Une photo de toi en piste, en largeur de préférence.', 'A photo of you on track, landscape if possible.') + '</span></div>';
+    if (team && d.cover === 'photo') html += '<div class="look-photo-row"><button type="button" class="ghost" id="look-cover-btn">' + (d.coverPhoto ? L('Changer la photo', 'Change photo') : L('Choisir une photo', 'Choose a photo')) + '</button><input type="file" id="look-cover-input" accept="image/*" style="display:none;"><span class="help-text">' + L('Une photo de toi en piste, en largeur de préférence.', 'A photo of you on track, landscape if possible.') + '</span></div>';
+    else if (!team) html += '<div class="help-text">' + L('Pour ta photo de bannière ou de profil : touche-la sur ta fiche.', 'For your banner or profile photo: tap it on your profile.') + '</div>';
     html += '</div>';
     if (team) html += team.logoURL ? '' : '<div class="help-text">' + L('Ajoute le logo du team dans Réglages pour l\'afficher sur la couverture.', 'Add the team logo in Settings to show it on the cover.') + '</div>';
     else html += '<div class="look-field"><span class="look-label">' + L('Plaque', 'Number plate') + '</span>' + seg('plate', lookPlates()) +
@@ -17534,7 +17546,6 @@
     var teamChoices = lookTeamChoices(me.name);
     if (lookShows(d, 'teams')) html += '<div class="look-field"><span class="look-label">' + L('Teams préférés (3 max)', 'Favourite teams (up to 3)') + '</span>' +
       (teamChoices.length ? pick('favTeams', teamChoices.map(function (t) { return t.id; }), teamChoices.map(function (t) { return t.name; }), 3) : '<div class="help-text">' + L('Rejoins ou suis un team pour l\'afficher ici.', 'Join or follow a team to show it here.') + '</div>') + '</div>';
-    html += '<div class="look-field"><label class="look-label" for="look-bio">' + L('Bio', 'Bio') + '</label><textarea id="look-bio" maxlength="250" rows="3" placeholder="' + L('Ex. Pistard depuis 2019, objectif sous les 2’00” à Misano.', 'E.g. Track rider since 2019, aiming under 2’00” at Misano.') + '">' + escapeHtml(d.bio || '') + '</textarea><span class="help-text look-bio-count" id="look-bio-count">' + (d.bio || '').length + ' / 250</span></div>';
     if (earned.length) html += '<div class="look-field"><span class="look-label">' + L('Vitrine (3 trophées)', 'Showcase (3 trophies)') + '</span><div class="look-pins">' + earned.map(function (a) {
       var on = (d.pinned || []).indexOf(a.name) !== -1;
       return '<button type="button" data-look-pin="' + escapeHtml(a.name) + '" aria-pressed="' + on + '">' + escapeHtml(a.name || a.label) + (a.tierName && a.maxLevel > 1 ? ' · ' + escapeHtml(a.tierName) : '') + '</button>';
@@ -18238,10 +18249,12 @@
   // ---- Stories : le dernier roulage (7 jours) ou la dernière photo
   // (24 h) de mes amis et de ceux que je suis, en ronds en haut du Fil.
   function storyItems(me) {
-    var names = friendsOf(me.name).map(function (f) { return f.name; }).concat(followingOf(me.name)).filter(function (v, i, a) { return a.indexOf(v) === i && !isNonRiderName(v); });
+    // Stories photo : de tous mes amis et abonnements, accompagnants
+    // compris (seules les stories « roulage » sont réservées aux pilotes).
+    var names = friendsOf(me.name).map(function (f) { return f.name; }).concat(followingOf(me.name)).filter(function (v, i, a) { return a.indexOf(v) === i; });
     names.push(me.name);
     var by = {};
-    ridesFor(names, 7).forEach(function (r) { if (!by[r.rider] || r.date > by[r.rider].date) by[r.rider] = { kind: 'ride', who: r.rider, ride: r, at: r.createdAt || parseLocalDate(r.date).getTime() }; });
+    ridesFor(names.filter(function (n) { return n === me.name || !isNonRiderName(n); }), 7).forEach(function (r) { if (!by[r.rider] || r.date > by[r.rider].date) by[r.rider] = { kind: 'ride', who: r.rider, ride: r, at: r.createdAt || parseLocalDate(r.date).getTime() }; });
     (STATE.wallPosts || []).forEach(function (p) {
       if (!p.photoURL || names.indexOf(p.author) === -1 || Date.now() - (p.createdAt || 0) > 86400e3) return;
       if (p.story ? !(by[p.author] && by[p.author].posted && by[p.author].at > p.createdAt) : (!by[p.author] || (!by[p.author].posted && (p.createdAt || 0) > by[p.author].at)))
@@ -18329,11 +18342,15 @@
   }
   // ---- Zoom sur une photo (profil) : plein écran, pincer pour zoomer,
   // double-toucher pour agrandir / revenir, glisser pour se déplacer.
-  function openPhotoZoom(src) {
+  function openPhotoZoom(src, actions, wide) {
     var ov = document.createElement('div');
-    ov.className = 'photo-zoom';
-    ov.innerHTML = '<button type="button" class="photo-zoom-close" aria-label="' + escapeHtml(L('Fermer', 'Close')) + '">✕</button><img src="' + escapeHtml(src) + '" alt="">';
+    ov.className = 'photo-zoom' + (actions && actions.length ? ' has-actions' : '') + (wide ? ' is-wide' : '');
+    ov.innerHTML = '<button type="button" class="photo-zoom-close" aria-label="' + escapeHtml(L('Fermer', 'Close')) + '">✕</button><img src="' + escapeHtml(src) + '" alt="">' +
+      (actions && actions.length ? '<div class="photo-zoom-actions">' + actions.map(function (a, i) { return '<button type="button" class="' + (i === actions.length - 1 ? 'primary' : 'ghost') + '" data-zoom-act="' + i + '">' + escapeHtml(a[0]) + '</button>'; }).join('') + '</div>' : '');
     document.body.appendChild(ov);
+    (actions || []).forEach(function (a, i) {
+      ov.querySelector('[data-zoom-act="' + i + '"]').addEventListener('click', function (e) { e.stopPropagation(); if (ov.parentNode) ov.parentNode.removeChild(ov); a[1](); });
+    });
     var img = ov.querySelector('img'), scale = 1, tx = 0, ty = 0, start = null, lastTap = 0;
     function apply() { img.style.transform = 'translate(' + tx + 'px,' + ty + 'px) scale(' + scale + ')'; }
     function close() { if (ov.parentNode) ov.parentNode.removeChild(ov); }
@@ -21386,6 +21403,51 @@
   var pendingDeleteChecklistCategory = null;
   var profilePanelOpen = false; // pure UI state, not persisted
   var notificationsPanelOpen = false; // pure UI state, not persisted
+  // Photo de profil et bannière : un appui sur l'image l'agrandit et
+  // propose Recadrer / Changer (pour sa propre fiche).
+  function pickImageFile(maxSize, cb) {
+    var input = document.createElement('input');
+    input.type = 'file'; input.accept = 'image/*'; input.style.display = 'none';
+    document.body.appendChild(input);
+    input.addEventListener('change', function () {
+      var f = input.files && input.files[0];
+      input.remove();
+      if (!f) return;
+      resizeImageToDataUrl(f, maxSize, 0.85, function (url) {
+        if (!url) { showToast(L('Cette image n\'a pas pu être ouverte. Essaie une capture d\'écran ou une photo JPEG.', 'This image could not be opened. Try a screenshot or a JPEG photo.')); return; }
+        cb(url);
+      });
+    });
+    input.click();
+  }
+  function changeAvatar() { pickImageFile(1000, function (url) { openCropModal('user', null, url); }); }
+  function changeCover() { pickImageFile(1600, function (url) { openCropModal('cover', null, url); }); }
+  function saveCoverPhoto(url) {
+    var me = currentUserProfile, uid = auth.currentUser && auth.currentUser.uid;
+    if (!me || !uid || !url) return;
+    if (url.length >= 450000) { showToast(L('Image trop lourde : essaie une capture d\'écran de la photo.', 'Image too large: try a screenshot of the photo.')); return; }
+    if (lookDraft && !lookDraft.__team) { lookDraft.cover = 'photo'; lookDraft.coverPhoto = url; }
+    var value = Object.assign({ color: '#c8261f' }, me.look || {}, { cover: 'photo', coverPhoto: url });
+    db.collection('users').doc(uid).update({ look: value }).then(function () {
+      me.look = value;
+      if (STATE.usersByName && STATE.usersByName[me.name]) STATE.usersByName[me.name].look = value;
+      showToast(L('Bannière enregistrée.', 'Banner saved.'), 'success');
+      renderRoot();
+    }).catch(function (err) { showToast(tr('error_prefix') + (err && err.message ? err.message : err)); });
+  }
+  function openOwnMedia(kind) {
+    var me0 = currentUserProfile;
+    if (!me0) return;
+    var me = Object.assign({}, (STATE.usersByName || {})[me0.name] || {}, me0);
+    if (!me.photoURL && ((STATE.usersByName || {})[me0.name] || {}).photoURL) me.photoURL = STATE.usersByName[me0.name].photoURL;
+    var l = me.look || ((STATE.usersByName || {})[me0.name] || {}).look || {};
+    var src = kind === 'cover' ? (l.cover === 'photo' ? l.coverPhoto : null) : me.photoURL;
+    if (!src) return kind === 'cover' ? changeCover() : changeAvatar();
+    var acts = [[L('Recadrer', 'Crop'), function () { kind === 'cover' ? openCropModal('cover', null, src) : openCropModal('user', null, src); }],
+      [L('Changer', 'Change'), function () { kind === 'cover' ? changeCover() : changeAvatar(); }]];
+    if (kind === 'user' && /^data:image\/svg/.test(src)) acts.shift(); // image prête : rien à recadrer
+    openPhotoZoom(src, acts, kind === 'cover');
+  }
   function openCarnetPlusSpace() {
     profilePanelOpen = true; profileSubTab = 'plus'; notificationsPanelOpen = false; profileSaveMessage = '';
     renderRoot(); window.scrollTo(0, 0);
@@ -22365,7 +22427,17 @@
           return;
         }
         // Sur une fiche, la photo de profil s'agrandit (zoom) au lieu de rouvrir la fiche.
+        var cov = e.target.closest('.ph-cover[data-own-cover]');
+        if (cov && !e.target.closest('.ph-back, button')) { e.preventDefault(); e.stopPropagation(); openOwnMedia('cover'); return; }
+        var otherCov = e.target.closest('.ph-cover');
+        if (otherCov && !e.target.closest('.ph-back, button')) {
+          var ci = otherCov.querySelector('img.ph-photo');
+          if (ci) { e.preventDefault(); e.stopPropagation(); openPhotoZoom(ci.getAttribute('src'), null, true); }
+          return;
+        }
         var big = e.target.closest('.person-avatar .mini-avatar, .profile-avatar');
+        var bigName = big && (big.getAttribute('data-person') || '');
+        if (big && currentUserProfile && (bigName === currentUserProfile.name || big.classList.contains('profile-avatar'))) { e.preventDefault(); e.stopPropagation(); openOwnMedia('user'); return; }
         if (big) {
           var im = big.querySelector('img');
           if (im && im.getAttribute('src')) { e.preventDefault(); e.stopPropagation(); openPhotoZoom(im.getAttribute('src')); }
