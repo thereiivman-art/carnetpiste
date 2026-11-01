@@ -3435,7 +3435,9 @@
   // Home page is EN PISTE (Planning) -- the fallback below only kicks in
   // with no saved state at all (a new browser/account); any previously
   // saved tab, on any device, keeps landing on itself as before.
-  var activeView = (_rawSavedView === 'sessions' || _rawSavedView === 'chronos') ? 'circuit' : (_rawSavedView === 'calendar' ? 'event' : (_rawSavedView || 'carnet')); // 'event' | 'circuit' | 'stats'
+  // L'appli s'ouvre toujours sur le Fil (le jour d'un roulage, sur Chrono :
+  // voir maybeAutoOpenJourJ).
+  var activeView = 'social';
   var calendarAnchor = _savedUiState.calendarAnchor || dateKey(new Date()); // 'YYYY-MM-DD'
   // One of ZOOM_LEVELS below. Only Semaine / Mois / Année get a button now
   // (the other levels stay reachable by pinch/Ctrl+wheel), so a saved
@@ -11123,14 +11125,8 @@
     if (addChronoOpen) {
       html += renderForm();
       html += '<div style="margin:0.4rem 0 1rem;"><button type="button" class="ghost" id="carnet-cancel-add">Annuler</button></div>';
-    } else {
-      if (!meIsNonRider()) {
-        html += '<button type="button" class="primary add-chrono-btn" id="carnet-add-chrono">+ Ajouter un chrono</button>';
-        html += '<div class="help-text carnet-add-help">Saisie, photo de la feuille de temps, capture d\'écran ou PDF.</div>';
-      } else if (canLogChronoForOthers()) {
-        html += '<button type="button" class="primary add-chrono-btn" id="carnet-add-chrono">+ Ajouter un chrono pour un pilote du team</button>';
-      }
     }
+    // La saisie des chronos se fait depuis le menu principal Chrono.
 
     if (!outings.length) {
       if (!myUpcomingEvents().length) {
@@ -18133,13 +18129,21 @@
     return '<div class="follow-card"><button type="button" class="follow-card-who" data-open-person="' + escapeHtml(sg.name) + '">' + avatarHtml(u, sg.name) +
       '<strong>' + escapeHtml(sg.name) + '</strong><span class="help-text">' + escapeHtml(sg.reason) + '</span></button>' + followBtnHtml(sg.name, true) + '</div>';
   }
-  function renderPeopleRows(names, withFollow) {
+  // Grille de cartes (abonnements, abonnés, amis) : photo, nom, abonnés,
+  // début de la présentation, bouton Suivre.
+  function renderPeopleGrid(names, withFollow) {
     if (!names.length) return '<div class="empty-state">' + L('Personne pour l\'instant.', 'Nobody yet.') + '</div>';
-    return names.map(function (n) {
-      var u = (STATE.usersByName || {})[n] || {};
-      return '<div class="people-row"><button type="button" class="people-row-who" data-open-person="' + escapeHtml(n) + '">' + avatarHtml(u, n) +
-        '<span><strong>' + escapeHtml(n) + '</strong><span class="help-text">' + escapeHtml(plural(followersOf(n).length, L('abonné', 'follower'), L('abonnés', 'followers'))) + '</span></span></button>' + (withFollow ? followBtnHtml(n, true) : '') + '</div>';
-    }).join('');
+    return '<div class="people-grid">' + names.map(function (n) {
+      var u = (STATE.usersByName || {})[n] || {}, l = lookOf(u) || {};
+      var bio = (l.bio || '').trim().replace(/\s+/g, ' ');
+      if (bio.length > 48) bio = bio.slice(0, 46).replace(/\s+\S*$/, '') + '…';
+      var hidden = u.profileVisibility === 'friends' && !friendsOf(currentUserProfile ? currentUserProfile.name : '').some(function (f) { return f.name === n; });
+      return '<div class="people-card"' + (l.color ? ' style="' + lookStyle(l) + '"' : '') + '><button type="button" class="people-card-who" data-open-person="' + escapeHtml(n) + '">' + avatarHtml(u, n) +
+        '<strong>' + escapeHtml(n) + badgesHtml(u).replace(/data-badge-info="[^"]*"/g, '') + '</strong>' +
+        '<span class="people-card-count">' + escapeHtml(plural(followersOf(n).length, L('abonné', 'follower'), L('abonnés', 'followers'))) + '</span>' +
+        '<span class="people-card-bio">' + (bio && !hidden ? escapeHtml(bio) : escapeHtml(u.bike || roleLabel(u.role) || '')) + '</span></button>' +
+        (withFollow ? followBtnHtml(n, true) : '') + '</div>';
+    }).join('') + '</div>';
   }
   function renderMyMiniProfile(me) {
     return '<div class="card my-mini-profile"><button type="button" class="mmp-who" data-action="open-my-fiche">' + avatarHtml(me, me.name) +
@@ -18158,8 +18162,8 @@
     var pub = (STATE.wallPosts || []).filter(function (p) { return !p.story && p.audience === 'all' && p.author !== me.name && !iFollow(p.author) && friendNames.indexOf(p.author) === -1; }).slice(0, 6);
     if (pub.length) html += '<h2 class="section-title feed-section-title">' + L('À découvrir', 'Discover') + '</h2>' + pub.map(function (p) { return '<div class="card feed-card"' + viewAttrs(p.id, p.author) + '>' + renderWallPost(p, true) + '</div>'; }).join('');
     var lists = [
-      ['abonnements', L('Abonnements', 'Following') + ' (' + following.length + ')', '<div class="card">' + renderPeopleRows(following, true) + '</div>'],
-      ['abonnes', L('Abonnés', 'Followers') + ' (' + followers.length + ')', '<div class="card">' + renderPeopleRows(followers, true) + '</div>']
+      ['abonnements', L('Abonnements', 'Following') + ' (' + following.length + ')', '<div class="card">' + renderPeopleGrid(following, true) + '</div>'],
+      ['abonnes', L('Abonnés', 'Followers') + ' (' + followers.length + ')', '<div class="card">' + renderPeopleGrid(followers, true) + '</div>']
     ];
     // Amis (liste, demandes reçues / envoyées, personnalités) : même endroit.
     (amisItems || []).forEach(function (it) { lists.push([it[0], it[1], '<div class="card">' + it[2] + '</div>']); });
@@ -19073,7 +19077,7 @@
     // n'a donc plus d'action, juste le nom cliquable pour l'ouvrir.
     var friendsBody = !friends.length
       ? '<div class="empty-state">' + tr('no_friends_yet') + '<div class="empty-actions"><button type="button" class="ghost" data-action="invite-qr">' + tr('invite_qr_btn') + '</button></div></div>'
-      : friends.map(function (f) { return renderFriendRow(f.name, '', true); }).join('');
+      : renderPeopleGrid(friends.map(function (f) { return f.name; }).sort(function (a, b) { return a.localeCompare(b); }), true);
     var amisItems = [['liste', 'Mes amis (' + friends.length + ')', friendsBody]];
 
     if (incoming.length) {
@@ -25855,7 +25859,7 @@
           authState = 'signed-in';
           canPersist = true;
           if (justAuthenticated) {
-            activeView = 'carnet';
+            activeView = 'social'; pillState.social = 'fil';
             profilePanelOpen = false;
             justAuthenticated = false;
           }

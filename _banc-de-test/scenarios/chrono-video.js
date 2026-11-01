@@ -9,9 +9,9 @@ const { chromium, BASE } = require('../lib');
   const errs = []; p.on('pageerror', e => errs.push(e.message));
   await p.goto(BASE + 'index.html#lang=' + lang); await p.waitForTimeout(1600);
   if (await p.$('#jourj-overlay')) { await p.click('[data-jj="close"]'); await p.waitForTimeout(300); }
-  await p.click('.bottom-nav-btn[data-view^="carnet"]'); await p.waitForTimeout(300);
-  await p.click('.subnav-btn[data-view="carnet"]'); await p.waitForTimeout(300);
-  await p.click('#carnet-add-chrono'); await p.waitForTimeout(400);
+  // La saisie se fait depuis le menu Chrono (plus de bouton dans Carnet).
+  await p.click('.bottom-nav-main'); await p.waitForTimeout(400);
+  await p.click('#add-chrono-toggle, .add-chrono-btn').catch(() => {}); await p.waitForTimeout(400);
   await p.click('.cf-more > summary'); await p.waitForTimeout(200);
   await p.selectOption('#f-circuit', { index: 1 }); await p.waitForTimeout(200);
   await p.type('#f-laps', '1:45.200'); await p.keyboard.press('Enter'); await p.type('#f-laps', '1:44.800');
@@ -24,6 +24,7 @@ const { chromium, BASE } = require('../lib');
   console.log('stocké:', s && s.videoUrl, '| tours:', s && JSON.stringify(s.laps), '| createdAt:', !!(s && s.createdAt), '| circuit:', s && s.circuit);
   // Après l'enregistrement, la fenêtre « ressenti » s'ouvre.
   if (await p.$('#feeling-skip-btn')) { await p.click('#feeling-skip-btn'); await p.waitForTimeout(300); }
+  await p.click('.bottom-nav-btn:nth-child(1)'); await p.waitForTimeout(300);
   await p.click('.subnav-btn[data-view="carnet"]'); await p.waitForTimeout(300);
   console.log('lignes:', await p.$$eval('.outings-card .outing-row', e => e.length), '| bouton:', await p.$eval('#carnet-history-toggle', e => e.innerText).catch(() => 'aucun'));
   console.log('1re ligne:', await p.$eval('.outings-card .outing-row', e => e.innerText.replace(/\n/g, ' | ')));

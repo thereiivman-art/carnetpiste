@@ -7,6 +7,7 @@ const { chromium, BASE } = require('../lib');
   const p = await b.newPage({ viewport: { width: 380, height: 1100 } });
   const errs = []; p.on('pageerror', e => errs.push(e.message));
   await p.goto(BASE + 'index.html#lang=' + lang); await p.waitForTimeout(1600);
+  await p.click('.bottom-nav-btn:nth-child(1)'); await p.waitForTimeout(400); // l'appli s'ouvre sur le Fil
   await p.getByText('Mugello').first().click(); await p.waitForTimeout(800);
   console.log('outing pills:', await p.$$eval('[data-pill-group="outing"]', e => e.map(x => x.textContent).join(' / ')));
   await p.click('[data-pill-group="outing"][data-pill="moto"]'); await p.waitForTimeout(400);
@@ -21,6 +22,7 @@ const { chromium, BASE } = require('../lib');
   console.log('sub-pills:', await p.$$eval('[data-cpill-group="prepsub"]', e => e.map(x => x.textContent).join(' / ')));
   await p.screenshot({ path: 'ma-prepa-moto-' + lang + '.png', fullPage: true });
   await p.goto('about:blank'); await p.goto(BASE + 'index.html#lang=' + lang); await p.waitForTimeout(1600);
+  await p.click('.bottom-nav-btn:nth-child(1)'); await p.waitForTimeout(400); // l'appli s'ouvre sur le Fil
   await p.click('.bottom-nav-btn[data-view^="carnet"]'); await p.waitForTimeout(400);
   await p.click('.subnav-btn[data-view="circuit"]'); await p.waitForTimeout(400);
   console.log('circuit pills:', await p.$$eval('[data-pill-group="circuit"]', e => e.map(x => x.textContent).join(' / ')));

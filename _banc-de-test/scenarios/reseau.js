@@ -59,7 +59,7 @@ const { chromium, BASE } = require('../lib');
   // Abonnements par les compteurs
   await p.click('.social-count[data-list="abonnes"]'); await p.waitForTimeout(400);
   console.log('suggestions via compteurs:', await p.$$eval('.follow-card strong', e => e.map(x => x.innerText).slice(0, 3).join(', ')));
-  console.log('abonnés:', await p.$$eval('[data-cpill-section="suivislist:abonnes"] .people-row strong', e => e.map(x => x.innerText).join(', ')));
+  console.log('abonnés:', await p.$$eval('[data-cpill-section="suivislist:abonnes"] .people-card strong', e => e.map(x => x.innerText).join(', ')));
   await p.click('.follow-card [data-action="quick-follow"]'); await p.waitForTimeout(400);
   console.log('abonnements:', JSON.stringify(await p.evaluate(() => Object.values(window.__MOCK_DATA.follows).filter(f => f.follower === 'Alex').map(f => f.followee))));
   await p.click('[data-open-person="Luca"]'); await p.waitForTimeout(600);
