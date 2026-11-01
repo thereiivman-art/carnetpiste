@@ -12,17 +12,17 @@
 // - LIBS: third-party scripts and fonts (Firebase SDK, Google Fonts, the
 //   timesheet reader). Their URLs carry a fixed version, so a cached copy
 //   never goes stale; kept across app versions too.
-var CACHE_VERSION = 'cdp-2026103085';
+var CACHE_VERSION = 'cdp-2026103086';
 var ASSETS_VERSION = 'cdp-assets-traces-55';
 var LIBS_CACHE = 'cdp-libs-1';
 var SHELL_URLS = [
   './',
   './index.html',
-  './style.css?v=2026103085',
-  './chrono-import.js?v=2026103085',
-  './app.js?v=2026103085',
-  './theme-boot.js?v=2026103085',
-  './sw-register.js?v=2026103085',
+  './style.css?v=2026103086',
+  './chrono-import.js?v=2026103086',
+  './app.js?v=2026103086',
+  './theme-boot.js?v=2026103086',
+  './sw-register.js?v=2026103086',
   './manifest.json',
   './firebase-config.js',
   './icons/favicon-32.png',
@@ -94,6 +94,8 @@ var LIB_URLS = [
   'https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js',
   'https://www.gstatic.com/firebasejs/10.13.2/firebase-auth-compat.js',
   'https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore-compat.js',
+  // Générateur de QR (QR paddock, invitation) : prêt même sans réseau au paddock.
+  'https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js',
   'https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,500;0,600;0,700;0,800;1,700;1,800&family=Barlow:wght@400;500;600;700&display=swap'
 ];
 // Cross-origin hosts whose responses are cached on first use (fonts files,

@@ -4,7 +4,8 @@
   function clone(o) { return o == null ? o : JSON.parse(JSON.stringify(o)); }
   function docSnap(coll, id) {
     var d = (DATA[coll] || {})[id];
-    return { id: id, exists: !!d, data: function () { return clone(d); }, ref: docRef(coll, id), get: function (k) { return d && d[k]; } };
+    // metadata.hasPendingWrites : un doc marqué __pending simule un chrono pas encore envoyé.
+    return { id: id, exists: !!d, data: function () { var c = clone(d); if (c) delete c.__pending; return c; }, metadata: { hasPendingWrites: !!(d && d.__pending) }, ref: docRef(coll, id), get: function (k) { return d && d[k]; } };
   }
   var listeners = [];
   var muted = false, pending = null;
@@ -31,7 +32,7 @@
       orderBy: function () { return q; }, limit: function (n) { return query(coll, filters, n); }, limitToLast: function (n) { return query(coll, filters, n); },
       startAfter: function () { return q; }, endBefore: function () { return q; }, startAt: function () { return q; },
       get: function () { return Promise.resolve(querySnap(coll, filters, lim)); },
-      onSnapshot: function (cb) { var l = function () { cb(querySnap(coll, filters, lim)); }; listeners.push(l); setTimeout(l, 0); return function () {}; },
+      onSnapshot: function (a, b) { var cb = typeof a === 'function' ? a : b; var l = function () { cb(querySnap(coll, filters, lim)); }; listeners.push(l); setTimeout(l, 0); return function () {}; },
       doc: function (id) { return docRef(coll, id || ('auto' + Math.random().toString(36).slice(2))); },
       add: function (data) { var id = 'auto' + Math.random().toString(36).slice(2); (DATA[coll] = DATA[coll] || {})[id] = clone(data); notify(); return Promise.resolve(docRef(coll, id)); }
     };

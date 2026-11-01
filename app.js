@@ -3073,11 +3073,15 @@
   var pendingReferrer = null;
   // ?roulage=<eventId>: a public roulage link (see publishPublicRoulage).
   var pendingRoulageId = null;
+  var pendingJoinGroup = null; // groupe porté par un QR paddock (&g=B)
   (function captureReferrer() {
     try {
       var params = new URLSearchParams(window.location.search);
       var ref = params.get('ref');
       var roulage = params.get('roulage');
+      var qrGroup = params.get('g');
+      if (qrGroup && /^[A-Za-z]{1,4}$/.test(qrGroup)) { pendingJoinGroup = qrGroup.toUpperCase(); params.delete('g'); try { sessionStorage.setItem('cdp-pending-group', pendingJoinGroup); } catch (e) {} }
+      else { try { pendingJoinGroup = sessionStorage.getItem('cdp-pending-group') || null; } catch (e) {} }
       if (roulage) { pendingRoulageId = roulage; params.delete('roulage'); try { sessionStorage.setItem('cdp-pending-roulage', roulage); } catch (e) {} }
       else { try { pendingRoulageId = sessionStorage.getItem('cdp-pending-roulage') || null; } catch (e) {} }
       if (ref || roulage) {
@@ -3864,12 +3868,25 @@
   // l'un des miens : leur écart entre les deux, appliqué à mon record. On
   // garde la médiane (et une fourchette). Sans eux, repli grossier sur mon
   // rythme au km. Une estimation pour se situer, jamais un objectif.
+  // État de la piste noté sur un chrono : 'humide' ou 'pluie' (rien = sèche).
+  // Un tour sous la pluie ne fait pas un record : les meilleurs temps se
+  // calculent sur piste sèche (repli sur les autres s'il n'y en a pas).
+  function isWetSession(s) { return !!(s && (s.track === 'humide' || s.track === 'pluie')); }
+  function trackTagHtml(s) {
+    if (!isWetSession(s)) return '';
+    return ' <span class="track-tag ' + s.track + '">' + (s.track === 'pluie' ? L('Pluie', 'Rain') : L('Humide', 'Damp')) + '</span>';
+  }
   function bestsByRiderCircuit() {
-    var out = {};
+    var out = {}, wet = {};
     (STATE.sessions || []).forEach(function (s) {
       if (!s.rider || !s.circuit || !s.laps || !s.laps.length) return;
-      var k = circuitKey(s.circuit), b = sessionBest(s), r = out[s.rider] = out[s.rider] || {};
+      var k = circuitKey(s.circuit), b = sessionBest(s);
+      var bucket = isWetSession(s) ? wet : out, r = bucket[s.rider] = bucket[s.rider] || {};
       if (!r[k] || b < r[k].best) r[k] = { best: b, circuit: s.circuit };
+    });
+    Object.keys(wet).forEach(function (rider) {
+      var r = out[rider] = out[rider] || {};
+      Object.keys(wet[rider]).forEach(function (k) { if (!r[k]) r[k] = wet[rider][k]; });
     });
     return out;
   }
@@ -3954,14 +3971,15 @@
     return Math.abs(e.high - e.low) < 0.05 ? '' : L('entre ', 'between ') + formatEstimate(e.low) + L(' et ', ' and ') + formatEstimate(e.high);
   }
   function riderCircuitBest(rider, circuit) {
-    var best = null;
+    var best = null, wetBest = null;
     STATE.sessions.forEach(function (s) {
       if (s.rider === rider && s.circuit === circuit) {
         var b = sessionBest(s);
-        if (best === null || b < best) best = b;
+        if (isWetSession(s)) { if (wetBest === null || b < wetBest) wetBest = b; }
+        else if (best === null || b < best) best = b;
       }
     });
-    return best;
+    return best !== null ? best : wetBest;
   }
 
   // circuit -> fastest time among a rider and their friends (« records des
@@ -5088,7 +5106,7 @@
     var u = (STATE.usersByName || {})[r.from] || {};
     var team = teamById(r.teamId);
     return '<div class="friend-row"><div class="friend-row-main">' + avatarHtml(u, r.from) + personNameHtml(r.from) + badgesHtml(u) +
-      '<span class="help-text">indique venir à ' + escapeHtml(r.circuit || '') + (team ? ' (' + escapeHtml(team.name) + ')' : '') + '</span></div>' +
+      '<span class="help-text">indique venir à ' + escapeHtml(r.circuit || '') + (team ? ' (' + escapeHtml(team.name) + ')' : '') + (r.group ? ' · ' + L('groupe demandé ', 'requested group ') + groupChip(r.group) : '') + '</span></div>' +
       '<div class="friend-row-actions">' +
       '<button type="button" class="primary" data-action="event-join-request-accept" data-id="' + escapeHtml(r.id) + '">Accepter</button>' +
       '<button type="button" class="ghost" data-action="event-join-request-remove" data-id="' + escapeHtml(r.id) + '">Refuser</button>' +
@@ -5183,13 +5201,14 @@
 
   // ---- Ce qui rend une sortie remarquable (fil + notifications) ----
   function riderBestWhere(rider, circuit, test) {
-    var best = null;
+    var best = null, wetBest = null;
     (STATE.sessions || []).forEach(function (x) {
       if (x.rider !== rider || !x.laps || !x.laps.length || !sameCircuit(x.circuit, circuit) || !test(x.date)) return;
       var b = sessionBest(x);
-      if (best === null || b < best) best = b;
+      if (isWetSession(x)) { if (wetBest === null || b < wetBest) wetBest = b; }
+      else if (best === null || b < best) best = b;
     });
-    return best;
+    return best !== null ? best : wetBest;
   }
   function bestBefore(rider, circuit, date) { return riderBestWhere(rider, circuit, function (d) { return d < date; }); }
   function bestUpTo(rider, circuit, date) { return riderBestWhere(rider, circuit, function (d) { return d <= date; }); }
@@ -6789,6 +6808,10 @@
       '<span>' + L('Photo / PDF', 'Photo / PDF') + '</span></button>' +
       '<input type="file" id="import-photo-input" accept="image/*,application/pdf" multiple hidden></div>';
     html += '<div class="field-error" id="form-error"></div>';
+    html += '<div class="track-cond" role="radiogroup" aria-label="' + escapeHtml(L('État de la piste', 'Track condition')) + '"><span class="help-text">' + L('Piste', 'Track') + '</span>' +
+      [['sec', L('Sèche', 'Dry')], ['humide', L('Humide', 'Damp')], ['pluie', L('Pluie', 'Rain')]].map(function (o, i) {
+        return '<label class="track-opt"><input type="radio" name="f-track" value="' + o[0] + '"' + (i === 0 ? ' checked' : '') + '><span>' + o[1] + '</span></label>';
+      }).join('') + '</div>';
     html += '<button type="submit" class="primary cf-submit" id="submit-btn">' + L('Enregistrer', 'Save') + '</button>';
     html += '<details class="cf-more"' + (formCircuitsKnown ? '' : ' open') + '><summary>⋯ ' + L('Note, vidéo, autres réglages', 'Note, video, other details') + '</summary>';
     html += '<div style="margin-top:0.6rem;"><label for="f-note">' + tr('note_optional') + '</label>' +
@@ -8111,6 +8134,7 @@
       if (s.createdAt && s.createdAt > o.enteredAt) o.enteredAt = s.createdAt;
       if (s.group) o.groups[s.group] = true;
       if (s.eventId) o.eventId = s.eventId;
+      if (isWetSession(s)) o.track = o.track === 'pluie' ? 'pluie' : s.track;
       var b = sessionBest(s);
       if (o.best === null || b < o.best) o.best = b;
     });
@@ -8142,6 +8166,64 @@
       document.head.appendChild(sc);
     });
     return qrLibPromise;
+  }
+  // QR paddock : le club (ou le pilote d'un roulage perso) l'affiche au
+  // paddock ; on le scanne, on rejoint le roulage d'un geste, avec son
+  // groupe si le QR en porte un (direct, ou demande au Team Leader).
+  function paddockQrLink(ev, group) {
+    return publicRoulageLink(ev.id) + (group ? '&g=' + encodeURIComponent(group) : '');
+  }
+  function openPaddockQr(eventId) {
+    var ev = eventsList().filter(function (e) { return e.id === eventId; })[0];
+    if (!ev) return;
+    db.collection('publicRoulages').doc(ev.id).set(publicRoulageSnapshot(ev)).catch(function () {});
+    var groups = ['', 'R', 'A', 'B', 'C', 'D'];
+    var ov = document.createElement('div');
+    ov.className = 'crop-modal-overlay';
+    ov.innerHTML = '<div class="crop-modal invite-qr-modal paddock-qr-modal">' +
+      '<h2 class="section-title">' + L('QR paddock', 'Paddock QR') + '</h2>' +
+      '<div class="help-text">' + escapeHtml(ev.circuit + ' · ' + formatEventRange(ev, true)) + '. ' +
+      (ev.teamId && ev.eventVisibility !== 'ouvert' ? L('Les pilotes qui le scannent t\'envoient une demande à valider.', 'Riders who scan it send you a request to approve.') : L('Les pilotes qui le scannent rejoignent le roulage.', 'Riders who scan it join the trackday.')) + '</div>' +
+      '<div class="paddock-qr-groups" role="radiogroup" aria-label="' + escapeHtml(L('Groupe', 'Group')) + '"><span class="help-text">' + L('Groupe', 'Group') + '</span>' +
+      groups.map(function (g, i) { return '<button type="button" class="ride-role-btn' + (i === 0 ? ' active' : '') + '" data-qr-group="' + g + '">' + (g || L('Aucun', 'None')) + '</button>'; }).join('') + '</div>' +
+      '<div class="invite-qr-box" id="paddock-qr-box">' + L('Chargement…', 'Loading…') + '</div>' +
+      '<div class="paddock-qr-caption" id="paddock-qr-caption"></div>' +
+      '<div class="invite-qr-link" id="paddock-qr-link"></div>' +
+      '<div style="margin-top:0.8rem; display:flex; gap:0.5rem; flex-wrap:wrap;">' +
+      '<button type="button" class="primary" data-q="full">' + L('Plein écran', 'Full screen') + '</button>' +
+      '<button type="button" class="ghost" data-q="copy">' + L('Copier', 'Copy') + '</button>' +
+      '<button type="button" class="ghost" data-q="close">' + L('Fermer', 'Close') + '</button></div></div>';
+    document.body.appendChild(ov);
+    var current = '';
+    var close = function () { if (ov.parentNode) ov.parentNode.removeChild(ov); };
+    var draw = function () {
+      var link = paddockQrLink(ev, current);
+      ov.querySelector('#paddock-qr-link').textContent = link;
+      ov.querySelector('#paddock-qr-caption').textContent = ev.circuit + (current ? ' · ' + L('Groupe ', 'Group ') + current : '');
+      loadQrLib().then(function (qrcode) {
+        var qr = qrcode(0, 'M'); qr.addData(link); qr.make();
+        var box = ov.querySelector('#paddock-qr-box');
+        if (box) box.innerHTML = qr.createSvgTag({ cellSize: 6, margin: 2, scalable: true });
+      }).catch(function () {
+        var box = ov.querySelector('#paddock-qr-box');
+        if (box) box.textContent = L('QR code indisponible hors connexion : partage le lien ci-dessous.', 'QR code unavailable offline: share the link below.');
+      });
+    };
+    ov.addEventListener('click', function (e) { if (e.target === ov) close(); });
+    ov.querySelector('[data-q="close"]').addEventListener('click', close);
+    ov.querySelector('[data-q="copy"]').addEventListener('click', function () {
+      var link = paddockQrLink(ev, current);
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(link).then(function () { showToast(L('Lien copié', 'Link copied'), 'success'); }).catch(function () {});
+    });
+    ov.querySelector('[data-q="full"]').addEventListener('click', function () { ov.classList.toggle('paddock-qr-full'); });
+    ov.querySelectorAll('[data-qr-group]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        current = b.getAttribute('data-qr-group');
+        ov.querySelectorAll('[data-qr-group]').forEach(function (x) { x.classList.toggle('active', x === b); });
+        draw();
+      });
+    });
+    draw();
   }
   function openInviteQr() {
     if (!currentUserProfile) return;
@@ -8737,6 +8819,7 @@
   // discipline (on ne compare pas une voiture et une moto). Mes propres
   // chronos restent toujours visibles dans mon carnet.
   var lastRawSessions = null;
+  var pendingChronos = 0, pendingWhileOffline = false;
   function sessionsForMyDiscipline(list) {
     var me = currentUserProfile && currentUserProfile.name, d = myDiscipline();
     return (list || []).filter(function (s) { return s.rider === me || disciplineOf(s) === d; });
@@ -9856,7 +9939,7 @@
       var delta = d == null ? '' : '<span class="day-prog-delta ' + (d < 0 ? 'faster' : (d > 0 ? 'slower' : '')) + '">' + (d < 0 ? '−' + formatGap(-d) : (d > 0 ? '+' + formatGap(d) : '=')) + '</span>';
       var changes = i ? setupChanges(mySetupFor(list[i - 1].id), mySetupFor(x.id)) : [];
       var label = x.slotLabel || ('S' + (i + 1));
-      return '<div class="day-prog-row"><span class="day-prog-name">' + escapeHtml(label) + '</span><span class="day-prog-time' + (b === dayBest ? ' best' : '') + '">' + formatTime(b) + '</span>' + delta +
+      return '<div class="day-prog-row"><span class="day-prog-name">' + escapeHtml(label) + trackTagHtml(x) + '</span><span class="day-prog-time' + (b === dayBest ? ' best' : '') + '">' + formatTime(b) + '</span>' + delta +
         (changes.length ? '<div class="day-prog-changes">' + L('Changé : ', 'Changed: ') + escapeHtml(changes.join(' · ')) + '</div>' : '') + '</div>';
     }).join('');
     var head = gain > 0
@@ -10003,6 +10086,8 @@
       if (!isRiderHere && status !== 'terminee') acts += joinEventButtonHtml(ev, leaderHere);
       if (ev.bookingUrl && !isRiderHere) acts += '<button type="button" class="primary" data-action="open-external-url" data-url="' + escapeHtml(ev.bookingUrl) + '">' + tr('book_register') + '</button>';
       if ((isRiderHere || leaderHere) && status !== 'terminee') acts += '<button type="button" class="ghost" data-action="share-roulage" data-id="' + escapeHtml(ev.id) + '">' + L('Inviter', 'Invite') + '</button>';
+      // QR paddock : à afficher au paddock, on scanne et on rejoint (avec son groupe).
+      if ((leaderHere || (!ev.teamId && isRiderHere)) && status !== 'terminee') acts += '<button type="button" class="ghost" data-action="outing-paddock-qr" data-id="' + escapeHtml(ev.id) + '">QR</button>';
       if (!ev.teamId && (isRiderHere || isAdmin())) acts += '<button type="button" class="ghost" id="edit-event-btn" data-id="' + escapeHtml(ev.id) + '">' + tr('modify') + '</button>';
       html += '<div class="outing-actions">' + acts + '</div>';
       if (status !== 'terminee') html += addToCalendarLink(ev);
@@ -10013,8 +10098,9 @@
       // Mes chronos de ce jour ne sont rattachés à aucun de MES roulages :
       // avertissement, puis les déplacer (vers mon roulage) ou les supprimer.
       html += '<div class="unlinked-warning"><strong>' + L('Attention : chronos rattachés à aucun roulage.', 'Warning: these lap times aren\'t linked to any trackday.') + '</strong> ' +
-        L('Mauvaise date ? « Déplacer » les range au bon jour et les relie à ton roulage.', 'Wrong date? “Move” puts them on the right day and links them to your trackday.') + '</div>';
+        L('Bonne date ? « Créer » en fait un roulage. Mauvaise date ? « Déplacer » les range au bon jour.', 'Right date? “Create” turns it into a trackday. Wrong date? “Move” puts them on the right day.') + '</div>';
       html += '<div class="outing-actions">' +
+        '<button type="button" class="primary" data-action="outing-create-event">' + L('Créer', 'Create') + '</button>' +
         '<button type="button" class="ghost" data-action="outing-move-day">' + L('Déplacer', 'Move') + '</button>' +
         '<button type="button" class="ghost danger" data-action="outing-delete-day">' + L('Supprimer', 'Delete') + '</button></div>';
     }
@@ -10705,7 +10791,7 @@
     return '<button type="button" class="outing-row" data-open-outing="' + escapeHtml(o.circuit) + '" data-outing-date="' + escapeHtml(o.date) + '" data-outing-event="' + escapeHtml(o.eventId || '') + '">' +
       '<span class="outing-thumb">' + circuitThumbHtml(o.circuit) + '</span>' +
       '<span class="outing-row-main"><strong>' + escapeHtml(o.circuit) + (o.isRecord && o.prevBest !== null ? ' <span class="record-chip">' + L('Record', 'Record') + '</span>' : '') + '</strong><span class="help-text">' + escapeHtml(formatDate(o.date)) + (grp ? ' · ' + groupChip(grp) : '') + ' · ' + o.laps + ' t.</span>' +
-      (unlinked ? '<span class="unlinked-tag">' + L('Sans roulage', 'No trackday') + '</span>' : '') + (o.enteredAt ? '<span class="help-text outing-entered">' + escapeHtml(enteredAtText(o.enteredAt)) + '</span>' : '') + '</span>' +
+      (o.track ? trackTagHtml(o) : '') + (unlinked ? '<span class="unlinked-tag">' + L('Sans roulage', 'No trackday') + '</span>' : '') + (o.enteredAt ? '<span class="help-text outing-entered">' + escapeHtml(enteredAtText(o.enteredAt)) + '</span>' : '') + '</span>' +
       '<span class="outing-row-right"><span class="carnet-time">' + formatTime(o.best) + '</span>' + delta + '</span></button>';
   }
   function renderOutingCards(outings) {
@@ -13004,7 +13090,9 @@
     var ev = (STATE.events || []).filter(function (e) { return e.id === req.eventId; })[0];
     if (!ev) return;
     var riders = (ev.riders || []).indexOf(req.from) === -1 ? (ev.riders || []).concat([req.from]) : (ev.riders || []);
-    db.collection('events').doc(req.eventId).update({ riders: riders, lastJoinAccepted: req.from }).then(function () {
+    var upd = { riders: riders, lastJoinAccepted: req.from };
+    if (req.group) { var tmp = JSON.parse(JSON.stringify(ev)); setMyGroupAllDays(tmp, req.from, req.group); upd.riderGroups = tmp.riderGroups; }
+    db.collection('events').doc(req.eventId).update(upd).then(function () {
       return db.collection('eventJoinRequests').doc(req.id).delete();
     }).then(function () {
       showToast(req.from + tr('joined_event_suffix'), 'success');
@@ -20575,6 +20663,9 @@
       (!isOnline
         ? '<div class="offline-banner">Hors ligne : tu vois les dernières données synchronisées. Tes chronos sont gardés sur le téléphone et envoyés dès que le réseau revient.</div>'
         : '') +
+      (pendingChronos > 0 && (pendingWhileOffline || !isOnline)
+        ? '<div class="pending-banner">' + plural(pendingChronos, L('chrono en attente d\'envoi', 'lap time waiting to be sent'), L('chronos en attente d\'envoi', 'lap times waiting to be sent')) + (isOnline ? L(' · envoi en cours…', ' · sending…') : (pendingChronos > 1 ? L(' · gardés sur le téléphone', ' · kept on the phone') : L(' · gardé sur le téléphone', ' · kept on the phone'))) + '</div>'
+        : '') +
       // A compte créé par un admin sans email réel (compte de démo/test,
       // voir create-accounts.html) porte needsEmailUpdate:true jusqu'à ce
       // que son titulaire renseigne le sien -- ce bandeau le rappelle sur
@@ -20763,19 +20854,35 @@
     if (pending) return '<button type="button" class="ghost" disabled>' + L('Demandé', 'Requested') + '</button>';
     return '<button type="button" class="' + (ev.bookingUrl ? 'ghost' : 'primary') + '" data-action="join-roulage-link" data-id="' + escapeHtml(ev.id) + '">' + L('Rejoindre', 'Join') + '</button>';
   }
+  // Groupe d'un pilote sur tous les jours (matin et après-midi) d'un roulage.
+  function setMyGroupAllDays(ev, name, group) {
+    ev.riderGroups = ev.riderGroups || {};
+    var days = {}, d = ev.dateStart, end = ev.dateEnd || ev.dateStart, guard = 0;
+    while (d && d <= end && guard++ < 14) {
+      days[d] = { am: group, pm: group };
+      var nx = parseLocalDate(d); nx.setDate(nx.getDate() + 1); d = dateKey(nx);
+    }
+    ev.riderGroups[name] = days;
+  }
   function joinRoulageFromLink(eventId) {
     var ev = eventsList().filter(function (e) { return e.id === eventId; })[0];
     var me = currentUserProfile && currentUserProfile.name;
     if (!ev || !me) return;
     joinBannerEventId = null;
     if ((ev.riders || []).indexOf(me) !== -1) { renderRoot(); return; }
+    var qrGroup = pendingJoinGroup;
+    pendingJoinGroup = null;
+    try { sessionStorage.removeItem('cdp-pending-group'); } catch (e) {}
     if (!ev.teamId || ev.eventVisibility === 'ouvert' || isLeaderOfTeam(ev.teamId)) {
       var prevState = JSON.parse(JSON.stringify(STATE));
       ev.riders = (ev.riders || []).concat([me]);
+      if (qrGroup && (!ev.teamId || isLeaderOfTeam(ev.teamId))) setMyGroupAllDays(ev, me, qrGroup);
       persist(prevState);
       showToast('Tu es sur la liste de ' + ev.circuit + '.', 'success');
     } else {
-      db.collection('eventJoinRequests').doc(ev.id + '_' + me).set({ eventId: ev.id, teamId: ev.teamId, circuit: ev.circuit, from: me, status: 'pending', fromUid: myUid() }).then(function () {
+      var req = { eventId: ev.id, teamId: ev.teamId, circuit: ev.circuit, from: me, status: 'pending', fromUid: myUid() };
+      if (qrGroup) req.group = qrGroup;
+      db.collection('eventJoinRequests').doc(ev.id + '_' + me).set(req).then(function () {
         showToast(L('Demande envoyée : le Team Leader doit valider.', 'Request sent: the Team Leader has to approve it.'), 'success');
       }).catch(function () { showToast('Impossible d\'envoyer la demande.'); });
     }
@@ -21130,6 +21237,12 @@
     });
     document.querySelectorAll('[data-rail="account"]').forEach(function (b) {
       b.addEventListener('click', function () { var t = document.getElementById('settings-toggle'); if (t) t.click(); });
+    });
+    document.querySelectorAll('[data-action="outing-create-event"]').forEach(function (b) {
+      b.addEventListener('click', function () { if (outingView) createEventForMyDay(outingView.circuit, outingView.date); });
+    });
+    document.querySelectorAll('[data-action="outing-paddock-qr"]').forEach(function (b) {
+      b.addEventListener('click', function () { openPaddockQr(b.getAttribute('data-id')); });
     });
     document.querySelectorAll('[data-action="outing-move-day"]').forEach(function (b) {
       b.addEventListener('click', function () { if (outingView) openMoveDaySheet(outingView.circuit, outingView.date); });
@@ -24288,6 +24401,22 @@
     persist(prevState);
     showToast(plural(n, L('chrono déplacé', 'lap time moved'), L('chronos déplacés', 'lap times moved')) + L(' au ', ' to ') + formatDate(toDate) + '.', 'success');
   }
+  // Journée sans roulage → un roulage perso ce jour-là, sur ce circuit,
+  // avec moi inscrit ; mes chronos du jour y sont reliés.
+  function createEventForMyDay(circuit, date) {
+    var me = currentUserProfile && currentUserProfile.name;
+    if (!me) return;
+    var prevState = JSON.parse(JSON.stringify(STATE));
+    eventsList();
+    var ev = { id: genId(), circuit: circuit, dateStart: date, dateEnd: date, riders: [me], note: '' };
+    if (isCarMode()) ev.discipline = 'auto';
+    STATE.events.push(ev);
+    STATE.sessions.forEach(function (x) { if (x.rider === me && x.circuit === circuit && x.date === date) x.eventId = ev.id; });
+    outingView = Object.assign({}, outingView, { eventId: ev.id });
+    renderRoot();
+    persist(prevState);
+    showToast(L('Roulage créé : ', 'Trackday created: ') + circuit + ' · ' + formatDate(date) + '.', 'success');
+  }
   function deleteMyDay(circuit, date) {
     var me = currentUserProfile && currentUserProfile.name;
     var ids = (STATE.sessions || []).filter(function (x) { return x.rider === me && x.circuit === circuit && x.date === date; }).map(function (x) { return x.id; });
@@ -24412,6 +24541,8 @@
     }
     chronoDateConfirmed = false;
     var session = { id: genId(), rider: rider, date: date, circuit: circuit, laps: laps, createdAt: Date.now() };
+    var trackEl = document.querySelector('input[name="f-track"]:checked');
+    if (trackEl && (trackEl.value === 'humide' || trackEl.value === 'pluie')) session.track = trackEl.value;
     // Discipline du pilote du chrono (moi, ou l'équipier pour un Team Leader).
     if ((rider === (currentUserProfile && currentUserProfile.name) ? isCarMode() : disciplineOf((STATE.usersByName || {})[rider]) === 'auto')) session.discipline = 'auto';
     if (videoUrl) session.videoUrl = videoUrl;
@@ -24465,7 +24596,7 @@
     var saved = persist(prevState);
 
     var newBest = sessionBest(session);
-    if (previousBest === null || newBest < previousBest) {
+    if (!isWetSession(session) && (previousBest === null || newBest < previousBest)) {
       showToast(tr('new_personal_record_prefix') + circuit + ' : ' + formatTime(newBest) + tr('exclaim_suffix'), 'success');
       // Après l'enregistrement du chrono : les règles vérifient qu'il existe.
       if (previousBest !== null && rider === (currentUserProfile && currentUserProfile.name)) saved.then(function (ok) { if (ok !== false) writeFeedEvent('record', { circuit: circuit, time: newBest, sessionId: session.id }); });
@@ -24558,7 +24689,13 @@
     prepareOfflineReader();
     mySetups = null; // reload this account's private setups
     coreSyncPending = new Set(CORE_SYNC_KEYS);
-    unsubscribers.push(db.collection('sessions').onSnapshot(function (snap) {
+    unsubscribers.push(db.collection('sessions').onSnapshot({ includeMetadataChanges: true }, function (snap) {
+      // Chronos tapés hors ligne, pas encore arrivés au serveur.
+      var meN = currentUserProfile && currentUserProfile.name;
+      var pend = snap.docs.filter(function (d) { return d.metadata && d.metadata.hasPendingWrites && d.data().rider === meN; }).length;
+      if (pend > 0 && !isOnline) pendingWhileOffline = true;
+      if (pendingWhileOffline && pend === 0 && isOnline) { pendingWhileOffline = false; showToast(L('Chronos envoyés ✓', 'Lap times sent ✓'), 'success'); }
+      pendingChronos = pend;
       var rawSessions = snap.docs.map(function (d) { return d.data(); });
       migratePublicSessionNotes(rawSessions);
       lastRawSessions = rawSessions;

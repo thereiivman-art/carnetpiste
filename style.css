@@ -4277,3 +4277,25 @@ span.social-count { cursor: default; }
 .subnav.profile-tabs { overflow-x: auto; scrollbar-width: none; flex-wrap: nowrap; }
 .subnav.profile-tabs::-webkit-scrollbar { display: none; }
 .subnav.profile-tabs .subnav-btn { flex: 0 0 auto; padding-left: 0.7rem; padding-right: 0.7rem; }
+
+/* État de la piste */
+.track-cond { display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; margin: 0.2rem 0 0.7rem; }
+.track-cond .help-text { margin-right: 0.2rem; }
+.track-opt { position: relative; display: inline-flex; cursor: pointer; margin: 0; }
+.track-opt input { position: absolute; opacity: 0; pointer-events: none; }
+.track-opt span { display: inline-block; padding: 0.35rem 0.8rem; border-radius: 999px; border: 1px solid var(--border); background: var(--surface); font-size: 0.85rem; font-weight: 600; color: var(--text-muted); }
+.track-opt input:checked + span { background: var(--text); border-color: var(--text); color: var(--bg); }
+.track-opt input[value="pluie"]:checked + span { background: #2f6fd6; border-color: #2f6fd6; color: #fff; }
+.track-opt input[value="humide"]:checked + span { background: #5b8fd6; border-color: #5b8fd6; color: #fff; }
+.track-opt input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 2px; }
+.track-tag { display: inline-block; margin-left: 0.3rem; padding: 0.02rem 0.4rem; border-radius: 6px; font-size: 0.7rem; font-weight: 700; color: #fff; background: #5b8fd6; vertical-align: middle; }
+.track-tag.pluie { background: #2f6fd6; }
+/* Chronos en attente d'envoi */
+.pending-banner { margin: 0 0 0.7rem; padding: 0.55rem 0.8rem; border-radius: 12px; font-size: 0.88rem; font-weight: 600; color: #8a5a00; background: rgba(232, 137, 42, 0.14); border: 1px solid rgba(232, 137, 42, 0.4); }
+/* QR paddock */
+.paddock-qr-groups { display: flex; align-items: center; gap: 0.35rem; flex-wrap: wrap; margin: 0.7rem 0; }
+.paddock-qr-caption { margin-top: 0.4rem; text-align: center; font-family: var(--font-display); font-style: italic; font-weight: 800; font-size: 1.3rem; text-transform: uppercase; }
+.paddock-qr-full { background: #fff; }
+.paddock-qr-full .crop-modal { max-width: none; width: 100%; height: 100%; border-radius: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.paddock-qr-full .invite-qr-box { width: min(80vw, 70vh); }
+.paddock-qr-full .paddock-qr-caption { font-size: 2.2rem; }
