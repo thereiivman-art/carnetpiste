@@ -9892,7 +9892,10 @@
       ? '<span class="outing-label">' + L('Ma journée', 'My day') + '</span><span class="outing-group-value outing-role-value">' + (dayLaps ? dayLaps + (dayLaps > 1 ? L(' tours', ' laps') : L(' tour', ' lap')) : '—') + '</span>' +
         '<span class="help-text">' + (sessions.length ? sessions.length + (sessions.length > 1 ? ' sessions' : ' session') : L('Pas de chrono', 'No lap time')) + '</span>'
       : '<span class="outing-label">Mon groupe</span><span class="outing-group-value">' + (group ? groupChip(group, true) : '—') + '</span>' +
-        '<span class="help-text">' + (slotsAll.length ? escapeHtml(slotsAll.map(function (sl) { return sl.label; }).join(', ')) : (group ? 'Horaires non communiqués' : 'Groupe pas encore attribué')) + '</span>';
+        // Le détail des horaires est dans Infos › Horaires : ici, juste le compte.
+        '<span class="help-text">' + (status === 'terminee'
+          ? (sessions.length ? plural(sessions.length, 'session', 'sessions') + (dayLaps ? ' · ' + dayLaps + (dayLaps > 1 ? L(' tours', ' laps') : L(' tour', ' lap')) : '') : L('Pas de chrono', 'No lap time'))
+          : (slotsAll.length ? plural(slotsAll.length, 'session', 'sessions') : (group ? L('Horaires non communiqués', 'Times not announced') : L('Groupe pas encore attribué', 'Group not assigned yet')))) + '</span>';
     html += '<div class="outing-group-card"><div class="outing-group-main">' + groupMain + '</div>' +
       '<div class="outing-group-status">' + statusHtml + '</div></div>';
     // Un pilote inscrit choisit comment il vient sur CE roulage.
@@ -9922,7 +9925,7 @@
       if (!ev.teamId && (isRiderHere || isAdmin())) acts += '<button type="button" class="ghost" id="edit-event-btn" data-id="' + escapeHtml(ev.id) + '">' + tr('modify') + '</button>';
       html += '<div class="outing-actions">' + acts + '</div>';
       if (status !== 'terminee') html += addToCalendarLink(ev);
-      html += status !== 'terminee' ? eventPriceLine(ev) : eventSpendLine(ev);
+      if (status !== 'terminee') html += eventPriceLine(ev); // les dépenses d'un roulage passé : onglet Budget
       if (ev.bookingUrl && !isRiderHere) html += '<div class="help-text outing-actions-help">Inscription et paiement chez l\'organisateur.</div>';
     }
     // Same pills as everywhere else: Chronos / Infos / Repères.
@@ -10615,13 +10618,11 @@
       if (!upcoming.length) html += '<div class="help-text" style="padding:0.4rem 0;">Aucun roulage à venir. <button type="button" class="link-btn inline-link" data-action="quick-outing">Ajouter un roulage</button></div>';
       upcoming.forEach(function (ev) {
         var grp = riderGroupFor(ev, currentUserProfile.name, ev.dateStart, 'matin') || riderGroupFor(ev, currentUserProfile.name, ev.dateStart, 'apres-midi') || '';
-        var myBest = riderCircuitBest(currentUserProfile.name, ev.circuit);
         html += '<button type="button" class="outing-row" data-open-outing="' + escapeHtml(ev.circuit) + '" data-outing-date="' + escapeHtml(ev.dateStart) + '" data-outing-event="' + escapeHtml(ev.id) + '">' +
           '<span class="outing-thumb">' + circuitThumbHtml(ev.circuit) + '</span>' +
           '<span class="outing-row-main"><strong>' + escapeHtml(ev.circuit) + '</strong><span class="help-text">' + escapeHtml(formatEventRange(ev, true)) + (grp ? ' · ' + groupChip(grp) : '') + '</span></span>' +
-          '<span class="outing-row-right">' + (myBest !== null
-            ? '<span class="carnet-time">' + formatTime(myBest) + '</span><span class="help-text">record à battre</span>'
-            : '<span class="carnet-time">' + countdownLabel(Math.max(0, Math.round((parseLocalDate(ev.dateStart) - parseLocalDate(dateKey(new Date()))) / 86400000))) + '</span><span class="help-text">1re fois ici</span>') + '</span></button>';
+          // À venir : juste le décompte (J-x), comme partout ailleurs.
+          '<span class="outing-row-right"><span class="carnet-time">' + countdownLabel(Math.max(0, Math.round((parseLocalDate(ev.dateStart) - parseLocalDate(dateKey(new Date()))) / 86400000))) + '</span></span></button>';
       });
     } else {
       // Les 3 derniers seulement ; le reste se déplie.
@@ -18357,6 +18358,21 @@
         '<span class="feed-ride-right"><span class="feed-record-time">' + formatTime(r.best) + '</span>' + vs + '</span>' +
       '</button>' + rideHighlightsHtml(r);
   }
+  // Les amis qui viennent : petits cercles façon story (anneau coloré si
+  // l'ami a une story en cours), prénom et groupe dessous ; touche = sa fiche.
+  function upcomingFacesHtml(ev, x) {
+    var people = x.friends.concat(x.companions);
+    if (!people.length) return '';
+    var withStory = {};
+    (STATE.wallPosts || []).forEach(function (p) { if (p.story && Date.now() - (p.createdAt || 0) < 86400e3) withStory[p.author] = true; });
+    var shown = people.slice(0, 8), more = people.length - shown.length;
+    return '<div class="upcoming-faces">' + shown.map(function (n) {
+      var g = x.friends.indexOf(n) !== -1 ? (riderGroupFor(ev, n, ev.dateStart, 'matin') || riderGroupFor(ev, n, ev.dateStart, 'apres-midi')) : null;
+      return '<button type="button" class="upcoming-face" data-person-link="' + escapeHtml(n) + '">' +
+        '<span class="story-ring upcoming-ring' + (withStory[n] ? '' : ' no-story') + '">' + avatarHtml((STATE.usersByName || {})[n] || {}, n) + '</span>' +
+        '<span class="upcoming-face-name">' + escapeHtml(n) + '</span>' + (g ? groupChip(g) : (x.companions.indexOf(n) !== -1 ? '<span class="upcoming-face-role">' + L('accomp.', 'comp.') + '</span>' : '')) + '</button>';
+    }).join('') + (more > 0 ? '<span class="upcoming-face upcoming-more">+' + more + '</span>' : '') + '</div>';
+  }
   // « Bientôt sur la piste » : where my friends ride next, with « J'y vais
   // aussi » straight from the feed.
   function renderFeedUpcoming(all) {
@@ -18366,9 +18382,7 @@
       var ev = x.ev;
       return '<div class="feed-upcoming-row"><button type="button" class="feed-upcoming-open" data-open-outing="' + escapeHtml(ev.circuit) + '" data-outing-date="' + escapeHtml(ev.dateStart) + '" data-outing-event="' + escapeHtml(ev.id) + '"><span class="outing-thumb">' + circuitThumbHtml(ev.circuit) + '</span>' +
         '<span class="feed-upcoming-main"><strong>' + cName(ev.circuit) + ' <span class="feed-upcoming-j">' + countdownLabel(Math.max(0, Math.round((parseLocalDate(ev.dateStart) - parseLocalDate(dateKey(new Date()))) / 86400000))) + '</span></strong><span class="help-text">' + escapeHtml(formatEventRange(ev, true)) + '</span>' +
-        '<span class="feed-upcoming-who">' + x.friends.concat(x.companions).slice(0, 4).map(function (n) { return avatarHtml((STATE.usersByName || {})[n] || {}, n); }).join('') +
-        '<span class="help-text">' + x.friends.slice(0, 2).map(function (n) { var g = riderGroupFor(ev, n, ev.dateStart, 'matin') || riderGroupFor(ev, n, ev.dateStart, 'apres-midi'); return pName(n) + (g ? ' ' + groupChip(g) : ''); }).join(', ') + (x.friends.length > 2 ? ' +' + (x.friends.length - 2) : '') +
-          (x.companions.length ? (x.friends.length ? ' · ' : '') + escapeHtml(x.companions.join(', ')) + L(x.companions.length > 1 ? ' viennent' : ' vient', x.companions.length > 1 ? ' are coming' : ' is coming') : '') + '</span></span></span></button>' +
+        '</span></button>' + upcomingFacesHtml(ev, x) +
         (x.mine ? '<span class="feed-upcoming-tag">Tu y vas</span>' : '<button type="button" class="ghost" data-notif-go="event" data-id="' + escapeHtml(ev.id) + '" data-join="1">J\'y vais aussi</button>') +
         '</div>';
     }).join('') + '</div>';

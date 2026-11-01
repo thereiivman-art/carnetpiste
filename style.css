@@ -4129,3 +4129,16 @@ span.social-count { cursor: default; }
 .photo-zoom img { max-width: 100%; max-height: 100%; object-fit: contain; transform-origin: center center; transition: transform 0.05s linear; user-select: none; -webkit-user-drag: none; }
 .photo-zoom-close { position: absolute; top: calc(env(safe-area-inset-top, 0px) + 0.8rem); right: 1rem; z-index: 2; border: 0; background: rgba(255,255,255,0.15); color: #fff; width: 2.4rem; height: 2.4rem; border-radius: 50%; font-size: 1.2rem; cursor: pointer; }
 .person-avatar .mini-avatar:has(img), .profile-avatar:has(img) { cursor: zoom-in; }
+
+/* Bientôt sur la piste : les amis qui viennent, en petits cercles façon story. */
+.upcoming-faces { order: 2; flex-basis: 100%; display: flex; gap: 0.6rem; overflow-x: auto; padding: 0.1rem 0 0.15rem; scrollbar-width: none; }
+.feed-upcoming-row > .ghost, .feed-upcoming-row > .feed-upcoming-tag { order: 3; }
+.upcoming-faces::-webkit-scrollbar { display: none; }
+.upcoming-face { flex: 0 0 auto; width: 3.1rem; display: flex; flex-direction: column; align-items: center; gap: 0.15rem; border: 0; background: none; padding: 0; color: var(--text); cursor: pointer; font: inherit; }
+.upcoming-ring { padding: 2px; }
+.upcoming-ring.no-story { background: var(--border); }
+.upcoming-ring .mini-avatar { width: 2.3rem; height: 2.3rem; font-size: 0.95rem; border: 2px solid var(--surface, var(--bg)); margin: 0; }
+.upcoming-face-name { max-width: 100%; font-size: 0.68rem; font-weight: 600; line-height: 1.1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.upcoming-face .group-chip, .upcoming-face .chip { transform: scale(0.75); margin-top: -0.15rem; }
+.upcoming-face-role { font-size: 0.62rem; color: var(--text-muted, #888); }
+.upcoming-more { justify-content: center; height: 2.7rem; font-size: 0.8rem; font-weight: 700; color: var(--text-muted, #888); }
