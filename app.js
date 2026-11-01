@@ -10580,7 +10580,7 @@
     var prog = renderDayProgression(list);
     if (prog) return html + prog.replace(/^<div class="card[^"]*"[^>]*>/, '<div>').replace(/<h2 class="section-title">.*?<\/h2>/, '') + evBtn + '</div>';
     html += '<div class="chrono-sessions">' + list.map(function (x, i) {
-      return '<div class="chrono-session"><span>' + escapeHtml(x.slotLabel || (useEv ? formatDate(x.date) + ' · ' : '') + L('Session ', 'Session ') + (i + 1)) + '</span><strong>' + formatTime(bests[i]) + '</strong></div>';
+      return '<div class="chrono-session"><span>' + escapeHtml(x.slotLabel || (useEv ? formatDate(x.date) + ' · ' : '') + L('Session ', 'Session ') + (i + 1)) + trackTagHtml(x) + '</span><strong>' + formatTime(bests[i]) + '</strong></div>';
     }).join('') + '</div>' + evBtn + '</div>';
     return html;
   }

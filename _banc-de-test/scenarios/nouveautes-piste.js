@@ -13,12 +13,13 @@ const { chromium, BASE } = require('../lib');
   const errs = []; p.on('pageerror', e => errs.push(e.message));
   await p.goto(BASE + 'index.html#lang=' + lang + '&jourj=1'); await p.waitForTimeout(1600);
   // 1. Pluie
-  console.log('piste:', await p.$$eval('.track-opt', e => e.map(x => x.innerText.trim() + (x.querySelector('input').checked ? '✓' : '')).join(' / ')));
+  await p.evaluate(() => { const d = document.querySelector('.cf-more'); if (d) d.open = true; });
+  console.log('piste (dans ⋯):', await p.$$eval('.cf-more .track-opt', e => e.map(x => x.title + (x.querySelector('svg') ? ' (icône)' : '') + (x.querySelector('input').checked ? '✓' : '')).join(' / ')));
   await p.click('.track-opt:has(input[value="pluie"])');
   await p.fill('#f-laps', '1:05.000'); await p.click('#submit-btn'); await p.waitForTimeout(600);
   if (await p.$('#feeling-skip-btn')) { await p.click('#feeling-skip-btn'); await p.waitForTimeout(300); }
   const wet = await p.evaluate(() => firebase.firestore().collection('sessions').get().then(s => { const x = s.docs.map(d => d.data()).filter(d => d.laps && d.laps.indexOf(65) !== -1)[0]; return x ? x.track : 'absent'; }));
-  console.log('chrono pluie stocké:', wet, '| étiquette:', await p.$eval('#root', e => /Pluie|Rain/.test(e.innerText)));
+  console.log('chrono pluie stocké:', wet, '| étiquette:', await p.$eval('#root', e => /Pluie|Rain/.test(e.innerText)), '| tag:', !!(await p.$('.chrono-progress .track-tag, .chrono-progress [class*="track-"]')));
   // 2. En attente d'envoi
   await ctx.setOffline(true); await p.waitForTimeout(200);
   await p.evaluate(() => firebase.firestore().collection('sessions').doc('pend1').set({ id: 'pend1', rider: 'Alex', date: new Date().toISOString().slice(0, 10), circuit: 'Carole', laps: [72.5], createdAt: Date.now(), __pending: true }));
