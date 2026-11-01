@@ -866,6 +866,19 @@ service cloud.firestore {
     // siens (l'admin aussi) ; texte de 500 caractères au plus.
     // Réaction (un emoji) sur un élément du fil qui n'est pas un document
     // (roulage, récap, photos) : une ligne par personne, la sienne seulement.
+    // Vidéos des stories (Carnet+) : rangées à part, lues à l'ouverture de
+    // la story. 10 s compressées : plafond sous la limite d'un document.
+    match /storyMedia/{id} {
+      allow read: if verified();
+      allow create: if verified() && realAccount()
+        && request.resource.data.keys().hasOnly(['authorUid', 'postId', 'video', 'mime', 'createdAt'])
+        && request.resource.data.authorUid == request.auth.uid
+        && request.resource.data.postId == id
+        && request.resource.data.video is string && request.resource.data.video.size() < 1000000
+        && request.resource.data.video.matches('^data:video/(mp4|webm)[;,].*')
+        && (isAdmin() || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('plus', false) == true);
+      allow delete: if verified() && (resource.data.authorUid == request.auth.uid || isAdmin());
+    }
     match /postReactions/{id} {
       allow read: if verified();
       // Une réaction par compte et par publication : l'id est imposé

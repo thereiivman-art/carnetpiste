@@ -18268,11 +18268,78 @@
     var h = Math.floor(ms / 3600e3), m = Math.max(1, Math.floor((ms % 3600e3) / 60e3));
     return h >= 1 ? h + ' h' : m + ' min';
   }
+  // ---- Stories vidéo (Carnet+) : 10 s max, recompressées sur le
+  // téléphone (480 px, faible débit) pour tenir dans un document.
+  function canPostVideoStory() { return !!(currentUserProfile && (hasCarnetPlus(currentUserProfile) || isAdmin())); }
+  var STORY_VIDEO_MAX_S = 10;
+  function prepareStoryVideo(file) {
+    var Rec = window.MediaRecorder, cv = document.createElement('canvas');
+    if (!Rec || !cv.captureStream) return showToast(L('Ton navigateur ne permet pas encore les stories vidéo.', 'Your browser does not support video stories yet.'));
+    var wait = document.createElement('div');
+    wait.className = 'story-overlay story-compose';
+    wait.innerHTML = '<div class="story-head"><strong>' + L('Préparation de la vidéo…', 'Preparing the video…') + '</strong></div><p class="story-prep" id="story-prep">' + L('Compression sur ton téléphone : quelques secondes.', 'Compressing on your phone: a few seconds.') + '</p>';
+    document.body.appendChild(wait);
+    var done = function () { if (wait.parentNode) wait.parentNode.removeChild(wait); };
+    var url = URL.createObjectURL(file), v = document.createElement('video');
+    v.src = url; v.playsInline = true; v.setAttribute('playsinline', ''); v.preload = 'auto';
+    var fail = function (msg) { done(); URL.revokeObjectURL(url); showToast(msg || L('Cette vidéo n\'a pas pu être lue.', 'This video could not be read.')); };
+    v.onerror = function () { fail(); };
+    v.onloadedmetadata = function () {
+      var dur = Math.min(STORY_VIDEO_MAX_S, v.duration || STORY_VIDEO_MAX_S);
+      var sc = Math.min(1, 480 / Math.max(v.videoWidth || 480, v.videoHeight || 480));
+      cv.width = Math.max(2, Math.round((v.videoWidth || 480) * sc / 2) * 2); cv.height = Math.max(2, Math.round((v.videoHeight || 480) * sc / 2) * 2);
+      var ctx = cv.getContext('2d'), stream = cv.captureStream(24), ac = null;
+      try {
+        var AC = window.AudioContext || window.webkitAudioContext;
+        if (AC) { ac = new AC(); var src = ac.createMediaElementSource(v), dest = ac.createMediaStreamDestination(); src.connect(dest); dest.stream.getAudioTracks().forEach(function (t) { stream.addTrack(t); }); }
+      } catch (e) { ac = null; }
+      var mime = ['video/mp4;codecs=avc1.42E01E,mp4a.40.2', 'video/mp4', 'video/webm;codecs=vp8,opus', 'video/webm'].filter(function (m) { return Rec.isTypeSupported && Rec.isTypeSupported(m); })[0] || '';
+      var rec;
+      try { rec = new Rec(stream, mime ? { mimeType: mime, videoBitsPerSecond: 420000, audioBitsPerSecond: 48000 } : { videoBitsPerSecond: 420000 }); } catch (e) { return fail(); }
+      var chunks = [], poster = null, stopped = false;
+      rec.ondataavailable = function (e) { if (e.data && e.data.size) chunks.push(e.data); };
+      rec.onstop = function () {
+        if (ac) try { ac.close(); } catch (e) {}
+        URL.revokeObjectURL(url);
+        var blob = new Blob(chunks, { type: (rec.mimeType || mime || 'video/webm').split(';')[0] });
+        var fr = new FileReader();
+        fr.onload = function () {
+          done();
+          if (fr.result.length > 980000) return showToast(L('Vidéo trop lourde même compressée : essaie un passage plus court ou moins animé.', 'Video too large even compressed: try a shorter or calmer clip.'));
+          openStoryComposer(poster, { dataUrl: fr.result, mime: blob.type, duration: dur });
+        };
+        fr.readAsDataURL(blob);
+      };
+      var draw = function () {
+        if (stopped) return;
+        ctx.drawImage(v, 0, 0, cv.width, cv.height);
+        if (!poster && v.currentTime > 0.05) { poster = cv.toDataURL('image/jpeg', 0.6); }
+        var left = Math.max(0, Math.ceil(dur - v.currentTime)), el = document.getElementById('story-prep');
+        if (el) el.textContent = L('Compression sur ton téléphone : encore ', 'Compressing on your phone: ') + left + L(' s', ' s left');
+        if (v.currentTime >= dur || v.ended) { stopped = true; v.pause(); rec.stop(); return; }
+        requestAnimationFrame(draw);
+      };
+      var go = function () { rec.start(500); requestAnimationFrame(draw); };
+      if (ac && ac.resume) ac.resume();
+      var pl = v.play();
+      if (pl && pl.then) pl.then(go).catch(function () { v.muted = true; v.play().then(go).catch(function () { fail(); }); });
+      else go();
+    };
+  }
+  // Mes vidéos de story de plus de 24 h : supprimées (une fois par session).
+  var storyMediaCleaned = false;
+  function cleanOldStoryMedia() {
+    if (storyMediaCleaned || !auth.currentUser) return;
+    storyMediaCleaned = true;
+    db.collection('storyMedia').where('authorUid', '==', auth.currentUser.uid).get().then(function (snap) {
+      snap.forEach(function (d) { if (Date.now() - (d.data().createdAt || 0) > 86400e3) d.ref.delete().catch(function () {}); });
+    }).catch(function () {});
+  }
   function storySeen(st) { try { return localStorage.getItem('cdp-story-' + st.who) === String(st.at); } catch (e) { return false; } }
   function renderStoriesRow(me) {
     var list = storyItems(me);
     var add = '<button type="button" class="story-bubble story-add" data-action="story-new"><span class="story-ring story-ring-add"><img src="icons/icon-192.png" alt=""><span class="story-plus">+</span></span><span class="story-name">' + L('Ta story', 'Your story') + '</span></button>' +
-      '<input type="file" id="story-input" accept="image/*" hidden>';
+      '<input type="file" id="story-input" accept="' + (canPostVideoStory() ? 'image/*,video/*' : 'image/*') + '" hidden>';
     return '<div class="stories-row">' + add + list.map(function (st, i) {
       var u = (STATE.usersByName || {})[st.who] || (st.who === me.name ? me : {});
       var left = st.posted && st.who === me.name ? storyTimeLeft(st.at) : '';
@@ -18282,11 +18349,11 @@
   // Publier une story : une photo (et un mot), visible 24 h en haut du fil
   // de mes amis et abonnés. Stockée comme un message (story: true) qui
   // n'apparaît pas dans le fil.
-  function openStoryComposer(dataUrl) {
+  function openStoryComposer(dataUrl, video) {
     var ov = document.createElement('div');
     ov.className = 'story-overlay story-compose';
     ov.innerHTML = '<div class="story-head"><strong>' + L('Ta story', 'Your story') + '</strong><span>' + L('visible 24 h', 'visible 24 h') + '</span><button type="button" class="story-close" aria-label="' + escapeHtml(L('Fermer', 'Close')) + '">✕</button></div>' +
-      '<div class="story-card story-photo"><img src="' + escapeHtml(dataUrl) + '" alt=""></div>' +
+      '<div class="story-card story-photo">' + (video ? '<video src="' + escapeHtml(video.dataUrl) + '" autoplay loop playsinline muted></video>' : '<img src="' + escapeHtml(dataUrl) + '" alt="">') + '</div>' +
       '<input type="text" class="story-text-input" maxlength="120" placeholder="' + escapeHtml(L('Ajoute un mot (facultatif)', 'Add a caption (optional)')) + '">' +
       '<button type="button" class="primary story-publish">' + L('Publier ma story', 'Post my story') + '</button>';
     document.body.appendChild(ov);
@@ -18298,10 +18365,18 @@
       var post = { id: genId(), author: me.name, authorUid: myUid(), audience: 'all', story: true, photoURL: dataUrl, createdAt: Date.now() };
       var t = ov.querySelector('.story-text-input').value.trim();
       if (t) post.text = t.slice(0, 120);
-      STATE.wallPosts = [post].concat(STATE.wallPosts || []);
-      close(); renderRoot();
-      showToast(L('Story publiée : visible 24 h.', 'Story posted: visible for 24 h.'), 'success');
-      db.collection('wallPosts').doc(post.id).set(post).catch(function (err) { showToast(tr('error_prefix') + ((err && err.message) || err)); });
+      if (video) { post.video = true; post.mediaId = post.id; post.duration = Math.round(video.duration * 10) / 10; }
+      close();
+      var publish = function () {
+        STATE.wallPosts = [post].concat(STATE.wallPosts || []);
+        renderRoot();
+        showToast(L('Story publiée : visible 24 h.', 'Story posted: visible for 24 h.'), 'success');
+        return db.collection('wallPosts').doc(post.id).set(post);
+      };
+      var fail = function (err) { showToast(tr('error_prefix') + ((err && err.message) || err)); };
+      // Vidéo : rangée à part (lue seulement à l'ouverture de la story).
+      if (video) db.collection('storyMedia').doc(post.id).set({ authorUid: myUid(), postId: post.id, video: video.dataUrl, mime: video.mime, createdAt: Date.now() }).then(publish).catch(fail);
+      else publish().catch(fail);
     });
   }
   function openStory(index) {
@@ -18324,7 +18399,16 @@
           (prev !== null && r.best < prev ? '<span class="story-rec">' + L('Nouveau record −', 'New record −') + formatGap(prev - r.best) + '</span>' : '') +
           '<span class="story-date">' + escapeHtml(formatDate(r.date)) + ' · ' + plural(r.laps, L('tour', 'lap'), L('tours', 'laps')) + '</span></div>';
       } else {
-        body = '<div class="story-card story-photo"><img src="' + escapeHtml(st.post.photoURL) + '" alt="">' + (st.post.text ? '<span class="story-caption">' + escapeHtml(st.post.text) + '</span>' : '') + '</div>';
+        body = '<div class="story-card story-photo"' + (st.post.video ? ' data-story-video="' + escapeHtml(st.post.mediaId || st.post.id) + '"' : '') + '><img src="' + escapeHtml(st.post.photoURL) + '" alt="">' + (st.post.text ? '<span class="story-caption">' + escapeHtml(st.post.text) + '</span>' : '') + '</div>';
+      }
+      // J'aime : sur les stories publiées (photo ou vidéo).
+      var likeKey = st.post ? 'story:' + st.post.id : null;
+      if (likeKey) {
+        var likes = itemReactions(likeKey), nLikes = Object.keys(likes).length, iLike = !!likes[me.name];
+        var heart = '<svg viewBox="0 0 24 24" width="22" height="22" fill="' + (iLike ? 'currentColor' : 'none') + '" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/></svg>';
+        body += st.who !== me.name
+          ? '<button type="button" class="story-like' + (iLike ? ' on' : '') + '" data-like-key="' + escapeHtml(likeKey) + '" aria-pressed="' + iLike + '" aria-label="' + escapeHtml(L('J\'aime', 'Like')) + '">' + heart + '</button>'
+          : (nLikes ? '<span class="story-likes">' + heart + ' ' + escapeHtml(Object.keys(likes).slice(0, 3).join(', ') + (nLikes > 3 ? L(' et ' + (nLikes - 3) + ' autres', ' and ' + (nLikes - 3) + ' more') : '')) + '</span>' : '');
       }
       ov.innerHTML = '<div class="story-bars">' + list.map(function (_, k) { return '<span class="' + (k < i ? 'done' : k === i ? 'now' : '') + '"></span>'; }).join('') + '</div>' +
         '<div class="story-head">' + avatarHtml(u, st.who) + '<strong>' + escapeHtml(st.who) + '</strong><span>' + escapeHtml(relativeTime(st.at)) + (st.posted && storyTimeLeft(st.at) ? ' · ' + L('encore ', '') + storyTimeLeft(st.at) + L('', ' left') : '') + '</span><button type="button" class="story-close" aria-label="' + escapeHtml(L('Fermer', 'Close')) + '">✕</button></div>' + body +
@@ -18335,8 +18419,30 @@
       ov.querySelector('.story-nav.next').addEventListener('click', function () { i++; show(); });
       var pb = ov.querySelector('.story-profile');
       if (pb) pb.addEventListener('click', function () { close(); openPerson(pb.getAttribute('data-who')); });
+      var lb = ov.querySelector('.story-like');
+      if (lb) lb.addEventListener('click', function (e) {
+        e.stopPropagation();
+        var on = !lb.classList.contains('on');
+        reactItem(lb.getAttribute('data-like-key'), '❤️');
+        lb.classList.toggle('on', on); lb.setAttribute('aria-pressed', String(on));
+        var path = lb.querySelector('svg'); if (path) path.setAttribute('fill', on ? 'currentColor' : 'none');
+      });
       clearTimeout(timer);
-      timer = setTimeout(function () { i++; show(); }, 6000);
+      var vbox = ov.querySelector('[data-story-video]');
+      if (vbox) {
+        // Vidéo lue à la demande ; on passe à la suivante à la fin.
+        var shownAt = i;
+        timer = setTimeout(function () { i++; show(); }, 15000);
+        db.collection('storyMedia').doc(vbox.getAttribute('data-story-video')).get().then(function (d) {
+          if (shownAt !== i || !ov.parentNode || !d.exists) return;
+          var vid = document.createElement('video');
+          vid.src = d.data().video; vid.autoplay = true; vid.playsInline = true; vid.setAttribute('playsinline', '');
+          vid.addEventListener('ended', function () { if (shownAt === i) { i++; show(); } });
+          var im = vbox.querySelector('img'); if (im) im.replaceWith(vid);
+          var pl = vid.play(); if (pl && pl.catch) pl.catch(function () { vid.muted = true; vid.play().catch(function () {}); });
+          clearTimeout(timer); timer = setTimeout(function () { if (shownAt === i) { i++; show(); } }, 13000);
+        }).catch(function () {});
+      } else timer = setTimeout(function () { i++; show(); }, 6000);
     }
     show();
   }
@@ -18467,6 +18573,7 @@
     var check = '<svg class="cp-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7"/></svg>';
     var feats = [
       [L('Sans publicité', 'No ads'), L('Aucune pub dans le Fil ni dans Mon fil.', 'No ads in the Feed or My feed.'), 'ok'],
+      [L('Stories vidéo', 'Video stories'), L('Des vidéos de 10 secondes en story, compressées sur ton téléphone.', '10-second video stories, compressed on your phone.'), 'ok'],
       [L('Badge Carnet+', 'Carnet+ badge'), L('Le badge C+ à côté de ton nom, partout dans l\'appli.', 'The C+ badge next to your name, everywhere in the app.'), 'ok'],
       [L('Fiche personnalisée', 'Custom profile'), L('Couverture, plaque de course, couleur, sponsors, chrono vedette et vitrine.', 'Cover, race plate, colour, sponsors, featured lap and showcase.'), 'ok'],
       [L('Audience et media kit', 'Audience and media kit'), L('Impressions, comptes touchés, engagement, visites : à montrer aux marques.', 'Impressions, reach, engagement, visits: to show to brands.'), 'ok'],
@@ -22456,6 +22563,10 @@
       storyInput.addEventListener('change', function () {
         var file = storyInput.files && storyInput.files[0];
         storyInput.value = '';
+        if (file && /^video\//.test(file.type)) {
+          if (!canPostVideoStory()) return showToast(L('Les stories vidéo sont réservées à Carnet+.', 'Video stories are for Carnet+ members.'));
+          return prepareStoryVideo(file);
+        }
         if (!file || !/^image\//.test(file.type)) return;
         resizeImageToDataUrl(file, 1080, 0.6, function (dataUrl) {
           if (!dataUrl) return showToast(tr('cannot_read_image'));
@@ -25331,6 +25442,7 @@
       function (c) { return c.where('authorUid', '==', myUid()); }
     ], function (list) {
       STATE.wallPosts = list;
+      cleanOldStoryMedia();
       maybeNotifyWallPostReaction(STATE.wallPosts);
       markCoreSynced('wallPosts');
       backfillPrivacy();
