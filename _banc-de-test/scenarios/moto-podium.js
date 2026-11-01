@@ -8,6 +8,7 @@ const { chromium, BASE } = require('../lib');
   const errs = []; p.on('pageerror', e => errs.push(e.message));
   await p.goto(BASE + 'index.html#lang=' + lang); await p.waitForTimeout(1600);
   await p.click('.bottom-nav-btn:nth-child(1)'); await p.waitForTimeout(400); // l'appli s'ouvre sur le Fil
+  await p.click('[data-cards-mode="passees"]:visible').catch(() => {}); await p.waitForTimeout(300);
   await p.getByText('Mugello').first().click(); await p.waitForTimeout(800);
   console.log('outing pills:', await p.$$eval('[data-pill-group="outing"]', e => e.map(x => x.textContent).join(' / ')));
   await p.click('[data-pill-group="outing"][data-pill="moto"]'); await p.waitForTimeout(400);
