@@ -8,7 +8,7 @@ const { chromium, BASE } = require('../lib');
   await p.goto(BASE + 'index.html#lang=' + lang); await p.waitForTimeout(1600);
   await p.click('.bottom-nav-btn:nth-child(1)'); await p.waitForTimeout(400); // l'appli s'ouvre sur le Fil
   // roulage à venir (Barcelone) : depuis « À venir »
-  await p.locator('.pill-tabs button').nth(1).click(); await p.waitForTimeout(400);
+  await p.locator('[data-cards-mode="avenir"]:visible').first().click(); await p.waitForTimeout(400);
   await p.click('[data-outing-event="e1"]'); await p.waitForTimeout(800);
   console.log('pills:', await p.$$eval('[data-pill-group="outing"]', e => e.map(x => x.textContent).join(' / ')));
   await p.click('.event-price-line [data-action="outing-budget"]'); await p.waitForTimeout(500);

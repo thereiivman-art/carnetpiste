@@ -5692,7 +5692,15 @@
     });
     if (rows) html += '<div class="notif-group-title">' + L('À traiter', 'To handle') + '</div>' + rows + '</div><div class="card notifications-panel">';
     var seenBefore = notifSeenOnOpen || loadNotifSeen().keys;
-    var acts = activityItems().slice(0, 40);
+    var allActs = activityItems().slice(0, 40);
+    // « X roule à … » : une catégorie à part, en haut.
+    var going = allActs.filter(function (it) { return it.key.indexOf('going:') === 0; });
+    var acts = allActs.filter(function (it) { return it.key.indexOf('going:') !== 0; });
+    if (going.length) html += '<div class="notif-group-title">' + L('Tes amis roulent', 'Your friends are riding') + '</div>' + going.map(function (it) {
+      var unread = !seenBefore[it.key];
+      return '<button type="button" class="notif-row' + (unread ? ' unread' : '') + '"' + notifGoAttrs(it.go) + '>' + notifIconHtml(it.kind) +
+        '<span class="notif-body"><span class="notif-text">' + it.html + '</span></span>' + (unread ? '<span class="notif-dot" aria-label="Nouveau"></span>' : '') + '</button>';
+    }).join('') + '</div><div class="card notifications-panel">' + (acts.length ? '<div class="notif-group-title">' + L('Activité', 'Activity') + '</div>' : '');
     html += acts.length ? acts.map(function (it) {
       var unread = !seenBefore[it.key];
       return '<button type="button" class="notif-row' + (unread ? ' unread' : '') + '"' + notifGoAttrs(it.go) + '>' + notifIconHtml(it.kind) +
@@ -10566,10 +10574,11 @@
     if (addChronoOpen) {
       return '<button type="button" class="link-btn back-link" data-action="chrono-cancel-add">‹ ' + L('Retour', 'Back') + '</button>' + renderForm();
     }
-    if (!ev) return '<div class="chrono-clock-line"><span class="chrono-clock" data-live-clock>' + liveClockText() + '</span></div>' + renderChronoNoRide(today);
+    // L'heure dans le coin de la première carte (rien ne se décale).
+    if (!ev) return renderChronoNoRide(today).replace(/<div class="card([^"]*)">/, '<div class="card$1 has-clock"><span class="chrono-clock chrono-clock-corner" data-live-clock>' + liveClockText() + '</span>');
     if (!meCompanionOn(ev)) selectedCircuit = ev.circuit; // le formulaire se pré-remplit sur le circuit du jour
     var circuit = ev.circuit, asComp = meCompanionOn(ev), html = '';
-    html += '<div class="chrono-hero"><span class="chrono-hero-label">' + L('Aujourd\'hui', 'Today') + '<span class="chrono-clock" data-live-clock>' + liveClockText() + '</span></span>' +
+    html += '<div class="chrono-hero"><span class="chrono-clock chrono-clock-corner" data-live-clock>' + liveClockText() + '</span><span class="chrono-hero-label">' + L('Aujourd\'hui', 'Today') + '</span>' +
       '<span class="chrono-hero-circuit">' + escapeHtml(circuit) + '</span>';
     if (!asComp) {
       var data = myDaySlots(ev, today), now = new Date(), nowMin = now.getHours() * 60 + now.getMinutes();
@@ -10954,9 +10963,9 @@
   function carnetPillsHtml(outings) {
     var upcoming = myUpcomingEvents();
     if (!outings.length && !upcoming.length && activeView !== 'event') return '<div class="pill-tabs"><button type="button" class="pill-btn active">' + L('Roulages', 'Trackdays') + '</button><button type="button" class="pill-btn" data-view="event">' + L('Calendrier', 'Calendar') + '</button></div>';
-    if (!carnetCardsMode) carnetCardsMode = outings.length ? 'passees' : 'avenir';
+    if (!carnetCardsMode) carnetCardsMode = upcoming.length || !outings.length ? 'avenir' : 'passees';
     if (!outings.length) carnetCardsMode = 'avenir';
-    var items = [['passees', L('Passés', 'Past') + (outings.length ? ' (' + outings.length + ')' : '')], ['avenir', 'À venir' + (upcoming.length ? ' (' + upcoming.length + ')' : '')]];
+    var items = [['avenir', L('À venir', 'Upcoming') + (upcoming.length ? ' (' + upcoming.length + ')' : '')], ['passees', L('Passés', 'Past') + (outings.length ? ' (' + outings.length + ')' : '')]];
     var inCal = activeView === 'event';
     return '<div class="pill-tabs main-subnav-pills">' + items.map(function (it) {
       return '<button type="button" class="pill-btn' + (!inCal && carnetCardsMode === it[0] ? ' active' : '') + '" data-cards-mode="' + it[0] + '">' + it[1] + '</button>';
@@ -13992,6 +14001,20 @@
         '<button type="button" class="rail-next" data-open-outing="' + escapeHtml(next.circuit) + '" data-outing-date="' + escapeHtml(next.dateStart) + '" data-outing-event="' + escapeHtml(next.id) + '">' +
         '<span class="outing-thumb">' + circuitThumbHtml(next.circuit) + '</span><span><strong>' + escapeHtml(next.circuit) + ' <span class="feed-upcoming-j">' + countdownLabel(days) + '</span></strong><span class="help-text">' + escapeHtml(formatEventRange(next, true)) + '</span></span></button></div>';
     }
+    // Grille de rappels : mes autres roulages à venir et ceux de mes amis.
+    var today0 = dateKey(new Date()), tiles = [], seenEv = {};
+    if (next) seenEv[next.id] = 1;
+    (typeof myUpcomingEvents === 'function' ? myUpcomingEvents() : []).slice(1, 4).forEach(function (ev) { seenEv[ev.id] = 1; tiles.push({ ev: ev, mine: true, who: [] }); });
+    friendsUpcoming().forEach(function (x) { if (seenEv[x.ev.id] && !x.friends.length) return; if (seenEv[x.ev.id]) { tiles.forEach(function (t) { if (t.ev.id === x.ev.id) t.who = x.friends; }); return; } seenEv[x.ev.id] = 1; tiles.push({ ev: x.ev, mine: x.mine, who: x.friends.concat(x.companions) }); });
+    tiles = tiles.sort(function (a, b) { return a.ev.dateStart < b.ev.dateStart ? -1 : 1; }).slice(0, 6);
+    if (tiles.length) h += '<div class="rail-section"><div class="rail-title">' + L('À venir', 'Coming up') + '</div><div class="rail-grid">' + tiles.map(function (t) {
+      var d = Math.max(0, Math.round((parseLocalDate(t.ev.dateStart) - parseLocalDate(today0)) / 86400000));
+      return '<button type="button" class="rail-tile" data-open-outing="' + escapeHtml(t.ev.circuit) + '" data-outing-date="' + escapeHtml(t.ev.dateStart) + '" data-outing-event="' + escapeHtml(t.ev.id) + '">' +
+        '<span class="outing-thumb">' + circuitThumbHtml(t.ev.circuit) + '</span><strong>' + escapeHtml(t.ev.circuit) + '</strong>' +
+        '<span class="feed-upcoming-j">' + countdownLabel(d) + '</span>' +
+        '<span class="help-text">' + escapeHtml(t.mine ? L('Tu y vas', 'You\'re going') + (t.who.length ? ' · ' + t.who.slice(0, 2).join(', ') : '') : t.who.slice(0, 2).join(', ') + (t.who.length > 2 ? ' +' + (t.who.length - 2) : '')) + '</span>' +
+        (t.who.length ? '<span class="rail-faces">' + t.who.slice(0, 4).map(function (n) { return avatarHtml((STATE.usersByName || {})[n] || {}, n); }).join('') + '</span>' : '') + '</button>';
+    }).join('') + '</div></div>';
     var sug = followSuggestions(me.name, 5);
     if (sug.length) {
       h += '<div class="rail-section"><div class="rail-title">' + L('Pilotes à suivre', 'Riders to follow') + '</div>' + sug.map(function (sg) {
@@ -14033,8 +14056,8 @@
           carnetNav.push([it[1], 'data-view="' + it[0] + '"', on]);
           // 3e niveau sous Roulages : Passés, À venir, Calendrier.
           if (it[0] === 'carnet' && on && !meIsNonRider()) {
-            carnetNav.push([L('Passés', 'Past'), 'data-view="carnet" data-cards-mode="passees" data-level="3"', activeView === 'carnet' && carnetCardsMode === 'passees']);
             carnetNav.push([L('À venir', 'Upcoming'), 'data-view="carnet" data-cards-mode="avenir" data-level="3"', activeView === 'carnet' && carnetCardsMode === 'avenir']);
+            carnetNav.push([L('Passés', 'Past'), 'data-view="carnet" data-cards-mode="passees" data-level="3"', activeView === 'carnet' && carnetCardsMode === 'passees']);
             carnetNav.push([L('Calendrier', 'Calendar'), 'data-view="event" data-level="3"', activeView === 'event']);
             // Dans le Calendrier : Liste / Mois / Découvrir en 4e niveau.
             if (activeView === 'event') carnetNav = carnetNav.concat(navPillEntries('events', 4));
@@ -18884,7 +18907,7 @@
     var me = currentUserProfile ? currentUserProfile.name : '';
     var friends = friendsOf(me).map(function (f) { return f.name; });
     var follow = followingOf(me).concat(followersOf(me));
-    var rank = function (n) { return friends.indexOf(n) !== -1 ? 0 : follow.indexOf(n) !== -1 ? 1 : 2; };
+    var rank = function (n) { return friends.indexOf(n) !== -1 ? 0 : isPersonality((STATE.usersByName || {})[n]) ? 1 : follow.indexOf(n) !== -1 ? 2 : 3; };
     q = (q || '').toLowerCase();
     return allKnownUserNames().filter(function (n) { return n !== me && n.toLowerCase().indexOf(q) === 0; })
       .sort(function (a, b) { return rank(a) - rank(b) || a.localeCompare(b); }).slice(0, 6);
@@ -18903,7 +18926,7 @@
       var list = mentionCandidates(a.q);
       if (!list.length) return hide();
       var me = currentUserProfile ? currentUserProfile.name : '', friends = friendsOf(me).map(function (f) { return f.name; });
-      box.innerHTML = list.map(function (n) { var u = (STATE.usersByName || {})[n] || {}; return '<button type="button" class="mention-opt" data-name="' + escapeHtml(n) + '">' + avatarHtml(u, n) + '<span>' + escapeHtml(n) + '</span>' + (friends.indexOf(n) !== -1 ? '<span class="help-text">' + L('ami', 'friend') + '</span>' : '') + '</button>'; }).join('');
+      box.innerHTML = list.map(function (n) { var u = (STATE.usersByName || {})[n] || {}; return '<button type="button" class="mention-opt" data-name="' + escapeHtml(n) + '">' + avatarHtml(u, n) + '<span>' + escapeHtml(n) + '</span>' + (friends.indexOf(n) !== -1 ? '<span class="help-text">' + L('ami', 'friend') + '</span>' : isPersonality(u) ? '<span class="help-text">' + L('personnalité', 'personality') + '</span>' : '') + '</button>'; }).join('');
       box.hidden = false;
       box.querySelectorAll('.mention-opt').forEach(function (b) {
         b.addEventListener('mousedown', function (e) { e.preventDefault(); });
@@ -22768,7 +22791,7 @@
           return;
         }
         var a = e.target.closest('.mini-avatar[data-person]');
-        if (a && a.getAttribute('data-person') && !e.target.closest('[data-open-person], .follow-card, .page-head, .story-bubble, .crop-modal-overlay, .mention-opt')) { e.preventDefault(); e.stopPropagation(); openPerson(a.getAttribute('data-person')); }
+        if (a && a.getAttribute('data-person') && !e.target.closest('[data-open-person], .follow-card, .page-head, .story-bubble, .crop-modal-overlay, .mention-opt, .rail-tile')) { e.preventDefault(); e.stopPropagation(); openPerson(a.getAttribute('data-person')); }
       }, true);
     }
     document.querySelectorAll('[data-action="repost"]').forEach(function (btn) {

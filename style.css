@@ -3913,8 +3913,9 @@ label.budget-row-title { cursor: pointer; margin: 0; }
 .chrono-form-card { padding-top: 0.9rem; }
 .cf-summary { font-size: 0.88rem; color: var(--text-muted); margin-bottom: 0.6rem; }
 .chrono-clock { margin-left: 0.5rem; color: var(--text); font-variant-numeric: tabular-nums; text-transform: none; letter-spacing: 0; }
-.chrono-clock-line { display: flex; justify-content: flex-end; font-weight: 700; font-size: 0.95rem; margin: 0 0 0.3rem; }
-.chrono-clock-line .chrono-clock { margin-left: 0; }
+.chrono-hero, .card.has-clock { position: relative; }
+.chrono-clock-corner { position: absolute; top: 0.1rem; right: 0; margin: 0; font-weight: 800; font-size: 1.15rem; font-family: var(--font-display); font-style: italic; }
+.card.has-clock .chrono-clock-corner { top: 0.9rem; right: 1rem; }
 .cf-confirm { border: 2px solid var(--accent); border-radius: 12px; padding: 0.7rem 0.8rem; margin: 0 0 0.8rem; display: flex; flex-direction: column; gap: 0.35rem; }
 .cf-confirm-q { font-weight: 700; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--accent); }
 .cf-confirm-slot { font-size: 1.15rem; font-weight: 600; }
@@ -4419,3 +4420,23 @@ span.social-count { cursor: default; }
 .story-infeed { margin-left: auto; opacity: 0.8; }
 .story-feed-opt { display: flex; align-items: center; gap: 0.5rem; color: #fff; font-weight: 600; margin: 0.4rem 0 0.2rem; }
 .story-feed-opt input { width: auto; }
+/* PC : la colonne de contenu part juste après la barre de gauche (plus
+   de vide à gauche), plus large ; la colonne de droite la suit. */
+@media (min-width: 960px) {
+  :root { --content-w: min(1000px, calc(100vw - var(--sidebar-w) - 4.4rem)); }
+  .wrap { padding-left: 2.2rem; padding-right: max(2.2rem, calc(100vw - var(--sidebar-w) - var(--content-w) - 2.2rem)); }
+}
+@media (min-width: 1280px) {
+  :root { --rail-w: 320px; --content-w: min(1000px, calc(100vw - var(--sidebar-w) - var(--rail-w) - 7.5rem)); }
+  .wrap { padding-left: 2.5rem; padding-right: calc(100vw - var(--sidebar-w) - 2.5rem - var(--content-w)); }
+  .side-rail { left: calc(var(--sidebar-w) + 2.5rem + var(--content-w) + 3rem); width: var(--rail-w); }
+}
+/* Grille de rappels (colonne de droite) */
+.rail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; }
+.rail-tile { display: flex; flex-direction: column; align-items: flex-start; gap: 0.25rem; padding: 0.6rem; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); color: var(--text); text-align: left; cursor: pointer; font: inherit; min-width: 0; width: 100%; }
+.rail-tile .outing-thumb { width: 36px; height: 36px; }
+.rail-tile strong { font-size: 0.88rem; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rail-tile .help-text { font-size: 0.75rem; line-height: 1.25; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rail-tile .feed-upcoming-j { font-size: 0.78rem; }
+.rail-faces { display: flex; margin-top: 0.15rem; }
+.rail-faces .mini-avatar { width: 20px; height: 20px; font-size: 0.6rem; margin-right: -5px; border: 2px solid var(--surface); }

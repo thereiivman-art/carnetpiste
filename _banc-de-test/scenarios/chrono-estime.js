@@ -10,7 +10,7 @@ const { chromium, BASE } = require('../lib');
   for (const id of ['e6', 'e7', 'e8']) {
     await p.goto('about:blank'); await p.goto(BASE + 'index.html#lang=' + lang); await p.waitForTimeout(1600);
   await p.click('.bottom-nav-btn:nth-child(1)'); await p.waitForTimeout(400); // l'appli s'ouvre sur le Fil
-    await p.locator('.pill-tabs button').nth(1).click(); await p.waitForTimeout(400);
+    await p.locator('[data-cards-mode="avenir"]:visible').first().click(); await p.waitForTimeout(400);
     await p.click('[data-outing-event="' + id + '"]'); await p.waitForTimeout(800);
     await p.click('[data-pill-group="outing"][data-pill="chronos"]').catch(() => {}); await p.waitForTimeout(300);
     console.log(id + ':', (await p.$eval('.outing-best-card', e => e.innerText)).replace(/\n/g, ' | '));

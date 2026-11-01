@@ -11,7 +11,7 @@ const { chromium, BASE } = require('../lib');
   if (await p.$('#jourj-overlay')) { await p.click('[data-jj="close"]'); await p.waitForTimeout(300); }
   await p.click('.bottom-nav-btn[data-view^="carnet"]'); await p.waitForTimeout(300);
   await p.click('.subnav-btn[data-view="carnet"]'); await p.waitForTimeout(300);
-  await p.click('[data-pill-group="carnet"][data-pill="avenir"], .pill-tabs button:nth-child(2)'); await p.waitForTimeout(300);
+  await p.click('[data-cards-mode="avenir"]'); await p.waitForTimeout(300);
   await p.click('[data-outing-event="e1"]'); await p.waitForTimeout(700);
   const tabs = () => p.$$eval('[data-pill-group="outing"]', e => e.map(x => x.innerText).join(' / '));
   console.log('pilote, onglets:', await tabs(), '| rôle:', await p.$$eval('.ride-role-btn.active', e => e.map(x => x.innerText).join()));
