@@ -888,6 +888,10 @@
   // then a few patterns with numbers or names in them) and swapped for
   // its English version. French mode never touches the DOM.
   var EN_LITERALS = {
+    // Fiche réglages voiture
+    "Amortisseurs AV": "Front dampers", "Amortisseurs AR": "Rear dampers", "Compression, détente, hauteur": "Compression, rebound, ride height",
+    "Géométrie": "Geometry", "Carrossage, pincement, chasse": "Camber, toe, caster", "Boîte / différentiel": "Gearbox / diff",
+    "Rapports, blocage": "Ratios, locking", "Aéro": "Aero", "Aileron, lame": "Wing, splitter", "Ex. sous-vireur en entrée du 3": "E.g. understeer into turn 3",
 "Comptes actifs (sur le mois)": "Active accounts (this month)",
 "Comptes créés": "Accounts created",
 "… via un parrainage ou un QR": "… via a referral or a QR code",
@@ -1551,6 +1555,39 @@
     }
     return null;
   }
+  // Mode voiture : le vocabulaire de l'interface suit la discipline du
+  // pilote (« Ma moto » → « Ma voiture », « Bike » → « Car »), une fois la
+  // page affichée, comme la traduction anglaise. Jamais dans ce que les
+  // gens ont écrit (messages, commentaires, notes, bio, champs de saisie).
+  var CAR_SKIP_SEL = '.wall-post-text, .post-comment-bubble, .coach-message-text, .note-text, .ph-bio, .story-caption, textarea, input, [contenteditable], .keep-words';
+  function carWord(s) {
+    if (!/oto|ike|otorcycle/i.test(s)) return s;
+    return s
+      .replace(/\b(M|m)otos\b/g, function (m, c) { return c === 'M' ? 'Voitures' : 'voitures'; })
+      .replace(/\b(M|m)oto\b/g, function (m, c) { return c === 'M' ? 'Voiture' : 'voiture'; })
+      .replace(/\b(M|m)otorcycles?\b/g, function (m, c) { return (c === 'M' ? 'Car' : 'car') + (/s$/.test(m) ? 's' : ''); })
+      .replace(/\b(M|m)otorbikes?\b/g, function (m, c) { return (c === 'M' ? 'Car' : 'car') + (/s$/.test(m) ? 's' : ''); })
+      .replace(/\b(B|b)ikes\b/g, function (m, c) { return c === 'B' ? 'Cars' : 'cars'; })
+      .replace(/\b(B|b)ike\b/g, function (m, c) { return c === 'B' ? 'Car' : 'car'; });
+  }
+  function carWordsTree(root) {
+    if (!root || !isCarMode()) return;
+    if (root.nodeType === 3) { carWordsText(root); return; }
+    if (root.nodeType !== 1 || (root.closest && root.closest(CAR_SKIP_SEL))) return;
+    var w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT), n, nodes = [];
+    while ((n = w.nextNode())) nodes.push(n);
+    nodes.forEach(carWordsText);
+    var els = root.querySelectorAll ? Array.prototype.slice.call(root.querySelectorAll('[placeholder],[title],[aria-label]')) : [];
+    els.forEach(function (el) {
+      ['title', 'aria-label'].forEach(function (a) { var v = el.getAttribute(a); if (v) { var t = carWord(v); if (t !== v) el.setAttribute(a, t); } });
+    });
+  }
+  function carWordsText(node) {
+    var v = node.nodeValue, par = node.parentNode;
+    if (!v || !par || (par.closest && par.closest(CAR_SKIP_SEL))) return;
+    var t = carWord(v);
+    if (t !== v) node.nodeValue = t;
+  }
   function translateTreeToEnglish(root) {
     if (!root || currentLang() !== 'en') return;
     if (root.nodeType === 3) { translateTextNode(root); return; }
@@ -1584,8 +1621,12 @@
   (function watchForEnglish() {
     if (typeof MutationObserver === 'undefined') return;
     var obs = new MutationObserver(function (muts) {
-      if (currentLang() !== 'en') return;
-      muts.forEach(function (m) { Array.prototype.forEach.call(m.addedNodes, translateTreeToEnglish); });
+      var en = currentLang() === 'en', car = isCarMode();
+      if (!en && !car) return;
+      muts.forEach(function (m) { Array.prototype.forEach.call(m.addedNodes, function (n) {
+        if (en) translateTreeToEnglish(n);
+        if (car) carWordsTree(n);
+      }); });
     });
     function start() { obs.observe(document.body, { childList: true, subtree: true }); }
     if (document.body) start(); else document.addEventListener('DOMContentLoaded', start);
@@ -4641,8 +4682,13 @@
     html += renderRoleInfoCard('accompagnant', currentRole);
     html += renderRoleInfoCard('organisateur', currentRole);
     html += '</div>' + cpillSection('profil', 'moto');
+    // Discipline : adapte le vocabulaire, la fiche réglages et les classements.
+    html += '<div class="discipline-choice" style="margin-top:0.9rem;"><span class="help-text">' + L('Je roule en', 'I ride in') + '</span><div class="ride-role-row">' +
+      '<button type="button" class="ride-role-btn keep-words' + (isCarMode() ? '' : ' active') + '" data-action="set-discipline" data-discipline="moto" aria-pressed="' + !isCarMode() + '">' + L('Moto', 'Bike') + '</button>' +
+      '<button type="button" class="ride-role-btn keep-words' + (isCarMode() ? ' active' : '') + '" data-action="set-discipline" data-discipline="auto" aria-pressed="' + isCarMode() + '">' + L('Voiture', 'Car') + '</button></div>' +
+      '<div class="help-text">' + L('Les classements et records ne comparent que les pilotes de ta discipline.', 'Rankings and records only compare drivers/riders of your discipline.') + '</div></div>';
     html += '<div id="profile-bike-wrap" style="display:' + (isNonRider ? 'none' : 'block') + '; margin-top:0.9rem;">' +
-      '<label for="profile-bike">' + tr('my_bike_label') + '</label><input type="text" id="profile-bike" placeholder="Ex. ST 765 RS" value="' + escapeHtml(p.bike || '') + '">' +
+      '<label for="profile-bike">' + tr('my_bike_label') + '</label><input type="text" id="profile-bike" placeholder="' + (isCarMode() ? 'Ex. Porsche 911 GT3' : 'Ex. ST 765 RS') + '" value="' + escapeHtml(p.bike || '') + '">' +
       '<div class="help-text">' + tr('bike_suggested_help') + '</div>' +
       '<label for="profile-bike-number" style="margin-top:0.7rem;">' + tr('bike_number_label') + '</label>' +
       '<input type="text" id="profile-bike-number" inputmode="numeric" pattern="[0-9]{1,3}" maxlength="3" placeholder="Ex. 12" value="' + escapeHtml(p.bikeNumber || '') + '">' +
@@ -6684,6 +6730,10 @@
 
   // Accompagnants and organisateurs don't ride: no chrono of their own.
   // An organisateur leading a team can still log one for its pilotes.
+  // Discipline du pilote : 'moto' (par défaut) ou 'auto' (voiture).
+  function myDiscipline() { return currentUserProfile && currentUserProfile.discipline === 'auto' ? 'auto' : 'moto'; }
+  function isCarMode() { return myDiscipline() === 'auto'; }
+  function disciplineOf(x) { return x && x.discipline === 'auto' ? 'auto' : 'moto'; }
   function meIsNonRider() {
     return !!(currentUserProfile && (currentUserProfile.role === 'accompagnant' || currentUserProfile.role === 'organisateur'));
   }
@@ -6770,7 +6820,7 @@
       '</select>' +
       '<input type="text" id="f-circuit-other" placeholder="Nom du circuit" style="margin-top:0.4rem;' + (formCircuits.length ? ' display:none;' : '') + '"></div>';
     html += '<div><label for="f-bike">' + tr('bike_label') + '</label>' +
-      '<input type="text" id="f-bike" list="bike-options" placeholder="Ex. ST 765 RS" value="' + escapeHtml((rider && riderBikeMap[rider]) || (rider && currentUserProfile && rider === currentUserProfile.name && currentUserProfile.bike) || '') + '">' +
+      '<input type="text" id="f-bike" list="bike-options" placeholder="' + (isCarMode() ? 'Ex. Porsche 911 GT3' : 'Ex. ST 765 RS') + '" value="' + escapeHtml((rider && riderBikeMap[rider]) || (rider && currentUserProfile && rider === currentUserProfile.name && currentUserProfile.bike) || '') + '">' +
       '<datalist id="bike-options">' + bikeDatalist() + '</datalist></div>';
     html += '</div>';
     // Entry granularity is deliberately flexible: one row can be just the
@@ -7621,6 +7671,7 @@
   // complète, de la MotoGP à moi.
   var TRACK_RECORD_CLASSES = [['motogp', 'MotoGP'], ['moto2', 'Moto2'], ['moto3', 'Moto3'], ['fsbk', 'FSBK']];
   function renderTrackRecordsCard(circuit) {
+    if (isCarMode()) return ''; // records MotoGP / Moto2 / Moto3 / FSBK : sans objet en voiture
     var recs = circuitInfo(circuit).trackRecords || {};
     var rows = TRACK_RECORD_CLASSES.filter(function (c) { return recs[c[0]] && recs[c[0]].t; }).map(function (c) {
       return { label: c[1], who: recs[c[0]].who || '', t: recs[c[0]].t, kind: 'pro' };
@@ -8680,6 +8731,21 @@
   // Notes de chrono et commentaire de ressenti : privés. Ils vivent dans
   // userPrivate/{uid}.sessionNotes[sessionId] (lisible par moi seul) et
   // sont fusionnés en mémoire dans STATE.sessions pour l'affichage.
+  // Classements, records et comparaisons : entre pilotes de la même
+  // discipline (on ne compare pas une voiture et une moto). Mes propres
+  // chronos restent toujours visibles dans mon carnet.
+  var lastRawSessions = null;
+  function sessionsForMyDiscipline(list) {
+    var me = currentUserProfile && currentUserProfile.name, d = myDiscipline();
+    return (list || []).filter(function (s) { return s.rider === me || disciplineOf(s) === d; });
+  }
+  function setMyDiscipline(d) {
+    if (!currentUserProfile) return;
+    currentUserProfile.discipline = d === 'auto' ? 'auto' : 'moto';
+    saveOwnBooleanField('discipline', currentUserProfile.discipline);
+    if (lastRawSessions) STATE.sessions = mergeSessionNotes(sessionsForMyDiscipline(lastRawSessions));
+    renderRoot();
+  }
   var SESSION_PRIVATE_FIELDS = ['note', 'feelingComment'];
   var mySessionNotes = {};
   var sessionNotesMigrated = {};
@@ -8732,6 +8798,15 @@
   // Pas de valeur d'exemple dans les champs techniques (pressions,
   // suspensions, rapports) : un chiffre affiché par l'appli pourrait être
   // pris pour un conseil. On indique seulement quoi noter.
+  var SETUP_FIELDS_CAR = [
+    ['pFrontCold', 'Pression AV à froid', 'bar', 'Ta valeur'], ['pRearCold', 'Pression AR à froid', 'bar', 'Ta valeur'],
+    ['pFrontHot', 'Pression AV à chaud', 'bar', 'Ta valeur'], ['pRearHot', 'Pression AR à chaud', 'bar', 'Ta valeur'],
+    ['tyres', 'Pneus', '', 'Marque, gomme, usure'], ['fork', 'Amortisseurs AV', '', 'Compression, détente, hauteur'],
+    ['shock', 'Amortisseurs AR', '', 'Compression, détente, hauteur'], ['geometry', 'Géométrie', '', 'Carrossage, pincement, chasse'],
+    ['gearing', 'Boîte / différentiel', '', 'Rapports, blocage'], ['aero', 'Aéro', '', 'Aileron, lame'],
+    ['note', 'Note', '', 'Ex. sous-vireur en entrée du 3']
+  ];
+  function setupFields() { return isCarMode() ? SETUP_FIELDS_CAR : SETUP_FIELDS; }
   var SETUP_FIELDS = [
     ['pFrontCold', 'Pression AV à froid', 'bar', 'Ta valeur'], ['pRearCold', 'Pression AR à froid', 'bar', 'Ta valeur'],
     ['pFrontHot', 'Pression AV à chaud', 'bar', 'Ta valeur'], ['pRearHot', 'Pression AR à chaud', 'bar', 'Ta valeur'],
@@ -8797,8 +8872,11 @@
     if (su.pFrontHot || su.pRearHot) parts.push(L('AV ', 'Front ') + n(su.pFrontHot) + L(' / AR ', ' / Rear ') + n(su.pRearHot) + L(' à chaud', ' hot'));
     if (su.tyres) parts.push(su.tyres);
     if (su.gearing) parts.push(su.gearing);
-    if (su.fork) parts.push(L('Fourche : ', 'Fork: ') + su.fork);
-    if (su.shock) parts.push(L('Amorto : ', 'Shock: ') + su.shock);
+    var car = isCarMode();
+    if (su.fork) parts.push((car ? L('Amortos AV : ', 'Front dampers: ') : L('Fourche : ', 'Fork: ')) + su.fork);
+    if (su.shock) parts.push((car ? L('Amortos AR : ', 'Rear dampers: ') : L('Amorto : ', 'Shock: ')) + su.shock);
+    if (su.geometry) parts.push(L('Géométrie : ', 'Geometry: ') + su.geometry);
+    if (su.aero) parts.push(L('Aéro : ', 'Aero: ') + su.aero);
     if (su.note) parts.push(su.note);
     return parts.join(' · ');
   }
@@ -8832,7 +8910,7 @@
     var prefill = current || lastSetupFor(x.circuit, sessionId) || {};
     var sheet = document.createElement('div');
     sheet.className = 'crop-modal-overlay setup-sheet';
-    var fields = SETUP_FIELDS.map(function (f) {
+    var fields = setupFields().map(function (f) {
       var val = prefill[f[0]] != null ? String(prefill[f[0]]) : '';
       var input = f[0] === 'note'
         ? '<textarea data-setup="' + f[0] + '" rows="2" placeholder="' + escapeHtml(f[3]) + '">' + escapeHtml(val) + '</textarea>'
@@ -8884,7 +8962,8 @@
     var names = {
       pFrontCold: L('Pression AV à froid', 'Front pressure, cold'), pRearCold: L('Pression AR à froid', 'Rear pressure, cold'),
       pFrontHot: L('Pression AV à chaud', 'Front pressure, hot'), pRearHot: L('Pression AR à chaud', 'Rear pressure, hot'),
-      tyres: L('Pneus', 'Tyres'), fork: L('Fourche', 'Fork'), shock: L('Amortisseur', 'Shock'), gearing: L('Transmission', 'Gearing')
+      tyres: L('Pneus', 'Tyres'), fork: isCarMode() ? L('Amortisseurs AV', 'Front dampers') : L('Fourche', 'Fork'), shock: isCarMode() ? L('Amortisseurs AR', 'Rear dampers') : L('Amortisseur', 'Shock'),
+      gearing: isCarMode() ? L('Boîte / différentiel', 'Gearbox / diff') : L('Transmission', 'Gearing'), geometry: L('Géométrie', 'Geometry'), aero: L('Aéro', 'Aero')
     };
     return names[key] || key;
   }
@@ -9746,7 +9825,7 @@
   function setupChanges(prev, cur) {
     if (!prev || !cur) return [];
     var out = [];
-    SETUP_FIELDS.forEach(function (f) {
+    setupFields().forEach(function (f) {
       var k = f[0];
       if (k === 'note') return;
       var a = prev[k] != null ? String(prev[k]) : '', b = cur[k] != null ? String(cur[k]) : '';
@@ -10535,6 +10614,7 @@
       selectedEventId = existing.id;
     } else {
       var ev = { id: genId(), circuit: circuit, dateStart: dateStart, dateEnd: dateEnd, riders: [me], note: '' };
+      if (isCarMode()) ev.discipline = 'auto';
       if (booking) ev.bookingUrl = booking;
       STATE.events.push(ev);
       selectedEventId = ev.id;
@@ -10762,6 +10842,7 @@
     if (findDuplicateSession(me, r.date, r.circuit, r.laps)) { done(); showToast(L('Ce chrono est déjà dans ton carnet.', 'This lap time is already in your logbook.')); return; }
     var prevState = JSON.parse(JSON.stringify(STATE));
     var session = { id: genId(), rider: me, date: r.date, circuit: r.circuit, laps: r.laps.slice(), loggedBy: r.from, createdAt: Date.now() };
+    if (isCarMode()) session.discipline = 'auto';
     if (r.slotLabel) session.slotLabel = r.slotLabel;
     var ev = r.eventId ? eventsList().filter(function (e) { return e.id === r.eventId; })[0] : null;
     if (ev && (ev.riders || []).indexOf(me) !== -1) session.eventId = ev.id;
@@ -13317,6 +13398,7 @@
     // roster, takes an event off this list.
     var candidates = (STATE.events || []).filter(function (ev) {
       if (!ev.teamId || isLeaderOfTeam(ev.teamId)) return false;
+      if (disciplineOf(ev) !== myDiscipline()) return false; // roulages voiture pour les pilotes voiture, et inversement
       var team = teamById(ev.teamId);
       if (!team || !team.teamPro) return false;
       if ((ev.riders || []).indexOf(me.name) !== -1) return false;
@@ -16168,6 +16250,7 @@
     eventsList();
     if (editingEventId === 'new') {
       var newEvent = { id: genId(), circuit: circuit, dateStart: dateStart, dateEnd: dateEnd, riders: riders, note: note };
+      if (isCarMode()) newEvent.discipline = 'auto';
       if (teamId) newEvent.teamId = teamId;
       else if (organizerNote) newEvent.organizerNote = organizerNote;
       if (eventVisibility) newEvent.eventVisibility = eventVisibility;
@@ -17393,7 +17476,16 @@
       if (pillState.person === 'saisons') return html + renderRiderSeasons(name, look, isMe) + '</div>';
       if (pillState.person === 'bientot' && !isMe) return html + (personUpcomingHtml(name) || '<div class="card help-text">' + L('Aucun roulage prévu pour l\'instant.', 'No trackday planned yet.') + '</div>') + '</div>';
       if (pillState.person === 'monfil' && withFeed) return html + renderMyFeedTab(u) + '</div>';
-      if (pillState.person === 'bientot' && withFeed) return html + (renderFeedUpcoming(true) || '<div class="card help-text">' + L('Aucun roulage prévu par tes potes pour l\'instant.', 'No trackday planned by your friends yet.') + '</div>') + '</div>';
+      // Ma fiche : d'abord MES prochains roulages (tels que les autres les
+      // voient, selon mon réglage Amis / Public), puis ceux de mes potes.
+      if (pillState.person === 'bientot' && withFeed) {
+        var shareV = (u && u.shareUpcoming) === 'public' ? 'public' : 'friends';
+        var shareSel = '<div class="help-text bientot-share">' + L('Visibles par ', 'Visible to ') +
+          '<select id="bientot-share-upcoming" class="inline-select"><option value="friends"' + (shareV === 'friends' ? ' selected' : '') + '>' + L('mes amis', 'my friends') + '</option><option value="public"' + (shareV === 'public' ? ' selected' : '') + '>' + L('tout le monde', 'everyone') + '</option></select></div>';
+        var mineUp = personUpcomingHtml(name);
+        return html + (mineUp ? mineUp.replace('</div>', '</div>' + shareSel) : '<div class="card help-text">' + L('Aucun roulage prévu pour l\'instant.', 'No trackday planned yet.') + '</div>') +
+          (renderFeedUpcoming(true) || '<div class="card help-text">' + L('Aucun roulage prévu par tes potes pour l\'instant.', 'No trackday planned by your friends yet.') + '</div>') + '</div>';
+      }
     }
     if (isPilote && u.shareSorties !== false) {
       var stats = riderStats(name);
@@ -17745,11 +17837,12 @@
     var me = currentUserProfile, today = dateKey(new Date());
     var next = eventsList().filter(function (ev) { return (ev.riders || []).indexOf(name) !== -1 && (ev.dateEnd || ev.dateStart) >= today; }).sort(function (a, b) { return a.dateStart < b.dateStart ? -1 : 1; });
     if (!next.length) return '';
-    return '<div class="card feed-upcoming"><div class="feed-record-label">' + L('Bientôt en piste', 'Coming up') + '</div>' + next.map(function (ev) {
+    var mine = me && name === me.name;
+    return '<div class="card feed-upcoming"><div class="feed-record-label">' + (mine ? L('Mes prochains roulages', 'My next trackdays') : L('Bientôt en piste', 'Coming up')) + '</div>' + next.map(function (ev) {
       var mineToo = me && (ev.riders || []).indexOf(me.name) !== -1, days = Math.max(0, Math.round((parseLocalDate(ev.dateStart) - parseLocalDate(today)) / 86400000));
       return '<div class="feed-upcoming-row"><button type="button" class="feed-upcoming-open" data-open-outing="' + escapeHtml(ev.circuit) + '" data-outing-date="' + escapeHtml(ev.dateStart) + '" data-outing-event="' + escapeHtml(ev.id) + '">' +
         '<span class="outing-thumb">' + circuitThumbHtml(ev.circuit) + '</span><span class="feed-upcoming-main"><strong>' + cName(ev.circuit) + ' <span class="feed-upcoming-j">' + countdownLabel(days) + '</span></strong><span class="help-text">' + escapeHtml(formatEventRange(ev, true)) + '</span></span></button>' +
-        (mineToo ? '<span class="feed-upcoming-tag">' + L('Tu y vas aussi', 'You\'re going too') + '</span>' : '<button type="button" class="ghost" data-notif-go="event" data-id="' + escapeHtml(ev.id) + '" data-join="1">' + L('J\'y vais aussi', 'I\'m going too') + '</button>') + '</div>';
+        (mine ? '' : mineToo ? '<span class="feed-upcoming-tag">' + L('Tu y vas aussi', 'You\'re going too') + '</span>' : '<button type="button" class="ghost" data-notif-go="event" data-id="' + escapeHtml(ev.id) + '" data-join="1">' + L('J\'y vais aussi', 'I\'m going too') + '</button>') + '</div>';
     }).join('') + '</div>';
   }
   // Profil › Mon fil : publier, puis mes publications et republications.
@@ -20892,6 +20985,9 @@
     var natEl = document.getElementById('profile-nationality');
     if (natEl) natEl.addEventListener('change', function () { saveNationality(natEl.value); });
     document.querySelectorAll('[data-action="export-my-data"]').forEach(function (b) { b.addEventListener('click', exportMyData); });
+    document.querySelectorAll('[data-action="set-discipline"]').forEach(function (b) {
+      b.addEventListener('click', function () { if (b.getAttribute('data-discipline') !== myDiscipline()) setMyDiscipline(b.getAttribute('data-discipline')); });
+    });
     document.querySelectorAll('[data-notif-go]').forEach(function (el) {
       el.addEventListener('click', function () { followNotifGo(el); });
     });
@@ -20968,6 +21064,8 @@
     }
     var shareUpcomingEl = document.getElementById('profile-share-upcoming');
     if (shareUpcomingEl) shareUpcomingEl.addEventListener('change', function () { saveOwnBooleanField('shareUpcoming', shareUpcomingEl.value); });
+    var bientotShareEl = document.getElementById('bientot-share-upcoming');
+    if (bientotShareEl) bientotShareEl.addEventListener('change', function () { saveOwnBooleanField('shareUpcoming', bientotShareEl.value); });
     var shareSortiesEl = document.getElementById('profile-share-sorties');
     if (shareSortiesEl) {
       shareSortiesEl.addEventListener('change', function () { saveOwnBooleanField('shareSorties', shareSortiesEl.checked); });
@@ -24016,6 +24114,8 @@
       return;
     }
     var session = { id: genId(), rider: rider, date: date, circuit: circuit, laps: laps, createdAt: Date.now() };
+    // Discipline du pilote du chrono (moi, ou l'équipier pour un Team Leader).
+    if ((rider === (currentUserProfile && currentUserProfile.name) ? isCarMode() : disciplineOf((STATE.usersByName || {})[rider]) === 'auto')) session.discipline = 'auto';
     if (videoUrl) session.videoUrl = videoUrl;
     if (bike) session.bike = bike;
     if (note) session.note = note;
@@ -24162,7 +24262,8 @@
     unsubscribers.push(db.collection('sessions').onSnapshot(function (snap) {
       var rawSessions = snap.docs.map(function (d) { return d.data(); });
       migratePublicSessionNotes(rawSessions);
-      STATE.sessions = mergeSessionNotes(rawSessions);
+      lastRawSessions = rawSessions;
+      STATE.sessions = mergeSessionNotes(sessionsForMyDiscipline(rawSessions));
       maybeNotifyChronoCertified(STATE.sessions);
       markCoreSynced('sessions');
       try { maybeNotifyFriendActivity(); } catch (e) {}
