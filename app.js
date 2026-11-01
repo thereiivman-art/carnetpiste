@@ -13853,9 +13853,14 @@
     var label = { carnet: tr('nav_carnet'), chrono: tr('nav_chrono'), communaute: tr('nav_communaute') }[tab] || '';
     return '<div class="section-heading"><span class="section-heading-kerb" aria-hidden="true"></span><h1 class="section-heading-title">' + escapeHtml(label) + '</h1></div>';
   }
+  function carnetSubItems() {
+    var items = [['carnet', L('Roulages', 'Trackdays')], ['circuit', 'Circuits'], ['stats', 'Stats']];
+    if (canAccessCoachSpace() && (isAdmin() || featureEnabled('teamsCoaching') || (STATE.myTeamMemberships || []).length > 0)) items.push(['coach', 'Coaching']);
+    return items;
+  }
   function renderSubNav(items) {
     if (items.length < 2) return '';
-    return '<div class="subnav" role="tablist">' + items.map(function (it) {
+    return '<div class="subnav main-subnav" role="tablist">' + items.map(function (it) {
       var on = activeView === it[0] || (it[0] === 'carnet' && activeView === 'event');
       return '<button type="button" role="tab" class="subnav-btn' + (on ? ' active' : '') + '" data-view="' + it[0] + '">' + it[1] + '</button>';
     }).join('') + '</div>';
@@ -13894,7 +13899,7 @@
   function renderCommunauteNav() {
     var me = currentUserProfile, nIn = me ? incomingFriendRequests(me.name).length : 0;
     var items = [['profil', L('Profil', 'Profile') + (nIn ? ' (' + nIn + ')' : '')], ['fil', L('Fil', 'Feed')]];
-    var html = '<div class="subnav" role="tablist">' + items.map(function (it) {
+    var html = '<div class="subnav main-subnav" role="tablist">' + items.map(function (it) {
       var on = activeView === 'social' && (pillState.social === it[0] || (it[0] === 'profil' && pillState.social === 'abonnements'));
       return '<button type="button" role="tab" class="subnav-btn' + (on ? ' active' : '') + '" data-view="social" data-pill-group="social" data-pill="' + it[0] + '">' + it[1] + '</button>';
     }).join('');
@@ -13952,10 +13957,30 @@
     var visibleTabs = MAIN_TABS;
     // Profile and notifications aren't one of the 3 tabs: none lit up then.
     var current = (profilePanelOpen || notificationsPanelOpen) ? null : navTabFor(activeView);
-    visibleTabs.forEach(function (tab) {
-      html += '<button type="button" class="bottom-nav-btn' + (tab[0] === 'chrono' ? ' bottom-nav-main' : '') + (current === tab[0] ? ' active' : '') + '" data-view="' + (lastSubView[tab[0]] || tab[0]) + '">' +
+    // PC : Communauté ouvre le Fil ; les sous-menus (Roulages, Circuits…,
+    // Profil, Fil, Teams) sont rangés sous leur menu dans la barre de
+    // gauche. Ajoutés après les 3 boutons (ordre visuel par « order »)
+    // pour ne pas changer la position des boutons dans la barre.
+    var desk = window.matchMedia && window.matchMedia('(min-width: 960px)').matches;
+    visibleTabs.forEach(function (tab, i) {
+      var toFil = desk && tab[0] === 'communaute';
+      html += '<button type="button" class="bottom-nav-btn' + (tab[0] === 'chrono' ? ' bottom-nav-main' : '') + (current === tab[0] ? ' active' : '') + '" style="order:' + (i * 2) + '" data-view="' + (toFil ? 'social' : (lastSubView[tab[0]] || tab[0])) + '"' + (toFil ? ' data-pill-group="social" data-pill="fil"' : '') + '>' +
         '<span class="bottom-nav-icon">' + tab[2] + '</span><span class="bottom-nav-label">' + tr(tab[1]) + '</span></button>';
     });
+    if (desk && currentUserProfile) {
+      var sub = function (order, items) {
+        return '<div class="nav-sub" style="order:' + order + '">' + items.map(function (it) { return '<button type="button" class="nav-sub-btn' + (it[2] ? ' active' : '') + '" ' + it[1] + '>' + it[0] + '</button>'; }).join('') + '</div>';
+      };
+      var onPanel = profilePanelOpen || notificationsPanelOpen;
+      html += sub(1, carnetSubItems().map(function (it) {
+        return [it[1], 'data-view="' + it[0] + '"', !onPanel && (activeView === it[0] || (it[0] === 'carnet' && (activeView === 'event' || activeView === 'outing')))];
+      }));
+      var me = currentUserProfile, nIn = incomingFriendRequests(me.name).length;
+      var comm = [[L('Profil', 'Profile') + (nIn ? ' (' + nIn + ')' : ''), 'data-view="social" data-pill-group="social" data-pill="profil"', !onPanel && activeView === 'social' && (pillState.social === 'profil' || pillState.social === 'abonnements')],
+        [L('Fil', 'Feed'), 'data-view="social" data-pill-group="social" data-pill="fil"', !onPanel && activeView === 'social' && pillState.social === 'fil']];
+      if (communauteSubItems().some(function (it) { return it[0] === 'team'; })) comm.push(['Teams', 'data-view="team"', !onPanel && activeView === 'team']);
+      html += sub(5, comm);
+    }
     html += '</nav>';
     return html;
   }
@@ -18335,12 +18360,13 @@
   // Ce qui est compris, le prix, et le statut du compte. Pas de paiement :
   // l'admin attribue Carnet+ depuis la gestion des comptes ; « Ça
   // m'intéresse » remonte une suggestion pour mesurer la demande.
-  var CARNET_PLUS_PRICE = { get month() { return L('2,99 €', '€2.99'); }, get year() { return L('24,99 €', '€24.99'); }, get team() { return L('19 €', '€19'); } };
+  var CARNET_PLUS_PRICE = { get month() { return L('0,99 €', '€0.99'); }, get team() { return L('19 €', '€19'); } };
   function hasCarnetPlus(u) { return !!((u || currentUserProfile || {}).plus); }
   function renderCarnetPlusTab(p) {
     var on = hasCarnetPlus(p);
     var check = '<svg class="cp-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7"/></svg>';
     var feats = [
+      [L('Sans publicité', 'No ads'), L('Aucune pub dans le Fil ni dans Mon fil.', 'No ads in the Feed or My feed.'), 'ok'],
       [L('Badge Carnet+', 'Carnet+ badge'), L('Le badge C+ à côté de ton nom, partout dans l\'appli.', 'The C+ badge next to your name, everywhere in the app.'), 'ok'],
       [L('Fiche personnalisée', 'Custom profile'), L('Couverture, plaque de course, couleur, sponsors, chrono vedette et vitrine.', 'Cover, race plate, colour, sponsors, featured lap and showcase.'), 'ok'],
       [L('Audience et media kit', 'Audience and media kit'), L('Impressions, comptes touchés, engagement, visites : à montrer aux marques.', 'Impressions, reach, engagement, visits: to show to brands.'), 'ok'],
@@ -18351,8 +18377,7 @@
     var h = '<div class="card cp-hero"><div class="cp-hero-top"><span class="cp-logo">C+</span><div><div class="cp-title">Carnet+</div><div class="cp-sub">' +
       L('Pour les pilotes qui veulent aller plus loin et soutenir l\'appli.', 'For riders who want to go further and support the app.') + '</div></div></div>' +
       '<div class="cp-status ' + (on ? 'on' : 'off') + '">' + (on ? L('Carnet+ actif sur ton compte', 'Carnet+ is active on your account') : L('Tu es sur la version gratuite', 'You\'re on the free version')) + '</div>' +
-      '<div class="cp-prices"><div class="cp-price"><strong>' + CARNET_PLUS_PRICE.month + '</strong><span>' + L('par mois', 'per month') + '</span></div>' +
-      '<div class="cp-price best"><span class="cp-tag">' + L('−30 %', '−30%') + '</span><strong>' + CARNET_PLUS_PRICE.year + '</strong><span>' + L('par an', 'per year') + '</span></div></div>' +
+      '<div class="cp-prices"><div class="cp-price best"><strong>' + CARNET_PLUS_PRICE.month + '</strong><span>' + L('par mois, sans engagement', 'per month, cancel anytime') + '</span></div></div>' +
       (on ? '' : '<button type="button" class="primary cp-cta" data-action="carnet-plus-interest">' + L('Ça m\'intéresse', 'I\'m interested') + '</button>') +
       '<div class="help-text cp-note">' + L('Simulation : aucun paiement pour l\'instant. Pendant la phase de test, tout reste offert.', 'Simulation: no payment for now. Everything stays free during the test phase.') + '</div></div>';
     h += '<div class="card"><h2 class="section-title">' + L('Compris dans Carnet+', 'Included in Carnet+') + '</h2>' + feats.map(function (f) {
@@ -20737,9 +20762,7 @@
       if (activeView !== 'outing' && activeView !== 'person' && activeView !== 'planning') lastSubView[navTabFor(activeView)] = activeView;
       // Budget est une pastille de Stats ; l'ancienne vue y renvoie.
       if (activeView === 'budget') { activeView = 'stats'; pillState.stats = 'budget'; }
-      var carnetItems = [['carnet', L('Roulages', 'Trackdays')], ['circuit', 'Circuits'], ['stats', 'Stats']];
-      if (canAccessCoachSpace() && (isAdmin() || featureEnabled('teamsCoaching') || (STATE.myTeamMemberships || []).length > 0)) carnetItems.push(['coach', 'Coaching']);
-      var carnetSub = renderSubNav(carnetItems);
+      var carnetSub = renderSubNav(carnetSubItems());
       if (activeView === 'outing') body = renderOutingPage();
       else if (activeView === 'person') body = renderPersonPage();
       else if (activeView === 'carnet') body = carnetSub + renderCarnetTab();
@@ -24913,8 +24936,18 @@
     var header = document.querySelector('header.page-head');
     if (!header) return;
     document.documentElement.style.setProperty('--header-h', header.offsetHeight + 'px');
+    // PC : les boutons de l'en-tête suivent la barre de gauche (dont la
+    // hauteur dépend des sous-menus).
+    var nav = document.querySelector('.bottom-nav');
+    if (nav && window.matchMedia && window.matchMedia('(min-width: 960px)').matches) {
+      var end = 0;
+      Array.prototype.forEach.call(nav.children, function (c) { end = Math.max(end, c.getBoundingClientRect().bottom); });
+      if (end) document.documentElement.style.setProperty('--nav-end', Math.round(end + 6) + 'px');
+    }
   }
   window.addEventListener('resize', updateFixedHeaderOffset);
+  // Passage mobile ↔ PC : la barre de gauche change (sous-menus).
+  if (window.matchMedia) { try { window.matchMedia('(min-width: 960px)').addEventListener('change', function () { renderRoot(); }); } catch (e) {} }
 
   function updateBanner() {
     var banner = document.getElementById('status-banner');

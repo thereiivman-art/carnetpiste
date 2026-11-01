@@ -4220,7 +4220,7 @@ span.social-count { cursor: default; }
   .bottom-nav-label { font-size: 0.98rem; }
   .bottom-nav-btn .bottom-nav-icon svg, .bottom-nav-btn svg { width: 24px; height: 24px; }
   /* L'en-tête devient la suite de la barre de gauche. */
-  header.page-head { left: 0; right: auto; top: calc(5rem + 3 * 3.25rem + 0.4rem); width: var(--sidebar-w); background: transparent; border: 0; box-shadow: none; backdrop-filter: none; z-index: 60; }
+  header.page-head { left: 0; right: auto; top: var(--nav-end, calc(5rem + 3 * 3.25rem + 0.4rem)); width: var(--sidebar-w); background: transparent; border: 0; box-shadow: none; backdrop-filter: none; z-index: 60; }
   header.page-head .page-head-inner { max-width: none; margin: 0; padding: 0 0.75rem; }
   header.page-head .page-head-row { flex-direction: column; align-items: stretch; gap: 0.2rem; }
   header.page-head .header-controls { display: flex; flex-direction: column; align-items: stretch; gap: 0.2rem; }
@@ -4235,6 +4235,12 @@ span.social-count { cursor: default; }
   header.page-head .hello-name { font-size: 0.98rem; font-weight: 600; font-family: var(--font-body); }
   header.page-head .banner:not(:empty) { margin-top: 0.6rem; }
   .wrap { padding-top: 2rem; }
+  /* Sous-menus sous leur menu principal (les onglets de page sont masqués). */
+  .nav-sub { display: flex; flex-direction: column; gap: 0.05rem; margin: 0.1rem 0 0.35rem 2.2rem; padding-left: 0.6rem; border-left: 2px solid var(--border); }
+  .nav-sub-btn { width: 100%; text-align: left; background: none; border: 0; border-radius: 10px; padding: 0.45rem 0.8rem; font: inherit; font-size: 0.92rem; font-weight: 600; color: var(--text-muted); cursor: pointer; }
+  .nav-sub-btn:hover { background: var(--surface-alt); color: var(--text); }
+  .nav-sub-btn.active { color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, transparent); }
+  .subnav.main-subnav { display: none; }
   /* Colonne de droite : à partir de 1280 px. */
 }
 @media (min-width: 1280px) {
@@ -4242,7 +4248,7 @@ span.social-count { cursor: default; }
     padding-left: max(2.2rem, calc((100vw - var(--sidebar-w) - var(--content-w) - var(--rail-w) - 3rem) / 2));
     padding-right: calc(max(2.2rem, calc((100vw - var(--sidebar-w) - var(--content-w) - var(--rail-w) - 3rem) / 2)) + var(--rail-w) + 3rem);
   }
-  .side-rail { display: block; position: fixed; top: 2rem; bottom: 1rem; overflow-y: auto; width: var(--rail-w);
+  .side-rail { display: block; position: fixed; top: calc(2rem - 6px); padding: 6px 6px 0; bottom: 1rem; overflow-y: auto; width: var(--rail-w);
     left: calc(var(--sidebar-w) + max(2.2rem, calc((100vw - var(--sidebar-w) - var(--content-w) - var(--rail-w) - 3rem) / 2)) + var(--content-w) + 3rem); }
   .rail-me { display: flex; align-items: center; justify-content: space-between; gap: 0.6rem; margin-bottom: 1.4rem; }
   .rail-me-who, .rail-person-who { flex: 1 1 auto; display: flex; align-items: center; gap: 0.7rem; border: 0; background: none; padding: 0; text-align: left; color: var(--text); cursor: pointer; min-width: 0; font: inherit; }
@@ -4325,3 +4331,9 @@ span.social-count { cursor: default; }
 .mini-vitrine .trophy-ico svg { width: 16px; height: 16px; }
 .ph-id .mini-vitrine { padding-top: 0.6rem; align-self: flex-start; }
 .mini-vitrine .trophy-ico.earned { box-shadow: none; }
+@media (min-width: 960px) and (max-height: 820px) {
+  .bottom-nav { padding-top: 4.2rem; }
+  .bottom-nav-btn, .bottom-nav-btn.bottom-nav-main { padding: 0.55rem 0.9rem; }
+  .nav-sub-btn { padding: 0.3rem 0.8rem; }
+  header.page-head .header-icon-btn { padding: 0.55rem 0.9rem; }
+}
