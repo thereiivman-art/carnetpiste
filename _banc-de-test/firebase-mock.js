@@ -61,7 +61,14 @@
     onAuthStateChanged: function (cb) { setTimeout(function () { cb(user); }, 0); return function () {}; },
     setPersistence: function () { return Promise.resolve(); },
     signOut: function () { return Promise.resolve(); },
-    signInWithEmailAndPassword: function () { return Promise.resolve(); }
+    signInWithEmailAndPassword: function () { return Promise.resolve(); },
+    // Inscription (#…&nouveau=1) : compte créé, email pas encore vérifié.
+    createUserWithEmailAndPassword: function (email) {
+      var u = { uid: 'unew', email: email, emailVerified: false, isAnonymous: false, displayName: null,
+        getIdToken: function () { return Promise.resolve('x'); }, sendEmailVerification: function () { return Promise.resolve(); }, reload: function () { return Promise.resolve(); } };
+      auth.currentUser = u;
+      return Promise.resolve({ user: u });
+    }
   };
   var firestoreFn = function () { return db; };
   firestoreFn.FieldValue = { serverTimestamp: function () { return new Date().toISOString(); }, arrayUnion: function () { return [].slice.call(arguments); }, arrayRemove: function () { return []; }, increment: function (n) { return n; }, delete: function () { return null; } };

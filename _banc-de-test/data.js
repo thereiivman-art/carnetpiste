@@ -2,6 +2,7 @@
   var today = new Date(); function d(off) { var x = new Date(today); x.setDate(x.getDate() + off); return x.toISOString().slice(0, 10); }
   var LANG = (location.hash.match(/lang=(\w+)/) || [])[1] || 'en'; var ADMIN = /admin=1/.test(location.hash); var EMAIL = ADMIN ? (window.__BENCH_ADMIN_EMAIL || 'admin@example.com') : 'alex@example.com';
   window.__MOCK_USER = { uid: 'u1', email: EMAIL, emailVerified: true, isAnonymous: false, displayName: 'Alex', getIdToken: function () { return Promise.resolve('x'); }, sendEmailVerification: function () { return Promise.resolve(); } };
+  if (/nouveau=1/.test(location.hash)) window.__MOCK_USER = null; // écran d'inscription
   window.__MOCK_DATA = {
     users: {
       u1: { name: 'Alex', role: /role=acc/.test(location.hash) ? 'accompagnant' : 'pilote', email: EMAIL, lang: LANG, tutorialSeen: true, country: 'FR', bike: 'Yamaha R6', level: 'intermediaire', bikeNumber: /look=1/.test(location.hash) ? '27' : undefined, look: /look=1/.test(location.hash) ? { cover: 'trace', plate: 'course', color: '#c8261f', bio: 'Pistard du dimanche' } : undefined },

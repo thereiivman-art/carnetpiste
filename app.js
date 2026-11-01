@@ -1224,7 +1224,7 @@
 "Connexion": "Sign in", "Mot de passe": "Password", "Se souvenir de moi": "Remember me", "Se connecter": "Sign in",
 "Pas encore de compte ?": "No account yet?", "Créer un compte": "Create an account", "Mot de passe oublié ?": "Forgot your password?",
 "Pseudo": "Username", "C'est le pseudo que verront les autres pilotes – en cas de doublon, ajoute ton numéro de course (ex. \"Julien #12\").": "This is the username others will see – if it's taken, add your race number (e.g. \"Julien #12\").",
-"Je suis": "I am a", "Pilote": "Rider", "Accompagnant": "Companion", "Organisateur": "Organiser", "Créer mon compte": "Create my account", "Déjà un compte ?": "Already have an account?",
+"Je suis": "I am a", "Je roule en": "I ride in", "Voiture": "Car", "Mon véhicule": "My vehicle", "Pilote": "Rider", "Accompagnant": "Companion", "Organisateur": "Organiser", "Créer mon compte": "Create my account", "Déjà un compte ?": "Already have an account?",
 "Ex. Julien #12": "E.g. Julien #12", "Email": "Email",
 "Vérifie ton email": "Check your email", "Un email de vérification a été envoyé à": "A verification email was sent to",
 ". Clique sur le lien qu'il contient, puis reviens ici. Pense à vérifier tes spams/courriers indésirables si tu ne le vois pas — l'expéditeur est une adresse @firebaseapp.com.": ". Click the link inside, then come back here. Check your spam folder if you can't find it — the sender is an @firebaseapp.com address.",
@@ -4638,7 +4638,7 @@
     // and which achievements set applies differ between the two.
     var isNonRider = p.role === 'accompagnant' || p.role === 'organisateur';
     var followed = p.followedRiders || [];
-    var pills = renderClientPills('profil', [['identite', 'Identité'], ['role', 'Rôle'], ['moto', isNonRider ? 'Pilotes suivis' : 'Ma moto']]);
+    var pills = renderClientPills('profil', [['identite', 'Identité'], ['role', 'Rôle'], ['moto', isNonRider ? 'Pilotes suivis' : 'Mon véhicule']]);
     var html = '<form id="profile-form">';
     html += cpillSection('profil', 'identite');
     html += '<div class="my-fiche-cta"><span><strong>' + L('Ma fiche', 'My profile page') + '</strong><span class="help-text">' + L('Ce que tes amis voient. Couverture, couleur, plaque, vitrine : à ton image.', 'What your friends see. Cover, colour, plate, showcase: make it yours.') + '</span></span>' +
@@ -17483,8 +17483,8 @@
         var shareSel = '<div class="help-text bientot-share">' + L('Visibles par ', 'Visible to ') +
           '<select id="bientot-share-upcoming" class="inline-select"><option value="friends"' + (shareV === 'friends' ? ' selected' : '') + '>' + L('mes amis', 'my friends') + '</option><option value="public"' + (shareV === 'public' ? ' selected' : '') + '>' + L('tout le monde', 'everyone') + '</option></select></div>';
         var mineUp = personUpcomingHtml(name);
-        return html + (mineUp ? mineUp.replace('</div>', '</div>' + shareSel) : '<div class="card help-text">' + L('Aucun roulage prévu pour l\'instant.', 'No trackday planned yet.') + '</div>') +
-          (renderFeedUpcoming(true) || '<div class="card help-text">' + L('Aucun roulage prévu par tes potes pour l\'instant.', 'No trackday planned by your friends yet.') + '</div>') + '</div>';
+        return html + (renderFeedUpcoming(true) || '<div class="card help-text">' + L('Aucun roulage prévu par tes potes pour l\'instant.', 'No trackday planned by your friends yet.') + '</div>') +
+          (mineUp ? mineUp.replace('</div>', '</div>' + shareSel) : '<div class="card help-text">' + L('Aucun roulage prévu pour l\'instant.', 'No trackday planned yet.') + '</div>') + '</div>';
       }
     }
     if (isPilote && u.shareSorties !== false) {
@@ -17838,7 +17838,7 @@
     var next = eventsList().filter(function (ev) { return (ev.riders || []).indexOf(name) !== -1 && (ev.dateEnd || ev.dateStart) >= today; }).sort(function (a, b) { return a.dateStart < b.dateStart ? -1 : 1; });
     if (!next.length) return '';
     var mine = me && name === me.name;
-    return '<div class="card feed-upcoming"><div class="feed-record-label">' + (mine ? L('Mes prochains roulages', 'My next trackdays') : L('Bientôt en piste', 'Coming up')) + '</div>' + next.map(function (ev) {
+    return '<div class="card feed-upcoming"><div class="feed-record-label">' + (mine ? L('Prochains roulages', 'Next trackdays') : L('Bientôt en piste', 'Coming up')) + '</div>' + next.map(function (ev) {
       var mineToo = me && (ev.riders || []).indexOf(me.name) !== -1, days = Math.max(0, Math.round((parseLocalDate(ev.dateStart) - parseLocalDate(today)) / 86400000));
       return '<div class="feed-upcoming-row"><button type="button" class="feed-upcoming-open" data-open-outing="' + escapeHtml(ev.circuit) + '" data-outing-date="' + escapeHtml(ev.dateStart) + '" data-outing-event="' + escapeHtml(ev.id) + '">' +
         '<span class="outing-thumb">' + circuitThumbHtml(ev.circuit) + '</span><span class="feed-upcoming-main"><strong>' + cName(ev.circuit) + ' <span class="feed-upcoming-j">' + countdownLabel(days) + '</span></strong><span class="help-text">' + escapeHtml(formatEventRange(ev, true)) + '</span></span></button>' +
@@ -20665,6 +20665,10 @@
         '<label><input type="radio" name="au-role" value="pilote" checked> Pilote</label>' +
         '<label><input type="radio" name="au-role" value="accompagnant"> Accompagnant</label>' +
         '<label><input type="radio" name="au-role" value="organisateur"> Organisateur</label></div>';
+      // Discipline : modifiable ensuite dans Mon compte › Profil.
+      html += '<label style="margin-top:0.7rem;">Je roule en</label><div class="auth-role-choice keep-words">' +
+        '<label><input type="radio" name="au-discipline" value="moto" checked> Moto</label>' +
+        '<label><input type="radio" name="au-discipline" value="auto"> Voiture</label></div>';
       html += '<label for="au-email" style="margin-top:0.7rem;">Email</label><input type="email" id="au-email" name="email" autocomplete="username" required>';
       html += '<label for="au-password" style="margin-top:0.7rem;">Mot de passe</label><input type="password" id="au-password" name="new-password" autocomplete="new-password" required minlength="6">';
       html += '<label for="au-nationality" style="margin-top:0.7rem;">Nationalité</label>' + nationalitySelectHtml('au-nationality', deviceCountryCode(), true);
@@ -20749,6 +20753,8 @@
     justAuthenticated = true;
     var roleEl = document.querySelector('input[name="au-role"]:checked');
     var role = roleEl ? roleEl.value : 'pilote';
+    var disciplineEl = document.querySelector('input[name="au-discipline"]:checked');
+    var discipline = disciplineEl && disciplineEl.value === 'auto' ? 'auto' : 'moto';
     var rawName = document.getElementById('au-name').value.trim();
     var email = document.getElementById('au-email').value.trim();
     var password = document.getElementById('au-password').value;
@@ -20774,6 +20780,7 @@
       }
       name = rawName;
       var profileDoc = { name: name, role: role, notifyBeforeSession: true };
+      if (discipline === 'auto') profileDoc.discipline = 'auto';
       var natSel = document.getElementById('au-nationality');
       if (natSel && natSel.value) profileDoc.nationality = natSel.value;
       var viaReferral = !!profileDoc.referredBy || !!pendingReferrer, viaRoulage = !!pendingRoulageId;
@@ -20813,7 +20820,7 @@
       // editing sorties). currentUserProfile is set directly here rather
       // than waiting on onAuthStateChanged's own profile fetch, since that
       // fetch can race this document write.
-      currentUserProfile = { name: name, role: role, email: email };
+      currentUserProfile = { name: name, role: role, email: email, discipline: discipline };
       authState = 'verify-email';
       autoVerifyEmailSent = true; // already sent just above -- don't let onAuthStateChanged send a second one
       renderRoot();
