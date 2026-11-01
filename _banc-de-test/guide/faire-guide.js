@@ -35,14 +35,14 @@ const TXT = {
   fr: {
     appName: 'Carnet Piste',
     kicker: 'Le carnet de bord du pilote amateur',
-    lead: 'Tes chronos, ta progression, tes potes, ta moto et ton budget, au même endroit. Même au paddock, sans réseau.',
+    lead: 'Tes chronos, ta progression, tes potes, ta moto (ou ta voiture) et ton budget, au même endroit. Même au paddock, sans réseau.',
     kpis: [['1 photo', 'de ta feuille de temps, et tes tours sont lus'], ['0 boîtier', 'à acheter : les chronos de l\'orga suffisent'], ['Hors ligne', 'tout marche au paddock, même sans réseau']],
     gainsH: 'Ce que tu y gagnes',
     gains: [
       ['trend', 'Tu vois tes progrès', 'Ton record sur chaque circuit, et ce que tu gagnes session après session.'],
       ['podium', 'Tu te mesures à tes potes', 'Le podium entre potes sur chaque circuit, après chaque roulage.'],
       ['clock', 'Tu es prêt le jour J', 'Ton groupe et tes horaires en grand, le compte à rebours, ta checklist.'],
-      ['wrench', 'Tu connais ta moto', 'Tes réglages, tes pressions et tes pneus, notés par toi, liés à chaque session.'],
+      ['wrench', 'Tu connais ta machine', 'Moto ou voiture : tes réglages, tes pressions et tes pneus, notés par toi, liés à chaque session.'],
       ['euro', 'Tu tiens ton budget', 'Le prix des roulages, tes frais, et le total de ta saison.'],
       ['star', 'Tu gardes tes souvenirs', 'Tes saisons, tes trophées, et des stories à partager.']
     ],
@@ -66,7 +66,7 @@ const TXT = {
     proto: 'C\'est un prototype : dis-moi ce qui t\'aide et ce qui manque.',
     detailK: 'En détail',
     detail: [
-      ['journee', 'Ta journée, session par session', 'Après le roulage, prends en photo la feuille de temps : Carnet Piste lit tes tours.', ['Ton meilleur temps et ce que tu as gagné d\'une session à l\'autre.', 'Ce que tu avais changé sur la moto entre deux sessions.', 'Une capture d\'écran ou le PDF de l\'orga marchent aussi.']],
+      ['journee', 'Ta journée, session par session', 'Après le roulage, prends en photo la feuille de temps : Carnet Piste lit tes tours.', ['Ton meilleur temps et ce que tu as gagné d\'une session à l\'autre.', 'Ce que tu avais changé sur la moto entre deux sessions.', 'Une capture d\'écran, le PDF de l\'orga, ou plusieurs captures d\'un coup, même en colonnes par jour.']],
       ['prochain', 'Le jour J', 'Le matin du roulage, l\'appli s\'ouvre sur l\'essentiel.', ['Ton groupe, tes horaires et un compte à rebours.', 'Horaires manquants ? Une photo du planning du paddock suffit.', 'Le roulage dans ton agenda, en un geste.']],
       ['potes', 'Entre potes', 'Chaque roulage se termine par un récap partagé avec tes amis.', ['Le podium entre potes sur chaque circuit, prêt à partager.', 'Tes accompagnants suivent tes roulages et peuvent saisir tes chronos.', 'Les albums photos de chacun, réunis sur le roulage.']],
       ['pressions', 'Ta moto', 'Tout ce que tu notes sur ta moto, retrouvé au bon moment.', ['Tes réglages après chaque session, et ceux de ton record.', 'Tes pressions AV et AR, circuit par circuit.', 'Les sessions et les km faits sur chaque train de pneus.', 'Carnet Piste ne propose aucune valeur : ce sont les tiennes.']],
@@ -80,14 +80,14 @@ const TXT = {
   en: {
     appName: 'Pitbook',
     kicker: 'The amateur track rider\'s logbook',
-    lead: 'Your lap times, your progress, your friends, your bike and your budget, all in one place. Even in the paddock, with no signal.',
+    lead: 'Your lap times, your progress, your friends, your bike (or your car) and your budget, all in one place. Even in the paddock, with no signal.',
     kpis: [['1 photo', 'of your timesheet, and your laps are read'], ['0 device', 'to buy: the organiser\'s timing is enough'], ['Offline', 'everything works in the paddock, even with no signal']],
     gainsH: 'What you get',
     gains: [
       ['trend', 'You see your progress', 'Your record on every circuit, and what you gain session after session.'],
       ['podium', 'You measure up to your friends', 'The friends\' podium on every circuit, after every trackday.'],
       ['clock', 'You\'re ready on the day', 'Your group and schedule in big type, the countdown, your checklist.'],
-      ['wrench', 'You know your bike', 'Your setup, pressures and tyres, logged by you, tied to each session.'],
+      ['wrench', 'You know your machine', 'Bike or car: your setup, pressures and tyres, logged by you, tied to each session.'],
       ['euro', 'You keep to your budget', 'Trackday prices, your costs, and your season total.'],
       ['star', 'You keep the memories', 'Your seasons, your trophies, and stories to share.']
     ],
@@ -111,7 +111,7 @@ const TXT = {
     proto: 'It\'s a prototype: tell me what helps and what\'s missing.',
     detailK: 'In detail',
     detail: [
-      ['journee', 'Your day, session by session', 'After the trackday, take a photo of the timesheet: Pitbook reads your laps.', ['Your best time and what you gained from one session to the next.', 'What you changed on the bike between two sessions.', 'A screenshot or the organiser\'s PDF work too.']],
+      ['journee', 'Your day, session by session', 'After the trackday, take a photo of the timesheet: Pitbook reads your laps.', ['Your best time and what you gained from one session to the next.', 'What you changed on the bike between two sessions.', 'A screenshot, the organiser\'s PDF, or several screenshots at once, even with one column per day.']],
       ['prochain', 'Race day', 'On the morning of the trackday, the app opens on what matters.', ['Your group, your schedule and a countdown.', 'Schedule missing? A photo of the paddock board is enough.', 'The trackday in your calendar, in one tap.']],
       ['potes', 'With your friends', 'Every trackday ends with a recap shared with your friends.', ['The friends\' podium on every circuit, ready to share.', 'Your companions follow your trackdays and can log your lap times.', 'Everyone\'s photo albums, gathered on the trackday.']],
       ['pressions', 'Your bike', 'Everything you note about your bike, found at the right time.', ['Your setup after each session, and the one from your record.', 'Your front and rear pressures, circuit by circuit.', 'Sessions and km done on each set of tyres.', 'Pitbook suggests no value: they are yours.']],
