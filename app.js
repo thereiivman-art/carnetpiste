@@ -4798,7 +4798,8 @@
     {
       sections.affichage += '<div class="app-version-row"><span class="help-text">' + L('Version de l\'appli : ', 'App version: ') + escapeHtml(currentAppVersion()) + '</span>' +
         '<button type="button" class="ghost" data-action="check-app-update">' + L('Mettre à jour', 'Update') + '</button></div>';
-      sections.affichage = renderSubPills('generalsub', [['affichage', 'Affichage', sections.affichage], ['voyage', 'Voyage par défaut', flatSections(renderMyTravelDefaultsSection())]]);
+      // « Voyage par défaut » retiré : les infos de voyage se notent sur chaque roulage.
+
     }
     var accountHtml = '';
     // Separate form -- changing the sign-in email needs the current
