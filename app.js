@@ -102,7 +102,7 @@
       no_event: 'Aucun roulage.', event_count_suffix: ' roulage', events_count_suffix: ' roulages',
       riders_unspecified: 'Pilotes non précisés', close: 'Fermer',
       team_label: 'Team', organizer_label: 'Organisateur', dates_label: 'Dates', note_label: 'Note',
-      book_register: 'Réserver chez l\'orga ↗', how_was_it: 'Comment s\'est passé ce roulage ?',
+      book_register: 'Réserver', how_was_it: 'Comment s\'est passé ce roulage ?',
       groups_horaires_this_event: 'Groupes & horaires de ce roulage', circuit_map_heading: 'Carte du circuit',
       modify: 'Modifier',
       vis_public: 'Public', vis_adherent: 'Adhérent only', vis_membre: 'Membre only', vis_follower: 'Abonnés seulement', vis_ouvert: 'Ouvert',
@@ -346,7 +346,7 @@
       readonly_can_edit_suffix2: ' peut modifier ce roulage.', edit_event_btn: 'Modifier le roulage',
       ev_vis_public: 'Public', ev_vis_adherent_only: 'Adhérents seulement', ev_vis_membre_only: 'Membres seulement',
       ev_vis_follower_only: 'Abonnés seulement', ev_vis_ouvert: 'Ouvert', visibility_label: 'Visibilité',
-      book_register_btn: 'Réserver / S\'inscrire ↗', rider_col_label: 'Pilote',
+      book_register_btn: 'Réserver', rider_col_label: 'Pilote',
       event_bike_number_label: 'N° pour ce roulage', save_number_aria: 'Enregistrer le N°',
       event_bike_number_prefix: 'N° pour ce roulage : #', no_participants: 'Aucun participant.',
       participants_heading: 'Participants', requests_to_accept_heading: 'Demandes à accepter', accept_btn: 'Accepter',
@@ -498,7 +498,7 @@
       no_event: 'No trackday.', event_count_suffix: ' trackday', events_count_suffix: ' trackdays',
       riders_unspecified: 'Riders not specified', close: 'Close',
       team_label: 'Team', organizer_label: 'Organiser', dates_label: 'Dates', note_label: 'Note',
-      book_register: 'Book with the organiser ↗', how_was_it: 'How did this trackday go?',
+      book_register: 'Book', how_was_it: 'How did this trackday go?',
       groups_horaires_this_event: 'Groups & schedule for this trackday', circuit_map_heading: 'Circuit map',
       modify: 'Edit',
       vis_public: 'Public', vis_adherent: 'Club members only', vis_membre: 'Members only', vis_follower: 'Followers only', vis_ouvert: 'Open',
@@ -742,7 +742,7 @@
       readonly_can_edit_suffix2: ' can edit this trackday.', edit_event_btn: 'Edit trackday',
       ev_vis_public: 'Public', ev_vis_adherent_only: 'Club members only', ev_vis_membre_only: 'Members only',
       ev_vis_follower_only: 'Followers only', ev_vis_ouvert: 'Open', visibility_label: 'Visibility',
-      book_register_btn: 'Book / Register ↗', rider_col_label: 'Rider',
+      book_register_btn: 'Book', rider_col_label: 'Rider',
       event_bike_number_label: 'Bike # for this trackday', save_number_aria: 'Save the #',
       event_bike_number_prefix: 'Bike # for this trackday: #', no_participants: 'No participants.',
       participants_heading: 'Participants', requests_to_accept_heading: 'Requests to accept', accept_btn: 'Accept',
@@ -9905,7 +9905,7 @@
     var meName = currentUserProfile && currentUserProfile.name;
     if (ev && joinBannerEventId === ev.id && (ev.riders || []).indexOf(meName) === -1) {
       html += '<div class="card join-banner"><strong>Tu y vas aussi ?</strong><div class="help-text">« J\'y vais » te met sur la liste du roulage dans Carnet Piste. L\'inscription et le paiement se font chez l\'orga.</div>' +
-        '<div class="join-banner-actions">' + (ev.bookingUrl ? '<button type="button" class="primary" data-action="open-external-url" data-url="' + escapeHtml(ev.bookingUrl) + '">Réserver chez l\'orga ↗</button>' : '') +
+        '<div class="join-banner-actions">' + (ev.bookingUrl ? '<button type="button" class="primary" data-action="open-external-url" data-url="' + escapeHtml(ev.bookingUrl) + '">' + tr('book_register') + '</button>' : '') +
         '<button type="button" class="' + (ev.bookingUrl ? 'ghost' : 'primary') + '" data-action="join-roulage-link" data-id="' + escapeHtml(ev.id) + '">J\'y vais</button></div></div>';
     }
     // Les actions du roulage, toutes ensemble sous le bloc groupe/statut
@@ -9915,11 +9915,11 @@
       var acts = '';
       // The team leader manages the roulage (participants, groups,
       // horaires…) straight from here, not only from the team's page.
-      if (leaderHere) acts += '<button type="button" class="primary" data-action="manage-from-outing" data-id="' + escapeHtml(ev.id) + '" data-team="' + escapeHtml(ev.teamId) + '">' + L('Gérer le roulage', 'Manage the trackday') + '</button>';
+      if (leaderHere) acts += '<button type="button" class="primary" data-action="manage-from-outing" data-id="' + escapeHtml(ev.id) + '" data-team="' + escapeHtml(ev.teamId) + '">' + L('Gérer', 'Manage') + '</button>';
+      if (!isRiderHere && status !== 'terminee') acts += joinEventButtonHtml(ev, leaderHere);
       if (ev.bookingUrl && !isRiderHere) acts += '<button type="button" class="primary" data-action="open-external-url" data-url="' + escapeHtml(ev.bookingUrl) + '">' + tr('book_register') + '</button>';
       if ((isRiderHere || leaderHere) && status !== 'terminee') acts += '<button type="button" class="ghost" data-action="share-roulage" data-id="' + escapeHtml(ev.id) + '">' + L('Inviter', 'Invite') + '</button>';
-      if (!ev.teamId) acts += '<button type="button" class="ghost" id="edit-event-btn" data-id="' + escapeHtml(ev.id) + '">✎ ' + tr('modify') + '</button>';
-      acts += '<button type="button" class="ghost" data-action="export-event-recap" data-id="' + escapeHtml(ev.id) + '">' + L('Partager', 'Share') + '</button>';
+      if (!ev.teamId && (isRiderHere || isAdmin())) acts += '<button type="button" class="ghost" id="edit-event-btn" data-id="' + escapeHtml(ev.id) + '">' + tr('modify') + '</button>';
       html += '<div class="outing-actions">' + acts + '</div>';
       if (status !== 'terminee') html += addToCalendarLink(ev);
       html += status !== 'terminee' ? eventPriceLine(ev) : eventSpendLine(ev);
@@ -10525,7 +10525,7 @@
         showToast(L('Ajouté au roulage ' + circuit + ' déjà créé' + (existing.teamId && teamById(existing.teamId) ? ' par ' + teamById(existing.teamId).name : '') + '.', 'Added to the existing ' + circuit + ' trackday' + (existing.teamId && teamById(existing.teamId) ? ' by ' + teamById(existing.teamId).name : '') + '.'), 'success');
       } else {
         // Sortie d'un organisateur fermée : demande pour la rejoindre.
-        db.collection('eventJoinRequests').doc(existing.id + '_' + me).set({ eventId: existing.id, from: me, status: 'pending', fromUid: myUid() }).then(function () {
+        db.collection('eventJoinRequests').doc(existing.id + '_' + me).set({ eventId: existing.id, teamId: existing.teamId || null, circuit: existing.circuit, from: me, status: 'pending', fromUid: myUid() }).then(function () {
           showToast('Ce roulage est géré par son organisateur : demande envoyée pour le rejoindre.', 'success');
         }).catch(function () { showToast('Impossible d\'envoyer la demande.'); });
       }
@@ -13339,7 +13339,7 @@
         : (myRequest
           ? '<span class="help-text">En attente du team</span>'
           : '<button type="button" class="ghost" data-action="event-join-request" data-id="' + escapeHtml(ev.id) + '" title="Te signale au team sur Carnet Piste – ne réserve ni ne paie rien.">J\'y vais</button>');
-      var actionHtml = (ev.bookingUrl ? '<button type="button" class="primary" data-action="open-external-url" data-url="' + escapeHtml(ev.bookingUrl) + '">Réserver chez l\'orga ↗</button> ' : '') + goHtml;
+      var actionHtml = (ev.bookingUrl ? '<button type="button" class="primary" data-action="open-external-url" data-url="' + escapeHtml(ev.bookingUrl) + '">' + tr('book_register') + '</button> ' : '') + goHtml;
       // The Team leads here (avatar, name, ✓ badge) rather than a bare
       // name in the help-text -- the whole point of this card is "which
       // Team PRO is proposing this", not just "which circuit".
@@ -15187,9 +15187,9 @@
     // Same action row as the roulage's own page: Gérer / Inviter / Partager.
     var onIt = (ev.riders || []).indexOf(currentUserProfile && currentUserProfile.name) !== -1;
     var pActs = '';
-    if (isLeader) pActs += '<button type="button" class="primary" data-action="manage-from-outing" data-id="' + escapeHtml(ev.id) + '" data-team="' + escapeHtml(ev.teamId) + '">' + L('Gérer le roulage', 'Manage the trackday') + '</button>';
+    if (isLeader) pActs += '<button type="button" class="primary" data-action="manage-from-outing" data-id="' + escapeHtml(ev.id) + '" data-team="' + escapeHtml(ev.teamId) + '">' + L('Gérer', 'Manage') + '</button>';
+    if (!onIt) pActs += joinEventButtonHtml(ev, isLeader);
     if (onIt || isLeader) pActs += '<button type="button" class="ghost" data-action="share-roulage" data-id="' + escapeHtml(ev.id) + '">' + L('Inviter', 'Invite') + '</button>';
-    pActs += '<button type="button" class="ghost" data-action="export-event-recap" data-id="' + escapeHtml(ev.id) + '">' + L('Partager', 'Share') + '</button>';
     html += '<div class="outing-actions planning-actions">' + pActs + '</div>';
     if (onIt) html += addToCalendarLink(ev);
     if (isLeader && editingEventId === ev.id) html += renderEventForm();
@@ -20517,20 +20517,31 @@
     pillState.outing = 'infos';
     activeView = 'outing';
   }
+  // « Rejoindre » : inscription directe (roulage perso, roulage de team
+  // ouvert, ou Team Leader du roulage), sinon demande au Team Leader ;
+  // « Demandé » tant qu'elle attend.
+  function joinEventButtonHtml(ev, leaderHere) {
+    var me = currentUserProfile && currentUserProfile.name;
+    if (!ev || !me || meIsNonRider()) return '';
+    var direct = !ev.teamId || ev.eventVisibility === 'ouvert' || leaderHere;
+    var pending = !direct && (STATE.eventJoinRequests || []).concat(myEventJoinRequestsOut || []).some(function (r) { return r.eventId === ev.id && r.from === me && r.status === 'pending'; });
+    if (pending) return '<button type="button" class="ghost" disabled>' + L('Demandé', 'Requested') + '</button>';
+    return '<button type="button" class="' + (ev.bookingUrl ? 'ghost' : 'primary') + '" data-action="join-roulage-link" data-id="' + escapeHtml(ev.id) + '">' + L('Rejoindre', 'Join') + '</button>';
+  }
   function joinRoulageFromLink(eventId) {
     var ev = eventsList().filter(function (e) { return e.id === eventId; })[0];
     var me = currentUserProfile && currentUserProfile.name;
     if (!ev || !me) return;
     joinBannerEventId = null;
     if ((ev.riders || []).indexOf(me) !== -1) { renderRoot(); return; }
-    if (!ev.teamId || ev.eventVisibility === 'ouvert') {
+    if (!ev.teamId || ev.eventVisibility === 'ouvert' || isLeaderOfTeam(ev.teamId)) {
       var prevState = JSON.parse(JSON.stringify(STATE));
       ev.riders = (ev.riders || []).concat([me]);
       persist(prevState);
       showToast('Tu es sur la liste de ' + ev.circuit + '.', 'success');
     } else {
-      db.collection('eventJoinRequests').doc(ev.id + '_' + me).set({ eventId: ev.id, from: me, status: 'pending', fromUid: myUid() }).then(function () {
-        showToast('C\'est noté : le team doit valider.', 'success');
+      db.collection('eventJoinRequests').doc(ev.id + '_' + me).set({ eventId: ev.id, teamId: ev.teamId, circuit: ev.circuit, from: me, status: 'pending', fromUid: myUid() }).then(function () {
+        showToast(L('Demande envoyée : le Team Leader doit valider.', 'Request sent: the Team Leader has to approve it.'), 'success');
       }).catch(function () { showToast('Impossible d\'envoyer la demande.'); });
     }
     renderRoot();
