@@ -137,7 +137,7 @@ service cloud.firestore {
       allow read: if verified() || (request.auth != null && request.auth.uid == userId);
       allow create: if realAccount() && request.auth.uid == userId
         && ownsNameAfter(request.resource.data.name)
-        && !request.resource.data.keys().hasAny(['trackNotes', 'debriefs', 'email', 'lastNameChangeAt'])
+        && !request.resource.data.keys().hasAny(['trackNotes', 'debriefs', 'email', 'lastNameChangeAt', 'prevName'])
         && request.resource.data.get('certified', false) == false
         && request.resource.data.get('personality', false) == false
         && request.resource.data.get('pro', false) == false
@@ -160,6 +160,10 @@ service cloud.firestore {
           && request.resource.data.get('photographer', false) == resource.data.get('photographer', false)
           // Repères, débriefs et email ne reviennent jamais sur le profil public.
           && keptOrRemoved('trackNotes') && keptOrRemoved('debriefs') && keptOrRemoved('email')
+          // prevName : mon pseudo précédent, posé seulement au moment d'un
+          // changement de pseudo (sert à me renommer dans les roulages).
+          && (request.resource.data.get('prevName', null) == resource.data.get('prevName', null)
+              || (request.resource.data.name != resource.data.name && request.resource.data.prevName == resource.data.name))
           // Le délai de 30 jours entre deux changements de pseudo ne se
           // contourne plus en réécrivant soi-même lastNameChangeAt.
           && ((request.resource.data.name == resource.data.name
@@ -247,40 +251,64 @@ service cloud.firestore {
     // (public/adherent/membre/follower/ouvert) is a display-layer filter only
     // (see eventsList()), same convention as every other audience field
     // in this app -- read stays open to any signed-in account.
+    // Roulages : personne n'est inscrit sans son accord. On s'inscrit soi-
+    // même (« J'y vais aussi », roulage de team « ouvert »), ou on y entre
+    // par une invitation qu'on accepte (eventInvites), ou par une demande
+    // validée par le Team Leader (eventJoinRequests).
+    function ridersBefore() { return resource.data.get('riders', []).toSet(); }
+    function ridersAfter() { return request.resource.data.get('riders', []).toSet(); }
+    // Je m'ajoute ou me retire moi-même, et rien d'autre ne bouge dans la liste.
+    function ridersOnlySelf() {
+      return ridersAfter().difference(ridersBefore()).hasOnly([myName()])
+        && ridersBefore().difference(ridersAfter()).hasOnly([myName()]);
+    }
+    // Changement de pseudo : mon ancien nom (prevName, figé par la règle
+    // users) remplacé par le nouveau, et seulement lui.
+    function myPrevName() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('prevName', '');
+    }
+    function ridersRename() {
+      return myPrevName() != ''
+        && ridersAfter().difference(ridersBefore()).hasOnly([myName()])
+        && ridersBefore().difference(ridersAfter()).hasOnly([myPrevName()]);
+    }
+    // Team Leader : retire qui il veut, mais n'ajoute que lui-même ou le
+    // pilote dont il valide la demande (lastJoinAccepted, demande existante).
+    function leaderRidersOk(eventId) {
+      return ridersAfter().difference(ridersBefore()).size() == 0
+        || ridersAfter().difference(ridersBefore()).hasOnly([myName()])
+        || (request.resource.data.get('lastJoinAccepted', '') != ''
+            && ridersAfter().difference(ridersBefore()).hasOnly([request.resource.data.lastJoinAccepted])
+            && exists(/databases/$(database)/documents/eventJoinRequests/$(eventId + '_' + request.resource.data.lastJoinAccepted)));
+    }
+    function hasAcceptedEventInvite(eventId) {
+      return exists(/databases/$(database)/documents/eventInvites/$(eventId + '_' + myName()))
+        && get(/databases/$(database)/documents/eventInvites/$(eventId + '_' + myName())).data.status == 'accepted';
+    }
+    function selfAppendOnly() {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['riders'])
+        && request.resource.data.riders == resource.data.get('riders', []).concat([myName()]);
+    }
     match /events/{id} {
       allow read: if verified();
-      allow create: if verified() && (request.resource.data.get('teamId', null) == null || isTeamLeader(request.resource.data.teamId));
-      // A Team Event flagged 'ouvert' also lets any verified account add
-      // themselves (only themselves, only an addition) to riders directly
-      // -- true self-registration, "sans validation" per the brief; every
-      // other visibility tier and every other field stays leader-only.
-      // Exact-equality check (old riders + [myName()], in that order) --
-      // a size+1-and-myName-present check alone would only prove the net
-      // count and that I'm now in there, not that every existing rider
-      // survived untouched: a malicious verified account could otherwise
-      // swap out anyone else's name in the same write as long as the net
-      // size still moved by +1 and its own name was somewhere in the
-      // result. concat() pins the result to "exactly the old list, plus
-      // me, appended" -- nothing else can move.
-      // A rider of the event may also react with one emoji once it's
-      // over (reactions.<myName()>, own key only, see onlyOwnKeyChanged)
-      // -- the lightweight post-event "likes" ask, deliberately not a
-      // free-text comment/photo thread. personalMediaLinks is the same
-      // own-key-only shape -- each rider's own photo album link, open to
-      // any rider on the roster (not just the Team Leader, unlike the one
-      // shared mediaLink field above).
-      // A personal event (no teamId) is editable by the pilotes it lists
-      // (or by the admin), and anyone may append themselves to its riders
-      // -- no longer by any verified account whatsoever.
+      // À la création, la liste ne contient que moi (ou personne) : les
+      // autres sont invités ensuite.
+      allow create: if verified() && (isAdmin() || (
+        (request.resource.data.get('teamId', null) == null || isTeamLeader(request.resource.data.teamId))
+        && request.resource.data.get('riders', []).toSet().difference([myName()].toSet()).size() == 0));
       allow update: if verified() && (
-        (resource.data.get('teamId', null) == null
-          && (isAdmin() || myName() in resource.data.get('riders', [])
-              || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['riders'])
-                  && request.resource.data.riders == resource.data.get('riders', []).concat([myName()]))))
-        || isTeamLeader(resource.data.teamId)
-        || (resource.data.get('eventVisibility', null) == 'ouvert'
-            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['riders'])
-            && request.resource.data.riders == resource.data.get('riders', []).concat([myName()]))
+        isAdmin()
+        // Roulage perso : ses pilotes en modifient les infos, mais dans la
+        // liste chacun ne touche qu'à son propre nom.
+        || (resource.data.get('teamId', null) == null && request.resource.data.get('teamId', null) == null
+            && myName() in resource.data.get('riders', []) && ridersOnlySelf())
+        || (resource.data.get('teamId', null) == null && selfAppendOnly())
+        || (resource.data.get('teamId', null) != null && isTeamLeader(resource.data.teamId) && leaderRidersOk(id))
+        || (resource.data.get('eventVisibility', null) == 'ouvert' && selfAppendOnly())
+        || (selfAppendOnly() && hasAcceptedEventInvite(id))
+        || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['riders', 'riderGroups', 'riderBikeNumbers', 'riderRoles', 'personalMediaLinks', 'reactions'])
+            && ridersRename()
+            && request.resource.data.get('riderGroups', {}).diff(resource.data.get('riderGroups', {})).affectedKeys().hasOnly([myName(), myPrevName()]))
         || (myName() in resource.data.get('riders', [])
             && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reactions'])
             && onlyOwnKeyChanged(resource.data.get('reactions', {}), request.resource.data.reactions))
@@ -306,6 +334,27 @@ service cloud.firestore {
       // A personal roulage (no team) that only lists me can go with my account.
       allow delete: if verified() && (isAdmin() || (resource.data.get('teamId', null) != null && isTeamLeader(resource.data.teamId))
         || (resource.data.get('teamId', null) == null && resource.data.get('riders', []).removeAll([myName()]).size() == 0));
+    }
+    // Invitation à un roulage : id = roulage_pseudo. Envoyée par un pilote
+    // du roulage perso, ou par le Team Leader d'un roulage de team ;
+    // acceptée ou refusée par l'invité seul.
+    match /eventInvites/{id} {
+      allow read: if verified() && (resource.data.from == myName() || resource.data.to == myName() || isAdmin());
+      allow create: if verified() && request.resource.data.from == myName()
+        && request.resource.data.to is string && request.resource.data.to != myName()
+        && request.resource.data.status == 'pending'
+        && id == request.resource.data.eventId + '_' + request.resource.data.to
+        && request.resource.data.keys().hasOnly(['eventId', 'teamId', 'circuit', 'dateStart', 'from', 'fromUid', 'to', 'toUid', 'status', 'createdAt'])
+        && exists(/databases/$(database)/documents/events/$(request.resource.data.eventId))
+        && (isAdmin()
+            || (get(/databases/$(database)/documents/events/$(request.resource.data.eventId)).data.get('teamId', null) == null
+                && myName() in get(/databases/$(database)/documents/events/$(request.resource.data.eventId)).data.get('riders', []))
+            || (get(/databases/$(database)/documents/events/$(request.resource.data.eventId)).data.get('teamId', null) != null
+                && isTeamLeader(get(/databases/$(database)/documents/events/$(request.resource.data.eventId)).data.teamId)));
+      allow update: if verified() && resource.data.to == myName() && resource.data.status == 'pending'
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])
+        && request.resource.data.status in ['accepted', 'refused'];
+      allow delete: if verified() && (resource.data.from == myName() || resource.data.to == myName() || isAdmin());
     }
     // A 'public' Team Event needs the leader's OK to actually join (unlike
     // 'ouvert', which self-registers straight onto the event, see above)

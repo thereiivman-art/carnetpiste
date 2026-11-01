@@ -5506,6 +5506,7 @@
     n += (STATE.friendRequests || []).filter(function (r) { return r.status === 'pending' && r.to === me.name; }).length;
     n += myPendingChronoProposals().length;
     n += (STATE.teamInvites || []).filter(function (r) { return r.status === 'pending' && r.to === me.name; }).length;
+    n += (STATE.eventInvites || []).filter(function (r) { return r.status === 'pending' && r.to === me.name; }).length;
     n += (STATE.coachRequests || []).filter(function (r) { return r.status === 'pending' && (r.from === me.name || r.to === me.name) && coachRequestAwaitingMe(r, me); }).length;
     n += (STATE.teamJoinRequests || []).filter(function (r) { return r.status === 'pending' && isLeaderOfTeam(r.teamId); }).length;
     n += (STATE.eventJoinRequests || []).filter(function (r) { return r.status === 'pending' && teamById(r.teamId) && isLeaderOfTeam(r.teamId); }).length;
@@ -5542,6 +5543,14 @@
       rows += renderFriendRow(r.from, '<button type="button" class="primary" data-action="accept-friend" data-id="' + escapeHtml(r.id) + '">Accepter</button>' +
         '<button type="button" class="ghost" data-action="remove-friend" data-id="' + escapeHtml(r.id) + '">Refuser</button>', true) +
         '<div class="help-text" style="margin:-0.3rem 0 0.6rem;">Demande d\'ami</div>';
+    });
+    (STATE.eventInvites || []).filter(function (r) { return r.status === 'pending' && r.to === me.name; }).forEach(function (r) {
+      var ev = (STATE.events || []).filter(function (e) { return e.id === r.eventId; })[0] || r;
+      rows += '<div class="friend-row"><div class="friend-row-main"><span class="friend-name-plain">' + escapeHtml(ev.circuit || r.circuit || L('Roulage', 'Trackday')) + (ev.dateStart ? ' · ' + escapeHtml(formatDateShortYear(ev.dateStart)) : '') + '</span>' +
+        '<span class="help-text">' + L('Invitation à un roulage de ', 'Trackday invitation from ') + escapeHtml(r.from) + '</span></div><div class="friend-row-actions">' +
+        '<button type="button" class="primary" data-action="event-invite-accept" data-id="' + escapeHtml(r.id) + '">' + L('Accepter', 'Accept') + '</button>' +
+        '<button type="button" class="ghost" data-action="event-invite-remove" data-id="' + escapeHtml(r.id) + '">' + L('Refuser', 'Decline') + '</button>' +
+        '</div></div>';
     });
     teamInvs.forEach(function (r) {
       rows += '<div class="friend-row"><div class="friend-row-main"><span class="friend-name-plain">' + escapeHtml((teamById(r.teamId) || {}).name || r.teamName) + '</span>' +
@@ -5961,7 +5970,7 @@
     }
     var writes = { role: role, notifyBeforeSession: notifyBeforeSession, followedRiders: followedRiders, bike: bike || null, bikeNumber: bikeNumber || null,
       firstName: firstName || null, lastName: lastName || null, chronoLink: chronoLink || null };
-    if (nameChanged) writes.name = finalName;
+    if (nameChanged) { writes.name = finalName; writes.prevName = oldName; } // prevName : me renommer dans les roulages (firestore.rules)
     // When the pseudo changes, every other collection that carries it has
     // to be found and backfilled with its owner's uid *before* this write
     // lands (see fetchGroupARenameTargets/backfillGroupAUids -- both rely
@@ -12893,7 +12902,7 @@
     var ev = (STATE.events || []).filter(function (e) { return e.id === req.eventId; })[0];
     if (!ev) return;
     var riders = (ev.riders || []).indexOf(req.from) === -1 ? (ev.riders || []).concat([req.from]) : (ev.riders || []);
-    db.collection('events').doc(req.eventId).update({ riders: riders }).then(function () {
+    db.collection('events').doc(req.eventId).update({ riders: riders, lastJoinAccepted: req.from }).then(function () {
       return db.collection('eventJoinRequests').doc(req.id).delete();
     }).then(function () {
       showToast(req.from + tr('joined_event_suffix'), 'success');
@@ -12927,9 +12936,44 @@
     if (!ev || !rider) return;
     var riders = ev.riders || [];
     if (riders.indexOf(rider) !== -1) return;
+    if (!currentUserProfile || rider !== currentUserProfile.name) { inviteRidersToEvent(eventId, [rider]); return; }
     db.collection('events').doc(eventId).update({ riders: riders.concat([rider]) }).catch(function (err) {
       showToast(tr('error_prefix') + (err && err.message ? err.message : err));
     });
+  }
+  // Invitation à un roulage (id = roulage_pseudo, comme les demandes pour
+  // rejoindre) : l'invité l'accepte depuis ses notifications et s'inscrit
+  // alors lui-même. Personne n'est inscrit sans son accord.
+  function inviteRidersToEvent(eventId, names) {
+    var me = currentUserProfile;
+    var ev = (STATE.events || []).filter(function (e) { return e.id === eventId; })[0];
+    if (!me || !ev || !names || !names.length) return;
+    var sent = [];
+    Promise.all(names.map(function (n) {
+      if (n === me.name || (ev.riders || []).indexOf(n) !== -1) return null;
+      var doc = { eventId: eventId, teamId: ev.teamId || null, circuit: ev.circuit || '', dateStart: ev.dateStart || '', from: me.name, fromUid: myUid(), to: n, toUid: uidOf(n), status: 'pending', createdAt: Date.now() };
+      return db.collection('eventInvites').doc(eventId + '_' + n).set(doc).then(function () { sent.push(n); });
+    })).then(function () {
+      if (sent.length) showToast(L('Invitation envoyée à ', 'Invitation sent to ') + sent.join(', ') + L(' : à accepter de son côté.', ': waiting for them to accept.'), 'success');
+    }).catch(function (err) { showToast(tr('error_prefix') + (err && err.message ? err.message : err)); });
+  }
+  function acceptEventInvite(inv) {
+    var me = currentUserProfile;
+    if (!me || !inv) return;
+    db.collection('eventInvites').doc(inv.id).update({ status: 'accepted' }).then(function () {
+      var ev = (STATE.events || []).filter(function (e) { return e.id === inv.eventId; })[0];
+      if (!ev || (ev.riders || []).indexOf(me.name) !== -1) return;
+      return db.collection('events').doc(inv.eventId).update({ riders: (ev.riders || []).concat([me.name]) });
+    }).then(function () {
+      showToast(tr('you_joined_prefix') + (inv.circuit || '') + tr('quote_close_period'), 'success');
+      return db.collection('eventInvites').doc(inv.id).delete();
+    }).catch(function (err) { showToast(tr('error_prefix') + (err && err.message ? err.message : err)); });
+  }
+  function removeEventInvite(id) {
+    db.collection('eventInvites').doc(id).delete().catch(function (err) { showToast(tr('error_prefix') + (err && err.message ? err.message : err)); });
+  }
+  function pendingEventInvitesFor(eventId) {
+    return (STATE.eventInvites || []).filter(function (r) { return r.eventId === eventId && r.status === 'pending'; });
   }
   function removeRiderFromEvent(eventId, rider) {
     var ev = (STATE.events || []).filter(function (e) { return e.id === eventId; })[0];
@@ -15998,10 +16042,16 @@
         '<input type="text" id="ev-riders-search" list="rider-options-ev" placeholder="Rechercher un nom..." autocomplete="off">' +
         '<div class="help-text">' + tr('riders_search_help') + '</div>' +
         '<datalist id="rider-options-ev">' + riderDatalistForEventForm(eventFormRidersDraft) + '</datalist>';
+      var formMe = currentUserProfile ? currentUserProfile.name : '', formOnEvent = ev.riders || [];
       html += '<div class="chip-row" style="margin-top:0.5rem;">' + eventFormRidersDraft.map(function (r) {
-        return '<span class="team-link-chip" style="display:inline-flex; align-items:center; gap:0.4rem;">' + escapeHtml(r) +
-          '<button type="button" class="ghost icon-btn" data-action="ev-rider-remove" data-name="' + escapeHtml(r) + '" aria-label="' + tr('remove_label') + '" style="padding:0;">×</button></span>';
-      }).join('') + '</div>';
+        var isNew = r !== formMe && formOnEvent.indexOf(r) === -1;
+        var removable = isNew || r === formMe || isAdmin();
+        return '<span class="team-link-chip" style="display:inline-flex; align-items:center; gap:0.4rem;">' + escapeHtml(r) + (isNew ? ' <em class="help-text">' + L('sera invité', 'will be invited') + '</em>' : '') +
+          (removable ? '<button type="button" class="ghost icon-btn" data-action="ev-rider-remove" data-name="' + escapeHtml(r) + '" aria-label="' + tr('remove_label') + '" style="padding:0;">×</button>' : '') + '</span>';
+      }).join('') + (ev.id ? pendingEventInvitesFor(ev.id).map(function (r) {
+        return '<span class="team-link-chip" style="opacity:0.7;">' + escapeHtml(r.to) + ' <em class="help-text">' + L('invité, en attente', 'invited, pending') + '</em></span>';
+      }).join('') : '') + '</div>' +
+        '<div class="help-text">' + L('Les autres pilotes reçoivent une invitation : ils sont inscrits seulement s\'ils l\'acceptent.', 'Other riders get an invitation: they only join if they accept it.') + '</div>';
       html += '<input type="hidden" id="ev-riders" value="' + escapeHtml(eventFormRidersDraft.join(',')) + '">';
       html += '<div class="event-checklist" style="margin-top:0.9rem;"><div class="event-checklist-title">' + tr('start_group_label') + '</div><div id="ev-groups-grid">' +
         renderEventFormGroupsGrid(eventFormRidersDraft) + '</div></div>';
@@ -16085,9 +16135,17 @@
     // "Aucun" in this same edit, there's no typed field to read from, so
     // fall back to the event's existing roster rather than wiping it to
     // empty.
-    var riders = ridersEl
+    var typedRiders = ridersEl
       ? ridersEl.value.split(',').map(function (r) { return r.trim(); }).filter(Boolean)
       : (existingEvent ? (existingEvent.riders || []) : []);
+    // Consentement : on ne s'inscrit que soi-même. Les autres pilotes
+    // tapés ici reçoivent une invitation qu'ils acceptent (ou non) ; ceux
+    // déjà inscrits ne peuvent être retirés que par eux-mêmes (ou l'admin).
+    var meName = currentUserProfile ? currentUserProfile.name : '';
+    var existingRiders = existingEvent ? (existingEvent.riders || []) : [];
+    var riders = existingRiders.filter(function (r) { return r === meName || isAdmin() ? typedRiders.indexOf(r) !== -1 : true; });
+    if (typedRiders.indexOf(meName) !== -1 && riders.indexOf(meName) === -1) riders.push(meName);
+    var ridersToInvite = ridersEl ? typedRiders.filter(function (r) { return r !== meName && existingRiders.indexOf(r) === -1; }) : [];
     var horairesFromForm = {};
     var anyHoraireFromForm = false;
     HORAIRES_GROUPS.forEach(function (g) {
@@ -16144,7 +16202,10 @@
     prefillEventTeamId = null;
     pendingDeleteEvent = null;
     renderRoot();
-    persist(prevState);
+    var savedEventId = selectedEventId;
+    persist(prevState).then(function (res) {
+      if (res !== false && ridersToInvite.length) inviteRidersToEvent(savedEventId, ridersToInvite);
+    });
   }
 
   function toggleEventChecklist(eventId, key, value) {
@@ -19085,9 +19146,11 @@
             var u = (STATE.usersByName || {})[n] || {};
             return '<option value="' + escapeHtml(n) + '">' + escapeHtml(n) + (u.bikeNumber ? ' #' + escapeHtml(u.bikeNumber) : '') + '</option>';
           }).join('') + '</select>' +
-          '<button type="submit" class="ghost">' + tr('add_aria') + '</button></form>';
+          '<button type="submit" class="ghost">' + L('Inviter', 'Invite') + '</button></form>';
       }
     }
+    var evPending = pendingEventInvitesFor(ev.id);
+    if (evPending.length) riderRows += '<div class="help-text" style="margin-top:0.4rem;">' + L('Invités, en attente de réponse : ', 'Invited, awaiting reply: ') + evPending.map(function (r) { return escapeHtml(r.to); }).join(', ') + '</div>';
     var participantsHtml = '<div class="card">' + riderRows + '</div>';
     // Easy per-rider chrono check right here, next to the roster --
     // renderEventCertificationSection already lets the leader verify (✓)
@@ -22705,6 +22768,15 @@
         if (invite) acceptTeamInvite(invite);
       });
     });
+    document.querySelectorAll('[data-action="event-invite-accept"]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var inv = (STATE.eventInvites || []).filter(function (r) { return r.id === btn.getAttribute('data-id'); })[0];
+        if (inv) acceptEventInvite(inv);
+      });
+    });
+    document.querySelectorAll('[data-action="event-invite-remove"]').forEach(function (btn) {
+      btn.addEventListener('click', function () { removeEventInvite(btn.getAttribute('data-id')); });
+    });
     document.querySelectorAll('[data-action="team-invite-remove"]').forEach(function (btn) {
       btn.addEventListener('click', function () { removeTeamInvite(btn.getAttribute('data-id')); });
     });
@@ -23954,7 +24026,9 @@
     if (linkedEvent) {
       session.eventId = linkedEvent.id;
       linkedEvent.riders = linkedEvent.riders || [];
-      if (linkedEvent.riders.indexOf(rider) === -1) linkedEvent.riders.push(rider);
+      // Seul le pilote lui-même s'inscrit au roulage (un Team Leader qui
+      // saisit le chrono d'un équipier relie le chrono sans l'inscrire).
+      if (linkedEvent.riders.indexOf(rider) === -1 && currentUserProfile && rider === currentUserProfile.name) linkedEvent.riders.push(rider);
     }
 
     STATE.sessions.push(session);
@@ -24329,6 +24403,19 @@
         myEventJoinRequestsOut = snap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); });
         mergeEventJoinRequests();
       }, handleSyncError));
+      // Invitations aux roulages : reçues et envoyées.
+      var evInvTo = [], evInvFrom = [];
+      var mergeEvInv = function () {
+        var byId = {}; evInvTo.concat(evInvFrom).forEach(function (r) { byId[r.id] = r; });
+        STATE.eventInvites = Object.keys(byId).map(function (k) { return byId[k]; });
+        scheduleRender();
+      };
+      unsubscribers.push(db.collection('eventInvites').where('to', '==', currentUserProfile.name).onSnapshot(function (snap) {
+        evInvTo = snap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); }); mergeEvInv();
+      }, function () {}));
+      unsubscribers.push(db.collection('eventInvites').where('from', '==', currentUserProfile.name).onSnapshot(function (snap) {
+        evInvFrom = snap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); }); mergeEvInv();
+      }, function () {}));
       refreshMyTeamMembershipsSync();
       var teamInviteFrom = {}, teamInviteTo = {};
       function mergeTeamInvites() {
@@ -24753,8 +24840,8 @@
     ops += diffCircuits(batch, prevState.circuits, STATE.circuits);
     ops += diffRiders(batch, prevState.riders, STATE.riders);
     ops += diffChecklistTemplate(batch, prevState.checklistTemplate, STATE.checklistTemplate);
-    if (!ops) return;
-    batch.commit().catch(function (err) {
+    if (!ops) return Promise.resolve();
+    return batch.commit().catch(function (err) {
       STATE = prevState;
       renderRoot();
       if (err && err.code === 'permission-denied') {
@@ -24763,6 +24850,7 @@
       } else {
         showToast(tr('save_failed_retry'));
       }
+      return false;
     });
   }
 
