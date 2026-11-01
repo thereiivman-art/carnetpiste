@@ -18276,7 +18276,7 @@
     if (!Rec || !probe.captureStream) return showToast(L('Ton navigateur ne permet pas encore les stories vidéo.', 'Your browser does not support video stories yet.'));
     var wait = document.createElement('div');
     wait.className = 'story-overlay story-compose';
-    wait.innerHTML = '<div class="story-head"><strong>' + L('Préparation de la vidéo…', 'Preparing the video…') + '</strong><button type="button" class="story-close" aria-label="' + escapeHtml(L('Annuler', 'Cancel')) + '">✕</button></div><p class="story-prep" id="story-prep">' + L('Compression sur ton téléphone : quelques secondes.', 'Compressing on your phone: a few seconds.') + '</p>';
+    wait.innerHTML = '<div class="story-head"><strong>' + L('Préparation de la vidéo…', 'Preparing the video…') + '</strong><button type="button" class="story-close" aria-label="' + escapeHtml(L('Annuler', 'Cancel')) + '">✕</button></div><div class="story-prep-preview" id="story-prep-preview"></div><p class="story-prep" id="story-prep">' + L('Compression sur ton téléphone : quelques secondes.', 'Compressing on your phone: a few seconds.') + '</p>';
     document.body.appendChild(wait);
     var cancelled = false;
     var done = function () { if (wait.parentNode) wait.parentNode.removeChild(wait); };
@@ -18295,8 +18295,16 @@
       if (err === 'too-big') return finish(L('Vidéo trop lourde même compressée : essaie un passage plus court ou moins animé.', 'Video too large even compressed: try a shorter or calmer clip.'));
       var el = document.getElementById('story-prep'); if (el) el.textContent = L('Nouvel essai, sans le son…', 'Trying again, without sound…');
       encodeStoryVideo(file, false, function (err2, res2) {
-        if (err2) return finish(err2 === 'too-big' ? L('Vidéo trop lourde même compressée : essaie un passage plus court ou moins animé.', 'Video too large even compressed: try a shorter or calmer clip.') : L('Ton téléphone n\'a pas réussi à compresser cette vidéo. Essaie une vidéo plus courte, ou depuis un autre navigateur.', 'Your phone could not compress this video. Try a shorter clip, or another browser.'));
-        finish(null, res2);
+        if (!err2) return finish(null, res2);
+        if (err2 === 'too-big') return finish(L('Vidéo trop lourde même compressée : essaie un passage plus court ou moins animé.', 'Video too large even compressed: try a shorter or calmer clip.'));
+        // Dernier recours : la vidéo d'origine si elle est déjà assez légère.
+        if (file.size < 700000 && /^video\/(mp4|webm|quicktime)/.test(file.type)) {
+          var fr = new FileReader();
+          fr.onload = function () { finish(null, { dataUrl: String(fr.result).replace(/^data:video\/quicktime/, 'data:video/mp4'), mime: 'video/mp4', poster: null, duration: STORY_VIDEO_MAX_S }); };
+          fr.onerror = function () { finish(L('Cette vidéo n\'a pas pu être lue.', 'This video could not be read.')); };
+          return fr.readAsDataURL(file);
+        }
+        finish(L('Ton téléphone n\'a pas réussi à compresser cette vidéo (code : ', 'Your phone could not compress this video (code: ') + err + ' / ' + err2 + L('). Envoie-moi ce code via Suggestion.', '). Send me this code via Suggestion.'));
       });
     });
   }
@@ -18321,7 +18329,13 @@
     if (!withAudio) { v.muted = true; v.setAttribute('muted', ''); }
     // Hors écran mais dans la page : certains téléphones ne décodent pas
     // une vidéo ou un canevas absents de la page.
-    [v, cv].forEach(function (el) { el.style.cssText = 'position:fixed;left:-9999px;top:0;width:2px;height:2px;opacity:0;pointer-events:none;'; document.body.appendChild(el); });
+    // La vidéo reste invisible ; le canevas s'affiche en aperçu (Safari
+    // ne capture pas les images d'un canevas caché).
+    v.style.cssText = 'position:fixed;left:0;top:0;width:2px;height:2px;opacity:0.01;pointer-events:none;';
+    document.body.appendChild(v);
+    var holder = document.getElementById('story-prep-preview');
+    cv.className = 'story-prep-canvas';
+    (holder || document.body).appendChild(cv);
     v.onerror = function () { end('read'); };
     v.onloadedmetadata = function () {
       var dur = Math.min(STORY_VIDEO_MAX_S, isFinite(v.duration) && v.duration > 0 ? v.duration : STORY_VIDEO_MAX_S);
@@ -18416,7 +18430,7 @@
     ov.querySelector('.story-publish').addEventListener('click', function () {
       var me = currentUserProfile;
       if (!me) return close();
-      var post = { id: genId(), author: me.name, authorUid: myUid(), audience: 'all', story: true, photoURL: dataUrl, createdAt: Date.now() };
+      var post = { id: genId(), author: me.name, authorUid: myUid(), audience: 'all', story: true, photoURL: dataUrl || 'icons/icon-192.png', createdAt: Date.now() };
       var t = ov.querySelector('.story-text-input').value.trim();
       if (t) post.text = t.slice(0, 120);
       if (video) { post.video = true; post.mediaId = post.id; post.duration = Math.round(video.duration * 10) / 10; }

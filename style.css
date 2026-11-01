@@ -4395,3 +4395,6 @@ span.social-count { cursor: default; }
 .banner-sheet-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 0.4rem; }
 .banner-sheet-actions button { width: auto; flex: 1; }
 .look-hint { margin: 0.2rem 0 0.6rem; }
+.story-prep-preview { display: flex; justify-content: center; margin-top: 12vh; }
+.story-prep-canvas { max-width: 70vw; max-height: 45vh; border-radius: 12px; background: #000; }
+.story-prep-preview + .story-prep { margin-top: 1rem; }
