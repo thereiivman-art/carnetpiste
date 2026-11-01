@@ -2003,8 +2003,8 @@
   // Team PRO Team Leader who's also a Coach) -- one color per name keeps
   // this readable at a glance, two would just be noise.
   function nameColorClass(name) {
+    // Coach : le badge COACH (bleu) suffit, le nom reste sans couleur.
     if (isProTeamLeaderName(name)) return ' pro-leader-name';
-    if (isCoachBadge((STATE.usersByName || {})[name])) return ' coach-name';
     return '';
   }
   function personNameHtml(name) {
@@ -4952,11 +4952,10 @@
   // have no equivalent entry there.
   function renderBadgesLegend() {
     var rows = profileBadges().map(function (b) {
-      return '<div class="legend-row"><span class="legend-swatch">' + b.icon + '</span><span>' + escapeHtml(b.desc) + '</span></div>';
+      return '<div class="legend-row"><span class="legend-swatch' + (b.field === 'coach' ? ' coach-badge badge-text' : '') + '">' + b.icon + '</span><span>' + escapeHtml(b.desc) + '</span></div>';
     }).join('');
     rows += '<div class="legend-row"><span class="legend-swatch team-pro-badge">✓</span><span>' + tr('team_pro_legend') + '</span></div>';
     rows += '<div class="legend-row"><span class="legend-swatch pro-leader-name">Nom</span><span>' + tr('team_pro_leader_legend') + '</span></div>';
-    rows += '<div class="legend-row"><span class="legend-swatch coach-name">Nom</span><span>' + tr('coach_legend') + '</span></div>';
     rows += '<div class="legend-row"><span class="legend-swatch friend-role-badge adherent-badge">' + tr('adherent_singular_badge') + '</span><span>' + tr('adherent_legend') + '</span></div>';
     rows += '<div class="legend-row"><span class="legend-swatch friend-role-badge">' + tr('follower_label') + '</span><span>' + tr('follower_legend') + '</span></div>';
     return collapsibleSection('badges-legend', tr('badges_legend_heading'), rows, false);
@@ -6320,21 +6319,31 @@
 
 
   // ---- Pages légales (RGPD, mentions légales, conditions) ----
-  // À compléter par l'éditeur : identité et contact, affichés dans les
-  // mentions légales et la politique de confidentialité.
+  // Phase de test : éditeur particulier, projet personnel non commercial.
+  // À remplacer par l'identité définitive (nom ou société, adresse,
+  // e-mail) avant l'ouverture au public.
   var LEGAL_INFO = {
-    editor: '[Nom et prénom de l\'éditeur, ou raison sociale]',
-    address: '[Adresse postale de l\'éditeur]',
-    contact: '[Adresse e-mail de contact]',
-    updated: '19 octobre 2026'
+    get editor() { return L('Carnet Piste, projet personnel d\'un particulier (phase de test)', 'Pitbook, a personal project by a private individual (test phase)'); },
+    get address() { return L('Adresse communiquée sur simple demande (phase de test)', 'Address available on request (test phase)'); },
+    get contact() { return L('Mon compte › Suggestion, dans l\'appli', 'My account › Suggestion, in the app'); },
+    get updated() { return L('1er novembre 2026', '1 November 2026'); }
   };
+  function legalTestPhaseHtml() {
+    return legalSection('Phase de test', '<ul>' +
+      '<li>Carnet Piste est en <strong>version de test</strong>, gratuite et non commerciale, ouverte à un petit groupe de testeurs.</li>' +
+      '<li>Des fonctions peuvent changer ou disparaître, et des données de test peuvent être remises à zéro. Garde une copie de ce qui compte pour toi (Réglages → Mes données → Télécharger).</li>' +
+      '<li><strong>Carnet+</strong> est une simulation : aucun paiement n\'est demandé ni encaissé, le badge est attribué à la main pendant le test.</li>' +
+      '<li>Aucune publicité pendant la phase de test. Si de la publicité est ajoutée plus tard, cette page sera mise à jour avant, avec ton accord quand la loi le demande.</li>' +
+      '<li>Un souci, un bug, une question sur tes données : Mon compte → Suggestion.</li></ul>');
+  }
   function legalSection(title, body) { return '<h3 class="legal-h">' + title + '</h3>' + body; }
   function renderPrivacyPolicyHtml() {
     var c = escapeHtml(LEGAL_INFO.contact);
     return '<div class="legal">' +
-      (currentLang() === 'en' ? '<p class="legal-note">Summary in English: Pitbook only keeps what the app needs (account, lap times, trackdays, posts), never sells it, shows no ads and uses no trackers. You can download or erase all your data yourself from Settings. The full policy below is in French.</p>' : '') +
+      (currentLang() === 'en' ? '<p class="legal-note">Summary in English: Pitbook only keeps what the app needs (account, lap times, trackdays, posts), never sells it, shows no ads and uses no trackers. This is a free test version: features may change, test data may be reset, and Carnet+ is a simulation (no payment). You can download or erase all your data yourself from Settings. Contact: My account › Suggestion. The full policy below is in French.</p>' : '') +
       '<p class="help-text">Dernière mise à jour : ' + escapeHtml(LEGAL_INFO.updated) + '</p>' +
-      legalSection('Qui est responsable de tes données ?', '<p>' + escapeHtml(LEGAL_INFO.editor) + ', éditeur de Carnet Piste. Contact : ' + c + ', ou Profil → Suggestion dans l\'appli.</p>') +
+      legalTestPhaseHtml() +
+      legalSection('Qui est responsable de tes données ?', '<p>L\'éditeur de l\'appli : ' + escapeHtml(LEGAL_INFO.editor) + '. Contact : ' + c + '.</p>') +
       legalSection('Les données que l\'appli garde', '<ul>' +
         '<li><strong>Ton compte</strong> : e-mail, pseudo, rôle (pilote, accompagnant, organisateur) et, si tu les remplis, prénom, nom, photo, moto et numéro.</li>' +
         '<li><strong>Ta pratique</strong> : chronos, roulages, groupes, objectifs, repères sur les plans, débriefs, réglages de ta moto, infos de voyage.</li>' +
@@ -6369,14 +6378,17 @@
   }
   function renderLegalNoticeHtml() {
     return '<div class="legal">' +
+      (currentLang() === 'en' ? '<p class="legal-note">Summary in English: free test version of a personal, non-commercial project. Lap times are unofficial; you are responsible for what you post. The full notice below is in French.</p>' : '') +
+      '<p class="help-text">Dernière mise à jour : ' + escapeHtml(LEGAL_INFO.updated) + '</p>' +
+      legalTestPhaseHtml() +
       legalSection('Éditeur', '<p>' + escapeHtml(LEGAL_INFO.editor) + '<br>' + escapeHtml(LEGAL_INFO.address) + '<br>Contact : ' + escapeHtml(LEGAL_INFO.contact) + '<br>Directeur de la publication : ' + escapeHtml(LEGAL_INFO.editor) + '</p>') +
       legalSection('Hébergement', '<p>Fichiers de l\'appli : GitHub Inc., 88 Colin P. Kelly Jr. Street, San Francisco, CA 94107, États-Unis.<br>Données : Google Firebase, Google Ireland Ltd, Gordon House, Barrow Street, Dublin 4, Irlande.</p>') +
       legalSection('Conditions d\'utilisation', '<ul>' +
         '<li>Carnet Piste est un carnet personnel de pilote. Il ne vend ni réservation ni créneau : l\'inscription, le paiement et le chronométrage officiel restent chez l\'organisateur.</li>' +
         '<li>Les chronos saisis ou importés sont <strong>non officiels</strong>, y compris ceux « validés par le team ». La référence reste le chronométrage de l\'organisateur.</li>' +
         '<li>Tu es responsable de ce que tu publies (messages, photos, liens). Pas de contenu illégal, injurieux ou portant atteinte aux droits d\'autrui ; l\'éditeur peut retirer un contenu signalé et suspendre un compte qui ne respecte pas ces règles.</li>' +
-        '<li>Les horaires, groupes et infos pratiques sont reportés par les utilisateurs : vérifie-les toujours auprès de l\'organisateur. La pratique de la moto sur circuit se fait sous ta responsabilité et selon les règles du circuit.</li>' +
-        '<li>Le service est fourni tel quel, sans garantie de disponibilité.</li></ul>') +
+        '<li>Les horaires, groupes et infos pratiques sont reportés par les utilisateurs : vérifie-les toujours auprès de l\'organisateur. La pratique de la moto ou de l\'auto sur circuit se fait sous ta responsabilité et selon les règles du circuit. L\'appli ne donne aucun conseil de réglage ni de pression de pneus : ceux que tu notes sont les tiens.</li>' +
+        '<li>Le service est fourni tel quel, sans garantie de disponibilité, en particulier pendant la phase de test.</li></ul>') +
       legalSection('Propriété intellectuelle', '<p>L\'appli, son nom et son design appartiennent à l\'éditeur. Tu gardes tes droits sur ce que tu publies et tu autorises son affichage aux personnes concernées dans l\'appli.</p>') +
       legalSection('Tracés des circuits', '<p>Certains tracés sont redessinés d\'après des plans de Wikimedia Commons. Ces tracés sont partagés sous la même licence que le plan d\'origine.</p><ul>' +
         TRACK_CREDITS.map(function (c) {
@@ -18599,7 +18611,7 @@
       return '<div class="card composer-teaser">' + avatarHtml(meU, meU.name || '') + '<button type="button" class="composer-teaser-btn" id="wall-composer-toggle">' +
         escapeHtml(L('Quoi de neuf, ' + (meU.firstName || meU.name || '') + ' ?', 'What\'s new, ' + (meU.firstName || meU.name || '') + '?')) + '</button></div>';
     }
-    var html = '<div class="card has-close"><button type="button" class="card-close" data-action="wall-composer-close" aria-label="' + escapeHtml(L('Fermer', 'Close')) + '">✕</button><h2 class="section-title">' + tr('post_to_journal_btn') + '</h2>';
+    var html = '<div class="card has-close"><button type="button" class="card-close" data-action="wall-composer-close" aria-label="' + escapeHtml(L('Fermer', 'Close')) + '"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button><h2 class="section-title">' + tr('post_to_journal_btn') + '</h2>';
     html += '<form id="wall-post-form">';
     html += '<label for="wall-post-text">' + tr('wall_post_placeholder') + '</label><textarea id="wall-post-text" rows="2"></textarea>';
     html += '<label for="wall-post-link" style="margin-top:0.6rem;">' + tr('link_optional_placeholder') + '</label><input type="url" id="wall-post-link" placeholder="https://...">';
@@ -19115,7 +19127,7 @@
           }).join('') + '</datalist>' +
           '<button type="submit" class="primary" style="margin-top:0.7rem;">' + tr('send_request_btn') + '</button></form>' +
           friendSuggestionChips(candidates);
-      addFriendCta = '<div class="card has-close"><button type="button" class="card-close" data-action="add-friend-close" aria-label="' + escapeHtml(L('Fermer', 'Close')) + '">✕</button><h2 class="section-title">' + escapeHtml(tr('add_friend_btn').replace(/^\+\s*/, '')) + '</h2>' + addFriendBody + '</div>';
+      addFriendCta = '<div class="card has-close"><button type="button" class="card-close" data-action="add-friend-close" aria-label="' + escapeHtml(L('Fermer', 'Close')) + '"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button><h2 class="section-title">' + escapeHtml(tr('add_friend_btn').replace(/^\+\s*/, '')) + '</h2>' + addFriendBody + '</div>';
     }
     amisItems.push(['perso', 'Personnalités', flatSections(renderPersonalitiesSection(me))]);
 
