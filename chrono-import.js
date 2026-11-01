@@ -410,7 +410,11 @@
           return worker.recognize(canvas);
         }).then(function (r) {
           return worker.terminate().then(function () {
-            return { text: (r.data && r.data.text) || '', confidence: (r.data && r.data.confidence) || 0 };
+            var d = r.data || {};
+            var box = function (w) { return { text: w.text || '', x0: w.bbox.x0, x1: w.bbox.x1, y0: w.bbox.y0, y1: w.bbox.y1 }; };
+            return { text: d.text || '', confidence: d.confidence || 0, width: canvas.width,
+              words: (d.words || []).filter(function (w) { return w && w.bbox; }).map(box),
+              lines: (d.lines || []).filter(function (w) { return w && w.bbox; }).map(box) };
           });
         });
       });
@@ -576,7 +580,124 @@
     });
   }
 
+  // ---- Colonnes (ex. Superlaps : une colonne par jour, « 14:52 1'18"979 ») ----
+  // La lecture brute mélange les colonnes ligne par ligne ; avec la position
+  // de chaque mot, on regroupe les temps par colonne (écart horizontal), on
+  // garde l'heure de passage à gauche de chaque temps (pour trier et
+  // dédoublonner entre captures) et la date écrite en tête de colonne.
+  var MONTHS = { janv: 1, jan: 1, janvier: 1, january: 1, fevr: 2, fev: 2, fevrier: 2, feb: 2, february: 2, mars: 3, mar: 3, march: 3, avr: 4, avril: 4, apr: 4, april: 4,
+    mai: 5, may: 5, juin: 6, jun: 6, june: 6, juil: 7, juillet: 7, jul: 7, july: 7, aout: 8, aug: 8, august: 8, sept: 9, sep: 9, septembre: 9, september: 9,
+    oct: 10, octobre: 10, october: 10, nov: 11, novembre: 11, november: 11, dec: 12, decembre: 12, december: 12 };
+  function headerDate(text, year) {
+    var t = stripAccents(String(text || '')).toLowerCase();
+    var m = t.match(/\b(\d{1,2})\s*(?:er)?\s+([a-z]{3,9})\.?\b/) || null, d, mo;
+    if (m && MONTHS[m[2]]) { d = +m[1]; mo = MONTHS[m[2]]; }
+    else if ((m = t.match(/\b([a-z]{3,9})\.?\s+(\d{1,2})\b/)) && MONTHS[m[1]]) { d = +m[2]; mo = MONTHS[m[1]]; }
+    else if ((m = t.match(/\b(\d{1,2})[\/.-](\d{1,2})(?:[\/.-](\d{2,4}))?\b/))) { d = +m[1]; mo = +m[2]; if (m[3]) year = m[3].length === 2 ? 2000 + +m[3] : +m[3]; }
+    else return null;
+    if (!validDate(year, mo, d)) return null;
+    return { iso: year + '-' + pad2(mo) + '-' + pad2(d), label: m[0].trim() };
+  }
+  function lapFromWord(text) {
+    // Variantes de lecture : 1'18''979 (deux apostrophes), 1'18979 (guillemet perdu).
+    var w = String(text || '').replace(/[’‘`´]/g, "'").replace(/''/g, '"').replace(/^(\d)'(\d{2})(\d{3})$/, '$1\'$2"$3');
+    var tt = extractTimes(fixTimeish(w), false);
+    var t = tt.filter(function (x) { return x.minutes && plausibleLap(x.sec); })[0];
+    return t ? t.sec : null;
+  }
+  function clockFromWord(text) {
+    var m = String(text || '').match(/^([01]?\d|2[0-3])[:h.](\d{2})$/);
+    return m ? (+m[1]) * 60 + (+m[2]) : null;
+  }
+  function columnsFromWords(ocr, yearHint) {
+    var words = (ocr && ocr.words) || [];
+    var width = (ocr && ocr.width) || 0;
+    if (!words.length || !width) return [];
+    var laps = [];
+    words.forEach(function (w) {
+      var sec = lapFromWord(w.text);
+      if (sec == null) return;
+      var yc = (w.y0 + w.y1) / 2, h = Math.max(4, w.y1 - w.y0);
+      // Heure de passage : mot « HH:MM » juste à gauche, sur la même ligne.
+      var clock = null, best = Infinity;
+      words.forEach(function (o) {
+        if (o === w || o.x1 > w.x0 + 2) return;
+        var oc = (o.y0 + o.y1) / 2;
+        if (Math.abs(oc - yc) > h * 0.7) return;
+        var c = clockFromWord(o.text);
+        if (c != null && w.x0 - o.x1 < best && w.x0 - o.x1 < width * 0.25) { best = w.x0 - o.x1; clock = c; }
+      });
+      laps.push({ sec: sec, xc: (w.x0 + w.x1) / 2, x0: clock != null ? w.x0 - best : w.x0, y: yc, clock: clock });
+    });
+    if (laps.length < 6) return [];
+    // Regroupement horizontal : une nouvelle colonne dès qu'un grand écart.
+    var sorted = laps.slice().sort(function (a, b) { return a.xc - b.xc; });
+    var groups = [[sorted[0]]];
+    for (var i = 1; i < sorted.length; i++) {
+      if (sorted[i].xc - sorted[i - 1].xc > width * 0.15) groups.push([]);
+      groups[groups.length - 1].push(sorted[i]);
+    }
+    groups = groups.filter(function (g) { return g.length >= 3; });
+    if (groups.length < 2) return [];
+    var year = yearHint || new Date().getFullYear();
+    var lines = (ocr.lines || []).concat(words);
+    return groups.map(function (g, idx) {
+      g.sort(function (a, b) { return a.y - b.y; });
+      var minX = Math.min.apply(null, g.map(function (l) { return l.x0; })), maxX = Math.max.apply(null, g.map(function (l) { return l.xc; })) + 10;
+      var top = g[0].y;
+      // Date en tête : texte au-dessus du premier temps, dans la colonne.
+      var head = null, headDist = Infinity;
+      lines.forEach(function (ln) {
+        var lc = (ln.x0 + ln.x1) / 2, ly = (ln.y0 + ln.y1) / 2;
+        if (ly >= top || lc < minX - width * 0.12 || lc > maxX + width * 0.12) return;
+        var hd = headerDate(ln.text, year);
+        if (hd && top - ly < headDist) { headDist = top - ly; head = hd; }
+      });
+      if (head && head.iso > new Date().toISOString().slice(0, 10)) head.iso = (year - 1) + head.iso.slice(4); // « 28 mars » vu en janvier = l'an dernier
+      return { index: idx, label: head ? head.label : 'Colonne ' + (idx + 1), date: head ? head.iso : null,
+        laps: g.map(function (l) { return { sec: l.sec, clock: l.clock }; }) };
+    });
+  }
+  // Plusieurs captures d'une même page (on fait défiler) : colonnes réunies
+  // par date (ou par position quand la date a défilé hors de l'écran),
+  // tours dédoublonnés grâce à l'heure de passage, triés dans l'ordre.
+  function mergeColumns(perImage) {
+    var out = [];
+    perImage.forEach(function (cols) {
+      cols.forEach(function (c) {
+        var target = (c.date && out.filter(function (o) { return o.date === c.date; })[0]) || (!c.date && out[c.index]) || null;
+        if (!target) { target = { index: out.length, label: c.label, date: c.date, laps: [] }; out.push(target); }
+        if (!target.date && c.date) { target.date = c.date; target.label = c.label; }
+        c.laps.forEach(function (l) {
+          var dup = target.laps.some(function (o) { return o.sec === l.sec && (o.clock === l.clock || o.clock == null || l.clock == null); });
+          if (!dup) target.laps.push(l);
+        });
+      });
+    });
+    out.forEach(function (c) {
+      if (c.laps.every(function (l) { return l.clock != null; })) c.laps.sort(function (a, b) { return a.clock - b.clock; });
+    });
+    return out;
+  }
+  function analyzeColumns(cols, text, opts) {
+    var res = analyze(text || '', opts);
+    res.candidates = cols.map(function (c) {
+      var laps = c.laps.map(function (l) { return l.sec; });
+      return { label: c.label, named: false, laps: laps, kind: 'day', date: c.date, outliers: outlierIndexes(laps), score: 0 };
+    });
+    res.selected = 0;
+    res.columns = true;
+    res.autoMatched = false;
+    res.date = cols[0] && cols[0].date || res.date;
+    res.lowConfidence = (res.confidence < 75) || res.candidates.some(function (c) { return c.outliers.length > 0; });
+    return res;
+  }
+
   root.ChronoImport = {
+    columnsFromWords: columnsFromWords,
+    mergeColumns: mergeColumns,
+    analyzeColumns: analyzeColumns,
+    headerDate: headerDate,
     parseHoraires: parseHoraires,
     analyze: analyze,
     extractTimes: extractTimes,

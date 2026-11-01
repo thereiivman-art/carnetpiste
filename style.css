@@ -4187,3 +4187,62 @@ span.social-count { cursor: default; }
 .unlinked-tag { display: inline-block; align-self: flex-start; margin-top: 0.2rem; padding: 0.05rem 0.45rem; border-radius: 6px; font-size: 0.72rem; font-weight: 700; color: var(--accent); background: rgba(200, 38, 31, 0.1); }
 .unlinked-warning { margin: 0 0 0.7rem; padding: 0.7rem 0.9rem; border-radius: 12px; border: 1px solid rgba(200, 38, 31, 0.35); background: rgba(200, 38, 31, 0.08); color: var(--text); font-size: 0.9rem; line-height: 1.35; }
 .unlinked-warning strong { color: var(--accent); }
+
+/* ===== PC façon Instagram =====
+   Une seule barre à gauche : nom de l'app en haut, puis Carnet, Chrono,
+   Communauté, Notifications, Inviter, Mon compte et ma fiche (l'en-tête du
+   haut disparaît, ses boutons rejoignent la barre, avec leur nom).
+   Au centre une colonne de lecture ; sur grand écran une colonne à droite
+   (ma fiche, prochain roulage, pilotes à suivre). */
+.nav-brand, .side-rail { display: none; }
+@media (min-width: 960px) {
+  :root { --sidebar-w: 244px; --content-w: 760px; --rail-w: 300px; }
+  .bottom-nav { padding: 5rem 0.75rem 1rem; gap: 0.2rem; }
+  .nav-brand { display: flex; position: fixed; z-index: 61; left: 0.75rem; top: 1.6rem; width: calc(var(--sidebar-w) - 1.5rem); align-items: center; gap: 0.6rem; padding: 0.2rem 0.8rem; font-family: var(--font-display); font-style: italic; font-weight: 800; font-size: 1.25rem; letter-spacing: 0.01em; color: var(--text); text-transform: uppercase; white-space: nowrap; }
+  .nav-brand img { border-radius: 7px; }
+  .bottom-nav-btn, .bottom-nav-btn.bottom-nav-main { padding: 0.75rem 0.9rem; font-size: 0.98rem; }
+  .bottom-nav-label { font-size: 0.98rem; }
+  .bottom-nav-btn .bottom-nav-icon svg, .bottom-nav-btn svg { width: 24px; height: 24px; }
+  /* L'en-tête devient la suite de la barre de gauche. */
+  header.page-head { left: 0; right: auto; top: calc(5rem + 3 * 3.25rem + 0.4rem); width: var(--sidebar-w); background: transparent; border: 0; box-shadow: none; backdrop-filter: none; z-index: 60; }
+  header.page-head .page-head-inner { max-width: none; margin: 0; padding: 0 0.75rem; }
+  header.page-head .page-head-row { flex-direction: column; align-items: stretch; gap: 0.2rem; }
+  header.page-head .header-controls { display: flex; flex-direction: column; align-items: stretch; gap: 0.2rem; }
+  header.page-head .header-icon-btn { position: relative; width: 100%; height: auto; justify-content: flex-start; gap: 0.95rem; padding: 0.75rem 0.9rem; border-radius: 12px; background: none; color: var(--text-muted); font-weight: 600; font-size: 0.98rem; }
+  header.page-head .header-icon-btn svg { width: 24px; height: 24px; flex: 0 0 auto; }
+  header.page-head .header-icon-btn::after { content: attr(title); }
+  header.page-head .header-icon-btn:hover, header.page-head .header-hello:hover { background: var(--surface-alt); color: var(--text); }
+  header.page-head .notif-count { position: absolute; left: 1.95rem; right: auto; top: 0.35rem; width: auto; min-width: 1.1rem; height: 1.1rem; padding: 0 0.25rem; font-size: 0.65rem; line-height: 1.1rem; }
+  header.page-head .header-hello { order: 2; width: 100%; justify-content: flex-start; gap: 0.8rem; padding: 0.6rem 0.9rem; border-radius: 12px; margin-top: 0.2rem; }
+  header.page-head .header-hello .mini-avatar { width: 28px; height: 28px; font-size: 0.8rem; }
+  header.page-head .hello-small { display: none; }
+  header.page-head .hello-name { font-size: 0.98rem; font-weight: 600; font-family: var(--font-body); }
+  header.page-head .banner:not(:empty) { margin-top: 0.6rem; }
+  .wrap { padding-top: 2rem; }
+  /* Colonne de droite : à partir de 1280 px. */
+}
+@media (min-width: 1280px) {
+  .wrap {
+    padding-left: max(2.2rem, calc((100vw - var(--sidebar-w) - var(--content-w) - var(--rail-w) - 3rem) / 2));
+    padding-right: calc(max(2.2rem, calc((100vw - var(--sidebar-w) - var(--content-w) - var(--rail-w) - 3rem) / 2)) + var(--rail-w) + 3rem);
+  }
+  .side-rail { display: block; position: fixed; top: 2rem; bottom: 1rem; overflow-y: auto; width: var(--rail-w);
+    left: calc(var(--sidebar-w) + max(2.2rem, calc((100vw - var(--sidebar-w) - var(--content-w) - var(--rail-w) - 3rem) / 2)) + var(--content-w) + 3rem); }
+  .rail-me { display: flex; align-items: center; justify-content: space-between; gap: 0.6rem; margin-bottom: 1.4rem; }
+  .rail-me-who, .rail-person-who { flex: 1 1 auto; display: flex; align-items: center; gap: 0.7rem; border: 0; background: none; padding: 0; text-align: left; color: var(--text); cursor: pointer; min-width: 0; font: inherit; }
+  .rail-me-who .mini-avatar { width: 48px; height: 48px; font-size: 1.1rem; }
+  .rail-me-who span, .rail-person-who span { display: flex; flex-direction: column; min-width: 0; }
+  .rail-me-who strong, .rail-person-who strong { font-size: 0.92rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .rail-person-who .help-text, .rail-me-who .help-text { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 170px; }
+  .rail-link { flex: 0 0 auto; width: auto; display: inline; font-size: 0.82rem; font-weight: 700; }
+  .rail-foot .link-btn { display: inline; width: auto; font-size: inherit; padding: 0; }
+  .rail-section { margin-bottom: 1.5rem; }
+  .rail-title { font-size: 0.85rem; font-weight: 700; color: var(--text-muted); margin-bottom: 0.7rem; }
+  .rail-next { display: flex; align-items: center; gap: 0.75rem; width: 100%; padding: 0.7rem; border: 1px solid var(--border); border-radius: 14px; background: var(--surface); color: var(--text); text-align: left; cursor: pointer; font: inherit; }
+  .rail-next > span:last-child { display: flex; flex-direction: column; }
+  .rail-next .outing-thumb { width: 44px; height: 44px; }
+  .rail-person { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; margin-bottom: 0.75rem; }
+  .rail-person .mini-avatar { width: 36px; height: 36px; }
+  .rail-person .follow-btn, .rail-person button.follow-btn.primary { flex: 0 0 auto; width: auto; min-width: 0; padding: 0.3rem 0.75rem; font-size: 0.8rem; border-radius: 8px; }
+  .rail-foot { font-size: 0.75rem; }
+}

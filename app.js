@@ -1224,7 +1224,7 @@
 "Connexion": "Sign in", "Mot de passe": "Password", "Se souvenir de moi": "Remember me", "Se connecter": "Sign in",
 "Pas encore de compte ?": "No account yet?", "Créer un compte": "Create an account", "Mot de passe oublié ?": "Forgot your password?",
 "Pseudo": "Username", "C'est le pseudo que verront les autres pilotes – en cas de doublon, ajoute ton numéro de course (ex. \"Julien #12\").": "This is the username others will see – if it's taken, add your race number (e.g. \"Julien #12\").",
-"Je suis": "I am a", "Je roule en": "I ride in", "Voiture": "Car", "Mon véhicule": "My vehicle", "Pilote": "Rider", "Accompagnant": "Companion", "Organisateur": "Organiser", "Créer mon compte": "Create my account", "Déjà un compte ?": "Already have an account?",
+"Je suis": "I am a", "Je roule en": "I ride in", "Voiture": "Car", "Mon véhicule": "My vehicle", "Mon compte": "My account", "Pilote": "Rider", "Accompagnant": "Companion", "Organisateur": "Organiser", "Créer mon compte": "Create my account", "Déjà un compte ?": "Already have an account?",
 "Ex. Julien #12": "E.g. Julien #12", "Email": "Email",
 "Vérifie ton email": "Check your email", "Un email de vérification a été envoyé à": "A verification email was sent to",
 ". Clique sur le lien qu'il contient, puis reviens ici. Pense à vérifier tes spams/courriers indésirables si tu ne le vois pas — l'expéditeur est une adresse @firebaseapp.com.": ". Click the link inside, then come back here. Check your spam folder if you can't find it — the sender is an @firebaseapp.com address.",
@@ -6785,7 +6785,7 @@
       '<button type="button" class="cf-photo-btn" id="import-photo-btn" aria-label="' + escapeHtml(L('Importer une photo ou un PDF de la feuille de temps', 'Import a photo or PDF of the timesheet')) + '" title="' + escapeHtml(L('Photo ou PDF', 'Photo or PDF')) + '">' +
       '<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>' +
       '<span>' + L('Photo / PDF', 'Photo / PDF') + '</span></button>' +
-      '<input type="file" id="import-photo-input" accept="image/*,application/pdf" hidden></div>';
+      '<input type="file" id="import-photo-input" accept="image/*,application/pdf" multiple hidden></div>';
     html += '<div class="field-error" id="form-error"></div>';
     html += '<button type="submit" class="primary cf-submit" id="submit-btn">' + L('Enregistrer', 'Save') + '</button>';
     html += '<details class="cf-more"' + (formCircuitsKnown ? '' : ' open') + '><summary>⋯ ' + L('Note, vidéo, autres réglages', 'Note, video, other details') + '</summary>';
@@ -13734,8 +13734,38 @@
   // innerHTML, not up near the header, purely so its DOM position matches
   // where position:fixed puts it visually; the fixed CSS is what actually
   // pins it, this ordering is just for readability of the source.
+  // Colonne de droite sur grand écran (comme Instagram sur PC) : ma fiche
+  // en raccourci, mon prochain roulage, des pilotes à suivre, liens utiles.
+  function renderSideRail() {
+    var me = currentUserProfile;
+    if (!me) return '';
+    var u = (STATE.usersByName || {})[me.name] || me;
+    var h = '<aside class="side-rail">';
+    h += '<div class="rail-me"><button type="button" class="rail-me-who" data-person-link="' + escapeHtml(me.name) + '">' + avatarHtml(u, me.name) +
+      '<span><strong>' + escapeHtml(me.name) + '</strong><span class="help-text">' + escapeHtml(me.bike || roleLabel(me.role) || '') + '</span></span></button>' +
+      '<button type="button" class="link-btn rail-link" data-rail="account">' + L('Mon compte', 'My account') + '</button></div>';
+    var next = (typeof myUpcomingEvents === 'function' ? myUpcomingEvents() : [])[0];
+    if (next) {
+      var days = Math.max(0, Math.round((parseLocalDate(next.dateStart) - parseLocalDate(dateKey(new Date()))) / 86400000));
+      h += '<div class="rail-section"><div class="rail-title">' + L('Prochain roulage', 'Next trackday') + '</div>' +
+        '<button type="button" class="rail-next" data-open-outing="' + escapeHtml(next.circuit) + '" data-outing-date="' + escapeHtml(next.dateStart) + '" data-outing-event="' + escapeHtml(next.id) + '">' +
+        '<span class="outing-thumb">' + circuitThumbHtml(next.circuit) + '</span><span><strong>' + escapeHtml(next.circuit) + ' <span class="feed-upcoming-j">' + countdownLabel(days) + '</span></strong><span class="help-text">' + escapeHtml(formatEventRange(next, true)) + '</span></span></button></div>';
+    }
+    var sug = followSuggestions(me.name, 5);
+    if (sug.length) {
+      h += '<div class="rail-section"><div class="rail-title">' + L('Pilotes à suivre', 'Riders to follow') + '</div>' + sug.map(function (sg) {
+        var su = (STATE.usersByName || {})[sg.name] || {};
+        return '<div class="rail-person"><button type="button" class="rail-person-who" data-person-link="' + escapeHtml(sg.name) + '">' + avatarHtml(su, sg.name) +
+          '<span><strong>' + escapeHtml(sg.name) + '</strong><span class="help-text">' + escapeHtml(sg.reason) + '</span></span></button>' + followBtnHtml(sg.name, true) + '</div>';
+      }).join('') + '</div>';
+    }
+    h += '<div class="rail-foot help-text">' + L('Carnet Piste', 'Pitbook') + ' · <button type="button" class="link-btn" data-action="open-legal" data-kind="privacy">' + L('Confidentialité', 'Privacy') + '</button></div>';
+    return h + '</aside>';
+  }
   function renderBottomNav() {
-    var html = '<nav class="bottom-nav">';
+    // Nom de l'app en haut de la barre de gauche (PC) : à côté de la barre,
+    // pas dedans, pour ne pas décaler l'ordre de ses boutons.
+    var html = '<div class="nav-brand keep-words" aria-hidden="true"><img src="icons/favicon-32.png" alt="" width="26" height="26"><span>' + L('Carnet Piste', 'Pitbook') + '</span></div><nav class="bottom-nav">';
     var visibleTabs = MAIN_TABS;
     // Profile and notifications aren't one of the 3 tabs: none lit up then.
     var current = (profilePanelOpen || notificationsPanelOpen) ? null : navTabFor(activeView);
@@ -20318,10 +20348,41 @@
   // par image affichée. Les actions de l'utilisateur, elles, redessinent
   // tout de suite (renderRoot direct).
   var renderSeq = 0, renderQueuedSeq = -1;
+  // Redessin venu du serveur (une donnée qui arrive) pendant qu'on remplit
+  // un formulaire : on garde ce qui a été tapé ou choisi. Les redessins
+  // dus à une action (Enregistrer…) ne passent pas par ici : le formulaire
+  // se vide normalement après un enregistrement.
+  function captureDirtyFields() {
+    var out = [];
+    var root = document.getElementById('root');
+    if (!root) return out;
+    root.querySelectorAll('input[id], textarea[id], select[id]').forEach(function (el) {
+      var t = (el.type || '').toLowerCase();
+      if (t === 'file' || t === 'hidden' || t === 'password') return;
+      if (t === 'checkbox' || t === 'radio') { if (el.checked !== el.defaultChecked) out.push({ id: el.id, checked: el.checked }); return; }
+      if (el.tagName === 'SELECT') {
+        var dirty = Array.prototype.some.call(el.options, function (o) { return o.selected !== o.defaultSelected; });
+        if (dirty) out.push({ id: el.id, value: el.value });
+        return;
+      }
+      if (el.value !== el.defaultValue) out.push({ id: el.id, value: el.value });
+    });
+    var openMore = Array.prototype.map.call(root.querySelectorAll('details[open].cf-more'), function () { return true; }).length > 0;
+    return { fields: out, cfMoreOpen: openMore };
+  }
+  function restoreDirtyFields(snap) {
+    if (!snap || !snap.fields || !snap.fields.length) return;
+    snap.fields.forEach(function (f) {
+      var el = document.getElementById(f.id);
+      if (!el) return;
+      if ('checked' in f) el.checked = f.checked; else el.value = f.value;
+    });
+    if (snap.cfMoreOpen) { var d = document.querySelector('details.cf-more'); if (d) d.open = true; }
+  }
   function scheduleRender() {
     if (renderQueuedSeq === renderSeq) return;
     renderQueuedSeq = renderSeq;
-    var run = function () { if (renderQueuedSeq === renderSeq) renderRoot(); };
+    var run = function () { if (renderQueuedSeq === renderSeq) { var snap = captureDirtyFields(); renderRoot(); restoreDirtyFields(snap); } };
     if (document.hidden || !window.requestAnimationFrame) setTimeout(run, 16); else requestAnimationFrame(run);
   }
   function renderRoot() {
@@ -20447,7 +20508,7 @@
             '<div class="header-controls">' +
               '<button type="button" class="header-icon-btn" id="invite-qr-btn" aria-label="Inviter un pilote (QR code)" title="Inviter un pilote">' +
                 '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3zM20 14v.01M14 20h.01M17 20h4v-3"/></svg></button>' +
-              '<button type="button" class="header-icon-btn" id="settings-toggle" aria-label="Réglages" title="Réglages">' +
+              '<button type="button" class="header-icon-btn" id="settings-toggle" aria-label="Mon compte" title="Mon compte">' +
                 '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>' +
               '<button type="button" class="header-icon-btn" id="notifications-toggle" aria-label="' + tr('notifications_label') + '" title="' + tr('notifications_label') + '"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 16V11a6 6 0 0112 0v5l1.5 2h-15L6 16z"/><path d="M10 20.5a2 2 0 004 0"/></svg>' +
                 (notifCount ? '<span class="notif-count">' + (notifCount > 9 ? '9+' : notifCount) + '</span>' : '') +
@@ -20477,6 +20538,7 @@
           '<button type="button" class="ghost" data-action="open-email-reminder">Ajouter mon email</button></div>'
         : '') +
       body +
+      renderSideRail() +
       renderBottomNav() +
       renderCropModal() +
       renderTutorialOverlay() +
@@ -21010,6 +21072,9 @@
     var natEl = document.getElementById('profile-nationality');
     if (natEl) natEl.addEventListener('change', function () { saveNationality(natEl.value); });
     document.querySelectorAll('[data-action="export-my-data"]').forEach(function (b) { b.addEventListener('click', exportMyData); });
+    document.querySelectorAll('[data-rail="account"]').forEach(function (b) {
+      b.addEventListener('click', function () { var t = document.getElementById('settings-toggle'); if (t) t.click(); });
+    });
     document.querySelectorAll('[data-action="outing-move-day"]').forEach(function (b) {
       b.addEventListener('click', function () { if (outingView) openMoveDaySheet(outingView.circuit, outingView.date); });
     });
@@ -23138,9 +23203,10 @@
     if (importPhotoBtn && importPhotoInput) {
       importPhotoBtn.addEventListener('click', function () { importPhotoInput.click(); });
       importPhotoInput.addEventListener('change', function () {
-        var file = importPhotoInput.files && importPhotoInput.files[0];
+        // Plusieurs captures possibles (une page qu'on fait défiler).
+        var files = importPhotoInput.files ? Array.prototype.slice.call(importPhotoInput.files, 0, 8) : [];
         importPhotoInput.value = '';
-        if (file) openChronoImport('photo', file);
+        if (files.length) openChronoImport('photo', files.length > 1 ? files : files[0]);
       });
     }
     if (importPasteBtn) importPasteBtn.addEventListener('click', function () { openChronoImport('paste'); });
@@ -23960,7 +24026,7 @@
         h += '<div class="field-error visible">' + L('⚠ Lecture peu fiable (' + Math.round(result.confidence) + ' %) : relis chaque temps, surtout ceux marqués ⚠, avant de continuer.', '⚠ Low-confidence read (' + Math.round(result.confidence) + ' %): check every time, especially those marked ⚠, before continuing.') + '</div>';
       }
       if (cands.length > 1 || sel === -1) {
-        h += '<div class="help-text" style="margin-top:0.6rem;">' + (sel === -1 ? 'Je n\'ai pas reconnu ta ligne – choisis-la :' : 'Plusieurs lignes détectées – vérifie que c\'est la tienne :') + '</div>';
+        h += '<div class="help-text" style="margin-top:0.6rem;">' + (result.columns ? L('Plusieurs journées détectées (une par colonne) – choisis celle à importer :', 'Several days detected (one per column) – pick the one to import:') : sel === -1 ? 'Je n\'ai pas reconnu ta ligne – choisis-la :' : 'Plusieurs lignes détectées – vérifie que c\'est la tienne :') + '</div>';
         cands.forEach(function (c, i) {
           var valid = c.laps.filter(function (v) { return v != null; });
           var best = valid.length ? Math.min.apply(null, valid) : null;
@@ -23969,7 +24035,9 @@
             (best != null ? L(', meilleur ', ', best ') + formatTime(best) : '') + (i === sel && result.autoMatched ? L(', détectée', ', detected') : '') + ')</span></label>';
         });
       }
-      if (result.lowConfidence || cands.length > 1) {
+      if (result.columns) {
+        h += '<div class="help-text" style="margin-top:0.5rem;">' + L('Importe une journée, enregistre, puis relance l\'import pour l\'autre. Astuce : tu peux choisir plusieurs captures d\'un coup quand la journée est longue.', 'Import one day, save, then run the import again for the other. Tip: you can pick several screenshots at once for a long day.') + '</div>';
+      } else if (result.lowConfidence || cands.length > 1) {
         h += '<div class="help-text" style="margin-top:0.5rem;">Astuce : si plusieurs pilotes ou colonnes sont mélangés, recadre la capture sur ta ligne ou ta colonne et réessaie.</div>';
       }
       h += '<label for="imp-laps" style="margin-top:0.7rem; display:block;">Tours (un par ligne, modifiables)</label>' +
@@ -24015,6 +24083,7 @@
       function loadCandidate(i) {
         var c = cands[i];
         lapsEl.value = c ? c.laps.map(CI.formatLap).join('\n') : '';
+        if (c && c.date) { var dEl = box.querySelector('#imp-date'); if (dEl) dEl.value = isoToFrDate(c.date); }
         refreshFlags();
         var note = box.querySelector('#imp-rebuilt');
         if (note) note.textContent = (c && c.rebuilt && c.rebuilt.length)
@@ -24032,14 +24101,17 @@
         var laps = currentLaps();
         if (unreadableLines().length) { refreshFlags(); return; }
         if (!laps.length) { flagsEl.textContent = 'Aucun tour à importer.'; return; }
+        var dateField = box.querySelector('#imp-date').value.trim();
+        var circuitField = box.querySelector('#imp-circuit').value;
+        // Le circuit d'abord : en changer redessine le formulaire, ce qui
+        // effaçait les tours et la date qu'on venait de remplir.
+        var fCircuit = document.getElementById('f-circuit');
+        if (fCircuit && circuitField && fCircuit.value !== circuitField) { fCircuit.value = circuitField; fCircuit.dispatchEvent(new Event('change', { bubbles: true })); }
         var fLaps = document.getElementById('f-laps');
         var fDate = document.getElementById('f-date');
-        var fCircuit = document.getElementById('f-circuit');
         if (fLaps) fLaps.value = laps.map(CI.formatLap).join('\n');
-        var dateField = box.querySelector('#imp-date').value.trim();
         if (fDate && frDateToIso(dateField)) { fDate.value = dateField; fDate.dispatchEvent(new Event('input', { bubbles: true })); }
-        var circuitField = box.querySelector('#imp-circuit').value;
-        if (fCircuit && circuitField) { fCircuit.value = circuitField; fCircuit.dispatchEvent(new Event('change', { bubbles: true })); }
+        var more = document.querySelector('.cf-more'); if (more && fDate && frDateToIso(dateField) !== dateKey(new Date())) more.open = true; // la date importée reste visible
         close();
         countUsage('import_ok');
         showToast('Tours importés – vérifie puis enregistre le chrono.', 'success');
@@ -24052,13 +24124,27 @@
     // propose le collage ou la saisie manuelle.
     showReading(null);
     countUsage('import_photo');
-    CI.recognize(file, function (p) {
-      var el = box.querySelector('#imp-progress');
-      if (el) el.textContent = L('Reconnaissance du texte : ', 'Reading the text: ') + Math.round(p * 100) + ' %';
-    }).then(function (r) {
+    var files = Array.isArray(file) ? file : [file];
+    var results = [];
+    files.reduce(function (chain, f, idx) {
+      return chain.then(function () {
+        return CI.recognize(f, function (p) {
+          var el = box.querySelector('#imp-progress');
+          if (el) el.textContent = (files.length > 1 ? L('Capture ', 'Screenshot ') + (idx + 1) + '/' + files.length + ' · ' : '') + L('Reconnaissance du texte : ', 'Reading the text: ') + Math.round(p * 100) + ' %';
+        }).then(function (r) { results.push(r); });
+      });
+    }, Promise.resolve()).then(function () {
       if (!overlay.parentNode) return; // annulé entre-temps
       countUsage('import_read');
-      showValidate(CI.analyze(r.text, { circuits: allCircuits(), me: me, confidence: r.confidence }));
+      var text = results.map(function (r) { return r.text; }).join('\n');
+      var conf = Math.min.apply(null, results.map(function (r) { return r.confidence || 0; }));
+      var opts = { circuits: allCircuits(), me: me, confidence: conf };
+      // Tableau en colonnes (une journée par colonne, ex. Superlaps) : lu
+      // colonne par colonne grâce à la position des mots.
+      var found = CI.findDate(text), year = found ? +found.slice(0, 4) : new Date().getFullYear();
+      var perImage = results.map(function (r) { return r.words ? CI.columnsFromWords(r, year) : []; });
+      var merged = perImage.some(function (c) { return c.length >= 2; }) ? CI.mergeColumns(perImage) : [];
+      showValidate(merged.length >= 2 ? CI.analyzeColumns(merged, text, opts) : CI.analyze(text, opts));
     }).catch(function (err) {
       if (!overlay.parentNode) return;
       var msg = (err && (err.message === 'pdfjs-load-failed' || err.message === 'pdfjs-missing'))
