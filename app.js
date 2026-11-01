@@ -17496,16 +17496,15 @@
     // La bio d'abord ; photo de profil et bannière se changent en touchant
     // l'image sur la fiche.
     if (!team) html += '<div class="look-field"><label class="look-label" for="look-bio">' + L('Bio', 'Bio') + '</label><textarea id="look-bio" maxlength="250" rows="3" placeholder="' + L('Ex. Pistard depuis 2019, objectif sous les 2’00” à Misano.', 'E.g. Track rider since 2019, aiming under 2’00” at Misano.') + '">' + escapeHtml(d.bio || '') + '</textarea><span class="help-text look-bio-count" id="look-bio-count">' + (d.bio || '').length + ' / 250</span></div>';
-    html += '<div class="look-field"><span class="look-label">' + L('Couleur', 'Colour') + '</span><div class="look-swatches">' + LOOK_COLORS.map(function (c) {
+    if (team) html += '<div class="look-field"><span class="look-label">' + L('Couleur', 'Colour') + '</span><div class="look-swatches">' + LOOK_COLORS.map(function (c) {
       return '<button type="button" class="look-sw" style="background:' + c[0] + '" data-look-set="color" data-val="' + c[0] + '" aria-label="' + c[1] + '" aria-pressed="' + (d.color === c[0]) + '"></button>';
     }).join('') + '</div></div>';
-    html += '<div class="look-field"><span class="look-label">' + L('Couverture', 'Cover') + '</span>' + seg('cover', lookCovers());
+    if (team) html += '<div class="look-field"><span class="look-label">' + L('Couverture', 'Cover') + '</span>' + seg('cover', lookCovers());
     if (team && d.cover === 'photo') html += '<div class="look-photo-row"><button type="button" class="ghost" id="look-cover-btn">' + (d.coverPhoto ? L('Changer la photo', 'Change photo') : L('Choisir une photo', 'Choose a photo')) + '</button><input type="file" id="look-cover-input" accept="image/*" style="display:none;"><span class="help-text">' + L('Une photo de toi en piste, en largeur de préférence.', 'A photo of you on track, landscape if possible.') + '</span></div>';
-    else if (!team) html += '<div class="help-text">' + L('Pour ta photo de bannière ou de profil : touche-la sur ta fiche.', 'For your banner or profile photo: tap it on your profile.') + '</div>';
-    html += '</div>';
+    if (team) html += '</div>';
+    else html += '<div class="help-text look-hint">' + L('Bannière (style, couleur, photo) et photo de profil : touche-les sur ta fiche.', 'Banner (style, colour, photo) and profile photo: tap them on your profile.') + '</div>';
     if (team) html += team.logoURL ? '' : '<div class="help-text">' + L('Ajoute le logo du team dans Réglages pour l\'afficher sur la couverture.', 'Add the team logo in Settings to show it on the cover.') + '</div>';
-    else html += '<div class="look-field"><span class="look-label">' + L('Plaque', 'Number plate') + '</span>' + seg('plate', lookPlates()) +
-      (me.bikeNumber ? '' : '<div class="help-text">' + L('Ajoute ton numéro dans Profil → Ma moto pour l\'afficher.', 'Add your number in Profile → My bike to show it.') + '</div>') + '</div>';
+
     if (circuits.length && !team) html += '<div class="look-field"><label class="look-label" for="look-featured">' + L('Chrono vedette', 'Featured lap') + '</label><select id="look-featured"><option value="">' + L('Mon dernier record', 'My latest record') + '</option>' +
       circuits.map(function (c) { return '<option value="' + escapeHtml(c) + '"' + (d.featured === c ? ' selected' : '') + '>' + escapeHtml(c) + '</option>'; }).join('') + '</select></div>';
     var pick = function (key, values, labels, max) {
@@ -18466,7 +18465,7 @@
           : (nLikes ? '<span class="story-likes">' + heart + ' ' + escapeHtml(Object.keys(likes).slice(0, 3).join(', ') + (nLikes > 3 ? L(' et ' + (nLikes - 3) + ' autres', ' and ' + (nLikes - 3) + ' more') : '')) + '</span>' : '');
       }
       ov.innerHTML = '<div class="story-bars">' + list.map(function (_, k) { return '<span class="' + (k < i ? 'done' : k === i ? 'now' : '') + '"></span>'; }).join('') + '</div>' +
-        '<div class="story-head">' + avatarHtml(u, st.who) + '<strong>' + escapeHtml(st.who) + '</strong><span>' + escapeHtml(relativeTime(st.at)) + (st.posted && storyTimeLeft(st.at) ? ' · ' + L('encore ', '') + storyTimeLeft(st.at) + L('', ' left') : '') + '</span><button type="button" class="story-close" aria-label="' + escapeHtml(L('Fermer', 'Close')) + '">✕</button></div>' + body +
+        '<div class="story-head"><button type="button" class="story-author" data-who="' + escapeHtml(st.who) + '">' + avatarHtml(u, st.who) + '<strong>' + escapeHtml(st.who) + '</strong></button><span>' + escapeHtml(relativeTime(st.at)) + (st.posted && storyTimeLeft(st.at) ? ' · ' + L('encore ', '') + storyTimeLeft(st.at) + L('', ' left') : '') + '</span><button type="button" class="story-close" aria-label="' + escapeHtml(L('Fermer', 'Close')) + '">✕</button></div>' + body +
         '<button type="button" class="story-nav prev" aria-label="' + escapeHtml(L('Précédente', 'Previous')) + '"></button><button type="button" class="story-nav next" aria-label="' + escapeHtml(L('Suivante', 'Next')) + '"></button>' +
         (st.who !== me.name ? '<button type="button" class="story-profile" data-who="' + escapeHtml(st.who) + '">' + L('Voir son profil', 'See profile') + '</button>' : '');
       ov.querySelector('.story-close').addEventListener('click', close);
@@ -18474,6 +18473,8 @@
       ov.querySelector('.story-nav.next').addEventListener('click', function () { i++; show(); });
       var pb = ov.querySelector('.story-profile');
       if (pb) pb.addEventListener('click', function () { close(); openPerson(pb.getAttribute('data-who')); });
+      var au = ov.querySelector('.story-author');
+      if (au) au.addEventListener('click', function (e) { e.stopPropagation(); var w = au.getAttribute('data-who'); close(); openPerson(w); });
       var lb = ov.querySelector('.story-like');
       if (lb) lb.addEventListener('click', function (e) {
         e.stopPropagation();
@@ -21597,7 +21598,56 @@
       renderRoot();
     }).catch(function (err) { showToast(tr('error_prefix') + (err && err.message ? err.message : err)); });
   }
+  // Bannière : tout ce qui la concerne au même endroit (style, couleur,
+  // plaque, photo), enregistré à chaque choix.
+  function saveOwnLook(patch, msg) {
+    var me = currentUserProfile, uid = auth.currentUser && auth.currentUser.uid;
+    if (!me || !uid) return;
+    var cur = me.look || ((STATE.usersByName || {})[me.name] || {}).look || {};
+    var value = Object.assign({ color: '#c8261f', cover: 'vibreur' }, cur, patch);
+    if (lookDraft && !lookDraft.__team) Object.keys(patch).forEach(function (k) { lookDraft[k] = patch[k]; });
+    me.look = value;
+    if (STATE.usersByName && STATE.usersByName[me.name]) STATE.usersByName[me.name].look = value;
+    renderRoot();
+    db.collection('users').doc(uid).update({ look: value }).then(function () { if (msg) showToast(msg, 'success'); })
+      .catch(function (err) { showToast(tr('error_prefix') + (err && err.message ? err.message : err)); });
+  }
+  function openBannerSheet() {
+    var me = currentUserProfile;
+    if (!me) return;
+    var l = me.look || ((STATE.usersByName || {})[me.name] || {}).look || {};
+    var cover = l.cover != null ? l.cover : 'vibreur', color = safeColor(l.color), hasPhoto = !!l.coverPhoto;
+    var chips = function (key, list, cur) { return '<div class="look-seg">' + list.map(function (o) { return '<button type="button" data-banner-set="' + key + '" data-val="' + o[0] + '" aria-pressed="' + (cur === o[0]) + '">' + escapeHtml(o[1]) + '</button>'; }).join('') + '</div>'; };
+    var html = '<h2 class="section-title">' + L('Bannière', 'Banner') + '</h2>' +
+      (hasPhoto ? '<div class="banner-sheet-photo"><img src="' + escapeHtml(l.coverPhoto) + '" alt=""></div>' : '') +
+      '<div class="banner-sheet-actions">' + (hasPhoto ? '<button type="button" class="ghost" data-banner-act="zoom">' + L('Agrandir', 'Enlarge') + '</button><button type="button" class="ghost" data-banner-act="crop">' + L('Recadrer', 'Crop') + '</button>' : '') +
+      '<button type="button" class="primary" data-banner-act="change">' + (hasPhoto ? L('Changer', 'Change') : L('Photo', 'Photo')) + '</button></div>' +
+      '<div class="look-field"><span class="look-label">' + L('Style', 'Style') + '</span>' + chips('cover', lookCovers().filter(function (o) { return o[0] !== 'photo' || hasPhoto; }), cover) + '</div>' +
+      '<div class="look-field"><span class="look-label">' + L('Couleur', 'Colour') + '</span><div class="look-swatches">' + LOOK_COLORS.map(function (c) {
+        return '<button type="button" class="look-sw" style="background:' + c[0] + '" data-banner-set="color" data-val="' + c[0] + '" aria-label="' + c[1] + '" aria-pressed="' + (color === c[0]) + '"></button>';
+      }).join('') + '</div></div>' +
+      (me.bikeNumber ? '<div class="look-field"><span class="look-label">' + L('Plaque', 'Number plate') + '</span>' + chips('plate', lookPlates(), l.plate != null ? l.plate : 'course') + '</div>' : '') +
+      '<div class="mini-sheet-actions"><button type="button" class="link-btn" data-mini-close>' + L('Fermer', 'Close') + '</button></div>';
+    var ov = openMiniSheet(html);
+    ov.querySelectorAll('[data-banner-set]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        var patch = {}; patch[b.getAttribute('data-banner-set')] = b.getAttribute('data-val');
+        saveOwnLook(patch);
+        ov.remove(); openBannerSheet();
+      });
+    });
+    ov.querySelectorAll('[data-banner-act]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        var a = b.getAttribute('data-banner-act');
+        ov.remove();
+        if (a === 'zoom') openPhotoZoom(l.coverPhoto, null, true);
+        else if (a === 'crop') openCropModal('cover', null, l.coverPhoto);
+        else changeCover();
+      });
+    });
+  }
   function openOwnMedia(kind) {
+    if (kind === 'cover') return openBannerSheet();
     var me0 = currentUserProfile;
     if (!me0) return;
     var me = Object.assign({}, (STATE.usersByName || {})[me0.name] || {}, me0);
