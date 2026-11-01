@@ -60,9 +60,12 @@ const TXT = {
     tableNote: 'Une appli de chrono GPS donne tes trajectoires et tes secteurs : Carnet Piste ne la remplace pas, il garde tout le reste au même endroit.',
     notH: 'Ce que Carnet Piste ne fait pas',
     not: ['Pas d\'inscription ni de paiement : ça reste chez l\'organisateur.', 'Pas de chrono officiel : Carnet Piste lit celui de l\'orga.', 'Aucun conseil de réglage ni de pression : tu notes tes valeurs, c\'est tout.', 'Tes réglages, tes pressions et ton budget restent privés : visibles par toi seul.'],
+    pcK: 'Aussi sur ordinateur',
+    pcLead: 'Le même lien, le même compte : sur un PC ou un Mac, Carnet Piste s\'ouvre en grand, comme un réseau social de bureau.',
+    pcList: ['Tout le menu à gauche : Carnet, Chrono, Communauté, Mon compte, Notifications.', 'Une colonne de lecture au centre, sans boutons étirés sur tout l\'écran.', 'À droite : ta fiche, ton prochain roulage avec le décompte, des pilotes à suivre.', 'Pratique pour importer les captures de la saison, faire ton budget ou préparer un roulage.'],
     tryH: 'Essaie-le',
-    tryP: 'Ouvre ce lien sur ton téléphone :',
-    trySteps: ['<b>iPhone</b> : Safari, Partager, « Sur l\'écran d\'accueil ».', '<b>Android</b> : Chrome, menu ⋮, « Installer l\'application ».', 'Crée ton compte, et c\'est parti.'],
+    tryP: 'Ouvre ce lien sur ton téléphone ou ton ordinateur :',
+    trySteps: ['<b>iPhone</b> : Safari, Partager, « Sur l\'écran d\'accueil ».', '<b>Android</b> : Chrome, menu ⋮, « Installer l\'application ».', '<b>Ordinateur</b> : la version PC, même compte.', 'Crée ton compte, et c\'est parti.'],
     proto: 'C\'est un prototype : dis-moi ce qui t\'aide et ce qui manque.',
     detailK: 'En détail',
     detail: [
@@ -105,9 +108,12 @@ const TXT = {
     tableNote: 'A GPS lap-timer gives you your lines and sectors: Pitbook doesn\'t replace it, it keeps everything else in one place.',
     notH: 'What Pitbook doesn\'t do',
     not: ['No booking or payment: that stays with the organiser.', 'No official timing: Pitbook reads the organiser\'s.', 'No setup or pressure advice: you log your values, that\'s all.', 'Your setup, pressures and budget stay private: visible to you only.'],
+    pcK: 'Also on your computer',
+    pcLead: 'Same link, same account: on a PC or a Mac, Pitbook opens full size, like a desktop social network.',
+    pcList: ['The whole menu on the left: Pitbook, Lap times, Community, My account, Notifications.', 'A reading column in the middle, no buttons stretched across the screen.', 'On the right: your profile, your next trackday with its countdown, riders to follow.', 'Handy to import a season of screenshots, do your budget or prepare a trackday.'],
     tryH: 'Try it',
-    tryP: 'Open this link on your phone:',
-    trySteps: ['<b>iPhone</b>: Safari, Share, “Add to Home Screen”.', '<b>Android</b>: Chrome, menu ⋮, “Install app”.', 'Create your account, and you\'re set.'],
+    tryP: 'Open this link on your phone or computer:',
+    trySteps: ['<b>iPhone</b>: Safari, Share, “Add to Home Screen”.', '<b>Android</b>: Chrome, menu ⋮, “Install app”.', '<b>Computer</b>: the desktop version, same account.', 'Create your account, and you\'re set.'],
     proto: 'It\'s a prototype: tell me what helps and what\'s missing.',
     detailK: 'In detail',
     detail: [
@@ -207,7 +213,7 @@ function cell(c, us) {
   if (c && c.n) return '<td' + (us ? ' class="us"' : '') + '><span class="dash">—</span></td>';
   return '<td' + (us ? ' class="us"' : '') + '><span class="cell-t">' + c + '</span></td>';
 }
-function foot(t, n) { return '<div class="foot"><span>' + t.foot + '</span><a href="' + LIEN + '">' + LIEN_COURT + '</a><span>' + n + ' / 4</span></div>'; }
+function foot(t, n) { return '<div class="foot"><span>' + t.foot + '</span><a href="' + LIEN + '">' + LIEN_COURT + '</a><span>' + n + ' / 5</span></div>'; }
 function feat(t, f, i, shots) {
   return '<div class="feat' + (i % 2 ? ' flip' : '') + '"><div class="phone"><img src="file://' + shots[f[0]] + '" alt=""></div>' +
     '<div><div class="num">0' + (i + 1) + '</div><h2 class="display">' + f[1] + '</h2><p>' + f[2] + '</p>' +
@@ -237,7 +243,12 @@ function html(lang, shots) {
     t.detail.slice(0, 3).map((f, i) => feat(t, f, i, shots)).join('') + foot(t, 3) + '</section>';
   const p4 = '<section class="page"><div class="heading"><span class="kerb"></span><h2 class="display">' + t.detailK + '</h2></div>' +
     t.detail.slice(3).map((f, i) => feat(t, f, i + 3, shots)).join('') + foot(t, 4) + '</section>';
-  return '<!doctype html><html lang="' + lang + '"><head><meta charset="utf-8"><title>' + TXT[lang].appName + '</title><style>' + CSS + '</style></head><body>' + p1 + p2 + p3 + p4 + '</body></html>';
+  const p5 = '<section class="page"><div class="heading"><span class="kerb"></span><h2 class="display">' + t.pcK + '</h2></div>' +
+    '<p class="lead">' + t.pcLead + '</p>' +
+    '<div class="pc-shot"><img src="file://' + shots.pc + '" alt=""></div>' +
+    '<div class="card"><ul class="list yes">' + t.pcList.map(x => '<li>' + svg('check') + '<span>' + x + '</span></li>').join('') + '</ul></div>' +
+    foot(t, 5) + '</section>';
+  return '<!doctype html><html lang="' + lang + '"><head><meta charset="utf-8"><title>' + TXT[lang].appName + '</title><style>' + CSS + '.pc-shot{margin:4mm 0 5mm;border-radius:3mm;overflow:hidden;border:0.4mm solid #d9d6cf;box-shadow:0 2mm 6mm rgba(20,22,26,.12);background:#fff}.pc-shot img{display:block;width:100%}</style></head><body>' + p1 + p2 + p3 + p4 + p5 + '</body></html>';
 }
 
 (async () => {

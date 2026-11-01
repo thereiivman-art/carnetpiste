@@ -70,6 +70,15 @@ async function captures(base, dir, lang) {
   await p.evaluate(() => document.activeElement && document.activeElement.blur());
   await p.click('[data-budget-season="2027"]'); await p.waitForTimeout(600);
   await shot('budget', '.budget-seasons', 80);
+  // Version PC (façon Instagram) : le fil, menu à gauche, colonne de droite.
+  const pc = await b.newContext({ viewport: { width: 1440, height: 860 }, deviceScaleFactor: 1.5 });
+  const q = await pc.newPage();
+  await q.goto(base + 'index.html#lang=' + lang); await q.waitForTimeout(1600);
+  await q.click('.bottom-nav-btn:nth-child(3)'); await q.waitForTimeout(400);
+  await q.click('[data-pill-group="social"][data-pill="fil"]').catch(() => {}); await q.waitForTimeout(800);
+  await q.evaluate(() => document.querySelectorAll('.toast').forEach(t => t.remove()));
+  out.pc = path.join(dir, lang + '-pc.png');
+  await q.screenshot({ path: out.pc });
   await b.close();
   return out;
 }
