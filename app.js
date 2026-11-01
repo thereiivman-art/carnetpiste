@@ -10922,7 +10922,7 @@
     if (!outings.length) carnetCardsMode = 'avenir';
     var items = [['passees', L('Passés', 'Past') + (outings.length ? ' (' + outings.length + ')' : '')], ['avenir', 'À venir' + (upcoming.length ? ' (' + upcoming.length + ')' : '')]];
     var inCal = activeView === 'event';
-    return '<div class="pill-tabs">' + items.map(function (it) {
+    return '<div class="pill-tabs main-subnav-pills">' + items.map(function (it) {
       return '<button type="button" class="pill-btn' + (!inCal && carnetCardsMode === it[0] ? ' active' : '') + '" data-cards-mode="' + it[0] + '">' + it[1] + '</button>';
     }).join('') + '<button type="button" class="pill-btn' + (inCal ? ' active' : '') + '" data-view="event">' + L('Calendrier', 'Calendar') + '</button></div>';
   }
@@ -13979,9 +13979,20 @@
       };
       // Sous-menus repliés : seuls ceux du menu ouvert s'affichent.
       var onPanel = profilePanelOpen || notificationsPanelOpen;
-      if (current === 'carnet') html += sub(1, carnetSubItems().map(function (it) {
-        return [it[1], 'data-view="' + it[0] + '"', !onPanel && (activeView === it[0] || (it[0] === 'carnet' && (activeView === 'event' || activeView === 'outing')))];
-      }));
+      if (current === 'carnet') {
+        var carnetNav = [];
+        carnetSubItems().forEach(function (it) {
+          var on = !onPanel && (activeView === it[0] || (it[0] === 'carnet' && (activeView === 'event' || activeView === 'outing')));
+          carnetNav.push([it[1], 'data-view="' + it[0] + '"', on]);
+          // 3e niveau sous Roulages : Passés, À venir, Calendrier.
+          if (it[0] === 'carnet' && on && !meIsNonRider()) {
+            carnetNav.push([L('Passés', 'Past'), 'data-view="carnet" data-cards-mode="passees" data-level="3"', activeView === 'carnet' && carnetCardsMode === 'passees']);
+            carnetNav.push([L('À venir', 'Upcoming'), 'data-view="carnet" data-cards-mode="avenir" data-level="3"', activeView === 'carnet' && carnetCardsMode === 'avenir']);
+            carnetNav.push([L('Calendrier', 'Calendar'), 'data-view="event" data-level="3"', activeView === 'event']);
+          }
+        });
+        html += sub(1, carnetNav);
+      }
       if (current === 'communaute') {
         var me = currentUserProfile, nIn = incomingFriendRequests(me.name).length;
         var onProfil = !onPanel && activeView === 'social' && (pillState.social === 'profil' || pillState.social === 'abonnements');
@@ -13991,7 +14002,14 @@
           comm.push([it[1], 'data-nav-person="' + it[0] + '" data-level="3"', pillState.person === it[0]]);
         });
         comm.push([L('Fil', 'Feed'), 'data-view="social" data-pill-group="social" data-pill="fil"', !onPanel && activeView === 'social' && pillState.social === 'fil']);
-        if (communauteSubItems().some(function (it) { return it[0] === 'team'; })) comm.push(['Teams', 'data-view="team"', !onPanel && activeView === 'team']);
+        if (communauteSubItems().some(function (it) { return it[0] === 'team'; })) {
+          var onTeam = !onPanel && activeView === 'team';
+          comm.push(['Teams', 'data-view="team"', onTeam]);
+          // 3e niveau sous Teams : Mes teams, Découvrir, Créer un team.
+          if (onTeam) [['mine', L('Mes teams', 'My teams')], ['discover', L('Découvrir', 'Discover')], ['create', L('Créer un team', 'Create a team')]].forEach(function (t) {
+            comm.push([t[1], 'data-view="team" data-pill-group="teams" data-pill="' + t[0] + '" data-level="3"', !expandedTeamId && pillState.teams === t[0]]);
+          });
+        }
         html += sub(5, comm);
       }
     }
@@ -20355,7 +20373,7 @@
       return html + renderTeamPublicCard(teamById(expandedTeamId), me);
     }
     if (!expandedTeamId) {
-      html = renderPills('teams', [['mine', 'Mes teams' + (myTeams.length ? ' (' + myTeams.length + ')' : '')], ['discover', 'Découvrir'], ['create', 'Créer un team']]) + html;
+      html = renderPills('teams', [['mine', 'Mes teams' + (myTeams.length ? ' (' + myTeams.length + ')' : '')], ['discover', 'Découvrir'], ['create', 'Créer un team']]).replace('<div class="pill-tabs">', '<div class="pill-tabs main-subnav-pills">') + html;
       if (pillState.teams === 'discover') return html + renderTeamDiscovery(me, myTeams);
       if (pillState.teams === 'create') return html + renderCreateTeamCard();
     }
