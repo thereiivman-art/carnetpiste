@@ -4925,8 +4925,8 @@
     html += '<div class="help-text">' + tr('about_text') + '</div>';
     html += '<div style="margin-top:1.1rem;"><button type="button" class="ghost" id="tutorial-open-btn">' + tr('review_tutorial_btn') + '</button></div>';
     // Guide en PDF (2 pages de résumé + 2 de détail), à lire ou à envoyer à un pote.
-    var guideLink = function (lang, label) { return '<a class="ghost guide-link" href="guides/Pitbook-' + lang + '.pdf" target="_blank" rel="noopener">' + label + ' ↗</a>'; };
-    html += '<div class="guide-links"><div class="help-text">' + L('Le guide Carnet Piste : ce que l\'appli t\'apporte, en 4 pages, à lire ou à envoyer à un pote :', 'The Pitbook guide: what the app does for you, in 4 pages, to read or send to a friend:') + '</div>' +
+    var guideLink = function (lang, label) { return '<a class="ghost guide-link" href="guides/Pitbook-' + lang + '.pdf?v=' + encodeURIComponent(currentAppVersion()) + '" target="_blank" rel="noopener">' + label + ' ↗</a>'; };
+    html += '<div class="guide-links"><div class="help-text">' + L('Le guide Carnet Piste : ce que l\'appli t\'apporte, en 5 pages, à lire ou à envoyer à un pote :', 'The Pitbook guide: what the app does for you, in 5 pages, to read or send to a friend:') + '</div>' +
       '<div class="guide-links-row">' + (currentLang() === 'en'
         ? guideLink('EN', 'Guide (English)') + guideLink('FR', 'Guide (français)')
         : guideLink('FR', 'Guide (français)') + guideLink('EN', 'Guide (English)')) + '</div></div>';
@@ -20318,7 +20318,13 @@
   })();
   // Sécurité : un lien saisi par un utilisateur ne peut jamais exécuter
   // de code (javascript:, data:…) — seuls http(s), mailto et tel restent.
-  function isSafeUrl(u) { return /^(https?:|mailto:|tel:|#|\/|\.\/|[a-z0-9._-]+\.(pdf|html)(\?|$))/i.test(String(u || '').trim()) && !/^\s*(javascript|data|vbscript):/i.test(String(u || '')); }
+  function isSafeUrl(u) {
+    var v = String(u || '').trim();
+    if (/^(https?:|mailto:|tel:)/i.test(v)) return true;
+    // Lien relatif (guides/Pitbook-FR.pdf, #ancre, ./page) : pas de « schéma: »
+    // avant le premier / ? ou #. Tout schéma inconnu (javascript:, data:…) est refusé.
+    return !/^[^\/?#]*:/.test(v);
+  }
   function sanitizeLinks(root) {
     if (!root) return;
     // Ceinture et bretelles avec la CSP : aucun attribut onclick=, onerror=…
