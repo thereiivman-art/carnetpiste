@@ -4577,9 +4577,23 @@
   // rider manager's rename -- and hits the same uniqueness guard as
   // signup (see resolveUniquePseudo) if the new pseudo collides with
   // someone else's.
+  function profileTabList() {
+    return [['profil', tr('tab_profil')], ['plus', 'Carnet+'], ['audience', L('Audience', 'Audience')], ['reglages', tr('tab_reglages')], ['aide', tr('tab_aide')], ['suggestion', tr('tab_suggestion')]];
+  }
+  // PC : sous-menus de Mon compte, sous son bouton dans la barre de gauche.
+  function accountNavHtml() {
+    if (!profilePanelOpen || !(window.matchMedia && window.matchMedia('(min-width: 960px)').matches)) return '';
+    var items = [];
+    profileTabList().forEach(function (t) {
+      items.push([t[1], 'data-profile-tab="' + t[0] + '"', profileSubTab === t[0]]);
+      if (profileSubTab === t[0] && t[0] === 'reglages') items = items.concat(navPillEntries('settings', 3));
+      if (profileSubTab === t[0] && t[0] === 'aide') items = items.concat(navPillEntries('aide', 3));
+    });
+    return '<div class="nav-sub nav-sub-account">' + items.map(function (it) { return '<button type="button" class="nav-sub-btn' + (/data-level="3"/.test(it[1]) ? ' nav-sub3' : '') + (it[2] ? ' active' : '') + '" ' + it[1] + '>' + it[0] + '</button>'; }).join('') + '</div>';
+  }
   function renderProfileTabBar() {
     var tabs = [['profil', tr('tab_profil')], ['plus', 'Carnet+'], ['audience', L('Audience', 'Audience')], ['reglages', tr('tab_reglages')], ['aide', tr('tab_aide')], ['suggestion', tr('tab_suggestion')]];
-    return '<div class="subnav profile-tabs" role="tablist">' + tabs.map(function (t) {
+    return '<div class="subnav profile-tabs main-subnav" role="tablist">' + tabs.map(function (t) {
       return '<button type="button" class="subnav-btn profile-tab-btn' + (profileSubTab === t[0] ? ' active' : '') + '" role="tab" aria-selected="' + (profileSubTab === t[0]) + '" data-profile-tab="' + t[0] + '">' + t[1] + '</button>';
     }).join('') + '</div>';
   }
@@ -13875,17 +13889,34 @@
   // le filtre Passés/À venir du carnet. État mémorisé par groupe.
   var pillState = { person: 'monfil', profil: 'identite', settings: 'affichage', social: 'fil', events: 'avenir', circuit: 'plan', stats: 'records', teams: 'mine', team: 'fil', coach: 'demandes', planning: 'programme', outing: 'chronos', evmanage: 'participants', statsrec: 'circuits', passub: 'calendrier', outinfo: 'horaires' };
   // Même chose que renderPills, en petites pastilles (sous une pastille).
+  // PC : les onglets de page de ces groupes passent dans la barre de gauche
+  // (sous leur menu) ; relevés pendant le rendu de la page, qui précède
+  // celui de la barre.
+  var NAV_PILL_VIEWS = { circuit: 'circuit', stats: 'stats', coach: 'coach', events: 'event', compcarnet: 'carnet', settings: '', aide: '' };
+  var navPillCapture = {};
+  function capturePills(group, items, cur) {
+    if (!NAV_PILL_VIEWS.hasOwnProperty(group) || !(window.matchMedia && window.matchMedia('(min-width: 960px)').matches)) return false;
+    navPillCapture[group] = { items: items, cur: cur };
+    return true;
+  }
+  function navPillEntries(group, level) {
+    var c = navPillCapture[group];
+    if (!c) return [];
+    return c.items.map(function (it) {
+      return [it[1], (NAV_PILL_VIEWS[group] ? 'data-view="' + NAV_PILL_VIEWS[group] + '" ' : '') + 'data-pill-group="' + group + '" data-pill="' + it[0] + '" data-level="' + level + '"', it[0] === c.cur];
+    });
+  }
   function renderSubPillRow(group, items) {
     var cur = pillState[group];
     if (!items.some(function (it) { return it[0] === cur; })) cur = pillState[group] = items[0][0];
-    return '<div class="sub-pills">' + items.map(function (it) {
+    return '<div class="sub-pills' + (capturePills(group, items, cur) ? ' main-subnav-pills' : '') + '">' + items.map(function (it) {
       return '<button type="button" class="sub-pill-btn' + (it[0] === cur ? ' active' : '') + '" data-pill-group="' + group + '" data-pill="' + it[0] + '">' + it[1] + '</button>';
     }).join('') + '</div>';
   }
   function renderPills(group, items) {
     var cur = pillState[group];
     if (!items.some(function (it) { return it[0] === cur; })) cur = pillState[group] = items[0][0];
-    return '<div class="pill-tabs">' + items.map(function (it) {
+    return '<div class="pill-tabs' + (capturePills(group, items, cur) ? ' main-subnav-pills' : '') + '">' + items.map(function (it) {
       return '<button type="button" class="pill-btn' + (it[0] === cur ? ' active' : '') + '" data-pill-group="' + group + '" data-pill="' + it[0] + '">' + it[1] + '</button>';
     }).join('') + '</div>';
   }
@@ -13975,7 +14006,7 @@
     });
     if (desk && currentUserProfile) {
       var sub = function (order, items) {
-        return '<div class="nav-sub" style="order:' + order + '">' + items.map(function (it) { return '<button type="button" class="nav-sub-btn' + (/data-level="3"/.test(it[1]) ? ' nav-sub3' : '') + (it[2] ? ' active' : '') + '" ' + it[1] + '>' + it[0] + '</button>'; }).join('') + '</div>';
+        return '<div class="nav-sub" style="order:' + order + '">' + items.map(function (it) { return '<button type="button" class="nav-sub-btn' + (/data-level="3"/.test(it[1]) ? ' nav-sub3' : '') + (/data-level="4"/.test(it[1]) ? ' nav-sub3 nav-sub4' : '') + (it[2] ? ' active' : '') + '" ' + it[1] + '>' + it[0] + '</button>'; }).join('') + '</div>';
       };
       // Sous-menus repliés : seuls ceux du menu ouvert s'affichent.
       var onPanel = profilePanelOpen || notificationsPanelOpen;
@@ -13989,7 +14020,10 @@
             carnetNav.push([L('Passés', 'Past'), 'data-view="carnet" data-cards-mode="passees" data-level="3"', activeView === 'carnet' && carnetCardsMode === 'passees']);
             carnetNav.push([L('À venir', 'Upcoming'), 'data-view="carnet" data-cards-mode="avenir" data-level="3"', activeView === 'carnet' && carnetCardsMode === 'avenir']);
             carnetNav.push([L('Calendrier', 'Calendar'), 'data-view="event" data-level="3"', activeView === 'event']);
-          }
+            // Dans le Calendrier : Liste / Mois / Découvrir en 4e niveau.
+            if (activeView === 'event') carnetNav = carnetNav.concat(navPillEntries('events', 4));
+          } else if (it[0] === 'carnet' && on) carnetNav = carnetNav.concat(navPillEntries('compcarnet', 3));
+          if (on && it[0] !== 'carnet') carnetNav = carnetNav.concat(navPillEntries(it[0], 3));
         });
         html += sub(1, carnetNav);
       }
@@ -20733,6 +20767,7 @@
   }
 
   function renderRootUnsafe() {
+    navPillCapture = {};
     var root = document.getElementById('root');
     // Snapshot every collapsible <details>' current open/closed state right
     // before the DOM under it gets torn down (root.innerHTML replaced
@@ -20830,7 +20865,7 @@
             '<div class="header-controls">' +
               '<button type="button" class="header-icon-btn" id="invite-qr-btn" aria-label="Inviter un pilote (QR code)" title="Inviter un pilote">' +
                 '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3zM20 14v.01M14 20h.01M17 20h4v-3"/></svg></button>' +
-              '<button type="button" class="header-icon-btn" id="settings-toggle" aria-label="Mon compte" title="Mon compte">' +
+              '<button type="button" class="header-icon-btn' + (profilePanelOpen ? ' is-open' : '') + '" id="settings-toggle" aria-label="Mon compte" title="Mon compte">' +
                 '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>' +
               '<button type="button" class="header-icon-btn" id="notifications-toggle" aria-label="' + tr('notifications_label') + '" title="' + tr('notifications_label') + '"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 16V11a6 6 0 0112 0v5l1.5 2h-15L6 16z"/><path d="M10 20.5a2 2 0 004 0"/></svg>' +
                 (notifCount ? '<span class="notif-count">' + (notifCount > 9 ? '9+' : notifCount) + '</span>' : '') +
@@ -20870,6 +20905,8 @@
       renderFeelingModal() +
       renderCoachSlotModal() +
       renderPhotoLightbox();
+    // Sous-menus de Mon compte (PC) : connus seulement une fois le panneau rendu.
+    if (profilePanelOpen) { var accNav = accountNavHtml(); if (accNav) { var hc = root.querySelector('header.page-head #notifications-toggle'); if (hc) hc.insertAdjacentHTML('beforebegin', accNav); } }
     attachHandlers();
     if (focusedId) {
       var toRefocus = document.getElementById(focusedId);

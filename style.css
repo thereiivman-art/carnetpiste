@@ -4241,7 +4241,9 @@ span.social-count { cursor: default; }
   .nav-sub-btn:hover { background: var(--surface-alt); color: var(--text); }
   .nav-sub-btn.active { color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, transparent); }
   .subnav.main-subnav { display: none; }
-  .pill-tabs.main-subnav-pills { display: none; }
+  .pill-tabs.main-subnav-pills, .sub-pills.main-subnav-pills { display: none; }
+  header.page-head .header-icon-btn.is-open { background: var(--accent); color: var(--accent-ink); }
+  .nav-sub-btn.nav-sub4 { margin-left: 1.8rem; width: calc(100% - 1.8rem); font-size: 0.82rem; }
   .nav-sub-btn.nav-sub3 { margin-left: 0.9rem; width: calc(100% - 0.9rem); padding-top: 0.3rem; padding-bottom: 0.3rem; font-size: 0.86rem; font-weight: 500; }
   .nav-sub-btn.nav-sub3.active { background: none; font-weight: 700; }
   /* Colonne de droite : à partir de 1280 px. */
