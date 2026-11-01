@@ -16752,6 +16752,7 @@
     } else {
       delete document.documentElement.dataset.theme;
     }
+    if (window.__syncBarsColor) window.__syncBarsColor();
   }
 
   function setThemePref(pref) {
