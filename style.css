@@ -4709,3 +4709,14 @@ html.kb-open .dm-form, .dm-form:focus-within { bottom: 0; }
   .annot-overlay.map-docked:not(.force-landscape), .track-notes-overlay.map-docked { right: calc(var(--rail-w) + 2rem); }
 }
 @media (min-width: 960px) { .track-notes-overlay.map-docked { padding-top: 1rem; } .annot-overlay.map-docked:not(.force-landscape) { padding-top: 0.6rem; } }
+.fav-circ-row { display: flex; align-items: center; gap: 0.6rem; padding: 0.35rem 0; border-bottom: 1px solid var(--border); }
+.fav-circ-row .outing-thumb { width: 34px; height: 34px; flex: 0 0 auto; }
+.fav-circ-row strong { flex: 1; min-width: 0; }
+.fav-circ-row .link-btn { text-decoration: none; padding: 0.2rem 0.4rem; }
+.fav-circ-add { margin-top: 0.45rem; }
+.fav-circ-add input { width: 100%; }
+.post-place-row { display: flex; gap: 0.4rem; }
+.post-place-row input { flex: 1; min-width: 0; }
+.post-place-row button { flex: 0 0 auto; border-radius: 999px; }
+.post-place { display: inline-flex; align-items: center; gap: 0.25rem; margin: 0.15rem 0 0.35rem; font-size: 0.82rem; font-weight: 600; color: var(--text-muted); text-decoration: none; }
+.post-place:hover { color: var(--accent); text-decoration: underline; }

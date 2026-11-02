@@ -7825,9 +7825,28 @@
     if (best) return best.videoUrl;
     return 'https://www.youtube.com/results?search_query=' + encodeURIComponent(circuit + ' onboard lap moto');
   }
+  // Sur téléphone : l'appli YouTube (vidéo ou recherche), sinon le site.
+  function youtubeAppUrl(u) {
+    var ua = navigator.userAgent || '', id = '', q = '';
+    var m = u.match(/[?&]v=([\w-]{6,})/) || u.match(/youtu\.be\/([\w-]{6,})/) || u.match(/\/shorts\/([\w-]{6,})/);
+    if (m) id = m[1];
+    var mq = u.match(/[?&]search_query=([^&]+)/); if (mq) q = mq[1];
+    if (/Android/i.test(ua)) return id ? 'vnd.youtube:' + id : 'intent://www.youtube.com/results?search_query=' + q + '#Intent;package=com.google.android.youtube;scheme=https;S.browser_fallback_url=' + encodeURIComponent(u) + ';end';
+    if (/iPhone|iPad|iPod/i.test(ua)) return id ? 'youtube://www.youtube.com/watch?v=' + id : 'youtube://www.youtube.com/results?search_query=' + q;
+    return '';
+  }
+  function openYoutube(u) {
+    var app = youtubeAppUrl(u);
+    if (!app) { window.open(u, '_blank', 'noopener'); return; }
+    var left = false, onHide = function () { left = true; };
+    document.addEventListener('visibilitychange', onHide, { once: true });
+    window.location.href = app;
+    // Pas d'appli YouTube : le site s'ouvre.
+    setTimeout(function () { document.removeEventListener('visibilitychange', onHide); if (!left && !document.hidden) window.open(u, '_blank', 'noopener'); }, 1200);
+  }
   function lapVideoLinkHtml(circuit) {
     var u = lapVideoUrl(circuit);
-    return u ? '<a class="lap-video-link" href="' + escapeHtml(u) + '" target="_blank" rel="noopener" title="' + escapeHtml(L('Un tour de piste en vidéo', 'A lap of the track on video')) + '"><svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>' + L('Vidéo', 'Video') + '</a>' : '';
+    return u ? '<a class="lap-video-link" data-yt="1" href="' + escapeHtml(u) + '" target="_blank" rel="noopener" title="' + escapeHtml(L('Un tour de piste en vidéo', 'A lap of the track on video')) + '"><svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>' + L('Vidéo', 'Video') + '</a>' : '';
   }
   function renderCircuitTab() {
     var circuits = allCircuits();
@@ -8201,6 +8220,7 @@
       return '<div class="ci-record-row"><span>' + c[1] + '</span><input type="text" id="ci-rec-' + c[0] + '" value="' + (r.t ? escapeHtml(formatTimePlain(r.t)) : '') + '" placeholder="1:39.283">' +
         '<input type="text" id="ci-rec-' + c[0] + '-who" maxlength="40" value="' + escapeHtml(r.who || '') + '" placeholder="' + escapeHtml(L('Pilote, année', 'Rider, year')) + '"></div>';
     }).join('') + '</div>';
+    html += '<div><label for="ci-lap-video">' + L('Vidéo d\'un tour (YouTube)', 'Lap video (YouTube)') + '</label><input type="url" id="ci-lap-video" value="' + escapeHtml(info.lapVideo || '') + '" placeholder="https://www.youtube.com/watch?v=..."><div class="help-text">' + L('Ouverte directement par le bouton Vidéo du circuit.', 'Opened straight from the circuit\'s Video button.') + '</div></div>';
     html += '<div><label for="ci-live-timing-url">' + tr('ci_live_timing_url') + '</label><input type="url" id="ci-live-timing-url" value="' + escapeHtml(info.liveTimingUrl || '') + '" placeholder="Ex. https://mugellocircuit.cronorapino.it/"></div>';
     html += '</div>';
     // These usual times pre-remplissent automatiquement une nouvelle sortie
@@ -11471,6 +11491,8 @@
     entry.organizerTeamId = organizerTeamId || null;
     entry.briefing = briefing || null;
     entry.liveTimingUrl = liveTimingUrl || null;
+    var lapVidEl = document.getElementById('ci-lap-video'), lapVid = lapVidEl ? lapVidEl.value.trim() : '';
+    entry.lapVideo = /^https:\/\/(www\.|m\.)?(youtube\.com|youtu\.be)\//.test(lapVid) ? lapVid : null;
     entry.horaires = anyHoraire ? horaires : null;
     STATE.circuits[selectedCircuit] = entry;
     editingCircuitInfo = false;
@@ -17737,7 +17759,14 @@
     // Accompagnant (ou carnet encore vide) : tous les circuits au choix.
     if (meIsNonRider() || Object.keys(allCircuitsMap).length < 3) allCircuits().forEach(function (c) { allCircuitsMap[c] = 1; });
     var circList = Object.keys(allCircuitsMap).sort();
-    if (lookShows(d, 'circuits') && circList.length) html += '<div class="look-field"><span class="look-label">' + (meIsNonRider() ? L('Circuits préférés (3 max)', 'Favourite circuits (up to 3)') : L('Circuits préférés (3 max, sinon les plus roulés)', 'Favourite circuits (up to 3, else most ridden)')) + '</span>' + pick('favCircuits', circList, circList, 3) + '</div>';
+    // Circuits préférés : on tape, la liste s'affiche ; une ligne par circuit choisi (3 max).
+    if (lookShows(d, 'circuits')) {
+      var favC = (d.favCircuits || []).filter(Boolean).slice(0, 3);
+      var allC = uniqNames(allCircuits().concat(circList)).sort(function (a, b) { return a.localeCompare(b); });
+      html += '<div class="look-field"><span class="look-label">' + (meIsNonRider() ? L('Circuits préférés (3 max)', 'Favourite circuits (up to 3)') : L('Circuits préférés (3 max, sinon les plus roulés)', 'Favourite circuits (up to 3, else most ridden)')) + '</span>' +
+        favC.map(function (c, i) { return '<div class="fav-circ-row"><span class="outing-thumb">' + circuitThumbHtml(c) + '</span><strong>' + escapeHtml(c) + '</strong><button type="button" class="link-btn" data-fav-circ-del="' + i + '" aria-label="' + escapeHtml(L('Retirer', 'Remove')) + '">✕</button></div>'; }).join('') +
+        (favC.length < 3 ? '<div class="fav-circ-add"><input type="text" id="fav-circ-input" list="fav-circ-list" autocomplete="off" placeholder="' + escapeHtml(L('Tape le nom d\'un circuit…', 'Type a circuit name…')) + '"><datalist id="fav-circ-list">' + allC.filter(function (c) { return favC.indexOf(c) === -1; }).map(function (c) { return '<option value="' + escapeHtml(c) + '">'; }).join('') + '</datalist></div>' : '') + '</div>';
+    }
     var teamChoices = lookTeamChoices(me.name);
     if (lookShows(d, 'teams')) html += '<div class="look-field"><span class="look-label">' + L('Teams préférés (3 max)', 'Favourite teams (up to 3)') + '</span>' +
       (teamChoices.length ? pick('favTeams', teamChoices.map(function (t) { return t.id; }), teamChoices.map(function (t) { return t.name; }), 3) : '<div class="help-text">' + L('Rejoins ou suis un team pour l\'afficher ici.', 'Join or follow a team to show it here.') + '</div>') + '</div>';
@@ -18571,7 +18600,7 @@
   // 30 jours), day/capped (plafond 100/jour des actions), rx (likes et
   // commentaires reçus déjà comptés), fol/ses (abonnés et chronos comptés),
   // total (pour le classement). Profil rempli et trophées : calculés.
-  var PNEUS_DAY_CAP = 100, pneusWatchAt = 0;
+  var PNEUS_DAY_CAP = 100, pneusWatchAt = 0, pneusReadySince = 0, pneusWatchTimer = null;
   var TYRE_SVG = '<svg class="tyre-ico" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"/></svg>';
   var pneusLocal = null, pneusSyncTimer = null;
   function pneusState() {
@@ -18606,7 +18635,7 @@
     var me = currentUserProfile, p = pneusState(); if (!me || !p) return 0;
     return p.bank + pneusProfilePoints((STATE.usersByName || {})[me.name] || me) + pneusTrophyPoints(me);
   }
-  function pneusSync() {
+  function pneusSync(now) {
     clearTimeout(pneusSyncTimer);
     pneusSyncTimer = setTimeout(function () {
       var p = pneusState(); if (!p) return;
@@ -18614,8 +18643,8 @@
       if (p.fol != null) doc.fol = p.fol;
       if (p.ses != null) doc.ses = p.ses;
       currentUserProfile.pneus = doc;
-      db.collection('users').doc(myUid()).update({ pneus: doc }).catch(function () {});
-    }, 1200);
+      db.collection('users').doc(myUid()).update({ pneus: doc }).catch(function (err) { if (now) showToast(tr('error_prefix') + ((err && err.message) || err)); });
+    }, now ? 0 : 1200);
   }
   // Le dernier endroit touché : le pneu gagné s'envole de là vers le compteur.
   var lastTapXY = null;
@@ -18667,7 +18696,7 @@
     var n = (p.cal.n >= PNEUS_CAL_DAYS ? 0 : p.cal.n) + 1, gain = pneusDayCalc(n);
     p.cal = { n: n, last: dateKey(new Date()) };
     p.bank += gain;
-    pneusSync(); pneusPulse(gain);
+    pneusSync(true); pneusPulse(gain);
     return gain;
   }
   // Ce qui se compte en regardant les données : nouveaux abonnés (amis
@@ -18676,14 +18705,14 @@
   function pneusWatch() {
     var me = currentUserProfile, p = pneusState(); if (!me || !p || coreDataLoading()) return;
     var changed = false;
+    // Plus haut niveau atteint : jamais revu à la baisse, sinon un
+    // chargement partiel (rechargement de la page) redonnerait des pneus.
     var nFol = followersOf(me.name).length;
     if (p.fol == null) { p.fol = nFol; changed = true; }
     else if (nFol > p.fol) { awardPneus(10 * (nFol - p.fol), true); p.fol = nFol; changed = true; }
-    else if (nFol < p.fol) { p.fol = nFol; changed = true; }
     var nSes = (STATE.sessions || []).filter(function (x) { return x.rider === me.name; }).length;
     if (p.ses == null) { p.ses = nSes; changed = true; }
     else if (nSes > p.ses) { awardPneus(10 * (nSes - p.ses), true); p.ses = nSes; changed = true; }
-    else if (nSes < p.ses) { p.ses = nSes; changed = true; }
     if (!p.since) { p.since = Date.now(); changed = true; }
     var gained = 0;
     var mine = (STATE.wallPosts || []).filter(function (w) { return w.author === me.name; }).map(function (w) { return { id: w.id, at: w.createdAt || 0, r: w.reactions }; })
@@ -18695,9 +18724,10 @@
       if (p.rx[it.id] == null) { p.rx[it.id] = it.at >= p.since ? 0 : score; changed = true; }
       if (score > p.rx[it.id]) { gained += score - p.rx[it.id]; p.rx[it.id] = score; changed = true; }
     });
-    // Garder la liste courte : seulement les publications encore chargées.
-    var ids = mine.map(function (it) { return it.id; });
-    Object.keys(p.rx).forEach(function (k) { if (ids.indexOf(k) === -1) { delete p.rx[k]; changed = true; } });
+    // Liste gardée (une publication pas encore chargée ne repart pas de 0) ;
+    // seulement les 400 plus récentes.
+    var rxKeys = Object.keys(p.rx);
+    if (rxKeys.length > 400) { rxKeys.slice(0, rxKeys.length - 400).forEach(function (k) { delete p.rx[k]; }); changed = true; }
     if (gained) awardPneus(gained, false);
     else if (changed) pneusSync();
   }
@@ -18783,6 +18813,51 @@
       else openPostShareSheet(post.id);
     });
   }
+  // L'image du milieu d'une vidéo (aperçu dans le fil), null si illisible.
+  function videoMiddleFrame(src, cb) {
+    var v = document.createElement('video'), done = false;
+    var end = function (img, d) { if (done) return; done = true; cb(img, d); };
+    v.muted = true; v.playsInline = true; v.preload = 'auto'; v.src = src;
+    v.addEventListener('loadedmetadata', function () { try { v.currentTime = Math.max(0.1, (v.duration || 1) / 2); } catch (e) { end(null); } });
+    v.addEventListener('seeked', function () {
+      try {
+        var w = Math.min(720, v.videoWidth || 720), h = Math.round(w * (v.videoHeight || 1280) / (v.videoWidth || 720));
+        var c = document.createElement('canvas'); c.width = w; c.height = h;
+        c.getContext('2d').drawImage(v, 0, 0, w, h);
+        end(c.toDataURL('image/jpeg', 0.6), Math.round((v.duration || 0) * 10) / 10);
+      } catch (e) { end(null); }
+    });
+    v.addEventListener('error', function () { end(null); });
+    setTimeout(function () { end(null); }, 6000);
+  }
+  // Vidéos du fil : lecture automatique (sans le son) quand elles sont bien
+  // visibles, pause quand elles sortent de l'écran. Un appui remet le son.
+  var feedVideoCache = {}, feedVideoObserver = null;
+  function setupFeedVideoAutoplay() {
+    if (!('IntersectionObserver' in window)) return;
+    if (feedVideoObserver) feedVideoObserver.disconnect();
+    feedVideoObserver = new IntersectionObserver(function (entries) {
+      entries.forEach(function (en) {
+        var box = en.target, id = box.getAttribute('data-feed-video');
+        var vid = box.querySelector('video');
+        if (en.isIntersecting && en.intersectionRatio >= 0.6) {
+          if (vid) { vid.play().catch(function () {}); return; }
+          var put = function (src) {
+            if (!src || box.querySelector('video') || !box.isConnected) return;
+            var v = document.createElement('video');
+            v.src = src; v.muted = true; v.loop = true; v.autoplay = true; v.playsInline = true; v.setAttribute('playsinline', ''); v.setAttribute('muted', '');
+            v.className = 'wall-post-video';
+            var im = box.querySelector('img'); if (im) v.poster = im.getAttribute('src');
+            box.innerHTML = ''; box.appendChild(v); box.classList.add('autoplaying');
+            v.play().catch(function () {});
+          };
+          if (feedVideoCache[id]) return put(feedVideoCache[id]);
+          db.collection('storyMedia').doc(id).get().then(function (d) { if (d.exists) { feedVideoCache[id] = d.data().video; put(feedVideoCache[id]); } }).catch(function () {});
+        } else if (vid) { try { vid.pause(); } catch (e) {} }
+      });
+    }, { threshold: [0, 0.6] });
+    document.querySelectorAll('[data-feed-video]').forEach(function (b) { feedVideoObserver.observe(b); });
+  }
   function canPostVideoStory() { return !!(currentUserProfile && (hasCarnetPlus(currentUserProfile) || isAdmin())); }
   var STORY_VIDEO_MAX_S = 10;
   function prepareStoryVideo(file) {
@@ -18814,7 +18889,10 @@
         // Dernier recours : la vidéo d'origine si elle est déjà assez légère.
         if (file.size < 700000 && /^video\/(mp4|webm|quicktime)/.test(file.type)) {
           var fr = new FileReader();
-          fr.onload = function () { finish(null, { dataUrl: String(fr.result).replace(/^data:video\/quicktime/, 'data:video/mp4'), mime: 'video/mp4', poster: null, duration: STORY_VIDEO_MAX_S }); };
+          fr.onload = function () {
+            var du = String(fr.result).replace(/^data:video\/quicktime/, 'data:video/mp4');
+            videoMiddleFrame(du, function (poster, d) { finish(null, { dataUrl: du, mime: 'video/mp4', poster: poster, duration: d || STORY_VIDEO_MAX_S }); });
+          };
           fr.onerror = function () { finish(L('Cette vidéo n\'a pas pu être lue.', 'This video could not be read.')); };
           return fr.readAsDataURL(file);
         }
@@ -18864,7 +18942,7 @@
       }
       var mime = ['video/mp4', 'video/webm;codecs=vp8,opus', 'video/webm'].filter(function (m) { return !Rec.isTypeSupported || Rec.isTypeSupported(m); })[0] || '';
       try { rec = new Rec(stream, mime ? { mimeType: mime, videoBitsPerSecond: 420000, audioBitsPerSecond: 48000 } : { videoBitsPerSecond: 420000 }); } catch (e) { return end('recorder'); }
-      var chunks = [], poster = null, stopped = false;
+      var chunks = [], poster = null, firstFrame = null, stopped = false;
       var build = function () {
         if (!chunks.length) return end('empty');
         var type = ((rec && rec.mimeType) || mime || 'video/mp4').split(';')[0];
@@ -18873,7 +18951,7 @@
         fr.onload = function () {
           if (!/^data:video\/(mp4|webm)/.test(fr.result)) return end('format');
           if (fr.result.length > 980000) return end('too-big');
-          end(null, { dataUrl: fr.result, mime: type, poster: poster || cv.toDataURL('image/jpeg', 0.6), duration: dur });
+          end(null, { dataUrl: fr.result, mime: type, poster: poster || firstFrame || cv.toDataURL('image/jpeg', 0.6), duration: dur });
         };
         fr.onerror = function () { end('read'); };
         fr.readAsDataURL(blob);
@@ -18893,7 +18971,9 @@
       var draw = function () {
         if (stopped || settled) return;
         try { ctx.drawImage(v, 0, 0, cv.width, cv.height); } catch (e) {}
-        if (!poster && v.currentTime > 0.05) { try { poster = cv.toDataURL('image/jpeg', 0.6); } catch (e) {} }
+        // Aperçu : l'image du milieu de la vidéo (la première en secours).
+        if (!firstFrame && v.currentTime > 0.05) { try { firstFrame = cv.toDataURL('image/jpeg', 0.6); } catch (e) {} }
+        if (!poster && v.currentTime >= dur / 2) { try { poster = cv.toDataURL('image/jpeg', 0.6); } catch (e) {} }
         var left = Math.max(0, Math.ceil(dur - v.currentTime)), el = document.getElementById('story-prep');
         if (el) el.textContent = L('Compression sur ton téléphone : encore ', 'Compressing on your phone: ') + left + L(' s', ' s left');
         if (v.currentTime >= dur - 0.05 || v.ended) return stopRec();
@@ -19491,6 +19571,7 @@
     });
   }
 
+  var wallPostPlace = {}; // { label, geo: { lat, lng } } : lieu de la publication en cours
   var wallComposerOpen = false; // whether the "Publier un message" form is expanded, or just its collapsed teaser button
   var wallFeedVisibleCount = 5; // how many of Mon Journal's items are rendered -- +5 each time the scroll sentinel is reached (see attachHandlers)
 
@@ -19526,6 +19607,15 @@
       });
     }).catch(function () {});
   }
+  // « à Barcelone » sous le texte : un appui ouvre Plans (Apple) ou Google Maps.
+  function postPlaceHtml(p) {
+    var apple = /iPhone|iPad|iPod|Macintosh/.test(navigator.userAgent || '');
+    var g = p.geo && isFinite(p.geo.lat) && isFinite(p.geo.lng) ? p.geo : null;
+    var url = apple
+      ? 'https://maps.apple.com/?' + (g ? 'll=' + g.lat + ',' + g.lng + '&q=' + encodeURIComponent(p.place) : 'q=' + encodeURIComponent(p.place))
+      : 'https://www.google.com/maps/search/?api=1&query=' + (g ? g.lat + ',' + g.lng : encodeURIComponent(p.place));
+    return '<a class="post-place" href="' + escapeHtml(url) + '" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-6-5.6-6-11a6 6 0 0 1 12 0c0 5.4-6 11-6 11z"/><circle cx="12" cy="10" r="2.3"/></svg>' + L('à ', 'at ') + escapeHtml(p.place) + '</a>';
+  }
   function renderWallComposer() {
     if (!wallComposerOpen) {
       var meU = currentUserProfile || {};
@@ -19537,6 +19627,10 @@
     html += '<label for="wall-post-text">' + tr('wall_post_placeholder') + '</label><div class="mention-wrap"><textarea id="wall-post-text" rows="2" data-mentions="1"></textarea><div class="mention-suggest" hidden></div></div>' +
       '<div class="help-text">' + L('Tape @ pour citer un ami.', 'Type @ to mention a friend.') + '</div>';
     html += '<label for="wall-post-link" style="margin-top:0.6rem;">' + tr('link_optional_placeholder') + '</label><input type="url" id="wall-post-link" placeholder="https://...">';
+    // Lieu (facultatif) : un circuit, une ville… ou ma position.
+    html += '<label for="wall-post-place" style="margin-top:0.6rem;">' + L('Lieu (facultatif)', 'Place (optional)') + '</label><div class="post-place-row"><input type="text" id="wall-post-place" list="wall-post-place-list" maxlength="80" autocomplete="off" placeholder="' + escapeHtml(L('Ex. Circuit de Barcelone', 'E.g. Barcelona circuit')) + '" value="' + escapeHtml(wallPostPlace.label || '') + '">' +
+      '<button type="button" class="ghost" id="wall-post-geo" title="' + escapeHtml(L('Utiliser ma position', 'Use my location')) + '">' + (wallPostPlace.geo ? L('Position ✓', 'Location ✓') : L('Position', 'Location')) + '</button></div>' +
+      '<datalist id="wall-post-place-list">' + allCircuits().map(function (c) { return '<option value="' + escapeHtml(c) + '">'; }).join('') + '</datalist>';
     html += '<div style="margin-top:0.6rem;">';
     if (wallPostDraftPhotoURL) {
       html += '<img class="wall-post-photo-preview" src="' + escapeHtml(wallPostDraftPhotoURL) + '" alt="">' +
@@ -19638,6 +19732,7 @@
       '<button type="button" class="post-share" data-action="share-post" data-id="' + escapeHtml(p.id) + '" aria-label="' + escapeHtml(L('Partager', 'Share')) + '" title="' + escapeHtml(L('Partager', 'Share')) + '"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7"/><path d="M16 6l-4-4-4 4"/><path d="M12 2v13"/></svg></button></div>';
     // Le texte, puis l'image entière en dessous (un appui : plein écran).
     if (p.text) html += '<div class="wall-post-text">' + mentionsHtml(p.text) + '</div>';
+    if (p.place) html += postPlaceHtml(p);
     if (p.linkUrl) html += postLinkHtml(p.linkUrl);
     if (p.photoURL) html += '<div class="wall-post-media' + (p.video ? ' is-video' : '') + '"' + (p.video ? ' data-feed-video="' + escapeHtml(p.mediaId || p.id) + '"' : '') + '><img class="wall-post-photo" src="' + escapeHtml(p.photoURL) + '" alt="">' +
       (p.video ? '<span class="wall-post-play" aria-hidden="true"><svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></span>' : '') + '</div>';
@@ -19892,7 +19987,9 @@
     if (text) post.text = text;
     if (linkUrl) post.linkUrl = linkUrl;
     if (photoURL) post.photoURL = photoURL;
+    if (wallPostPlace.label || wallPostPlace.geo) { post.place = (wallPostPlace.label || L('Ma position', 'My location')).slice(0, 80); if (wallPostPlace.geo) post.geo = wallPostPlace.geo; }
     db.collection('wallPosts').doc(post.id).set(post).then(function () {
+      wallPostPlace = {};
       wallPostMessage = '';
       wallPostDraftPhotoURL = null;
       wallComposerOpen = false;
@@ -23351,9 +23448,23 @@
         var linkEl = document.getElementById('wall-post-link');
         var audienceEl = document.getElementById('wall-post-audience');
         try { localStorage.setItem('cdp-post-audience', audienceEl.value); } catch (e) {}
+        var placeEl = document.getElementById('wall-post-place');
+        wallPostPlace.label = placeEl ? placeEl.value.trim().slice(0, 80) : '';
         postToWall(textEl.value, linkEl.value, wallPostDraftPhotoURL, audienceEl.value);
       });
     }
+    var geoBtn = document.getElementById('wall-post-geo');
+    if (geoBtn) geoBtn.addEventListener('click', function () {
+      if (wallPostPlace.geo) { wallPostPlace.geo = null; geoBtn.textContent = L('Position', 'Location'); return; }
+      if (!navigator.geolocation) return showToast(L('Position non disponible sur cet appareil.', 'Location not available on this device.'));
+      geoBtn.textContent = '…';
+      navigator.geolocation.getCurrentPosition(function (pos) {
+        // Arrondi à ~100 m : assez pour la carte, sans l'adresse exacte.
+        wallPostPlace.geo = { lat: Math.round(pos.coords.latitude * 1000) / 1000, lng: Math.round(pos.coords.longitude * 1000) / 1000 };
+        geoBtn.textContent = L('Position ✓', 'Location ✓');
+        var pl = document.getElementById('wall-post-place'); if (pl && !pl.value.trim()) pl.placeholder = L('Nom du lieu (ex. Paddock Barcelone)', 'Place name (e.g. Barcelona paddock)');
+      }, function () { geoBtn.textContent = L('Position', 'Location'); showToast(L('Position refusée ou introuvable.', 'Location denied or unavailable.')); }, { enableHighAccuracy: false, timeout: 10000, maximumAge: 300000 });
+    });
     var wallPostPhotoBtn = document.getElementById('wall-post-photo-btn');
     var wallPostPhotoInput = document.getElementById('wall-post-photo-input');
     if (wallPostPhotoBtn && wallPostPhotoInput) {
@@ -23397,6 +23508,7 @@
       });
     }
     presenceBeat();
+    setupFeedVideoAutoplay();
     document.querySelectorAll('[data-action="fsug-toggle"]').forEach(function (b) { b.addEventListener('click', function () {
       var c = false; try { c = localStorage.getItem('cdp-friend-sug-closed') === '1'; localStorage.setItem('cdp-friend-sug-closed', c ? '0' : '1'); } catch (e) {}
       renderRoot();
@@ -23413,13 +23525,20 @@
     document.querySelectorAll('[data-rail-ev]').forEach(function (b) { b.addEventListener('click', function (e) { e.stopPropagation(); railEvPage = Math.max(0, railEvPage + Number(b.getAttribute('data-rail-ev'))); renderRoot(); }); });
     document.querySelectorAll('[data-action="pneus-open"]').forEach(function (b) { b.addEventListener('click', function (e) { e.stopPropagation(); openPneusSheet(); }); });
     if (currentUserProfile && !coreDataLoading()) {
-      if (Date.now() - pneusWatchAt > 3000) { pneusWatchAt = Date.now(); try { pneusWatch(); } catch (e) {} }
+      if (!pneusReadySince) pneusReadySince = Date.now();
+      // Attendre que tout soit chargé (amis, abonnés, commentaires) avant de compter.
+      if (Date.now() - pneusReadySince > 8000 && Date.now() - pneusWatchAt > 3000) { pneusWatchAt = Date.now(); try { pneusWatch(); } catch (e) {} }
+      else if (!pneusWatchTimer) pneusWatchTimer = setTimeout(function () { pneusWatchTimer = null; scheduleRender(); }, 9000);
       setTimeout(maybeShowDailyPneus, 1200);
     }
     // Logo et nom de l'appli : retour à Communauté › Social.
     document.querySelectorAll('[data-action="team-create-toggle"]').forEach(function (b) { b.addEventListener('click', function () {
       teamCreateOpen = !teamCreateOpen; renderRoot();
       if (teamCreateOpen) { var i = document.getElementById('new-team-name'); if (i) i.focus(); }
+    }); });
+    document.querySelectorAll('a[data-yt]').forEach(function (a) { a.addEventListener('click', function (e) {
+      if (!/^https:\/\/(www\.)?youtube\.com|^https:\/\/youtu\.be/.test(a.href) || !youtubeAppUrl(a.href)) return;
+      e.preventDefault(); openYoutube(a.href);
     }); });
     document.querySelectorAll('[data-action="map-open"]').forEach(function (b) { b.addEventListener('click', function () {
       if (!selectedCircuit) return;
@@ -23623,6 +23742,25 @@
         renderRoot();
       });
     });
+    document.querySelectorAll('[data-fav-circ-del]').forEach(function (b) { b.addEventListener('click', function () {
+      if (!lookDraft) return; (lookDraft.favCircuits || []).splice(Number(b.getAttribute('data-fav-circ-del')), 1); renderRoot();
+    }); });
+    var favCircIn = document.getElementById('fav-circ-input');
+    if (favCircIn) {
+      var tryAddCirc = function () {
+        if (!lookDraft) return;
+        var v = favCircIn.value.trim().toLowerCase(); if (!v) return;
+        var hit = [].map.call(document.querySelectorAll('#fav-circ-list option'), function (o) { return o.value; }).filter(function (c) { return c.toLowerCase() === v; })[0];
+        if (!hit) return;
+        var list = lookDraft.favCircuits || (lookDraft.favCircuits = []);
+        if (list.indexOf(hit) === -1 && list.length < 3) list.push(hit);
+        renderRoot();
+        var again = document.getElementById('fav-circ-input'); if (again) again.focus();
+      };
+      favCircIn.addEventListener('input', tryAddCirc);
+      favCircIn.addEventListener('change', tryAddCirc);
+      favCircIn.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); tryAddCirc(); } });
+    }
     document.querySelectorAll('[data-look-fav]').forEach(function (btn) {
       btn.addEventListener('click', function () {
         if (!lookDraft) return;
@@ -23765,7 +23903,8 @@
         var fv = e.target.closest('[data-feed-video]');
         if (fv) {
           e.preventDefault(); e.stopPropagation();
-          if (fv.querySelector('video')) return;
+          var pv = fv.querySelector('video');
+          if (pv) { pv.muted = !pv.muted; pv.controls = true; pv.play().catch(function () {}); return; }
           db.collection('storyMedia').doc(fv.getAttribute('data-feed-video')).get().then(function (d) {
             if (!d.exists) return showToast(L('Vidéo plus disponible.', 'Video no longer available.'));
             var vid = document.createElement('video'); vid.src = d.data().video; vid.controls = true; vid.autoplay = true; vid.playsInline = true; vid.setAttribute('playsinline', ''); vid.className = 'wall-post-video';
