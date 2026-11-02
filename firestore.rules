@@ -976,11 +976,15 @@ service cloud.firestore {
         && request.resource.data.get('authorUid', '') == request.auth.uid
         && request.resource.data.text is string && request.resource.data.text.size() <= 500
         && request.resource.data.postId is string
-        && request.resource.data.keys().hasOnly(['id', 'postId', 'author', 'authorUid', 'text', 'createdAt', 'public', 'visibleTo']);
+        && (!('replyTo' in request.resource.data) || (request.resource.data.replyTo is string && request.resource.data.replyTo.size() <= 80))
+        && request.resource.data.keys().hasOnly(['id', 'postId', 'author', 'authorUid', 'text', 'createdAt', 'public', 'visibleTo', 'parentId', 'replyTo']);
       allow delete: if verified() && (resource.data.author == myName() || isAdmin());
       allow update: if verified() && (canRenameField(resource, 'author', 'authorUid') || canBackfillUid(resource, 'author', 'authorUid')
         || ((resource.data.get('authorUid', '') == request.auth.uid || isAdmin())
-            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['public', 'visibleTo'])));
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['public', 'visibleTo']))
+        // J'aime sur un commentaire : chacun ne touche que le sien.
+        || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes'])
+            && onlyOwnKeyChanged(resource.data.get('likes', {}), request.resource.data.likes)));
     }
     // Messages : « Public » (audience all / followers) lisibles par tout
     // compte vérifié ; « Mes amis » seulement par l'auteur et les uids de

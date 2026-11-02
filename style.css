@@ -4551,3 +4551,38 @@ html.kb-open .dm-form, .dm-form:focus-within { bottom: 0; }
   :root { --subnav-gap: 0.5rem; }
   .subnav.main-subnav::after { content: ''; position: absolute; left: -1rem; right: -1rem; top: 100%; height: var(--subnav-gap); background: var(--bg); pointer-events: none; }
 }
+/* Actions d'un post : tout à gauche (Réagir, Commenter, Republier), seule
+   la corbeille à droite. Même rendu partout, avec ou sans photo. */
+.feed-entry-foot.social-row, .social-row { display: flex; flex-wrap: wrap; justify-content: flex-start; align-items: center; gap: 0.45rem; }
+.social-row > *, .social-row .reaction-bar, .social-row .reaction-bar .reaction-btn { grid-column: auto; order: 0; flex: 0 0 auto; width: auto !important; margin-left: 0; }
+.social-row .repost-count:empty { display: none; }
+.feed-entry-foot.social-row .reaction-bar { margin-right: 0; }
+.social-row .post-trash { order: 9; margin-left: auto !important; }
+.social-row .post-edit-links { order: 9; margin-left: auto; }
+.wall-post-head .feed-entry-time { margin-left: auto; }
+.post-share { width: 2.1rem; height: 2.1rem; min-width: 0; padding: 0; border: 0; border-radius: 50%; background: none; color: var(--text-muted); display: grid; place-items: center; cursor: pointer; flex: 0 0 auto; }
+.post-share:hover { background: var(--surface-alt); color: var(--text); }
+.share-sheet { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.6rem; margin: 0.4rem 0 0.6rem; }
+.share-opt { display: flex; flex-direction: column; align-items: center; gap: 0.35rem; padding: 0.6rem 0.3rem; border: 1px solid var(--border); border-radius: 0.8rem; background: var(--surface); color: var(--text); font-size: 0.8rem; font-weight: 600; cursor: pointer; }
+.share-opt .brand-logo { width: 2.4rem; height: 2.4rem; border-radius: 0.7rem; display: grid; place-items: center; }
+.post-flash { animation: post-flash 1.6s ease-out; }
+@keyframes post-flash { 0%, 40% { box-shadow: 0 0 0 3px var(--accent); } 100% { box-shadow: none; } }
+/* PC : bannière plus grande (format 3:1, comme sur les autres réseaux). */
+@media (min-width: 960px) {
+  .person-hero:not([data-cover="none"]) .ph-cover { height: auto; aspect-ratio: 3 / 1; max-height: 300px; min-height: 180px; }
+}
+/* Commentaires façon TikTok : cœur à droite, réponses en retrait. */
+.post-comment-main { flex: 1; min-width: 0; }
+.post-comment-bubble { display: inline-block; max-width: 100%; }
+.post-comment-to { color: var(--accent); font-weight: 600; }
+.post-comment-time .link-btn[data-action="reply-comment"] { font-weight: 700; text-decoration: none; }
+.comment-like { flex: 0 0 auto; display: flex; flex-direction: column; align-items: center; gap: 0.05rem; min-width: 2rem; padding: 0.2rem 0; border: 0; background: none; color: var(--text-muted); font-size: 0.72rem; cursor: pointer; }
+.comment-like.on { color: #ff3b5c; }
+.post-comment-replies { margin-left: 2.25rem; display: flex; flex-direction: column; gap: 0.45rem; }
+.post-comment.is-reply .mini-avatar { width: 1.5rem; height: 1.5rem; font-size: 0.7rem; }
+.comment-replies-toggle { align-self: flex-start; margin-left: 2.25rem; font-size: 0.8rem; color: var(--text-muted); text-decoration: none; font-weight: 600; }
+.post-comment-replies .comment-replies-toggle { margin-left: 0; }
+.comment-reply-chip { display: flex; align-items: center; gap: 0.35rem; font-size: 0.8rem; color: var(--text-muted); background: var(--surface-alt); border-radius: 999px; padding: 0.2rem 0.4rem 0.2rem 0.8rem; align-self: flex-start; }
+.comment-reply-chip .link-btn { text-decoration: none; padding: 0 0.3rem; }
+.post-comment-time .link-btn { display: inline; width: auto; min-width: 0; padding: 0; margin: 0; background: none; border: 0; }
+.comment-replies-toggle { width: auto; text-align: left; padding: 0; background: none; border: 0; }

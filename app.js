@@ -3088,12 +3088,15 @@
   // ?roulage=<eventId>: a public roulage link (see publishPublicRoulage).
   var pendingRoulageId = null;
   var pendingJoinGroup = null; // groupe porté par un QR paddock (&g=B)
+  var pendingPostId = null; // ?post=<id> : une publication partagée ailleurs
   (function captureReferrer() {
     try {
       var params = new URLSearchParams(window.location.search);
       var ref = params.get('ref');
       var roulage = params.get('roulage');
       var qrGroup = params.get('g');
+      var sharedPost = params.get('post');
+      if (sharedPost && /^[\w-]{1,80}$/.test(sharedPost)) { pendingPostId = sharedPost; params.delete('post'); window.history.replaceState(null, '', window.location.pathname + (params.toString() ? '?' + params.toString() : '') + window.location.hash); }
       if (qrGroup && /^[A-Za-z]{1,4}$/.test(qrGroup)) { pendingJoinGroup = qrGroup.toUpperCase(); params.delete('g'); try { sessionStorage.setItem('cdp-pending-group', pendingJoinGroup); } catch (e) {} }
       else { try { pendingJoinGroup = sessionStorage.getItem('cdp-pending-group') || null; } catch (e) {} }
       if (roulage) { pendingRoulageId = roulage; params.delete('roulage'); try { sessionStorage.setItem('cdp-pending-roulage', roulage); } catch (e) {} }
@@ -13945,7 +13948,7 @@
   }
   function myProfileNavPills() {
     var me = currentUserProfile, isPilote = !me.role || me.role === 'pilote';
-    var out = [['monfil', L('Mon Social', 'My Social')], ['fiche', L('Fiche', 'Profile')], ['bientot', L('Bientôt en piste', 'Coming up')]];
+    var out = [['monfil', L('Mon Box', 'My Box')], ['fiche', L('Fiche', 'Profile')], ['bientot', L('Bientôt en piste', 'Coming up')]];
     if (isPilote) out.push(['saisons', L('Saisons', 'Seasons')]);
     return out;
   }
@@ -17522,6 +17525,8 @@
     x: { bg: '#000', g: '<path d="M5.5 5h4l3.2 4.4L16.6 5h1.8l-4.8 5.5L19 19h-4l-3.5-4.8L7.3 19H5.5l5.1-5.8z" fill="#fff"/>' },
     link: { bg: 'var(--text)', g: '<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"/>' }
   };
+  LINK_BRANDS.whatsapp = { bg: '#25d366', g: '<path d="M12 4a8 8 0 0 0-6.9 12l-1 3.9 4-1A8 8 0 1 0 12 4z" fill="none" stroke="#fff" stroke-width="1.8" stroke-linejoin="round"/><path d="M9.3 8.6c.2-.4.4-.4.6-.4h.5c.2 0 .4.1.5.4l.6 1.5c.1.2 0 .4-.1.5l-.4.5c-.1.1-.1.3 0 .4.5.9 1.3 1.6 2.2 2.1.2.1.3.1.4 0l.5-.5c.1-.2.3-.2.5-.1l1.4.7c.2.1.3.3.3.5 0 .6-.4 1.3-1 1.5-.7.2-1.6.1-3-.6a8 8 0 0 1-3.3-3.3c-.6-1.2-.5-2.1-.1-2.7z" fill="#fff"/>' };
+  function brandIconHtml(k) { var b = LINK_BRANDS[k] || LINK_BRANDS.link; return '<span class="brand-logo brand-' + (LINK_BRANDS[k] ? k : 'link') + '" style="background:' + b.bg + '"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">' + b.g + '</svg></span>'; }
   function linkKind(url) {
     var host = '';
     try { host = new URL(url).hostname.replace(/^www\./, ''); } catch (e) {}
@@ -17991,7 +17996,7 @@
       // Fil d'abord, puis Fiche, Bientôt en piste, Saisons.
       var theirPosts = !isMe ? (STATE.wallPosts || []).filter(function (p) { return inFeed(p) && p.author === name; }) : [];
       var personPills = [];
-      if (withFeed) personPills.push(['monfil', L('Mon Social', 'My Social')]);
+      if (withFeed) personPills.push(['monfil', L('Mon Box', 'My Box')]);
       else if (!isMe) personPills.push(['fil', L('Social', 'Social')]);
       personPills.push(['fiche', L('Fiche', 'Profile')]);
       if (withFeed || (!isMe && upcomingVisible(u, name))) personPills.push(['bientot', L('Bientôt en piste', 'Coming up')]);
@@ -18450,6 +18455,44 @@
     if (f && navigator.canShare && navigator.canShare({ files: [f] })) data.files = [f];
     navigator.share(data).catch(function () {});
   }
+  // Partager une publication ailleurs : WhatsApp, X, Facebook par leur
+  // lien de partage ; Instagram et TikTok n'en ont pas sur le web, d'où la
+  // feuille de partage du téléphone (ou texte copié + image téléchargée).
+  function postShareLink(id) { return location.origin + location.pathname + '?post=' + encodeURIComponent(id); }
+  function copyText(t) {
+    if (navigator.clipboard && navigator.clipboard.writeText) return navigator.clipboard.writeText(t).then(function () { return true; }, function () { return false; });
+    return Promise.resolve(false);
+  }
+  function openPostShareSheet(id) {
+    var p = (STATE.wallPosts || []).filter(function (x) { return x.id === id; })[0]; if (!p) return;
+    var link = postShareLink(id), text = ((p.text || '').slice(0, 240) + (p.text ? ' · ' : '') + L('via Carnet Piste', 'via Pitbook')).trim();
+    var opts = [
+      ['whatsapp', 'WhatsApp'], ['x', 'X (Twitter)'], ['facebook', 'Facebook'], ['instagram', 'Instagram'], ['tiktok', 'TikTok'], ['copy', L('Copier le lien', 'Copy link')]
+    ];
+    var ov = openMiniSheet('<h2 class="section-title">' + L('Partager', 'Share') + '</h2><div class="share-sheet">' +
+      opts.map(function (o) { return '<button type="button" class="share-opt" data-share-to="' + o[0] + '">' + brandIconHtml(o[0]) + '<span>' + escapeHtml(o[1]) + '</span></button>'; }).join('') + '</div>' +
+      '<div class="mini-sheet-actions"><button type="button" class="link-btn" data-mini-close>' + L('Fermer', 'Close') + '</button></div>');
+    ov.querySelectorAll('[data-share-to]').forEach(function (b) { b.addEventListener('click', function () {
+      var to = b.getAttribute('data-share-to');
+      if (to === 'whatsapp') window.open('https://wa.me/?text=' + encodeURIComponent(text + ' ' + link), '_blank', 'noopener');
+      else if (to === 'x') window.open('https://twitter.com/intent/tweet?text=' + encodeURIComponent(text) + '&url=' + encodeURIComponent(link), '_blank', 'noopener');
+      else if (to === 'facebook') window.open('https://www.facebook.com/sharer/sharer.php?u=' + encodeURIComponent(link), '_blank', 'noopener');
+      else if (to === 'copy') copyText(link).then(function (ok) { showToast(ok ? L('Lien copié.', 'Link copied.') : link); });
+      else {
+        // Instagram / TikTok : feuille de partage du téléphone avec l'image.
+        var f = p.photoURL && /^data:/.test(p.photoURL) ? dataUrlToFile(p.photoURL, 'carnet-piste') : null;
+        var data = { text: text + ' ' + link };
+        if (f && navigator.canShare && navigator.canShare({ files: [f] })) data.files = [f];
+        if (navigator.share) navigator.share(data).catch(function () {});
+        else {
+          copyText(text + ' ' + link);
+          if (f) { var a = document.createElement('a'); a.href = p.photoURL; a.download = 'carnet-piste.' + ((f.type || '').split('/')[1] || 'jpg'); document.body.appendChild(a); a.click(); a.remove(); }
+          showToast(L('Texte copié' + (f ? ' et image téléchargée' : '') + ' : colle-les dans ' + (to === 'tiktok' ? 'TikTok' : 'Instagram') + '.', 'Text copied' + (f ? ' and image downloaded' : '') + ': paste them in ' + (to === 'tiktok' ? 'TikTok' : 'Instagram') + '.'));
+        }
+      }
+      ov.remove();
+    }); });
+  }
   function shareElsewhereOptHtml(cls) {
     return navigator.share ? '<label class="share-elsewhere-opt ' + (cls || '') + '"><input type="checkbox" class="share-elsewhere"> ' + L('Partager aussi sur mes autres réseaux', 'Also share to my other apps') + '</label>' : '';
   }
@@ -18623,7 +18666,7 @@
       '<div class="story-card story-photo">' + (video ? '<video src="' + escapeHtml(video.dataUrl) + '" autoplay loop playsinline muted></video>' : '<img src="' + escapeHtml(dataUrl) + '" alt="">') + '</div>' +
       '<input type="text" class="story-text-input" maxlength="120" placeholder="' + escapeHtml(L('Ajoute un mot (facultatif)', 'Add a caption (optional)')) + '">' +
       storyAsTeamHtml() +
-      '<label class="story-feed-opt"><input type="checkbox" class="story-also-feed"> ' + L('Publier aussi dans mon Social', 'Also post to my Social') + '</label>' +
+      '<label class="story-feed-opt"><input type="checkbox" class="story-also-feed"> ' + L('Publier aussi dans mon Box', 'Also post to my Box') + '</label>' +
       shareElsewhereOptHtml('story-feed-opt') +
       '<button type="button" class="primary story-publish">' + L('Publier ma story', 'Post my story') + '</button>';
     document.body.appendChild(ov);
@@ -18723,7 +18766,7 @@
           ? '<button type="button" class="story-like' + (iLike ? ' on' : '') + '" data-like-key="' + escapeHtml(likeKey) + '" aria-pressed="' + iLike + '" aria-label="' + escapeHtml(L('J\'aime', 'Like')) + '">' + heart + '</button>'
           : '<div class="story-mine-foot">' + (nLikes ? '<span class="story-likes">' + heart + ' ' + escapeHtml(Object.keys(likes).slice(0, 3).join(', ') + (nLikes > 3 ? L(' et ' + (nLikes - 3) + ' autres', ' and ' + (nLikes - 3) + ' more') : '')) + '</span>' : '') +
             '<span class="story-views" data-views-for="' + escapeHtml(st.post.id) + '"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg> ' + storyViewCount(st.post) + '</span>' +
-            (st.post.alsoInFeed ? '<span class="story-infeed">' + L('Aussi dans ton Social', 'Also in your Social') + '</span>' : '') + '</div>';
+            (st.post.alsoInFeed ? '<span class="story-infeed">' + L('Aussi dans ton Box', 'Also in your Box') + '</span>' : '') + '</div>';
         // Une vue par compte et par jour (l'auteur voit le total).
         if (!mine) recordView('postViews', st.post.id, owner);
       }
@@ -18903,7 +18946,7 @@
     var on = hasCarnetPlus(p);
     var check = '<svg class="cp-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7"/></svg>';
     var feats = [
-      [L('Sans publicité', 'No ads'), L('Aucune pub dans Social ni dans Mon Social.', 'No ads in Social or My Social.'), 'ok'],
+      [L('Sans publicité', 'No ads'), L('Aucune pub dans Social ni dans Mon Box.', 'No ads in Social or My Box.'), 'ok'],
       [L('Stories vidéo', 'Video stories'), L('Des vidéos de 10 secondes en story, compressées sur ton téléphone.', '10-second video stories, compressed on your phone.'), 'ok'],
       [L('Badge Carnet+', 'Carnet+ badge'), L('Le badge C+ à côté de ton nom, partout dans l\'appli.', 'The C+ badge next to your name, everywhere in the app.'), 'ok'],
       [L('Fiche personnalisée', 'Custom profile'), L('Couverture, plaque de course, couleur, sponsors, chrono vedette et vitrine.', 'Cover, race plate, colour, sponsors, featured lap and showcase.'), 'ok'],
@@ -18968,27 +19011,61 @@
       a.visits + L(' visites du profil, ', ' profile visits, ') + a.followers + L(' abonnés', ' followers') + (a.newFollowers ? ' (+' + a.newFollowers + ')' : '') + '. ' + referralLinkFor(me.name);
   }
   // ---- Commentaires des messages ----
-  var commentsOpen = {}, commentsAll = {};
+  var commentsOpen = {}, commentsAll = {}, commentRepliesOpen = {}, commentReplyTo = {};
+  // Commentaires façon TikTok : cœur à droite (J'aime), « Répondre » sous
+  // le commentaire, réponses rangées sous lui (repliées : « Voir N réponses »).
+  var HEART_SVG = function (on) { return '<svg viewBox="0 0 24 24" width="16" height="16" fill="' + (on ? 'currentColor' : 'none') + '" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/></svg>'; };
+  function commentRowHtml(c, p, me, isReply) {
+    var u = (STATE.usersByName || {})[c.author] || {}, likes = c.likes || {}, n = Object.keys(likes).length, iLike = !!(me && likes[me]);
+    var topId = c.parentId || c.id;
+    return '<div class="post-comment' + (isReply ? ' is-reply' : '') + '">' + avatarHtml(u, c.author) +
+      '<div class="post-comment-main"><div class="post-comment-bubble"><button type="button" class="post-comment-author" data-open-person="' + escapeHtml(c.author) + '">' + escapeHtml(c.author) + '</button> ' +
+      (c.replyTo ? '<span class="post-comment-to">@' + escapeHtml(c.replyTo) + '</span> ' : '') + escapeHtml(c.text) + '</div>' +
+      '<span class="post-comment-time">' + escapeHtml(relativeTime(c.createdAt)) +
+      (me ? ' · <button type="button" class="link-btn" data-action="reply-comment" data-post="' + escapeHtml(p.id) + '" data-id="' + escapeHtml(topId) + '" data-name="' + escapeHtml(c.author) + '">' + L('Répondre', 'Reply') + '</button>' : '') +
+      (c.author === me ? ' · <button type="button" class="link-btn" data-action="delete-comment" data-id="' + escapeHtml(c.id) + '">' + L('Supprimer', 'Delete') + '</button>' : '') + '</span></div>' +
+      '<button type="button" class="comment-like' + (iLike ? ' on' : '') + '" data-action="like-comment" data-id="' + escapeHtml(c.id) + '" aria-pressed="' + iLike + '" aria-label="' + escapeHtml(L('J\'aime', 'Like')) + '"' + (n ? ' title="' + escapeHtml(Object.keys(likes).join(', ')) + '"' : '') + '>' + HEART_SVG(iLike) + '<span>' + (n || '') + '</span></button></div>';
+  }
   function renderPostComments(p) {
     if (!commentsOpen[p.id]) return '';
-    var list = (STATE.postComments || []).filter(function (c) { return c.postId === p.id; }).sort(function (a, b) { return (a.createdAt || 0) - (b.createdAt || 0); });
+    var all = (STATE.postComments || []).filter(function (c) { return c.postId === p.id; }).sort(function (a, b) { return (a.createdAt || 0) - (b.createdAt || 0); });
+    var ids = all.map(function (c) { return c.id; });
+    // Une réponse dont le commentaire a disparu remonte au premier niveau.
+    var list = all.filter(function (c) { return !c.parentId || ids.indexOf(c.parentId) === -1; });
     var shown = commentsAll[p.id] ? list : list.slice(0, 1);
     var me = currentUserProfile && currentUserProfile.name;
     var html = '<div class="post-comments">';
     html += shown.map(function (c) {
-      var u = (STATE.usersByName || {})[c.author] || {};
-      return '<div class="post-comment">' + avatarHtml(u, c.author) + '<div class="post-comment-bubble"><button type="button" class="post-comment-author" data-open-person="' + escapeHtml(c.author) + '">' + escapeHtml(c.author) + '</button> ' + escapeHtml(c.text) +
-        '<span class="post-comment-time">' + escapeHtml(relativeTime(c.createdAt)) + (c.author === me ? ' · <button type="button" class="link-btn" data-action="delete-comment" data-id="' + escapeHtml(c.id) + '">' + L('Supprimer', 'Delete') + '</button>' : '') + '</span></div></div>';
+      var replies = all.filter(function (r) { return r.parentId === c.id; });
+      var out = commentRowHtml(c, p, me, false);
+      if (replies.length) {
+        if (commentRepliesOpen[c.id]) out += '<div class="post-comment-replies">' + replies.map(function (r) { return commentRowHtml(r, p, me, true); }).join('') + '<button type="button" class="link-btn comment-replies-toggle" data-action="comment-replies" data-id="' + escapeHtml(c.id) + '">' + L('Masquer', 'Hide') + '</button></div>';
+        else out += '<button type="button" class="link-btn comment-replies-toggle" data-action="comment-replies" data-id="' + escapeHtml(c.id) + '">— ' + (replies.length > 1 ? L('Voir les ' + replies.length + ' réponses', 'See ' + replies.length + ' replies') : L('Voir la réponse', 'See 1 reply')) + '</button>';
+      }
+      return out;
     }).join('');
     if (list.length > shown.length) html += '<button type="button" class="link-btn comments-more" data-action="comments-more" data-id="' + escapeHtml(p.id) + '">' + (list.length - shown.length > 1 ? L('Voir les ' + (list.length - shown.length) + ' autres commentaires', 'See ' + (list.length - shown.length) + ' more comments') : L('Voir l\'autre commentaire', 'See 1 more comment')) + '</button>';
-    if (me) html += '<form class="post-comment-form" data-action="comment-form" data-id="' + escapeHtml(p.id) + '"><input type="text" maxlength="500" placeholder="' + escapeHtml(L('Écrire un commentaire…', 'Write a comment…')) + '" data-comment-text><button type="submit" class="ghost">' + L('Envoyer', 'Send') + '</button></form>';
+    var rt = commentReplyTo[p.id];
+    if (me) html += (rt ? '<div class="comment-reply-chip">' + L('Réponse à ', 'Replying to ') + '<strong>' + escapeHtml(rt.name) + '</strong><button type="button" class="link-btn" data-action="reply-cancel" data-post="' + escapeHtml(p.id) + '" aria-label="' + escapeHtml(L('Annuler', 'Cancel')) + '">✕</button></div>' : '') +
+      '<form class="post-comment-form" data-action="comment-form" data-id="' + escapeHtml(p.id) + '"><input type="text" maxlength="500" placeholder="' + escapeHtml(rt ? L('Ta réponse à ' + rt.name + '…', 'Your reply to ' + rt.name + '…') : L('Écrire un commentaire…', 'Write a comment…')) + '" data-comment-text><button type="submit" class="ghost">' + L('Envoyer', 'Send') + '</button></form>';
     return html + '</div>';
+  }
+  function likeComment(id) {
+    var me = currentUserProfile; if (!me) return;
+    var c = (STATE.postComments || []).filter(function (x) { return x.id === id; })[0]; if (!c) return;
+    var on = !(c.likes || {})[me.name], upd = {};
+    upd['likes.' + me.name] = on ? true : firebase.firestore.FieldValue.delete();
+    c.likes = Object.assign({}, c.likes || {}); if (on) c.likes[me.name] = true; else delete c.likes[me.name];
+    renderRoot();
+    db.collection('postComments').doc(id).update(upd).catch(function (err) { showToast(tr('error_prefix') + ((err && err.message) || err)); });
   }
   function addComment(postId, text) {
     var me = currentUserProfile;
     text = (text || '').trim().slice(0, 500);
     if (!me || !text) return;
     var id = genId(), doc = { id: id, postId: postId, author: me.name, authorUid: myUid(), text: text, createdAt: Date.now() };
+    var rt = commentReplyTo[postId];
+    if (rt) { doc.parentId = rt.id; doc.replyTo = String(rt.name).slice(0, 80); commentRepliesOpen[rt.id] = true; delete commentReplyTo[postId]; }
     var wp = (STATE.wallPosts || []).filter(function (p) { return p.id === postId; })[0];
     if (wp && wp.audience === 'friends') doc.visibleTo = (wp.visibleTo || []).concat(wp.authorUid ? [wp.authorUid] : []).filter(function (u, i, a) { return u && a.indexOf(u) === i; });
     else doc.public = true;
@@ -19169,7 +19246,8 @@
       personLinkHtml(p.author) + badgesHtml(u) + (showFollow ? followBtnHtml(p.author, true) : '') +
       // Friends-only is the default: only flag the wider audiences.
       (p.audience === 'friends' ? '<span class="friend-role-badge">' + escapeHtml(L('Amis', 'Friends')) + '</span>' : '') +
-      '<span class="feed-entry-time">' + escapeHtml(relativeTime(p.editedAt || p.createdAt)) + (p.editedAt ? tr('edited_suffix') : '') + '</span></div>';
+      '<span class="feed-entry-time">' + escapeHtml(relativeTime(p.editedAt || p.createdAt)) + (p.editedAt ? tr('edited_suffix') : '') + '</span>' +
+      '<button type="button" class="post-share" data-action="share-post" data-id="' + escapeHtml(p.id) + '" aria-label="' + escapeHtml(L('Partager', 'Share')) + '" title="' + escapeHtml(L('Partager', 'Share')) + '"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7"/><path d="M16 6l-4-4-4 4"/><path d="M12 2v13"/></svg></button></div>';
     // Le texte, puis l'image entière en dessous (un appui : plein écran).
     if (p.text) html += '<div class="wall-post-text">' + mentionsHtml(p.text) + '</div>';
     if (p.linkUrl) html += postLinkHtml(p.linkUrl);
@@ -22906,6 +22984,13 @@
         exportSessionsCsv(names);
       });
     }
+    document.querySelectorAll('[data-action="share-post"]').forEach(function (btn) { btn.addEventListener('click', function (e) { e.stopPropagation(); openPostShareSheet(btn.getAttribute('data-id')); }); });
+    // Lien partagé (?post=<id>) : on ouvre Social sur la publication.
+    if (pendingPostId && currentUserProfile) {
+      var pc = document.querySelector('[data-view-key="' + pendingPostId.replace(/"/g, '') + '"]');
+      if (pc) { pendingPostId = null; pc.scrollIntoView({ block: 'center' }); pc.classList.add('post-flash'); }
+      else if (activeView !== 'social' || pillState.social !== 'fil') { activeView = 'social'; pillState.social = 'fil'; personView = null; setTimeout(renderRoot, 0); }
+    }
     document.querySelectorAll('[data-action="delete-wall-post"]').forEach(function (btn) {
       btn.addEventListener('click', function () {
         var id = btn.getAttribute('data-id');
@@ -23305,6 +23390,18 @@
     });
     document.querySelectorAll('form[data-action="comment-form"]').forEach(function (f) {
       f.addEventListener('submit', function (evt) { evt.preventDefault(); addComment(f.getAttribute('data-id'), f.querySelector('[data-comment-text]').value); });
+    });
+    document.querySelectorAll('[data-action="like-comment"]').forEach(function (btn) { btn.addEventListener('click', function (e) { e.stopPropagation(); likeComment(btn.getAttribute('data-id')); }); });
+    document.querySelectorAll('[data-action="comment-replies"]').forEach(function (btn) { btn.addEventListener('click', function () { var id = btn.getAttribute('data-id'); commentRepliesOpen[id] = !commentRepliesOpen[id]; renderRoot(); }); });
+    document.querySelectorAll('[data-action="reply-cancel"]').forEach(function (btn) { btn.addEventListener('click', function () { delete commentReplyTo[btn.getAttribute('data-post')]; renderRoot(); }); });
+    document.querySelectorAll('[data-action="reply-comment"]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var pid = btn.getAttribute('data-post');
+        commentReplyTo[pid] = { id: btn.getAttribute('data-id'), name: btn.getAttribute('data-name') };
+        commentsOpen[pid] = true; commentsAll[pid] = true;
+        renderRoot();
+        var f = document.querySelector('form[data-action="comment-form"][data-id="' + pid.replace(/"/g, '\\"') + '"] input'); if (f) f.focus();
+      });
     });
     document.querySelectorAll('[data-action="delete-comment"]').forEach(function (btn) {
       btn.addEventListener('click', function () {
