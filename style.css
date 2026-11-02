@@ -4495,6 +4495,9 @@ span.social-count { cursor: default; }
 .dm-bubble { padding: 0.5rem 0.8rem; border-radius: 16px 16px 16px 4px; background: var(--surface-alt); white-space: pre-wrap; word-break: break-word; }
 .dm-msg.mine .dm-bubble { background: var(--accent); color: var(--accent-ink); border-radius: 16px 16px 4px 16px; }
 .dm-msg.mine .dm-bubble .mention-link { color: inherit; text-decoration: underline; }
+.dm-sig { font-size: 0.72rem; font-weight: 600; opacity: 0.7; margin: 0 0.4rem 0.15rem; }
+.dm-via { font-weight: 500; opacity: 0.7; font-size: 0.78rem; margin-left: 0.3rem; }
+.dm-as { text-align: center; margin: 0.3rem 0 0; font-size: 0.8rem; }
 .dm-empty, .dm-closed { padding: 0.8rem; text-align: center; }
 .dm-form { display: flex; gap: 0.5rem; align-items: flex-end; padding: 0.6rem 0.8rem; border-top: 1px solid var(--border); }
 .dm-form textarea { flex: 1; min-height: 2.6rem; max-height: 8rem; resize: vertical; margin: 0; }

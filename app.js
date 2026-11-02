@@ -19578,17 +19578,34 @@
   // ---- Messagerie privée ----
   // Un message = un document (directMessages) lisible par ses deux membres
   // seulement (firestore.rules). Qui peut m'écrire : Réglages › Vie privée.
-  var dmOpenWith = null, dmScrollKey = '';
+  var dmOpenWith = null, dmScrollKey = '', listenLedTeamDms = function () {};
   function dmPolicyOf(name) { var u = (STATE.usersByName || {})[name] || {}; return u.dmPolicy || 'friends'; }
   function isFriendName(name) { var me = currentUserProfile; return !!me && friendsOf(me.name).some(function (f) { return f.name === name; }); }
+  // Messages à un team (teamMessages) : une conversation par pilote et par
+  // team, lue par le pilote et les Team Leaders, qui répondent au nom du
+  // team. Clés : « team:<teamId> » côté pilote, « tu:<teamId>__<uid> »
+  // côté leader.
+  function teamDmInfo(key) {
+    if (typeof key !== 'string') return null;
+    if (key.indexOf('team:') === 0) { var t = key.slice(5); return { teamId: t, userUid: myUid(), convId: t + '__' + myUid(), leader: false }; }
+    if (key.indexOf('tu:') === 0) { var c = key.slice(3), k = c.lastIndexOf('__'); return { teamId: c.slice(0, k), userUid: c.slice(k + 2), convId: c, leader: true }; }
+    return null;
+  }
+  function teamDmUserName(info) {
+    var m = (STATE.teamDms || []).filter(function (x) { return x.convId === info.convId && x.userName; })[0];
+    return m ? m.userName : '';
+  }
   function dmThreadWith(name) {
+    var ti = teamDmInfo(name);
+    if (ti) return (STATE.teamDms || []).filter(function (m) { return m.convId === ti.convId; }).sort(function (a, b) { return (a.createdAt || 0) - (b.createdAt || 0); });
     var me = myUid(), other = uidOf(name);
     if (!me || !other) return [];
     var cid = [me, other].sort().join('__');
     return (STATE.dms || []).filter(function (m) { return m.convId === cid; }).sort(function (a, b) { return (a.createdAt || 0) - (b.createdAt || 0); });
   }
   function canMessage(name) {
-    var me = currentUserProfile;
+    var me = currentUserProfile, ti = teamDmInfo(name);
+    if (ti) return !!me && !!teamById(ti.teamId) && (ti.leader ? isLeaderOfTeam(ti.teamId) : !isLeaderOfTeam(ti.teamId));
     if (!me || name === me.name || !uidOf(name)) return false;
     // Une conversation déjà ouverte par l'autre : on peut toujours répondre.
     if (dmThreadWith(name).some(function (m) { return m.from !== myUid(); })) return true;
@@ -19609,12 +19626,36 @@
       if (otherName) c.other = otherName;
       if (m.from !== me && (m.createdAt || 0) > (read[m.convId] || 0)) c.unread++;
     });
+    (STATE.teamDms || []).forEach(function (m) {
+      var mineConv = m.userUid === me, tm = teamById(m.teamId);
+      if (!tm || (!mineConv && !isLeaderOfTeam(m.teamId))) return;
+      var c = by['t/' + m.convId] || (by['t/' + m.convId] = { convId: m.convId, last: null, unread: 0, team: tm,
+        key: mineConv ? 'team:' + m.teamId : 'tu:' + m.convId, other: mineConv ? tm.name : (m.userName || '?') });
+      if (!c.last || (m.createdAt || 0) > (c.last.createdAt || 0)) c.last = m;
+      if (!mineConv && m.userName) c.other = m.userName;
+      // Côté leader, une réponse d'un autre leader compte comme lue.
+      var fromUs = mineConv ? m.from === me : !!m.asTeam;
+      if (!fromUs && (m.createdAt || 0) > (read[m.convId] || 0)) c.unread++;
+    });
     return Object.keys(by).map(function (k) { return by[k]; }).filter(function (c) { return c.other; }).sort(function (a, b) { return (b.last.createdAt || 0) - (a.last.createdAt || 0); });
   }
   function unreadDmCount() { return dmConversations().reduce(function (n, c) { return n + (c.unread ? 1 : 0); }, 0); }
+  function sendTeamDm(ti, text) {
+    var me = currentUserProfile, tm = teamById(ti.teamId);
+    if (!me || !tm || !canMessage(ti.leader ? 'tu:' + ti.convId : 'team:' + ti.teamId)) return;
+    var msg = { convId: ti.convId, teamId: ti.teamId, teamName: String(tm.name || '').slice(0, 80), userUid: ti.userUid,
+      userName: ti.leader ? (teamDmUserName(ti) || '?').slice(0, 80) : me.name, from: myUid(), fromName: me.name, asTeam: !!ti.leader, text: text, createdAt: Date.now() };
+    var id = genId();
+    STATE.teamDms = (STATE.teamDms || []).concat([Object.assign({ id: id }, msg)]);
+    markDmRead(msg.convId);
+    renderRoot();
+    db.collection('teamMessages').doc(id).set(msg).catch(function (err) { showToast(tr('error_prefix') + ((err && err.message) || err)); });
+  }
   function sendDm(name, text) {
     var me = currentUserProfile, mine = myUid(), other = uidOf(name);
     text = (text || '').trim().slice(0, 2000);
+    var ti = teamDmInfo(name);
+    if (ti) { if (text) sendTeamDm(ti, text); return; }
     if (!me || !mine || !other || !text) return;
     if (!canMessage(name)) { showToast(name + L(' ne reçoit pas de message de ta part (ses réglages).', ' does not accept messages from you (their settings).')); return; }
     var members = [mine, other].sort();
@@ -19643,12 +19684,20 @@
   function renderMessagesTab(me) {
     if (dmOpenWith) {
       var name = dmOpenWith, u = (STATE.usersByName || {})[name] || {}, thread = dmThreadWith(name), mineUid = myUid();
+      var ti = teamDmInfo(name), tm = ti ? (teamById(ti.teamId) || { name: 'Team' }) : null;
       if (thread.length) markDmRead(thread[0].convId);
-      var h = '<div class="card dm-thread"><div class="dm-head"><button type="button" class="dm-back-btn" data-action="dm-back" aria-label="' + L('Retour', 'Back') + '">‹</button>' +
-        '<button type="button" class="dm-who" data-open-person="' + escapeHtml(name) + '">' + avatarHtml(u, name) + '<strong>' + escapeHtml(name) + badgesHtml(u).replace(/data-badge-[a-z]+="[^"]*"/g, '') + '</strong></button></div>' +
+      var who;
+      if (ti && !ti.leader) who = '<button type="button" class="dm-who" data-team-link="' + escapeHtml(ti.teamId) + '">' + teamAvatarHtml(tm) + '<strong>' + escapeHtml(tm.name) + '</strong></button>';
+      else if (ti) { var un = teamDmUserName(ti); who = '<button type="button" class="dm-who" data-open-person="' + escapeHtml(un) + '">' + avatarHtml((STATE.usersByName || {})[un] || {}, un) + '<strong>' + escapeHtml(un) + '</strong><small class="dm-via">' + escapeHtml(L('à ', 'to ') + tm.name) + '</small></button>'; }
+      else who = '<button type="button" class="dm-who" data-open-person="' + escapeHtml(name) + '">' + avatarHtml(u, name) + '<strong>' + escapeHtml(name) + badgesHtml(u).replace(/data-badge-[a-z]+="[^"]*"/g, '') + '</strong></button>';
+      var isMine = function (m) { return ti && ti.leader ? !!m.asTeam : m.from === mineUid; };
+      var h = '<div class="card dm-thread"><div class="dm-head"><button type="button" class="dm-back-btn" data-action="dm-back" aria-label="' + L('Retour', 'Back') + '">‹</button>' + who + '</div>' +
         '<div class="dm-list" id="dm-list">' + (thread.length ? thread.map(function (m) {
-          return '<div class="dm-msg' + (m.from === mineUid ? ' mine' : '') + '"><div class="dm-bubble">' + mentionsHtml(m.text || '') + '</div><span class="dm-time">' + escapeHtml(dmTime(m.createdAt)) + '</span></div>';
-        }).join('') : '<div class="help-text dm-empty">' + escapeHtml(L('Écris le premier message à ' + name + '.', 'Write the first message to ' + name + '.')) + '</div>') + '</div>';
+          // Plusieurs leaders : chacun voit qui a répondu au nom du team.
+          var sig = ti && ti.leader && m.asTeam && m.from !== mineUid ? '<span class="dm-sig">' + escapeHtml(m.fromName || '') + '</span>' : '';
+          return '<div class="dm-msg' + (isMine(m) ? ' mine' : '') + '">' + sig + '<div class="dm-bubble">' + mentionsHtml(m.text || '') + '</div><span class="dm-time">' + escapeHtml(dmTime(m.createdAt)) + '</span></div>';
+        }).join('') : '<div class="help-text dm-empty">' + escapeHtml(ti ? L('Écris au team ' + tm.name + ' : ses Team Leaders te répondront ici.', 'Write to ' + tm.name + ': its Team Leaders will reply here.') : L('Écris le premier message à ' + name + '.', 'Write the first message to ' + name + '.')) + '</div>') + '</div>';
+      if (ti && ti.leader) h += '<div class="help-text dm-as">' + escapeHtml(L('Tu réponds au nom de ' + tm.name + '.', 'You reply as ' + tm.name + '.')) + '</div>';
       if (canMessage(name)) h += '<form class="dm-form" id="dm-form"><textarea id="dm-text" rows="1" maxlength="2000" placeholder="' + escapeHtml(L('Ton message…', 'Your message…')) + '"></textarea><button type="submit" class="primary">' + L('Envoyer', 'Send') + '</button></form>';
       else h += '<div class="help-text dm-closed">' + escapeHtml(L(name + ' ne reçoit pas de message de ta part pour l\'instant (ses réglages de confidentialité).', name + ' does not accept messages from you right now (their privacy settings).')) + '</div>';
       return h + '</div>';
@@ -19658,8 +19707,10 @@
       '<span class="help-text">' + L('Qui peut t\'écrire : Réglages › Vie privée.', 'Who can write to you: Settings › Privacy.') + '</span></div>';
     h2 += '<div class="card dm-convs">' + (convs.length ? convs.map(function (c) {
       var u = (STATE.usersByName || {})[c.other] || {};
-      return '<button type="button" class="dm-conv' + (c.unread ? ' unread' : '') + '" data-action="dm-open" data-name="' + escapeHtml(c.other) + '">' + avatarHtml(u, c.other) +
-        '<span class="dm-conv-main"><strong>' + escapeHtml(c.other) + '</strong><span class="help-text">' + (c.last.from === myUid() ? L('Toi : ', 'You: ') : '') + escapeHtml((c.last.text || '').slice(0, 80)) + '</span></span>' +
+      var av = c.team && c.key.indexOf('team:') === 0 ? teamAvatarHtml(c.team) : avatarHtml(u, c.other).replace(/ data-person="[^"]*"/, '');
+      var lbl = escapeHtml(c.other) + (c.team && c.key.indexOf('tu:') === 0 ? ' <small class="dm-via">' + escapeHtml(L('à ', 'to ') + c.team.name) + '</small>' : '');
+      return '<button type="button" class="dm-conv' + (c.unread ? ' unread' : '') + '" data-action="dm-open" data-name="' + escapeHtml(c.key || c.other) + '">' + av +
+        '<span class="dm-conv-main"><strong>' + lbl + '</strong><span class="help-text">' + (c.last.from === myUid() ? L('Toi : ', 'You: ') : c.team && c.last.asTeam && c.key.indexOf('tu:') === 0 ? escapeHtml(c.last.fromName || '') + ' : ' : '') + escapeHtml((c.last.text || '').slice(0, 80)) + '</span></span>' +
         '<span class="dm-conv-side"><span class="dm-time">' + escapeHtml(dmTime(c.last.createdAt)) + '</span>' + (c.unread ? '<span class="dm-unread">' + c.unread + '</span>' : '') + '</span></button>';
     }).join('') : '<div class="empty-state">' + L('Aucune conversation pour l\'instant. Écris à un ami depuis « Nouveau message » ou depuis sa fiche.', 'No conversation yet. Write to a friend from “New message” or from their profile.') + '</div>') + '</div>';
     return h2;
@@ -21145,6 +21196,7 @@
     var following = (STATE.myFollowedTeams || []).indexOf(t.id) !== -1;
     var myRequest = (STATE.teamJoinRequests || []).filter(function (r) { return r.teamId === t.id && r.from === me.name; })[0];
     var h = '<button type="button" class="' + (iLike ? 'primary' : 'ghost') + '" data-action="team-like-toggle" data-team="' + escapeHtml(t.id) + '" aria-pressed="' + (iLike ? 'true' : 'false') + '">' + (iLike ? L('Aimé', 'Liked') : L('J\'aime', 'Like')) + '</button>';
+    if (!isLeaderOfTeam(t.id)) h += '<button type="button" class="ghost" data-action="dm-open" data-name="team:' + escapeHtml(t.id) + '">' + L('Écrire', 'Message') + '</button>';
     if (!isMember) h += following && isAdherentOf(t.id) ? '' : following
       ? '<button type="button" class="ghost" data-action="unfollow-team" data-team="' + escapeHtml(t.id) + '">' + L('Abonné', 'Following') + '</button>'
       : '<button type="button" class="ghost" data-action="follow-team" data-team="' + escapeHtml(t.id) + '">' + L('Suivre', 'Follow') + '</button>';
@@ -26060,6 +26112,28 @@
       if (dmOpenWith && activeView === 'social' && pillState.social === 'messages') { var th = dmThreadWith(dmOpenWith); if (th.length) markDmRead(th[0].convId); }
       scheduleRender();
     }, function () {}));
+    // Messages aux teams : les miens (pilote), et ceux des teams que je dirige.
+    var teamDmParts = {};
+    var mergeTeamDms = function () {
+      var seen = {}, all = [];
+      Object.keys(teamDmParts).forEach(function (k) { teamDmParts[k].forEach(function (m) { if (!seen[m.id]) { seen[m.id] = 1; all.push(m); } }); });
+      STATE.teamDms = all;
+      if (dmOpenWith && activeView === 'social' && pillState.social === 'messages') { var th2 = dmThreadWith(dmOpenWith); if (th2.length) markDmRead(th2[0].convId); }
+      scheduleRender();
+    };
+    var listenTeamDms = function (key, q) {
+      unsubscribers.push(q.onSnapshot(function (snap) { teamDmParts[key] = snap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); }); mergeTeamDms(); }, function () {}));
+    };
+    listenTeamDms('me', db.collection('teamMessages').where('userUid', '==', myUid()));
+    var ledDmTeams = {};
+    listenLedTeamDms = function () {
+      (STATE.myTeamMemberships || []).forEach(function (m) {
+        if (m.role !== 'leader' || ledDmTeams[m.teamId]) return;
+        ledDmTeams[m.teamId] = 1;
+        listenTeamDms('t:' + m.teamId, db.collection('teamMessages').where('teamId', '==', m.teamId));
+      });
+    };
+    listenLedTeamDms();
     subscribeMerged('wallPosts', 200, [
       function (c) { return c.where('audience', 'in', ['all', 'followers']); },
       function (c) { return c.where('visibleTo', 'array-contains', myUid()); },
@@ -26245,6 +26319,7 @@
     if (!currentUserProfile) return;
     myTeamMembershipsUnsub = db.collection('teamMembers').where('name', '==', currentUserProfile.name).onSnapshot(function (snap) {
       STATE.myTeamMemberships = snap.docs.map(function (d) { return d.data(); });
+      listenLedTeamDms();
       // Opportunistic backfill: a membership doc created before uid was
       // tracked has none yet -- add it now, while the name still matches
       // (see firestore.rules' teamMembers update, the
