@@ -17260,6 +17260,8 @@
     return map;
   }
   function avatarHtml(u, name) {
+    // L'avatar d'un team n'ouvre jamais une fiche pilote à son nom.
+    if (u && u.id && !u.uid && teamById(u.id) === u) return teamAvatarRaw(u, name);
     var initial = escapeHtml((name || '?').trim().charAt(0).toUpperCase() || '?');
     var flag = u && !u.photoURL && u.nationality ? countryBallHtml(u.nationality, 'avatar-ball') : '';
     var look = lookOf(u);
@@ -17294,8 +17296,20 @@
   // within what they chose to share (shareSorties/shareTrophees); anyone
   // else sees who it is and how to become friends.
   var personView = null; // { name, from }
+  // Avatar d'un team : même rendu, sans lien vers une fiche pilote.
+  function teamAvatarRaw(t, name) {
+    var initial = escapeHtml((name || '?').trim().charAt(0).toUpperCase() || '?');
+    var look = lookOf(t);
+    return '<span class="mini-avatar' + (look ? ' has-look' : '') + '"' + (look ? ' style="--ring:' + safeColor(look.color) + '"' : '') + '>' +
+      (t.photoURL ? '<img src="' + escapeHtml(t.photoURL) + '" alt="">' : '<span class="mini-avatar-placeholder">' + initial + '</span>') + '</span>';
+  }
   function openPerson(name) {
     if (!name) return;
+    // Un nom de team n'est pas un compte : on ouvre la page du team.
+    if (!(STATE.usersByName || {})[name] && !(currentUserProfile && name === currentUserProfile.name)) {
+      var asTeam = (STATE.teams || []).filter(function (t) { return t.name === name; })[0];
+      if (asTeam) { expandedTeamId = asTeam.id; managingEventId = null; activeView = 'team'; personView = null; notificationsPanelOpen = false; profilePanelOpen = false; renderRoot(); window.scrollTo(0, 0); return; }
+    }
     if (currentUserProfile && name === currentUserProfile.name) {
       activeView = 'social'; pillState.social = 'profil'; pillState.person = 'monfil'; personView = null;
       notificationsPanelOpen = false; profilePanelOpen = false;
