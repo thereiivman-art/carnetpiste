@@ -8232,7 +8232,6 @@
             '<span class="track-mini-wrap"><img src="' + styledPlanSrc(base) + '"' + styledPlanAttr(base, info) + ' alt="Tracé de ' + escapeHtml(circuitName) + '">' + pins + '</span>' +
           '</button>' +
           '<div class="circuit-visual-caption">' + (notes.length ? notes.length + ' repère' + (notes.length > 1 ? 's' : '') + ' · toucher pour voir' : 'Toucher pour noter tes repères') + '</div>' +
-          (info.mapImage ? '<button type="button" class="link-btn circuit-visual-caption" id="open-annot-btn" data-circuit="' + escapeHtml(circuitName) + '">Dessin libre</button>' : '') +
         '</div>'
       );
     }
@@ -11211,6 +11210,14 @@
     return parts.join(' · ');
   }
 
+  // Deux icônes en haut, au centre : dessin à main libre (crayon) ou
+  // repères (épingle).
+  function mapModeSwitchHtml(active) {
+    var pencil = '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M14 6l4 4"/></svg>';
+    var pin = '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-6-5.6-6-11a6 6 0 0 1 12 0c0 5.4-6 11-6 11z"/><circle cx="12" cy="10" r="2.3"/></svg>';
+    return '<div class="map-mode-switch" role="tablist"><button type="button" class="' + (active === 'draw' ? 'on' : '') + '" data-map-mode="draw" aria-pressed="' + (active === 'draw') + '" title="' + escapeHtml(L('Dessin à main libre', 'Freehand drawing')) + '" aria-label="' + escapeHtml(L('Dessin à main libre', 'Freehand drawing')) + '">' + pencil + '</button>' +
+      '<button type="button" class="' + (active === 'pins' ? 'on' : '') + '" data-map-mode="pins" aria-pressed="' + (active === 'pins') + '" title="' + escapeHtml(L('Repères', 'Marks')) + '" aria-label="' + escapeHtml(L('Repères', 'Marks')) + '">' + pin + '</button></div>';
+  }
   function openTrackNotes(circuit) {
     var info = circuitInfo(circuit);
     var base = info.mapImage || outlineImageFor(info, circuit);
@@ -11226,7 +11233,8 @@
     function render() {
       var h = '<div class="track-notes-head"><button type="button" class="ghost icon-btn" data-tn="close" aria-label="Fermer">←</button>' +
         '<div class="track-notes-title">Mes repères · ' + escapeHtml(circuit) + '</div>' +
-        (base ? '<button type="button" class="ghost" data-tn="zoom">' + (zoomed ? 'Réduire' : 'Agrandir') + '</button>' : '') + '</div>';
+        (base ? '<button type="button" class="ghost" data-tn="zoom">' + (zoomed ? 'Réduire' : 'Agrandir') + '</button>' : '') + '</div>' +
+        (base ? mapModeSwitchHtml('pins') : '');
       h += '<div class="help-text track-notes-help">' + (movingId ? 'Touche le nouvel emplacement du repère.' : (base ? 'Touche le tracé pour poser un repère, touche un repère pour le modifier.' : 'Pas de plan pour ce circuit : ajoute tes repères en liste.')) + '</div>';
       if (base) {
         h += '<div class="track-notes-scroll"><div class="track-notes-map' + (zoomed ? ' zoomed' : '') + '"><img src="' + styledPlanSrc(base) + '"' + styledPlanAttr(base, info) + ' alt="" draggable="false">';
@@ -11252,6 +11260,8 @@
 
     function bind() {
       overlay.querySelector('[data-tn="close"]').addEventListener('click', close);
+      var toDraw = overlay.querySelector('[data-map-mode="draw"]');
+      if (toDraw) toDraw.addEventListener('click', function () { if (overlay.parentNode) overlay.parentNode.removeChild(overlay); renderRoot(); openAnnotation(circuit); });
       var z = overlay.querySelector('[data-tn="zoom"]');
       if (z) z.addEventListener('click', function () { zoomed = !zoomed; render(); });
       var addNoMap = overlay.querySelector('[data-tn="add-nomap"]');
@@ -11308,8 +11318,23 @@
         (!isNew && base ? '<button type="button" class="ghost" data-s="move">Déplacer</button>' : '') +
         (!isNew ? '<button type="button" class="ghost danger" data-s="delete">Supprimer</button>' : '') + '</div></div>';
       document.body.appendChild(sheet);
-      function shut() { if (sheet.parentNode) sheet.parentNode.removeChild(sheet); }
-      sheet.querySelector('[data-s="cancel"]').addEventListener('click', shut);
+      var vals = function () { return Array.prototype.map.call(sheet.querySelectorAll('input, select, textarea'), function (el) { return el.type === 'checkbox' ? el.checked : el.value; }).join('\u0001'); };
+      var initial = vals();
+      function onKey(e) { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); tryCancel(); } }
+      document.addEventListener('keydown', onKey, true);
+      function shut() { document.removeEventListener('keydown', onKey, true); if (sheet.parentNode) sheet.parentNode.removeChild(sheet); }
+      // Annuler / Échap : on demande confirmation si quelque chose a été écrit.
+      function tryCancel() {
+        if (document.getElementById('mini-sheet')) return;
+        if (vals() === initial) return shut();
+        var ov = openMiniSheet('<h2 class="section-title">' + (isNew ? L('Abandonner ce nouveau repère ?', 'Discard this new mark?') : L('Abandonner tes modifications ?', 'Discard your changes?')) + '</h2>' +
+          '<p class="help-text">' + L('Ce que tu as écrit sera perdu.', 'What you typed will be lost.') + '</p>' +
+          '<div class="mini-sheet-actions"><button type="button" class="link-btn" data-mini-close>' + L('Continuer', 'Keep editing') + '</button><button type="button" class="primary danger" data-discard>' + L('Abandonner', 'Discard') + '</button></div>');
+        ov.style.zIndex = 600;
+        ov.querySelector('[data-discard]').addEventListener('click', function () { ov.remove(); shut(); });
+      }
+      sheet.querySelector('[data-s="cancel"]').addEventListener('click', tryCancel);
+      sheet.addEventListener('click', function (e) { if (e.target === sheet) tryCancel(); });
       sheet.querySelector('#tn-double').addEventListener('change', function (e) {
         sheet.querySelector('#tn-apex2-wrap').style.display = e.target.checked ? '' : 'none';
         sheet.querySelector('#tn-apex-label').textContent = e.target.checked ? 'Point de corde 1' : 'Point de corde';
@@ -11718,6 +11743,7 @@
     var html = '';
     var svgFullscreen = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M16 3h3a2 2 0 0 1 2 2v3"/><path d="M21 16v3a2 2 0 0 1-2 2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/></svg>';
 
+    html += mapModeSwitchHtml('draw');
     html += '<div class="annot-header">';
     html += '<button type="button" class="ghost icon-btn" id="annot-close" aria-label="Fermer">←</button>';
     html += '<div class="annot-title">' + escapeHtml(annot.circuit) + '</div>';
@@ -12999,6 +13025,8 @@
   function attachAnnotHandlers() {
     var closeBtn = document.getElementById('annot-close');
     if (closeBtn) closeBtn.addEventListener('click', closeAnnotation);
+    var toPins = document.querySelector('#annot-overlay [data-map-mode="pins"]');
+    if (toPins) toPins.addEventListener('click', function () { var c = annot.circuit; closeAnnotation(); openTrackNotes(c); });
 
     var sessionSelect = document.getElementById('annot-session-select');
     if (sessionSelect) {
@@ -18334,6 +18362,26 @@
   }
   // ---- Stories vidéo (Carnet+) : 10 s max, recompressées sur le
   // téléphone (480 px, faible débit) pour tenir dans un document.
+  // Partage vers les autres réseaux (feuille de partage du téléphone),
+  // proposé au moment de publier. Appelé dans le clic, avant tout envoi.
+  function dataUrlToFile(dataUrl, name) {
+    try {
+      var m = String(dataUrl).match(/^data:([^;,]+)[^,]*,(.*)$/); if (!m) return null;
+      var bin = atob(m[2]), arr = new Uint8Array(bin.length);
+      for (var i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+      return new File([arr], name + '.' + (m[1].split('/')[1] || 'bin').replace('jpeg', 'jpg').replace('quicktime', 'mov'), { type: m[1] });
+    } catch (e) { return null; }
+  }
+  function shareElsewhere(mediaDataUrl, text) {
+    if (!navigator.share) { showToast(L('Le partage vers les autres réseaux n\'est pas proposé par ce navigateur.', 'Sharing to other apps is not available in this browser.')); return; }
+    var data = { text: (text ? text + ' · ' : '') + L('via Carnet Piste', 'via Pitbook') };
+    var f = mediaDataUrl && /^data:/.test(mediaDataUrl) ? dataUrlToFile(mediaDataUrl, 'carnet-piste') : null;
+    if (f && navigator.canShare && navigator.canShare({ files: [f] })) data.files = [f];
+    navigator.share(data).catch(function () {});
+  }
+  function shareElsewhereOptHtml(cls) {
+    return navigator.share ? '<label class="share-elsewhere-opt ' + (cls || '') + '"><input type="checkbox" class="share-elsewhere"> ' + L('Partager aussi sur mes autres réseaux', 'Also share to my other apps') + '</label>' : '';
+  }
   function canPostVideoStory() { return !!(currentUserProfile && (hasCarnetPlus(currentUserProfile) || isAdmin())); }
   var STORY_VIDEO_MAX_S = 10;
   function prepareStoryVideo(file) {
@@ -18490,6 +18538,7 @@
       '<div class="story-card story-photo">' + (video ? '<video src="' + escapeHtml(video.dataUrl) + '" autoplay loop playsinline muted></video>' : '<img src="' + escapeHtml(dataUrl) + '" alt="">') + '</div>' +
       '<input type="text" class="story-text-input" maxlength="120" placeholder="' + escapeHtml(L('Ajoute un mot (facultatif)', 'Add a caption (optional)')) + '">' +
       '<label class="story-feed-opt"><input type="checkbox" class="story-also-feed"> ' + L('Publier aussi dans mon fil', 'Also post to my feed') + '</label>' +
+      shareElsewhereOptHtml('story-feed-opt') +
       '<button type="button" class="primary story-publish">' + L('Publier ma story', 'Post my story') + '</button>';
     document.body.appendChild(ov);
     var close = function () { if (ov.parentNode) ov.parentNode.removeChild(ov); };
@@ -18502,6 +18551,7 @@
       if (t) post.text = t.slice(0, 120);
       if (video) { post.video = true; post.mediaId = post.id; post.duration = Math.round(video.duration * 10) / 10; }
       var af = ov.querySelector('.story-also-feed'); if (af && af.checked) post.alsoInFeed = true;
+      var se = ov.querySelector('.share-elsewhere'); if (se && se.checked) shareElsewhere(video ? video.dataUrl : dataUrl, post.text);
       close();
       var publish = function () {
         STATE.wallPosts = [post].concat(STATE.wallPosts || []);
@@ -18920,7 +18970,7 @@
     var html = '<div class="card has-close"><button type="button" class="card-close" data-action="wall-composer-close" aria-label="' + escapeHtml(L('Fermer', 'Close')) + '"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button><h2 class="section-title">' + tr('post_to_journal_btn') + '</h2>';
     html += '<form id="wall-post-form">';
     html += '<label for="wall-post-text">' + tr('wall_post_placeholder') + '</label><div class="mention-wrap"><textarea id="wall-post-text" rows="2" data-mentions="1"></textarea><div class="mention-suggest" hidden></div></div>' +
-      '<div class="help-text">' + L('Tape @ pour citer un ami.', 'Type @ to mention a friend.') + '</div>';
+      '<div class="help-text">' + L('Tape @ pour citer un ami.', 'Type @ to mention a friend.') + '</div>' + shareElsewhereOptHtml();
     html += '<label for="wall-post-link" style="margin-top:0.6rem;">' + tr('link_optional_placeholder') + '</label><input type="url" id="wall-post-link" placeholder="https://...">';
     html += '<div style="margin-top:0.6rem;">';
     if (wallPostDraftPhotoURL) {
@@ -22487,6 +22537,8 @@
         var linkEl = document.getElementById('wall-post-link');
         var audienceEl = document.getElementById('wall-post-audience');
         try { localStorage.setItem('cdp-post-audience', audienceEl.value); } catch (e) {}
+        var seW = wallPostForm.querySelector('.share-elsewhere');
+        if (seW && seW.checked && (textEl.value.trim() || wallPostDraftPhotoURL)) shareElsewhere(wallPostDraftPhotoURL, textEl.value.trim());
         postToWall(textEl.value, linkEl.value, wallPostDraftPhotoURL, audienceEl.value);
       });
     }

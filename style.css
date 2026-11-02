@@ -4453,3 +4453,18 @@ span.social-count { cursor: default; }
 .feed-entry-foot.social-row .reaction-btn, .feed-entry-foot.social-row > button.ghost, .feed-entry-foot.social-row .comment-toggle { padding: 0.32rem 0.85rem; font-size: 0.84rem; }
 .feed-entry-foot.social-row .post-trash { order: 9; margin-left: auto; width: 2.2rem; height: 2.2rem; min-width: 0; padding: 0; border: 0; border-radius: 50%; background: none; color: var(--danger, #c8261f); display: grid; place-items: center; cursor: pointer; flex: 0 0 auto; }
 .feed-entry-foot.social-row .post-trash:hover { background: color-mix(in srgb, #c8261f 12%, transparent); }
+/* Carte : dessin libre / repères, deux icônes en haut au centre. */
+.map-mode-switch { position: sticky; top: 0.4rem; z-index: 6; display: flex; gap: 0.3rem; justify-content: center; width: max-content; margin: 0.2rem auto 0.4rem; padding: 0.25rem; border-radius: 999px; background: color-mix(in srgb, var(--surface) 70%, transparent); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); box-shadow: 0 2px 10px rgba(0,0,0,0.12); }
+.map-mode-switch button { width: 2.6rem; height: 2.6rem; min-width: 0; padding: 0; border: 0; border-radius: 50%; display: grid; place-items: center; background: transparent; color: var(--text-muted); opacity: 0.75; cursor: pointer; }
+.map-mode-switch button.on { background: var(--accent); color: var(--accent-ink); opacity: 1; }
+#annot-overlay .map-mode-switch { position: absolute; left: 50%; top: calc(env(safe-area-inset-top, 0px) + 0.5rem); transform: translateX(-50%); margin: 0; z-index: 20; }
+/* PC : le plan agrandi tient dans l'écran (marges, pas de défilement). */
+@media (min-width: 960px) {
+  .track-notes-scroll { max-height: none; overflow: visible; display: flex; justify-content: center; background: #fff; }
+  .track-notes-map, .track-notes-map.zoomed { width: auto; display: inline-block; }
+  .track-notes-map img { width: auto; max-width: min(100%, 900px); max-height: calc(100vh - 260px); }
+  .track-notes-map img { height: min(56vh, 520px); }
+  .track-notes-map.zoomed img { height: calc(100vh - 190px); max-height: none; max-width: 100%; }
+  .track-notes-overlay { padding-left: 2rem; padding-right: 2rem; }
+}
+.share-elsewhere-opt { display: flex; align-items: center; gap: 0.5rem; margin-top: 0.5rem; font-weight: 600; } .share-elsewhere-opt input { width: auto; }
