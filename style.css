@@ -4513,7 +4513,7 @@ html.kb-open .wrap { padding-bottom: 1rem; }
 .comp-other-row > .ghost { flex: none; width: auto; }
 /* Conversation : l'en-tête (retour + nom) reste en haut pendant le défilement. */
 .dm-thread { overflow: visible; }
-.dm-head { position: sticky; top: var(--header-h, 64px); z-index: 5; background: var(--surface); border-radius: 16px 16px 0 0; }
+.dm-head { position: sticky; top: calc(var(--header-h, 64px) - 2px); z-index: 5; background: var(--surface); border-radius: 16px 16px 0 0; }
 @media (min-width: 960px) { .dm-head { top: 0; } }
 .dm-list { max-height: none; overflow: visible; }
 @media (max-width: 959px) { .dm-list, html.kb-open .dm-list { max-height: none; } }
