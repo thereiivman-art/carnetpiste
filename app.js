@@ -25774,6 +25774,8 @@
     document.documentElement.style.setProperty('--header-h', header.offsetHeight + 'px');
     // Hauteur réelle de la barre du bas (téléphone) : sert à caler ce qui
     // reste collé au-dessus (saisie d'un message).
+    var sub = document.querySelector('#root .subnav.main-subnav');
+    document.documentElement.style.setProperty('--subnav-h', sub && sub.offsetParent ? Math.ceil(sub.getBoundingClientRect().height) + 'px' : '0px');
     var bnav = document.querySelector('.bottom-nav');
     if (bnav && bnav.offsetHeight && !(window.matchMedia && window.matchMedia('(min-width: 960px)').matches)) document.documentElement.style.setProperty('--nav-h', bnav.getBoundingClientRect().height + 'px');
     // PC : les boutons de l'en-tête suivent la barre de gauche (dont la
