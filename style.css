@@ -4602,3 +4602,6 @@ html.kb-open .dm-form, .dm-form:focus-within { bottom: 0; }
 .circuit-picker { display: flex; gap: 0.6rem; align-items: center; flex-wrap: wrap; }
 .circuit-picker select { flex: 1 1 14rem; min-width: 0; max-width: 30rem; }
 .lap-video-link { margin-left: auto; display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.45rem 0.9rem; border-radius: 999px; background: var(--accent); color: var(--accent-ink); font-weight: 700; font-size: 0.86rem; text-decoration: none; white-space: nowrap; }
+.team-create-top { display: flex; align-items: center; gap: 0.8rem; margin: 0 0 0.8rem; }
+.team-create-top button { border-radius: 999px; padding: 0.5rem 1.1rem; font-weight: 700; }
+.team-sec-title { margin: 1.2rem 0 0.6rem; }

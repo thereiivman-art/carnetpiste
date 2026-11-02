@@ -14099,6 +14099,17 @@
           '<span><strong>' + escapeHtml(sg.name) + '</strong><span class="help-text">' + escapeHtml(sg.reason) + '</span></span></button>' + followBtnHtml(sg.name, true) + '</div>';
       }).join('') + '</div>';
     }
+    // Teams à découvrir (PRO), comme les pilotes à suivre.
+    var mineIds = (STATE.myTeamMemberships || []).map(function (m) { return m.teamId; }).concat(STATE.myFollowedTeams || []);
+    var tsug = discoverableTeams(me, mineIds).slice(0, 4);
+    if (tsug.length) {
+      h += '<div class="rail-section"><div class="rail-title">' + L('Teams à découvrir', 'Teams to discover') + '</div>' + tsug.map(function (t) {
+        var nf = ((STATE.teamFollowersByTeam || {})[t.id] || []).length;
+        return '<div class="rail-person"><button type="button" class="rail-person-who" data-team-link="' + escapeHtml(t.id) + '">' + teamAvatarHtml(t) +
+          '<span><strong>' + escapeHtml(t.name) + teamBadgesHtml(t) + '</strong><span class="help-text">' + escapeHtml(nf ? plural(nf, L('abonné', 'follower'), L('abonnés', 'followers')) : (t.slogan || 'Team PRO')) + '</span></span></button>' +
+          '<button type="button" class="primary follow-btn small" data-action="follow-team" data-team="' + escapeHtml(t.id) + '">' + L('Suivre', 'Follow') + '</button></div>';
+      }).join('') + '</div>';
+    }
     h += '<div class="rail-foot help-text">' + L('Carnet Piste', 'Pitbook') + ' · <button type="button" class="link-btn" data-action="open-legal" data-kind="privacy">' + L('Confidentialité', 'Privacy') + '</button></div>';
     return h + '</aside>';
   }
@@ -14156,10 +14167,7 @@
         if (communauteSubItems().some(function (it) { return it[0] === 'team'; })) {
           var onTeam = !onPanel && activeView === 'team';
           comm.push(['Teams', 'data-view="team"', onTeam]);
-          // 3e niveau sous Teams : Mes teams, Découvrir, Créer un team.
-          if (onTeam) [['mine', L('Mes teams', 'My teams')], ['discover', L('Découvrir', 'Discover')], ['create', L('Créer un team', 'Create a team')]].forEach(function (t) {
-            comm.push([t[1], 'data-view="team" data-pill-group="teams" data-pill="' + t[0] + '" data-level="3"', !expandedTeamId && pillState.teams === t[0]]);
-          });
+          // Pas de 3e niveau : Mes teams, Découvrir et Créer sont une seule page sur PC.
         }
         html += sub(5, comm);
       }
@@ -21224,6 +21232,7 @@
     return html;
   }
 
+  var teamCreateOpen = false;
   function renderTeamTab() {
     var me = currentUserProfile;
     if (!me) return '';
@@ -21256,6 +21265,18 @@
     // Opened from Découvrir: a team this account isn't in gets its public fiche.
     if (expandedTeamId && !myTeams.some(function (t) { return t.id === expandedTeamId; }) && teamById(expandedTeamId)) {
       return html + renderTeamPublicCard(teamById(expandedTeamId), me);
+    }
+    // PC : une seule page. « Créer » tout en haut, puis Mes teams, puis Découvrir.
+    if (!expandedTeamId && window.matchMedia && window.matchMedia('(min-width: 960px)').matches) {
+      var pcH = '<div class="team-create-top"><button type="button" class="' + (teamCreateOpen ? 'ghost' : 'primary') + '" data-action="team-create-toggle" aria-expanded="' + teamCreateOpen + '">' + (teamCreateOpen ? L('Fermer', 'Close') : '+ ' + L('Créer', 'Create')) + '</button>' +
+        '<span class="help-text">' + L('Crée ton team : membres, Social et roulages.', 'Create your team: members, Social and trackdays.') + '</span></div>' + (teamCreateOpen ? renderCreateTeamCard() : '');
+      pcH += '<h2 class="section-title team-sec-title">' + L('Mes teams', 'My teams') + (myTeams.length ? ' (' + myTeams.length + ')' : '') + '</h2>';
+      pcH += myTeams.length ? '<div class="team-tile-grid">' + myTeams.map(function (t) {
+        var label = isLeaderOfTeam(t.id) ? tr('team_leader_label') : (memberTeamIds.indexOf(t.id) !== -1 ? tr('member_label') : isAdherentOf(t.id) ? tr('adherent_singular_badge') : tr('follower_label'));
+        return renderTeamTile(t, '<span class="friend-role-badge">' + label + '</span>', true);
+      }).join('') + '</div>' : '<div class="card"><div class="empty-state">' + tr('no_team_yet') + '</div></div>';
+      pcH += '<h2 class="section-title team-sec-title">' + L('Découvrir', 'Discover') + '</h2>' + renderTeamDiscovery(me, myTeams);
+      return html + pcH;
     }
     if (!expandedTeamId) {
       html = renderPills('teams', [['mine', 'Mes teams' + (myTeams.length ? ' (' + myTeams.length + ')' : '')], ['discover', 'Découvrir'], ['create', 'Créer un team']]).replace('<div class="pill-tabs">', '<div class="pill-tabs main-subnav-pills">') + html;
@@ -21415,14 +21436,9 @@
     if (navigator.clipboard) navigator.clipboard.writeText(text).then(function () { showToast(L('Lien copié.', 'Link copied.'), 'success'); });
   }
 
-  function renderTeamDiscovery(me, myTeams) {
-    var myTeamIds = myTeams.map(function (t) { return t.id; });
-    // "Mes teams" above already lists every team this account follows
-    // (see renderTeamTab), with a real, clickable fiche -- so a followed
-    // team never needs its own smaller "Teams suivis" tile here too.
-    var followedTeamIds = (STATE.myFollowedTeams || []).filter(function (id) { return myTeamIds.indexOf(id) === -1; });
-    var discoverable = (STATE.teams || []).filter(function (t) {
-      if (myTeamIds.indexOf(t.id) !== -1) return false;
+  function discoverableTeams(me, excludeIds) {
+    return (STATE.teams || []).filter(function (t) {
+      if ((excludeIds || []).indexOf(t.id) !== -1) return false;
       // Seuls les teams validés (Team PRO) sont proposés à la découverte.
       if (!t.teamPro) return false;
       if (t.visibility === 'all') return true;
@@ -21430,6 +21446,14 @@
       if (t.visibility === 'certified') return isCertified(me);
       return false;
     }).sort(function (a, b) { return a.name.localeCompare(b.name); });
+  }
+  function renderTeamDiscovery(me, myTeams) {
+    var myTeamIds = myTeams.map(function (t) { return t.id; });
+    // "Mes teams" above already lists every team this account follows
+    // (see renderTeamTab), with a real, clickable fiche -- so a followed
+    // team never needs its own smaller "Teams suivis" tile here too.
+    var followedTeamIds = (STATE.myFollowedTeams || []).filter(function (id) { return myTeamIds.indexOf(id) === -1; });
+    var discoverable = discoverableTeams(me, myTeamIds);
     if (!discoverable.length && !followedTeamIds.length) return '<div class="card"><div class="empty-state">' + L('Aucun team PRO à découvrir pour l\'instant.', 'No PRO team to discover yet.') + '</div></div>';
     var body = '';
     if (followedTeamIds.length) {
@@ -23006,6 +23030,10 @@
       });
     }
     // Logo et nom de l'appli : retour à Communauté › Social.
+    document.querySelectorAll('[data-action="team-create-toggle"]').forEach(function (b) { b.addEventListener('click', function () {
+      teamCreateOpen = !teamCreateOpen; renderRoot();
+      if (teamCreateOpen) { var i = document.getElementById('new-team-name'); if (i) i.focus(); }
+    }); });
     document.querySelectorAll('[data-action="map-open"]').forEach(function (b) { b.addEventListener('click', function () {
       if (!selectedCircuit) return;
       if (b.getAttribute('data-mode') === 'draw') openAnnotation(selectedCircuit); else openTrackNotes(selectedCircuit);
