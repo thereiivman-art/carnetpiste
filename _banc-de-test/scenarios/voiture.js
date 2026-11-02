@@ -13,7 +13,7 @@ const { chromium, BASE } = require('../lib');
   const sessionsSeen = () => p.evaluate(() => new Promise(r => setTimeout(() => r(document.getElementById('root').innerText.indexOf('Sam') !== -1), 50)));
   await p.click('#settings-toggle'); await p.waitForTimeout(400);
   await p.click('[data-profile-tab="profil"]').catch(() => {}); await p.waitForTimeout(300);
-  await p.click('[data-cpill-group="profil"][data-cpill="moto"]').catch(() => {}); await p.waitForTimeout(300);
+  await p.click('[data-cpill-group="profil"][data-cpill="role"]').catch(() => {}); await p.waitForTimeout(300);
   console.log('choix:', await p.$$eval('[data-action="set-discipline"]', e => e.map(x => x.innerText + (x.classList.contains('active') ? '✓' : '')).join(' / ')));
   await p.click('[data-action="set-discipline"][data-discipline="auto"]'); await p.waitForTimeout(700);
   console.log('stocké:', await p.evaluate(() => firebase.firestore().collection('users').doc(firebase.auth().currentUser.uid).get().then(d => d.data().discipline)));
@@ -44,7 +44,7 @@ const { chromium, BASE } = require('../lib');
   // Retour en moto
   await p.click('#settings-toggle'); await p.waitForTimeout(400);
   await p.click('[data-profile-tab="profil"]').catch(() => {}); await p.waitForTimeout(300);
-  await p.click('[data-cpill-group="profil"][data-cpill="moto"]').catch(() => {}); await p.waitForTimeout(300);
+  await p.click('[data-cpill-group="profil"][data-cpill="role"]').catch(() => {}); await p.waitForTimeout(300);
   await p.click('[data-action="set-discipline"][data-discipline="moto"]'); await p.waitForTimeout(600);
   console.log('retour moto:', await p.$$eval('[data-cpill-group="profil"]', e => e.map(x => x.innerText).join(' / ')));
   console.log('errs', JSON.stringify(errs)); await b.close();

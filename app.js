@@ -4727,7 +4727,10 @@
     // and which achievements set applies differ between the two.
     var isNonRider = p.role === 'accompagnant' || p.role === 'organisateur';
     var followed = p.followedRiders || [];
-    var pills = renderClientPills('profil', [['identite', 'Identité'], ['role', 'Rôle'], ['moto', isNonRider ? 'Pilotes suivis' : 'Mon véhicule']]);
+    // Rôle et véhicule dans le même onglet ; les pilotes suivis sont mes
+    // abonnements (Communauté), plus de liste à cocher ici.
+    if (pillState.profil === 'moto') pillState.profil = 'role';
+    var pills = renderClientPills('profil', [['identite', 'Identité'], ['role', 'Rôle']]);
     var html = '<form id="profile-form">';
     html += cpillSection('profil', 'identite');
     html += '<div class="my-fiche-cta"><span><strong>' + L('Ma fiche', 'My profile page') + '</strong><span class="help-text">' + L('Ce que tes amis voient. Couverture, couleur, plaque, vitrine : à ton image.', 'What your friends see. Cover, colour, plate, showcase: make it yours.') + '</span></span>' +
@@ -4770,7 +4773,6 @@
     html += renderRoleInfoCard('pilote', currentRole);
     html += renderRoleInfoCard('accompagnant', currentRole);
     html += renderRoleInfoCard('organisateur', currentRole);
-    html += '</div>' + cpillSection('profil', 'moto');
     // Discipline : adapte le vocabulaire, la fiche réglages et les classements.
     html += '<div class="discipline-choice" style="margin-top:0.9rem;"><span class="help-text">' + L('Je roule en', 'I ride in') + '</span><div class="ride-role-row">' +
       '<button type="button" class="ride-role-btn keep-words' + (isCarMode() ? '' : ' active') + '" data-action="set-discipline" data-discipline="moto" aria-pressed="' + !isCarMode() + '">' + L('Moto', 'Bike') + '</button>' +
@@ -4785,17 +4787,7 @@
       '<label for="profile-chrono-link" style="margin-top:0.7rem;">' + tr('chrono_app_link_label') + '</label>' +
       '<input type="url" id="profile-chrono-link" placeholder="Ex. https://superlaps.fr/..." value="' + escapeHtml(p.chronoLink || '') + '">' +
       '<div class="help-text">' + tr('chrono_app_link_help') + '</div></div>';
-    html += '<div id="profile-followed-wrap" style="display:' + (isNonRider ? 'block' : 'none') + '; margin-top:0.9rem;">';
-    html += '<label>' + tr('followed_riders_label') + '</label>';
-    var riders = allKnownRiders();
-    if (!riders.length) {
-      html += '<div class="help-text">' + tr('no_rider_registered') + '</div>';
-    } else {
-      html += '<div class="profile-followed-riders">' + riders.map(function (r) {
-        return '<label class="checklist-item"><input type="checkbox" name="profile-follow-rider" value="' + escapeHtml(r) + '"' + (followed.indexOf(r) !== -1 ? ' checked' : '') + '> ' + escapeHtml(r) + '</label>';
-      }).join('') + '</div>';
-    }
-    html += '</div>';
+    html += '<div id="profile-followed-wrap" class="help-text" style="display:' + (isNonRider ? 'block' : 'none') + '; margin-top:0.9rem;">' + L('Les pilotes que tu suis sont tes abonnements et tes amis (Communauté).', 'The riders you follow are your subscriptions and friends (Community).') + '</div>';
     html += '</div>';
     html += '<button type="submit" class="primary add-chrono-btn" style="margin-top:1rem;">' + tr('save') + '</button>';
     if (profileSaveMessage) html += '<div class="help-text" style="margin-top:0.6rem;">' + escapeHtml(profileSaveMessage) + '</div>';
@@ -14994,7 +14986,7 @@
   function renderFollowedTravelInfoSection(ev) {
     var me = currentUserProfile;
     if (!me) return '';
-    var followed = (me.followedRiders || []).filter(function (r) {
+    var followed = followedRidersOf(me).filter(function (r) {
       if ((ev.riders || []).indexOf(r) === -1) return false;
       var u = STATE.usersByName && STATE.usersByName[r];
       return !u || u.shareTravelInfo !== false;
@@ -15901,7 +15893,7 @@
   // on the best-effort browser Notification (lost if the tab is closed).
   function renderFollowedRidersStatus(ev, horaires, dateStr) {
     if (!currentUserProfile || currentUserProfile.role !== 'accompagnant') return '';
-    var followed = (currentUserProfile.followedRiders || []).slice().sort();
+    var followed = followedRidersOf(currentUserProfile).slice().sort();
     if (!followed.length) return '';
     var rows = followed.map(function (name) {
       return infoRow(name, escapeHtml(followedRiderStatusToday(ev, horaires, dateStr, name)));
@@ -15981,7 +15973,7 @@
     var ev = eventsList().filter(function (e) { return e.id === planningEventId; })[0];
     if (!ev) return;
     var namesToWatch = currentUserProfile.role === 'accompagnant'
-      ? (currentUserProfile.followedRiders || [])
+      ? followedRidersOf(currentUserProfile)
       : [currentUserProfile.name];
     if (!namesToWatch.length) return;
     var departingNames = ridersForGroupLabels(ev, nextGroupLabels).filter(function (name) {
@@ -18331,6 +18323,13 @@
   function followingOf(n) {
     if (currentUserProfile && n === currentUserProfile.name && STATE.myFollows) return uniqNames(STATE.myFollows.concat(friendNamesOf(n)));
     return uniqNames((STATE.allUserFollows || []).filter(function (f) { return f.follower === n; }).map(function (f) { return f.followee; }).concat(friendNamesOf(n)));
+  }
+  // Pilotes suivis (accompagnant) : mes abonnements (amis compris), plus
+  // l'ancienne liste cochée dans Mon compte si elle existe encore.
+  function followedRidersOf(profile) {
+    if (!profile) return [];
+    var me = currentUserProfile && profile.name === currentUserProfile.name;
+    return uniqNames((profile.followedRiders || []).concat(me ? followingOf(profile.name) : []));
   }
   function iFollow(n) { return (STATE.myFollows || []).indexOf(n) !== -1 || isFriendName(n); }
   function plural(n, one, many) { return n + ' ' + (n > 1 ? many : one); }
@@ -22962,10 +22961,8 @@
           renderRoot();
           return;
         }
-        var followedRiders = Array.prototype.map.call(
-          profileForm.querySelectorAll('input[name="profile-follow-rider"]:checked'),
-          function (el) { return el.value; }
-        );
+        // Plus de liste cochée : on garde l'ancienne telle quelle.
+        var followedRiders = (currentUserProfile && currentUserProfile.followedRiders) || [];
         var nameEl = document.getElementById('profile-name');
         var newName = nameEl ? nameEl.value.trim() : '';
         var firstNameEl = document.getElementById('profile-firstname');
