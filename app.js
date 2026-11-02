@@ -7805,6 +7805,22 @@
   // The Circuit tab is rider-agnostic (it's context, not a comparison
   // view), so its "Dernière sortie"/"Record circuit" figures cover every
   // rider, not just whichever one happens to be active elsewhere.
+  // Un tour de piste en vidéo : celle du circuit si l'admin en a mis une,
+  // sinon la meilleure vidéo d'un chrono (le plus rapide avec un lien),
+  // sinon une recherche YouTube « tour embarqué ».
+  function lapVideoUrl(circuit) {
+    if (!circuit) return '';
+    var info = circuitInfo(circuit) || {};
+    if (info.lapVideo && /^https:\/\//.test(info.lapVideo)) return info.lapVideo;
+    var best = (STATE.sessions || []).filter(function (x) { return x.circuit === circuit && x.videoUrl && /^https?:\/\//.test(x.videoUrl); })
+      .sort(function (a, b) { return (Math.min.apply(null, a.laps || [9999]) || 9999) - (Math.min.apply(null, b.laps || [9999]) || 9999); })[0];
+    if (best) return best.videoUrl;
+    return 'https://www.youtube.com/results?search_query=' + encodeURIComponent(circuit + ' onboard lap moto');
+  }
+  function lapVideoLinkHtml(circuit) {
+    var u = lapVideoUrl(circuit);
+    return u ? '<a class="lap-video-link" href="' + escapeHtml(u) + '" target="_blank" rel="noopener" title="' + escapeHtml(L('Un tour de piste en vidéo', 'A lap of the track on video')) + '"><svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>' + L('Vidéo', 'Video') + '</a>' : '';
+  }
   function renderCircuitTab() {
     var circuits = allCircuits();
     if (!circuits.length) {
@@ -7818,9 +7834,14 @@
     html += '</select></div>';
     var cp = pillState.circuit;
     if (cp === 'plan') {
-      html += renderCircuitInfoCard('plan');
+      // Les deux façons d'annoter, visibles dès l'arrivée sur la page.
+      html += '<div class="map-open-choice">' +
+        '<button type="button" class="ghost" data-action="map-open" data-mode="draw" title="' + escapeHtml(L('Dessin à main levée', 'Freehand drawing')) + '"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M14 6l4 4"/></svg>' + L('Dessin', 'Draw') + '</button>' +
+        '<button type="button" class="ghost" data-action="map-open" data-mode="pins" title="' + escapeHtml(L('Repères pro', 'Pro marks')) + '"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-6-5.6-6-11a6 6 0 0 1 12 0c0 5.4-6 11-6 11z"/><circle cx="12" cy="10" r="2.3"/></svg>' + L('Repères', 'Marks') + '</button>' + lapVideoLinkHtml(selectedCircuit) + '</div>';
       var nNotes = myTrackNotes(selectedCircuit).length;
-      html += '<div class="card"><h2 class="section-title">Mes repères' + (nNotes ? ' (' + nNotes + ')' : '') + '</h2>' + flatSections(renderTrackNotesReminder(selectedCircuit)) + '</div>';
+      // PC large : les repères à droite de la carte (voir style.css).
+      html += '<div class="circuit-plan-wrap"><div class="circuit-plan-map">' + renderCircuitInfoCard('plan') + '</div>' +
+        '<div class="card circuit-plan-notes"><h2 class="section-title">Mes repères' + (nNotes ? ' (' + nNotes + ')' : '') + '</h2>' + flatSections(renderTrackNotesReminder(selectedCircuit)) + '</div></div>';
       return html;
     }
     if (cp === 'infos') { html += renderCircuitInfoCard('infos'); return html; }
@@ -14084,7 +14105,7 @@
   function renderBottomNav() {
     // Nom de l'app en haut de la barre de gauche (PC) : à côté de la barre,
     // pas dedans, pour ne pas décaler l'ordre de ses boutons.
-    var html = '<div class="nav-brand keep-words" aria-hidden="true"><img src="icons/favicon-32.png" alt="" width="26" height="26"><span>' + L('Carnet Piste', 'Pitbook') + '</span></div><nav class="bottom-nav">';
+    var html = '<button type="button" class="nav-brand keep-words" data-action="brand-home" aria-label="' + escapeHtml(L('Accueil : Social', 'Home: Social')) + '"><img src="icons/favicon-32.png" alt="" width="26" height="26"><span>' + L('Carnet Piste', 'Pitbook') + '</span></button><nav class="bottom-nav">';
     var visibleTabs = MAIN_TABS;
     // Profile and notifications aren't one of the 3 tabs: none lit up then.
     var current = (profilePanelOpen || notificationsPanelOpen) ? null : navTabFor(activeView);
@@ -18467,7 +18488,7 @@
     var p = (STATE.wallPosts || []).filter(function (x) { return x.id === id; })[0]; if (!p) return;
     var link = postShareLink(id), text = ((p.text || '').slice(0, 240) + (p.text ? ' · ' : '') + L('via Carnet Piste', 'via Pitbook')).trim();
     var opts = [
-      ['whatsapp', 'WhatsApp'], ['x', 'X (Twitter)'], ['facebook', 'Facebook'], ['instagram', 'Instagram'], ['tiktok', 'TikTok'], ['copy', L('Copier le lien', 'Copy link')]
+      ['whatsapp', 'WhatsApp'], ['x', 'X (Twitter)'], ['facebook', 'Facebook'], ['instagram', 'Instagram'], ['tiktok', 'TikTok'], ['copy', L('Lien', 'Link')]
     ];
     var ov = openMiniSheet('<h2 class="section-title">' + L('Partager', 'Share') + '</h2><div class="share-sheet">' +
       opts.map(function (o) { return '<button type="button" class="share-opt" data-share-to="' + o[0] + '">' + brandIconHtml(o[0]) + '<span>' + escapeHtml(o[1]) + '</span></button>'; }).join('') + '</div>' +
@@ -22984,6 +23005,16 @@
         exportSessionsCsv(names);
       });
     }
+    // Logo et nom de l'appli : retour à Communauté › Social.
+    document.querySelectorAll('[data-action="map-open"]').forEach(function (b) { b.addEventListener('click', function () {
+      if (!selectedCircuit) return;
+      if (b.getAttribute('data-mode') === 'draw') openAnnotation(selectedCircuit); else openTrackNotes(selectedCircuit);
+    }); });
+    document.querySelectorAll('[data-action="brand-home"]').forEach(function (b) { b.addEventListener('click', function () {
+      activeView = 'social'; pillState.social = 'fil'; personView = null; outingView = null; dmOpenWith = null;
+      profilePanelOpen = false; notificationsPanelOpen = false; navStack = [];
+      renderRoot(); window.scrollTo(0, 0);
+    }); });
     document.querySelectorAll('[data-action="share-post"]').forEach(function (btn) { btn.addEventListener('click', function (e) { e.stopPropagation(); openPostShareSheet(btn.getAttribute('data-id')); }); });
     // Lien partagé (?post=<id>) : on ouvre Social sur la publication.
     if (pendingPostId && currentUserProfile) {
