@@ -19720,15 +19720,24 @@
     var friends = friendsOf(me.name).map(function (f) { return f.name; });
     var list = allKnownUserNames().filter(function (n) { return n !== me.name && canMessage(n); })
       .sort(function (a, b) { return (friends.indexOf(a) === -1) - (friends.indexOf(b) === -1) || a.localeCompare(b); });
-    var row = function (n) { var u = (STATE.usersByName || {})[n] || {}; return '<button type="button" class="mention-opt" data-dm-pick="' + escapeHtml(n) + '">' + avatarHtml(u, n) + '<span>' + escapeHtml(n) + '</span>' + (friends.indexOf(n) !== -1 ? '<span class="help-text">' + L('ami', 'friend') + '</span>' : '') + '</button>'; };
-    var ov = openMiniSheet('<h2 class="section-title">' + L('Nouveau message', 'New message') + '</h2><input type="search" id="dm-pick-q" placeholder="' + escapeHtml(L('Chercher un pilote…', 'Search a rider…')) + '" autocomplete="off">' +
-      '<div class="dm-pick-list" id="dm-pick-list">' + (list.length ? list.slice(0, 30).map(row).join('') : '<div class="help-text">' + L('Personne ne peut recevoir de message de ta part pour l\'instant : ajoute des amis.', 'Nobody can receive a message from you yet: add friends.') + '</div>') + '</div>' +
+    // Les teams se trouvent ici comme un pilote : leurs Team Leaders répondent.
+    var teamKeys = (STATE.teams || []).filter(function (t) { return t.id && t.name && canMessage('team:' + t.id); })
+      .sort(function (a, b) { return ((STATE.myFollowedTeams || []).indexOf(a.id) === -1) - ((STATE.myFollowedTeams || []).indexOf(b.id) === -1) || String(a.name).localeCompare(String(b.name)); })
+      .map(function (t) { return 'team:' + t.id; });
+    var labelOf = function (k) { var tm = k.indexOf('team:') === 0 ? teamById(k.slice(5)) : null; return tm ? String(tm.name) : k; };
+    var firstRows = list.slice(0, 20).concat(teamKeys.slice(0, 10));
+    list = list.concat(teamKeys);
+    var row = function (n) {
+      if (n.indexOf('team:') === 0) { var tm = teamById(n.slice(5)); return '<button type="button" class="mention-opt" data-dm-pick="' + escapeHtml(n) + '">' + teamAvatarHtml(tm) + '<span>' + escapeHtml(tm.name) + '</span><span class="help-text">' + L('team', 'team') + '</span></button>'; }
+      var u = (STATE.usersByName || {})[n] || {}; return '<button type="button" class="mention-opt" data-dm-pick="' + escapeHtml(n) + '">' + avatarHtml(u, n) + '<span>' + escapeHtml(n) + '</span>' + (friends.indexOf(n) !== -1 ? '<span class="help-text">' + L('ami', 'friend') + '</span>' : '') + '</button>'; };
+    var ov = openMiniSheet('<h2 class="section-title">' + L('Nouveau message', 'New message') + '</h2><input type="search" id="dm-pick-q" placeholder="' + escapeHtml(L('Chercher un pilote ou un team…', 'Search a rider or a team…')) + '" autocomplete="off">' +
+      '<div class="dm-pick-list" id="dm-pick-list">' + (list.length ? firstRows.map(row).join('') : '<div class="help-text">' + L('Personne ne peut recevoir de message de ta part pour l\'instant : ajoute des amis.', 'Nobody can receive a message from you yet: add friends.') + '</div>') + '</div>' +
       '<div class="mini-sheet-actions"><button type="button" class="link-btn" data-mini-close>' + L('Fermer', 'Close') + '</button></div>');
     var bindRows = function () { ov.querySelectorAll('[data-dm-pick]').forEach(function (b) { b.addEventListener('click', function () { var n = b.getAttribute('data-dm-pick'); ov.remove(); openDm(n); }); }); };
     bindRows();
     ov.querySelector('#dm-pick-q').addEventListener('input', function (e) {
       var q = e.target.value.trim().toLowerCase();
-      ov.querySelector('#dm-pick-list').innerHTML = list.filter(function (n) { return n.toLowerCase().indexOf(q) !== -1; }).slice(0, 30).map(row).join('') || '<div class="help-text">' + L('Aucun résultat.', 'No result.') + '</div>';
+      ov.querySelector('#dm-pick-list').innerHTML = list.filter(function (n) { return labelOf(n).toLowerCase().indexOf(q) !== -1; }).slice(0, 30).map(row).join('') || '<div class="help-text">' + L('Aucun résultat.', 'No result.') + '</div>';
       bindRows();
     });
   }
@@ -21196,7 +21205,6 @@
     var following = (STATE.myFollowedTeams || []).indexOf(t.id) !== -1;
     var myRequest = (STATE.teamJoinRequests || []).filter(function (r) { return r.teamId === t.id && r.from === me.name; })[0];
     var h = '<button type="button" class="' + (iLike ? 'primary' : 'ghost') + '" data-action="team-like-toggle" data-team="' + escapeHtml(t.id) + '" aria-pressed="' + (iLike ? 'true' : 'false') + '">' + (iLike ? L('Aimé', 'Liked') : L('J\'aime', 'Like')) + '</button>';
-    if (!isLeaderOfTeam(t.id)) h += '<button type="button" class="ghost" data-action="dm-open" data-name="team:' + escapeHtml(t.id) + '">' + L('Écrire', 'Message') + '</button>';
     if (!isMember) h += following && isAdherentOf(t.id) ? '' : following
       ? '<button type="button" class="ghost" data-action="unfollow-team" data-team="' + escapeHtml(t.id) + '">' + L('Abonné', 'Following') + '</button>'
       : '<button type="button" class="ghost" data-action="follow-team" data-team="' + escapeHtml(t.id) + '">' + L('Suivre', 'Follow') + '</button>';
