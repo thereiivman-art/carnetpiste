@@ -4468,3 +4468,34 @@ span.social-count { cursor: default; }
   .track-notes-overlay { padding-left: 2rem; padding-right: 2rem; }
 }
 .share-elsewhere-opt { display: flex; align-items: center; gap: 0.5rem; margin-top: 0.5rem; font-weight: 600; } .share-elsewhere-opt input { width: auto; }
+/* Messagerie privée */
+.dm-top { display: flex; align-items: center; gap: 0.8rem; flex-wrap: wrap; margin-bottom: 0.6rem; }
+.dm-top .primary { width: auto; }
+.dm-convs { padding: 0.3rem; }
+.dm-conv { display: flex; align-items: center; gap: 0.7rem; width: 100%; padding: 0.65rem 0.6rem; border: 0; border-bottom: 1px solid var(--border); background: none; color: var(--text); text-align: left; cursor: pointer; font: inherit; border-radius: 0; }
+.dm-conv:last-child { border-bottom: 0; }
+.dm-conv:hover { background: var(--surface-alt); }
+.dm-conv .mini-avatar { width: 44px; height: 44px; flex: none; }
+.dm-conv-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.dm-conv-main .help-text { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dm-conv.unread .dm-conv-main strong, .dm-conv.unread .dm-conv-main .help-text { color: var(--text); font-weight: 700; }
+.dm-conv-side { display: flex; flex-direction: column; align-items: flex-end; gap: 0.25rem; flex: none; }
+.dm-time { font-size: 0.72rem; color: var(--text-muted); }
+.dm-unread { min-width: 1.3rem; height: 1.3rem; padding: 0 0.3rem; border-radius: 999px; background: var(--accent); color: var(--accent-ink); font-size: 0.72rem; font-weight: 800; display: grid; place-items: center; }
+.dm-thread { display: flex; flex-direction: column; padding: 0; overflow: hidden; }
+.dm-head { display: flex; align-items: center; gap: 0.5rem; padding: 0.6rem 0.8rem; border-bottom: 1px solid var(--border); }
+.dm-back-btn { width: 2.2rem; height: 2.2rem; min-width: 0; padding: 0; border-radius: 50%; border: 1px solid var(--border); background: var(--surface); color: var(--text); font-size: 1.3rem; line-height: 1; display: grid; place-items: center; cursor: pointer; }
+.dm-who { display: flex; align-items: center; gap: 0.6rem; border: 0; background: none; padding: 0; color: var(--text); font: inherit; cursor: pointer; width: auto; }
+.dm-list { display: flex; flex-direction: column; gap: 0.35rem; padding: 0.9rem 0.8rem; max-height: 60vh; min-height: 12rem; overflow-y: auto; }
+.dm-msg { display: flex; flex-direction: column; align-items: flex-start; max-width: 80%; }
+.dm-msg.mine { align-self: flex-end; align-items: flex-end; }
+.dm-bubble { padding: 0.5rem 0.8rem; border-radius: 16px 16px 16px 4px; background: var(--surface-alt); white-space: pre-wrap; word-break: break-word; }
+.dm-msg.mine .dm-bubble { background: var(--accent); color: var(--accent-ink); border-radius: 16px 16px 4px 16px; }
+.dm-msg.mine .dm-bubble .mention-link { color: inherit; text-decoration: underline; }
+.dm-empty, .dm-closed { padding: 0.8rem; text-align: center; }
+.dm-form { display: flex; gap: 0.5rem; align-items: flex-end; padding: 0.6rem 0.8rem; border-top: 1px solid var(--border); }
+.dm-form textarea { flex: 1; min-height: 2.6rem; max-height: 8rem; resize: vertical; margin: 0; }
+.dm-form .primary { width: auto; flex: none; }
+.dm-pick-list { max-height: 50vh; overflow-y: auto; margin-top: 0.5rem; border: 1px solid var(--border); border-radius: 12px; }
+.bottom-nav-icon { position: relative; }
+.nav-dm-badge { position: absolute; top: -4px; right: -8px; min-width: 1.05rem; height: 1.05rem; padding: 0 0.25rem; border-radius: 999px; background: var(--accent); color: var(--accent-ink); font-size: 0.62rem; font-weight: 800; display: grid; place-items: center; line-height: 1; }

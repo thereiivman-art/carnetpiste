@@ -866,6 +866,29 @@ service cloud.firestore {
     // siens (l'admin aussi) ; texte de 500 caractères au plus.
     // Réaction (un emoji) sur un élément du fil qui n'est pas un document
     // (roulage, récap, photos) : une ligne par personne, la sienne seulement.
+    // Messages privés : lisibles et supprimables par leurs deux membres
+    // seulement. Le destinataire peut refuser tout message (dmPolicy
+    // « none ») ; amis / abonnés sont vérifiés dans l'appli (les liens
+    // d'amitié ne sont pas consultables ici).
+    function dmOpenTo(uid) {
+      return get(/databases/$(database)/documents/users/$(uid)).data.get('dmPolicy', 'friends') != 'none';
+    }
+    match /directMessages/{id} {
+      allow read: if request.auth != null && request.auth.uid in resource.data.members;
+      allow create: if verified() && realAccount()
+        && request.resource.data.keys().hasOnly(['convId', 'members', 'from', 'fromName', 'toName', 'text', 'createdAt'])
+        && request.resource.data.from == request.auth.uid
+        && request.resource.data.fromName == myName()
+        && request.resource.data.members is list && request.resource.data.members.size() == 2
+        && request.resource.data.members[0] < request.resource.data.members[1]
+        && request.auth.uid in request.resource.data.members
+        && request.resource.data.convId == request.resource.data.members[0] + '__' + request.resource.data.members[1]
+        && request.resource.data.text is string && request.resource.data.text.size() > 0 && request.resource.data.text.size() <= 2000
+        && request.resource.data.toName is string && request.resource.data.toName.size() <= 80
+        && ((request.resource.data.members[0] == request.auth.uid && dmOpenTo(request.resource.data.members[1]))
+            || (request.resource.data.members[1] == request.auth.uid && dmOpenTo(request.resource.data.members[0])));
+      allow delete: if request.auth != null && request.auth.uid in resource.data.members;
+    }
     // Vidéos des stories (Carnet+) : rangées à part, lues à l'ouverture de
     // la story. 10 s compressées : plafond sous la limite d'un document.
     match /storyMedia/{id} {

@@ -4848,6 +4848,8 @@
         '<select id="profile-share-upcoming"><option value="friends"' + ((p.shareUpcoming || 'friends') === 'friends' ? ' selected' : '') + '>' + L('Mes amis', 'My friends') + '</option><option value="public"' + (p.shareUpcoming === 'public' ? ' selected' : '') + '>' + L('Tout le monde', 'Everyone') + '</option></select>' +
         '<label for="profile-visibility" style="margin-top:0.7rem;">' + L('Ma fiche (présentation, bannière, publications) visible par', 'My profile (about, banner, posts) visible to') + '</label>' +
         '<select id="profile-visibility"><option value="public"' + (p.profileVisibility !== 'friends' ? ' selected' : '') + '>' + L('Tout le monde', 'Everyone') + '</option><option value="friends"' + (p.profileVisibility === 'friends' ? ' selected' : '') + '>' + L('Mes amis', 'My friends') + '</option></select>' +
+        '<label for="dm-policy" style="margin-top:0.7rem;">' + L('Qui peut m\'écrire en privé', 'Who can send me private messages') + '</label>' +
+        '<select id="dm-policy">' + [['friends', L('Mes amis', 'My friends')], ['followers', L('Mes amis et mes abonnés', 'My friends and followers')], ['all', L('Tout le monde', 'Everyone')], ['none', L('Personne', 'Nobody')]].map(function (o) { return '<option value="' + o[0] + '"' + ((p.dmPolicy || 'friends') === o[0] ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('') + '</select>' +
         '<label for="lists-visibility" style="margin-top:0.7rem;">' + L('Mes abonnés et abonnements visibles par', 'My followers and following visible to') + '</label>' +
         '<select id="lists-visibility"><option value="public"' + (p.listsVisibility !== 'private' ? ' selected' : '') + '>' + L('Tout le monde', 'Everyone') + '</option><option value="private"' + (p.listsVisibility === 'private' ? ' selected' : '') + '>' + L('Moi seul', 'Only me') + '</option></select>' +
         '<div class="help-text" style="margin-top:0.3rem;">' + L('Ta liste d\'amis n\'est jamais montrée aux autres.', 'Your friend list is never shown to others.') + '</div>' +
@@ -6363,6 +6365,7 @@
       legalSection('Les données que l\'appli garde', '<ul>' +
         '<li><strong>Ton compte</strong> : e-mail, pseudo, rôle (pilote, accompagnant, organisateur) et, si tu les remplis, prénom, nom, photo, moto et numéro.</li>' +
         '<li><strong>Ta pratique</strong> : chronos, roulages, groupes, objectifs, repères sur les plans, débriefs, réglages de ta moto, infos de voyage.</li>' +
+        '<li><strong>Tes messages privés</strong> : le texte, l\'expéditeur, le destinataire et l\'heure.</li>' +
         '<li><strong>La partie communauté</strong> : amis, teams, messages, réactions, commentaires, stories, demandes de coaching et leurs messages, liens photos.</li>' +
         '<li><strong>Tes suggestions</strong> envoyées depuis Profil → Suggestion.</li>' +
         '<li><strong>Sur ton téléphone seulement</strong> : tes préférences d\'affichage et ce que tu as déjà lu (stockage local, pas de cookie).</li>' +
@@ -6376,6 +6379,7 @@
         '<li>Tes repères, débriefs, notes et ressentis de chrono, objectifs, réglages moto, pneus, pressions et budget ne sont visibles que de toi : ils sont rangés dans un espace privé que le serveur ne montre à personne d\'autre.</li>' +
         '<li>Ta liste d\'amis n\'est visible que de toi : une amitié n\'est connue que des deux personnes concernées.</li>' +
         '<li>Un message « Mes amis » (et ses commentaires) n\'est envoyé par le serveur qu\'à tes amis ; un message « Public » est visible de tous les comptes.</li>' +
+        '<li>Un message privé n\'est envoyé par le serveur qu\'à ses deux participants. Tu choisis qui peut t\'écrire (amis, abonnés, tout le monde ou personne) dans Réglages → Vie privée.</li>' +
         '<li>Ton e-mail n\'est jamais affiché aux autres.</li>' +
         '<li>Tes infos de voyage ne sont visibles que de toi et des accompagnants qui te suivent, si tu l\'as accepté.</li></ul>') +
       legalSection('Où elles sont stockées', '<ul><li><strong>Google Firebase</strong> (Google Ireland Ltd / Google LLC) : comptes et base de données. Les transferts éventuels hors de l\'Union européenne sont encadrés par les clauses contractuelles types de la Commission européenne et le Data Privacy Framework.</li>' +
@@ -13989,7 +13993,8 @@
   // Communauté : Profil · Fil · Teams, sur une seule rangée d'onglets.
   function renderCommunauteNav() {
     var me = currentUserProfile, nIn = me ? incomingFriendRequests(me.name).length : 0;
-    var items = [['profil', L('Profil', 'Profile') + (nIn ? ' (' + nIn + ')' : '')], ['fil', L('Fil', 'Feed')]];
+    var nDm = unreadDmCount();
+    var items = [['profil', L('Profil', 'Profile') + (nIn ? ' (' + nIn + ')' : '')], ['fil', L('Fil', 'Feed')], ['messages', L('Messages', 'Messages') + (nDm ? ' (' + nDm + ')' : '')]];
     var html = '<div class="subnav main-subnav" role="tablist">' + items.map(function (it) {
       var on = activeView === 'social' && (pillState.social === it[0] || (it[0] === 'profil' && pillState.social === 'abonnements'));
       return '<button type="button" role="tab" class="subnav-btn' + (on ? ' active' : '') + '" data-view="social" data-pill-group="social" data-pill="' + it[0] + '">' + it[1] + '</button>';
@@ -14070,7 +14075,7 @@
     visibleTabs.forEach(function (tab, i) {
       var toFil = desk && tab[0] === 'communaute';
       html += '<button type="button" class="bottom-nav-btn' + (tab[0] === 'chrono' ? ' bottom-nav-main' : '') + (current === tab[0] ? ' active' : '') + '" style="order:' + (i * 2) + '" data-view="' + (toFil ? 'social' : (lastSubView[tab[0]] || tab[0])) + '"' + (toFil ? ' data-pill-group="social" data-pill="fil"' : '') + '>' +
-        '<span class="bottom-nav-icon">' + tab[2] + '</span><span class="bottom-nav-label">' + (tab[0] === 'chrono' && currentUserProfile && meIsNonRider() ? L('Chrono pote', 'Friend lap') : tr(tab[1])) + '</span></button>';
+        '<span class="bottom-nav-icon">' + tab[2] + (tab[0] === 'communaute' && currentUserProfile && unreadDmCount() ? '<span class="nav-dm-badge">' + unreadDmCount() + '</span>' : '') + '</span><span class="bottom-nav-label">' + (tab[0] === 'chrono' && currentUserProfile && meIsNonRider() ? L('Chrono pote', 'Friend lap') : tr(tab[1])) + '</span></button>';
     });
     if (desk && currentUserProfile) {
       var sub = function (order, items) {
@@ -14104,6 +14109,8 @@
           comm.push([it[1], 'data-nav-person="' + it[0] + '" data-level="3"', pillState.person === it[0]]);
         });
         comm.push([L('Fil', 'Feed'), 'data-view="social" data-pill-group="social" data-pill="fil"', !onPanel && activeView === 'social' && pillState.social === 'fil']);
+        var nDmPc = unreadDmCount();
+        comm.push([L('Messages', 'Messages') + (nDmPc ? ' (' + nDmPc + ')' : ''), 'data-view="social" data-pill-group="social" data-pill="messages"', !onPanel && activeView === 'social' && pillState.social === 'messages']);
         if (communauteSubItems().some(function (it) { return it[0] === 'team'; })) {
           var onTeam = !onPanel && activeView === 'team';
           comm.push(['Teams', 'data-view="team"', onTeam]);
@@ -17922,6 +17929,7 @@
     else if (sent) acts += '<button type="button" class="ghost" disabled>' + L('Demande envoyée', 'Request sent') + '</button>';
     else acts += '<button type="button" class="primary" data-action="quick-add-friend" data-name="' + escapeHtml(name) + '">' + L('Ajouter en ami', 'Add friend') + '</button>';
     if (!isMe) acts += followBtnHtml(name);
+    if (!isMe && canMessage(name)) acts += '<button type="button" class="ghost" data-action="dm-open" data-name="' + escapeHtml(name) + '">' + L('Message', 'Message') + '</button>';
     if (isPilote && u.chronoLink && friendship) acts += '<button type="button" class="ghost" data-action="open-external-url" data-url="' + escapeHtml(u.chronoLink) + '">' + L('Ses chronos officiels ↗', 'Official lap times ↗') + '</button>';
     var achList = null;
     var getAch = function () { return achList || (achList = isPilote ? riderAchievements(name, riderStats(name)) : (u.role === 'organisateur' ? organisateurAchievements(u) : accompagnantAchievements(u))); };
@@ -19512,6 +19520,107 @@
     });
   }
 
+  // ---- Messagerie privée ----
+  // Un message = un document (directMessages) lisible par ses deux membres
+  // seulement (firestore.rules). Qui peut m'écrire : Réglages › Vie privée.
+  var dmOpenWith = null;
+  function dmPolicyOf(name) { var u = (STATE.usersByName || {})[name] || {}; return u.dmPolicy || 'friends'; }
+  function isFriendName(name) { var me = currentUserProfile; return !!me && friendsOf(me.name).some(function (f) { return f.name === name; }); }
+  function dmThreadWith(name) {
+    var me = myUid(), other = uidOf(name);
+    if (!me || !other) return [];
+    var cid = [me, other].sort().join('__');
+    return (STATE.dms || []).filter(function (m) { return m.convId === cid; }).sort(function (a, b) { return (a.createdAt || 0) - (b.createdAt || 0); });
+  }
+  function canMessage(name) {
+    var me = currentUserProfile;
+    if (!me || name === me.name || !uidOf(name)) return false;
+    // Une conversation déjà ouverte par l'autre : on peut toujours répondre.
+    if (dmThreadWith(name).some(function (m) { return m.from !== myUid(); })) return true;
+    var pol = dmPolicyOf(name);
+    if (pol === 'none') return false;
+    if (pol === 'all') return true;
+    if (pol === 'followers') return isFriendName(name) || iFollow(name);
+    return isFriendName(name);
+  }
+  function dmReadMap() { try { return JSON.parse(localStorage.getItem('cdp-dm-read-' + myUid()) || '{}'); } catch (e) { return {}; } }
+  function markDmRead(cid) { var m = dmReadMap(); m[cid] = Date.now(); try { localStorage.setItem('cdp-dm-read-' + myUid(), JSON.stringify(m)); } catch (e) {} }
+  function dmConversations() {
+    var me = myUid(), by = {}, read = dmReadMap();
+    (STATE.dms || []).forEach(function (m) {
+      var c = by[m.convId] || (by[m.convId] = { convId: m.convId, last: null, unread: 0, other: '' });
+      if (!c.last || (m.createdAt || 0) > (c.last.createdAt || 0)) c.last = m;
+      var otherName = m.from === me ? m.toName : m.fromName;
+      if (otherName) c.other = otherName;
+      if (m.from !== me && (m.createdAt || 0) > (read[m.convId] || 0)) c.unread++;
+    });
+    return Object.keys(by).map(function (k) { return by[k]; }).filter(function (c) { return c.other; }).sort(function (a, b) { return (b.last.createdAt || 0) - (a.last.createdAt || 0); });
+  }
+  function unreadDmCount() { return dmConversations().reduce(function (n, c) { return n + (c.unread ? 1 : 0); }, 0); }
+  function sendDm(name, text) {
+    var me = currentUserProfile, mine = myUid(), other = uidOf(name);
+    text = (text || '').trim().slice(0, 2000);
+    if (!me || !mine || !other || !text) return;
+    if (!canMessage(name)) { showToast(name + L(' ne reçoit pas de message de ta part (ses réglages).', ' does not accept messages from you (their settings).')); return; }
+    var members = [mine, other].sort();
+    var msg = { convId: members.join('__'), members: members, from: mine, fromName: me.name, toName: name, text: text, createdAt: Date.now() };
+    var id = genId();
+    STATE.dms = (STATE.dms || []).concat([Object.assign({ id: id }, msg)]);
+    markDmRead(msg.convId);
+    renderRoot();
+    db.collection('directMessages').doc(id).set(msg).catch(function (err) { showToast(tr('error_prefix') + ((err && err.message) || err)); });
+  }
+  function openDm(name) {
+    dmOpenWith = name; activeView = 'social'; pillState.social = 'messages'; personView = null;
+    profilePanelOpen = false; notificationsPanelOpen = false;
+    renderRoot(); window.scrollTo(0, 0);
+    var ta = document.getElementById('dm-text'); if (ta) ta.focus();
+  }
+  function dmTime(t) {
+    var d = new Date(t || 0), today = dateKey(new Date());
+    return dateKey(d) === today ? pad2(d.getHours()) + ':' + pad2(d.getMinutes()) : formatDateShortYear(dateKey(d));
+  }
+  function renderMessagesTab(me) {
+    if (dmOpenWith) {
+      var name = dmOpenWith, u = (STATE.usersByName || {})[name] || {}, thread = dmThreadWith(name), mineUid = myUid();
+      if (thread.length) markDmRead(thread[0].convId);
+      var h = '<div class="card dm-thread"><div class="dm-head"><button type="button" class="dm-back-btn" data-action="dm-back" aria-label="' + L('Retour', 'Back') + '">‹</button>' +
+        '<button type="button" class="dm-who" data-open-person="' + escapeHtml(name) + '">' + avatarHtml(u, name) + '<strong>' + escapeHtml(name) + badgesHtml(u).replace(/data-badge-[a-z]+="[^"]*"/g, '') + '</strong></button></div>' +
+        '<div class="dm-list" id="dm-list">' + (thread.length ? thread.map(function (m) {
+          return '<div class="dm-msg' + (m.from === mineUid ? ' mine' : '') + '"><div class="dm-bubble">' + mentionsHtml(m.text || '') + '</div><span class="dm-time">' + escapeHtml(dmTime(m.createdAt)) + '</span></div>';
+        }).join('') : '<div class="help-text dm-empty">' + escapeHtml(L('Écris le premier message à ' + name + '.', 'Write the first message to ' + name + '.')) + '</div>') + '</div>';
+      if (canMessage(name)) h += '<form class="dm-form" id="dm-form"><textarea id="dm-text" rows="1" maxlength="2000" placeholder="' + escapeHtml(L('Ton message…', 'Your message…')) + '"></textarea><button type="submit" class="primary">' + L('Envoyer', 'Send') + '</button></form>';
+      else h += '<div class="help-text dm-closed">' + escapeHtml(L(name + ' ne reçoit pas de message de ta part pour l\'instant (ses réglages de confidentialité).', name + ' does not accept messages from you right now (their privacy settings).')) + '</div>';
+      return h + '</div>';
+    }
+    var convs = dmConversations();
+    var h2 = '<div class="dm-top"><button type="button" class="primary" data-action="dm-new">' + L('Nouveau message', 'New message') + '</button>' +
+      '<span class="help-text">' + L('Qui peut t\'écrire : Réglages › Vie privée.', 'Who can write to you: Settings › Privacy.') + '</span></div>';
+    h2 += '<div class="card dm-convs">' + (convs.length ? convs.map(function (c) {
+      var u = (STATE.usersByName || {})[c.other] || {};
+      return '<button type="button" class="dm-conv' + (c.unread ? ' unread' : '') + '" data-action="dm-open" data-name="' + escapeHtml(c.other) + '">' + avatarHtml(u, c.other) +
+        '<span class="dm-conv-main"><strong>' + escapeHtml(c.other) + '</strong><span class="help-text">' + (c.last.from === myUid() ? L('Toi : ', 'You: ') : '') + escapeHtml((c.last.text || '').slice(0, 80)) + '</span></span>' +
+        '<span class="dm-conv-side"><span class="dm-time">' + escapeHtml(dmTime(c.last.createdAt)) + '</span>' + (c.unread ? '<span class="dm-unread">' + c.unread + '</span>' : '') + '</span></button>';
+    }).join('') : '<div class="empty-state">' + L('Aucune conversation pour l\'instant. Écris à un ami depuis « Nouveau message » ou depuis sa fiche.', 'No conversation yet. Write to a friend from “New message” or from their profile.') + '</div>') + '</div>';
+    return h2;
+  }
+  function openDmPicker() {
+    var me = currentUserProfile; if (!me) return;
+    var friends = friendsOf(me.name).map(function (f) { return f.name; });
+    var list = allKnownUserNames().filter(function (n) { return n !== me.name && canMessage(n); })
+      .sort(function (a, b) { return (friends.indexOf(a) === -1) - (friends.indexOf(b) === -1) || a.localeCompare(b); });
+    var row = function (n) { var u = (STATE.usersByName || {})[n] || {}; return '<button type="button" class="mention-opt" data-dm-pick="' + escapeHtml(n) + '">' + avatarHtml(u, n) + '<span>' + escapeHtml(n) + '</span>' + (friends.indexOf(n) !== -1 ? '<span class="help-text">' + L('ami', 'friend') + '</span>' : '') + '</button>'; };
+    var ov = openMiniSheet('<h2 class="section-title">' + L('Nouveau message', 'New message') + '</h2><input type="search" id="dm-pick-q" placeholder="' + escapeHtml(L('Chercher un pilote…', 'Search a rider…')) + '" autocomplete="off">' +
+      '<div class="dm-pick-list" id="dm-pick-list">' + (list.length ? list.slice(0, 30).map(row).join('') : '<div class="help-text">' + L('Personne ne peut recevoir de message de ta part pour l\'instant : ajoute des amis.', 'Nobody can receive a message from you yet: add friends.') + '</div>') + '</div>' +
+      '<div class="mini-sheet-actions"><button type="button" class="link-btn" data-mini-close>' + L('Fermer', 'Close') + '</button></div>');
+    var bindRows = function () { ov.querySelectorAll('[data-dm-pick]').forEach(function (b) { b.addEventListener('click', function () { var n = b.getAttribute('data-dm-pick'); ov.remove(); openDm(n); }); }); };
+    bindRows();
+    ov.querySelector('#dm-pick-q').addEventListener('input', function (e) {
+      var q = e.target.value.trim().toLowerCase();
+      ov.querySelector('#dm-pick-list').innerHTML = list.filter(function (n) { return n.toLowerCase().indexOf(q) !== -1; }).slice(0, 30).map(row).join('') || '<div class="help-text">' + L('Aucun résultat.', 'No result.') + '</div>';
+      bindRows();
+    });
+  }
   function renderSocialTab() {
     var me = currentUserProfile;
     if (!me) return '';
@@ -19588,6 +19697,7 @@
       return html;
     }
     if (pillState.social === 'profil') html += renderSocialProfile(me);
+    else if (pillState.social === 'messages') html += renderMessagesTab(me);
     else {
       html += renderStoriesRow(me);
       html += renderWallComposer();
@@ -22129,6 +22239,8 @@
     if (shareUpcomingEl) shareUpcomingEl.addEventListener('change', function () { saveOwnBooleanField('shareUpcoming', shareUpcomingEl.value); });
     var bientotShareEl = document.getElementById('bientot-share-upcoming');
     if (bientotShareEl) bientotShareEl.addEventListener('change', function () { saveOwnBooleanField('shareUpcoming', bientotShareEl.value); });
+    var dmPolicyEl = document.getElementById('dm-policy');
+    if (dmPolicyEl) dmPolicyEl.addEventListener('change', function () { saveOwnBooleanField('dmPolicy', dmPolicyEl.value); });
     ['profile-visibility', 'lists-visibility'].forEach(function (id) {
       var el = document.getElementById(id);
       if (el) el.addEventListener('change', function () { saveOwnBooleanField(id === 'profile-visibility' ? 'profileVisibility' : 'listsVisibility', el.value); });
@@ -24357,6 +24469,17 @@
       });
     });
     document.querySelectorAll('textarea[data-mentions]').forEach(attachMentionInput);
+    document.querySelectorAll('[data-action="dm-open"]').forEach(function (b) { b.addEventListener('click', function () { openDm(b.getAttribute('data-name')); }); });
+    document.querySelectorAll('[data-action="dm-new"]').forEach(function (b) { b.addEventListener('click', openDmPicker); });
+    document.querySelectorAll('[data-action="dm-back"]').forEach(function (b) { b.addEventListener('click', function (e) { e.stopPropagation(); dmOpenWith = null; renderRoot(); }); });
+    var dmForm = document.getElementById('dm-form');
+    if (dmForm) {
+      var dmTa = document.getElementById('dm-text');
+      dmForm.addEventListener('submit', function (e) { e.preventDefault(); var t = dmTa.value; if (!t.trim()) return; sendDm(dmOpenWith, t); var ta2 = document.getElementById('dm-text'); if (ta2) ta2.focus(); });
+      // Entrée envoie (Maj + Entrée : nouvelle ligne).
+      dmTa.addEventListener('keydown', function (e) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); dmForm.requestSubmit ? dmForm.requestSubmit() : dmForm.dispatchEvent(new Event('submit')); } });
+      var dmList = document.getElementById('dm-list'); if (dmList) dmList.scrollTop = dmList.scrollHeight;
+    }
     document.querySelectorAll('[data-nav-person]').forEach(function (btn) {
       btn.addEventListener('click', function () {
         activeView = 'social'; pillState.social = 'profil'; pillState.person = btn.getAttribute('data-nav-person');
@@ -25854,6 +25977,11 @@
     // Sécurité : un message « Mes amis » n'est lu par le serveur que pour
     // l'auteur et les uids de visibleTo (voir firestore.rules). D'où trois
     // requêtes (public, partagé avec moi, les miens) fusionnées ici.
+    // Messages privés : seulement ceux dont je suis l'un des deux membres.
+    unsubscribers.push(db.collection('directMessages').where('members', 'array-contains', myUid()).onSnapshot(function (snap) {
+      STATE.dms = snap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); });
+      scheduleRender();
+    }, function () {}));
     subscribeMerged('wallPosts', 200, [
       function (c) { return c.where('audience', 'in', ['all', 'followers']); },
       function (c) { return c.where('visibleTo', 'array-contains', myUid()); },
