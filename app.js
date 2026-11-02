@@ -17529,6 +17529,18 @@
     }
     return ids.map(teamById).filter(Boolean);
   }
+  // Teams d'un compte : ceux dont il est membre (connus ici) et ses teams
+  // préférés.
+  function renderPersonTeams(name, l) {
+    var ids = [];
+    (STATE.teams || []).forEach(function (t) { if (membersOfTeam(t.id).some(function (m) { return m.name === name; }) && ids.indexOf(t.id) === -1) ids.push(t.id); });
+    ((l && l.favTeams) || []).forEach(function (id) { if (ids.indexOf(id) === -1) ids.push(id); });
+    var teams = ids.map(teamById).filter(Boolean);
+    if (!teams.length) return '<div class="card help-text">' + escapeHtml(L(name + ' n\'affiche aucun team pour l\'instant.', name + ' shows no team yet.')) + '</div>';
+    return '<div class="card"><div class="team-tile-grid">' + teams.map(function (t) {
+      return '<button type="button" class="ph-fav-team" data-action="open-team-page" data-team="' + escapeHtml(t.id) + '">' + avatarHtml(t, t.name) + '<strong>' + escapeHtml(t.name) + teamBadgesHtml(t) + '</strong></button>';
+    }).join('') + '</div></div>';
+  }
   function renderFavourites(name, l) {
     var html = '', bests = riderBestsByCircuit(name);
     if (lookShows(l, 'circuits')) {
@@ -17591,14 +17603,16 @@
     else html += '<div class="help-text look-hint">' + L('Bannière (style, couleur, photo) et photo de profil : touche-les sur ta fiche.', 'Banner (style, colour, photo) and profile photo: tap them on your profile.') + '</div>';
     if (team) html += team.logoURL ? '' : '<div class="help-text">' + L('Ajoute le logo du team dans Réglages pour l\'afficher sur la couverture.', 'Add the team logo in Settings to show it on the cover.') + '</div>';
 
-    if (circuits.length && !team) html += '<div class="look-field"><label class="look-label" for="look-featured">' + L('Chrono vedette', 'Featured lap') + '</label><select id="look-featured"><option value="">' + L('Mon dernier record', 'My latest record') + '</option>' +
+    if (circuits.length && !team && !meIsNonRider()) html += '<div class="look-field"><label class="look-label" for="look-featured">' + L('Chrono vedette', 'Featured lap') + '</label><select id="look-featured"><option value="">' + L('Mon dernier record', 'My latest record') + '</option>' +
       circuits.map(function (c) { return '<option value="' + escapeHtml(c) + '"' + (d.featured === c ? ' selected' : '') + '>' + escapeHtml(c) + '</option>'; }).join('') + '</select></div>';
     var pick = function (key, values, labels, max) {
       return '<div class="look-pins">' + values.map(function (v, i) {
         return '<button type="button" data-look-fav="' + key + '" data-max="' + max + '" data-val="' + escapeHtml(v) + '" aria-pressed="' + ((d[key] || []).indexOf(v) !== -1) + '">' + escapeHtml(labels[i]) + '</button>';
       }).join('') + '</div>';
     };
-    html += '<div class="look-field"><span class="look-label">' + (team ? L('Afficher sur la fiche', 'Show on the page') : L('Afficher sur ma fiche', 'Show on my profile')) + '</span><div class="look-pins">' + (team ? LOOK_SECTIONS_TEAM() : LOOK_SECTIONS()).map(function (o) {
+    // Accompagnant : pas de chrono vedette ni de saison de roulage.
+    var sectionList = team ? LOOK_SECTIONS_TEAM() : LOOK_SECTIONS().filter(function (o) { return !(meIsNonRider() && (o[0] === 'featured' || o[0] === 'season')); });
+    html += '<div class="look-field"><span class="look-label">' + (team ? L('Afficher sur la fiche', 'Show on the page') : L('Afficher sur ma fiche', 'Show on my profile')) + '</span><div class="look-pins">' + sectionList.map(function (o) {
       return '<button type="button" data-look-show="' + o[0] + '" aria-pressed="' + lookShows(d, o[0]) + '">' + escapeHtml(o[1]) + '</button>';
     }).join('') + '</div></div>';
     if (lookShows(d, 'links')) {
@@ -17623,11 +17637,13 @@
         (lookMessage ? '<div class="help-text">' + escapeHtml(lookMessage) + '</div>' : '') + '</div>';
       return html;
     }
-    var allCircuits = {};
-    (STATE.sessions || []).forEach(function (x) { if (x.rider === me.name && x.circuit) allCircuits[x.circuit] = 1; });
-    eventsList().forEach(function (ev) { if ((ev.riders || []).indexOf(me.name) !== -1 && ev.circuit) allCircuits[ev.circuit] = 1; });
-    var circList = Object.keys(allCircuits).sort();
-    if (lookShows(d, 'circuits') && circList.length) html += '<div class="look-field"><span class="look-label">' + L('Circuits préférés (3 max, sinon les plus roulés)', 'Favourite circuits (up to 3, else most ridden)') + '</span>' + pick('favCircuits', circList, circList, 3) + '</div>';
+    var allCircuitsMap = {};
+    (STATE.sessions || []).forEach(function (x) { if (x.rider === me.name && x.circuit) allCircuitsMap[x.circuit] = 1; });
+    eventsList().forEach(function (ev) { if (((ev.riders || []).indexOf(me.name) !== -1 || companionOnEvent(ev, me.name)) && ev.circuit) allCircuitsMap[ev.circuit] = 1; });
+    // Accompagnant (ou carnet encore vide) : tous les circuits au choix.
+    if (meIsNonRider() || Object.keys(allCircuitsMap).length < 3) allCircuits().forEach(function (c) { allCircuitsMap[c] = 1; });
+    var circList = Object.keys(allCircuitsMap).sort();
+    if (lookShows(d, 'circuits') && circList.length) html += '<div class="look-field"><span class="look-label">' + (meIsNonRider() ? L('Circuits préférés (3 max)', 'Favourite circuits (up to 3)') : L('Circuits préférés (3 max, sinon les plus roulés)', 'Favourite circuits (up to 3, else most ridden)')) + '</span>' + pick('favCircuits', circList, circList, 3) + '</div>';
     var teamChoices = lookTeamChoices(me.name);
     if (lookShows(d, 'teams')) html += '<div class="look-field"><span class="look-label">' + L('Teams préférés (3 max)', 'Favourite teams (up to 3)') + '</span>' +
       (teamChoices.length ? pick('favTeams', teamChoices.map(function (t) { return t.id; }), teamChoices.map(function (t) { return t.name; }), 3) : '<div class="help-text">' + L('Rejoins ou suis un team pour l\'afficher ici.', 'Join or follow a team to show it here.') + '</div>') + '</div>';
@@ -17925,15 +17941,27 @@
       html += '<div class="card"><div class="empty-state">' + escapeHtml(L('Fiche privée, réservée aux amis de ' + name + '. Ajoute ' + name + ' en ami pour la voir.', 'Private profile, for ' + name + '\'s friends only. Add ' + name + ' as a friend to see it.')) + '</div></div>';
       return html + '</div>';
     }
-    if (!friendship && !isMe) {
-      if (upcomingVisible(u, name)) html += personUpcomingHtml(name);
-      var pubPosts = (STATE.wallPosts || []).filter(function (p) { return inFeed(p) && p.author === name && (p.audience === 'all' || (p.audience === 'followers' && iFollow(name))); });
-      if (pubPosts.length) html += '<h2 class="section-title feed-section-title">' + L('Ses publications', 'Their posts') + '</h2>' + pubPosts.slice(0, 10).map(function (p) { return '<div class="card feed-card"' + viewAttrs(p.id, p.author) + '>' + renderWallPost(p) + '</div>'; }).join('');
-      html += '<div class="card"><div class="empty-state">' + escapeHtml(L('Ajoute ' + name + ' en ami pour voir ses roulages, ses records et ses trophées, et vous comparer.', 'Add ' + name + ' as a friend to see their trackdays, records and trophies, and compare.')) + '</div></div>';
-      return html + '</div>';
+    // Fiche d'un autre compte (ami ou non, pilote ou accompagnant) : Fil,
+    // Fiche, Teams, puis Bientôt en piste et Saisons quand c'est visible.
+    if (!isMe) {
+      var ridesShared = !!friendship && isPilote && u.shareSorties !== false;
+      var visiblePosts = (STATE.wallPosts || []).filter(function (p) { return inFeed(p) && p.author === name && (friendship || p.audience === 'all' || (p.audience === 'followers' && iFollow(name))); });
+      var oPills = [['fil', L('Fil', 'Feed')], ['fiche', L('Fiche', 'Profile')], ['teams', 'Teams']];
+      if (upcomingVisible(u, name)) oPills.push(['bientot', L('Bientôt en piste', 'Coming up')]);
+      if (ridesShared) oPills.push(['saisons', L('Saisons', 'Seasons')]);
+      html += renderPills('person', oPills);
+      if (pillState.person === 'fil') return html + (visiblePosts.length ? visiblePosts.slice(0, 30).map(function (p) { return '<div class="card feed-card"' + viewAttrs(p.id, p.author) + '>' + renderWallPost(p) + '</div>'; }).join('') : '<div class="card help-text">' + L('Aucune publication visible pour l\'instant.', 'No visible posts yet.') + '</div>') + '</div>';
+      if (pillState.person === 'teams') return html + renderPersonTeams(name, look) + '</div>';
+      if (pillState.person === 'bientot') return html + (personUpcomingHtml(name) || '<div class="card help-text">' + L('Aucun roulage prévu pour l\'instant.', 'No trackday planned yet.') + '</div>') + '</div>';
+      if (pillState.person === 'saisons' && ridesShared) return html + renderRiderSeasons(name, look, false) + '</div>';
+      if (!friendship) {
+        if (look) html += renderLinksAndSponsors(look) + renderFavourites(name, look);
+        html += '<div class="card"><div class="empty-state">' + escapeHtml(isPilote ? L('Ajoute ' + name + ' en ami pour voir ses roulages, ses records et ses trophées, et vous comparer.', 'Add ' + name + ' as a friend to see their trackdays, records and trophies, and compare.') : L('Ajoute ' + name + ' en ami pour voir ses roulages et ses trophées.', 'Add ' + name + ' as a friend to see their trackdays and trophies.')) + '</div></div>';
+        return html + '</div>';
+      }
     }
     var withFeed = isMe && socialProfileCtx;
-    if ((isPilote && (isMe || u.shareSorties !== false)) || withFeed) {
+    if (isMe && (isPilote || withFeed)) {
       // Fil d'abord, puis Fiche, Bientôt en piste, Saisons.
       var theirPosts = !isMe ? (STATE.wallPosts || []).filter(function (p) { return inFeed(p) && p.author === name; }) : [];
       var personPills = [];
@@ -18013,6 +18041,9 @@
       }
     } else if (isPilote) {
       html += '<div class="card"><div class="help-text">' + escapeHtml(name) + tr('not_shared_events') + '</div></div>';
+    } else if (look) {
+      // Accompagnant : sa fiche personnalisée (liens, circuits et teams préférés, amis).
+      html += renderLinksAndSponsors(look) + renderFavourites(name, look) + renderPersonFriends(name, look);
     }
     if (u.shareTrophees !== false) {
       html += renderAchievementsCard(getAch(), 'person-achievements-' + name);
