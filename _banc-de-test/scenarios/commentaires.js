@@ -13,7 +13,7 @@ const { chromium, BASE } = require('../lib');
   await p.click(post + ' [data-action="like-comment"]'); await p.waitForTimeout(300);
   console.log('j\'aime:', await p.$eval(post + ' .comment-like', e => e.className + ' ' + e.innerText), '|', await p.evaluate(() => firebase.firestore().collection('postComments').doc('c1').get().then(d => JSON.stringify(d.data().likes))));
   await p.click(post + ' [data-action="reply-comment"]'); await p.waitForTimeout(300);
-  console.log('mode réponse:', await p.$eval(post + ' .comment-reply-chip', e => e.innerText.replace(/\n/g, ' ')).catch(() => 'aucun'));
+  console.log('mode réponse:', await p.$eval(post + ' .comment-reply-tag', e => e.innerText.replace(/\n/g, ' ')).catch(() => 'aucun'));
   await p.fill(post + ' [data-comment-text]', 'Moi aussi !'); await p.press(post + ' [data-comment-text]', 'Enter'); await p.waitForTimeout(400);
   console.log('réponse stockée:', JSON.stringify(await p.evaluate(() => firebase.firestore().collection('postComments').get().then(s => s.docs.map(d => d.data()).filter(c => c.parentId).map(c => [c.parentId, c.replyTo, c.text])))));
   console.log('fil des commentaires:', await p.$$eval(post + ' .post-comment', e => e.map(x => (x.classList.contains('is-reply') ? '  ↳ ' : '') + x.querySelector('.post-comment-bubble').innerText).join(' / ')));

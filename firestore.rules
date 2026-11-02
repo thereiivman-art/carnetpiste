@@ -68,6 +68,10 @@ service cloud.firestore {
     // an emoji reaction) -- true only if the sole key that changed between
     // before/after is the caller's own name, so nobody can touch another
     // member's vote/reaction.
+    function pneusOk(d, before) {
+      return !('pneus' in d) || (d.pneus is map && d.pneus.get('bank', 0) is int && d.pneus.get('bank', 0) >= 0
+        && d.pneus.get('bank', 0) - (('pneus' in before) ? before.pneus.get('bank', 0) : 0) <= 1000);
+    }
     function onlyOwnKeyChanged(beforeMap, afterMap) {
       return afterMap.diff(beforeMap).affectedKeys().hasOnly([myName()]);
     }
@@ -174,6 +178,8 @@ service cloud.firestore {
           // Photo de profil lue par tous les comptes : taille plafonnée.
           && (request.resource.data.get('photoURL', null) == null || (request.resource.data.photoURL is string && request.resource.data.photoURL.size() < 500000))
           && lookOk(request.resource.data, resource.data)
+          // Pneus : solde entier, jamais négatif, +1000 au plus par écriture.
+          && pneusOk(request.resource.data, resource.data)
           // prevName : mon pseudo précédent, posé seulement au moment d'un
           // changement de pseudo (sert à me renommer dans les roulages).
           && (request.resource.data.get('prevName', null) == resource.data.get('prevName', null)

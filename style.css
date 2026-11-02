@@ -4438,7 +4438,7 @@ span.social-count { cursor: default; }
   .side-rail { left: calc(var(--sidebar-w) + 2.5rem + var(--content-w) + 3rem); width: var(--rail-w); }
 }
 /* Grille de rappels (colonne de droite) */
-.rail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; }
+.rail-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 0.5rem; }
 .rail-tile { display: flex; flex-direction: column; align-items: flex-start; gap: 0.25rem; padding: 0.6rem; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); color: var(--text); text-align: left; cursor: pointer; font: inherit; min-width: 0; width: 100%; }
 .rail-tile .outing-thumb { width: 36px; height: 36px; }
 .rail-tile strong { font-size: 0.88rem; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -4570,7 +4570,7 @@ html.kb-open .dm-form, .dm-form:focus-within { bottom: 0; }
 @keyframes post-flash { 0%, 40% { box-shadow: 0 0 0 3px var(--accent); } 100% { box-shadow: none; } }
 /* PC : bannière plus grande (format 3:1, comme sur les autres réseaux). */
 @media (min-width: 960px) {
-  .person-hero:not([data-cover="none"]) .ph-cover { height: auto; aspect-ratio: 3 / 1; max-height: 300px; min-height: 180px; }
+  .person-hero:not([data-cover="none"]) .ph-cover { height: auto; aspect-ratio: 3 / 1; max-height: none; min-height: 180px; }
 }
 /* Commentaires façon TikTok : cœur à droite, réponses en retrait. */
 .post-comment-main { flex: 1; min-width: 0; }
@@ -4605,3 +4605,54 @@ html.kb-open .dm-form, .dm-form:focus-within { bottom: 0; }
 .team-create-top { display: flex; align-items: center; gap: 0.8rem; margin: 0 0 0.8rem; }
 .team-create-top button { border-radius: 999px; padding: 0.5rem 1.1rem; font-weight: 700; }
 .team-sec-title { margin: 1.2rem 0 0.6rem; }
+/* Réponse à un commentaire : même boîte, « @Nom » grisé devant le texte. */
+.comment-input-wrap { flex: 1; min-width: 0; display: flex; align-items: center; gap: 0.3rem; border: 1px solid var(--border); border-radius: 999px; background: var(--surface-alt); padding: 0 0.4rem 0 0.3rem; }
+.comment-input-wrap:focus-within { border-color: var(--accent); }
+.comment-input-wrap input { flex: 1; min-width: 0; border: 0 !important; background: transparent !important; box-shadow: none !important; padding: 0.5rem 0.4rem; }
+.comment-reply-tag { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 0.15rem; color: var(--text-muted); background: color-mix(in srgb, var(--text-muted) 14%, transparent); border-radius: 999px; padding: 0.15rem 0.2rem 0.15rem 0.55rem; font-size: 0.85rem; font-weight: 600; }
+.comment-reply-tag button { border: 0; background: none; color: inherit; padding: 0 0.25rem; min-width: 0; font-size: 0.75rem; cursor: pointer; }
+
+/* PC : la colonne de droite grandit avec l'écran (grille À venir comprise). */
+@media (min-width: 1280px) {
+  :root { --rail-w: clamp(320px, 24vw, 480px); }
+}
+@media (min-width: 1700px) {
+  .rail-tile .outing-thumb { width: 44px; height: 44px; }
+  .rail-tile strong { font-size: 0.95rem; }
+}
+.after-publish { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.6rem; }
+.after-publish button { border-radius: 999px; padding: 0.5rem 1.2rem; font-weight: 700; }
+.after-publish .link-btn { margin-left: auto; }
+/* Pneus */
+.pneus-chip { display: inline-flex; align-items: center; gap: 0.3rem; height: 2.1rem; padding: 0 0.7rem 0 0.55rem; border-radius: 999px; border: 1px solid var(--border); background: var(--surface); color: var(--text); font-weight: 800; font-size: 0.88rem; cursor: pointer; position: relative; min-width: 0; }
+.pneus-chip .tyre-ico { color: var(--text); }
+.pneus-chip.can-collect { border-color: var(--accent); }
+.pneus-chip.can-collect::before { content: ''; position: absolute; top: -2px; right: -2px; width: 9px; height: 9px; border-radius: 50%; background: var(--accent); }
+.pneus-chip.gain::after { content: attr(data-gain); position: absolute; left: 50%; top: -0.2rem; transform: translate(-50%, 0); color: var(--accent); font-size: 0.78rem; font-weight: 800; animation: pneus-gain 1.2s ease-out forwards; pointer-events: none; }
+@keyframes pneus-gain { 0% { opacity: 0; transform: translate(-50%, 0); } 20% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%, -1.2rem); } }
+.header-controls .pneus-chip { margin-right: 0.15rem; }
+.rail-pneus { margin: -0.3rem 0 1rem; }
+.pneus-sheet { max-width: 30rem; }
+.pneus-total { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; margin: 0.2rem 0 0.8rem; }
+.pneus-total .tyre-ico { width: 30px; height: 30px; }
+.pneus-total b { font-family: var(--font-display); font-style: italic; font-size: 2rem; line-height: 1; }
+.pneus-total .help-text { flex-basis: 100%; }
+.pneus-cal-head { display: flex; align-items: baseline; justify-content: space-between; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 0.4rem; }
+.pneus-cal { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 0.3rem; }
+.pneus-day { border: 1px solid var(--border); border-radius: 0.6rem; padding: 0.3rem 0.1rem; text-align: center; background: var(--surface); display: flex; flex-direction: column; gap: 0.05rem; }
+.pneus-day span { font-size: 0.68rem; color: var(--text-muted); }
+.pneus-day b { font-size: 0.82rem; }
+.pneus-day.big { border-width: 2px; }
+.pneus-day.done { background: var(--surface-alt); opacity: 0.6; }
+.pneus-day.done b { text-decoration: line-through; }
+.pneus-day.today { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, var(--surface)); }
+.pneus-collect { width: 100%; margin-top: 0.7rem; border-radius: 999px; padding: 0.7rem; font-weight: 800; }
+.pneus-how { margin-top: 0.8rem; font-size: 0.86rem; }
+.pneus-how ul { margin: 0.4rem 0 0; padding-left: 1.1rem; display: flex; flex-direction: column; gap: 0.25rem; }
+.pneus-board { margin-top: 0.9rem; display: flex; flex-direction: column; gap: 0.3rem; }
+.pneus-row { display: flex; align-items: center; gap: 0.5rem; padding: 0.25rem 0.4rem; border-radius: 0.6rem; }
+.pneus-row.me { background: var(--surface-alt); }
+.pneus-rank { width: 1.2rem; text-align: center; font-weight: 800; color: var(--text-muted); }
+.pneus-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (max-width: 400px) { .header-controls .pneus-chip { padding: 0 0.5rem 0 0.4rem; font-size: 0.8rem; } }
+.mini-sheet.pneus-sheet { max-height: calc(100dvh - 2rem); overflow-y: auto; overscroll-behavior: contain; }

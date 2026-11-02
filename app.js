@@ -2324,6 +2324,7 @@
     var me = currentUserProfile;
     if (!me) return;
     var already = (currentReactions || {})[me.name] === emoji;
+    if (!already && !(currentReactions || {})[me.name] && collectionName !== 'directMessages' && collectionName !== 'teamMessages') awardPneus(1, true);
     var update = {};
     update['reactions.' + me.name] = already ? firebase.firestore.FieldValue.delete() : emoji;
     db.collection(collectionName).doc(id).update(update).catch(function (err) {
@@ -3000,7 +3001,8 @@
       // since it's small either way and needs to show the surface
       // through when zoomed out.
       var isLogo = kind === 'logo' || kind === 'cover';
-      var OUT_W = kind === 'cover' ? 960 : isLogo ? 1000 : 400;
+      // Bannière : 1500 × 500 (nette sur grand écran), qualité ajustée plus bas.
+      var OUT_W = kind === 'cover' ? 1500 : isLogo ? 1000 : 400;
       var OUT_H = isLogo ? Math.round(OUT_W * vp.h / vp.w) : 400;
       var k = OUT_W / vp.w;
       var size = cropDisplaySize();
@@ -3016,7 +3018,17 @@
         ctx.fillRect(0, 0, OUT_W, OUT_H);
       }
       ctx.drawImage(img, 0, 0, img.naturalWidth, img.naturalHeight, outX, outY, outW, outH);
-      var dataUrl = isLogo ? canvas.toDataURL('image/jpeg', kind === 'cover' ? 0.8 : 0.85) : canvas.toDataURL('image/png');
+      var dataUrl = isLogo ? canvas.toDataURL('image/jpeg', kind === 'cover' ? 0.82 : 0.85) : canvas.toDataURL('image/png');
+      // Bannière : sous la limite d'un document (450 000) en baissant la
+      // qualité, puis la taille si besoin.
+      if (kind === 'cover') {
+        for (var qq = 0.74; dataUrl.length > 440000 && qq >= 0.5; qq -= 0.08) dataUrl = canvas.toDataURL('image/jpeg', qq);
+        if (dataUrl.length > 440000) {
+          var small = document.createElement('canvas'); small.width = 1200; small.height = 400;
+          small.getContext('2d').drawImage(canvas, 0, 0, 1200, 400);
+          dataUrl = small.toDataURL('image/jpeg', 0.7);
+        }
+      }
       if (dataUrl.length > 700000) {
         showToast(tr('image_too_large_detailed'));
         return;
@@ -14071,7 +14083,8 @@
     var h = '<aside class="side-rail">';
     h += '<div class="rail-me"><button type="button" class="rail-me-who" data-person-link="' + escapeHtml(me.name) + '">' + avatarHtml(u, me.name) +
       '<span><strong>' + escapeHtml(me.name) + '</strong><span class="help-text">' + escapeHtml(me.bike || roleLabel(me.role) || '') + '</span></span></button>' +
-      '<button type="button" class="link-btn rail-link" data-rail="account">' + L('Mon compte', 'My account') + '</button></div>';
+      '<button type="button" class="link-btn rail-link" data-rail="account">' + L('Mon compte', 'My account') + '</button></div>' +
+      '<div class="rail-pneus">' + pneusChipHtml('rail-chip') + '</div>';
     var next = (typeof myUpcomingEvents === 'function' ? myUpcomingEvents() : [])[0];
     if (next) {
       var days = Math.max(0, Math.round((parseLocalDate(next.dateStart) - parseLocalDate(dateKey(new Date()))) / 86400000));
@@ -17303,8 +17316,10 @@
     return '<span class="mini-avatar' + (look ? ' has-look' : '') + '"' + (look ? ' style="--ring:' + safeColor(look.color) + '"' : '') + '>' +
       (t.photoURL ? '<img src="' + escapeHtml(t.photoURL) + '" alt="">' : '<span class="mini-avatar-placeholder">' + initial + '</span>') + '</span>';
   }
+  var profileStoryReplayed = {};
   function openPerson(name) {
     if (!name) return;
+    profileStoryReplayed = {};
     // Un nom de team n'est pas un compte : on ouvre la page du team.
     if (!(STATE.usersByName || {})[name] && !(currentUserProfile && name === currentUserProfile.name)) {
       var asTeam = (STATE.teams || []).filter(function (t) { return t.name === name; })[0];
@@ -18538,8 +18553,194 @@
       ov.remove();
     }); });
   }
-  function shareElsewhereOptHtml(cls) {
-    return navigator.share ? '<label class="share-elsewhere-opt ' + (cls || '') + '"><input type="checkbox" class="share-elsewhere"> ' + L('Partager aussi sur mes autres réseaux', 'Also share to my other apps') + '</label>' : '';
+  // ---- Pneus : la monnaie de Carnet Piste ----
+  // Rangés sur mon profil (users.pneus) : bank (gagnés), cal (calendrier
+  // 30 jours), day/capped (plafond 100/jour des actions), rx (likes et
+  // commentaires reçus déjà comptés), fol/ses (abonnés et chronos comptés),
+  // total (pour le classement). Profil rempli et trophées : calculés.
+  var PNEUS_DAY_CAP = 100, pneusWatchAt = 0;
+  var TYRE_SVG = '<svg class="tyre-ico" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"/></svg>';
+  var pneusLocal = null, pneusSyncTimer = null;
+  function pneusState() {
+    var me = currentUserProfile; if (!me) return null;
+    if (!pneusLocal || pneusLocal.__uid !== myUid()) {
+      var p = me.pneus || {};
+      pneusLocal = { __uid: myUid(), bank: p.bank || 0, cal: p.cal || { n: 0, last: '' }, day: p.day || '', capped: p.capped || 0, rx: Object.assign({}, p.rx || {}), fol: p.fol, ses: p.ses, since: p.since || 0 };
+    }
+    return pneusLocal;
+  }
+  function pneusDayCalc(n) { return n === 30 ? 100 : (n % 10 === 0 ? 50 : 10); }
+  function pneusProfilePoints(u) {
+    if (!u) return 0;
+    var l = u.look || {};
+    return 5 * [l.bio, (l.sponsors || []).length, l.coverPhoto, u.photoURL, u.bike, u.bikeNumber, u.nationality, (l.links || []).length].filter(Boolean).length;
+  }
+  var PNEUS_LEVEL_PTS = [10, 25, 50, 100, 200, 400];
+  function pneusTrophyPoints(me) {
+    if (!me) return 0;
+    var ach = [];
+    try { ach = meIsNonRider() ? accompagnantAchievements(me) : riderAchievements(me.name, riderStats(me.name)); } catch (e) { return 0; }
+    return ach.reduce(function (sum, a) {
+      if (!a.earned) return sum;
+      var lv = Math.max(1, Math.min(6, a.level || 1));
+      for (var i = 0; i < lv; i++) sum += PNEUS_LEVEL_PTS[i];
+      return sum;
+    }, 0);
+  }
+  function pneusTotal() {
+    var me = currentUserProfile, p = pneusState(); if (!me || !p) return 0;
+    return p.bank + pneusProfilePoints((STATE.usersByName || {})[me.name] || me) + pneusTrophyPoints(me);
+  }
+  function pneusSync() {
+    clearTimeout(pneusSyncTimer);
+    pneusSyncTimer = setTimeout(function () {
+      var p = pneusState(); if (!p) return;
+      var doc = { bank: p.bank, cal: p.cal, day: p.day, capped: p.capped, rx: p.rx, since: p.since, total: pneusTotal() };
+      if (p.fol != null) doc.fol = p.fol;
+      if (p.ses != null) doc.ses = p.ses;
+      currentUserProfile.pneus = doc;
+      db.collection('users').doc(myUid()).update({ pneus: doc }).catch(function () {});
+    }, 1200);
+  }
+  function pneusPulse(n) {
+    document.querySelectorAll('.pneus-chip').forEach(function (c) {
+      var b = c.querySelector('b'); if (b) b.textContent = pneusTotal();
+      c.classList.remove('gain'); void c.offsetWidth; c.classList.add('gain');
+      c.setAttribute('data-gain', '+' + n);
+    });
+  }
+  // capped : actions du jour (100 max) ; sinon illimité.
+  function awardPneus(n, capped) {
+    var p = pneusState(); if (!p || !n) return 0;
+    if (capped) {
+      var today = dateKey(new Date());
+      if (p.day !== today) { p.day = today; p.capped = 0; }
+      n = Math.min(n, Math.max(0, PNEUS_DAY_CAP - p.capped));
+      if (!n) return 0;
+      p.capped += n;
+    }
+    p.bank += n;
+    pneusSync(); pneusPulse(n);
+    return n;
+  }
+  function pneusCanCollect() { var p = pneusState(); return !!p && p.cal.last !== dateKey(new Date()); }
+  function collectDailyPneus() {
+    var p = pneusState(); if (!p || !pneusCanCollect()) return 0;
+    var n = (p.cal.n >= 30 ? 0 : p.cal.n) + 1, gain = pneusDayCalc(n);
+    p.cal = { n: n, last: dateKey(new Date()) };
+    p.bank += gain;
+    pneusSync(); pneusPulse(gain);
+    return gain;
+  }
+  // Ce qui se compte en regardant les données : nouveaux abonnés (amis
+  // compris) et nouveaux chronos (plafonnés), likes et commentaires reçus
+  // sur mes publications (illimités). Première fois : point de départ.
+  function pneusWatch() {
+    var me = currentUserProfile, p = pneusState(); if (!me || !p || coreDataLoading()) return;
+    var changed = false;
+    var nFol = followersOf(me.name).length;
+    if (p.fol == null) { p.fol = nFol; changed = true; }
+    else if (nFol > p.fol) { awardPneus(10 * (nFol - p.fol), true); p.fol = nFol; changed = true; }
+    else if (nFol < p.fol) { p.fol = nFol; changed = true; }
+    var nSes = (STATE.sessions || []).filter(function (x) { return x.rider === me.name; }).length;
+    if (p.ses == null) { p.ses = nSes; changed = true; }
+    else if (nSes > p.ses) { awardPneus(10 * (nSes - p.ses), true); p.ses = nSes; changed = true; }
+    else if (nSes < p.ses) { p.ses = nSes; changed = true; }
+    if (!p.since) { p.since = Date.now(); changed = true; }
+    var gained = 0;
+    var mine = (STATE.wallPosts || []).filter(function (w) { return w.author === me.name; }).map(function (w) { return { id: w.id, at: w.createdAt || 0, r: w.reactions }; })
+      .concat((STATE.feedEvents || []).filter(function (f) { return f.actor === me.name; }).map(function (f) { return { id: f.id, at: f.createdAt || 0, r: f.reactions }; }));
+    mine.forEach(function (it) {
+      var likes = Object.keys(it.r || {}).filter(function (n) { return n !== me.name; }).length;
+      var comms = (STATE.postComments || []).filter(function (c) { return c.postId === it.id && c.author !== me.name; }).length;
+      var score = likes * 2 + comms * 3;
+      if (p.rx[it.id] == null) { p.rx[it.id] = it.at >= p.since ? 0 : score; changed = true; }
+      if (score > p.rx[it.id]) { gained += score - p.rx[it.id]; p.rx[it.id] = score; changed = true; }
+    });
+    // Garder la liste courte : seulement les publications encore chargées.
+    var ids = mine.map(function (it) { return it.id; });
+    Object.keys(p.rx).forEach(function (k) { if (ids.indexOf(k) === -1) { delete p.rx[k]; changed = true; } });
+    if (gained) awardPneus(gained, false);
+    else if (changed) pneusSync();
+  }
+  function pneusChipHtml(cls) {
+    if (!currentUserProfile) return '';
+    return '<button type="button" class="pneus-chip ' + (cls || '') + (pneusCanCollect() ? ' can-collect' : '') + '" data-action="pneus-open" title="' + escapeHtml(L('Mes pneus', 'My tyres')) + '" aria-label="' + escapeHtml(L('Mes pneus', 'My tyres')) + '">' + TYRE_SVG + '<b>' + pneusTotal() + '</b></button>';
+  }
+  function openPneusSheet() {
+    var me = currentUserProfile, p = pneusState(); if (!me || !p) return;
+    var u = (STATE.usersByName || {})[me.name] || me;
+    var draw = function () {
+      var can = pneusCanCollect(), cycleN = p.cal.n >= 30 && can ? 0 : p.cal.n, next = cycleN + 1;
+      var cells = '';
+      for (var d = 1; d <= 30; d++) {
+        var st = d <= cycleN ? ' done' : (d === next && can ? ' today' : '');
+        cells += '<div class="pneus-day' + st + (d % 10 === 0 ? ' big' : '') + '"><span>' + L('J', 'D') + d + '</span><b>+' + pneusDayCalc(d) + '</b></div>';
+      }
+      var prof = pneusProfilePoints(u), tro = pneusTrophyPoints(me);
+      var friends = friendsOf(me.name).map(function (f) { return f.name; }).concat([me.name]);
+      var board = friends.map(function (n) {
+        var x = (STATE.usersByName || {})[n] || {};
+        return { n: n, t: n === me.name ? pneusTotal() : ((x.pneus && x.pneus.total) || 0) };
+      }).sort(function (a, b) { return b.t - a.t; }).slice(0, 10);
+      return '<h2 class="section-title">' + L('Mes pneus', 'My tyres') + '</h2>' +
+        '<div class="pneus-total">' + TYRE_SVG + '<b>' + pneusTotal() + '</b><span class="help-text">' + p.bank + ' ' + L('gagnés', 'earned') + ' · ' + prof + ' ' + L('profil', 'profile') + ' · ' + tro + ' ' + L('trophées', 'trophies') + '</span></div>' +
+        '<div class="pneus-cal-head"><strong>' + L('Calendrier 30 jours', '30-day calendar') + '</strong><span class="help-text">' + (can ? L('Ta récolte du jour t\'attend.', 'Today\'s tyres are waiting.') : L('Prochaine récolte à minuit.', 'Next collection at midnight.')) + '</span></div>' +
+        '<div class="pneus-cal">' + cells + '</div>' +
+        (can ? '<button type="button" class="primary pneus-collect" data-pneus="collect">' + L('Récolter', 'Collect') + ' +' + pneusDayCalc(next) + '</button>' : '') +
+        '<details class="pneus-how"><summary>' + L('Comment gagner des pneus', 'How to earn tyres') + '</summary><ul>' +
+          '<li>' + L('Chaque jour : 10, puis 50 tous les 10 jours, 100 au 30e.', 'Every day: 10, 50 every 10 days, 100 on day 30.') + '</li>' +
+          '<li>' + L('Publier +10, liker +1, commenter +1, nouvel ami ou abonné +10, chrono +10 (100 max par jour).', 'Post +10, like +1, comment +1, new friend or follower +10, lap time +10 (100 max per day).') + '</li>' +
+          '<li>' + L('Like reçu +2, commentaire reçu +3 (sans limite).', 'Like received +2, comment received +3 (no limit).') + '</li>' +
+          '<li>' + L('Profil : +5 par élément rempli (présentation, sponsors, bannière, photo, moto, numéro, pays, liens).', 'Profile: +5 per filled item (bio, sponsors, banner, photo, bike, number, country, links).') + '</li>' +
+          '<li>' + L('Trophées : 10, 25, 50, 100, 200 puis 400 par niveau.', 'Trophies: 10, 25, 50, 100, 200 then 400 per level.') + '</li>' +
+        '</ul></details>' +
+        (board.length > 1 ? '<div class="pneus-board"><strong>' + L('Classement entre amis', 'Friends leaderboard') + '</strong>' + board.map(function (r, i) {
+          return '<div class="pneus-row' + (r.n === me.name ? ' me' : '') + '"><span class="pneus-rank">' + (i + 1) + '</span>' + avatarHtml((STATE.usersByName || {})[r.n] || {}, r.n).replace(/ data-person="[^"]*"/, '') + '<span class="pneus-name">' + escapeHtml(r.n) + '</span><b>' + r.t + '</b></div>';
+        }).join('') + '</div>' : '') +
+        '<div class="mini-sheet-actions"><button type="button" class="link-btn" data-mini-close>' + L('Fermer', 'Close') + '</button></div>';
+    };
+    var ov = openMiniSheet(draw());
+    ov.querySelector('.mini-sheet').classList.add('pneus-sheet');
+    var bind = function () {
+      var c = ov.querySelector('[data-pneus="collect"]');
+      if (c) c.addEventListener('click', function () { var g = collectDailyPneus(); if (g) showToast('+' + g + ' ' + L('pneus', 'tyres'), 'success'); ov.querySelector('.mini-sheet').innerHTML = draw(); bind(); renderRoot(); });
+    };
+    bind();
+  }
+  // Une fois par jour, à l'ouverture : le calendrier s'affiche si la
+  // récolte du jour n'est pas faite.
+  function maybeShowDailyPneus() {
+    if (!currentUserProfile || !pneusCanCollect() || document.getElementById('mini-sheet')) return;
+    if (window.__MOCK_DATA && !/pneus=1/.test(location.hash)) return; // banc de test : seulement sur demande
+    var k = 'cdp-pneus-pop-' + myUid() + '-' + dateKey(new Date());
+    try { if (localStorage.getItem(k)) return; localStorage.setItem(k, '1'); } catch (e) { return; }
+    openPneusSheet();
+  }
+  // Juste après une publication : la mettre aussi en story, la partager sur
+  // ses autres réseaux (plus de case à cocher dans le formulaire).
+  function openAfterPublish(post, isStory, media) {
+    var ov = openMiniSheet('<h2 class="section-title">' + (isStory ? L('Story publiée', 'Story posted') : L('Publié', 'Posted')) + '</h2>' +
+      '<p class="help-text">' + (isStory ? L('La partager aussi sur tes autres réseaux ?', 'Share it on your other networks too?') : L('Aller plus loin avec cette publication :', 'Take this post further:')) + '</p>' +
+      '<div class="after-publish">' +
+      (isStory ? '' : '<button type="button" class="primary" data-after="story" title="' + escapeHtml(L('Mettre aussi en story (24 h)', 'Also post as a story (24 h)')) + '">' + L('Story', 'Story') + '</button>') +
+      '<button type="button" class="' + (isStory ? 'primary' : 'ghost') + '" data-after="share" title="' + escapeHtml(L('Partager sur mes autres réseaux', 'Share on my other networks')) + '">' + L('Partager', 'Share') + '</button>' +
+      '<button type="button" class="link-btn" data-mini-close>' + L('Fermer', 'Close') + '</button></div>');
+    var sb = ov.querySelector('[data-after="story"]');
+    if (sb) sb.addEventListener('click', function () {
+      var me = currentUserProfile; if (!me) return;
+      var st = { id: genId(), author: me.name, authorUid: myUid(), audience: 'all', story: true, photoURL: post.photoURL || 'icons/icon-192.png', createdAt: Date.now() };
+      if (post.text) st.text = post.text.slice(0, 120);
+      STATE.wallPosts = [st].concat(STATE.wallPosts || []);
+      db.collection('wallPosts').doc(st.id).set(st).then(function () { awardPneus(10, true); showToast(L('Aussi en story : visible 24 h.', 'Also in your story: visible for 24 h.'), 'success'); }).catch(function (err) { showToast(tr('error_prefix') + ((err && err.message) || err)); });
+      sb.disabled = true; sb.textContent = L('En story', 'In story');
+      renderRoot();
+    });
+    ov.querySelector('[data-after="share"]').addEventListener('click', function () {
+      ov.remove();
+      if (isStory) shareElsewhere(media, post.text);
+      else openPostShareSheet(post.id);
+    });
   }
   function canPostVideoStory() { return !!(currentUserProfile && (hasCarnetPlus(currentUserProfile) || isAdmin())); }
   var STORY_VIDEO_MAX_S = 10;
@@ -18712,7 +18913,6 @@
       '<input type="text" class="story-text-input" maxlength="120" placeholder="' + escapeHtml(L('Ajoute un mot (facultatif)', 'Add a caption (optional)')) + '">' +
       storyAsTeamHtml() +
       '<label class="story-feed-opt"><input type="checkbox" class="story-also-feed"> ' + L('Publier aussi dans mon Box', 'Also post to my Box') + '</label>' +
-      shareElsewhereOptHtml('story-feed-opt') +
       '<button type="button" class="primary story-publish">' + L('Publier ma story', 'Post my story') + '</button>';
     document.body.appendChild(ov);
     var close = function () { if (ov.parentNode) ov.parentNode.removeChild(ov); };
@@ -18730,13 +18930,12 @@
       var asTeam = asSel && asSel.value && isLeaderOfTeam(asSel.value) ? asSel.value : '';
       if (asTeam) { post.asTeam = true; post.teamId = asTeam; }
       var af = ov.querySelector('.story-also-feed'); if (af && af.checked && !asTeam) post.alsoInFeed = true;
-      var se = ov.querySelector('.share-elsewhere'); if (se && se.checked) shareElsewhere(video ? video.dataUrl : dataUrl, post.text);
       close();
       var publish = function () {
         STATE.wallPosts = [post].concat(STATE.wallPosts || []);
         renderRoot();
         showToast(L('Story publiée : visible 24 h.', 'Story posted: visible for 24 h.'), 'success');
-        return db.collection('wallPosts').doc(post.id).set(post);
+        return db.collection('wallPosts').doc(post.id).set(post).then(function () { awardPneus(10, true); if (navigator.share) openAfterPublish(post, true, video ? video.dataUrl : dataUrl); });
       };
       var fail = function (err) { showToast(tr('error_prefix') + ((err && err.message) || err)); };
       // Vidéo : rangée à part (lue seulement à l'ouverture de la story).
@@ -19091,8 +19290,10 @@
     }).join('');
     if (list.length > shown.length) html += '<button type="button" class="link-btn comments-more" data-action="comments-more" data-id="' + escapeHtml(p.id) + '">' + (list.length - shown.length > 1 ? L('Voir les ' + (list.length - shown.length) + ' autres commentaires', 'See ' + (list.length - shown.length) + ' more comments') : L('Voir l\'autre commentaire', 'See 1 more comment')) + '</button>';
     var rt = commentReplyTo[p.id];
-    if (me) html += (rt ? '<div class="comment-reply-chip">' + L('Réponse à ', 'Replying to ') + '<strong>' + escapeHtml(rt.name) + '</strong><button type="button" class="link-btn" data-action="reply-cancel" data-post="' + escapeHtml(p.id) + '" aria-label="' + escapeHtml(L('Annuler', 'Cancel')) + '">✕</button></div>' : '') +
-      '<form class="post-comment-form" data-action="comment-form" data-id="' + escapeHtml(p.id) + '"><input type="text" maxlength="500" placeholder="' + escapeHtml(rt ? L('Ta réponse à ' + rt.name + '…', 'Your reply to ' + rt.name + '…') : L('Écrire un commentaire…', 'Write a comment…')) + '" data-comment-text><button type="submit" class="ghost">' + L('Envoyer', 'Send') + '</button></form>';
+    // Réponse : dans la même boîte, avec « @Nom » grisé devant le texte.
+    if (me) html += '<form class="post-comment-form' + (rt ? ' is-reply' : '') + '" data-action="comment-form" data-id="' + escapeHtml(p.id) + '"><div class="comment-input-wrap">' +
+      (rt ? '<span class="comment-reply-tag" title="' + escapeHtml(L('Réponse à ', 'Replying to ') + rt.name) + '">@' + escapeHtml(rt.name) + '<button type="button" data-action="reply-cancel" data-post="' + escapeHtml(p.id) + '" aria-label="' + escapeHtml(L('Annuler la réponse', 'Cancel reply')) + '">✕</button></span>' : '') +
+      '<input type="text" maxlength="500" placeholder="' + escapeHtml(rt ? L('Ta réponse…', 'Your reply…') : L('Écrire un commentaire…', 'Write a comment…')) + '" data-comment-text></div><button type="submit" class="ghost">' + L('Envoyer', 'Send') + '</button></form>';
     return html + '</div>';
   }
   function likeComment(id) {
@@ -19101,6 +19302,7 @@
     var on = !(c.likes || {})[me.name], upd = {};
     upd['likes.' + me.name] = on ? true : firebase.firestore.FieldValue.delete();
     c.likes = Object.assign({}, c.likes || {}); if (on) c.likes[me.name] = true; else delete c.likes[me.name];
+    if (on && c.author !== me.name) awardPneus(1, true);
     renderRoot();
     db.collection('postComments').doc(id).update(upd).catch(function (err) { showToast(tr('error_prefix') + ((err && err.message) || err)); });
   }
@@ -19115,6 +19317,7 @@
     if (wp && wp.audience === 'friends') doc.visibleTo = (wp.visibleTo || []).concat(wp.authorUid ? [wp.authorUid] : []).filter(function (u, i, a) { return u && a.indexOf(u) === i; });
     else doc.public = true;
     STATE.postComments = [doc].concat(STATE.postComments || []);
+    awardPneus(1, true);
     commentsOpen[postId] = true; commentsAll[postId] = true;
     renderRoot();
     db.collection('postComments').doc(id).set(doc).catch(function (err) { showToast(tr('error_prefix') + ((err && err.message) || err)); });
@@ -19224,7 +19427,7 @@
     var html = '<div class="card has-close"><button type="button" class="card-close" data-action="wall-composer-close" aria-label="' + escapeHtml(L('Fermer', 'Close')) + '"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button><h2 class="section-title">' + tr('post_to_journal_btn') + '</h2>';
     html += '<form id="wall-post-form">';
     html += '<label for="wall-post-text">' + tr('wall_post_placeholder') + '</label><div class="mention-wrap"><textarea id="wall-post-text" rows="2" data-mentions="1"></textarea><div class="mention-suggest" hidden></div></div>' +
-      '<div class="help-text">' + L('Tape @ pour citer un ami.', 'Type @ to mention a friend.') + '</div>' + shareElsewhereOptHtml();
+      '<div class="help-text">' + L('Tape @ pour citer un ami.', 'Type @ to mention a friend.') + '</div>';
     html += '<label for="wall-post-link" style="margin-top:0.6rem;">' + tr('link_optional_placeholder') + '</label><input type="url" id="wall-post-link" placeholder="https://...">';
     html += '<div style="margin-top:0.6rem;">';
     if (wallPostDraftPhotoURL) {
@@ -19585,7 +19788,10 @@
       wallPostMessage = '';
       wallPostDraftPhotoURL = null;
       wallComposerOpen = false;
+      if (!(STATE.wallPosts || []).some(function (x) { return x.id === post.id; })) STATE.wallPosts = [post].concat(STATE.wallPosts || []);
+      awardPneus(10, true);
       renderRoot();
+      openAfterPublish(post, false);
     }).catch(function (err) {
       wallPostMessage = tr('error_prefix') + (err && err.message ? err.message : err);
       renderRoot();
@@ -21785,7 +21991,7 @@
           '<div class="page-head-row">' +
             '<button type="button" class="header-hello" id="profile-toggle" aria-label="' + L('Ma fiche', 'My page') + '" title="' + L('Ma fiche', 'My page') + '">' + avatarHtml(currentUserProfile, currentUserProfile.name) +
               '<span class="hello-text"><span class="hello-small">Bonjour</span><span class="hello-name">' + escapeHtml(currentUserProfile.firstName || currentUserProfile.name || '') + '</span></span></button>' +
-            '<div class="header-controls">' +
+            '<div class="header-controls">' + pneusChipHtml('header-pneus') +
               '<button type="button" class="header-icon-btn" id="invite-qr-btn" aria-label="Inviter un pilote (QR code)" title="Inviter un pilote">' +
                 '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3zM20 14v.01M14 20h.01M17 20h4v-3"/></svg></button>' +
               '<button type="button" class="header-icon-btn' + (profilePanelOpen ? ' is-open' : '') + '" id="settings-toggle" aria-label="Mon compte" title="Mon compte">' +
@@ -22351,6 +22557,7 @@
     var cover = l.cover != null ? l.cover : 'vibreur', color = safeColor(l.color), hasPhoto = !!l.coverPhoto;
     var chips = function (key, list, cur) { return '<div class="look-seg">' + list.map(function (o) { return '<button type="button" data-banner-set="' + key + '" data-val="' + o[0] + '" aria-pressed="' + (cur === o[0]) + '">' + escapeHtml(o[1]) + '</button>'; }).join('') + '</div>'; };
     var html = '<h2 class="section-title">' + L('Bannière', 'Banner') + '</h2>' +
+      '<div class="help-text banner-format">' + L('Format conseillé : 1500 × 500 px (3:1), au moins 1200 × 400 px.', 'Best size: 1500 × 500 px (3:1), at least 1200 × 400 px.') + '</div>' +
       (hasPhoto ? '<div class="banner-sheet-photo"><img src="' + escapeHtml(l.coverPhoto) + '" alt=""></div>' : '') +
       '<div class="banner-sheet-actions">' + (hasPhoto ? '<button type="button" class="ghost" data-banner-act="zoom">' + L('Agrandir', 'Enlarge') + '</button><button type="button" class="ghost" data-banner-act="crop">' + L('Recadrer', 'Crop') + '</button>' : '') +
       '<button type="button" class="primary" data-banner-act="change">' + (hasPhoto ? L('Changer', 'Change') : L('Photo', 'Photo')) + '</button></div>' +
@@ -23030,8 +23237,6 @@
         var linkEl = document.getElementById('wall-post-link');
         var audienceEl = document.getElementById('wall-post-audience');
         try { localStorage.setItem('cdp-post-audience', audienceEl.value); } catch (e) {}
-        var seW = wallPostForm.querySelector('.share-elsewhere');
-        if (seW && seW.checked && (textEl.value.trim() || wallPostDraftPhotoURL)) shareElsewhere(wallPostDraftPhotoURL, textEl.value.trim());
         postToWall(textEl.value, linkEl.value, wallPostDraftPhotoURL, audienceEl.value);
       });
     }
@@ -23076,6 +23281,11 @@
         var names = rider ? [rider] : (selectedRiders && selectedRiders.size ? Array.from(selectedRiders) : riders);
         exportSessionsCsv(names);
       });
+    }
+    document.querySelectorAll('[data-action="pneus-open"]').forEach(function (b) { b.addEventListener('click', function (e) { e.stopPropagation(); openPneusSheet(); }); });
+    if (currentUserProfile && !coreDataLoading()) {
+      if (Date.now() - pneusWatchAt > 3000) { pneusWatchAt = Date.now(); try { pneusWatch(); } catch (e) {} }
+      setTimeout(maybeShowDailyPneus, 1200);
     }
     // Logo et nom de l'appli : retour à Communauté › Social.
     document.querySelectorAll('[data-action="team-create-toggle"]').forEach(function (b) { b.addEventListener('click', function () {
@@ -23413,8 +23623,15 @@
           return;
         }
         // Sur une fiche, la photo de profil s'agrandit (zoom) au lieu de rouvrir la fiche.
+        // Story : déjà vue → l'avatar mène au profil ; sur le profil, un
+        // appui la rejoue une fois, l'appui suivant agrandit la photo.
         var sa = e.target.closest('.mini-avatar.has-story');
-        if (sa && !e.target.closest('.story-bubble, .mention-opt, .rail-tile, .profile-avatar') && openStoryOf(sa.getAttribute('data-person'))) { e.preventDefault(); e.stopPropagation(); return; }
+        if (sa && !e.target.closest('.story-bubble, .mention-opt, .rail-tile, .profile-avatar')) {
+          var saName = sa.getAttribute('data-person');
+          if (e.target.closest('.person-avatar')) {
+            if (!profileStoryReplayed[saName] && openStoryOf(saName)) { profileStoryReplayed[saName] = 1; e.preventDefault(); e.stopPropagation(); return; }
+          } else if (!sa.classList.contains('story-seen') && openStoryOf(saName)) { e.preventDefault(); e.stopPropagation(); return; }
+        }
         var fv = e.target.closest('[data-feed-video]');
         if (fv) {
           e.preventDefault(); e.stopPropagation();
