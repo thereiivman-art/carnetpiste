@@ -13962,7 +13962,7 @@
   }
   // Pastilles (3e niveau, à l'intérieur d'un sous-onglet) : même style que
   // le filtre Passés/À venir du carnet. État mémorisé par groupe.
-  var pillState = { person: 'monfil', profil: 'identite', settings: 'affichage', social: 'fil', events: 'avenir', circuit: 'plan', stats: 'records', teams: 'mine', team: 'fil', coach: 'demandes', planning: 'programme', outing: 'chronos', evmanage: 'participants', statsrec: 'circuits', passub: 'calendrier', outinfo: 'horaires' };
+  var pillState = { person: 'monfil', profil: 'identite', settings: 'affichage', social: 'fil', events: 'avenir', circuit: 'plan', stats: 'records', teams: 'mine', team: 'fil', dmbox: 'perso', coach: 'demandes', planning: 'programme', outing: 'chronos', evmanage: 'participants', statsrec: 'circuits', passub: 'calendrier', outinfo: 'horaires' };
   // Même chose que renderPills, en petites pastilles (sous une pastille).
   // PC : les onglets de page de ces groupes passent dans la barre de gauche
   // (sous leur menu) ; relevés pendant le rendu de la page, qui précède
@@ -19668,6 +19668,7 @@
   }
   function openDm(name) {
     dmOpenWith = name; activeView = 'social'; pillState.social = 'messages'; personView = null;
+    var tdi = teamDmInfo(name); pillState.dmbox = tdi && tdi.leader ? 'team' : 'perso';
     var th = dmThreadWith(name); if (th.length) markDmRead(th[0].convId);
     profilePanelOpen = false; notificationsPanelOpen = false;
     dmScrollKey = '';
@@ -19702,18 +19703,32 @@
       else h += '<div class="help-text dm-closed">' + escapeHtml(L(name + ' ne reçoit pas de message de ta part pour l\'instant (ses réglages de confidentialité).', name + ' does not accept messages from you right now (their privacy settings).')) + '</div>';
       return h + '</div>';
     }
-    var convs = dmConversations();
-    var h2 = '<div class="dm-top"><button type="button" class="primary" data-action="dm-new">' + L('Nouveau message', 'New message') + '</button>' +
+    var convs = dmConversations(), h2 = '';
+    // Team Leader : les messages reçus par ses teams dans un onglet à part.
+    var leads = (STATE.myTeamMemberships || []).some(function (m) { return m.role === 'leader'; });
+    var isTeamConv = function (c) { return !!c.key && c.key.indexOf('tu:') === 0; };
+    if (leads) {
+      var unr = function (team) { return convs.filter(function (c) { return isTeamConv(c) === team && c.unread; }).length; };
+      var nP = unr(false), nT = unr(true);
+      h2 += renderSubPillRow('dmbox', [['perso', L('Perso', 'Personal') + (nP ? ' (' + nP + ')' : '')], ['team', 'Team' + (nT ? ' (' + nT + ')' : '')]]);
+      convs = convs.filter(function (c) { return isTeamConv(c) === (pillState.dmbox === 'team'); });
+    }
+    if (leads && pillState.dmbox === 'team') {
+      h2 += '<div class="dm-top"><span class="help-text">' + L('Messages reçus par tes teams. Tu réponds au nom du team.', 'Messages received by your teams. You reply as the team.') + '</span></div>';
+      return h2 + '<div class="card dm-convs">' + (convs.length ? convs.map(dmConvRow).join('') : '<div class="empty-state">' + L('Aucun message reçu par tes teams pour l\'instant.', 'No message received by your teams yet.') + '</div>') + '</div>';
+    }
+    h2 += '<div class="dm-top"><button type="button" class="primary" data-action="dm-new">' + L('Nouveau message', 'New message') + '</button>' +
       '<span class="help-text">' + L('Qui peut t\'écrire : Réglages › Vie privée.', 'Who can write to you: Settings › Privacy.') + '</span></div>';
-    h2 += '<div class="card dm-convs">' + (convs.length ? convs.map(function (c) {
+    h2 += '<div class="card dm-convs">' + (convs.length ? convs.map(dmConvRow).join('') : '<div class="empty-state">' + L('Aucune conversation pour l\'instant. Écris à un ami depuis « Nouveau message » ou depuis sa fiche.', 'No conversation yet. Write to a friend from “New message” or from their profile.') + '</div>') + '</div>';
+    return h2;
+  }
+  function dmConvRow(c) {
       var u = (STATE.usersByName || {})[c.other] || {};
       var av = c.team && c.key.indexOf('team:') === 0 ? teamAvatarHtml(c.team) : avatarHtml(u, c.other).replace(/ data-person="[^"]*"/, '');
       var lbl = escapeHtml(c.other) + (c.team && c.key.indexOf('tu:') === 0 ? ' <small class="dm-via">' + escapeHtml(L('à ', 'to ') + c.team.name) + '</small>' : '');
       return '<button type="button" class="dm-conv' + (c.unread ? ' unread' : '') + '" data-action="dm-open" data-name="' + escapeHtml(c.key || c.other) + '">' + av +
         '<span class="dm-conv-main"><strong>' + lbl + '</strong><span class="help-text">' + (c.last.from === myUid() ? L('Toi : ', 'You: ') : c.team && c.last.asTeam && c.key.indexOf('tu:') === 0 ? escapeHtml(c.last.fromName || '') + ' : ' : '') + escapeHtml((c.last.text || '').slice(0, 80)) + '</span></span>' +
         '<span class="dm-conv-side"><span class="dm-time">' + escapeHtml(dmTime(c.last.createdAt)) + '</span>' + (c.unread ? '<span class="dm-unread">' + c.unread + '</span>' : '') + '</span></button>';
-    }).join('') : '<div class="empty-state">' + L('Aucune conversation pour l\'instant. Écris à un ami depuis « Nouveau message » ou depuis sa fiche.', 'No conversation yet. Write to a friend from “New message” or from their profile.') + '</div>') + '</div>';
-    return h2;
   }
   function openDmPicker() {
     var me = currentUserProfile; if (!me) return;

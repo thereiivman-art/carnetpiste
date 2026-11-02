@@ -4537,7 +4537,9 @@ html.kb-open .dm-form, .dm-form:focus-within { bottom: 0; }
 /* Téléphone : les onglets (Profil, Fil, Messages, Teams / Roulages,
    Circuits…) restent fixés sous l'en-tête pendant le défilement. */
 @media (max-width: 959px) {
-  .subnav.main-subnav { position: sticky; top: calc(var(--header-h, 64px) - 1px); z-index: 8; box-shadow: 0 -0.8rem 0 0.6rem var(--bg); }
+  .subnav.main-subnav { position: sticky; top: calc(var(--header-h, 64px) - 1px); z-index: 8;
+    /* Masque les côtés seulement (pas au-dessus : le titre de la page reste entier). */
+    box-shadow: 0 0 0 1rem var(--bg); clip-path: inset(-1px -1rem calc(-1 * var(--subnav-gap, 0.5rem)) -1rem); }
   :root { --subnav-gap: 0.5rem; }
   .subnav.main-subnav::after { content: ''; position: absolute; left: -1rem; right: -1rem; top: 100%; height: var(--subnav-gap); background: var(--bg); pointer-events: none; }
 }
