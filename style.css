@@ -4517,6 +4517,14 @@ html.kb-open .wrap { padding-bottom: 1rem; }
 @media (min-width: 960px) { .dm-head { top: 0; } }
 .dm-list { max-height: none; overflow: visible; }
 @media (max-width: 959px) { .dm-list, html.kb-open .dm-list { max-height: none; } }
-.dm-form { position: sticky; bottom: calc(var(--nav-h, 74px) + env(safe-area-inset-bottom, 0px)); z-index: 5; background: var(--surface); border-radius: 0 0 16px 16px; }
+.dm-form { position: sticky; bottom: var(--nav-h, 74px); z-index: 5; background: var(--surface); border-radius: 0 0 16px 16px; }
 html.kb-open .dm-form, .dm-form:focus-within { bottom: 0; }
 @media (min-width: 960px) { .dm-form { bottom: 0; } }
+/* Rien ne doit apparaître au-dessus de l'en-tête ni sous la saisie quand
+   les messages défilent : on masque les bords avec le fond de la page. */
+.dm-head { margin-top: -1px; }
+.dm-head::before { content: ''; position: absolute; left: -2px; right: -2px; bottom: 100%; height: 1.2rem; background: var(--bg); pointer-events: none; }
+.dm-form::after { content: ''; position: absolute; left: -2px; right: -2px; top: 100%; height: 1.2rem; background: var(--bg); pointer-events: none; }
+.dm-head, .dm-form { box-shadow: 0 0 0 1px var(--border); }
+.dm-head { border-radius: 0; }
+.dm-form { border-radius: 0; }

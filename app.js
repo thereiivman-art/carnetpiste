@@ -25772,6 +25772,10 @@
     var header = document.querySelector('header.page-head');
     if (!header) return;
     document.documentElement.style.setProperty('--header-h', header.offsetHeight + 'px');
+    // Hauteur réelle de la barre du bas (téléphone) : sert à caler ce qui
+    // reste collé au-dessus (saisie d'un message).
+    var bnav = document.querySelector('.bottom-nav');
+    if (bnav && bnav.offsetHeight && !(window.matchMedia && window.matchMedia('(min-width: 960px)').matches)) document.documentElement.style.setProperty('--nav-h', bnav.getBoundingClientRect().height + 'px');
     // PC : les boutons de l'en-tête suivent la barre de gauche (dont la
     // hauteur dépend des sous-menus).
     var nav = document.querySelector('.bottom-nav');
