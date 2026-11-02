@@ -4499,3 +4499,12 @@ span.social-count { cursor: default; }
 .dm-pick-list { max-height: 50vh; overflow-y: auto; margin-top: 0.5rem; border: 1px solid var(--border); border-radius: 12px; }
 .bottom-nav-icon { position: relative; }
 .nav-dm-badge { position: absolute; top: -4px; right: -8px; min-width: 1.05rem; height: 1.05rem; padding: 0 0.25rem; border-radius: 999px; background: var(--accent); color: var(--accent-ink); font-size: 0.62rem; font-weight: 800; display: grid; place-items: center; line-height: 1; }
+/* Clavier ouvert (téléphone) : pas de barre du bas par-dessus. */
+html.kb-open .bottom-nav { display: none !important; }
+html.kb-open .wrap { padding-bottom: 1rem; }
+/* Conversation : champ à 16 px (pas de zoom iOS), hauteur adaptée à l'écran. */
+.dm-form textarea { font-size: 16px; }
+@media (max-width: 959px) {
+  .dm-list { max-height: calc(100dvh - 19rem); min-height: 9rem; }
+  html.kb-open .dm-list { max-height: calc(100dvh - 22rem); }
+}

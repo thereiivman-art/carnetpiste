@@ -19572,9 +19572,13 @@
   }
   function openDm(name) {
     dmOpenWith = name; activeView = 'social'; pillState.social = 'messages'; personView = null;
+    var th = dmThreadWith(name); if (th.length) markDmRead(th[0].convId);
     profilePanelOpen = false; notificationsPanelOpen = false;
     renderRoot(); window.scrollTo(0, 0);
-    var ta = document.getElementById('dm-text'); if (ta) ta.focus();
+    // Pas de clavier qui s'ouvre tout seul sur téléphone (iOS fait alors
+    // défiler la page sous la barre d'état) : focus seulement à la souris.
+    var ta = document.getElementById('dm-text');
+    if (ta && window.matchMedia && window.matchMedia('(pointer: fine)').matches) ta.focus();
   }
   function dmTime(t) {
     var d = new Date(t || 0), today = dateKey(new Date());
@@ -24475,7 +24479,7 @@
     var dmForm = document.getElementById('dm-form');
     if (dmForm) {
       var dmTa = document.getElementById('dm-text');
-      dmForm.addEventListener('submit', function (e) { e.preventDefault(); var t = dmTa.value; if (!t.trim()) return; sendDm(dmOpenWith, t); var ta2 = document.getElementById('dm-text'); if (ta2) ta2.focus(); });
+      dmForm.addEventListener('submit', function (e) { e.preventDefault(); var t = dmTa.value; if (!t.trim()) return; sendDm(dmOpenWith, t); var ta2 = document.getElementById('dm-text'); if (ta2) ta2.focus({ preventScroll: true }); });
       // Entrée envoie (Maj + Entrée : nouvelle ligne).
       dmTa.addEventListener('keydown', function (e) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); dmForm.requestSubmit ? dmForm.requestSubmit() : dmForm.dispatchEvent(new Event('submit')); } });
       var dmList = document.getElementById('dm-list'); if (dmList) dmList.scrollTop = dmList.scrollHeight;
@@ -25763,6 +25767,13 @@
     }
   }
   window.addEventListener('resize', updateFixedHeaderOffset);
+  // Téléphone : pendant la saisie (clavier ouvert), la barre du bas se
+  // cache au lieu de flotter au-dessus du clavier.
+  document.addEventListener('focusin', function (e) {
+    var t = e.target;
+    if (t && t.matches && t.matches('input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=file]), textarea, select, [contenteditable]') && !(window.matchMedia && window.matchMedia('(min-width: 960px)').matches)) document.documentElement.classList.add('kb-open');
+  });
+  document.addEventListener('focusout', function () { setTimeout(function () { var a = document.activeElement; if (!a || !a.matches || !a.matches('input, textarea, select, [contenteditable]')) document.documentElement.classList.remove('kb-open'); }, 50); });
   // Passage mobile ↔ PC : la barre de gauche change (sous-menus).
   if (window.matchMedia) { try { window.matchMedia('(min-width: 960px)').addEventListener('change', function () { renderRoot(); }); } catch (e) {} }
 
@@ -25980,6 +25991,8 @@
     // Messages privés : seulement ceux dont je suis l'un des deux membres.
     unsubscribers.push(db.collection('directMessages').where('members', 'array-contains', myUid()).onSnapshot(function (snap) {
       STATE.dms = snap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); });
+      // Conversation ouverte à l'écran : ses nouveaux messages sont lus.
+      if (dmOpenWith && activeView === 'social' && pillState.social === 'messages') { var th = dmThreadWith(dmOpenWith); if (th.length) markDmRead(th[0].convId); }
       scheduleRender();
     }, function () {}));
     subscribeMerged('wallPosts', 200, [
