@@ -4511,3 +4511,12 @@ html.kb-open .wrap { padding-bottom: 1rem; }
 .comp-other-row { display: flex; align-items: center; gap: 0.6rem; }
 .comp-other-open { flex: 1; display: flex; align-items: center; gap: 0.7rem; min-width: 0; border: 0; background: none; padding: 0; color: var(--text); text-align: left; cursor: pointer; font: inherit; }
 .comp-other-row > .ghost { flex: none; width: auto; }
+/* Conversation : l'en-tête (retour + nom) reste en haut pendant le défilement. */
+.dm-thread { overflow: visible; }
+.dm-head { position: sticky; top: var(--header-h, 64px); z-index: 5; background: var(--surface); border-radius: 16px 16px 0 0; }
+@media (min-width: 960px) { .dm-head { top: 0; } }
+.dm-list { max-height: none; overflow: visible; }
+@media (max-width: 959px) { .dm-list, html.kb-open .dm-list { max-height: none; } }
+.dm-form { position: sticky; bottom: calc(var(--nav-h, 74px) + env(safe-area-inset-bottom, 0px)); z-index: 5; background: var(--surface); border-radius: 0 0 16px 16px; }
+html.kb-open .dm-form, .dm-form:focus-within { bottom: 0; }
+@media (min-width: 960px) { .dm-form { bottom: 0; } }

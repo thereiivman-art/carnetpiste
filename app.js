@@ -10971,9 +10971,10 @@
     if (!outings.length) carnetCardsMode = 'avenir';
     var items = [['avenir', L('À venir', 'Upcoming') + (upcoming.length ? ' (' + upcoming.length + ')' : '')], ['passees', L('Passés', 'Past') + (outings.length ? ' (' + outings.length + ')' : '')]];
     var inCal = activeView === 'event';
-    return '<div class="pill-tabs main-subnav-pills">' + items.map(function (it) {
-      return '<button type="button" class="pill-btn' + (!inCal && carnetCardsMode === it[0] ? ' active' : '') + '" data-cards-mode="' + it[0] + '">' + it[1] + '</button>';
-    }).join('') + '<button type="button" class="pill-btn' + (inCal ? ' active' : '') + '" data-view="event">' + L('Calendrier', 'Calendar') + '</button></div>';
+    // Ordre chronologique : À venir, Calendrier, Passés.
+    var pillBtn = function (it) { return '<button type="button" class="pill-btn' + (!inCal && carnetCardsMode === it[0] ? ' active' : '') + '" data-cards-mode="' + it[0] + '">' + it[1] + '</button>'; };
+    return '<div class="pill-tabs main-subnav-pills">' + pillBtn(items[0]) +
+      '<button type="button" class="pill-btn' + (inCal ? ' active' : '') + '" data-view="event">' + L('Calendrier', 'Calendar') + '</button>' + pillBtn(items[1]) + '</div>';
   }
 
   // ---- Carnet d'un accompagnant : les roulages de ses potes pilotes ----
@@ -14102,10 +14103,10 @@
           // 3e niveau sous Roulages : Passés, À venir, Calendrier.
           if (it[0] === 'carnet' && on && !meIsNonRider()) {
             carnetNav.push([L('À venir', 'Upcoming'), 'data-view="carnet" data-cards-mode="avenir" data-level="3"', activeView === 'carnet' && carnetCardsMode === 'avenir']);
-            carnetNav.push([L('Passés', 'Past'), 'data-view="carnet" data-cards-mode="passees" data-level="3"', activeView === 'carnet' && carnetCardsMode === 'passees']);
             carnetNav.push([L('Calendrier', 'Calendar'), 'data-view="event" data-level="3"', activeView === 'event']);
             // Dans le Calendrier : Liste / Mois / Découvrir en 4e niveau.
             if (activeView === 'event') carnetNav = carnetNav.concat(navPillEntries('events', 4));
+            carnetNav.push([L('Passés', 'Past'), 'data-view="carnet" data-cards-mode="passees" data-level="3"', activeView === 'carnet' && carnetCardsMode === 'passees']);
           } else if (it[0] === 'carnet' && on) carnetNav = carnetNav.concat(navPillEntries('compcarnet', 3));
           if (on && it[0] !== 'carnet') carnetNav = carnetNav.concat(navPillEntries(it[0], 3));
         });
@@ -19534,7 +19535,7 @@
   // ---- Messagerie privée ----
   // Un message = un document (directMessages) lisible par ses deux membres
   // seulement (firestore.rules). Qui peut m'écrire : Réglages › Vie privée.
-  var dmOpenWith = null;
+  var dmOpenWith = null, dmScrollKey = '';
   function dmPolicyOf(name) { var u = (STATE.usersByName || {})[name] || {}; return u.dmPolicy || 'friends'; }
   function isFriendName(name) { var me = currentUserProfile; return !!me && friendsOf(me.name).some(function (f) { return f.name === name; }); }
   function dmThreadWith(name) {
@@ -19585,7 +19586,8 @@
     dmOpenWith = name; activeView = 'social'; pillState.social = 'messages'; personView = null;
     var th = dmThreadWith(name); if (th.length) markDmRead(th[0].convId);
     profilePanelOpen = false; notificationsPanelOpen = false;
-    renderRoot(); window.scrollTo(0, 0);
+    dmScrollKey = '';
+    renderRoot();
     // Pas de clavier qui s'ouvre tout seul sur téléphone (iOS fait alors
     // défiler la page sous la barre d'état) : focus seulement à la souris.
     var ta = document.getElementById('dm-text');
@@ -24493,7 +24495,9 @@
       dmForm.addEventListener('submit', function (e) { e.preventDefault(); var t = dmTa.value; if (!t.trim()) return; sendDm(dmOpenWith, t); var ta2 = document.getElementById('dm-text'); if (ta2) ta2.focus({ preventScroll: true }); });
       // Entrée envoie (Maj + Entrée : nouvelle ligne).
       dmTa.addEventListener('keydown', function (e) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); dmForm.requestSubmit ? dmForm.requestSubmit() : dmForm.dispatchEvent(new Event('submit')); } });
-      var dmList = document.getElementById('dm-list'); if (dmList) dmList.scrollTop = dmList.scrollHeight;
+      // Arrivée sur les derniers messages (à l'ouverture et à chaque nouveau message).
+      var nNow = dmThreadWith(dmOpenWith).length, keyNow = dmOpenWith + ':' + nNow;
+      if (dmScrollKey !== keyNow) { dmScrollKey = keyNow; setTimeout(function () { window.scrollTo(0, document.documentElement.scrollHeight); }, 0); }
     }
     document.querySelectorAll('[data-nav-person]').forEach(function (btn) {
       btn.addEventListener('click', function () {
