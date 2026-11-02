@@ -12,17 +12,17 @@
 // - LIBS: third-party scripts and fonts (Firebase SDK, Google Fonts, the
 //   timesheet reader). Their URLs carry a fixed version, so a cached copy
 //   never goes stale; kept across app versions too.
-var CACHE_VERSION = 'cdp-2026110140';
+var CACHE_VERSION = 'cdp-2026110142';
 var ASSETS_VERSION = 'cdp-assets-traces-55';
 var LIBS_CACHE = 'cdp-libs-1';
 var SHELL_URLS = [
   './',
   './index.html',
-  './style.css?v=2026110140',
-  './chrono-import.js?v=2026110140',
-  './app.js?v=2026110140',
-  './theme-boot.js?v=2026110140',
-  './sw-register.js?v=2026110140',
+  './style.css?v=2026110142',
+  './chrono-import.js?v=2026110142',
+  './app.js?v=2026110142',
+  './theme-boot.js?v=2026110142',
+  './sw-register.js?v=2026110142',
   './manifest.json',
   './firebase-config.js',
   './icons/favicon-32.png',
@@ -131,7 +131,7 @@ self.addEventListener('install', function (event) {
 });
 
 self.addEventListener('activate', function (event) {
-  var keep = [CACHE_VERSION, ASSETS_VERSION, LIBS_CACHE];
+  var keep = [CACHE_VERSION, ASSETS_VERSION, LIBS_CACHE, 'cdp-share-inbox'];
   event.waitUntil(
     caches.keys().then(function (keys) {
       return Promise.all(keys.filter(function (k) { return keep.indexOf(k) === -1; }).map(function (k) { return caches.delete(k); }));
@@ -155,8 +155,25 @@ function fromCacheThenNetwork(req, cacheName) {
 // Firestore and Auth traffic (firestore.googleapis.com, identitytoolkit...)
 // is left alone: Firestore keeps its own offline copy of the data and
 // queues writes (db.enablePersistence() in app.js).
+// Partage depuis une autre appli (Android, appli installée) : le texte,
+// le lien et l'image sont gardés dans un cache, puis l'appli s'ouvre avec
+// le formulaire de publication pré-rempli (?shared=1).
+var SHARE_INBOX = 'cdp-share-inbox';
 self.addEventListener('fetch', function (event) {
   var req = event.request;
+  if (req.method === 'POST' && /\/share-target\/?$/.test(new URL(req.url).pathname)) {
+    event.respondWith(req.formData().then(function (form) {
+      var data = { title: form.get('title') || '', text: form.get('text') || '', url: form.get('url') || '', at: Date.now() };
+      var media = form.get('media');
+      return caches.open(SHARE_INBOX).then(function (cache) {
+        var jobs = [cache.put('./__share/data', new Response(JSON.stringify(data), { headers: { 'Content-Type': 'application/json' } }))];
+        if (media && media.size && /^image\//.test(media.type || '')) jobs.push(cache.put('./__share/media', new Response(media, { headers: { 'Content-Type': media.type } })));
+        else jobs.push(cache.delete('./__share/media'));
+        return Promise.all(jobs);
+      });
+    }).catch(function () {}).then(function () { return Response.redirect(new URL('./?shared=1', self.location.href).href, 303); }));
+    return;
+  }
   if (req.method !== 'GET') return;
   var url = new URL(req.url);
 

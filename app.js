@@ -3089,12 +3089,14 @@
   var pendingRoulageId = null;
   var pendingJoinGroup = null; // groupe porté par un QR paddock (&g=B)
   var pendingPostId = null; // ?post=<id> : une publication partagée ailleurs
+  var pendingShareIn = false; // ?shared=1 : publication reçue d'une autre appli (voir sw.js)
   (function captureReferrer() {
     try {
       var params = new URLSearchParams(window.location.search);
       var ref = params.get('ref');
       var roulage = params.get('roulage');
       var qrGroup = params.get('g');
+      if (params.get('shared') === '1') { pendingShareIn = true; params.delete('shared'); window.history.replaceState(null, '', window.location.pathname + (params.toString() ? '?' + params.toString() : '') + window.location.hash); }
       var sharedPost = params.get('post');
       if (sharedPost && /^[\w-]{1,80}$/.test(sharedPost)) { pendingPostId = sharedPost; params.delete('post'); window.history.replaceState(null, '', window.location.pathname + (params.toString() ? '?' + params.toString() : '') + window.location.hash); }
       if (qrGroup && /^[A-Za-z]{1,4}$/.test(qrGroup)) { pendingJoinGroup = qrGroup.toUpperCase(); params.delete('g'); try { sessionStorage.setItem('cdp-pending-group', pendingJoinGroup); } catch (e) {} }
@@ -19167,6 +19169,38 @@
   var wallComposerOpen = false; // whether the "Publier un message" form is expanded, or just its collapsed teaser button
   var wallFeedVisibleCount = 5; // how many of Mon Journal's items are rendered -- +5 each time the scroll sentinel is reached (see attachHandlers)
 
+  // Importer une publication d'un autre réseau : on partage depuis
+  // Facebook, Instagram… vers Carnet Piste (feuille de partage Android, appli
+  // installée). Le texte, le lien et l'image arrivent pré-remplis.
+  function consumeSharedIn() {
+    if (!window.caches) return;
+    caches.open('cdp-share-inbox').then(function (cache) {
+      return Promise.all([cache.match('./__share/data'), cache.match('./__share/media')]).then(function (r) {
+        if (!r[0]) return;
+        return Promise.all([r[0].json(), r[1] ? r[1].blob() : null]).then(function (x) {
+          cache.delete('./__share/data'); cache.delete('./__share/media');
+          var d = x[0] || {}, blob = x[1];
+          var parts = [d.title, d.text].map(function (t) { return String(t || '').trim(); }).filter(function (t, i, a) { return t && a.indexOf(t) === i; });
+          var text = parts.join('\n');
+          var link = String(d.url || '').trim();
+          var m = !link && text.match(/https?:\/\/\S+/);
+          if (m) { link = m[0]; text = text.replace(m[0], '').trim(); }
+          var fill = function () {
+            activeView = 'social'; pillState.social = 'fil'; personView = null; wallComposerOpen = true;
+            renderRoot(); window.scrollTo(0, 0);
+            var t = document.getElementById('wall-post-text'), l = document.getElementById('wall-post-link');
+            if (t) t.value = text.slice(0, 5000);
+            if (l && /^https?:\/\//.test(link)) l.value = link;
+          };
+          if (!blob) return fill();
+          resizeImageToDataUrl(new File([blob], 'partage', { type: blob.type || 'image/jpeg' }), 1000, 0.6, function (dataUrl) {
+            if (dataUrl && dataUrl.length <= 700000) wallPostDraftPhotoURL = dataUrl;
+            fill();
+          });
+        });
+      });
+    }).catch(function () {});
+  }
   function renderWallComposer() {
     if (!wallComposerOpen) {
       var meU = currentUserProfile || {};
@@ -23044,6 +23078,7 @@
       renderRoot(); window.scrollTo(0, 0);
     }); });
     document.querySelectorAll('[data-action="share-post"]').forEach(function (btn) { btn.addEventListener('click', function (e) { e.stopPropagation(); openPostShareSheet(btn.getAttribute('data-id')); }); });
+    if (pendingShareIn && currentUserProfile) { pendingShareIn = false; consumeSharedIn(); }
     // Lien partagé (?post=<id>) : on ouvre Social sur la publication.
     if (pendingPostId && currentUserProfile) {
       var pc = document.querySelector('[data-view-key="' + pendingPostId.replace(/"/g, '') + '"]');
