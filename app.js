@@ -1770,7 +1770,12 @@
       showToast(tr('error_prefix') + (err && err.message ? err.message : err));
     });
   }
+  function isAdherentOf(teamId) { return (STATE.myFollowedTeamTiers || {})[teamId] === 'adherent'; }
+  // Un adhérent reste abonné à son club : pour le quitter, c'est le Team
+  // Leader qui le retire des adhérents.
+  function adherentChipHtml() { return '<span class="friend-role-badge adherent-badge" title="' + escapeHtml(L('Pour quitter le club, contacte le Team Leader.', 'To leave the club, contact the Team Leader.')) + '">' + tr('adherent_singular_badge') + '</span>'; }
   function unfollowTeam(teamId) {
+    if (isAdherentOf(teamId)) return showToast(L('Tu es adhérent : pour quitter le club, contacte le Team Leader.', 'You are a member: to leave the club, contact the Team Leader.'));
     db.collection('follows').where('follower', '==', currentUserProfile.name).where('followee', '==', teamId).where('followeeType', '==', 'team').get().then(function (snap) {
       var batch = db.batch();
       snap.forEach(function (d) { batch.delete(d.ref); });
@@ -17215,7 +17220,7 @@
     var now = Date.now();
     if (storyAuthorsCache.ref === STATE.wallPosts && now - storyAuthorsCache.at < 60000) return storyAuthorsCache.map;
     var map = {};
-    (STATE.wallPosts || []).forEach(function (p) { if (p.story && now - (p.createdAt || 0) < 86400e3 && (!map[p.author] || map[p.author] < p.createdAt)) map[p.author] = p.createdAt; });
+    (STATE.wallPosts || []).forEach(function (p) { if (p.story && !p.asTeam && now - (p.createdAt || 0) < 86400e3 && (!map[p.author] || map[p.author] < p.createdAt)) map[p.author] = p.createdAt; });
     storyAuthorsCache = { ref: STATE.wallPosts, at: now, map: map };
     return map;
   }
@@ -18399,9 +18404,18 @@
     var by = {};
     ridesFor(names.filter(function (n) { return n === me.name || !isNonRiderName(n); }), 7).forEach(function (r) { if (!by[r.rider] || r.date > by[r.rider].date) by[r.rider] = { kind: 'ride', who: r.rider, ride: r, at: r.createdAt || parseLocalDate(r.date).getTime() }; });
     (STATE.wallPosts || []).forEach(function (p) {
+      if (p.asTeam) return; // story d'un team : rangée à part (ci-dessous)
       if (!p.photoURL || names.indexOf(p.author) === -1 || Date.now() - (p.createdAt || 0) > 86400e3) return;
       if (p.story ? !(by[p.author] && by[p.author].posted && by[p.author].at > p.createdAt) : (!by[p.author] || (!by[p.author].posted && (p.createdAt || 0) > by[p.author].at)))
         by[p.author] = { kind: 'photo', who: p.author, post: p, at: p.createdAt, posted: !!p.story };
+    });
+    // Stories publiées au nom d'un team : pour ses abonnés (adhérents
+    // compris), ses membres et ses leaders.
+    var myTeams = (STATE.myFollowedTeams || []).concat((STATE.myTeamMemberships || []).map(function (m) { return m.teamId; }));
+    (STATE.wallPosts || []).forEach(function (p) {
+      if (!p.story || !p.asTeam || !p.teamId || myTeams.indexOf(p.teamId) === -1 || Date.now() - (p.createdAt || 0) > 86400e3) return;
+      var k = 'team:' + p.teamId;
+      if (!by[k] || by[k].at < p.createdAt) by[k] = { kind: 'photo', who: k, teamId: p.teamId, post: p, at: p.createdAt, posted: true };
     });
     return Object.keys(by).map(function (k) { return by[k]; }).sort(function (a, b) { return (a.who === me.name ? -1 : b.who === me.name ? 1 : 0) || b.at - a.at; });
   }
@@ -18568,12 +18582,18 @@
       snap.forEach(function (d) { if (!keep[d.id] && Date.now() - (d.data().createdAt || 0) > 86400e3) d.ref.delete().catch(function () {}); });
     }).catch(function () {});
   }
+  // Avatar d'un team sans lien vers une fiche pilote.
+  function teamAvatarHtml(tm) { return avatarHtml(tm, tm.name).replace(/ data-person="[^"]*"/, ''); }
   function storySeen(st) { try { return localStorage.getItem('cdp-story-' + st.who) === String(st.at); } catch (e) { return false; } }
   function renderStoriesRow(me) {
     var list = storyItems(me);
     var add = '<button type="button" class="story-bubble story-add" data-action="story-new"><span class="story-ring story-ring-add"><img src="icons/icon-192.png" alt=""><span class="story-plus">+</span></span><span class="story-name">' + L('Ta story', 'Your story') + '</span></button>' +
       '<input type="file" id="story-input" accept="' + (canPostVideoStory() ? 'image/*,video/*' : 'image/*') + '" hidden>';
     return '<div class="stories-row">' + add + list.map(function (st, i) {
+      if (st.teamId) {
+        var tm = teamById(st.teamId) || { name: 'Team' };
+        return '<button type="button" class="story-bubble team-story' + (storySeen(st) ? ' seen' : '') + '" data-action="open-story" data-index="' + i + '"><span class="story-ring">' + teamAvatarHtml(tm) + '</span><span class="story-name">' + escapeHtml(tm.name) + '</span></button>';
+      }
       var u = (STATE.usersByName || {})[st.who] || (st.who === me.name ? me : {});
       var left = st.posted && st.who === me.name ? storyTimeLeft(st.at) : '';
       return '<button type="button" class="story-bubble' + (storySeen(st) ? ' seen' : '') + '" data-action="open-story" data-index="' + i + '"><span class="story-ring">' + avatarHtml(u, st.who) + (left ? '<span class="story-left">' + left + '</span>' : '') + '</span><span class="story-name">' + escapeHtml(st.who === me.name ? L('Moi', 'Me') : st.who) + '</span></button>';
@@ -18582,18 +18602,30 @@
   // Publier une story : une photo (et un mot), visible 24 h en haut du fil
   // de mes amis et abonnés. Stockée comme un message (story: true) qui
   // n'apparaît pas dans le fil.
+  // Team Leader : publier la story au nom de son team (vue par ses
+  // abonnés, adhérents compris, et ses membres).
+  function storyAsTeamHtml() {
+    var led = (STATE.myTeamMemberships || []).filter(function (m) { return m.role === 'leader' && teamById(m.teamId); });
+    if (!led.length) return '';
+    return '<label class="story-feed-opt story-as-opt">' + L('Publier en tant que', 'Post as') + ' <select class="story-as-team"><option value="">' + escapeHtml(L('Moi', 'Me')) + '</option>' +
+      led.map(function (m) { return '<option value="' + escapeHtml(m.teamId) + '">' + escapeHtml(teamById(m.teamId).name) + '</option>'; }).join('') + '</select></label>';
+  }
   function openStoryComposer(dataUrl, video) {
     var ov = document.createElement('div');
     ov.className = 'story-overlay story-compose';
     ov.innerHTML = '<div class="story-head"><strong>' + L('Ta story', 'Your story') + '</strong><span>' + L('visible 24 h', 'visible 24 h') + '</span><button type="button" class="story-close" aria-label="' + escapeHtml(L('Fermer', 'Close')) + '">✕</button></div>' +
       '<div class="story-card story-photo">' + (video ? '<video src="' + escapeHtml(video.dataUrl) + '" autoplay loop playsinline muted></video>' : '<img src="' + escapeHtml(dataUrl) + '" alt="">') + '</div>' +
       '<input type="text" class="story-text-input" maxlength="120" placeholder="' + escapeHtml(L('Ajoute un mot (facultatif)', 'Add a caption (optional)')) + '">' +
+      storyAsTeamHtml() +
       '<label class="story-feed-opt"><input type="checkbox" class="story-also-feed"> ' + L('Publier aussi dans mon fil', 'Also post to my feed') + '</label>' +
       shareElsewhereOptHtml('story-feed-opt') +
       '<button type="button" class="primary story-publish">' + L('Publier ma story', 'Post my story') + '</button>';
     document.body.appendChild(ov);
     var close = function () { if (ov.parentNode) ov.parentNode.removeChild(ov); };
     ov.querySelector('.story-close').addEventListener('click', close);
+    var asSel = ov.querySelector('.story-as-team');
+    // Au nom d'un team : pas de « dans mon fil » (la story est celle du club).
+    if (asSel) asSel.addEventListener('change', function () { var f = ov.querySelector('.story-also-feed'); if (f) { f.checked = false; f.closest('label').hidden = !!asSel.value; } });
     ov.querySelector('.story-publish').addEventListener('click', function () {
       var me = currentUserProfile;
       if (!me) return close();
@@ -18601,7 +18633,9 @@
       var t = ov.querySelector('.story-text-input').value.trim();
       if (t) post.text = t.slice(0, 120);
       if (video) { post.video = true; post.mediaId = post.id; post.duration = Math.round(video.duration * 10) / 10; }
-      var af = ov.querySelector('.story-also-feed'); if (af && af.checked) post.alsoInFeed = true;
+      var asTeam = asSel && asSel.value && isLeaderOfTeam(asSel.value) ? asSel.value : '';
+      if (asTeam) { post.asTeam = true; post.teamId = asTeam; }
+      var af = ov.querySelector('.story-also-feed'); if (af && af.checked && !asTeam) post.alsoInFeed = true;
       var se = ov.querySelector('.share-elsewhere'); if (se && se.checked) shareElsewhere(video ? video.dataUrl : dataUrl, post.text);
       close();
       var publish = function () {
@@ -18644,6 +18678,10 @@
     openStory(idx);
     return true;
   }
+  function openTeamFromStory(teamId) {
+    expandedTeamId = teamId; managingEventId = null; teamMemberSearch = ''; activeView = 'team'; personView = null;
+    renderRoot(); window.scrollTo(0, 0);
+  }
   function openStory(index) {
     var me = currentUserProfile, list = storyItems(me), i = index;
     var ov = document.createElement('div');
@@ -18656,6 +18694,9 @@
       if (!st) return close();
       try { localStorage.setItem('cdp-story-' + st.who, String(st.at)); } catch (e) {}
       var u = (STATE.usersByName || {})[st.who] || {}, body;
+      var tm = st.teamId ? (teamById(st.teamId) || { name: 'Team' }) : null;
+      var mine = tm ? st.post.author === me.name : st.who === me.name;
+      var whoName = tm ? tm.name : st.who, owner = st.post ? st.post.author : st.who;
       if (st.kind === 'ride') {
         var r = st.ride, outline = outlineImageFor(circuitInfo(r.circuit), r.circuit), prev = bestBefore(r.rider, r.circuit, r.date);
         body = '<div class="story-card">' + (outline ? '<img class="story-trace" src="' + escapeHtml(outline) + '" alt="">' : '') +
@@ -18672,23 +18713,25 @@
       if (likeKey) {
         var likes = st.post.reactions || {}, nLikes = Object.keys(likes).length, iLike = !!likes[me.name];
         var heart = '<svg viewBox="0 0 24 24" width="22" height="22" fill="' + (iLike ? 'currentColor' : 'none') + '" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/></svg>';
-        body += st.who !== me.name
+        body += !mine
           ? '<button type="button" class="story-like' + (iLike ? ' on' : '') + '" data-like-key="' + escapeHtml(likeKey) + '" aria-pressed="' + iLike + '" aria-label="' + escapeHtml(L('J\'aime', 'Like')) + '">' + heart + '</button>'
           : '<div class="story-mine-foot">' + (nLikes ? '<span class="story-likes">' + heart + ' ' + escapeHtml(Object.keys(likes).slice(0, 3).join(', ') + (nLikes > 3 ? L(' et ' + (nLikes - 3) + ' autres', ' and ' + (nLikes - 3) + ' more') : '')) + '</span>' : '') +
             '<span class="story-views" data-views-for="' + escapeHtml(st.post.id) + '"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg> ' + storyViewCount(st.post) + '</span>' +
             (st.post.alsoInFeed ? '<span class="story-infeed">' + L('Aussi dans ton fil', 'Also in your feed') + '</span>' : '') + '</div>';
         // Une vue par compte et par jour (l'auteur voit le total).
-        if (st.who !== me.name) recordView('postViews', st.post.id, st.who);
+        if (!mine) recordView('postViews', st.post.id, owner);
       }
       ov.innerHTML = '<div class="story-bars">' + list.map(function (_, k) { return '<span class="' + (k < i ? 'done' : k === i ? 'now' : '') + '"></span>'; }).join('') + '</div>' +
-        '<div class="story-head"><button type="button" class="story-author" data-who="' + escapeHtml(st.who) + '">' + avatarHtml(u, st.who) + '<strong>' + escapeHtml(st.who) + '</strong></button><span>' + escapeHtml(relativeTime(st.at)) + (st.posted && storyTimeLeft(st.at) ? ' · ' + L('encore ', '') + storyTimeLeft(st.at) + L('', ' left') : '') + '</span><button type="button" class="story-close" aria-label="' + escapeHtml(L('Fermer', 'Close')) + '">✕</button></div>' + body +
+        '<div class="story-head"><button type="button" class="story-author" data-who="' + escapeHtml(st.who) + '">' + (tm ? teamAvatarHtml(tm) : avatarHtml(u, st.who)) + '<strong>' + escapeHtml(whoName) + '</strong>' + (tm && mine ? '<small class="story-as">' + L('par toi', 'by you') + '</small>' : '') + '</button><span>' + escapeHtml(relativeTime(st.at)) + (st.posted && storyTimeLeft(st.at) ? ' · ' + L('encore ', '') + storyTimeLeft(st.at) + L('', ' left') : '') + '</span><button type="button" class="story-close" aria-label="' + escapeHtml(L('Fermer', 'Close')) + '">✕</button></div>' + body +
         '<button type="button" class="story-nav prev" aria-label="' + escapeHtml(L('Précédente', 'Previous')) + '"></button><button type="button" class="story-nav next" aria-label="' + escapeHtml(L('Suivante', 'Next')) + '"></button>' +
-        (st.who !== me.name ? '<button type="button" class="story-profile" data-who="' + escapeHtml(st.who) + '">' + L('Voir son profil', 'See profile') + '</button>' : '');
+        (tm ? '<button type="button" class="story-profile" data-who="' + escapeHtml(st.who) + '">' + L('Voir le team', 'See team') + '</button>'
+          : st.who !== me.name ? '<button type="button" class="story-profile" data-who="' + escapeHtml(st.who) + '">' + L('Voir son profil', 'See profile') + '</button>' : '');
       ov.querySelector('.story-close').addEventListener('click', close);
       ov.querySelector('.story-nav.prev').addEventListener('click', function () { if (i > 0) { i--; show(); } });
       ov.querySelector('.story-nav.next').addEventListener('click', function () { i++; show(); });
       var pb = ov.querySelector('.story-profile');
-      if (pb) pb.addEventListener('click', function () { close(); openPerson(pb.getAttribute('data-who')); });
+      var openWho = function (w) { close(); if (w.indexOf('team:') === 0) openTeamFromStory(w.slice(5)); else openPerson(w); };
+      if (pb) pb.addEventListener('click', function () { openWho(pb.getAttribute('data-who')); });
       var sv = ov.querySelector('[data-views-for]');
       if (sv) db.collection('postViews').where('owner', '==', me.name).where('postId', '==', sv.getAttribute('data-views-for')).get().then(function (snap) {
         var seen = {}; snap.forEach(function (d) { seen[d.data().viewer] = 1; });
@@ -18696,7 +18739,7 @@
         if (txt && txt.nodeType === 3) txt.nodeValue = ' ' + n; else sv.appendChild(document.createTextNode(' ' + n));
       }).catch(function () {});
       var au = ov.querySelector('.story-author');
-      if (au) au.addEventListener('click', function (e) { e.stopPropagation(); var w = au.getAttribute('data-who'); close(); openPerson(w); });
+      if (au) au.addEventListener('click', function (e) { e.stopPropagation(); openWho(au.getAttribute('data-who')); });
       var lb = ov.querySelector('.story-like');
       if (lb) lb.addEventListener('click', function (e) {
         e.stopPropagation();
@@ -20302,7 +20345,7 @@
     html += '<div class="section-title" style="display:flex; align-items:center; gap:0.6rem;">' +
       '<button type="button" class="back-chevron" data-action="team-tile-close" aria-label="' + escapeHtml(tr('back_to_teams').replace(/^←\s*/, '')) + '">‹</button>' + avatarHtml(team, team.name) +
       '<span style="flex:1;">' + escapeHtml(team.name) + teamBadgesHtml(team) + '</span>' +
-      '<span class="friend-role-badge">' + (isLeader ? tr('team_leader_label') : (isMember ? tr('member_label') : tr('follower_label'))) + '</span>%%TEAM_GEAR%%</div>';
+      (!isLeader && !isMember && isAdherentOf(team.id) ? adherentChipHtml() : '<span class="friend-role-badge">' + (isLeader ? tr('team_leader_label') : (isMember ? tr('member_label') : tr('follower_label'))) + '</span>') + '%%TEAM_GEAR%%</div>';
     var teamLikeCount = (STATE.teamLikes || []).filter(function (l) { return l.teamId === team.id; }).length;
     var teamFollowCount = ((STATE.teamFollowersByTeam || {})[team.id] || []).length;
     // Counters only once there is something to count.
@@ -20336,7 +20379,8 @@
     // leaders seulement ; un simple suiveur garde « Ne plus suivre ».
     var gearBtn = isLeader ? '<button type="button" class="team-gear" data-action="team-settings-open" data-team="' + escapeHtml(team.id) + '" aria-label="' + escapeHtml(L('Réglages du team', 'Team settings')) + '" title="' + escapeHtml(L('Réglages du team', 'Team settings')) + '">' +
       '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button>' : '';
-    var unfollowBtn = !isMember && !isLeader && (STATE.myFollowedTeams || []).indexOf(team.id) !== -1
+    var unfollowBtn = !isMember && !isLeader && isAdherentOf(team.id) ? ''
+      : !isMember && !isLeader && (STATE.myFollowedTeams || []).indexOf(team.id) !== -1
       ? '<button type="button" class="ghost" data-action="unfollow-team" data-team="' + escapeHtml(team.id) + '">' + tr('unfollow') + '</button>' : '';
     var lookBtn = isLeader && !editing ? '<button type="button" class="ghost" data-action="team-look-edit" data-team="' + escapeHtml(team.id) + '">' + (tLook ? L('Modifier', 'Edit') : L('Personnaliser', 'Customise')) + '</button>' : '';
     lookBtn += unfollowBtn;
@@ -21013,7 +21057,7 @@
       // deep in a specific Team/Event.
       if (!expandedTeamId) {
         html += '<div class="team-tile-grid">' + myTeams.map(function (t) {
-          var label = isLeaderOfTeam(t.id) ? tr('team_leader_label') : (memberTeamIds.indexOf(t.id) !== -1 ? tr('member_label') : tr('follower_label'));
+          var label = isLeaderOfTeam(t.id) ? tr('team_leader_label') : (memberTeamIds.indexOf(t.id) !== -1 ? tr('member_label') : isAdherentOf(t.id) ? tr('adherent_singular_badge') : tr('follower_label'));
           var tag = '<span class="friend-role-badge">' + label + '</span>';
           return renderTeamTile(t, tag, true);
         }).join('') + '</div>';
@@ -21101,7 +21145,7 @@
     var following = (STATE.myFollowedTeams || []).indexOf(t.id) !== -1;
     var myRequest = (STATE.teamJoinRequests || []).filter(function (r) { return r.teamId === t.id && r.from === me.name; })[0];
     var h = '<button type="button" class="' + (iLike ? 'primary' : 'ghost') + '" data-action="team-like-toggle" data-team="' + escapeHtml(t.id) + '" aria-pressed="' + (iLike ? 'true' : 'false') + '">' + (iLike ? L('Aimé', 'Liked') : L('J\'aime', 'Like')) + '</button>';
-    if (!isMember) h += following
+    if (!isMember) h += following && isAdherentOf(t.id) ? '' : following
       ? '<button type="button" class="ghost" data-action="unfollow-team" data-team="' + escapeHtml(t.id) + '">' + L('Abonné', 'Following') + '</button>'
       : '<button type="button" class="ghost" data-action="follow-team" data-team="' + escapeHtml(t.id) + '">' + L('Suivre', 'Follow') + '</button>';
     if (!isMember && !isLeaderOfTeam(t.id)) h += myRequest

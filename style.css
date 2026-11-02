@@ -4420,6 +4420,9 @@ span.social-count { cursor: default; }
 .story-infeed { margin-left: auto; opacity: 0.8; }
 .story-feed-opt { display: flex; align-items: center; gap: 0.5rem; color: #fff; font-weight: 600; margin: 0.4rem 0 0.2rem; }
 .story-feed-opt input { width: auto; }
+.story-as-opt select { width: auto; flex: 1; min-width: 0; padding: 0.35rem 0.5rem; font: inherit; }
+.story-head .story-as { margin-left: 0.4rem; font-weight: 600; opacity: 0.75; font-size: 0.78rem; }
+.story-bubble.team-story .mini-avatar { border-radius: 0.6rem; }
 /* PC : la colonne de contenu part juste après la barre de gauche (plus
    de vide à gauche), plus large ; la colonne de droite la suit. */
 @media (min-width: 960px) {

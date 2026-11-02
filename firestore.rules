@@ -968,7 +968,9 @@ service cloud.firestore {
         && request.resource.data.get('audience', '') in ['all', 'friends', 'followers']
         && (!('text' in request.resource.data) || (request.resource.data.text is string && request.resource.data.text.size() <= 5000))
         && (!('visibleTo' in request.resource.data) || (request.resource.data.visibleTo is list && request.resource.data.visibleTo.size() <= 500))
-        && (!('linkUrl' in request.resource.data) || request.resource.data.linkUrl == null || request.resource.data.linkUrl.matches('^https?://.*'));
+        && (!('linkUrl' in request.resource.data) || request.resource.data.linkUrl == null || request.resource.data.linkUrl.matches('^https?://.*'))
+        // Story au nom d'un team : seulement par un de ses leaders.
+        && (!('asTeam' in request.resource.data) || (request.resource.data.teamId is string && isTeamLeader(request.resource.data.teamId)));
       // Emoji reaction, own key only -- same "anyone who can see it can
       // react to it" reasoning as teamFeed (see there for why this isn't
       // gated on friend/follower status: not cheaply checkable here, and
