@@ -4845,7 +4845,7 @@
         '<div class="help-text" style="margin-top:0.4rem;">' + tr('social_settings_help') + '</div>' +
         '<label class="checklist-item" style="margin-top:0.6rem;"><input type="checkbox" id="profile-share-sorties"' + (p.shareSorties !== false ? ' checked' : '') + '> ' + tr('share_events_chronos') + '</label>' +
         '<label for="profile-share-upcoming" style="margin-top:0.7rem;">' + L('Mes prochains roulages (Bientôt en piste) visibles par', 'My next trackdays (Coming up) visible to') + '</label>' +
-        '<select id="profile-share-upcoming"><option value="friends"' + ((p.shareUpcoming || 'friends') === 'friends' ? ' selected' : '') + '>' + L('Mes amis', 'My friends') + '</option><option value="public"' + (p.shareUpcoming === 'public' ? ' selected' : '') + '>' + L('Tout le monde', 'Everyone') + '</option></select>' +
+        '<select id="profile-share-upcoming"><option value="friends"' + (p.shareUpcoming === 'friends' ? ' selected' : '') + '>' + L('Mes amis', 'My friends') + '</option><option value="public"' + ((p.shareUpcoming || 'public') === 'public' ? ' selected' : '') + '>' + L('Tout le monde', 'Everyone') + '</option></select>' +
         '<label for="profile-visibility" style="margin-top:0.7rem;">' + L('Ma fiche (présentation, bannière, publications) visible par', 'My profile (about, banner, posts) visible to') + '</label>' +
         '<select id="profile-visibility"><option value="public"' + (p.profileVisibility !== 'friends' ? ' selected' : '') + '>' + L('Tout le monde', 'Everyone') + '</option><option value="friends"' + (p.profileVisibility === 'friends' ? ' selected' : '') + '>' + L('Mes amis', 'My friends') + '</option></select>' +
         '<label for="dm-policy" style="margin-top:0.7rem;">' + L('Qui peut m\'écrire en privé', 'Who can send me private messages') + '</label>' +
@@ -11110,11 +11110,22 @@
       if ((ev.dateEnd || ev.dateStart) < today) return false;
       return (ev.riders || []).some(function (r) { return r === me || friends.indexOf(r) !== -1; });
     }).sort(function (a, b) { return a.dateStart.localeCompare(b.dateStart); });
-    if (!pillState.compcarnet) pillState.compcarnet = upcoming.length && !past.length ? 'avenir' : 'passes';
-    var html = renderPills('compcarnet', [['passes', L('Passés', 'Past') + (past.length ? ' (' + past.length + ')' : '')], ['avenir', L('À venir', 'Upcoming') + (upcoming.length ? ' (' + upcoming.length + ')' : '')]]);
+ // À venir d'abord : ce qui va arriver avant ce qui est passé.
+    if (!pillState.compcarnet) pillState.compcarnet = 'avenir';
+    // Les autres roulages à venir : un accompagnant peut dire qu'il y va
+    // (sans s'inscrire chez l'organisateur), ses amis le verront.
+    var others = eventsList().filter(function (ev) { return (ev.dateEnd || ev.dateStart) >= today && upcoming.indexOf(ev) === -1; })
+      .sort(function (a, b) { return a.dateStart.localeCompare(b.dateStart); }).slice(0, 20);
+    var html = renderPills('compcarnet', [['avenir', L('À venir', 'Upcoming') + (upcoming.length ? ' (' + upcoming.length + ')' : '')], ['passes', L('Passés', 'Past') + (past.length ? ' (' + past.length + ')' : '')]]);
+    var othersHtml = others.length ? '<h2 class="section-title feed-section-title">' + L('Autres roulages à venir', 'Other upcoming trackdays') + '</h2><div class="card outings-card">' + others.map(function (ev) {
+      return '<div class="outing-row comp-other-row"><button type="button" class="comp-other-open" data-open-outing="' + escapeHtml(ev.circuit) + '" data-outing-date="' + escapeHtml(ev.dateStart) + '" data-outing-event="' + escapeHtml(ev.id) + '"><span class="outing-thumb">' + circuitThumbHtml(ev.circuit) + '</span>' +
+        '<span class="outing-row-main"><strong>' + escapeHtml(ev.circuit) + '</strong><span class="help-text">' + escapeHtml(formatEventRange(ev, true)) + '</span></span></button>' +
+        '<button type="button" class="ghost" data-notif-go="event" data-id="' + escapeHtml(ev.id) + '" data-join="1">' + L('J\'y vais', 'I\'m going') + '</button></div>';
+    }).join('') + '</div><div class="help-text carnet-add-help">' + L('« J\'y vais » te montre à tes amis sur ce roulage, sans t\'inscrire chez l\'organisateur.', '“I\'m going” shows your friends you\'ll be there, without registering with the organiser.') + '</div>' : '';
+    if (pillState.compcarnet === 'avenir' && !friends.length) return html + (upcoming.length ? '' : '<div class="card help-text">' + L('Aucun roulage à venir pour toi ou tes potes.', 'No upcoming trackday for you or your friends.') + '</div>') + othersHtml;
     if (!friends.length) return html + '<div class="card help-text">' + L('Ajoute tes potes pilotes (Communauté › Amis) : leurs roulages, leurs chronos et leurs podiums apparaîtront ici.', 'Add your rider friends (Community › Friends): their trackdays, lap times and podiums will show up here.') + '</div>';
     if (pillState.compcarnet === 'avenir') {
-      if (!upcoming.length) return html + '<div class="card help-text">' + L('Aucun roulage à venir pour toi ou tes potes.', 'No upcoming trackday for you or your friends.') + '</div>';
+      if (!upcoming.length) return html + '<div class="card help-text">' + L('Aucun roulage à venir pour toi ou tes potes.', 'No upcoming trackday for you or your friends.') + '</div>' + othersHtml;
       return html + '<div class="card outings-card">' + upcoming.map(function (ev) {
         var going = (ev.riders || []).filter(function (r) { return friends.indexOf(r) !== -1; });
         return '<button type="button" class="outing-row" data-open-outing="' + escapeHtml(ev.circuit) + '" data-outing-date="' + escapeHtml(ev.dateStart) + '" data-outing-event="' + escapeHtml(ev.id) + '">' +
@@ -11122,7 +11133,7 @@
           '<span class="outing-row-main"><strong>' + escapeHtml(ev.circuit) + '</strong><span class="help-text">' + escapeHtml(formatEventRange(ev, true)) +
           (going.length ? ' · ' + escapeHtml(joinAnd(going.slice(0, 3)) + (going.length > 3 ? ' +' + (going.length - 3) : '')) : '') + '</span></span>' +
           ((ev.riders || []).indexOf(me) !== -1 ? '<span class="outing-row-right"><span class="record-chip">' + L('J\'y vais', 'Going') + '</span></span>' : '') + '</button>';
-      }).join('') + '</div>';
+      }).join('') + '</div>' + othersHtml;
     }
     if (!past.length) return html + '<div class="card help-text">' + L('Tes potes n\'ont pas encore de chrono. Dès qu\'ils en ajoutent, leurs roulages s\'affichent ici.', 'Your friends have no lap times yet. As soon as they add some, their trackdays show up here.') + '</div>';
     return html + '<div class="card outings-card">' + past.map(function (o) {
@@ -17986,7 +17997,7 @@
       // Ma fiche : d'abord MES prochains roulages (tels que les autres les
       // voient, selon mon réglage Amis / Public), puis ceux de mes potes.
       if (pillState.person === 'bientot' && withFeed) {
-        var shareV = (u && u.shareUpcoming) === 'public' ? 'public' : 'friends';
+        var shareV = (u && u.shareUpcoming) === 'friends' ? 'friends' : 'public';
         var shareSel = '<div class="help-text bientot-share">' + L('Visibles par ', 'Visible to ') +
           '<select id="bientot-share-upcoming" class="inline-select"><option value="friends"' + (shareV === 'friends' ? ' selected' : '') + '>' + L('mes amis', 'my friends') + '</option><option value="public"' + (shareV === 'public' ? ' selected' : '') + '>' + L('tout le monde', 'everyone') + '</option></select></div>';
         var mineUp = personUpcomingHtml(name);
@@ -18351,7 +18362,7 @@
     var me = currentUserProfile && currentUserProfile.name;
     if (!u || name === me) return true;
     var friend = friendsOf(me || '').some(function (f) { return f.name === name; });
-    var v = u.shareUpcoming || 'friends';
+    var v = u.shareUpcoming || 'public';
     return v === 'public' || (friend && v === 'friends');
   }
   function personUpcomingHtml(name) {

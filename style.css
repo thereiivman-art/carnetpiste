@@ -4508,3 +4508,6 @@ html.kb-open .wrap { padding-bottom: 1rem; }
   .dm-list { max-height: calc(100dvh - 19rem); min-height: 9rem; }
   html.kb-open .dm-list { max-height: calc(100dvh - 22rem); }
 }
+.comp-other-row { display: flex; align-items: center; gap: 0.6rem; }
+.comp-other-open { flex: 1; display: flex; align-items: center; gap: 0.7rem; min-width: 0; border: 0; background: none; padding: 0; color: var(--text); text-align: left; cursor: pointer; font: inherit; }
+.comp-other-row > .ghost { flex: none; width: auto; }
