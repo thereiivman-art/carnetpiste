@@ -17160,11 +17160,24 @@
     return html + '</div>';
   }
 
+  // Comptes avec une story active (moins de 24 h) : cercle rouge autour
+  // de la photo, et un appui ouvre la story.
+  var storyAuthorsCache = { ref: null, at: 0, map: {} };
+  function activeStoryAuthors() {
+    var now = Date.now();
+    if (storyAuthorsCache.ref === STATE.wallPosts && now - storyAuthorsCache.at < 60000) return storyAuthorsCache.map;
+    var map = {};
+    (STATE.wallPosts || []).forEach(function (p) { if (p.story && now - (p.createdAt || 0) < 86400e3 && (!map[p.author] || map[p.author] < p.createdAt)) map[p.author] = p.createdAt; });
+    storyAuthorsCache = { ref: STATE.wallPosts, at: now, map: map };
+    return map;
+  }
   function avatarHtml(u, name) {
     var initial = escapeHtml((name || '?').trim().charAt(0).toUpperCase() || '?');
     var flag = u && !u.photoURL && u.nationality ? countryBallHtml(u.nationality, 'avatar-ball') : '';
     var look = lookOf(u);
-    return '<span class="mini-avatar' + (flag ? ' has-flag' : '') + (look ? ' has-look' : '') + '" data-person="' + escapeHtml(name || '') + '"' + (look ? ' style="--ring:' + safeColor(look.color) + '"' : '') + (flag ? ' title="' + escapeHtml(countryName(u.nationality)) + '"' : '') + '>' + (u && u.photoURL
+    var sAt = name ? activeStoryAuthors()[name] : 0, sSeen = false;
+    if (sAt) { try { sSeen = Number(localStorage.getItem('cdp-story-' + name)) >= sAt; } catch (e) {} }
+    return '<span class="mini-avatar' + (flag ? ' has-flag' : '') + (look ? ' has-look' : '') + (sAt ? ' has-story' + (sSeen ? ' story-seen' : '') : '') + '" data-person="' + escapeHtml(name || '') + '"' + (look ? ' style="--ring:' + safeColor(look.color) + '"' : '') + (flag ? ' title="' + escapeHtml(countryName(u.nationality)) + '"' : '') + '>' + (u && u.photoURL
       ? '<img src="' + escapeHtml(u.photoURL) + '" alt="">'
       // The flag alone (the pseudo is always shown next to it).
       : (flag || '<span class="mini-avatar-placeholder">' + initial + '</span>')) + '</span>';
@@ -17613,9 +17626,16 @@
       color: lookDraft.color, cover: lookDraft.cover || '', plate: lookDraft.plate || '', bio: (lookDraft.bio || '').trim().slice(0, 250),
       featured: lookDraft.featured || '', pinned: (lookDraft.pinned || []).slice(0, 3),
       links: (lookDraft.links || []).slice(0, 6), sponsors: (lookDraft.sponsors || []).slice(0, 6),
-      show: lookDraft.show || {}, favCircuits: (lookDraft.favCircuits || []).slice(0, 3), favTeams: (lookDraft.favTeams || []).slice(0, 3), favFriends: (lookDraft.favFriends || []).slice(0, 5), coverPhoto: lookDraft.cover === 'photo' ? (lookDraft.coverPhoto || null) : null
+      show: lookDraft.show || {}, favCircuits: (lookDraft.favCircuits || []).slice(0, 3), favTeams: (lookDraft.favTeams || []).slice(0, 3), favFriends: (lookDraft.favFriends || []).slice(0, 5), coverPhoto: lookDraft.coverPhoto || null
     };
-    db.collection('users').doc(uid).update({ look: value }).then(function () {
+    // La photo de bannière n'est jamais effacée par l'édition de la fiche :
+    // on repart de la version enregistrée (changer de style la garde).
+    var draftPhoto = lookDraft && lookDraft.coverPhoto;
+    db.collection('users').doc(uid).get().then(function (snap) {
+      var saved = (snap.exists && snap.data().look) || {};
+      if (value && !draftPhoto && saved.coverPhoto) value.coverPhoto = saved.coverPhoto;
+      return db.collection('users').doc(uid).update({ look: value });
+    }).then(function () {
       me.look = value;
       if (STATE.usersByName && STATE.usersByName[me.name]) STATE.usersByName[me.name].look = value;
       lookDraft = null;
@@ -18473,6 +18493,34 @@
       else publish().catch(fail);
     });
   }
+  // Double appui sur une publication : J'aime (comme ailleurs).
+  var zoomTapTimer = null, lastDoubleTapAt = 0, lastTapCard = null, lastTapAt = 0;
+  function likeOnDoubleTap(card, x, y) {
+    var id = card.getAttribute('data-view-key');
+    var post = (STATE.wallPosts || []).filter(function (p) { return p.id === id; })[0];
+    if (!post || !currentUserProfile) return;
+    lastDoubleTapAt = Date.now(); clearTimeout(zoomTapTimer);
+    if (!(post.reactions || {})[currentUserProfile.name]) {
+      toggleReaction('wallPosts', post.id, '❤️', post.reactions);
+      post.reactions = Object.assign({}, post.reactions || {}); post.reactions[currentUserProfile.name] = '❤️';
+    }
+    var h = document.createElement('span');
+    h.className = 'like-burst';
+    h.innerHTML = '<svg viewBox="0 0 24 24" width="72" height="72" fill="currentColor" aria-hidden="true"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/></svg>';
+    var r = card.getBoundingClientRect();
+    h.style.left = (x - r.left) + 'px'; h.style.top = (y - r.top) + 'px';
+    card.style.position = card.style.position || 'relative';
+    card.appendChild(h);
+    setTimeout(function () { if (h.parentNode) h.parentNode.removeChild(h); renderRoot(); }, 700);
+  }
+  function openStoryOf(name) {
+    var me = currentUserProfile; if (!me) return false;
+    var list = storyItems(me), idx = -1;
+    list.forEach(function (st, k) { if (idx === -1 && st.who === name && st.post && st.post.story) idx = k; });
+    if (idx === -1) return false;
+    openStory(idx);
+    return true;
+  }
   function openStory(index) {
     var me = currentUserProfile, list = storyItems(me), i = index;
     var ov = document.createElement('div');
@@ -18505,7 +18553,7 @@
           ? '<button type="button" class="story-like' + (iLike ? ' on' : '') + '" data-like-key="' + escapeHtml(likeKey) + '" aria-pressed="' + iLike + '" aria-label="' + escapeHtml(L('J\'aime', 'Like')) + '">' + heart + '</button>'
           : '<div class="story-mine-foot">' + (nLikes ? '<span class="story-likes">' + heart + ' ' + escapeHtml(Object.keys(likes).slice(0, 3).join(', ') + (nLikes > 3 ? L(' et ' + (nLikes - 3) + ' autres', ' and ' + (nLikes - 3) + ' more') : '')) + '</span>' : '') +
             '<span class="story-views" data-views-for="' + escapeHtml(st.post.id) + '"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg> ' + storyViewCount(st.post) + '</span>' +
-            (st.post.alsoInFeed ? '<span class="story-infeed">' + L('Aussi dans ton fil', 'Also in your feed') + '</span>' : '<button type="button" class="story-to-feed" data-id="' + escapeHtml(st.post.id) + '">' + L('Publier dans le fil', 'Post to feed') + '</button>') + '</div>';
+            (st.post.alsoInFeed ? '<span class="story-infeed">' + L('Aussi dans ton fil', 'Also in your feed') + '</span>' : '') + '</div>';
         // Une vue par compte et par jour (l'auteur voit le total).
         if (st.who !== me.name) recordView('postViews', st.post.id, st.who);
       }
@@ -18524,15 +18572,6 @@
         var n = Object.keys(seen).length, txt = sv.lastChild;
         if (txt && txt.nodeType === 3) txt.nodeValue = ' ' + n; else sv.appendChild(document.createTextNode(' ' + n));
       }).catch(function () {});
-      var tf = ov.querySelector('.story-to-feed');
-      if (tf) tf.addEventListener('click', function (e) {
-        e.stopPropagation();
-        var post = list[i] && list[i].post; if (!post) return;
-        post.alsoInFeed = true;
-        db.collection('wallPosts').doc(post.id).update({ alsoInFeed: true }).then(function () { showToast(L('Story publiée aussi dans ton fil.', 'Story also posted to your feed.'), 'success'); })
-          .catch(function (err) { showToast(tr('error_prefix') + ((err && err.message) || err)); });
-        tf.outerHTML = '<span class="story-infeed">' + L('Aussi dans ton fil', 'Also in your feed') + '</span>';
-      });
       var au = ov.querySelector('.story-author');
       if (au) au.addEventListener('click', function (e) { e.stopPropagation(); var w = au.getAttribute('data-who'); close(); openPerson(w); });
       var lb = ov.querySelector('.story-like');
@@ -18968,7 +19007,9 @@
     var nRep = repostCount(p.repostOf ? p.repostOf.id : p.id), mine = currentUserProfile && (p.repostOf ? p.repostOf.author : p.author) === currentUserProfile.name;
     var repostBtn = mine ? '<span class="repost-count">' + (nRep ? plural(nRep, L('republication', 'repost'), L('republications', 'reposts')) : '') + '</span>'
       : '<button type="button" class="ghost repost-btn" data-action="repost" data-id="' + escapeHtml(p.id) + '"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 2l4 4-4 4"/><path d="M3 11V9a3 3 0 0 1 3-3h15"/><path d="M7 22l-4-4 4-4"/><path d="M21 13v2a3 3 0 0 1-3 3H3"/></svg> ' + (nRep ? nRep : L('Republier', 'Repost')) + '</button>';
-    html += '<div class="feed-entry-foot social-row">' + renderReactionBar(p.reactions, 'react-wall-post', p.id) + commentToggleHtml(p.id) + repostBtn + postEditLinks('wall-post-edit', 'delete-wall-post', p.id, canEdit && !p.repostOf, canEdit) + '</div>';
+    html += '<div class="feed-entry-foot social-row">' + renderReactionBar(p.reactions, 'react-wall-post', p.id) + commentToggleHtml(p.id) + repostBtn +
+      // Pas de modification : seulement supprimer (corbeille).
+      (canEdit ? '<button type="button" class="post-trash" data-action="delete-wall-post" data-id="' + escapeHtml(p.id) + '" aria-label="' + escapeHtml(L('Supprimer', 'Delete')) + '" title="' + escapeHtml(L('Supprimer', 'Delete')) + '"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg></button>' : '') + '</div>';
     html += renderPostComments(p);
     html += '</div>';
     return html;
@@ -21713,7 +21754,9 @@
     if (url.length >= 450000) { showToast(L('Image trop lourde : essaie une capture d\'écran de la photo.', 'Image too large: try a screenshot of the photo.')); return; }
     if (lookDraft && !lookDraft.__team) { lookDraft.cover = 'photo'; lookDraft.coverPhoto = url; }
     var value = Object.assign({ color: '#c8261f' }, me.look || {}, { cover: 'photo', coverPhoto: url });
-    db.collection('users').doc(uid).update({ look: value }).then(function () {
+    var upd = { 'look.cover': 'photo', 'look.coverPhoto': url };
+    if (!(me.look || {}).color) upd['look.color'] = '#c8261f';
+    db.collection('users').doc(uid).update(upd).then(function () {
       me.look = value;
       if (STATE.usersByName && STATE.usersByName[me.name]) STATE.usersByName[me.name].look = value;
       showToast(L('Bannière enregistrée.', 'Banner saved.'), 'success');
@@ -21731,7 +21774,11 @@
     me.look = value;
     if (STATE.usersByName && STATE.usersByName[me.name]) STATE.usersByName[me.name].look = value;
     renderRoot();
-    db.collection('users').doc(uid).update({ look: value }).then(function () { if (msg) showToast(msg, 'success'); })
+    // Champ par champ : rien d'autre de la fiche n'est réécrit.
+    var upd = {}; Object.keys(patch).forEach(function (k) { upd['look.' + k] = patch[k]; });
+    if (!cur.color) upd['look.color'] = value.color;
+    if (cur.cover == null && patch.cover == null) upd['look.cover'] = value.cover;
+    db.collection('users').doc(uid).update(upd).then(function () { if (msg) showToast(msg, 'success'); })
       .catch(function (err) { showToast(tr('error_prefix') + (err && err.message ? err.message : err)); });
   }
   function openBannerSheet() {
@@ -22464,7 +22511,12 @@
       });
     }
     document.querySelectorAll('[data-action="delete-wall-post"]').forEach(function (btn) {
-      btn.addEventListener('click', function () { deleteWallPost(btn.getAttribute('data-id')); });
+      btn.addEventListener('click', function () {
+        var id = btn.getAttribute('data-id');
+        var ov = openMiniSheet('<h2 class="section-title">' + L('Supprimer cette publication ?', 'Delete this post?') + '</h2><p class="help-text">' + L('Ses J\'aime et commentaires disparaissent aussi.', 'Its likes and comments go too.') + '</p>' +
+          '<div class="mini-sheet-actions"><button type="button" class="link-btn" data-mini-close>' + L('Annuler', 'Cancel') + '</button><button type="button" class="primary danger" data-del-post>' + L('Supprimer', 'Delete') + '</button></div>');
+        ov.querySelector('[data-del-post]').addEventListener('click', function () { ov.remove(); deleteWallPost(id); });
+      });
     });
     document.querySelectorAll('[data-action="wall-post-edit"]').forEach(function (btn) {
       btn.addEventListener('click', function () { editingWallPostId = btn.getAttribute('data-id'); renderRoot(); });
@@ -22739,6 +22791,17 @@
     // Nom, avatar → profil ; nom ou vignette de circuit → fiche circuit,
     // sur tous les éléments du fil (avant le clic de la carte elle-même).
     var rootEl = document.getElementById('root');
+    if (rootEl && !rootEl.__dblLike) {
+      rootEl.__dblLike = true;
+      var dblTarget = function (e) { return !e.target.closest('button, a, input, textarea, select, video, .reaction-picker') && e.target.closest('.feed-card[data-view-key]'); };
+      rootEl.addEventListener('dblclick', function (e) { var c = dblTarget(e); if (c) { e.preventDefault(); likeOnDoubleTap(c, e.clientX, e.clientY); } });
+      rootEl.addEventListener('touchend', function (e) {
+        var c = dblTarget(e); if (!c || !e.changedTouches || !e.changedTouches[0]) return;
+        var now = Date.now();
+        if (lastTapCard === c && now - lastTapAt < 320) { e.preventDefault(); lastTapAt = 0; likeOnDoubleTap(c, e.changedTouches[0].clientX, e.changedTouches[0].clientY); }
+        else { lastTapCard = c; lastTapAt = now; }
+      }, { passive: false });
+    }
     if (rootEl && !rootEl.__socialLinks) {
       rootEl.__socialLinks = true;
       rootEl.addEventListener('click', function (e) {
@@ -22761,6 +22824,8 @@
           return;
         }
         // Sur une fiche, la photo de profil s'agrandit (zoom) au lieu de rouvrir la fiche.
+        var sa = e.target.closest('.mini-avatar.has-story');
+        if (sa && !e.target.closest('.story-bubble, .mention-opt, .rail-tile, .profile-avatar') && openStoryOf(sa.getAttribute('data-person'))) { e.preventDefault(); e.stopPropagation(); return; }
         var fv = e.target.closest('[data-feed-video]');
         if (fv) {
           e.preventDefault(); e.stopPropagation();
@@ -22773,7 +22838,14 @@
           return;
         }
         var wp = e.target.closest('.wall-post-media img.wall-post-photo, .wall-post-photo');
-        if (wp && wp.getAttribute('src')) { e.preventDefault(); e.stopPropagation(); openPhotoZoom(wp.getAttribute('src')); return; }
+        if (wp && wp.getAttribute('src')) {
+          e.preventDefault(); e.stopPropagation();
+          // Un appui : plein écran ; deux appuis rapprochés : J'aime (voir likeOnDoubleTap).
+          clearTimeout(zoomTapTimer);
+          var src0 = wp.getAttribute('src');
+          zoomTapTimer = setTimeout(function () { if (Date.now() - lastDoubleTapAt > 400) openPhotoZoom(src0); }, 280);
+          return;
+        }
         var cov = e.target.closest('.ph-cover[data-own-cover]');
         if (cov && !e.target.closest('.ph-back, button')) { e.preventDefault(); e.stopPropagation(); openOwnMedia('cover'); return; }
         var otherCov = e.target.closest('.ph-cover');

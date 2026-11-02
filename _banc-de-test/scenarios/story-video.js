@@ -48,8 +48,9 @@ const { chromium, BASE } = require('../lib');
   const mi = await p.$$eval('.story-bubble[data-action="open-story"] .story-name', e => e.map(x => x.innerText).findIndex(t => /Moi|Me/.test(t)));
   await p.click('.story-bubble[data-action="open-story"] >> nth=' + mi); await p.waitForTimeout(700);
   console.log('ma story:', await p.$eval('.story-mine-foot', e => e.innerText.replace(/\n+/g, ' | ')).catch(() => 'absent'));
-  await p.click('.story-to-feed'); await p.waitForTimeout(500);
-  console.log('dans le fil:', await p.evaluate(() => firebase.firestore().collection('wallPosts').doc('ms1').get().then(d => !!d.data().alsoInFeed)));
+  // « Publier dans le fil » : seulement à la création (case du composeur).
+  console.log('bouton fil sur une story publiée:', !!(await p.$('.story-to-feed')));
+  await p.evaluate(() => firebase.firestore().collection('wallPosts').doc('ms1').update({ alsoInFeed: true }));
   await p.click('.story-close'); await p.waitForTimeout(600);
   console.log('carte dans le fil:', await p.$$eval('.feed-card .wall-post-media', e => e.length) > 0);
   await p.screenshot({ path: 'story-video-' + lang + '.png' });
