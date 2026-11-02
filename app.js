@@ -11279,7 +11279,7 @@
     var zoomed = false;
     var movingId = null;
     var overlay = document.createElement('div');
-    overlay.className = 'track-notes-overlay';
+    overlay.className = 'track-notes-overlay' + (mapDocked ? ' map-docked' : '');
     document.body.appendChild(overlay);
     function close() { if (overlay.parentNode) overlay.parentNode.removeChild(overlay); renderRoot(); }
     function persistNotes() { saveMyTrackNotes(circuit, notes); }
@@ -11313,7 +11313,7 @@
     }
 
     function bind() {
-      overlay.querySelector('[data-tn="close"]').addEventListener('click', close);
+      overlay.querySelector('[data-tn="close"]').addEventListener('click', function () { mapDocked = false; close(); });
       var toDraw = overlay.querySelector('[data-map-mode="draw"]');
       if (toDraw) toDraw.addEventListener('click', function () { if (overlay.parentNode) overlay.parentNode.removeChild(overlay); renderRoot(); openAnnotation(circuit); });
       var z = overlay.querySelector('[data-tn="zoom"]');
@@ -11671,6 +11671,7 @@
     return sessionId === ANNOT_OUTLINE_LEVEL || (isViewLevelId(sessionId) && parseViewLevelId(sessionId).level === 'outline');
   }
 
+  var mapDocked = false;
   function openAnnotation(circuit) {
     annot.open = true;
     annot.circuit = circuit;
@@ -11774,6 +11775,7 @@
       overlay.innerHTML = '';
       return;
     }
+    overlay.classList.toggle('map-docked', !!mapDocked);
     var info = circuitInfo(annot.circuit);
     // A circuit-level entry always leads the list, alongside the outline
     // (contour du tracé) level -- these are the only two per-person plans.
@@ -13078,7 +13080,7 @@
 
   function attachAnnotHandlers() {
     var closeBtn = document.getElementById('annot-close');
-    if (closeBtn) closeBtn.addEventListener('click', closeAnnotation);
+    if (closeBtn) closeBtn.addEventListener('click', function () { mapDocked = false; closeAnnotation(); });
     var toPins = document.querySelector('#annot-overlay [data-map-mode="pins"]');
     if (toPins) toPins.addEventListener('click', function () { var c = annot.circuit; closeAnnotation(); openTrackNotes(c); });
 
@@ -23421,6 +23423,7 @@
     }); });
     document.querySelectorAll('[data-action="map-open"]').forEach(function (b) { b.addEventListener('click', function () {
       if (!selectedCircuit) return;
+      mapDocked = true; // dans la page (sans plein écran), pour alterner vite Dessin / Repères
       if (b.getAttribute('data-mode') === 'draw') openAnnotation(selectedCircuit); else openTrackNotes(selectedCircuit);
     }); });
     document.querySelectorAll('[data-action="brand-home"]').forEach(function (b) { b.addEventListener('click', function () {
