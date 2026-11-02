@@ -14089,10 +14089,15 @@
     // Grille de rappels : mes autres roulages à venir et ceux de mes amis.
     var today0 = dateKey(new Date()), tiles = [], seenEv = {};
     if (next) seenEv[next.id] = 1;
-    (typeof myUpcomingEvents === 'function' ? myUpcomingEvents() : []).slice(1, 4).forEach(function (ev) { seenEv[ev.id] = 1; tiles.push({ ev: ev, mine: true, who: [] }); });
+    (typeof myUpcomingEvents === 'function' ? myUpcomingEvents() : []).slice(1, 40).forEach(function (ev) { seenEv[ev.id] = 1; tiles.push({ ev: ev, mine: true, who: [] }); });
     friendsUpcoming().forEach(function (x) { if (seenEv[x.ev.id] && !x.friends.length) return; if (seenEv[x.ev.id]) { tiles.forEach(function (t) { if (t.ev.id === x.ev.id) t.who = x.friends; }); return; } seenEv[x.ev.id] = 1; tiles.push({ ev: x.ev, mine: x.mine, who: x.friends.concat(x.companions) }); });
-    tiles = tiles.sort(function (a, b) { return a.ev.dateStart < b.ev.dateStart ? -1 : 1; }).slice(0, 6);
-    if (tiles.length) h += '<div class="rail-section"><div class="rail-title">' + L('À venir', 'Coming up') + '</div><div class="rail-grid">' + tiles.map(function (t) {
+    // 5 par page, petites flèches rouges pour voir les suivants.
+    tiles = tiles.sort(function (a, b) { return a.ev.dateStart < b.ev.dateStart ? -1 : 1; });
+    var evPages = Math.max(1, Math.ceil(tiles.length / RAIL_EV_PER_PAGE));
+    if (railEvPage >= evPages) railEvPage = evPages - 1;
+    var evNav = evPages > 1 ? '<span class="rail-pager"><button type="button" class="rail-arrow" data-rail-ev="-1"' + (railEvPage === 0 ? ' disabled' : '') + ' aria-label="' + escapeHtml(L('Précédents', 'Previous')) + '">‹</button><span class="help-text">' + (railEvPage + 1) + '/' + evPages + '</span><button type="button" class="rail-arrow" data-rail-ev="1"' + (railEvPage >= evPages - 1 ? ' disabled' : '') + ' aria-label="' + escapeHtml(L('Suivants', 'Next')) + '">›</button></span>' : '';
+    tiles = tiles.slice(railEvPage * RAIL_EV_PER_PAGE, (railEvPage + 1) * RAIL_EV_PER_PAGE);
+    if (tiles.length) h += '<div class="rail-section"><div class="rail-title rail-title-row">' + L('À venir', 'Coming up') + evNav + '</div><div class="rail-grid">' + tiles.map(function (t) {
       var d = Math.max(0, Math.round((parseLocalDate(t.ev.dateStart) - parseLocalDate(today0)) / 86400000));
       return '<button type="button" class="rail-tile" data-open-outing="' + escapeHtml(t.ev.circuit) + '" data-outing-date="' + escapeHtml(t.ev.dateStart) + '" data-outing-event="' + escapeHtml(t.ev.id) + '">' +
         '<span class="outing-thumb">' + circuitThumbHtml(t.ev.circuit) + '</span><strong>' + escapeHtml(t.ev.circuit) + '</strong>' +
@@ -14119,9 +14124,12 @@
           '<button type="button" class="primary follow-btn small" data-action="follow-team" data-team="' + escapeHtml(t.id) + '">' + L('Suivre', 'Follow') + '</button></div>';
       }).join('') + '</div>';
     }
+    // Emplacement pub ciblée (PC seulement) ; jamais pour Carnet+.
+    if (!hasCarnetPlus(me)) h += '<div class="rail-section rail-ad" aria-label="' + escapeHtml(L('Publicité', 'Advertising')) + '"><span class="rail-ad-tag">' + L('Publicité', 'Ad') + '</span><div class="rail-ad-box"><strong>' + L('Ton annonce ici', 'Your ad here') + '</strong><span class="help-text">' + L('Équipementiers, circuits, préparateurs : touche les pilotes de ta région.', 'Gear makers, circuits, tuners: reach riders near you.') + '</span></div></div>';
     h += '<div class="rail-foot help-text">' + L('Carnet Piste', 'Pitbook') + ' · <button type="button" class="link-btn" data-action="open-legal" data-kind="privacy">' + L('Confidentialité', 'Privacy') + '</button></div>';
     return h + '</aside>';
   }
+  var RAIL_EV_PER_PAGE = 5, railEvPage = 0;
   function renderBottomNav() {
     // Nom de l'app en haut de la barre de gauche (PC) : à côté de la barre,
     // pas dedans, pour ne pas décaler l'ordre de ses boutons.
@@ -23400,6 +23408,7 @@
       h.push(b.getAttribute('data-fsug-hide')); try { localStorage.setItem('cdp-friend-sug-hidden', JSON.stringify(h.slice(-200))); } catch (e) {}
       renderRoot();
     }); });
+    document.querySelectorAll('[data-rail-ev]').forEach(function (b) { b.addEventListener('click', function (e) { e.stopPropagation(); railEvPage = Math.max(0, railEvPage + Number(b.getAttribute('data-rail-ev'))); renderRoot(); }); });
     document.querySelectorAll('[data-action="pneus-open"]').forEach(function (b) { b.addEventListener('click', function (e) { e.stopPropagation(); openPneusSheet(); }); });
     if (currentUserProfile && !coreDataLoading()) {
       if (Date.now() - pneusWatchAt > 3000) { pneusWatchAt = Date.now(); try { pneusWatch(); } catch (e) {} }
