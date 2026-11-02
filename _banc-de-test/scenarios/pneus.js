@@ -5,7 +5,7 @@ const { chromium, BASE } = require('../lib');
 (async () => { const b = await chromium.launch(); const p = await b.newPage({ viewport: { width: 390, height: 900 } });
   const errs = []; p.on('pageerror', e => errs.push(e.message));
   await p.goto(BASE + 'index.html#lang=' + (process.argv[2] || 'fr') + '&pneus=1'); await p.waitForTimeout(3200);
-  console.log('popup du jour:', !!(await p.$('.pneus-sheet')), '| cases:', await p.$$eval('.pneus-day', e => e.length), '| aujourd\'hui:', await p.$eval('.pneus-day.today', e => e.innerText.replace(/\n/g, ' ')).catch(() => '?'));
+  console.log('popup du jour:', !!(await p.$('.pneus-sheet')), '| à quoi ça sert:', !!(await p.$('.pneus-why')), '| cases:', await p.$$eval('.pneus-day', e => e.length), '| aujourd\'hui:', await p.$eval('.pneus-day.today', e => e.innerText.replace(/\n/g, ' ')).catch(() => '?'));
   await p.screenshot({ path: 'pneus-calendrier.png' });
   const before = await p.$eval('.header-pneus b', e => +e.innerText);
   await p.click('[data-pneus="collect"]'); await p.waitForTimeout(300);

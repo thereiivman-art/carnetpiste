@@ -4865,6 +4865,8 @@
         '<select id="profile-visibility"><option value="public"' + (p.profileVisibility !== 'friends' ? ' selected' : '') + '>' + L('Tout le monde', 'Everyone') + '</option><option value="friends"' + (p.profileVisibility === 'friends' ? ' selected' : '') + '>' + L('Mes amis', 'My friends') + '</option></select>' +
         '<label for="dm-policy" style="margin-top:0.7rem;">' + L('Qui peut m\'écrire en privé', 'Who can send me private messages') + '</label>' +
         '<select id="dm-policy">' + [['friends', L('Mes amis', 'My friends')], ['followers', L('Mes amis et mes abonnés', 'My friends and followers')], ['all', L('Tout le monde', 'Everyone')], ['none', L('Personne', 'Nobody')]].map(function (o) { return '<option value="' + o[0] + '"' + ((p.dmPolicy || 'friends') === o[0] ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('') + '</select>' +
+        '<label for="presence-visibility" style="margin-top:0.7rem;">' + L('Mes amis voient quand je suis en ligne', 'My friends see when I\'m online') + '</label>' +
+        '<select id="presence-visibility"><option value="show"' + (!p.hidePresence ? ' selected' : '') + '>' + L('Oui', 'Yes') + '</option><option value="hide"' + (p.hidePresence ? ' selected' : '') + '>' + L('Non', 'No') + '</option></select>' +
         '<label for="lists-visibility" style="margin-top:0.7rem;">' + L('Mes abonnés et abonnements visibles par', 'My followers and following visible to') + '</label>' +
         '<select id="lists-visibility"><option value="public"' + (p.listsVisibility !== 'private' ? ' selected' : '') + '>' + L('Tout le monde', 'Everyone') + '</option><option value="private"' + (p.listsVisibility === 'private' ? ' selected' : '') + '>' + L('Moi seul', 'Only me') + '</option></select>' +
         '<div class="help-text" style="margin-top:0.3rem;">' + L('Ta liste d\'amis n\'est jamais montrée aux autres.', 'Your friend list is never shown to others.') + '</div>' +
@@ -18409,6 +18411,8 @@
     ];
     // Amis (liste, demandes reçues / envoyées, personnalités) : même endroit.
     (amisItems || []).forEach(function (it) { lists.push([it[0], it[1], '<div class="card">' + it[2] + '</div>']); });
+    // Demandes d'ami reçues : le premier onglet, pour les accepter tout de suite.
+    lists.sort(function (a, b) { return (b[0] === 'recues') - (a[0] === 'recues'); });
     if (nIncoming) pillState.suivislist = pillState.suivislist || 'recues';
     html = (nIncoming ? '<button type="button" class="card friend-req-banner" data-action="open-friend-requests">' + plural(nIncoming, L('demande d\'ami', 'friend request'), L('demandes d\'ami', 'friend requests')) + ' ›</button>' : '') + html;
     html += renderSubPills('suivislist', lists, { noCard: true }) + (addFriendCta || '');
@@ -18568,7 +18572,9 @@
     }
     return pneusLocal;
   }
-  function pneusDayCalc(n) { return n === 30 ? 100 : (n % 10 === 0 ? 50 : 10); }
+  // Calendrier de 7 jours : 10 par jour, 50 le 7e, puis on recommence.
+  var PNEUS_CAL_DAYS = 7;
+  function pneusDayCalc(n) { return n === PNEUS_CAL_DAYS ? 50 : 10; }
   function pneusProfilePoints(u) {
     if (!u) return 0;
     var l = u.look || {};
@@ -18601,7 +18607,30 @@
       db.collection('users').doc(myUid()).update({ pneus: doc }).catch(function () {});
     }, 1200);
   }
+  // Le dernier endroit touché : le pneu gagné s'envole de là vers le compteur.
+  var lastTapXY = null;
+  document.addEventListener('pointerdown', function (e) { lastTapXY = { x: e.clientX, y: e.clientY, t: Date.now() }; }, true);
+  function pneusFly(n) {
+    var chip = [].filter.call(document.querySelectorAll('.pneus-chip'), function (c) { return c.offsetParent; })[0];
+    if (!chip || (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches)) return;
+    var from = lastTapXY && Date.now() - lastTapXY.t < 4000 ? lastTapXY : { x: innerWidth / 2, y: innerHeight / 2 };
+    var to = chip.getBoundingClientRect();
+    var el = document.createElement('div');
+    el.className = 'pneus-fly';
+    el.innerHTML = TYRE_SVG + '<b>+' + n + '</b>';
+    el.style.left = from.x + 'px'; el.style.top = from.y + 'px';
+    document.body.appendChild(el);
+    var dx = to.left + to.width / 2 - from.x, dy = to.top + to.height / 2 - from.y;
+    var anim = el.animate ? el.animate([
+      { transform: 'translate(-50%, -50%) scale(0.6)', opacity: 0 },
+      { transform: 'translate(-50%, -110%) scale(1.15)', opacity: 1, offset: 0.25 },
+      { transform: 'translate(calc(-50% + ' + dx + 'px), calc(-50% + ' + dy + 'px)) scale(0.5)', opacity: 0.9 }
+    ], { duration: 900, easing: 'cubic-bezier(.5,0,.3,1)' }) : null;
+    var done = function () { if (el.parentNode) el.parentNode.removeChild(el); };
+    if (anim) anim.onfinish = done; else setTimeout(done, 900);
+  }
   function pneusPulse(n) {
+    pneusFly(n);
     document.querySelectorAll('.pneus-chip').forEach(function (c) {
       var b = c.querySelector('b'); if (b) b.textContent = pneusTotal();
       c.classList.remove('gain'); void c.offsetWidth; c.classList.add('gain');
@@ -18625,7 +18654,7 @@
   function pneusCanCollect() { var p = pneusState(); return !!p && p.cal.last !== dateKey(new Date()); }
   function collectDailyPneus() {
     var p = pneusState(); if (!p || !pneusCanCollect()) return 0;
-    var n = (p.cal.n >= 30 ? 0 : p.cal.n) + 1, gain = pneusDayCalc(n);
+    var n = (p.cal.n >= PNEUS_CAL_DAYS ? 0 : p.cal.n) + 1, gain = pneusDayCalc(n);
     p.cal = { n: n, last: dateKey(new Date()) };
     p.bank += gain;
     pneusSync(); pneusPulse(gain);
@@ -18670,11 +18699,13 @@
     var me = currentUserProfile, p = pneusState(); if (!me || !p) return;
     var u = (STATE.usersByName || {})[me.name] || me;
     var draw = function () {
-      var can = pneusCanCollect(), cycleN = p.cal.n >= 30 && can ? 0 : p.cal.n, next = cycleN + 1;
+      var can = pneusCanCollect(), cycleN = Math.min(p.cal.n, PNEUS_CAL_DAYS);
+      if (cycleN >= PNEUS_CAL_DAYS && can) cycleN = 0;
+      var next = cycleN + 1;
       var cells = '';
-      for (var d = 1; d <= 30; d++) {
+      for (var d = 1; d <= PNEUS_CAL_DAYS; d++) {
         var st = d <= cycleN ? ' done' : (d === next && can ? ' today' : '');
-        cells += '<div class="pneus-day' + st + (d % 10 === 0 ? ' big' : '') + '"><span>' + L('J', 'D') + d + '</span><b>+' + pneusDayCalc(d) + '</b></div>';
+        cells += '<div class="pneus-day' + st + (d === PNEUS_CAL_DAYS ? ' big' : '') + '"><span>' + L('J', 'D') + d + '</span><b>+' + pneusDayCalc(d) + '</b></div>';
       }
       var prof = pneusProfilePoints(u), tro = pneusTrophyPoints(me);
       var friends = friendsOf(me.name).map(function (f) { return f.name; }).concat([me.name]);
@@ -18684,11 +18715,12 @@
       }).sort(function (a, b) { return b.t - a.t; }).slice(0, 10);
       return '<h2 class="section-title">' + L('Mes pneus', 'My tyres') + '</h2>' +
         '<div class="pneus-total">' + TYRE_SVG + '<b>' + pneusTotal() + '</b><span class="help-text">' + p.bank + ' ' + L('gagnés', 'earned') + ' · ' + prof + ' ' + L('profil', 'profile') + ' · ' + tro + ' ' + L('trophées', 'trophies') + '</span></div>' +
-        '<div class="pneus-cal-head"><strong>' + L('Calendrier 30 jours', '30-day calendar') + '</strong><span class="help-text">' + (can ? L('Ta récolte du jour t\'attend.', 'Today\'s tyres are waiting.') : L('Prochaine récolte à minuit.', 'Next collection at midnight.')) + '</span></div>' +
+        '<div class="pneus-why"><strong>' + L('À quoi servent les pneus ?', 'What are tyres for?') + '</strong><p>' + L('C\'est la monnaie de Carnet Piste : elle récompense ton activité (rouler, publier, encourager tes potes). Plus tu en as, plus tu montes dans le classement entre amis. Bientôt, tu pourras les miser sur les chronos entre potes et débloquer des styles pour ta fiche.', 'It\'s Pitbook\'s currency: it rewards your activity (riding, posting, cheering your mates). The more you have, the higher you rank among friends. Soon you\'ll be able to bet them on lap times between mates and unlock styles for your profile.') + '</p></div>' +
+        '<div class="pneus-cal-head"><strong>' + L('Récolte de la semaine', 'Weekly collection') + '</strong><span class="help-text">' + (can ? L('Ta récolte du jour t\'attend.', 'Today\'s tyres are waiting.') : L('Prochaine récolte à minuit.', 'Next collection at midnight.')) + '</span></div>' +
         '<div class="pneus-cal">' + cells + '</div>' +
         (can ? '<button type="button" class="primary pneus-collect" data-pneus="collect">' + L('Récolter', 'Collect') + ' +' + pneusDayCalc(next) + '</button>' : '') +
         '<details class="pneus-how"><summary>' + L('Comment gagner des pneus', 'How to earn tyres') + '</summary><ul>' +
-          '<li>' + L('Chaque jour : 10, puis 50 tous les 10 jours, 100 au 30e.', 'Every day: 10, 50 every 10 days, 100 on day 30.') + '</li>' +
+          '<li>' + L('Chaque jour : 10, et 50 le 7e jour.', 'Every day: 10, and 50 on day 7.') + '</li>' +
           '<li>' + L('Publier +10, liker +1, commenter +1, nouvel ami ou abonné +10, chrono +10 (100 max par jour).', 'Post +10, like +1, comment +1, new friend or follower +10, lap time +10 (100 max per day).') + '</li>' +
           '<li>' + L('Like reçu +2, commentaire reçu +3 (sans limite).', 'Like received +2, comment received +3 (no limit).') + '</li>' +
           '<li>' + L('Profil : +5 par élément rempli (présentation, sponsors, bannière, photo, moto, numéro, pays, liens).', 'Profile: +5 per filled item (bio, sponsors, banner, photo, bike, number, country, links).') + '</li>' +
@@ -18879,6 +18911,73 @@
   // Avatar d'un team sans lien vers une fiche pilote.
   function teamAvatarHtml(tm) { return avatarHtml(tm, tm.name).replace(/ data-person="[^"]*"/, ''); }
   function storySeen(st) { try { return localStorage.getItem('cdp-story-' + st.who) === String(st.at); } catch (e) { return false; } }
+  // ---- Présence : en ligne (vert), actif il y a moins de 2 h (orange),
+  // sinon gris. lastSeen posé sur mon profil toutes les 2 min quand l'appli
+  // est ouverte, sauf si je masque ma présence (Réglages › Vie privée).
+  var presenceBeatAt = 0;
+  function presenceBeat() {
+    var me = currentUserProfile;
+    if (!me || me.hidePresence || document.hidden || Date.now() - presenceBeatAt < 120000) return;
+    presenceBeatAt = Date.now();
+    me.lastSeen = presenceBeatAt;
+    db.collection('users').doc(myUid()).update({ lastSeen: presenceBeatAt }).catch(function () {});
+  }
+  document.addEventListener('visibilitychange', function () { if (!document.hidden) { presenceBeatAt = 0; presenceBeat(); } });
+  function presenceOf(u) {
+    if (!u || u.hidePresence || !u.lastSeen) return 'off';
+    var d = Date.now() - u.lastSeen;
+    return d < 5 * 60000 ? 'on' : d < 2 * 3600000 ? 'recent' : 'off';
+  }
+  function presenceLabel(st) { return st === 'on' ? L('En ligne', 'Online') : st === 'recent' ? L('Actif il y a moins de 2 h', 'Active less than 2 h ago') : L('Hors ligne', 'Offline'); }
+  // Amis à la suite des stories, en ligne d'abord.
+  function friendsPresenceBubbles(me, skip) {
+    var order = { on: 0, recent: 1, off: 2 };
+    return friendsOf(me.name).map(function (f) { var u = (STATE.usersByName || {})[f.name] || {}; return { n: f.name, u: u, st: presenceOf(u) }; })
+      .filter(function (x) { return skip.indexOf(x.n) === -1; })
+      .sort(function (a, b) { return order[a.st] - order[b.st] || ((b.u.lastSeen || 0) - (a.u.lastSeen || 0)) || a.n.localeCompare(b.n); })
+      .slice(0, 30).map(function (x) {
+        return '<button type="button" class="story-bubble friend-bubble" data-person-link="' + escapeHtml(x.n) + '" title="' + escapeHtml(x.n + ' · ' + presenceLabel(x.st)) + '"><span class="story-ring presence-ring">' + avatarHtml(x.u, x.n).replace(/ data-person="[^"]*"/, '').replace(/ has-story( story-seen)?/, '') +
+          '<span class="presence-dot ' + x.st + '" aria-label="' + escapeHtml(presenceLabel(x.st)) + '"></span></span><span class="story-name">' + escapeHtml(x.n) + '</span></button>';
+      }).join('');
+  }
+  // ---- Ajoute des amis : suggestions façon Instagram, repliables ----
+  function friendSuggestions(me, max) {
+    var friends = friendsOf(me).map(function (f) { return f.name; });
+    var pending = (STATE.friendRequests || []).filter(function (r) { return r.status === 'pending' && (r.from === me || r.to === me); }).map(function (r) { return r.from === me ? r.to : r.from; });
+    var hidden = [];
+    try { hidden = JSON.parse(localStorage.getItem('cdp-friend-sug-hidden') || '[]'); } catch (e) {}
+    var mineEv = eventsList().filter(function (e) { return (e.riders || []).indexOf(me) !== -1; });
+    var followers = followersOf(me);
+    return allKnownUserNames().filter(function (n) { return n !== me && friends.indexOf(n) === -1 && pending.indexOf(n) === -1 && hidden.indexOf(n) === -1 && !isPersonality((STATE.usersByName || {})[n]); }).map(function (n) {
+      var mutual = friendsOf(n).filter(function (f) { return friends.indexOf(f.name) !== -1; }).length;
+      var shared = mineEv.filter(function (e) { return (e.riders || []).indexOf(n) !== -1; }).length;
+      var fo = followers.indexOf(n) !== -1, fi = (STATE.myFollows || []).indexOf(n) !== -1;
+      var reason = fo ? L('Te suit', 'Follows you') : mutual ? plural(mutual, L('ami en commun', 'mutual friend'), L('amis en commun', 'mutual friends')) : shared ? plural(shared, L('roulage en commun', 'shared trackday'), L('roulages en commun', 'shared trackdays')) : fi ? L('Tu le suis', 'You follow them') : L('Sur Carnet Piste', 'On Pitbook');
+      return { name: n, reason: reason, score: mutual * 3 + shared * 2 + (fo ? 4 : 0) + (fi ? 2 : 0) };
+    }).sort(function (a, b) { return b.score - a.score || a.name.localeCompare(b.name); }).slice(0, max || 12);
+  }
+  function renderFriendSuggestBar(me) {
+    var sug = friendSuggestions(me.name, 12);
+    // Demandes reçues : en premier, et le bandeau reste ouvert tant qu'il y en a.
+    var inc = incomingFriendRequests(me.name);
+    var closed = false;
+    try { closed = !inc.length && localStorage.getItem('cdp-friend-sug-closed') === '1'; } catch (e) {}
+    var head = '<button type="button" class="fsug-head" data-action="fsug-toggle" aria-expanded="' + !closed + '"><strong>' + L('Ajoute des amis', 'Add friends') + '</strong><span class="help-text">' + (inc.length ? '<span class="fsug-req-count">' + plural(inc.length, L('demande reçue', 'request received'), L('demandes reçues', 'requests received')) + '</span>' + (sug.length ? ' · ' : '') : '') + (sug.length ? plural(sug.length, L('suggestion', 'suggestion'), L('suggestions', 'suggestions')) : '') + '</span><span class="fsug-chev" aria-hidden="true">' + (closed ? '▾' : '▴') + '</span></button>';
+    if (closed) return '<div class="card fsug closed">' + head + '</div>';
+    var cards = inc.map(function (r) {
+      var u = (STATE.usersByName || {})[r.from] || {};
+      return '<div class="fsug-card fsug-request"><button type="button" class="fsug-who" data-person-link="' + escapeHtml(r.from) + '">' + avatarHtml(u, r.from).replace(/ data-person="[^"]*"/, '') + '<strong>' + escapeHtml(r.from) + '</strong><span class="help-text">' + L('Veut être ton ami', 'Wants to be friends') + '</span></button>' +
+        '<div class="fsug-req-acts"><button type="button" class="primary fsug-add" data-action="accept-friend" data-id="' + escapeHtml(r.id) + '">' + L('Accepter', 'Accept') + '</button><button type="button" class="ghost fsug-no" data-action="remove-friend" data-id="' + escapeHtml(r.id) + '" aria-label="' + escapeHtml(L('Refuser', 'Decline')) + '" title="' + escapeHtml(L('Refuser', 'Decline')) + '">✕</button></div></div>';
+    }).join('') + sug.map(function (sg) {
+      var u = (STATE.usersByName || {})[sg.name] || {};
+      return '<div class="fsug-card"><button type="button" class="fsug-x" data-fsug-hide="' + escapeHtml(sg.name) + '" aria-label="' + escapeHtml(L('Masquer', 'Hide')) + '">✕</button>' +
+        '<button type="button" class="fsug-who" data-person-link="' + escapeHtml(sg.name) + '">' + avatarHtml(u, sg.name).replace(/ data-person="[^"]*"/, '') + '<strong>' + escapeHtml(sg.name) + '</strong><span class="help-text">' + escapeHtml(sg.reason) + '</span></button>' +
+        '<button type="button" class="primary fsug-add" data-fsug-add="' + escapeHtml(sg.name) + '">' + L('Ajouter', 'Add') + '</button></div>';
+    }).join('');
+    // Inviter des potes qui ne sont pas encore sur l'appli.
+    cards += '<div class="fsug-card fsug-invite"><span class="fsug-invite-ico" aria-hidden="true"><svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6M22 11h-6"/></svg></span><strong>' + L('Tes potes', 'Your mates') + '</strong><span class="help-text">' + L('pas encore inscrits', 'not signed up yet') + '</span><button type="button" class="ghost fsug-add" data-action="invite-qr">' + L('Inviter', 'Invite') + '</button></div>';
+    return '<div class="card fsug">' + head + '<div class="fsug-row">' + cards + '</div></div>';
+  }
   function renderStoriesRow(me) {
     var list = storyItems(me);
     var add = '<button type="button" class="story-bubble story-add" data-action="story-new"><span class="story-ring story-ring-add"><img src="icons/icon-192.png" alt=""><span class="story-plus">+</span></span><span class="story-name">' + L('Ta story', 'Your story') + '</span></button>' +
@@ -18891,7 +18990,7 @@
       var u = (STATE.usersByName || {})[st.who] || (st.who === me.name ? me : {});
       var left = st.posted && st.who === me.name ? storyTimeLeft(st.at) : '';
       return '<button type="button" class="story-bubble' + (storySeen(st) ? ' seen' : '') + '" data-action="open-story" data-index="' + i + '"><span class="story-ring">' + avatarHtml(u, st.who) + (left ? '<span class="story-left">' + left + '</span>' : '') + '</span><span class="story-name">' + escapeHtml(st.who === me.name ? L('Moi', 'Me') : st.who) + '</span></button>';
-    }).join('') + '</div>';
+    }).join('') + friendsPresenceBubbles(me, list.map(function (st) { return st.who; })) + '</div>';
   }
   // Publier une story : une photo (et un mot), visible 24 h en haut du fil
   // de mes amis et abonnés. Stockée comme un message (story: true) qui
@@ -20239,6 +20338,7 @@
     else {
       html += renderStoriesRow(me);
       html += renderWallComposer();
+      html += renderFriendSuggestBar(me);
       html += renderWallFeed(me);
     }
     return html;
@@ -22795,6 +22895,13 @@
     if (shareUpcomingEl) shareUpcomingEl.addEventListener('change', function () { saveOwnBooleanField('shareUpcoming', shareUpcomingEl.value); });
     var bientotShareEl = document.getElementById('bientot-share-upcoming');
     if (bientotShareEl) bientotShareEl.addEventListener('change', function () { saveOwnBooleanField('shareUpcoming', bientotShareEl.value); });
+    var presEl = document.getElementById('presence-visibility');
+    if (presEl) presEl.addEventListener('change', function () {
+      var hide = presEl.value === 'hide';
+      saveOwnBooleanField('hidePresence', hide);
+      if (hide) db.collection('users').doc(myUid()).update({ lastSeen: firebase.firestore.FieldValue.delete() }).catch(function () {});
+      else { presenceBeatAt = 0; presenceBeat(); }
+    });
     var dmPolicyEl = document.getElementById('dm-policy');
     if (dmPolicyEl) dmPolicyEl.addEventListener('change', function () { saveOwnBooleanField('dmPolicy', dmPolicyEl.value); });
     ['profile-visibility', 'lists-visibility'].forEach(function (id) {
@@ -23279,6 +23386,20 @@
         exportSessionsCsv(names);
       });
     }
+    presenceBeat();
+    document.querySelectorAll('[data-action="fsug-toggle"]').forEach(function (b) { b.addEventListener('click', function () {
+      var c = false; try { c = localStorage.getItem('cdp-friend-sug-closed') === '1'; localStorage.setItem('cdp-friend-sug-closed', c ? '0' : '1'); } catch (e) {}
+      renderRoot();
+    }); });
+    document.querySelectorAll('[data-fsug-add]').forEach(function (b) { b.addEventListener('click', function () {
+      var n = b.getAttribute('data-fsug-add'); sendFriendRequest(n);
+      b.disabled = true; b.textContent = L('Envoyée', 'Sent'); b.classList.remove('primary'); b.classList.add('ghost');
+    }); });
+    document.querySelectorAll('[data-fsug-hide]').forEach(function (b) { b.addEventListener('click', function () {
+      var h = []; try { h = JSON.parse(localStorage.getItem('cdp-friend-sug-hidden') || '[]'); } catch (e) {}
+      h.push(b.getAttribute('data-fsug-hide')); try { localStorage.setItem('cdp-friend-sug-hidden', JSON.stringify(h.slice(-200))); } catch (e) {}
+      renderRoot();
+    }); });
     document.querySelectorAll('[data-action="pneus-open"]').forEach(function (b) { b.addEventListener('click', function (e) { e.stopPropagation(); openPneusSheet(); }); });
     if (currentUserProfile && !coreDataLoading()) {
       if (Date.now() - pneusWatchAt > 3000) { pneusWatchAt = Date.now(); try { pneusWatch(); } catch (e) {} }

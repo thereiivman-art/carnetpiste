@@ -4656,3 +4656,35 @@ html.kb-open .dm-form, .dm-form:focus-within { bottom: 0; }
 .pneus-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 @media (max-width: 400px) { .header-controls .pneus-chip { padding: 0 0.5rem 0 0.4rem; font-size: 0.8rem; } }
 .mini-sheet.pneus-sheet { max-height: calc(100dvh - 2rem); overflow-y: auto; overscroll-behavior: contain; }
+/* Amis à la suite des stories : pastille de présence. */
+.presence-ring { position: relative; }
+.friend-bubble .story-ring { background: none; box-shadow: none; }
+.presence-dot { position: absolute; right: 2px; bottom: 2px; width: 14px; height: 14px; border-radius: 50%; border: 2.5px solid var(--bg); background: #9aa0a6; }
+.presence-dot.on { background: #22c55e; }
+.presence-dot.recent { background: #f59e0b; }
+/* Ajoute des amis (repliable) */
+.fsug { padding: 0.6rem 0.8rem; }
+.fsug-head { width: 100%; display: flex; align-items: center; gap: 0.6rem; background: none; border: 0; padding: 0.2rem 0; color: var(--text); cursor: pointer; text-align: left; font: inherit; }
+.fsug-head .help-text { flex: 1; }
+.fsug-chev { font-size: 0.9rem; color: var(--text-muted); }
+.fsug-row { display: flex; gap: 0.6rem; overflow-x: auto; padding: 0.6rem 0 0.2rem; scroll-snap-type: x proximity; scrollbar-width: thin; }
+.fsug-card { position: relative; flex: 0 0 9.5rem; scroll-snap-align: start; display: flex; flex-direction: column; align-items: center; gap: 0.35rem; padding: 0.8rem 0.5rem 0.6rem; border: 1px solid var(--border); border-radius: 0.9rem; background: var(--surface); text-align: center; }
+.fsug-who { display: flex; flex-direction: column; align-items: center; gap: 0.25rem; background: none; border: 0; padding: 0; color: var(--text); cursor: pointer; font: inherit; min-width: 0; width: 100%; }
+.fsug-who .mini-avatar { width: 3.6rem; height: 3.6rem; font-size: 1.3rem; }
+.fsug-who strong, .fsug-card > strong { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.9rem; }
+.fsug-who .help-text, .fsug-card > .help-text { font-size: 0.75rem; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fsug-add { width: 100%; border-radius: 999px; padding: 0.4rem 0.6rem; font-size: 0.82rem; font-weight: 700; margin-top: auto; }
+.fsug-x { position: absolute; top: 0.25rem; right: 0.3rem; border: 0; background: none; color: var(--text-muted); font-size: 0.75rem; cursor: pointer; padding: 0.2rem; min-width: 0; }
+.fsug-invite-ico { width: 3.6rem; height: 3.6rem; border-radius: 50%; display: grid; place-items: center; background: var(--surface-alt); color: var(--text); }
+.fsug-req-count { color: var(--accent); font-weight: 700; }
+.fsug-request { border-color: var(--accent); }
+.fsug-req-acts { display: flex; gap: 0.3rem; width: 100%; margin-top: auto; }
+.fsug-req-acts .fsug-add { flex: 1; }
+.fsug-no { flex: 0 0 auto; border-radius: 999px; padding: 0.4rem 0.6rem; min-width: 0; }
+.pneus-cal { grid-template-columns: repeat(7, minmax(0, 1fr)); }
+.pneus-why { background: var(--surface-alt); border-radius: 0.8rem; padding: 0.6rem 0.8rem; margin: 0 0 0.8rem; font-size: 0.86rem; }
+.pneus-why p { margin: 0.25rem 0 0; line-height: 1.4; }
+.pneus-fly { position: fixed; z-index: 9999; pointer-events: none; display: flex; align-items: center; gap: 0.2rem; padding: 0.25rem 0.55rem; border-radius: 999px; background: var(--accent); color: var(--accent-ink); font-weight: 800; font-size: 0.85rem; box-shadow: 0 6px 18px rgba(0,0,0,0.25); transform: translate(-50%, -50%); }
+.pneus-fly .tyre-ico { color: inherit; width: 16px; height: 16px; }
+/* PC : un seul compteur, dans la colonne de droite. */
+@media (min-width: 1280px) { .header-controls .pneus-chip { display: none; } }
