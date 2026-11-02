@@ -3958,6 +3958,7 @@ label.budget-row-title { cursor: pointer; margin: 0; }
 .follow-btn { border-radius: 999px; font-weight: 700; }
 .follow-btn.small { padding: 0.35rem 0.9rem; font-size: 0.85rem; width: 100%; }
 .wall-post-head .follow-btn.small { width: auto; }
+.follow-btn.is-friend { display: inline-flex; align-items: center; justify-content: center; border: 1px solid var(--border); color: var(--text-muted); font-size: 0.8rem; padding: 0.35rem 0.9rem; cursor: default; }
 .follow-btn.following { color: var(--text); }
 .people-row { display: flex; align-items: center; gap: 0.6rem; padding: 0.5rem 0; border-bottom: 1px solid var(--border); }
 .people-row:last-child { border-bottom: 0; }

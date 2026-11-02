@@ -1748,6 +1748,7 @@
     });
   }
   function unfollowName(name) {
+    if (isFriendName(name)) return showToast(L('Vous êtes amis, donc abonnés l\'un à l\'autre : retire-le de tes amis pour ne plus le suivre.', 'You are friends, so you follow each other: remove the friend to stop following.'));
     var me = currentUserProfile && currentUserProfile.name;
     STATE.myFollows = (STATE.myFollows || []).filter(function (n) { return n !== name; });
     STATE.allUserFollows = (STATE.allUserFollows || []).filter(function (f) { return !(f.follower === me && f.followee === name); });
@@ -18257,12 +18258,16 @@
   // amis" -- followed personalities plus a nudge toward ones not yet
   // followed, rather than only showing up once you follow someone.
   // ---- Réseau : abonnés, abonnements, suggestions ----
-  function followersOf(n) { return (STATE.allUserFollows || []).filter(function (f) { return f.followee === n; }).map(function (f) { return f.follower; }).filter(function (v, i, a) { return a.indexOf(v) === i; }); }
+  // Un ami est forcément abonné, dans les deux sens. Un abonnement seul
+  // (sans amitié) sert à suivre quelqu'un sans être ami avec lui.
+  function friendNamesOf(n) { return friendsOf(n).map(function (f) { return f.name; }); }
+  function uniqNames(a) { return a.filter(function (v, i) { return v && a.indexOf(v) === i; }); }
+  function followersOf(n) { return uniqNames((STATE.allUserFollows || []).filter(function (f) { return f.followee === n; }).map(function (f) { return f.follower; }).concat(friendNamesOf(n))); }
   function followingOf(n) {
-    if (currentUserProfile && n === currentUserProfile.name && STATE.myFollows) return STATE.myFollows.slice();
-    return (STATE.allUserFollows || []).filter(function (f) { return f.follower === n; }).map(function (f) { return f.followee; }).filter(function (v, i, a) { return a.indexOf(v) === i; });
+    if (currentUserProfile && n === currentUserProfile.name && STATE.myFollows) return uniqNames(STATE.myFollows.concat(friendNamesOf(n)));
+    return uniqNames((STATE.allUserFollows || []).filter(function (f) { return f.follower === n; }).map(function (f) { return f.followee; }).concat(friendNamesOf(n)));
   }
-  function iFollow(n) { return (STATE.myFollows || []).indexOf(n) !== -1; }
+  function iFollow(n) { return (STATE.myFollows || []).indexOf(n) !== -1 || isFriendName(n); }
   function plural(n, one, many) { return n + ' ' + (n > 1 ? many : one); }
   function socialCountsHtml(name) {
     var nf = friendsOf(name).length, nfo = followersOf(name).length, nfg = followingOf(name).length;
@@ -18276,6 +18281,7 @@
   }
   function followBtnHtml(name, small) {
     if (!currentUserProfile || name === currentUserProfile.name) return '';
+    if (isFriendName(name)) return '<span class="ghost follow-btn following is-friend' + (small ? ' small' : '') + '" title="' + escapeHtml(L('Ami : abonnés l\'un à l\'autre', 'Friend: following each other')) + '">' + L('Ami ✓', 'Friend ✓') + '</span>';
     return iFollow(name)
       ? '<button type="button" class="ghost follow-btn following' + (small ? ' small' : '') + '" data-action="unfollow" data-name="' + escapeHtml(name) + '">' + L('Abonné ✓', 'Following ✓') + '</button>'
       : '<button type="button" class="primary follow-btn' + (small ? ' small' : '') + '" data-action="quick-follow" data-name="' + escapeHtml(name) + '">' + L('Suivre', 'Follow') + '</button>';
@@ -19042,7 +19048,7 @@
 
   function visibleWallPosts(me) {
     var friendNames = friendsOf(me.name).map(function (f) { return f.name; });
-    var followedNames = STATE.myFollows || [];
+    var followedNames = followingOf(me.name);
     return (STATE.wallPosts || []).filter(function (p) {
       if (!inFeed(p)) return false; // une story ne vit que dans la rangée du haut, sauf publiée aussi dans le fil
       if (p.author === me.name) return true;

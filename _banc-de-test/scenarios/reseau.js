@@ -62,7 +62,7 @@ const { chromium, BASE } = require('../lib');
   console.log('abonnés:', await p.$$eval('[data-cpill-section="suivislist:abonnes"] .people-card strong', e => e.map(x => x.innerText).join(', ')));
   await p.click('.follow-card [data-action="quick-follow"]'); await p.waitForTimeout(400);
   console.log('abonnements:', JSON.stringify(await p.evaluate(() => Object.values(window.__MOCK_DATA.follows).filter(f => f.follower === 'Alex').map(f => f.followee))));
-  await p.click('[data-open-person="Luca"]'); await p.waitForTimeout(600);
+  await p.click('[data-cpill-section="suivislist:abonnes"] [data-open-person="Luca"]'); await p.waitForTimeout(600);
   console.log('fiche Luca:', await p.$eval('.social-counts', e => e.innerText.replace(/\n/g, ' ')), '| bouton:', await p.$eval('.follow-btn', e => e.innerText).catch(() => 'aucun'), '| publications:', await p.$$eval('.feed-card .wall-post-text', e => e.length));
   console.log('errs', JSON.stringify(errs)); await b.close();
 })();

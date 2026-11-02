@@ -12,7 +12,7 @@ const { chromium, BASE } = require('../lib');
   await p.click('[data-pill-group="social"][data-pill="profil"]'); await p.waitForTimeout(400);
   await p.click('.social-count[data-list="amis"]'); await p.waitForTimeout(400);
   await p.click('[data-cpill-group="suivislist"][data-cpill="liste"]'); await p.waitForTimeout(300);
-  await p.click('[data-cpill-section="suivislist:liste"] [data-name="Sam"]'); await p.waitForTimeout(1200);
+  await p.click('[data-cpill-section="suivislist:liste"] [data-open-person="Sam"]'); await p.waitForTimeout(1200);
   const row = async () => (await p.$('.ph-friends-row')) ? await p.$$eval('.ph-friends-row .ph-fav-friend span', e => e.map(x => x.innerText).join(', ')) : 'aucune rangée';
   console.log('Sam :', await row(), '| compteurs:', await p.$eval('.social-counts', e => e.innerText.replace(/\n/g, ' ')).catch(() => '?'));
   await p.screenshot({ path: 'amis-sam-' + lang + '.png' });
