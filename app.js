@@ -132,15 +132,15 @@
       my_teams_heading: 'Mes teams', team_leader_label: 'Team Leader', member_label: 'Membre', follower_label: 'Abonné',
       back_to_team: '← Retour à ', back_to_teams: '← Retour aux teams',
       create_team_heading: 'Créer un team',
-      create_team_help: '<strong>Team amateur</strong> : entre amis, ouvert tout de suite, tu en es le premier Team Leader – membres, fil d\'actualité et roulages, sans plus.<br><strong>Team PRO</strong> (coche bleue ✓) : club officiel validé – en plus de l\'amateur, gère des adhérents, peut attribuer les badges Coach et Photographe officiel, proposer coaching/baptêmes piste, et choisir la visibilité de ses roulages (public, adhérents, sur demande...).',
+      create_team_help: '<strong>Team amateur</strong> : entre amis, ouvert tout de suite, tu en es le premier Team Leader – membres, Social et roulages, sans plus.<br><strong>Team PRO</strong> (coche bleue ✓) : club officiel validé – en plus de l\'amateur, gère des adhérents, peut attribuer les badges Coach et Photographe officiel, proposer coaching/baptêmes piste, et choisir la visibilité de ses roulages (public, adhérents, sur demande...).',
       create_team_btn: 'Créer le team',
-      create_team_short: 'Ton team est ouvert tout de suite, entre amis : membres, fil d\'actualité et roulages. Tu en es le Team Leader.',
+      create_team_short: 'Ton team est ouvert tout de suite, entre amis : membres, Social et roulages. Tu en es le Team Leader.',
       create_team_more: 'Team amateur ou PRO ?',
       create_team_help_organizer_suffix: ' En tant qu\'Organisateur, tu peux directement le créer en Team PRO ci-dessous.',
       create_team_help_non_organizer_suffix: ' Un Team PRO ne se crée pas directement : contacte l\'administrateur une fois ton Team amateur créé pour le faire valider et passer PRO, ou passe ton profil en Organisateur pour pouvoir le créer directement PRO.',
       team_name_label: 'Nom du team', create_as_pro: 'Créer directement comme Team PRO ✓', create_btn: 'Créer',
       unfollow: 'Ne plus suivre', like_suffix: ' j\'aime', likes_suffix: ' j\'aime', follow_suffix: ' abonné', follows_suffix: ' abonnés',
-      feed_heading: 'Fil d\'actualité (', nothing_yet: 'Rien pour l\'instant.',
+      feed_heading: 'Social (', nothing_yet: 'Rien pour l\'instant.',
       visible_all: 'Visible par tous (membres + abonnés)', adherents_only: 'Adhérents seulement',
       write_to_team_placeholder: 'Écrire au team...', link_optional_placeholder: 'Lien (optionnel)',
       remove_photo: 'Retirer la photo', add_photo: 'Ajouter une photo', publish: 'Publier',
@@ -148,14 +148,14 @@
       poll_question_placeholder: 'Créer un sondage : la question', add_option: '+ Ajouter une option',
       publish_poll: 'Publier le sondage', write_message_btn: 'Écrire un message', poll_btn: 'Sondage',
       no_one_else_to_invite: 'Personne d’autre à inviter pour l’instant.',
-      all_friends_in_team: 'Tous tes amis sont déjà dans ce team, ou tu n’as pas encore d’amis à inviter : ajoute-les dans Communauté → Amis & fil.',
+      all_friends_in_team: 'Tous tes amis sont déjà dans ce team, ou tu n’as pas encore d’amis à inviter : ajoute-les dans Communauté → Amis & Social.',
       teampro_invite_help: 'Team PRO : tu peux inviter n’importe quel compte, ami ou non.',
       invite_btn: 'Inviter', cancel_invite: 'Annuler', settings_label: 'Réglages',
       join_requests_label: 'Demandes pour rejoindre (', sent_invites_label: 'Invitations envoyées (',
       // Social tab
       no_friends_yet: 'Pas encore d’amis. Ajoutes-en un avec le bouton ci-dessus, ou fais scanner ton QR code au paddock.',
       invite_qr_btn: 'Inviter un pote (QR code)', share_last_chrono_btn: 'Partager mon dernier chrono',
-      feed_empty_help: 'Ton fil se remplit avec les chronos et les messages de tes amis et de tes teams.', my_friends_label: 'Mes amis (',
+      feed_empty_help: 'Ton Social se remplit avec les chronos et les messages de tes amis et de tes teams.', my_friends_label: 'Mes amis (',
       received_requests_label: 'Demandes reçues (', sent_requests_label: 'Demandes envoyées (',
       add_friend_btn: '+ Ajouter un ami', no_one_else_to_add: 'Personne d’autre à ajouter pour l’instant.',
       search_by_username: 'Rechercher par pseudo', username_placeholder: 'Pseudo', send_request_btn: 'Envoyer une demande',
@@ -263,20 +263,20 @@
       role_info_pilote_2: 'Noter tes repères (freinage, déclenchement, corde, sortie) sur le plan de chaque circuit',
       role_info_pilote_3: 'Retrouver les horaires, groupes et infos pratiques de chaque roulage dans l\'onglet Roulages',
       role_info_pilote_4: 'En bonus : partager tes infos de voyage, faire valider tes chronos par ton team',
-      role_info_pilote_5: 'Suivre tes amis, te comparer à eux (duels, classement du mois) et réagir dans le fil d\'actualité',
+      role_info_pilote_5: 'Suivre tes amis, te comparer à eux (duels, classement du mois) et réagir dans le Social',
       role_info_pilote_6: 'Rejoindre un team (amateur ou PRO) et participer à ses roulages',
       role_info_accompagnant_title: 'Espace accompagnant',
       role_info_accompagnant_1: 'Suivre des pilotes et être notifié quand leur groupe va partir rouler',
       role_info_accompagnant_2: 'Consulter les horaires, groupes et infos pratiques du roulage en cours, sans y rouler toi-même',
       role_info_accompagnant_3: 'Voir les chronos et la progression des pilotes que tu suis',
       role_info_accompagnant_4: 'Voir les infos de voyage des pilotes suivis, si elles sont partagées',
-      role_info_accompagnant_5: 'Suivre des teams, réagir sur leur fil d\'actualité, et publier sur ton propre Journal',
+      role_info_accompagnant_5: 'Suivre des teams, réagir sur leur Social, et publier sur ton propre Journal',
       role_info_organisateur_title: 'Espace organisateur',
       role_info_organisateur_1: 'Créer et gérer un roulage : dates, horaires par groupe, infos pratiques, baptêmes/coaching',
       role_info_organisateur_2: 'Tenir à jour la fiche d\'un circuit (plan, distance, virages, horaires par défaut)',
       role_info_organisateur_3: 'Partager un lien photos/vidéos après le roulage',
       role_info_organisateur_4: 'Suivre des pilotes et être notifié de leurs départs, comme un accompagnant',
-      role_info_organisateur_5: 'Si tu es aussi Team Leader d\'un team : gérer ses membres, son fil d\'actualité, ses roulages et certifier les chronos de tes pilotes',
+      role_info_organisateur_5: 'Si tu es aussi Team Leader d\'un team : gérer ses membres, son Social, ses roulages et certifier les chronos de tes pilotes',
       carnet_helps_you: 'Carnet Piste t\'aide à :',
       pseudo_label: 'Pseudo', rename_limit_prefix: '1 changement de pseudo par mois – possible à nouveau le ',
       rename_warning: '⚠ Renommer va changer ton identité partout dans l\'app (chronos, roulages, teams, coaching, amis...).',
@@ -323,7 +323,7 @@
       presentation_label: 'Présentation', presentation_placeholder: 'Quelques mots sur le team...',
       save_presentation_btn: 'Enregistrer la présentation',
       change_badge_photo: 'Changer la photo (badge)', add_badge_photo: 'Ajouter une photo (badge)',
-      photo_round_help: 'S\'affiche partout en rond (fil d\'actu, membres, invitations...) – le prochain écran te laisse choisir le cadrage.',
+      photo_round_help: 'S\'affiche partout en rond (Social, membres, invitations...) – le prochain écran te laisse choisir le cadrage.',
       logo_label: 'Logo (affiché en largeur sur la fiche du team)',
       change_logo: 'Changer le logo', add_logo: 'Ajouter un logo',
       logo_help: 'Utile pour un logo large (ex. "Mototeam95") que le badge rond couperait.',
@@ -536,7 +536,7 @@
       create_team_help_non_organizer_suffix: ' A Team PRO can\'t be created directly: contact the admin once your amateur Team is created to have it validated and upgraded to PRO, or switch your profile to Organiser to create it directly as PRO.',
       team_name_label: 'Team name', create_as_pro: 'Create directly as a Team PRO ✓', create_btn: 'Create',
       unfollow: 'Unfollow', like_suffix: ' like', likes_suffix: ' likes', follow_suffix: ' follow', follows_suffix: ' follows',
-      feed_heading: 'News feed (', nothing_yet: 'Nothing yet.',
+      feed_heading: 'Social (', nothing_yet: 'Nothing yet.',
       visible_all: 'Visible to everyone (members + followers)', adherents_only: 'Club members only',
       write_to_team_placeholder: 'Write to the team...', link_optional_placeholder: 'Link (optional)',
       remove_photo: 'Remove photo', add_photo: 'Add a photo', publish: 'Post',
@@ -544,14 +544,14 @@
       poll_question_placeholder: 'Create a poll: the question', add_option: '+ Add an option',
       publish_poll: 'Post the poll', write_message_btn: 'Write a message', poll_btn: 'Poll',
       no_one_else_to_invite: 'No one else to invite right now.',
-      all_friends_in_team: 'All your friends are already in this team, or you have no friends to invite yet: add them in Community → Friends & feed.',
+      all_friends_in_team: 'All your friends are already in this team, or you have no friends to invite yet: add them in Community → Friends & Social.',
       teampro_invite_help: 'Team PRO: you can invite any account, friend or not.',
       invite_btn: 'Invite', cancel_invite: 'Cancel', settings_label: 'Settings',
       join_requests_label: 'Requests to join (', sent_invites_label: 'Sent invites (',
       // Social tab
       no_friends_yet: 'No friends yet. Add one with the button above, or have them scan your QR code in the paddock.',
       invite_qr_btn: 'Invite a friend (QR code)', share_last_chrono_btn: 'Share my last lap time',
-      feed_empty_help: 'Your feed fills up with lap times and messages from your friends and teams.', my_friends_label: 'My friends (',
+      feed_empty_help: 'Your Social fills up with lap times and messages from your friends and teams.', my_friends_label: 'My friends (',
       received_requests_label: 'Received requests (', sent_requests_label: 'Sent requests (',
       add_friend_btn: '+ Add a friend', no_one_else_to_add: 'No one else to add right now.',
       search_by_username: 'Search by username', username_placeholder: 'Username', send_request_btn: 'Send request',
@@ -1182,7 +1182,7 @@
 "Grand parrain": "Super sponsor",
 "Faire signer 5 filleuls avec ton lien de parrainage.": "Get 5 friends to sign up with your invite link.",
 "Premier ami": "First friend",
-"Avoir un premier ami accepté (Communauté → Amis & fil).": "Have a first accepted friend (Community → Friends & feed).",
+"Avoir un premier ami accepté (Communauté → Amis & Social).": "Have a first accepted friend (Community → Friends & Social).",
 "Cercle fidèle": "Inner circle",
 "Avoir 5 amis acceptés ou plus.": "Have 5 accepted friends or more.",
 "Fondateur": "Founder",
@@ -1354,8 +1354,8 @@
 "Circuit et date suffisent ; horaires et groupes peuvent venir après (photo de l'affiche).": "Circuit and date are enough; times and groups can come later (photo of the poster).",
 "Aucun roulage passé.": "No past trackday.",
 "Aucun roulage à venir.": "No upcoming trackday.",
-"Amis & fil": "Friends & feed",
-"Fil d'actualité": "News feed",
+"Amis & Social": "Friends & Social",
+"Social": "Social",
 "Personnalités": "Personalities",
 "Reçues": "Received",
 "Envoyées": "Sent",
@@ -1396,7 +1396,7 @@
 "Chronos": "Lap times",
 "Infos": "Info",
 "Réglages": "Settings",
-"Fil": "Feed",
+"Social": "Social",
 "Membres": "Members",
 "+ Écrire au team": "+ Write to the team",
 "ou lancer un sondage": "or start a poll",
@@ -4173,7 +4173,7 @@
       tieredEntry('flame', 'communaute', L('Plein gaz', 'Full gas'), gazReceivedCount(name), [5, 25, 100, 250, 500, 1000], ['« Gaz ! »', '« Gaz ! »'],
         function (t) { return L('Recevoir ' + t + ' « Gaz ! » de tes potes.', 'Get ' + t + ' “Full gas!” from friends.'); }),
       tieredEntry('megaphone', 'communaute', L('Plume du paddock', 'Paddock writer'), wallPostCount, [1, 5, 20, 50, 100, 200], ['message', 'messages'],
-        function (t) { return L('Publier ' + t + ' message' + (t > 1 ? 's' : '') + ' dans le fil.', 'Post ' + t + ' message' + (t > 1 ? 's' : '') + ' in the feed.'); }),
+        function (t) { return L('Publier ' + t + ' message' + (t > 1 ? 's' : '') + ' dans le Social.', 'Post ' + t + ' message' + (t > 1 ? 's' : '') + ' in the feed.'); }),
       tieredEntry('team', 'communaute', L('Bâtisseur de team', 'Team builder'), biggestTeam, [1, 5, 15, 30, 60, 100], [L('membre', 'member'), L('membres', 'members')],
         function (t) { return t === 1 ? L('Créer un team.', 'Create a team.') : L('Réunir ' + t + ' membres dans un team que tu as créé.', 'Gather ' + t + ' members in a team you created.'); }),
       singleEntry('check', 'communaute', 'Team PRO', founded.some(function (t) { return t.teamPro; }), L('Fonder un team certifié PRO.', 'Found a certified PRO team.'))
@@ -13945,7 +13945,7 @@
   }
   function myProfileNavPills() {
     var me = currentUserProfile, isPilote = !me.role || me.role === 'pilote';
-    var out = [['monfil', L('Mon fil', 'My feed')], ['fiche', L('Fiche', 'Profile')], ['bientot', L('Bientôt en piste', 'Coming up')]];
+    var out = [['monfil', L('Mon Social', 'My Social')], ['fiche', L('Fiche', 'Profile')], ['bientot', L('Bientôt en piste', 'Coming up')]];
     if (isPilote) out.push(['saisons', L('Saisons', 'Seasons')]);
     return out;
   }
@@ -14012,7 +14012,7 @@
   function renderCommunauteNav() {
     var me = currentUserProfile, nIn = me ? incomingFriendRequests(me.name).length : 0;
     var nDm = unreadDmCount();
-    var items = [['profil', L('Profil', 'Profile') + (nIn ? ' (' + nIn + ')' : '')], ['fil', L('Fil', 'Feed')], ['messages', L('Messages', 'Messages') + (nDm ? ' (' + nDm + ')' : '')]];
+    var items = [['profil', L('Profil', 'Profile') + (nIn ? ' (' + nIn + ')' : '')], ['fil', L('Social', 'Social')], ['messages', L('Messages', 'Messages') + (nDm ? ' (' + nDm + ')' : '')]];
     var html = '<div class="subnav main-subnav" role="tablist">' + items.map(function (it) {
       var on = activeView === 'social' && (pillState.social === it[0] || (it[0] === 'profil' && pillState.social === 'abonnements'));
       return '<button type="button" role="tab" class="subnav-btn' + (on ? ' active' : '') + '" data-view="social" data-pill-group="social" data-pill="' + it[0] + '">' + it[1] + '</button>';
@@ -14126,7 +14126,7 @@
         if (onProfil) myProfileNavPills().forEach(function (it) {
           comm.push([it[1], 'data-nav-person="' + it[0] + '" data-level="3"', pillState.person === it[0]]);
         });
-        comm.push([L('Fil', 'Feed'), 'data-view="social" data-pill-group="social" data-pill="fil"', !onPanel && activeView === 'social' && pillState.social === 'fil']);
+        comm.push([L('Social', 'Social'), 'data-view="social" data-pill-group="social" data-pill="fil"', !onPanel && activeView === 'social' && pillState.social === 'fil']);
         var nDmPc = unreadDmCount();
         comm.push([L('Messages', 'Messages') + (nDmPc ? ' (' + nDmPc + ')' : ''), 'data-view="social" data-pill-group="social" data-pill="messages"', !onPanel && activeView === 'social' && pillState.social === 'messages']);
         if (communauteSubItems().some(function (it) { return it[0] === 'team'; })) {
@@ -17972,7 +17972,7 @@
     if (!isMe) {
       var ridesShared = !!friendship && isPilote && u.shareSorties !== false;
       var visiblePosts = (STATE.wallPosts || []).filter(function (p) { return inFeed(p) && p.author === name && (friendship || p.audience === 'all' || (p.audience === 'followers' && iFollow(name))); });
-      var oPills = [['fil', L('Fil', 'Feed')], ['fiche', L('Fiche', 'Profile')], ['teams', 'Teams']];
+      var oPills = [['fil', L('Social', 'Social')], ['fiche', L('Fiche', 'Profile')], ['teams', 'Teams']];
       if (upcomingVisible(u, name)) oPills.push(['bientot', L('Bientôt en piste', 'Coming up')]);
       if (ridesShared) oPills.push(['saisons', L('Saisons', 'Seasons')]);
       html += renderPills('person', oPills);
@@ -17991,8 +17991,8 @@
       // Fil d'abord, puis Fiche, Bientôt en piste, Saisons.
       var theirPosts = !isMe ? (STATE.wallPosts || []).filter(function (p) { return inFeed(p) && p.author === name; }) : [];
       var personPills = [];
-      if (withFeed) personPills.push(['monfil', L('Mon fil', 'My feed')]);
-      else if (!isMe) personPills.push(['fil', L('Fil', 'Feed')]);
+      if (withFeed) personPills.push(['monfil', L('Mon Social', 'My Social')]);
+      else if (!isMe) personPills.push(['fil', L('Social', 'Social')]);
       personPills.push(['fiche', L('Fiche', 'Profile')]);
       if (withFeed || (!isMe && upcomingVisible(u, name))) personPills.push(['bientot', L('Bientôt en piste', 'Coming up')]);
       if (isPilote && (isMe || u.shareSorties !== false)) personPills.push(['saisons', L('Saisons', 'Seasons')]);
@@ -18397,7 +18397,7 @@
     var own = mine.filter(function (p) { return !p.repostOf; }).length, rep = mine.length - own;
     html += '<h2 class="section-title feed-section-title">' + L('Mes publications', 'My posts') + (own ? ' (' + own + ')' : '') + (rep ? ' · ' + plural(rep, L('republication', 'repost'), L('republications', 'reposts')) : '') + '</h2>';
     html += mine.length ? mine.map(function (p) { return '<div class="card feed-card">' + renderWallPost(p) + '</div>'; }).join('')
-      : '<div class="card help-text">' + L('Partage ton dernier roulage, une photo de la moto, une question : tes abonnés le verront dans leur fil.', 'Share your last trackday, a bike photo, a question: your followers will see it in their feed.') + '</div>';
+      : '<div class="card help-text">' + L('Partage ton dernier roulage, une photo de la moto, une question : tes abonnés le verront dans leur Social.', 'Share your last trackday, a bike photo, a question: your followers will see it in their feed.') + '</div>';
     return html;
   }
   // ---- Stories : le dernier roulage (7 jours) ou la dernière photo
@@ -18623,7 +18623,7 @@
       '<div class="story-card story-photo">' + (video ? '<video src="' + escapeHtml(video.dataUrl) + '" autoplay loop playsinline muted></video>' : '<img src="' + escapeHtml(dataUrl) + '" alt="">') + '</div>' +
       '<input type="text" class="story-text-input" maxlength="120" placeholder="' + escapeHtml(L('Ajoute un mot (facultatif)', 'Add a caption (optional)')) + '">' +
       storyAsTeamHtml() +
-      '<label class="story-feed-opt"><input type="checkbox" class="story-also-feed"> ' + L('Publier aussi dans mon fil', 'Also post to my feed') + '</label>' +
+      '<label class="story-feed-opt"><input type="checkbox" class="story-also-feed"> ' + L('Publier aussi dans mon Social', 'Also post to my Social') + '</label>' +
       shareElsewhereOptHtml('story-feed-opt') +
       '<button type="button" class="primary story-publish">' + L('Publier ma story', 'Post my story') + '</button>';
     document.body.appendChild(ov);
@@ -18723,7 +18723,7 @@
           ? '<button type="button" class="story-like' + (iLike ? ' on' : '') + '" data-like-key="' + escapeHtml(likeKey) + '" aria-pressed="' + iLike + '" aria-label="' + escapeHtml(L('J\'aime', 'Like')) + '">' + heart + '</button>'
           : '<div class="story-mine-foot">' + (nLikes ? '<span class="story-likes">' + heart + ' ' + escapeHtml(Object.keys(likes).slice(0, 3).join(', ') + (nLikes > 3 ? L(' et ' + (nLikes - 3) + ' autres', ' and ' + (nLikes - 3) + ' more') : '')) + '</span>' : '') +
             '<span class="story-views" data-views-for="' + escapeHtml(st.post.id) + '"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg> ' + storyViewCount(st.post) + '</span>' +
-            (st.post.alsoInFeed ? '<span class="story-infeed">' + L('Aussi dans ton fil', 'Also in your feed') + '</span>' : '') + '</div>';
+            (st.post.alsoInFeed ? '<span class="story-infeed">' + L('Aussi dans ton Social', 'Also in your Social') + '</span>' : '') + '</div>';
         // Une vue par compte et par jour (l'auteur voit le total).
         if (!mine) recordView('postViews', st.post.id, owner);
       }
@@ -18903,7 +18903,7 @@
     var on = hasCarnetPlus(p);
     var check = '<svg class="cp-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7"/></svg>';
     var feats = [
-      [L('Sans publicité', 'No ads'), L('Aucune pub dans le Fil ni dans Mon fil.', 'No ads in the Feed or My feed.'), 'ok'],
+      [L('Sans publicité', 'No ads'), L('Aucune pub dans Social ni dans Mon Social.', 'No ads in Social or My Social.'), 'ok'],
       [L('Stories vidéo', 'Video stories'), L('Des vidéos de 10 secondes en story, compressées sur ton téléphone.', '10-second video stories, compressed on your phone.'), 'ok'],
       [L('Badge Carnet+', 'Carnet+ badge'), L('Le badge C+ à côté de ton nom, partout dans l\'appli.', 'The C+ badge next to your name, everywhere in the app.'), 'ok'],
       [L('Fiche personnalisée', 'Custom profile'), L('Couverture, plaque de course, couleur, sponsors, chrono vedette et vitrine.', 'Cover, race plate, colour, sponsors, featured lap and showcase.'), 'ok'],
@@ -19684,6 +19684,43 @@
     var ta = document.getElementById('dm-text');
     if (ta && window.matchMedia && window.matchMedia('(pointer: fine)').matches) ta.focus();
   }
+  // Réactions emoji sur un message privé : un appui sur la bulle ouvre le
+  // choix ; une réaction par personne (la même retire, une autre remplace).
+  var DM_EMOJIS = ['❤️', '😂', '👍', '🔥', '😮', '😢'];
+  function dmReactsHtml(m) {
+    var r = m.reactions || {}, me = currentUserProfile ? currentUserProfile.name : '', by = {}, order = [];
+    Object.keys(r).forEach(function (n) { var e = r[n]; if (!e) return; if (!by[e]) { by[e] = []; order.push(e); } by[e].push(n); });
+    if (!order.length) return '';
+    return '<div class="dm-reacts">' + order.map(function (e) {
+      return '<button type="button" class="dm-react' + (by[e].indexOf(me) !== -1 ? ' on' : '') + '" data-dm-react-chip="' + escapeHtml(m.id) + '" data-emoji="' + escapeHtml(e) + '" title="' + escapeHtml(by[e].join(', ')) + '">' + e + (by[e].length > 1 ? ' ' + by[e].length : '') + '</button>';
+    }).join('') + '</div>';
+  }
+  function reactToDm(coll, id, emoji) {
+    var me = currentUserProfile; if (!me || !id) return;
+    var list = coll === 'teamMessages' ? STATE.teamDms : STATE.dms;
+    var m = (list || []).filter(function (x) { return x.id === id; })[0]; if (!m) return;
+    toggleReaction(coll, id, emoji, m.reactions);
+    m.reactions = Object.assign({}, m.reactions || {});
+    if (m.reactions[me.name] === emoji) delete m.reactions[me.name]; else m.reactions[me.name] = emoji;
+    renderRoot();
+  }
+  function openDmReactPicker(bubble) {
+    document.querySelectorAll('.dm-react-picker').forEach(function (x) { x.remove(); });
+    var id = bubble.getAttribute('data-dm-react'), coll = bubble.getAttribute('data-dm-coll');
+    var pk = document.createElement('div');
+    pk.className = 'dm-react-picker';
+    pk.innerHTML = DM_EMOJIS.map(function (e) { return '<button type="button" data-pick-emoji="' + e + '">' + e + '</button>'; }).join('');
+    bubble.parentNode.insertBefore(pk, bubble);
+    pk.addEventListener('click', function (e) {
+      e.stopPropagation();
+      var b = e.target.closest('[data-pick-emoji]'); if (!b) return;
+      pk.remove(); reactToDm(coll, id, b.getAttribute('data-pick-emoji'));
+    });
+    setTimeout(function () {
+      var off = function (ev) { if (!pk.contains(ev.target)) { pk.remove(); document.removeEventListener('click', off, true); } };
+      document.addEventListener('click', off, true);
+    }, 0);
+  }
   function dmTime(t) {
     var d = new Date(t || 0), today = dateKey(new Date());
     return dateKey(d) === today ? pad2(d.getHours()) + ':' + pad2(d.getMinutes()) : formatDateShortYear(dateKey(d));
@@ -19702,7 +19739,7 @@
         '<div class="dm-list" id="dm-list">' + (thread.length ? thread.map(function (m) {
           // Plusieurs leaders : chacun voit qui a répondu au nom du team.
           var sig = ti && ti.leader && m.asTeam && m.from !== mineUid ? '<span class="dm-sig">' + escapeHtml(m.fromName || '') + '</span>' : '';
-          return '<div class="dm-msg' + (isMine(m) ? ' mine' : '') + '">' + sig + '<div class="dm-bubble">' + mentionsHtml(m.text || '') + '</div><span class="dm-time">' + escapeHtml(dmTime(m.createdAt)) + '</span></div>';
+          return '<div class="dm-msg' + (isMine(m) ? ' mine' : '') + '">' + sig + '<div class="dm-bubble" data-dm-react="' + escapeHtml(m.id || '') + '" data-dm-coll="' + (ti ? 'teamMessages' : 'directMessages') + '">' + mentionsHtml(m.text || '') + '</div>' + dmReactsHtml(m) + '<span class="dm-time">' + escapeHtml(dmTime(m.createdAt)) + '</span></div>';
         }).join('') : '<div class="help-text dm-empty">' + escapeHtml(ti ? L('Écris au team ' + tm.name + ' : ses Team Leaders te répondront ici.', 'Write to ' + tm.name + ': its Team Leaders will reply here.') : L('Écris le premier message à ' + name + '.', 'Write the first message to ' + name + '.')) + '</div>') + '</div>';
       if (ti && ti.leader) h += '<div class="help-text dm-as">' + escapeHtml(L('Tu réponds au nom de ' + tm.name + '.', 'You reply as ' + tm.name + '.')) + '</div>';
       if (canMessage(name)) h += '<form class="dm-form" id="dm-form"><textarea id="dm-text" rows="1" maxlength="2000" placeholder="' + escapeHtml(L('Ton message…', 'Your message…')) + '"></textarea><button type="submit" class="primary">' + L('Envoyer', 'Send') + '</button></form>';
@@ -20092,7 +20129,7 @@
       '<h3 class="aud-sub">' + L('Messages les plus vus', 'Most viewed posts') + '</h3>' + (top.length ? top.map(function (k) {
         var f = ids[k];
         return '<div class="aud-post"><span class="aud-post-label">' + escapeHtml(f ? (f.text || f.question || L('Message', 'Post')) : L('Message', 'Post')) + '</span><span class="aud-post-nums"><b>' + byPost[k].n + '</b> ' + L('vues', 'views') + (f ? ' · ' + Object.keys(f.reactions || {}).length + ' ' + L('réac.', 'react.') + ' · ' + commentCount(k) + ' ' + L('comm.', 'comm.') : '') + '</span></div>';
-      }).join('') : '<div class="help-text">' + L('Pas encore de vues : publie sur le fil du team.', 'No views yet: post on the team feed.') + '</div>') + '</div>';
+      }).join('') : '<div class="help-text">' + L('Pas encore de vues : publie sur le Social du team.', 'No views yet: post on the team feed.') + '</div>') + '</div>';
   }
   function renderTeamSettings(team, isLeader) {
     if (!isLeader) {
@@ -20591,7 +20628,7 @@
       return headHtml + (headClosed ? '' : '</div>') + '<button type="button" class="link-btn back-link" data-action="team-settings-close">‹ ' + L('Retour au team', 'Back to the team') + '</button>' +
         '<h2 class="section-title team-settings-title">' + L('Réglages du team', 'Team settings') + '</h2>' + renderTeamSettings(team, isLeader);
     }
-    var teamPills = [['fil', 'Fil'], ['membres', L('Membres', 'Members')]];
+    var teamPills = [['fil', 'Social'], ['membres', L('Membres', 'Members')]];
     teamPills.unshift(tLook ? ['fiche', L('Fiche', 'Page')] : ['saisons', L('Saisons', 'Seasons')]);
     if (isLeader) teamPills.push(['roulages', 'Roulages'], ['audience', L('Audience', 'Audience')]);
     var pillsHtml = renderPills('team', teamPills);
@@ -21243,7 +21280,7 @@
     if (pLook) {
       var acts = teamActionsHtml(t, me, false).replace(/^<div class="outing-actions team-actions">|<\/div>$/g, '');
       return renderTeamHero(t, pLook, me, acts, '') + renderTeamShowcase(t, pLook, false) + renderTeamSeasons(t, pLook, false) +
-        '<div class="help-text team-private-note">' + L('Le fil, les membres et les roulages réservés sont visibles des membres du team.', 'The feed, members and private trackdays are visible to team members.') + '</div>';
+        '<div class="help-text team-private-note">' + L('Le Social, les membres et les roulages réservés sont visibles des membres du team.', 'The feed, members and private trackdays are visible to team members.') + '</div>';
     }
     var likeCount = (STATE.teamLikes || []).filter(function (l) { return l.teamId === t.id; }).length;
     var memberCount = t.memberCount || 0;
@@ -21267,7 +21304,7 @@
     html += '<div class="card"><h2 class="section-title">' + L('Prochains roulages ouverts', 'Upcoming open trackdays') + '</h2>' +
       (pub.length ? pub.map(function (ev) { return renderEventRow(ev, {}); }).join('') : '<div class="help-text">' + L('Aucun roulage public annoncé pour l\'instant.', 'No public trackday announced yet.') + '</div>') + '</div>';
     if (typeof renderTeamPartnersSection === 'function') html += renderTeamPartnersSection(t, false);
-    html += '<div class="help-text team-private-note">' + L('Le fil, les membres et les roulages réservés sont visibles des membres du team.', 'The feed, members and private trackdays are visible to team members.') + '</div>';
+    html += '<div class="help-text team-private-note">' + L('Le Social, les membres et les roulages réservés sont visibles des membres du team.', 'The feed, members and private trackdays are visible to team members.') + '</div>';
     return html;
   }
   function shareTeam(teamId) {
@@ -24613,6 +24650,12 @@
     document.querySelectorAll('textarea[data-mentions]').forEach(attachMentionInput);
     document.querySelectorAll('[data-action="dm-open"]').forEach(function (b) { b.addEventListener('click', function () { openDm(b.getAttribute('data-name')); }); });
     document.querySelectorAll('[data-action="dm-new"]').forEach(function (b) { b.addEventListener('click', openDmPicker); });
+    document.querySelectorAll('[data-dm-react]').forEach(function (b) { b.addEventListener('click', function (e) { if (e.target.closest('a, .mention-link, [data-person-link]')) return; e.stopPropagation(); openDmReactPicker(b); }); });
+    document.querySelectorAll('[data-dm-react-chip]').forEach(function (b) { b.addEventListener('click', function (e) {
+      e.stopPropagation();
+      var bub = b.closest('.dm-msg').querySelector('[data-dm-react]');
+      reactToDm(bub.getAttribute('data-dm-coll'), b.getAttribute('data-dm-react-chip'), b.getAttribute('data-emoji'));
+    }); });
     document.querySelectorAll('[data-action="dm-back"]').forEach(function (b) { b.addEventListener('click', function (e) { e.stopPropagation(); dmOpenWith = null; renderRoot(); }); });
     var dmForm = document.getElementById('dm-form');
     if (dmForm) {

@@ -4499,6 +4499,13 @@ span.social-count { cursor: default; }
 .dm-sig { font-size: 0.72rem; font-weight: 600; opacity: 0.7; margin: 0 0.4rem 0.15rem; }
 .dm-via { font-weight: 500; opacity: 0.7; font-size: 0.78rem; margin-left: 0.3rem; }
 .dm-as { text-align: center; margin: 0.3rem 0 0; font-size: 0.8rem; }
+.dm-bubble[data-dm-react] { cursor: pointer; }
+.dm-react-picker { display: flex; gap: 0.15rem; padding: 0.25rem 0.4rem; margin-bottom: 0.3rem; background: var(--surface); border: 1px solid var(--border); border-radius: 999px; box-shadow: 0 6px 18px rgba(0,0,0,0.15); }
+.dm-react-picker button { background: none; border: 0; padding: 0.2rem 0.3rem; font-size: 1.35rem; line-height: 1; cursor: pointer; border-radius: 50%; }
+.dm-react-picker button:hover { background: var(--bg); }
+.dm-reacts { display: flex; flex-wrap: wrap; gap: 0.25rem; margin-top: -0.4rem; position: relative; z-index: 1; }
+.dm-react { background: var(--surface); border: 1px solid var(--border); border-radius: 999px; padding: 0.05rem 0.45rem; font-size: 0.85rem; line-height: 1.4; color: var(--text); cursor: pointer; }
+.dm-react.on { border-color: var(--accent); }
 .dm-empty, .dm-closed { padding: 0.8rem; text-align: center; }
 .dm-form { display: flex; gap: 0.5rem; align-items: flex-end; padding: 0.6rem 0.8rem; border-top: 1px solid var(--border); }
 .dm-form textarea { flex: 1; min-height: 2.6rem; max-height: 8rem; resize: vertical; margin: 0; }

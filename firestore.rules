@@ -887,6 +887,10 @@ service cloud.firestore {
         && request.resource.data.toName is string && request.resource.data.toName.size() <= 80
         && ((request.resource.data.members[0] == request.auth.uid && dmOpenTo(request.resource.data.members[1]))
             || (request.resource.data.members[1] == request.auth.uid && dmOpenTo(request.resource.data.members[0])));
+      // Réaction emoji : chacun ne touche que la sienne (rangée sous son nom).
+      allow update: if verified() && request.auth.uid in resource.data.members
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reactions'])
+        && onlyOwnKeyChanged(resource.data.get('reactions', {}), request.resource.data.reactions);
       allow delete: if request.auth != null && request.auth.uid in resource.data.members;
     }
     // Messages à un team : une conversation par pilote et par team. Le
@@ -907,6 +911,9 @@ service cloud.firestore {
         && ((request.resource.data.asTeam == false && request.resource.data.userUid == request.auth.uid
               && request.resource.data.userName == myName() && !isTeamLeader(request.resource.data.teamId))
             || (request.resource.data.asTeam == true && isTeamLeader(request.resource.data.teamId)));
+      allow update: if verified() && (resource.data.userUid == request.auth.uid || isTeamLeader(resource.data.teamId))
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reactions'])
+        && onlyOwnKeyChanged(resource.data.get('reactions', {}), request.resource.data.reactions);
       allow delete: if request.auth != null && (resource.data.userUid == request.auth.uid || isTeamLeader(resource.data.teamId));
     }
     // Vidéos des stories (Carnet+) : rangées à part, lues à l'ouverture de

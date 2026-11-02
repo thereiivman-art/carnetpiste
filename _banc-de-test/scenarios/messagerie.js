@@ -19,6 +19,15 @@ const { chromium, BASE } = require('../lib');
   await p.evaluate(() => { const me = firebase.auth().currentUser.uid; const m = [me, 'u2'].sort(); return firebase.firestore().collection('directMessages').doc('r1').set({ convId: m.join('__'), members: m, from: 'u2', fromName: 'Sam', toName: 'Alex', text: 'Oui, groupe B !', createdAt: Date.now() + 10 }); });
   await p.waitForTimeout(500);
   console.log('fil de discussion:', await p.$$eval('.dm-msg', e => e.map(x => (x.classList.contains('mine') ? 'moi: ' : 'Sam: ') + x.querySelector('.dm-bubble').innerText).join(' | ')));
+  // Réaction emoji : appui sur la bulle de Sam, choix 🔥
+  await p.click('.dm-msg:not(.mine) .dm-bubble'); await p.waitForTimeout(200);
+  console.log('choix emoji:', await p.$$eval('.dm-react-picker button', e => e.map(x => x.innerText).join(' ')));
+  await p.screenshot({ path: 'messagerie-reaction-choix-' + lang + '.png' });
+  await p.click('.dm-react-picker [data-pick-emoji="🔥"]'); await p.waitForTimeout(400);
+  console.log('réaction affichée:', await p.$$eval('.dm-react', e => e.map(x => x.innerText + (x.classList.contains('on') ? '✓' : '')).join(' ')), '| stockée:', await p.evaluate(() => firebase.firestore().collection('directMessages').doc('r1').get().then(d => JSON.stringify(d.data().reactions || {}))));
+  await p.screenshot({ path: 'messagerie-reaction-' + lang + '.png' });
+  await p.click('.dm-react'); await p.waitForTimeout(400);
+  console.log('retirée:', await p.$$eval('.dm-react', e => e.length), '|', await p.evaluate(() => firebase.firestore().collection('directMessages').doc('r1').get().then(d => JSON.stringify(d.data().reactions || {}))));
   await p.click('[data-action="dm-back"]'); await p.waitForTimeout(400);
   console.log('conversations:', await p.$$eval('.dm-conv', e => e.map(x => x.innerText.replace(/\n/g, ' ')).join(' || ')));
   await p.screenshot({ path: 'messagerie-' + lang + '.png' });
