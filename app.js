@@ -10644,7 +10644,8 @@
     } else if (!rider) {
       html += '<div class="card help-text">' + L('Aucun roulage prévu avec tes potes. Le jour J, leurs sessions et leurs chronos seront ici.', 'No trackday planned with your friends. On the day, their sessions and lap times will be here.') + '</div>';
     }
-    if (!rider) return html;
+    // Accompagnant : l'onglet sert à saisir le chrono d'un pote.
+    if (!rider) return '<button type="button" class="chrono-big-btn" data-action="chrono-proposal">' + L('+ Saisir le chrono d\'un pote', '+ Log a friend\'s lap time') + '</button>' + html;
     var mine = (STATE.sessions || []).filter(function (x) { return x.rider === me && x.laps && x.laps.length && x.date <= today; })
       .sort(function (a, b) { return b.date.localeCompare(a.date); });
     var circuit = next ? next.circuit : (mine[0] && mine[0].circuit);
@@ -14041,7 +14042,7 @@
     visibleTabs.forEach(function (tab, i) {
       var toFil = desk && tab[0] === 'communaute';
       html += '<button type="button" class="bottom-nav-btn' + (tab[0] === 'chrono' ? ' bottom-nav-main' : '') + (current === tab[0] ? ' active' : '') + '" style="order:' + (i * 2) + '" data-view="' + (toFil ? 'social' : (lastSubView[tab[0]] || tab[0])) + '"' + (toFil ? ' data-pill-group="social" data-pill="fil"' : '') + '>' +
-        '<span class="bottom-nav-icon">' + tab[2] + '</span><span class="bottom-nav-label">' + tr(tab[1]) + '</span></button>';
+        '<span class="bottom-nav-icon">' + tab[2] + '</span><span class="bottom-nav-label">' + (tab[0] === 'chrono' && currentUserProfile && meIsNonRider() ? L('Chrono pote', 'Friend lap') : tr(tab[1])) + '</span></button>';
     });
     if (desk && currentUserProfile) {
       var sub = function (order, items) {
@@ -17302,8 +17303,29 @@
   function vitrineTrophies(ach, l) {
     var earned = ach.filter(function (a) { return a.earned; });
     var pinned = ((l && l.pinned) || []).map(function (n) { return earned.filter(function (a) { return a.name === n; })[0]; }).filter(Boolean);
-    if (!pinned.length) pinned = earned.slice().sort(function (a, b) { return (b.level || 0) - (a.level || 0); });
+    // Par défaut : les 3 plus rares (le moins de pilotes les ont, à ce niveau).
+    if (!pinned.length) { var rar = trophyRarity(); pinned = earned.slice().sort(function (a, b) { return (rar[trophyKey(a)] || 0) - (rar[trophyKey(b)] || 0) || (b.level || 0) - (a.level || 0); }); }
     return pinned.slice(0, 3);
+  }
+  function trophyKey(a) { return (a.name || a.label || '') + ':' + (a.level || 1); }
+  // Nombre de pilotes ayant chaque trophée (au moins à ce niveau), calculé
+  // une fois tant que les chronos et les comptes ne changent pas.
+  var trophyRarityCache = { sig: '', map: {} };
+  function trophyRarity() {
+    var names = allKnownUserNames().filter(function (n) { return !isNonRiderName(n); });
+    var sig = (STATE.sessions || []).length + ':' + names.length + ':' + (STATE.events || []).length;
+    if (trophyRarityCache.sig === sig) return trophyRarityCache.map;
+    var map = {};
+    names.forEach(function (n) {
+      try {
+        riderAchievements(n, riderStats(n)).forEach(function (a) {
+          if (!a.earned) return;
+          for (var lv = 1; lv <= (a.level || 1); lv++) { var k = (a.name || a.label || '') + ':' + lv; map[k] = (map[k] || 0) + 1; }
+        });
+      } catch (e) {}
+    });
+    trophyRarityCache = { sig: sig, map: map };
+    return map;
   }
   // Les 3 trophées de la vitrine, en petit à côté du nom ; un appui mène
   // aux trophées de la fiche.
