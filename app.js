@@ -4163,9 +4163,33 @@
       (STATE.feedEvents || []).length + '|' + (STATE.teams || []).length + '|' + eventsList().length + '|' + JSON.stringify(filleulCounts);
     var c = achievementsCache[key];
     if (c && c.sig === sig) return c.list;
-    var list = fn();
+    var list = keepAcquiredTrophies(key.slice(2).split('|')[0], fn());
     achievementsCache[key] = { sig: sig, list: list };
     return list;
+  }
+  // Trophées acquis : un niveau gagné reste gagné (avec sa date), même si
+  // un pote plus rapide arrive plus tard. Rangés sur le profil :
+  // trophiesAcquired { "Nom": { level, at } }.
+  var trophySaveTimer = null;
+  function keepAcquiredTrophies(name, list) {
+    var u = (STATE.usersByName || {})[name] || (currentUserProfile && currentUserProfile.name === name ? currentUserProfile : null);
+    var acq = (u && u.trophiesAcquired) || {}, isMe = currentUserProfile && currentUserProfile.name === name, gained = {};
+    var out = list.map(function (a) {
+      var k = a.name || a.label, kept = acq[k], live = a.earned ? (a.level || 1) : 0;
+      if (isMe && live && (!kept || kept.level < live)) gained[k] = { level: live, at: Date.now() };
+      if (!kept || kept.level <= live) return a;
+      var lv = Math.min(kept.level, a.maxLevel || kept.level);
+      return Object.assign({}, a, { earned: true, level: lv, kept: true, acquiredAt: kept.at,
+        label: (a.name || a.label) + (lv > 1 ? ' · ' + L('niveau ', 'level ') + lv : ''), tierName: a.tiered ? tierNames()[Math.min(lv, 6) - 1] : a.tierName });
+    });
+    if (isMe && Object.keys(gained).length) {
+      var all = Object.assign({}, acq, gained);
+      currentUserProfile.trophiesAcquired = all;
+      if (STATE.usersByName && STATE.usersByName[name]) STATE.usersByName[name].trophiesAcquired = all;
+      clearTimeout(trophySaveTimer);
+      trophySaveTimer = setTimeout(function () { db.collection('users').doc(myUid()).update({ trophiesAcquired: all }).catch(function () {}); }, 1500);
+    }
+    return out;
   }
 
   // Social/Team trophies, shared by all three roles below (pilote,
@@ -8545,7 +8569,38 @@
   // Stats › Podium : un podium entre potes par circuit roulé, le plus
   // récent d'abord (celui d'une notification en tête).
   var podiumFocusCircuit = null;
+  // Podium de tous les membres : chronos vérifiés (validés par l'orga)
+  // seulement, même discipline (moto / voiture), par circuit.
+  var podiumScope = 'potes';
+  function globalPodiumRows(circuit) {
+    var car = isCarMode(), best = {};
+    (STATE.sessions || []).forEach(function (x) {
+      if (!x.certifiedBy || !x.laps || !x.laps.length || !sameCircuit(x.circuit, circuit)) return;
+      if (((x.discipline || 'moto') === 'auto') !== car) return;
+      var b = sessionBest(x);
+      if (!best[x.rider] || b < best[x.rider].best) best[x.rider] = { rider: x.rider, best: b, date: x.date };
+    });
+    return Object.keys(best).map(function (k) { return best[k]; }).sort(function (a, b) { return a.best - b.best; });
+  }
+  function renderGlobalPodiums() {
+    var me = currentUserProfile && currentUserProfile.name, by = {};
+    (STATE.sessions || []).forEach(function (x) { if (x.certifiedBy && x.laps && x.laps.length) by[circuitKey(x.circuit)] = by[circuitKey(x.circuit)] || x.circuit; });
+    var circuits = Object.keys(by).map(function (k) { return by[k]; }).sort(function (a, b) { return a.localeCompare(b); });
+    if (!circuits.length) return '<div class="card help-text">' + L('Pas encore de chrono vérifié par un organisateur.', 'No lap time verified by an organiser yet.') + '</div>';
+    return circuits.map(function (c) {
+      var rows = globalPodiumRows(c); if (!rows.length) return '';
+      return '<div class="card podium-card"><div class="podium-head"><div class="podium-head-text"><span class="podium-kicker">' + L('Tous les membres · chronos vérifiés', 'All members · verified laps') + '</span><strong class="podium-circuit">' + cName(c) + '</strong></div></div>' +
+        '<div class="global-podium">' + rows.slice(0, 10).map(function (r, i) {
+          return '<div class="global-podium-row' + (r.rider === me ? ' me' : '') + '"><span class="pneus-rank">' + (i + 1) + '</span>' + avatarHtml((STATE.usersByName || {})[r.rider] || {}, r.rider) + '<span class="pneus-name">' + pName(r.rider) + '</span><span class="carnet-time">' + formatTime(r.best) + '</span></div>';
+        }).join('') + '</div></div>';
+    }).join('');
+  }
   function renderStatsPodiums() {
+    var scope = '<div class="podium-scope">' + [['potes', L('Potes', 'Friends')], ['tous', L('Tous', 'All')]].map(function (o) { return '<button type="button" class="' + (podiumScope === o[0] ? 'primary' : 'ghost') + '" data-podium-scope="' + o[0] + '">' + o[1] + '</button>'; }).join('') + '</div>';
+    if (podiumScope === 'tous') return scope + renderGlobalPodiums();
+    return scope + renderStatsPodiumsFriends();
+  }
+  function renderStatsPodiumsFriends() {
     var me = currentUserProfile && currentUserProfile.name;
     // Tous les circuits où moi ou mes potes avons roulé : les miens d'abord
     // (du plus récent au plus ancien), puis ceux des potes.
@@ -9578,6 +9633,80 @@
   // l'écran Chronos, où il repoussait la liste des roulages trop bas).
   // Onglet Moto d'un roulage : mes pressions sur ce circuit, mes réglages
   // de chaque session de la journée, et mon train de pneus.
+  // Train de pneus monté à une date (le dernier monté ce jour-là ou avant).
+  function tyreSetAt(date) {
+    var sets = (myTyreSets || []).slice().sort(function (a, b) { return (a.since || '').localeCompare(b.since || ''); });
+    var idx = -1;
+    sets.forEach(function (st, i) { if ((st.since || '') <= date) idx = i; });
+    return idx === -1 ? null : { set: sets[idx], next: sets[idx + 1] || null, current: idx === sets.length - 1 };
+  }
+  // Sous les chronos d'un roulage : les pneus de l'époque et mes réglages.
+  function renderOutingDayBike(circuit, date, sessions) {
+    ensureSetupsLoaded();
+    if (myTyreSets === null || meIsNonRider()) return '';
+    var at = tyreSetAt(date), list = (sessions || []).slice().sort(compareSessionsInDay);
+    var tyre = at ? '<div class="day-bike-tyre"><span class="outing-label">' + L('Pneus ce jour-là', 'Tyres that day') + '</span><strong>' + escapeHtml(at.set.label || L('Pneus', 'Tyres')) + '</strong>' +
+      '<span class="help-text">' + L('Montés le ', 'Fitted on ') + escapeHtml(formatDate(at.set.since)) + (at.current ? L(' · train actuel', ' · current set') : L(' · train d\'avant (remplacé le ', ' · previous set (replaced on ') + escapeHtml(formatDate(at.next.since)) + ')') + '</span></div>'
+      : '<div class="help-text">' + L('Pas de train de pneus noté à cette date.', 'No tyre set logged at that date.') + '</div>';
+    var rows = list.map(function (x, i) {
+      var su = mySetupFor(x.id);
+      return '<div class="moto-setup-row"><div><strong>' + escapeHtml(x.slotLabel || L('Session ', 'Session ') + (i + 1)) + '</strong>' + (su ? '<div class="help-text">' + escapeHtml(setupSummary(su)) + '</div>' : '') + '</div>' +
+        '<button type="button" class="ghost" data-action="session-setup" data-id="' + escapeHtml(x.id) + '">' + (su ? L('Modifier', 'Edit') : L('Réglages', 'Setup')) + '</button></div>';
+    }).join('');
+    return '<div class="card day-bike"><h2 class="section-title">' + (isCarMode() ? L('Ma voiture ce jour-là', 'My car that day') : L('Ma moto ce jour-là', 'My bike that day')) + '</h2>' + tyre + rows +
+      '<button type="button" class="link-btn" data-view="garage">' + L('Mon garage ›', 'My garage ›') + '</button></div>';
+  }
+  function renderCompanionShowcase(name, u, isMe) {
+    var today = dateKey(new Date());
+    var evs = eventsList().filter(function (e) { return (e.riders || []).indexOf(name) !== -1 && (e.dateStart || '') <= today; });
+    var riders = {}; evs.forEach(function (e) { (e.riders || []).forEach(function (r) { if (r !== name && !companionOnEvent(e, r)) riders[r] = 1; }); });
+    var visited = visitedCircuits(name);
+    var albums = eventsList().filter(function (e) { return ((e.personalMediaLinks || {})[name]) || e.mediaLinkAddedBy === name; });
+    var spots = ((u.look || {}).favSpots || []).slice(0, 6);
+    var h = '<div class="person-kpis"><div><strong>' + evs.length + '</strong><span>' + L('roulages accompagnés', 'trackdays supported') + '</span></div><div><strong>' + Object.keys(riders).length + '</strong><span>' + L('pilotes accompagnés', 'riders supported') + '</span></div><div><strong>' + visited.length + '</strong><span>' + L('circuits visités', 'circuits visited') + '</span></div></div>';
+    if (visited.length) h += '<div class="card"><h2 class="section-title">' + L('Circuits visités', 'Circuits visited') + '</h2><div class="visited-grid">' + visited.slice(0, 8).map(function (v) {
+      return '<button type="button" class="visited-tile" data-open-circuit="' + escapeHtml(v.circuit) + '"><span class="outing-thumb">' + circuitThumbHtml(v.circuit) + '</span><strong>' + escapeHtml(v.circuit) + '</strong><span class="help-text">' + plural(v.n, L('fois', 'time'), L('fois', 'times')) + '</span></button>';
+    }).join('') + '</div></div>';
+    if (spots.length) h += '<div class="card"><h2 class="section-title">' + L('Spots photo préférés', 'Favourite photo spots') + '</h2>' + spots.map(function (sp) {
+      return '<div class="spot-row"><span class="spot-pin static ' + (sp.access === 'pro' ? 'pro' : 'public') + '">★</span><span class="spot-row-main"><strong>' + escapeHtml(sp.label || L('Spot', 'Spot')) + '</strong><span class="help-text">' + escapeHtml(sp.circuit || '') + '</span></span></div>';
+    }).join('') + '</div>';
+    if (albums.length) h += '<div class="card"><h2 class="section-title">' + L('Albums partagés', 'Shared albums') + '</h2>' + albums.slice(0, 6).map(function (e) {
+      var link = (e.personalMediaLinks || {})[name] || e.mediaLink;
+      return '<div class="album-row"><span class="album-name">' + escapeHtml(e.circuit) + ' <span class="help-text">· ' + escapeHtml(formatDate(e.dateStart)) + '</span></span><a class="ghost album-open" href="' + escapeHtml(link) + '" target="_blank" rel="noopener">' + L('Ouvrir', 'Open') + '</a></div>';
+    }).join('') + '</div>';
+    if (!evs.length && !spots.length && isMe) h += '<div class="card help-text">' + L('Sur un roulage passé, touche « J\'y étais » ; dans Plan & repères › Photo, mets une étoile à tes spots préférés.', 'On a past trackday, tap “I was there”; in Map & marks › Photo, star your favourite spots.') + '</div>';
+    return h;
+  }
+  // Organisateur : les événements des teams que je dirige, à venir puis
+  // passés, avec les inscrits ; Gérer ouvre l'écran de gestion du roulage.
+  function renderOrgaEvents() {
+    var me = currentUserProfile; if (!me) return '';
+    var led = (STATE.myTeamMemberships || []).filter(function (m) { return m.role === 'leader'; }).map(function (m) { return m.teamId; });
+    if (!led.length) return '<div class="card"><div class="empty-state">' + L('Crée ton Team PRO (Communauté › Teams) pour publier tes événements.', 'Create your PRO team (Community › Teams) to publish your events.') + '<div class="empty-actions"><button type="button" class="primary" data-view="team">' + L('Teams', 'Teams') + '</button></div></div></div>';
+    var today = dateKey(new Date());
+    var evs = eventsList().filter(function (e) { return e.teamId && led.indexOf(e.teamId) !== -1; });
+    var up = evs.filter(function (e) { return (e.dateEnd || e.dateStart) >= today; }).sort(function (a, b) { return a.dateStart.localeCompare(b.dateStart); });
+    var past = evs.filter(function (e) { return (e.dateEnd || e.dateStart) < today; }).sort(function (a, b) { return b.dateStart.localeCompare(a.dateStart); });
+    var row = function (e) {
+      var t = teamById(e.teamId) || {}, n = (e.riders || []).filter(function (r) { return !companionOnEvent(e, r); }).length, c = (e.riders || []).length - n;
+      return '<div class="orga-ev-row"><span class="outing-thumb">' + circuitThumbHtml(e.circuit) + '</span><span class="outing-row-main"><strong>' + escapeHtml(e.circuit) + '</strong><span class="help-text">' + escapeHtml(formatEventRange(e, true)) + ' · ' + escapeHtml(t.name || '') + '</span>' +
+        '<span class="help-text">' + plural(n, L('pilote', 'rider'), L('pilotes', 'riders')) + (c ? ' · ' + plural(c, L('accompagnant', 'companion'), L('accompagnants', 'companions')) : '') + '</span></span>' +
+        '<button type="button" class="primary" data-action="orga-manage" data-team="' + escapeHtml(e.teamId) + '" data-id="' + escapeHtml(e.id) + '">' + L('Gérer', 'Manage') + '</button></div>';
+    };
+    var totalRiders = {}; evs.forEach(function (e) { (e.riders || []).forEach(function (r) { totalRiders[r] = 1; }); });
+    return '<div class="person-kpis"><div><strong>' + up.length + '</strong><span>' + L('à venir', 'upcoming') + '</span></div><div><strong>' + past.length + '</strong><span>' + L('passés', 'past') + '</span></div><div><strong>' + Object.keys(totalRiders).length + '</strong><span>' + L('participants', 'participants') + '</span></div></div>' +
+      '<div class="card"><div class="budget-card-head"><h2 class="section-title">' + L('À venir', 'Upcoming') + '</h2><button type="button" class="ghost" data-action="orga-new-event" data-team="' + escapeHtml(led[0]) + '">+ ' + L('Événement', 'Event') + '</button></div>' + (up.length ? up.map(row).join('') : '<div class="help-text">' + L('Aucun événement à venir.', 'No upcoming event.') + '</div>') + '</div>' +
+      (past.length ? '<div class="card"><h2 class="section-title">' + L('Passés', 'Past') + '</h2>' + past.slice(0, 20).map(row).join('') + '</div>' : '');
+  }
+  // Carnet › Garage : ma moto (ou voiture), mes trains de pneus, mes pressions.
+  function renderGarage() {
+    var me = currentUserProfile; if (!me) return '';
+    ensureSetupsLoaded();
+    var head = '<div class="card garage-head"><span class="outing-label">' + (isCarMode() ? L('Ma voiture', 'My car') : L('Ma moto', 'My bike')) + '</span>' +
+      '<strong class="garage-bike">' + escapeHtml(me.bike || L('Pas encore renseignée', 'Not set yet')) + (me.bikeNumber ? ' <span class="garage-num">#' + escapeHtml(me.bikeNumber) + '</span>' : '') + '</strong>' +
+      '<button type="button" class="link-btn" data-action="garage-edit-bike">' + L('Modifier', 'Edit') + '</button></div>';
+    return head + (renderTyresPanel(selectedCircuit || '') || '<div class="card help-text">' + tr('loading') + '</div>');
+  }
   function renderOutingMoto(circuit, date, sessions) {
     ensureSetupsLoaded();
     var html = renderPressuresCard(circuit, { only: true, date: date });
@@ -10385,7 +10514,9 @@
     // Same pills as everywhere else: Chronos / Infos / Repères.
     var notes = myTrackNotes(circuit);
     var outingPills = [['chronos', 'Chronos' + (sessions.length ? ' (' + sessions.length + ')' : '')]];
-    if (!asComp) outingPills.push(['moto', L('Moto', 'Bike')]);
+    // Moto : plus d'onglet par roulage ; le garage est dans Carnet › Garage,
+    // et les pneus de l'époque s'affichent sous les chronos.
+    if (pillState.outing === 'moto') pillState.outing = 'chronos';
     outingPills.push(['infos', 'Infos'], ['reperes', 'Repères']);
     if (outingBudgetRow(ev)) outingPills.push(['budget', 'Budget']);
     html += renderPills('outing', outingPills);
@@ -10455,6 +10586,7 @@
       // Chronos validés par le team : avec les autres chronos (avant : dans Infos).
       var certifChronos = ev ? renderEventCertificationSection(ev) : '';
       if (certifChronos) html += '<div class="card"><h2 class="section-title">' + L('Chronos validés', 'Validated lap times') + '</h2>' + flatSections(certifChronos) + '</div>';
+      if (!asComp) html += renderOutingDayBike(circuit, date, sessions);
     } else if (cur === 'infos') {
       // Une sous-pastille par sujet, au lieu d'une longue carte (team,
       // chronos validés, formulaire voyage, photos…) à faire défiler.
@@ -11420,6 +11552,16 @@
       '<button type="button" class="' + (active === 'pins' ? 'on' : '') + '" data-map-mode="pins" aria-pressed="' + (active === 'pins') + '" title="' + escapeHtml(L('Repères', 'Marks')) + '" aria-label="' + escapeHtml(L('Repères', 'Marks')) + '">' + pin + '</button></div>';
   }
   // ---- Spots photo d'un circuit (accompagnants) : placés par l'admin ----
+  // Spots préférés de l'accompagnant : rangés sur sa fiche (look.favSpots).
+  function isFavSpot(circuit, sp) { var l = (currentUserProfile && currentUserProfile.look) || {}; return (l.favSpots || []).some(function (f) { return f.circuit === circuit && f.x === sp.x && f.y === sp.y; }); }
+  function toggleFavSpot(circuit, sp) {
+    var me = currentUserProfile; if (!me || !sp) return;
+    var l = me.look = Object.assign({}, me.look || {});
+    var list = (l.favSpots || []).filter(function (f) { return !(f.circuit === circuit && f.x === sp.x && f.y === sp.y); });
+    if (list.length === (l.favSpots || []).length) list.push({ circuit: circuit, x: sp.x, y: sp.y, label: sp.label || '', access: sp.access || 'public' });
+    l.favSpots = list.slice(-12);
+    db.collection('users').doc(myUid()).update({ 'look.favSpots': l.favSpots }).catch(function (err) { showToast(tr('error_prefix') + ((err && err.message) || err)); });
+  }
   function openPhotoSpots(circuit) {
     var info = circuitInfo(circuit), base = info.mapImage || outlineImageFor(info, circuit);
     var admin = isAdmin(), adding = null;
@@ -11441,6 +11583,7 @@
         (adding ? '<div class="spot-add"><input type="text" id="spot-label" maxlength="60" placeholder="' + escapeHtml(L('Ex. Sortie du virage 5, tribune', 'E.g. Turn 5 exit, grandstand')) + '"><div class="look-seg"><button type="button" data-spot-access="public" aria-pressed="true">' + L('Tout public', 'Public') + '</button><button type="button" data-spot-access="pro" aria-pressed="false">' + L('Accès pro', 'Pro access') + '</button></div><button type="button" class="primary" data-spot="add">' + L('Ajouter', 'Add') + '</button></div>' : '') +
         '<div class="spots-list">' + (spots.length ? spots.map(function (sp, i) {
           return '<div class="spot-row"><span class="spot-pin static ' + (sp.access === 'pro' ? 'pro' : 'public') + '">' + (i + 1) + '</span><span class="spot-row-main"><strong>' + escapeHtml(sp.label || L('Spot ', 'Spot ') + (i + 1)) + '</strong><span class="spot-access ' + (sp.access === 'pro' ? 'pro' : '') + '">' + (sp.access === 'pro' ? L('Accès pro (photographes accrédités)', 'Pro access (accredited photographers)') : L('Tout public', 'Public')) + '</span></span>' +
+            (meIsNonRider() ? '<button type="button" class="link-btn spot-fav' + (isFavSpot(circuit, sp) ? ' on' : '') + '" data-spot-fav="' + i + '" aria-label="' + escapeHtml(L('Spot préféré', 'Favourite spot')) + '">' + (isFavSpot(circuit, sp) ? '★' : '☆') + '</button>' : '') +
             (admin ? '<button type="button" class="link-btn" data-spot-del="' + i + '" aria-label="' + escapeHtml(L('Supprimer', 'Delete')) + '">✕</button>' : '') + '</div>';
         }).join('') : '<div class="help-text">' + L('Pas encore de spot photo pour ce circuit.', 'No photo spot for this circuit yet.') + '</div>') + '</div>' +
         '<div class="mini-sheet-actions"><button type="button" class="link-btn" data-mini-close>' + L('Fermer', 'Close') + '</button></div>';
@@ -11465,6 +11608,9 @@
         spots.push({ x: adding.x, y: adding.y, label: (ov.querySelector('#spot-label').value || '').trim().slice(0, 60), access: access });
         adding = null; save(); ov.querySelector('.mini-sheet').innerHTML = miniSheetX() + draw(); bind();
       });
+      ov.querySelectorAll('[data-spot-fav]').forEach(function (b) { b.addEventListener('click', function () {
+        toggleFavSpot(circuit, spots[Number(b.getAttribute('data-spot-fav'))]); ov.querySelector('.mini-sheet').innerHTML = miniSheetX() + draw(); bind();
+      }); });
       ov.querySelectorAll('[data-spot-del]').forEach(function (b) { b.addEventListener('click', function () {
         spots.splice(Number(b.getAttribute('data-spot-del')), 1); save(); ov.querySelector('.mini-sheet').innerHTML = miniSheetX() + draw(); bind();
       }); });
@@ -14448,8 +14594,11 @@
   function isDesktopNav() { return !!(window.matchMedia && window.matchMedia('(min-width: 960px)').matches); }
   function carnetSubItems() {
     var items = [['carnet', L('Roulages', 'Trackdays')], ['circuit', 'Circuits'], ['stats', 'Stats']];
-    // Accompagnant : les circuits déjà visités.
-    if (meIsNonRider()) items.splice(2, 0, ['visites', L('Visités', 'Visited')]);
+    // Organisateur : ses événements en premier.
+    if (currentUserProfile && currentUserProfile.role === 'organisateur') items.unshift(['orgaev', L('Événements', 'Events')]);
+    // Accompagnant : les circuits déjà visités ; pilote : son garage.
+    if (meIsNonRider() && !(currentUserProfile && currentUserProfile.role === 'organisateur')) items.splice(2, 0, ['visites', L('Visités', 'Visited')]);
+    else if (!meIsNonRider()) items.splice(2, 0, ['garage', L('Garage', 'Garage')]);
     // PC : Budget a sa propre entrée dans Carnet, entre Stats et Coaching.
     if (isDesktopNav()) items.push(['budget', 'Budget']);
     if (canAccessCoachSpace() && (isAdmin() || featureEnabled('teamsCoaching') || (STATE.myTeamMemberships || []).length > 0)) items.push(['coach', 'Coaching']);
@@ -17827,6 +17976,18 @@
   // users/{uid}.look : { color, cover, coverPhoto, plate, bio, featured, pinned }.
   // Offerte à tous pendant la phase de test ; deviendra Carnet+.
   var LOOK_COLORS = [['#c8261f', 'Rouge'], ['#1f4fb8', 'Bleu'], ['#2f8f3a', 'Vert'], ['#e0701a', 'Orange'], ['#e1b10f', 'Jaune'], ['#6b3fc4', 'Violet'], ['#14161a', 'Encre']];
+  // Personnalisation débloquée par les pneus (total atteint) : de
+  // nouvelles couleurs et une bannière, sans rien retirer aux autres.
+  var PNEUS_UNLOCK_COLORS = [['#3a3f47', 'Carbone', 150], ['#c9a227', 'Or', 300], ['#d63f8c', 'Rose', 600], ['#0f9fa8', 'Turquoise', 1000]];
+  var PNEUS_UNLOCK_COVERS = function () { return [['carbone', L('Carbone', 'Carbon'), 800]]; };
+  var LOCK_SVG = '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>';
+  function unlockSwatchesHtml(attr, cur) {
+    var t = pneusTotal();
+    return PNEUS_UNLOCK_COLORS.map(function (c) {
+      var ok = t >= c[2];
+      return '<button type="button" class="look-sw' + (ok ? '' : ' locked') + '" style="background:' + c[0] + '"' + (ok ? ' ' + attr + '="color" data-val="' + c[0] + '"' : ' disabled') + ' aria-label="' + escapeHtml(c[1]) + '" aria-pressed="' + (cur === c[0]) + '" title="' + escapeHtml(ok ? c[1] : c[1] + L(' · débloqué à ', ' · unlocked at ') + c[2] + L(' pneus', ' tyres')) + '">' + (ok ? '' : LOCK_SVG) + '</button>';
+    }).join('');
+  }
   function lookCovers() { return [['', L('Aucune', 'None')], ['vibreur', L('Vibreur', 'Kerb')], ['damier', L('Damier', 'Chequered')], ['trace', L('Tracé', 'Track')], ['photo', L('Ma photo', 'My photo')]]; }
   function lookPlates() { return [['', L('Aucune', 'None')], ['course', L('Course', 'Race')], ['signature', L('Signature', 'Signature')], ['endurance', L('Endurance', 'Endurance')]]; }
   var lookDraft = null, lookMessage = '';
@@ -18610,9 +18771,11 @@
       }
     } else if (isPilote) {
       html += '<div class="card"><div class="help-text">' + escapeHtml(name) + tr('not_shared_events') + '</div></div>';
-    } else if (look) {
-      // Accompagnant : sa fiche personnalisée (liens, circuits et teams préférés, amis).
-      html += renderLinksAndSponsors(look) + renderFavourites(name, look) + renderPersonFriends(name, look);
+    } else {
+      // Accompagnant : roulages accompagnés, circuits visités, spots photo
+      // préférés, albums partagés ; puis sa fiche personnalisée.
+      html += renderCompanionShowcase(name, u, isMe);
+      if (look) html += renderLinksAndSponsors(look) + renderFavourites(name, look) + renderPersonFriends(name, look);
     }
     if (u.shareTrophees !== false) {
       html += renderAchievementsCard(getAch(), 'person-achievements-' + name);
@@ -19217,7 +19380,7 @@
       var shownBoard = pneusBoardAll ? board.slice(0, 50) : board.slice(0, 3).concat(meIdx > 2 ? [board[meIdx]] : []);
       return '<h2 class="section-title">' + L('Mes pneus', 'My tyres') + '</h2>' +
         '<div class="pneus-total">' + TYRE_SVG + '<b>' + pneusTotal() + '</b><span class="help-text">' + p.bank + ' ' + L('gagnés', 'earned') + ' · ' + prof + ' ' + L('profil', 'profile') + ' · ' + tro + ' ' + L('trophées', 'trophies') + '</span></div>' +
-        '<div class="pneus-why"><strong>' + L('À quoi servent les pneus ?', 'What are tyres for?') + '</strong><p>' + L('C\'est la monnaie de Carnet Piste : elle récompense ton activité (rouler, publier, encourager tes potes). Plus tu en as, plus tu montes dans le classement entre amis. Bientôt, tu pourras les miser sur les chronos entre potes et débloquer des styles pour ta fiche.', 'It\'s Pitbook\'s currency: it rewards your activity (riding, posting, cheering your mates). The more you have, the higher you rank among friends. Soon you\'ll be able to bet them on lap times between mates and unlock styles for your profile.') + '</p></div>' +
+        '<div class="pneus-why"><strong>' + L('À quoi servent les pneus ?', 'What are tyres for?') + '</strong><p>' + L('C\'est la monnaie de Carnet Piste : elle récompense ton activité (rouler, publier, encourager tes potes). Plus tu en as, plus tu montes dans le classement entre amis. Ils débloquent aussi des couleurs et des styles pour ta fiche (voir plus bas).', 'It\'s Pitbook\'s currency: it rewards your activity (riding, posting, cheering your mates). The more you have, the higher you rank among friends. They also unlock colours and styles for your profile (see below).') + '</p></div>' +
         '<div class="pneus-cal-head"><strong>' + L('Récolte de la semaine', 'Weekly collection') + '</strong><span class="help-text">' + (can ? L('Ta récolte du jour t\'attend.', 'Today\'s tyres are waiting.') : L('Prochaine récolte à minuit.', 'Next collection at midnight.')) + '</span></div>' +
         '<div class="pneus-cal">' + cells + '</div>' +
         (can ? '<button type="button" class="primary pneus-collect" data-pneus="collect">' + L('Récolter', 'Collect') + ' +' + pneusDayCalc(next) + '</button>' : '') +
@@ -19228,6 +19391,7 @@
           '<li>' + L('Parrainage : +100 par pote inscrit avec ton lien, +1000 au 5e filleul.', 'Referrals: +100 per mate who signs up with your link, +1000 at the 5th.') + '</li>' +
           '<li>' + L('Profil : +5 par élément rempli (présentation, sponsors, bannière, photo, moto, numéro, pays, liens).', 'Profile: +5 per filled item (bio, sponsors, banner, photo, bike, number, country, links).') + '</li>' +
           '<li>' + L('Trophées : 10, 25, 50, 100, 200 puis 400 par niveau.', 'Trophies: 10, 25, 50, 100, 200 then 400 per level.') + '</li>' +
+          '<li>' + L('À débloquer (bannière de ta fiche) : couleurs Carbone (150), Or (300), Rose (600), Turquoise (1000), bannière Carbone (800).', 'To unlock (profile banner): Carbon (150), Gold (300), Pink (600), Turquoise (1000) colours, Carbon banner (800).') + '</li>' +
         '</ul></details>' +
         (board.length > 1 ? '<div class="pneus-board"><strong>' + L('Classement entre amis', 'Friends leaderboard') + '</strong>' + shownBoard.map(function (r) {
           return '<div class="pneus-row' + (r.n === me.name ? ' me' : '') + '"><span class="pneus-rank">' + (board.indexOf(r) + 1) + '</span>' + avatarHtml((STATE.usersByName || {})[r.n] || {}, r.n).replace(/ data-person="[^"]*"/, '') + '<span class="pneus-name">' + escapeHtml(r.n) + '</span><b>' + r.t + '</b></div>';
@@ -22653,7 +22817,7 @@
       else if (activeView === 'circuit') {
         // Ouvert depuis le fil, une fiche, un roulage… : « ‹ Retour » y ramène.
         var prevNav = navCurrent && navCurrent.view !== 'circuit' ? navCurrent : navStack[navStack.length - 1];
-        var backHere = prevNav && ['carnet', 'circuit', 'stats', 'budget', 'visites', 'coach', 'event'].indexOf(prevNav.view) === -1;
+        var backHere = prevNav && ['carnet', 'circuit', 'stats', 'budget', 'visites', 'garage', 'orgaev', 'coach', 'event'].indexOf(prevNav.view) === -1;
         body = (backHere ? '<button type="button" class="link-btn back-link nav-back-btn">‹ ' + L('Retour', 'Back') + '</button>' : '') + carnetSub + renderCircuitTab();
       }
       else if (activeView === 'stats') {
@@ -22672,6 +22836,8 @@
       else if (activeView === 'coach') body = carnetSub + renderCoachTab();
       else if (activeView === 'budget') body = carnetSub + renderBudgetTab();
       else if (activeView === 'visites') body = carnetSub + renderVisitedCircuits();
+      else if (activeView === 'garage') body = carnetSub + renderGarage();
+      else if (activeView === 'orgaev') body = carnetSub + renderOrgaEvents();
       else body = carnetSub + carnetPillsHtml(myOutings()) + renderEventTab(); // 'event' (Carnet › Roulages › Calendrier) and safety fallback
       // Big section title so it's always clear which main tab you're in.
     }
@@ -23260,10 +23426,10 @@
       (hasPhoto ? '<div class="banner-sheet-photo"><img src="' + escapeHtml(l.coverPhoto) + '" alt=""></div>' : '') +
       '<div class="banner-sheet-actions">' + (hasPhoto ? '<button type="button" class="ghost" data-banner-act="zoom">' + L('Agrandir', 'Enlarge') + '</button><button type="button" class="ghost" data-banner-act="crop">' + L('Recadrer', 'Crop') + '</button>' : '') +
       '<button type="button" class="primary" data-banner-act="change">' + (hasPhoto ? L('Changer', 'Change') : L('Photo', 'Photo')) + '</button></div>' +
-      '<div class="look-field"><span class="look-label">' + L('Style', 'Style') + '</span>' + chips('cover', lookCovers().filter(function (o) { return o[0] !== 'photo' || hasPhoto; }), cover) + '</div>' +
+      '<div class="look-field"><span class="look-label">' + L('Style', 'Style') + '</span>' + chips('cover', lookCovers().filter(function (o) { return o[0] !== 'photo' || hasPhoto; }).concat(PNEUS_UNLOCK_COVERS().filter(function (o) { return pneusTotal() >= o[2]; })), cover).replace(/<\/div>$/, PNEUS_UNLOCK_COVERS().filter(function (o) { return pneusTotal() < o[2]; }).map(function (o) { return '<button type="button" disabled class="locked" title="' + escapeHtml(L('Débloqué à ', 'Unlocked at ') + o[2] + L(' pneus', ' tyres')) + '">' + LOCK_SVG + ' ' + escapeHtml(o[1]) + ' · ' + o[2] + '</button>'; }).join('') + '</div>') + '</div>' +
       '<div class="look-field"><span class="look-label">' + L('Couleur', 'Colour') + '</span><div class="look-swatches">' + LOOK_COLORS.map(function (c) {
         return '<button type="button" class="look-sw" style="background:' + c[0] + '" data-banner-set="color" data-val="' + c[0] + '" aria-label="' + c[1] + '" aria-pressed="' + (color === c[0]) + '"></button>';
-      }).join('') + '</div></div>' +
+      }).join('') + unlockSwatchesHtml('data-banner-set', color) + '</div></div>' +
       (me.bikeNumber ? '<div class="look-field"><span class="look-label">' + L('Plaque', 'Number plate') + '</span>' + chips('plate', lookPlates(), l.plate != null ? l.plate : 'course') + '</div>' : '') +
       '<div class="mini-sheet-actions"><button type="button" class="link-btn" data-mini-close>' + L('Fermer', 'Close') + '</button></div>';
     var ov = openMiniSheet(html);
@@ -24069,6 +24235,16 @@
     }); });
     if (document.querySelector('.budget-hero')) document.body.classList.toggle('budget-masked', budgetHidden());
     else document.body.classList.remove('budget-masked');
+    document.querySelectorAll('[data-action="garage-edit-bike"]').forEach(function (b) { b.addEventListener('click', function () {
+      profilePanelOpen = true; profileSubTab = 'profil'; pillState.profil = 'role'; renderRoot(); window.scrollTo(0, 0);
+    }); });
+    document.querySelectorAll('[data-action="orga-manage"], [data-action="orga-new-event"]').forEach(function (b) { b.addEventListener('click', function () {
+      expandedTeamId = b.getAttribute('data-team'); activeView = 'team'; personView = null; editingEventId = null;
+      managingEventId = b.getAttribute('data-action') === 'orga-manage' ? b.getAttribute('data-id') : null;
+      if (managingEventId) pillState.evmanage = 'participants'; else pillState.team = 'roulages';
+      renderRoot(); window.scrollTo(0, 0);
+    }); });
+    document.querySelectorAll('[data-podium-scope]').forEach(function (b) { b.addEventListener('click', function () { podiumScope = b.getAttribute('data-podium-scope'); renderRoot(); }); });
     document.querySelectorAll('[data-action="copy-notes"]').forEach(function (b) { b.addEventListener('click', function (e) { e.stopPropagation(); copySharedNotes(b.getAttribute('data-id')); }); });
     document.querySelectorAll('[data-action="photo-spots"]').forEach(function (b) { b.addEventListener('click', function () { if (selectedCircuit) openPhotoSpots(selectedCircuit); }); });
     document.querySelectorAll('[data-action="circuit-create"]').forEach(function (b) { b.addEventListener('click', openCircuitCreate); });

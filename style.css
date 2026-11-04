@@ -4794,3 +4794,21 @@ body.budget-masked .ph-feature-time, body.budget-masked .budget-kpis strong, bod
 .card.feed-moment > .outing-thumb { order: 1; flex: 0 0 auto; float: none !important; margin: 0 !important; }
 .card.feed-moment > :not(.feed-ride-main):not(.outing-thumb) { flex-basis: 100%; order: 2; }
 .post-aud-btn { border: 1px solid var(--border); background: none; border-radius: 999px; padding: 0.1rem 0.55rem; font-size: 0.72rem; font-weight: 700; color: var(--text-muted); cursor: pointer; min-width: 0; }
+.garage-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.3rem 0.8rem; }
+.garage-head .outing-label { flex-basis: 100%; }
+.garage-bike { font-family: var(--font-display); font-style: italic; font-size: 1.5rem; flex: 1; }
+.garage-num { color: var(--accent); }
+.day-bike-tyre { display: flex; flex-direction: column; gap: 0.1rem; padding-bottom: 0.6rem; margin-bottom: 0.4rem; border-bottom: 1px solid var(--border); }
+.podium-scope { display: flex; gap: 0.4rem; margin: 0 0 0.7rem; }
+.podium-scope button { border-radius: 999px; padding: 0.4rem 1rem; font-weight: 700; }
+.global-podium { display: flex; flex-direction: column; gap: 0.3rem; margin-top: 0.5rem; }
+.global-podium-row { display: flex; align-items: center; gap: 0.5rem; padding: 0.3rem 0.4rem; border-radius: 0.6rem; }
+.global-podium-row.me { background: var(--surface-alt); }
+.orga-ev-row { display: flex; align-items: center; gap: 0.7rem; padding: 0.5rem 0; border-bottom: 1px solid var(--border); }
+.orga-ev-row:last-child { border-bottom: 0; }
+.orga-ev-row .outing-row-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.orga-ev-row button { border-radius: 999px; }
+.spot-fav { font-size: 1.2rem; text-decoration: none; color: var(--text-muted); } .spot-fav.on { color: #f59e0b; }
+.look-sw.locked { opacity: 0.45; cursor: not-allowed; display: grid; place-items: center; color: #fff; }
+.look-seg button.locked { opacity: 0.55; cursor: not-allowed; display: inline-flex; align-items: center; gap: 0.25rem; }
+.person-hero[data-cover="carbone"] .ph-cover { background-color: #1b1e23; background-image: linear-gradient(45deg, rgba(255,255,255,0.06) 25%, transparent 25%, transparent 75%, rgba(255,255,255,0.06) 75%), linear-gradient(45deg, rgba(255,255,255,0.06) 25%, transparent 25%, transparent 75%, rgba(255,255,255,0.06) 75%); background-size: 12px 12px; background-position: 0 0, 6px 6px; box-shadow: inset 0 -40px 60px -30px var(--sig); }

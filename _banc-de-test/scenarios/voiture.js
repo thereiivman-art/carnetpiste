@@ -23,7 +23,7 @@ const { chromium, BASE } = require('../lib');
   await p.click('.subnav-btn[data-view="carnet"]').catch(() => {}); await p.waitForTimeout(300);
   await p.locator('#root [data-open-outing]:visible', { hasText: /Mugello/ }).first().click().catch(() => {}); await p.waitForTimeout(800);
   console.log('onglets roulage:', await p.$$eval('[data-pill-group="outing"]', e => e.map(x => x.innerText).join(' / ')));
-  await p.click('[data-pill-group="outing"][data-pill="moto"]').catch(() => {}); await p.waitForTimeout(500);
+  await p.click('.day-bike [data-view="garage"]').catch(() => {}); await p.waitForTimeout(500);
   console.log('réglages:', await p.$eval('#root', e => (e.innerText.match(/(Amortos AV|Front dampers|Fourche|Fork)[^·\n]*/) || ['?'])[0]));
   await p.click('[data-pill-group="outing"][data-pill="infos"]').catch(() => {}); await p.waitForTimeout(400);
   console.log('records MotoGP visibles:', await p.evaluate(() => /MotoGP/.test(document.getElementById('root').innerText)));

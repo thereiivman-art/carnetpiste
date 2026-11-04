@@ -5,7 +5,7 @@
   if (/nouveau=1/.test(location.hash)) window.__MOCK_USER = null; // écran d'inscription
   window.__MOCK_DATA = {
     users: {
-      u1: { name: 'Alex', role: /role=acc/.test(location.hash) ? 'accompagnant' : 'pilote', email: EMAIL, lang: LANG, tutorialSeen: true, country: 'FR', bike: 'Yamaha R6', level: 'intermediaire', bikeNumber: /look=1/.test(location.hash) ? '27' : undefined, look: /look=1/.test(location.hash) ? { cover: 'trace', plate: 'course', color: '#c8261f', bio: 'Pistard du dimanche' } : undefined },
+      u1: { name: 'Alex', role: /role=acc/.test(location.hash) ? 'accompagnant' : /role=orga/.test(location.hash) ? 'organisateur' : 'pilote', email: EMAIL, lang: LANG, tutorialSeen: true, country: 'FR', bike: 'Yamaha R6', level: 'intermediaire', bikeNumber: /look=1/.test(location.hash) ? '27' : undefined, look: /look=1/.test(location.hash) ? { cover: 'trace', plate: 'course', color: '#c8261f', bio: 'Pistard du dimanche' } : undefined },
       u2: { name: 'Sam', role: 'pilote', email: 'sam@example.com', lang: 'fr', tutorialSeen: true, country: 'BE', bike: 'BMW S1000RR' },
       u3: { name: 'Tom', role: 'pilote', email: 'tom@example.com', lang: 'fr', tutorialSeen: true, country: 'FR', bike: 'Yamaha R1' },
       u4: { name: 'Ugo', role: 'pilote', email: 'ugo@example.com', lang: 'fr', tutorialSeen: true, country: 'FR', bike: 'Yamaha R1' },
