@@ -7866,7 +7866,9 @@
       // Les deux façons d'annoter, visibles dès l'arrivée sur la page.
       html += '<div class="map-open-choice">' +
         '<button type="button" class="ghost" data-action="map-open" data-mode="draw" title="' + escapeHtml(L('Dessin à main levée', 'Freehand drawing')) + '"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M14 6l4 4"/></svg>' + L('Dessin', 'Draw') + '</button>' +
-        '<button type="button" class="ghost" data-action="map-open" data-mode="pins" title="' + escapeHtml(L('Repères pro', 'Pro marks')) + '"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-6-5.6-6-11a6 6 0 0 1 12 0c0 5.4-6 11-6 11z"/><circle cx="12" cy="10" r="2.3"/></svg>' + L('Repères', 'Marks') + '</button>' + lapVideoLinkHtml(selectedCircuit) + '</div>';
+        '<button type="button" class="ghost" data-action="map-open" data-mode="pins" title="' + escapeHtml(L('Repères pro', 'Pro marks')) + '"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-6-5.6-6-11a6 6 0 0 1 12 0c0 5.4-6 11-6 11z"/><circle cx="12" cy="10" r="2.3"/></svg>' + L('Repères', 'Marks') + '</button>' +
+        // Spots photo (accompagnants, photographes) : tout public ou accès pro.
+        (meIsNonRider() || isAdmin() || (circuitInfo(selectedCircuit).photoSpots || []).length ? '<button type="button" class="ghost" data-action="photo-spots" title="' + escapeHtml(L('Spots photo du circuit', 'Circuit photo spots')) + '"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>' + L('Photo', 'Photo') + '</button>' : '') + lapVideoLinkHtml(selectedCircuit) + '</div>';
       var nNotes = myTrackNotes(selectedCircuit).length;
       // PC large : les repères à droite de la carte (voir style.css).
       html += '<div class="circuit-plan-wrap"><div class="circuit-plan-map">' + renderCircuitInfoCard('plan') + '</div>' +
@@ -11002,6 +11004,44 @@
       (o.track ? trackTagHtml(o) : '') + (unlinked ? '<span class="unlinked-tag">' + L('Sans roulage', 'No trackday') + '</span>' : '') + (o.enteredAt ? '<span class="help-text outing-entered">' + escapeHtml(enteredAtText(o.enteredAt)) + '</span>' : '') + '</span>' +
       '<span class="outing-row-right"><span class="carnet-time">' + formatTime(o.best) + '</span>' + delta + '</span></button>';
   }
+  // ---- Passés : par circuit, puis par date ; album photo ; recherche ----
+  var outingSearch = '', outingGroupOpen = {};
+  function outingAlbum(o) {
+    var ev = o.eventId ? eventsList().filter(function (e) { return e.id === o.eventId; })[0] : null;
+    if (!ev) return '';
+    var me = currentUserProfile && currentUserProfile.name;
+    return (ev.personalMediaLinks || {})[me] || ev.mediaLink || '';
+  }
+  function outingRowWithAlbum(o) {
+    var al = outingAlbum(o);
+    return '<div class="outing-row-wrap">' + outingRowHtml(o) + (al ? '<a class="outing-album" href="' + escapeHtml(al) + '" target="_blank" rel="noopener" title="' + escapeHtml(L('Album photo du roulage', 'Trackday photo album')) + '" aria-label="' + escapeHtml(L('Album photo', 'Photo album')) + '"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg></a>' : '') + '</div>';
+  }
+  function outingMatches(o, q) {
+    if (!q) return true;
+    var hay = (o.circuit + ' ' + formatDate(o.date) + ' ' + o.date + ' ' + new Date(o.date).toLocaleDateString(currentLang() === 'en' ? 'en-GB' : 'fr-FR', { month: 'long', year: 'numeric' }) + (outingAlbum(o) ? ' album photo photos' : '')).toLowerCase()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    return q.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').split(/\s+/).filter(Boolean).every(function (t) { return hay.indexOf(t) !== -1; });
+  }
+  function renderPastByCircuit(outings) {
+    var list = outings.filter(function (o) { return outingMatches(o, outingSearch); });
+    var html = '<div class="outing-search"><input type="search" id="outing-search" value="' + escapeHtml(outingSearch) + '" placeholder="' + escapeHtml(L('Circuit, date, mois, « album »…', 'Circuit, date, month, “album”…')) + '" autocomplete="off">' +
+      '<button type="button" class="ghost' + (/\balbum\b/i.test(outingSearch) ? ' on' : '') + '" data-action="outing-album-filter" title="' + escapeHtml(L('Seulement les roulages avec un album photo', 'Only trackdays with a photo album')) + '">' + L('Albums', 'Albums') + '</button></div>';
+    if (!list.length) return html + '<div class="help-text" style="padding:0.5rem 0;">' + L('Aucun roulage ne correspond.', 'No trackday matches.') + '</div>';
+    var groups = {}, order = [];
+    list.forEach(function (o) { var k = circuitKey(o.circuit); if (!groups[k]) { groups[k] = []; order.push(k); } groups[k].push(o); });
+    html += order.map(function (k, gi) {
+      var g = groups[k].slice().sort(function (a, b) { return b.date.localeCompare(a.date); });
+      var open = outingSearch ? true : (outingGroupOpen[k] != null ? outingGroupOpen[k] : gi === 0);
+      var best = Math.min.apply(null, g.map(function (o) { return o.best; }));
+      var albums = g.filter(function (o) { return outingAlbum(o); }).length;
+      return '<div class="outing-group' + (open ? ' open' : '') + '"><button type="button" class="outing-group-head" data-outing-group="' + escapeHtml(k) + '" aria-expanded="' + open + '">' +
+        '<span class="outing-thumb">' + circuitThumbHtml(g[0].circuit) + '</span><span class="outing-row-main"><strong>' + escapeHtml(g[0].circuit) + '</strong><span class="help-text">' +
+        plural(g.length, L('roulage', 'trackday'), L('roulages', 'trackdays')) + ' · ' + escapeHtml(formatDate(g[0].date)) + (albums ? ' · ' + plural(albums, 'album', 'albums') : '') + '</span></span>' +
+        '<span class="outing-row-right"><span class="carnet-time">' + formatTime(best) + '</span><span class="outing-group-chev" aria-hidden="true">' + (open ? '▴' : '▾') + '</span></span></button>' +
+        (open ? '<div class="outing-group-body">' + g.map(outingRowWithAlbum).join('') + '</div>' : '') + '</div>';
+    }).join('');
+    return html;
+  }
   function renderOutingCards(outings) {
     var upcoming = myUpcomingEvents();
     if (!carnetCardsMode) carnetCardsMode = outings.length ? 'passees' : 'avenir';
@@ -11018,10 +11058,12 @@
           // À venir : juste le décompte (J-x), comme partout ailleurs.
           '<span class="outing-row-right"><span class="carnet-time">' + countdownLabel(Math.max(0, Math.round((parseLocalDate(ev.dateStart) - parseLocalDate(dateKey(new Date()))) / 86400000))) + '</span></span></button>';
       });
+    } else if (outings.length > 3 || outingSearch) {
+      html += renderPastByCircuit(outings);
     } else {
       // Les 3 derniers seulement ; le reste se déplie.
       var shown = carnetHistoryAll ? outings : outings.slice(0, 3);
-      shown.forEach(function (o) { html += outingRowHtml(o); });
+      shown.forEach(function (o) { html += outingRowWithAlbum(o); });
       if (outings.length > 3) {
         html += '<button type="button" class="link-btn outings-more-btn" id="carnet-history-toggle">' + (carnetHistoryAll ? L('Réduire', 'Show less') : L('Voir les ' + (outings.length - 3) + ' autres roulages ▾', 'Show ' + (outings.length - 3) + ' more trackdays ▾')) + '</button>';
       }
@@ -11299,6 +11341,58 @@
     var pin = '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-6-5.6-6-11a6 6 0 0 1 12 0c0 5.4-6 11-6 11z"/><circle cx="12" cy="10" r="2.3"/></svg>';
     return '<div class="map-mode-switch" role="tablist"><button type="button" class="' + (active === 'draw' ? 'on' : '') + '" data-map-mode="draw" aria-pressed="' + (active === 'draw') + '" title="' + escapeHtml(L('Dessin à main libre', 'Freehand drawing')) + '" aria-label="' + escapeHtml(L('Dessin à main libre', 'Freehand drawing')) + '">' + pencil + '</button>' +
       '<button type="button" class="' + (active === 'pins' ? 'on' : '') + '" data-map-mode="pins" aria-pressed="' + (active === 'pins') + '" title="' + escapeHtml(L('Repères', 'Marks')) + '" aria-label="' + escapeHtml(L('Repères', 'Marks')) + '">' + pin + '</button></div>';
+  }
+  // ---- Spots photo d'un circuit (accompagnants) : placés par l'admin ----
+  function openPhotoSpots(circuit) {
+    var info = circuitInfo(circuit), base = info.mapImage || outlineImageFor(info, circuit);
+    var admin = isAdmin(), adding = null;
+    var spots = (info.photoSpots || []).slice();
+    var save = function () {
+      var prevState = JSON.parse(JSON.stringify(STATE));
+      STATE.circuits = STATE.circuits || {};
+      var entry = STATE.circuits[circuit] || { name: circuit };
+      entry.photoSpots = spots.length ? spots : null;
+      STATE.circuits[circuit] = entry;
+      persist(prevState);
+    };
+    var draw = function () {
+      return '<h2 class="section-title">' + L('Spots photo · ', 'Photo spots · ') + escapeHtml(circuit) + '</h2>' +
+        (admin ? '<p class="help-text">' + L('Admin : touche le plan pour ajouter un spot.', 'Admin: tap the map to add a spot.') + '</p>' : '') +
+        (base ? '<div class="incident-map spots-map"><img src="' + escapeHtml(base) + '" alt="">' + spots.map(function (sp, i) {
+          return '<span class="spot-pin ' + (sp.access === 'pro' ? 'pro' : 'public') + '" style="left:' + (sp.x * 100) + '%;top:' + (sp.y * 100) + '%">' + (i + 1) + '</span>';
+        }).join('') + (adding ? '<span class="spot-pin new" style="left:' + (adding.x * 100) + '%;top:' + (adding.y * 100) + '%">+</span>' : '') + '</div>' : '') +
+        (adding ? '<div class="spot-add"><input type="text" id="spot-label" maxlength="60" placeholder="' + escapeHtml(L('Ex. Sortie du virage 5, tribune', 'E.g. Turn 5 exit, grandstand')) + '"><div class="look-seg"><button type="button" data-spot-access="public" aria-pressed="true">' + L('Tout public', 'Public') + '</button><button type="button" data-spot-access="pro" aria-pressed="false">' + L('Accès pro', 'Pro access') + '</button></div><button type="button" class="primary" data-spot="add">' + L('Ajouter', 'Add') + '</button></div>' : '') +
+        '<div class="spots-list">' + (spots.length ? spots.map(function (sp, i) {
+          return '<div class="spot-row"><span class="spot-pin static ' + (sp.access === 'pro' ? 'pro' : 'public') + '">' + (i + 1) + '</span><span class="spot-row-main"><strong>' + escapeHtml(sp.label || L('Spot ', 'Spot ') + (i + 1)) + '</strong><span class="spot-access ' + (sp.access === 'pro' ? 'pro' : '') + '">' + (sp.access === 'pro' ? L('Accès pro (photographes accrédités)', 'Pro access (accredited photographers)') : L('Tout public', 'Public')) + '</span></span>' +
+            (admin ? '<button type="button" class="link-btn" data-spot-del="' + i + '" aria-label="' + escapeHtml(L('Supprimer', 'Delete')) + '">✕</button>' : '') + '</div>';
+        }).join('') : '<div class="help-text">' + L('Pas encore de spot photo pour ce circuit.', 'No photo spot for this circuit yet.') + '</div>') + '</div>' +
+        '<div class="mini-sheet-actions"><button type="button" class="link-btn" data-mini-close>' + L('Fermer', 'Close') + '</button></div>';
+    };
+    var ov = openMiniSheet(draw());
+    ov.querySelector('.mini-sheet').classList.add('pneus-sheet');
+    var access = 'public';
+    var bind = function () {
+      var map = ov.querySelector('.spots-map');
+      if (map && admin) map.addEventListener('click', function (e) {
+        var r = map.querySelector('img').getBoundingClientRect();
+        adding = { x: Math.round(Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)) * 1000) / 1000, y: Math.round(Math.max(0, Math.min(1, (e.clientY - r.top) / r.height)) * 1000) / 1000 };
+        access = 'public'; ov.querySelector('.mini-sheet').innerHTML = draw(); bind();
+        var lb = ov.querySelector('#spot-label'); if (lb) lb.focus();
+      });
+      ov.querySelectorAll('[data-spot-access]').forEach(function (b) { b.addEventListener('click', function () {
+        access = b.getAttribute('data-spot-access');
+        ov.querySelectorAll('[data-spot-access]').forEach(function (x) { x.setAttribute('aria-pressed', String(x === b)); });
+      }); });
+      var add = ov.querySelector('[data-spot="add"]');
+      if (add) add.addEventListener('click', function () {
+        spots.push({ x: adding.x, y: adding.y, label: (ov.querySelector('#spot-label').value || '').trim().slice(0, 60), access: access });
+        adding = null; save(); ov.querySelector('.mini-sheet').innerHTML = draw(); bind();
+      });
+      ov.querySelectorAll('[data-spot-del]').forEach(function (b) { b.addEventListener('click', function () {
+        spots.splice(Number(b.getAttribute('data-spot-del')), 1); save(); ov.querySelector('.mini-sheet').innerHTML = draw(); bind();
+      }); });
+    };
+    bind();
   }
   // ---- Accident (chute, sortie de piste, contact, panne) ----
   var pendingIncident = null;
@@ -23828,7 +23922,21 @@
       if (c === '__other__') c = ((document.getElementById('f-circuit-other') || {}).value || '').trim();
       openIncidentSheet(c || '');
     });
+    document.querySelectorAll('[data-outing-group]').forEach(function (b) { b.addEventListener('click', function () {
+      var k = b.getAttribute('data-outing-group'); outingGroupOpen[k] = b.getAttribute('aria-expanded') !== 'true'; renderRoot();
+    }); });
+    var osIn = document.getElementById('outing-search');
+    if (osIn) osIn.addEventListener('input', function () {
+      outingSearch = osIn.value; var pos = osIn.selectionStart;
+      renderRoot();
+      var again = document.getElementById('outing-search'); if (again) { again.focus(); try { again.setSelectionRange(pos, pos); } catch (e) {} }
+    });
+    document.querySelectorAll('[data-action="outing-album-filter"]').forEach(function (b) { b.addEventListener('click', function () {
+      outingSearch = /\balbum\b/i.test(outingSearch) ? outingSearch.replace(/\s*\balbum\b\s*/i, ' ').trim() : (outingSearch + ' album').trim();
+      renderRoot();
+    }); });
     document.querySelectorAll('[data-action="copy-notes"]').forEach(function (b) { b.addEventListener('click', function (e) { e.stopPropagation(); copySharedNotes(b.getAttribute('data-id')); }); });
+    document.querySelectorAll('[data-action="photo-spots"]').forEach(function (b) { b.addEventListener('click', function () { if (selectedCircuit) openPhotoSpots(selectedCircuit); }); });
     document.querySelectorAll('[data-action="circuit-create"]').forEach(function (b) { b.addEventListener('click', openCircuitCreate); });
     document.querySelectorAll('[data-action="map-open"]').forEach(function (b) { b.addEventListener('click', function () {
       if (!selectedCircuit) return;

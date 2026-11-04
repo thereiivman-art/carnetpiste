@@ -36,6 +36,8 @@ const { chromium, BASE } = require('../lib');
   await p.click('.subnav-btn[data-view="carnet"]').catch(() => {}); await p.waitForTimeout(300);
   await p.click('[data-cards-mode="passees"]:visible').catch(() => {}); await p.waitForTimeout(300);
   await p.click('#carnet-history-toggle').catch(() => {}); await p.waitForTimeout(300);
+  // Passés groupés par circuit : ouvrir le groupe Lédenon s'il est replié.
+  if (!(await p.locator('#root [data-open-outing="Lédenon"]:visible').count())) { const gh = p.locator('#root .outing-group-head', { hasText: 'Lédenon' }); if (await gh.count()) { await gh.first().click(); await p.waitForTimeout(300); } }
   await p.locator('#root [data-open-outing="Lédenon"]:visible').first().click(); await p.waitForTimeout(600);
   console.log('journée sans roulage:', await p.$$eval('.outing-actions > button', e => e.map(x => x.innerText.trim()).join(' | ')));
   await p.click('[data-action="outing-create-event"]'); await p.waitForTimeout(700);

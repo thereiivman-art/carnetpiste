@@ -4735,3 +4735,26 @@ html.kb-open .dm-form, .dm-form:focus-within { bottom: 0; }
 .incident-x::before, .incident-x::after { content: ''; position: absolute; left: 50%; top: 50%; width: 30px; height: 5px; border-radius: 3px; background: #c8261f; box-shadow: 0 0 0 2px #fff; transform: translate(-50%, -50%) rotate(45deg); }
 .incident-x::after { transform: translate(-50%, -50%) rotate(-45deg); }
 .incident-chip { display: inline-flex; align-items: center; margin-right: 0.4rem; padding: 0.1rem 0.5rem; border-radius: 999px; background: color-mix(in srgb, #c8261f 14%, transparent); color: #c8261f; font-size: 0.75rem; font-weight: 700; }
+/* Passés : par circuit, puis par date */
+.outing-search { display: flex; gap: 0.4rem; margin: 0 0 0.6rem; }
+.outing-search input { flex: 1; min-width: 0; }
+.outing-search button { flex: 0 0 auto; border-radius: 999px; font-weight: 700; }
+.outing-search button.on { border-color: var(--accent); color: var(--accent); }
+.outing-group { border-bottom: 1px solid var(--border); }
+.outing-group:last-child { border-bottom: 0; }
+.outing-group-head { width: 100%; display: flex; align-items: center; gap: 0.7rem; padding: 0.55rem 0; background: none; border: 0; color: var(--text); text-align: left; cursor: pointer; font: inherit; }
+.outing-group-chev { margin-left: 0.5rem; color: var(--text-muted); font-size: 0.85rem; }
+.outing-group-body { padding: 0 0 0.4rem 1.2rem; border-left: 2px solid var(--surface-alt); margin-left: 1.1rem; }
+.outing-row-wrap { display: flex; align-items: center; gap: 0.3rem; }
+.outing-row-wrap > .outing-row { flex: 1; min-width: 0; }
+.outing-album { flex: 0 0 auto; width: 2.4rem; height: 2.4rem; border-radius: 50%; display: grid; place-items: center; color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, transparent); }
+.spot-pin { position: absolute; transform: translate(-50%, -50%); width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; font-size: 0.75rem; font-weight: 800; color: #fff; background: #2563eb; border: 2px solid #fff; box-shadow: 0 2px 6px rgba(0,0,0,0.3); pointer-events: none; }
+.spot-pin.pro { background: #14161a; }
+.spot-pin.new { background: var(--accent); }
+.spot-pin.static { position: static; transform: none; flex: 0 0 auto; }
+.spots-list { display: flex; flex-direction: column; gap: 0.4rem; margin-top: 0.7rem; }
+.spot-row { display: flex; align-items: center; gap: 0.6rem; }
+.spot-row-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.spot-access { font-size: 0.75rem; color: #2563eb; font-weight: 600; }
+.spot-access.pro { color: var(--text-muted); }
+.spot-add { display: flex; flex-direction: column; gap: 0.4rem; margin-top: 0.6rem; }
