@@ -1011,6 +1011,8 @@ service cloud.firestore {
         && (!('text' in request.resource.data) || (request.resource.data.text is string && request.resource.data.text.size() <= 5000))
         && (!('visibleTo' in request.resource.data) || (request.resource.data.visibleTo is list && request.resource.data.visibleTo.size() <= 500))
         && (!('linkUrl' in request.resource.data) || request.resource.data.linkUrl == null || request.resource.data.linkUrl.matches('^https?://.*'))
+        // Image d'un post (photo, aperçu vidéo, repères) : plafonnée.
+        && (!('photoURL' in request.resource.data) || (request.resource.data.photoURL is string && request.resource.data.photoURL.size() < 900000))
         // Lieu facultatif : un nom court et une position arrondie.
         && (!('place' in request.resource.data) || (request.resource.data.place is string && request.resource.data.place.size() <= 80))
         && (!('geo' in request.resource.data) || (request.resource.data.geo is map && request.resource.data.geo.keys().hasOnly(['lat', 'lng'])))
@@ -1024,7 +1026,10 @@ service cloud.firestore {
         (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reactions'])
           && onlyOwnKeyChanged(resource.data.get('reactions', {}), request.resource.data.reactions))
         || (resource.data.author == myName()
-            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['text', 'linkUrl', 'editedAt', 'alsoInFeed', 'photoURL', 'notesShare'])
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['text', 'linkUrl', 'editedAt', 'alsoInFeed', 'photoURL', 'notesShare', 'audience', 'visibleTo'])
+            && request.resource.data.get('audience', 'all') in ['all', 'friends', 'followers']
+            && (!('photoURL' in request.resource.data) || (request.resource.data.photoURL is string && request.resource.data.photoURL.size() < 900000))
+            && (!('visibleTo' in request.resource.data) || (request.resource.data.visibleTo is list && request.resource.data.visibleTo.size() <= 500))
             && (!('text' in request.resource.data) || (request.resource.data.text is string && request.resource.data.text.size() <= 5000))
             && (request.resource.data.get('linkUrl', null) == null || request.resource.data.linkUrl.matches('^https?://.*')))
         || ((resource.data.get('authorUid', '') == request.auth.uid || isAdmin())

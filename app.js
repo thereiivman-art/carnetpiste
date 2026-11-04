@@ -3116,7 +3116,7 @@
       if (roulage) { pendingRoulageId = roulage; params.delete('roulage'); try { sessionStorage.setItem('cdp-pending-roulage', roulage); } catch (e) {} }
       else { try { pendingRoulageId = sessionStorage.getItem('cdp-pending-roulage') || null; } catch (e) {} }
       if (ref || roulage) {
-        if (ref) pendingReferrer = ref;
+        if (ref) { pendingReferrer = ref; authMode = 'signup'; }
         params.delete('ref');
         var qs = params.toString();
         var newUrl = window.location.pathname + (qs ? '?' + qs : '') + window.location.hash;
@@ -8786,7 +8786,13 @@
       var u = (STATE.usersByName || {})[x.rider] || {};
       if (x.rider !== me && u.shareSorties === false) return;
       var b = sessionBest(x);
-      if (!byRider[x.rider] || b < byRider[x.rider].best) byRider[x.rider] = { rider: x.rider, best: b, group: x.group || '', date: x.date };
+      if (!byRider[x.rider] || b < byRider[x.rider].best) byRider[x.rider] = { rider: x.rider, best: b, group: x.group || '', date: x.date, eventId: x.eventId || '' };
+    });
+    // Chrono sans groupe : celui du pilote sur le roulage (s'il y est inscrit).
+    Object.keys(byRider).forEach(function (k) {
+      var r = byRider[k]; if (r.group) return;
+      var ev = eventsList().filter(function (e) { return (r.eventId ? e.id === r.eventId : sameCircuit(e.circuit, circuit) && e.dateStart <= r.date && (e.dateEnd || e.dateStart) >= r.date) && (e.riders || []).indexOf(r.rider) !== -1; })[0];
+      if (ev) r.group = riderGroupFor(ev, r.rider, r.date, 'matin') || riderGroupFor(ev, r.rider, r.date, 'apres-midi') || '';
     });
     return Object.keys(byRider).map(function (k) { return byRider[k]; }).sort(function (a, b) { return a.best - b.best; });
   }
@@ -20035,6 +20041,8 @@
     });
   }
 
+  // Brouillon gardé quand l'écran se redessine (ajout d'une photo / vidéo).
+  var wallPostDraft = {};
   var wallPostPlace = {}; // { label, geo: { lat, lng } } : lieu de la publication en cours
   var wallComposerOpen = false; // whether the "Publier un message" form is expanded, or just its collapsed teaser button
   var wallFeedVisibleCount = 5; // how many of Mon Journal's items are rendered -- +5 each time the scroll sentinel is reached (see attachHandlers)
@@ -20088,9 +20096,9 @@
     }
     var html = '<div class="card has-close"><button type="button" class="card-close" data-action="wall-composer-close" aria-label="' + escapeHtml(L('Fermer', 'Close')) + '"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button><h2 class="section-title">' + tr('post_to_journal_btn') + '</h2>';
     html += '<form id="wall-post-form">';
-    html += '<label for="wall-post-text">' + tr('wall_post_placeholder') + '</label><div class="mention-wrap"><textarea id="wall-post-text" rows="2" data-mentions="1"></textarea><div class="mention-suggest" hidden></div></div>' +
+    html += '<label for="wall-post-text">' + tr('wall_post_placeholder') + '</label><div class="mention-wrap"><textarea id="wall-post-text" rows="2" data-mentions="1">' + escapeHtml(wallPostDraft.text || '') + '</textarea><div class="mention-suggest" hidden></div></div>' +
       '<div class="help-text">' + L('Tape @ pour citer un ami.', 'Type @ to mention a friend.') + '</div>';
-    html += '<label for="wall-post-link" style="margin-top:0.6rem;">' + tr('link_optional_placeholder') + '</label><input type="url" id="wall-post-link" placeholder="https://...">';
+    html += '<label for="wall-post-link" style="margin-top:0.6rem;">' + tr('link_optional_placeholder') + '</label><input type="url" id="wall-post-link" placeholder="https://..." value="' + escapeHtml(wallPostDraft.link || '') + '">';
     // Lieu (facultatif) : un circuit, une ville… ou ma position.
     html += '<label for="wall-post-place" style="margin-top:0.6rem;">' + L('Lieu (facultatif)', 'Place (optional)') + '</label><div class="post-place-row"><input type="text" id="wall-post-place" list="wall-post-place-list" maxlength="80" autocomplete="off" placeholder="' + escapeHtml(L('Ex. Circuit de Barcelone', 'E.g. Barcelona circuit')) + '" value="' + escapeHtml(wallPostPlace.label || '') + '">' +
       '<button type="button" class="ghost" id="wall-post-geo" title="' + escapeHtml(L('Utiliser ma position', 'Use my location')) + '">' + (wallPostPlace.geo ? L('Position ✓', 'Location ✓') : L('Position', 'Location')) + '</button></div>' +
@@ -20191,7 +20199,9 @@
     html += '<div class="wall-post-head">' + avatarHtml(u, p.author) +
       personLinkHtml(p.author) + badgesHtml(u) + (showFollow ? followBtnHtml(p.author, true) : '') +
       // Friends-only is the default: only flag the wider audiences.
-      (p.audience === 'friends' ? '<span class="friend-role-badge">' + escapeHtml(L('Amis', 'Friends')) + '</span>' : '') +
+      // Mon post : un appui change qui le voit (Public / Amis).
+      (canEdit && !p.story ? '<button type="button" class="post-aud-btn" data-action="post-audience" data-id="' + escapeHtml(p.id) + '" title="' + escapeHtml(L('Changer qui voit ce post', 'Change who sees this post')) + '">' + escapeHtml(p.audience === 'friends' ? L('Amis', 'Friends') : L('Public', 'Public')) + ' ▾</button>'
+        : (p.audience === 'friends' ? '<span class="friend-role-badge">' + escapeHtml(L('Amis', 'Friends')) + '</span>' : '')) +
       '<span class="feed-entry-time">' + escapeHtml(relativeTime(p.editedAt || p.createdAt)) + (p.editedAt ? tr('edited_suffix') : '') + '</span>' +
       '<button type="button" class="post-share" data-action="share-post" data-id="' + escapeHtml(p.id) + '" aria-label="' + escapeHtml(L('Partager', 'Share')) + '" title="' + escapeHtml(L('Partager', 'Share')) + '"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7"/><path d="M16 6l-4-4-4 4"/><path d="M12 2v13"/></svg></button></div>';
     // Le texte, puis l'image entière en dessous (un appui : plein écran).
@@ -20458,6 +20468,7 @@
       wallPostMessage = '';
       wallPostDraftPhotoURL = null;
       wallComposerOpen = false;
+      wallPostDraft = {};
       if (!(STATE.wallPosts || []).some(function (x) { return x.id === post.id; })) STATE.wallPosts = [post].concat(STATE.wallPosts || []);
       awardPneus(10, true);
       renderRoot();
@@ -22931,6 +22942,8 @@
     var html = '<div class="card auth-card">';
     if (authMode === 'signup') {
       html += '<h2 class="section-title">Créer un compte</h2>';
+      // Arrivé par le QR / lien d'un pote : son parrainage, bien visible.
+      if (pendingReferrer) html += '<div class="auth-referral">' + L('Parrainage : ', 'Referral: ') + '<strong>' + escapeHtml(pendingReferrer) + '</strong>' + L(' t\'invite sur Carnet Piste.', ' invites you to Pitbook.') + '</div>';
       html += '<form id="signup-form" novalidate>';
       html += '<label for="au-name">Pseudo</label><input type="text" id="au-name" name="name" autocomplete="username" placeholder="Ex. Julien #12" required>';
       html += '<div class="help-text" style="margin-top:0.2rem;">C\'est le pseudo que verront les autres pilotes – en cas de doublon, ajoute ton numéro de course (ex. "Julien #12").</div>';
@@ -23935,6 +23948,10 @@
         postToWall(textEl.value, linkEl.value, wallPostDraftPhotoURL, audienceEl.value);
       });
     }
+    ['wall-post-text', 'wall-post-link', 'wall-post-place'].forEach(function (id) {
+      var el = document.getElementById(id);
+      if (el) el.addEventListener('input', function () { if (id === 'wall-post-place') wallPostPlace.label = el.value; else wallPostDraft[id === 'wall-post-text' ? 'text' : 'link'] = el.value; });
+    });
     var geoBtn = document.getElementById('wall-post-geo');
     if (geoBtn) geoBtn.addEventListener('click', function () {
       if (wallPostPlace.geo) { wallPostPlace.geo = null; geoBtn.textContent = L('Position', 'Location'); return; }
@@ -24064,6 +24081,15 @@
       activeView = 'social'; pillState.social = 'fil'; personView = null; outingView = null; dmOpenWith = null;
       profilePanelOpen = false; notificationsPanelOpen = false; navStack = [];
       renderRoot(); window.scrollTo(0, 0);
+    }); });
+    document.querySelectorAll('[data-action="post-audience"]').forEach(function (b) { b.addEventListener('click', function (e) {
+      e.stopPropagation();
+      var p = (STATE.wallPosts || []).filter(function (x) { return x.id === b.getAttribute('data-id'); })[0];
+      if (!p || !currentUserProfile || p.author !== currentUserProfile.name) return;
+      var next = p.audience === 'friends' ? 'all' : 'friends', upd = { audience: next };
+      if (next === 'friends') upd.visibleTo = friendUidsOf(currentUserProfile.name);
+      Object.assign(p, upd); renderRoot();
+      db.collection('wallPosts').doc(p.id).update(upd).then(function () { showToast(next === 'friends' ? L('Visible par tes amis seulement.', 'Visible to your friends only.') : L('Visible par tout le monde.', 'Visible to everyone.'), 'success'); }).catch(function (err) { showToast(tr('error_prefix') + ((err && err.message) || err)); });
     }); });
     document.querySelectorAll('[data-action="share-post"]').forEach(function (btn) { btn.addEventListener('click', function (e) { e.stopPropagation(); openPostShareSheet(btn.getAttribute('data-id')); }); });
     if (pendingShareIn && currentUserProfile) { pendingShareIn = false; consumeSharedIn(); }
@@ -24645,7 +24671,7 @@
     });
     // Refermer un formulaire ouvert par erreur.
     document.querySelectorAll('[data-action="wall-composer-close"]').forEach(function (btn) {
-      btn.addEventListener('click', function () { wallComposerOpen = false; wallPostDraftPhotoURL = null; wallPostMessage = ''; renderRoot(); });
+      btn.addEventListener('click', function () { wallComposerOpen = false; wallPostDraftPhotoURL = null; wallPostMessage = ''; wallPostDraft = {}; renderRoot(); });
     });
     document.querySelectorAll('[data-action="add-friend-close"]').forEach(function (btn) {
       btn.addEventListener('click', function () { addFriendOpen = false; renderRoot(); });
