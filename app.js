@@ -19713,7 +19713,10 @@
       }
       var u = (STATE.usersByName || {})[st.who] || (st.who === me.name ? me : {});
       var left = st.posted && st.who === me.name ? storyTimeLeft(st.at) : '';
-      return '<button type="button" class="story-bubble' + (storySeen(st) ? ' seen' : '') + '" data-action="open-story" data-index="' + i + '"><span class="story-ring">' + avatarHtml(u, st.who) + (left ? '<span class="story-left">' + left + '</span>' : '') + '</span><span class="story-name">' + escapeHtml(st.who === me.name ? L('Moi', 'Me') : st.who) + '</span></button>';
+      // Un ami qui a une story garde sa pastille de présence.
+      var pst = st.who !== me.name && friendsOf(me.name).some(function (f) { return f.name === st.who; }) ? presenceOf(u) : '';
+      var dot = pst ? '<span class="presence-dot ' + pst + '" aria-label="' + escapeHtml(presenceLabel(pst)) + '"></span>' : '';
+      return '<button type="button" class="story-bubble' + (storySeen(st) ? ' seen' : '') + '" data-action="open-story" data-index="' + i + '"><span class="story-ring">' + avatarHtml(u, st.who) + (left ? '<span class="story-left">' + left + '</span>' : '') + dot + '</span><span class="story-name">' + escapeHtml(st.who === me.name ? L('Moi', 'Me') : st.who) + '</span></button>';
     }).join('') + friendsPresenceBubbles(me, list.map(function (st) { return st.who; })) + '</div>';
   }
   // Publier une story : une photo (et un mot), visible 24 h en haut du fil

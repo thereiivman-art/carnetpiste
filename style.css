@@ -4812,3 +4812,13 @@ body.budget-masked .ph-feature-time, body.budget-masked .budget-kpis strong, bod
 .look-sw.locked { opacity: 0.45; cursor: not-allowed; display: grid; place-items: center; color: #fff; }
 .look-seg button.locked { opacity: 0.55; cursor: not-allowed; display: inline-flex; align-items: center; gap: 0.25rem; }
 .person-hero[data-cover="carbone"] .ph-cover { background-color: #1b1e23; background-image: linear-gradient(45deg, rgba(255,255,255,0.06) 25%, transparent 25%, transparent 75%, rgba(255,255,255,0.06) 75%), linear-gradient(45deg, rgba(255,255,255,0.06) 25%, transparent 25%, transparent 75%, rgba(255,255,255,0.06) 75%); background-size: 12px 12px; background-position: 0 0, 6px 6px; box-shadow: inset 0 -40px 60px -30px var(--sig); }
+/* Plan & repères mobile : les 4 boutons sur une ligne ; Dessin / Repères
+   couvrent tout jusqu'en bas (le menu passe par-dessus), astuce visible. */
+@media (max-width: 959px) {
+  .map-open-choice { flex-wrap: nowrap; gap: 0.35rem; }
+  .map-open-choice button, .map-open-choice .lap-video-link { flex: 1 1 0; min-width: 0; justify-content: center; padding: 0.45rem 0.4rem; font-size: 0.8rem; gap: 0.25rem; white-space: nowrap; }
+  .map-open-choice .lap-video-link { margin-left: 0; }
+  .annot-overlay.map-docked:not(.force-landscape), .track-notes-overlay.map-docked { bottom: 0; padding-bottom: calc(var(--nav-h, 64px) + 1rem); background: var(--bg); }
+}
+@media (max-width: 380px) { .map-open-choice svg { display: none; } }
+#annot-overlay.map-docked .map-mode-switch { position: static; left: auto; top: auto; transform: none; margin: 0.4rem auto 0.2rem; }
