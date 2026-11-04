@@ -4722,3 +4722,6 @@ html.kb-open .dm-form, .dm-form:focus-within { bottom: 0; }
 .post-place:hover { color: var(--accent); text-decoration: underline; }
 .circuit-create-btn { flex: 0 0 auto; border-radius: 999px; padding: 0.45rem 0.9rem; font-weight: 700; color: var(--text); }
 .annot-overlay.map-docked .map-mode-switch { position: static; transform: none; margin: 0.4rem auto 0.2rem; }
+.fsug-top { display: flex; align-items: center; gap: 0.5rem; }
+.fsug-top .fsug-head { flex: 1; cursor: default; }
+.fsug-close { width: 2rem; height: 2rem; min-width: 0; padding: 0; border: 0; border-radius: 50%; background: var(--surface-alt); color: var(--text-muted); cursor: pointer; display: grid; place-items: center; font-size: 0.85rem; }

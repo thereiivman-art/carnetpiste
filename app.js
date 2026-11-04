@@ -14060,8 +14060,11 @@
     if (isPilote) out.push(['saisons', L('Saisons', 'Seasons')]);
     return out;
   }
+  function isDesktopNav() { return !!(window.matchMedia && window.matchMedia('(min-width: 960px)').matches); }
   function carnetSubItems() {
     var items = [['carnet', L('Roulages', 'Trackdays')], ['circuit', 'Circuits'], ['stats', 'Stats']];
+    // PC : Budget a sa propre entrée dans Carnet, entre Stats et Coaching.
+    if (isDesktopNav()) items.push(['budget', 'Budget']);
     if (canAccessCoachSpace() && (isAdmin() || featureEnabled('teamsCoaching') || (STATE.myTeamMemberships || []).length > 0)) items.push(['coach', 'Coaching']);
     return items;
   }
@@ -18662,7 +18665,7 @@
     var me = currentUserProfile; if (!me) return null;
     if (!pneusLocal || pneusLocal.__uid !== myUid()) {
       var p = me.pneus || {};
-      pneusLocal = { __uid: myUid(), bank: p.bank || 0, cal: p.cal || { n: 0, last: '' }, day: p.day || '', capped: p.capped || 0, rx: Object.assign({}, p.rx || {}), fol: p.fol, ses: p.ses, since: p.since || 0 };
+      pneusLocal = { __uid: myUid(), bank: p.bank || 0, cal: p.cal || { n: 0, last: '' }, day: p.day || '', capped: p.capped || 0, rx: Object.assign({}, p.rx || {}), fol: p.fol, ses: p.ses, refs: p.refs, since: p.since || 0 };
     }
     return pneusLocal;
   }
@@ -18697,6 +18700,7 @@
       var doc = { bank: p.bank, cal: p.cal, day: p.day, capped: p.capped, rx: p.rx, since: p.since, total: pneusTotal() };
       if (p.fol != null) doc.fol = p.fol;
       if (p.ses != null) doc.ses = p.ses;
+      if (p.refs != null) doc.refs = p.refs;
       currentUserProfile.pneus = doc;
       db.collection('users').doc(myUid()).update({ pneus: doc }).catch(function (err) { if (now) showToast(tr('error_prefix') + ((err && err.message) || err)); });
     }, now ? 0 : 1200);
@@ -18768,6 +18772,14 @@
     var nSes = (STATE.sessions || []).filter(function (x) { return x.rider === me.name; }).length;
     if (p.ses == null) { p.ses = nSes; changed = true; }
     else if (nSes > p.ses) { awardPneus(10 * (nSes - p.ses), true); p.ses = nSes; changed = true; }
+    // Parrainage : +100 par filleul, +1000 au 5e (sans limite par jour).
+    var users = STATE.usersByName || {};
+    var nRef = Object.keys(users).filter(function (n) { return users[n] && users[n].referredBy === me.name; }).length;
+    if (p.refs == null) { p.refs = nRef; changed = true; }
+    else if (nRef > p.refs) {
+      var bonus = 100 * (nRef - p.refs) + (p.refs < 5 && nRef >= 5 ? 1000 : 0);
+      p.refs = nRef; changed = true; awardPneus(bonus, false);
+    }
     if (!p.since) { p.since = Date.now(); changed = true; }
     var gained = 0;
     var mine = (STATE.wallPosts || []).filter(function (w) { return w.author === me.name; }).map(function (w) { return { id: w.id, at: w.createdAt || 0, r: w.reactions }; })
@@ -18818,6 +18830,7 @@
           '<li>' + L('Chaque jour : 10, et 50 le 7e jour.', 'Every day: 10, and 50 on day 7.') + '</li>' +
           '<li>' + L('Publier +10, liker +1, commenter +1, nouvel ami ou abonné +10, chrono +10 (100 max par jour).', 'Post +10, like +1, comment +1, new friend or follower +10, lap time +10 (100 max per day).') + '</li>' +
           '<li>' + L('Like reçu +2, commentaire reçu +3 (sans limite).', 'Like received +2, comment received +3 (no limit).') + '</li>' +
+          '<li>' + L('Parrainage : +100 par pote inscrit avec ton lien, +1000 au 5e filleul.', 'Referrals: +100 per mate who signs up with your link, +1000 at the 5th.') + '</li>' +
           '<li>' + L('Profil : +5 par élément rempli (présentation, sponsors, bannière, photo, moto, numéro, pays, liens).', 'Profile: +5 per filled item (bio, sponsors, banner, photo, bike, number, country, links).') + '</li>' +
           '<li>' + L('Trophées : 10, 25, 50, 100, 200 puis 400 par niveau.', 'Trophies: 10, 25, 50, 100, 200 then 400 per level.') + '</li>' +
         '</ul></details>' +
@@ -19105,10 +19118,14 @@
     var sug = friendSuggestions(me.name, 12);
     // Demandes reçues : en premier, et le bandeau reste ouvert tant qu'il y en a.
     var inc = incomingFriendRequests(me.name);
-    var closed = false;
-    try { closed = !inc.length && localStorage.getItem('cdp-friend-sug-closed') === '1'; } catch (e) {}
-    var head = '<button type="button" class="fsug-head" data-action="fsug-toggle" aria-expanded="' + !closed + '"><strong>' + L('Ajoute des amis', 'Add friends') + '</strong><span class="help-text">' + (inc.length ? '<span class="fsug-req-count">' + plural(inc.length, L('demande reçue', 'request received'), L('demandes reçues', 'requests received')) + '</span>' + (sug.length ? ' · ' : '') : '') + (sug.length ? plural(sug.length, L('suggestion', 'suggestion'), L('suggestions', 'suggestions')) : '') + '</span><span class="fsug-chev" aria-hidden="true">' + (closed ? '▾' : '▴') + '</span></button>';
-    if (closed) return '<div class="card fsug closed">' + head + '</div>';
+    var closed = false, never = false;
+    // « Masquer » : une semaine ; « Jamais » : pour de bon (sur cet appareil).
+    try { closed = Date.now() - Number(localStorage.getItem('cdp-friend-sug-closed') || 0) < 7 * 86400000; never = localStorage.getItem('cdp-friend-sug-never') === '1'; } catch (e) {}
+    // Masqué (✕) : plus rien, sauf s'il y a des demandes d'ami à traiter.
+    if ((closed || never) && !inc.length) return '';
+    if (inc.length) { sug = never ? [] : sug; closed = false; }
+    var head = '<div class="fsug-top"><span class="fsug-head"><strong>' + L('Ajoute des amis', 'Add friends') + '</strong><span class="help-text">' + (inc.length ? '<span class="fsug-req-count">' + plural(inc.length, L('demande reçue', 'request received'), L('demandes reçues', 'requests received')) + '</span>' + (sug.length ? ' · ' : '') : '') + (sug.length ? plural(sug.length, L('suggestion', 'suggestion'), L('suggestions', 'suggestions')) : '') + '</span></span>' +
+      '<button type="button" class="fsug-close" data-action="fsug-close" aria-label="' + escapeHtml(L('Masquer', 'Hide')) + '" title="' + escapeHtml(L('Masquer', 'Hide')) + '">✕</button></div>';
     var cards = inc.map(function (r) {
       var u = (STATE.usersByName || {})[r.from] || {};
       return '<div class="fsug-card fsug-request"><button type="button" class="fsug-who" data-person-link="' + escapeHtml(r.from) + '">' + avatarHtml(u, r.from).replace(/ data-person="[^"]*"/, '') + '<strong>' + escapeHtml(r.from) + '</strong><span class="help-text">' + L('Veut être ton ami', 'Wants to be friends') + '</span></button>' +
@@ -19120,7 +19137,7 @@
         '<button type="button" class="primary fsug-add" data-fsug-add="' + escapeHtml(sg.name) + '">' + L('Ajouter', 'Add') + '</button></div>';
     }).join('');
     // Inviter des potes qui ne sont pas encore sur l'appli.
-    cards += '<div class="fsug-card fsug-invite"><span class="fsug-invite-ico" aria-hidden="true"><svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6M22 11h-6"/></svg></span><strong>' + L('Tes potes', 'Your mates') + '</strong><span class="help-text">' + L('pas encore inscrits', 'not signed up yet') + '</span><button type="button" class="ghost fsug-add" data-action="invite-qr">' + L('Inviter', 'Invite') + '</button></div>';
+    cards += '<div class="fsug-card fsug-invite"><span class="fsug-invite-ico" aria-hidden="true"><svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6M22 11h-6"/></svg></span><strong>' + L('Tes potes', 'Your mates') + '</strong><span class="help-text">' + L('+100 pneus par filleul', '+100 tyres per referral') + '</span><button type="button" class="ghost fsug-add" data-action="invite-qr">' + L('Inviter', 'Invite') + '</button></div>';
     return '<div class="card fsug">' + head + '<div class="fsug-row">' + cards + '</div></div>';
   }
   function renderStoriesRow(me) {
@@ -20064,6 +20081,8 @@
     var me = currentUserProfile, src = (STATE.wallPosts || []).filter(function (p) { return p.id === id; })[0];
     if (!me || !src) return;
     var orig = src.repostOf ? src.repostOf : { id: src.id, author: src.author, text: src.text || '', linkUrl: src.linkUrl || '', photoURL: src.photoURL || '', createdAt: src.createdAt || 0 };
+    // Vidéo : la republication la lit aussi (même média).
+    if (!src.repostOf && src.video) { orig.video = true; orig.mediaId = src.mediaId || src.id; }
     if (orig.author === me.name) { showToast(L('C\'est déjà ton message.', 'That\'s already your post.')); return; }
     if ((STATE.wallPosts || []).some(function (p) { return p.author === me.name && p.repostOf && p.repostOf.id === orig.id; })) { showToast(L('Tu l\'as déjà republié.', 'You already reposted it.')); return; }
     var post = { id: genId(), author: me.name, authorUid: myUid(), audience: 'all', createdAt: Date.now(), repostOf: orig };
@@ -20157,9 +20176,13 @@
         '<span class="help-text">' + escapeHtml(formatDate(o.date)) + (o.summary ? ' · ' + escapeHtml(o.summary) : '') + '</span></span>' + (o.best ? '<span class="feed-record-time">' + formatTime(o.best) + '</span>' : '') + '</div>';
     } else {
       var oText = !!(o.text || o.linkUrl);
+      // Republication d'une vidéo (ou ancienne republication : on retrouve l'origine).
+      var origPost = !o.video && o.id ? (STATE.wallPosts || []).filter(function (x) { return x.id === o.id; })[0] : null;
+      var vidId = o.video ? (o.mediaId || o.id) : (origPost && origPost.video ? (origPost.mediaId || origPost.id) : '');
       inner = '<div class="wall-post-head">' + avatarHtml(ou, who) + personLinkHtml(who) + badgesHtml(ou) + '<span class="feed-entry-time">' + escapeHtml(relativeTime(o.createdAt)) + '</span></div>' +
-        (o.photoURL ? '<img class="wall-post-photo' + (oText ? ' side' : '') + '" src="' + escapeHtml(o.photoURL) + '" alt="">' : '') + (o.text ? '<div class="wall-post-text">' + escapeHtml(o.text) + '</div>' : '') +
-        (o.linkUrl ? postLinkHtml(o.linkUrl) : '') + (o.photoURL && oText ? '<div class="clear"></div>' : '');
+        (vidId ? (o.text ? '<div class="wall-post-text">' + escapeHtml(o.text) + '</div>' : '') + '<div class="wall-post-media is-video" data-feed-video="' + escapeHtml(vidId) + '"><img class="wall-post-photo" src="' + escapeHtml(o.photoURL || 'icons/icon-192.png') + '" alt=""><span class="wall-post-play" aria-hidden="true"><svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></span></div>' : '') +
+        (vidId ? '' : (o.photoURL ? '<img class="wall-post-photo' + (oText ? ' side' : '') + '" src="' + escapeHtml(o.photoURL) + '" alt="">' : '') + (o.text ? '<div class="wall-post-text">' + escapeHtml(o.text) + '</div>' : '')) +
+        (o.linkUrl ? postLinkHtml(o.linkUrl) : '') + (o.photoURL && oText && !vidId ? '<div class="clear"></div>' : '');
     }
     return '<div class="repost-label">' + L('a republié', 'reposted') + '</div><div class="repost-box" data-orig-key="' + escapeHtml(o.id || '') + '" data-orig-author="' + escapeHtml(who) + '" data-orig-kind="' + escapeHtml(o.kind || '') + '">' + inner +
       '<div class="repost-open">' + L('Voir la publication d\'origine ›', 'See the original post ›') + '</div></div>';
@@ -22218,7 +22241,7 @@
       // Le bouton Chrono ramène toujours à l'écran du jour, jamais à la prépa.
       if (activeView !== 'outing' && activeView !== 'person' && activeView !== 'planning') lastSubView[navTabFor(activeView)] = activeView;
       // Budget est une pastille de Stats ; l'ancienne vue y renvoie.
-      if (activeView === 'budget') { activeView = 'stats'; pillState.stats = 'budget'; }
+      if (activeView === 'budget' && !isDesktopNav()) { activeView = 'stats'; pillState.stats = 'budget'; }
       var carnetSub = renderSubNav(carnetSubItems());
       if (activeView === 'outing') body = renderOutingPage();
       else if (activeView === 'person') body = renderPersonPage();
@@ -22226,13 +22249,14 @@
       else if (activeView === 'circuit') {
         // Ouvert depuis le fil, une fiche, un roulage… : « ‹ Retour » y ramène.
         var prevNav = navCurrent && navCurrent.view !== 'circuit' ? navCurrent : navStack[navStack.length - 1];
-        var backHere = prevNav && ['carnet', 'circuit', 'stats', 'coach', 'event'].indexOf(prevNav.view) === -1;
+        var backHere = prevNav && ['carnet', 'circuit', 'stats', 'budget', 'coach', 'event'].indexOf(prevNav.view) === -1;
         body = (backHere ? '<button type="button" class="link-btn back-link nav-back-btn">‹ ' + L('Retour', 'Back') + '</button>' : '') + carnetSub + renderCircuitTab();
       }
       else if (activeView === 'stats') {
         var statPills = meIsNonRider()
           ? [['podium', L('Podium', 'Podium')], ['trophees', 'Trophées'], ['budget', 'Budget']]
           : [['records', 'Records'], ['podium', L('Podium', 'Podium')], ['trophees', 'Trophées'], ['budget', 'Budget']];
+        if (isDesktopNav()) statPills = statPills.filter(function (x) { return x[0] !== 'budget'; });
         body = carnetSub + renderPills('stats', statPills) + (pillState.stats === 'podium' ? withRepost(renderMonthRanking(), 'month:' + dateKey(new Date()).slice(0, 7), function () {
           return { kind: 'month', author: currentUserProfile.name, createdAt: Date.now(), data: { rows: JSON.parse(JSON.stringify(monthProgressRanking().slice(0, 5))), month: new Date().toLocaleDateString(currentLang() === 'en' ? 'en-GB' : 'fr-FR', { month: 'long' }) } };
         }) + renderStatsPodiums() : pillState.stats === 'budget' ? renderBudgetTab() : renderStatsTab());
@@ -22242,6 +22266,7 @@
       else if (activeView === 'social') body = renderCommunauteNav() + renderSocialTab();
       else if (activeView === 'team') body = renderCommunauteNav() + renderTeamTab();
       else if (activeView === 'coach') body = carnetSub + renderCoachTab();
+      else if (activeView === 'budget') body = carnetSub + renderBudgetTab();
       else body = carnetSub + carnetPillsHtml(myOutings()) + renderEventTab(); // 'event' (Carnet › Roulages › Calendrier) and safety fallback
       // Big section title so it's always clear which main tab you're in.
     }
@@ -23564,9 +23589,14 @@
     }
     presenceBeat();
     setupFeedVideoAutoplay();
-    document.querySelectorAll('[data-action="fsug-toggle"]').forEach(function (b) { b.addEventListener('click', function () {
-      var c = false; try { c = localStorage.getItem('cdp-friend-sug-closed') === '1'; localStorage.setItem('cdp-friend-sug-closed', c ? '0' : '1'); } catch (e) {}
-      renderRoot();
+    document.querySelectorAll('[data-action="fsug-close"]').forEach(function (b) { b.addEventListener('click', function () {
+      var ov = openMiniSheet('<h2 class="section-title">' + L('Masquer « Ajoute des amis » ?', 'Hide “Add friends”?') + '</h2>' +
+        '<p class="help-text">' + L('Masquer : pendant une semaine. Jamais : plus de suggestions ici. Les demandes reçues s\'affichent toujours.', 'Hide: for a week. Never: no more suggestions here. Received requests still show.') + '</p>' +
+        '<div class="after-publish"><button type="button" class="primary" data-fsug-hide-mode="later">' + L('Masquer', 'Hide') + '</button><button type="button" class="ghost" data-fsug-hide-mode="never">' + L('Jamais', 'Never') + '</button><button type="button" class="link-btn" data-mini-close>' + L('Annuler', 'Cancel') + '</button></div>');
+      ov.querySelectorAll('[data-fsug-hide-mode]').forEach(function (x) { x.addEventListener('click', function () {
+        try { if (x.getAttribute('data-fsug-hide-mode') === 'never') localStorage.setItem('cdp-friend-sug-never', '1'); else localStorage.setItem('cdp-friend-sug-closed', String(Date.now())); } catch (e) {}
+        ov.remove(); renderRoot();
+      }); });
     }); });
     document.querySelectorAll('[data-fsug-add]').forEach(function (b) { b.addEventListener('click', function () {
       var n = b.getAttribute('data-fsug-add'); sendFriendRequest(n);
