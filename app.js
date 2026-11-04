@@ -11297,6 +11297,119 @@
     return '<div class="map-mode-switch" role="tablist"><button type="button" class="' + (active === 'draw' ? 'on' : '') + '" data-map-mode="draw" aria-pressed="' + (active === 'draw') + '" title="' + escapeHtml(L('Dessin à main libre', 'Freehand drawing')) + '" aria-label="' + escapeHtml(L('Dessin à main libre', 'Freehand drawing')) + '">' + pencil + '</button>' +
       '<button type="button" class="' + (active === 'pins' ? 'on' : '') + '" data-map-mode="pins" aria-pressed="' + (active === 'pins') + '" title="' + escapeHtml(L('Repères', 'Marks')) + '" aria-label="' + escapeHtml(L('Repères', 'Marks')) + '">' + pin + '</button></div>';
   }
+  // ---- Repères : image (plan + repères numérotés + liste), PDF, post /
+  // story, et copie des repères partagés par un pote. ----
+  function trackNotesImage(circuit, notes, cb) {
+    var info = circuitInfo(circuit), base = info.mapImage || outlineImageFor(info, circuit);
+    var W = 1080, pad = 48, lineH = 40;
+    var draw = function (img) {
+      var mapH = img ? Math.round((W - pad * 2) * (img.naturalHeight / img.naturalWidth)) : 0;
+      mapH = Math.min(mapH, 900);
+      var mapW = img ? Math.round(mapH * img.naturalWidth / img.naturalHeight) : 0;
+      var lines = notes.map(function (n, i) { return (i + 1) + '. ' + (n.turn ? L('Virage ', 'Turn ') + n.turn : L('Repère ', 'Mark ') + (i + 1)) + (trackNoteSummary(n) ? ' · ' + trackNoteSummary(n) : ''); });
+      var c = document.createElement('canvas'), ctx = c.getContext('2d');
+      ctx.font = '28px Barlow, sans-serif';
+      var wrapped = [];
+      lines.forEach(function (t) {
+        var words = t.split(' '), cur = '';
+        words.forEach(function (w) { var test = cur ? cur + ' ' + w : w; if (ctx.measureText(test).width > W - pad * 2) { wrapped.push(cur); cur = '   ' + w; } else cur = test; });
+        if (cur) wrapped.push(cur);
+      });
+      c.width = W; c.height = pad + 70 + (img ? mapH + 30 : 0) + wrapped.length * lineH + pad + 30;
+      ctx = c.getContext('2d');
+      ctx.fillStyle = '#f4f3ef'; ctx.fillRect(0, 0, c.width, c.height);
+      ctx.fillStyle = '#c8261f'; ctx.fillRect(pad, pad + 6, 10, 46);
+      ctx.fillStyle = '#14161a'; ctx.font = 'italic 800 44px "Barlow Condensed", Barlow, sans-serif';
+      ctx.fillText((L('Repères · ', 'Marks · ') + circuit).toUpperCase(), pad + 24, pad + 46);
+      var y = pad + 70;
+      if (img) {
+        var mx = (W - mapW) / 2;
+        ctx.fillStyle = '#ffffff'; ctx.fillRect(pad, y, W - pad * 2, mapH);
+        ctx.drawImage(img, mx, y, mapW, mapH);
+        notes.forEach(function (n, i) {
+          var px = mx + n.x * mapW, py = y + n.y * mapH;
+          ctx.beginPath(); ctx.arc(px, py, 22, 0, Math.PI * 2); ctx.fillStyle = '#c8261f'; ctx.fill();
+          ctx.lineWidth = 4; ctx.strokeStyle = '#ffffff'; ctx.stroke();
+          ctx.fillStyle = '#ffffff'; ctx.font = '700 24px Barlow, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+          ctx.fillText(String(i + 1), px, py + 1);
+          ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+        });
+        y += mapH + 30;
+      }
+      ctx.fillStyle = '#14161a'; ctx.font = '28px Barlow, sans-serif';
+      wrapped.forEach(function (t) { y += lineH; ctx.fillText(t, pad, y - 10); });
+      ctx.fillStyle = '#8a8d93'; ctx.font = '22px Barlow, sans-serif';
+      ctx.fillText(L('Carnet Piste', 'Pitbook'), pad, c.height - pad + 10);
+      cb(c);
+    };
+    if (!base) return draw(null);
+    var im = new Image();
+    im.onload = function () { draw(im); };
+    im.onerror = function () { draw(null); };
+    im.src = base;
+  }
+  function downloadDataUrl(url, name) { var a = document.createElement('a'); a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove(); }
+  function shareableNotes(notes) {
+    return notes.slice(0, 40).map(function (n) {
+      var o = {}; Object.keys(n).forEach(function (k) { if (k !== 'id' && (typeof n[k] === 'string' || typeof n[k] === 'number' || typeof n[k] === 'boolean')) o[k] = typeof n[k] === 'string' ? n[k].slice(0, 200) : n[k]; });
+      return o;
+    });
+  }
+  function openTrackNotesShare(circuit) {
+    var notes = myTrackNotes(circuit);
+    if (!notes.length) return showToast(L('Pose d\'abord un repère.', 'Add a mark first.'));
+    var me = currentUserProfile; if (!me) return;
+    var existing = (STATE.wallPosts || []).filter(function (w) { return w.author === me.name && w.notesShare && w.notesShare.circuit === circuit && !w.story; })[0];
+    var ov = openMiniSheet('<h2 class="section-title">' + L('Mes repères · ', 'My marks · ') + escapeHtml(circuit) + '</h2>' +
+      '<p class="help-text">' + L('Le plan et tes repères numérotés, avec la liste. Tes potes pourront les copier.', 'The map with your numbered marks and the list. Your mates can copy them.') + '</p>' +
+      '<div class="after-publish">' +
+      (existing ? '<button type="button" class="primary" data-tns="update" title="' + escapeHtml(L('Mettre à jour ma publication de repères', 'Update my marks post')) + '">' + L('Actualiser', 'Update') + '</button>' : '') +
+      '<button type="button" class="' + (existing ? 'ghost' : 'primary') + '" data-tns="post">' + L('Post', 'Post') + '</button>' +
+      '<button type="button" class="ghost" data-tns="story">' + L('Story', 'Story') + '</button>' +
+      '<button type="button" class="ghost" data-tns="png">' + L('Image', 'Image') + '</button>' +
+      '<button type="button" class="ghost" data-tns="pdf">PDF</button>' +
+      '<button type="button" class="link-btn" data-mini-close>' + L('Fermer', 'Close') + '</button></div>');
+    ov.querySelectorAll('[data-tns]').forEach(function (b) { b.addEventListener('click', function () {
+      var act = b.getAttribute('data-tns');
+      b.disabled = true;
+      trackNotesImage(circuit, notes, function (canvas) {
+        ov.remove();
+        if (act === 'png') return downloadDataUrl(canvas.toDataURL('image/png'), 'reperes-' + circuit.replace(/\W+/g, '-').toLowerCase() + '.png');
+        if (act === 'pdf') {
+          // Impression : « Enregistrer en PDF » dans la fenêtre du navigateur.
+          var w = window.open('', '_blank');
+          if (!w) return showToast(L('Autorise les fenêtres pour enregistrer le PDF.', 'Allow pop-ups to save the PDF.'));
+          w.document.write('<!doctype html><title>' + escapeHtml(L('Repères · ', 'Marks · ') + circuit) + '</title><style>@page{margin:10mm}body{margin:0}img{width:100%;}</style><img src="' + canvas.toDataURL('image/jpeg', 0.9) + '"><script>window.onload=function(){setTimeout(function(){window.print();},300);}<\/script>');
+          w.document.close();
+          return;
+        }
+        var img = canvas.toDataURL('image/jpeg', 0.82);
+        for (var q = 0.72; img.length > 650000 && q > 0.4; q -= 0.1) img = canvas.toDataURL('image/jpeg', q);
+        var share = { circuit: circuit, notes: shareableNotes(notes), at: Date.now() };
+        var text = L('Mes repères à ', 'My marks at ') + circuit;
+        if (act === 'update' && existing) {
+          existing.photoURL = img; existing.notesShare = share; existing.editedAt = Date.now();
+          renderRoot();
+          return db.collection('wallPosts').doc(existing.id).update({ photoURL: img, notesShare: share, editedAt: existing.editedAt }).then(function () { showToast(L('Repères mis à jour.', 'Marks updated.'), 'success'); }).catch(function (err) { showToast(tr('error_prefix') + ((err && err.message) || err)); });
+        }
+        var post = { id: genId(), author: me.name, authorUid: myUid(), audience: 'all', createdAt: Date.now(), photoURL: img, text: text, notesShare: share };
+        if (act === 'story') post.story = true;
+        STATE.wallPosts = [post].concat(STATE.wallPosts || []);
+        renderRoot();
+        db.collection('wallPosts').doc(post.id).set(post).then(function () { awardPneus(10, true); showToast(act === 'story' ? L('Story publiée : visible 24 h.', 'Story posted: visible for 24 h.') : L('Repères publiés.', 'Marks posted.'), 'success'); }).catch(function (err) { showToast(tr('error_prefix') + ((err && err.message) || err)); });
+      });
+    }); });
+  }
+  // Copier les repères partagés par un pote : ajoutés aux miens (même circuit).
+  function copySharedNotes(postId) {
+    var p = (STATE.wallPosts || []).filter(function (w) { return w.id === postId; })[0];
+    if (!p || !p.notesShare || !currentUserProfile) return;
+    var c = p.notesShare.circuit, mine = myTrackNotes(c);
+    var added = (p.notesShare.notes || []).map(function (n) { return Object.assign({}, n, { id: genId(), from: p.author }); });
+    saveMyTrackNotes(c, mine.concat(added));
+    showToast(plural(added.length, L('repère copié', 'mark copied'), L('repères copiés', 'marks copied')) + L(' dans tes repères de ', ' to your marks at ') + c + '.', 'success');
+    renderRoot();
+  }
   function openTrackNotes(circuit) {
     var info = circuitInfo(circuit);
     var base = info.mapImage || outlineImageFor(info, circuit);
@@ -11312,7 +11425,8 @@
     function render() {
       var h = '<div class="track-notes-head"><button type="button" class="ghost icon-btn" data-tn="close" aria-label="Fermer">←</button>' +
         '<div class="track-notes-title">Mes repères · ' + escapeHtml(circuit) + '</div>' +
-        (base ? '<button type="button" class="ghost" data-tn="zoom">' + (zoomed ? 'Réduire' : 'Agrandir') + '</button>' : '') + '</div>' +
+        (base ? '<button type="button" class="ghost" data-tn="zoom">' + (zoomed ? 'Réduire' : 'Agrandir') + '</button>' : '') +
+        '<button type="button" class="ghost" data-tn="share">' + L('Partager', 'Share') + '</button></div>' +
         (base ? mapModeSwitchHtml('pins') : '');
       h += '<div class="help-text track-notes-help">' + (movingId ? 'Touche le nouvel emplacement du repère.' : (base ? 'Touche le tracé pour poser un repère, touche un repère pour le modifier.' : 'Pas de plan pour ce circuit : ajoute tes repères en liste.')) + '</div>';
       if (base) {
@@ -11343,6 +11457,8 @@
       if (toDraw) toDraw.addEventListener('click', function () { if (overlay.parentNode) overlay.parentNode.removeChild(overlay); renderRoot(); openAnnotation(circuit); });
       var z = overlay.querySelector('[data-tn="zoom"]');
       if (z) z.addEventListener('click', function () { zoomed = !zoomed; render(); });
+      var sh = overlay.querySelector('[data-tn="share"]');
+      if (sh) sh.addEventListener('click', function () { openTrackNotesShare(circuit); });
       var addNoMap = overlay.querySelector('[data-tn="add-nomap"]');
       if (addNoMap) addNoMap.addEventListener('click', function () { editNote({ id: genId(), x: 0.5, y: 0.5 }, true); });
       var map = overlay.querySelector('.track-notes-map');
@@ -19805,6 +19921,7 @@
     // Le texte, puis l'image entière en dessous (un appui : plein écran).
     if (p.text) html += '<div class="wall-post-text">' + mentionsHtml(p.text) + '</div>';
     if (p.place) html += postPlaceHtml(p);
+    if (p.notesShare && p.notesShare.circuit && currentUserProfile && p.author !== currentUserProfile.name) html += '<button type="button" class="ghost notes-copy-btn" data-action="copy-notes" data-id="' + escapeHtml(p.id) + '" title="' + escapeHtml(L('Ajouter ces repères aux miens', 'Add these marks to mine')) + '">' + L('Copier', 'Copy') + ' · ' + plural((p.notesShare.notes || []).length, L('repère', 'mark'), L('repères', 'marks')) + '</button>';
     if (p.linkUrl) html += postLinkHtml(p.linkUrl);
     if (p.photoURL) html += '<div class="wall-post-media' + (p.video ? ' is-video' : '') + '"' + (p.video ? ' data-feed-video="' + escapeHtml(p.mediaId || p.id) + '"' : '') + '><img class="wall-post-photo" src="' + escapeHtml(p.photoURL) + '" alt="">' +
       (p.video ? '<span class="wall-post-play" aria-hidden="true"><svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></span>' : '') + '</div>';
@@ -23625,6 +23742,7 @@
       if (!/^https:\/\/(www\.)?youtube\.com|^https:\/\/youtu\.be/.test(a.href) || !youtubeAppUrl(a.href)) return;
       e.preventDefault(); openYoutube(a.href);
     }); });
+    document.querySelectorAll('[data-action="copy-notes"]').forEach(function (b) { b.addEventListener('click', function (e) { e.stopPropagation(); copySharedNotes(b.getAttribute('data-id')); }); });
     document.querySelectorAll('[data-action="circuit-create"]').forEach(function (b) { b.addEventListener('click', openCircuitCreate); });
     document.querySelectorAll('[data-action="map-open"]').forEach(function (b) { b.addEventListener('click', function () {
       if (!selectedCircuit) return;

@@ -1019,7 +1019,7 @@ service cloud.firestore {
         (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reactions'])
           && onlyOwnKeyChanged(resource.data.get('reactions', {}), request.resource.data.reactions))
         || (resource.data.author == myName()
-            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['text', 'linkUrl', 'editedAt', 'alsoInFeed'])
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['text', 'linkUrl', 'editedAt', 'alsoInFeed', 'photoURL', 'notesShare'])
             && (!('text' in request.resource.data) || (request.resource.data.text is string && request.resource.data.text.size() <= 5000))
             && (request.resource.data.get('linkUrl', null) == null || request.resource.data.linkUrl.matches('^https?://.*')))
         || ((resource.data.get('authorUid', '') == request.auth.uid || isAdmin())
