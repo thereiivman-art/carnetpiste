@@ -4720,3 +4720,5 @@ html.kb-open .dm-form, .dm-form:focus-within { bottom: 0; }
 .post-place-row button { flex: 0 0 auto; border-radius: 999px; }
 .post-place { display: inline-flex; align-items: center; gap: 0.25rem; margin: 0.15rem 0 0.35rem; font-size: 0.82rem; font-weight: 600; color: var(--text-muted); text-decoration: none; }
 .post-place:hover { color: var(--accent); text-decoration: underline; }
+.circuit-create-btn { flex: 0 0 auto; border-radius: 999px; padding: 0.45rem 0.9rem; font-weight: 700; color: var(--text); }
+.annot-overlay.map-docked .map-mode-switch { position: static; transform: none; margin: 0.4rem auto 0.2rem; }

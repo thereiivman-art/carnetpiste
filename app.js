@@ -7858,7 +7858,7 @@
     var html = renderPills('circuit', [['plan', 'Plan & repères'], ['chronos', 'Chronos'], ['infos', 'Infos']]);
     html += '<div class="circuit-picker"><select id="f-filter-circuit" aria-label="' + tr('circuit_label') + '">';
     html += circuitOptionsHtml(circuits, selectedCircuit);
-    html += '</select></div>';
+    html += '</select><button type="button" class="ghost circuit-create-btn" data-action="circuit-create" title="' + escapeHtml(L('Créer mon circuit perso (dessin ou image)', 'Create my own circuit (drawing or image)')) + '">+ ' + L('Créer', 'Create') + '</button></div>';
     var cp = pillState.circuit;
     if (cp === 'plan') {
       // Les deux façons d'annoter, visibles dès l'arrivée sur la page.
@@ -8512,11 +8512,16 @@
   var podiumFocusCircuit = null;
   function renderStatsPodiums() {
     var me = currentUserProfile && currentUserProfile.name;
-    // Un pilote : ses circuits. Un accompagnant : ceux de ses potes.
-    var who = meIsNonRider() ? friendRiderNames() : [me];
-    var last = {};
-    (STATE.sessions || []).forEach(function (x) { if (who.indexOf(x.rider) !== -1 && x.laps && x.laps.length && (!last[x.circuit] || x.date > last[x.circuit])) last[x.circuit] = x.date; });
-    var list = Object.keys(last).sort(function (a, b) { return last[b].localeCompare(last[a]); });
+    // Tous les circuits où moi ou mes potes avons roulé : les miens d'abord
+    // (du plus récent au plus ancien), puis ceux des potes.
+    var who = (meIsNonRider() ? [] : [me]).concat(friendRiderNames());
+    var last = {}, mineC = {};
+    (STATE.sessions || []).forEach(function (x) {
+      if (who.indexOf(x.rider) === -1 || !x.laps || !x.laps.length) return;
+      if (x.rider === me) mineC[x.circuit] = 1;
+      if (!last[x.circuit] || x.date > last[x.circuit]) last[x.circuit] = x.date;
+    });
+    var list = Object.keys(last).sort(function (a, b) { return (mineC[b] ? 1 : 0) - (mineC[a] ? 1 : 0) || last[b].localeCompare(last[a]); });
     if (podiumFocusCircuit && list.indexOf(podiumFocusCircuit) > 0) { list.splice(list.indexOf(podiumFocusCircuit), 1); list.unshift(podiumFocusCircuit); }
     if (!list.length) return '<div class="card help-text">' + (meIsNonRider()
       ? L('Les podiums apparaissent dès que tes potes pilotes ajoutent leurs chronos.', 'Podiums show up as soon as your rider friends add their lap times.')
@@ -11669,7 +11674,57 @@
     // Same circuit under another spelling (« Magny-Cours », « Lédenon »…).
     var key = circuitKey(circuitName);
     var k = Object.keys(DEFAULT_TRACK_OUTLINES).filter(function (n) { return circuitKey(n) === key; })[0];
-    return k ? DEFAULT_TRACK_OUTLINES[k] : null;
+    if (k) return DEFAULT_TRACK_OUTLINES[k];
+    // Circuit perso : le contour dessiné (ou l'image importée), le mien d'abord.
+    var od = info.outlineDrawings || {}, me = currentUserProfile && currentUserProfile.name;
+    if (me && od[me]) return od[me];
+    var anyK = Object.keys(od).filter(function (n) { return od[n]; })[0];
+    return anyK ? od[anyK] : null;
+  }
+  // Créer mon circuit perso : un nom, puis un contour à main levée ou une
+  // image (photo du plan, capture). Rangé comme mon « Contour du tracé ».
+  function openCircuitCreate() {
+    var ov = openMiniSheet('<h2 class="section-title">' + L('Créer mon circuit', 'Create my circuit') + '</h2>' +
+      '<label for="cc-name">' + L('Nom du circuit', 'Circuit name') + '</label><input type="text" id="cc-name" maxlength="60" placeholder="' + escapeHtml(L('Ex. Circuit du Var', 'E.g. Var circuit')) + '">' +
+      '<p class="help-text">' + L('Puis dessine son tracé à main levée, ou importe une image (plan, capture d\'écran).', 'Then draw its layout freehand, or import an image (map, screenshot).') + '</p>' +
+      '<div class="after-publish"><button type="button" class="primary" data-cc="draw">' + L('Dessin', 'Draw') + '</button><button type="button" class="ghost" data-cc="image">' + L('Image', 'Image') + '</button><button type="button" class="link-btn" data-mini-close>' + L('Annuler', 'Cancel') + '</button></div>');
+    var nameOf = function () {
+      var n = (ov.querySelector('#cc-name').value || '').trim().replace(/\s+/g, ' ').slice(0, 60);
+      if (!n) { showToast(L('Donne d\'abord un nom au circuit.', 'Name the circuit first.')); return ''; }
+      var dup = allCircuits().filter(function (c) { return circuitKey(c) === circuitKey(n); })[0];
+      return dup || n;
+    };
+    ov.querySelector('[data-cc="draw"]').addEventListener('click', function () {
+      var n = nameOf(); if (!n) return;
+      ov.remove();
+      STATE.circuits = STATE.circuits || {};
+      if (!STATE.circuits[n]) STATE.circuits[n] = { name: n };
+      selectedCircuit = n; userPickedCircuit = true; pillState.circuit = 'plan';
+      renderRoot();
+      mapDocked = true;
+      openAnnotation(n);
+      annot.sessionId = ANNOT_OUTLINE_LEVEL;
+      renderAnnotationOverlay();
+    });
+    ov.querySelector('[data-cc="image"]').addEventListener('click', function () {
+      var n = nameOf(); if (!n) return;
+      ov.remove();
+      pickImageFile(1000, function (url) {
+        var me = currentUserProfile; if (!me) return;
+        var prevState = JSON.parse(JSON.stringify(STATE));
+        STATE.circuits = STATE.circuits || {};
+        var entry = STATE.circuits[n] || { name: n };
+        entry.outlineDrawings = Object.assign({}, entry.outlineDrawings || {}); entry.outlineDrawings[me.name] = url;
+        entry.outlineDrawingsBase = Object.assign({}, entry.outlineDrawingsBase || {}); entry.outlineDrawingsBase[me.name] = url;
+        entry.outlineDrawingObjects = Object.assign({}, entry.outlineDrawingObjects || {}); entry.outlineDrawingObjects[me.name] = [];
+        STATE.circuits[n] = entry;
+        selectedCircuit = n; userPickedCircuit = true; pillState.circuit = 'plan';
+        renderRoot();
+        persist(prevState);
+        showToast(L('Circuit créé : ' + n + '.', 'Circuit created: ' + n + '.'), 'success');
+      });
+    });
+    setTimeout(function () { var i = ov.querySelector('#cc-name'); if (i) i.focus(); }, 50);
   }
 
   // Read-only view of another account's own circuit-level/outline plan
@@ -23540,6 +23595,7 @@
       if (!/^https:\/\/(www\.)?youtube\.com|^https:\/\/youtu\.be/.test(a.href) || !youtubeAppUrl(a.href)) return;
       e.preventDefault(); openYoutube(a.href);
     }); });
+    document.querySelectorAll('[data-action="circuit-create"]').forEach(function (b) { b.addEventListener('click', openCircuitCreate); });
     document.querySelectorAll('[data-action="map-open"]').forEach(function (b) { b.addEventListener('click', function () {
       if (!selectedCircuit) return;
       mapDocked = true; // dans la page (sans plein écran), pour alterner vite Dessin / Repères
