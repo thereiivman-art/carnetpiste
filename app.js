@@ -194,7 +194,7 @@
       ask_to_be_coached_by: 'Demander à être coaché par', send_request_generic: 'Envoyer la demande',
       ask_for_coaching_heading: 'Demander un coaching',
       proposed_slots_label: 'Créneaux proposés : ', slot_colon_label: 'Créneau : ',
-      bravo_btn: 'Gaz !', photo_btn_short: 'Photo', see_photos_link: 'Voir les photos', see_link: 'Ouvrir le lien',
+      bravo_btn: 'Réagir', photo_btn_short: 'Photo', see_photos_link: 'Voir les photos', see_link: 'Ouvrir le lien',
       send_generic: 'Envoyer', no_slot_to_propose: 'Aucun créneau disponible à proposer',
       no_slot_to_propose_check_avail: ' – vérifie tes disponibilités ci-dessus.',
       accept_generic: 'Accepter ', propose_other_time: 'Proposer un autre horaire', refuse_generic: 'Refuser',
@@ -1121,8 +1121,8 @@
 "Rejoins-nous sur Carnet Piste !": "Join us on Pitbook!",
 "+ Ajouter un chrono": "+ Add a lap time",
 "Saisie, photo de la feuille de temps, capture d'écran ou PDF.": "Type it in, or snap your timesheet, a screenshot or a PDF.",
-"Inviter un pilote": "Invite a rider",
-"Inviter un pilote (QR code)": "Invite a rider (QR code)",
+"Inviter un pote": "Invite a mate",
+"Inviter un pote (QR code)": "Invite a mate (QR code)",
 "Paramètres": "Settings",
 "Bonjour": "Hi",
 "Plan & repères": "Map & marks",
@@ -1231,9 +1231,9 @@
 "J'ai vérifié, continuer": "I've verified, continue", "Renvoyer l'email": "Resend the email", "Se déconnecter": "Sign out",
 "Cet email est déjà utilisé — connecte-toi plutôt.": "This email is already in use — sign in instead.", "Email invalide.": "Invalid email.", "Trop de tentatives — attends quelques minutes avant de renvoyer l'email.": "Too many attempts — wait a few minutes before resending the email.",
 "Mot de passe trop court (6 caractères minimum).": "Password too short (6 characters minimum).", "Email ou mot de passe incorrect.": "Wrong email or password.",
-"Connecte-toi avec ton adresse email (la connexion par pseudo a été retirée pour des raisons de sécurité).": "Sign in with your email address (username sign-in was removed for security reasons).",
+"Connecte-toi avec ton adresse email.": "Sign in with your email address.",
 "Carnet Piste": "Pitbook", "QR code indisponible hors connexion – partage le lien ci-dessous.": "QR code unavailable offline – share the link below.", "Accepter": "Accept", "Refuser": "Decline", "Demande d'ami": "Friend request",
-"Invite un pilote": "Invite a rider", "Fais scanner ce code : il s'inscrit avec ton lien et devient ton filleul.": "Have them scan this code: they sign up with your link and become your referral.",
+"Invite un pote": "Invite a mate", "Scanne : inscription et parrainage direct.": "Scan: sign up and referral in one go.",
 "Partager le lien": "Share the link", "Copier": "Copy", "Lien copié": "Link copied",
 "souhaite rejoindre": "wants to join", "Accepter comme membre": "Accept as member", "comme adhérent": "as club member", "comme Team Leader": "as Team Leader",
 "demande à devenir adhérent de": "asks to become a club member of", "Accepter comme adhérent": "Accept as club member",
@@ -3184,7 +3184,8 @@
 
   function parseTime(raw) {
     // Accepts 1:54.754 as well as the displayed 1’54”754 / 1'54"754.
-    var str = String(raw).trim().replace(/[’'′]/g, ':').replace(/[”"″]/g, '.');
+    // « 02:17,844 » (virgule décimale) accepté comme « 02:17.844 ».
+    var str = String(raw).trim().replace(/[’'′]/g, ':').replace(/[”"″]/g, '.').replace(/(\d),(\d)/, '$1.$2');
     if (!str) return null;
     var m = str.match(/^(\d+):(\d{1,2}(?:\.\d+)?)$/);
     if (m) {
@@ -4187,8 +4188,8 @@
         function (t) { return L('Avoir ' + t + ' ami' + (t > 1 ? 's' : '') + ' dans l\'appli.', 'Have ' + t + ' friend' + (t > 1 ? 's' : '') + ' in the app.'); }),
       tieredEntry('handshake', 'communaute', L('Parrain', 'Sponsor'), filleuls, [1, 3, 10, 25, 50, 100], [L('filleul', 'referral'), L('filleuls', 'referrals')],
         function (t) { return L('Faire inscrire ' + t + ' pistard' + (t > 1 ? 's' : '') + ' avec ton lien ou ton QR code.', 'Get ' + t + ' rider' + (t > 1 ? 's' : '') + ' to sign up with your link or QR code.'); }),
-      tieredEntry('flame', 'communaute', L('Plein gaz', 'Full gas'), gazReceivedCount(name), [5, 25, 100, 250, 500, 1000], ['« Gaz ! »', '« Gaz ! »'],
-        function (t) { return L('Recevoir ' + t + ' « Gaz ! » de tes potes.', 'Get ' + t + ' “Full gas!” from friends.'); }),
+      tieredEntry('flame', 'communaute', L('Plein gaz', 'Full gas'), gazReceivedCount(name), [5, 25, 100, 250, 500, 1000], [L('réaction', 'reaction'), L('réactions', 'reactions')],
+        function (t) { return L('Recevoir ' + t + ' réactions de tes potes.', 'Get ' + t + ' reactions from friends.'); }),
       tieredEntry('megaphone', 'communaute', L('Plume du paddock', 'Paddock writer'), wallPostCount, [1, 5, 20, 50, 100, 200], ['message', 'messages'],
         function (t) { return L('Publier ' + t + ' message' + (t > 1 ? 's' : '') + ' dans le Social.', 'Post ' + t + ' message' + (t > 1 ? 's' : '') + ' in the feed.'); }),
       tieredEntry('team', 'communaute', L('Bâtisseur de team', 'Team builder'), biggestTeam, [1, 5, 15, 30, 60, 100], [L('membre', 'member'), L('membres', 'members')],
@@ -4375,7 +4376,7 @@
     var note = document.getElementById('se-note').value.trim();
     var group = document.getElementById('se-group').value;
     var slotEl = document.getElementById('se-slot');
-    var rawLaps = document.getElementById('se-laps').value.split(/[\n,;]+/).map(function (s) { return s.trim(); }).filter(Boolean);
+    var rawLaps = document.getElementById('se-laps').value.replace(/(\d:\d{1,2}),(\d{1,3})(?!\d)/g, '$1.$2').split(/[\n,;]+/).map(function (s) { return s.trim(); }).filter(Boolean);
     var laps = [];
     var invalid = false;
     rawLaps.forEach(function (raw) {
@@ -4611,7 +4612,7 @@
   // signup (see resolveUniquePseudo) if the new pseudo collides with
   // someone else's.
   function profileTabList() {
-    return [['profil', tr('tab_profil')], ['plus', 'Carnet+'], ['audience', L('Audience', 'Audience')], ['reglages', tr('tab_reglages')], ['aide', tr('tab_aide')], ['suggestion', tr('tab_suggestion')]];
+    return [['profil', tr('tab_profil')], ['plus', 'Carnet+'], ['audience', L('Audience', 'Audience')], ['reglages', tr('tab_reglages')], ['compte', L('Compte', 'Account')], ['aide', tr('tab_aide')], ['suggestion', tr('tab_suggestion')]];
   }
   // PC : sous-menus de Mon compte, sous son bouton dans la barre de gauche.
   function accountNavHtml() {
@@ -4625,7 +4626,7 @@
     return '<div class="nav-sub nav-sub-account">' + items.map(function (it) { return '<button type="button" class="nav-sub-btn' + (/data-level="3"/.test(it[1]) ? ' nav-sub3' : '') + (it[2] ? ' active' : '') + '" ' + it[1] + '>' + it[0] + '</button>'; }).join('') + '</div>';
   }
   function renderProfileTabBar() {
-    var tabs = [['profil', tr('tab_profil')], ['plus', 'Carnet+'], ['audience', L('Audience', 'Audience')], ['reglages', tr('tab_reglages')], ['aide', tr('tab_aide')], ['suggestion', tr('tab_suggestion')]];
+    var tabs = [['profil', tr('tab_profil')], ['plus', 'Carnet+'], ['audience', L('Audience', 'Audience')], ['reglages', tr('tab_reglages')], ['compte', L('Compte', 'Account')], ['aide', tr('tab_aide')], ['suggestion', tr('tab_suggestion')]];
     return '<div class="subnav profile-tabs main-subnav" role="tablist">' + tabs.map(function (t) {
       return '<button type="button" class="subnav-btn profile-tab-btn' + (profileSubTab === t[0] ? ' active' : '') + '" role="tab" aria-selected="' + (profileSubTab === t[0]) + '" data-profile-tab="' + t[0] + '">' + t[1] + '</button>';
     }).join('') + '</div>';
@@ -4847,7 +4848,7 @@
     return html;
   }
 
-  function renderProfileReglagesTab(p) {
+  function renderProfileReglagesTab(p, only) {
     var html = '<div class="settings-block">';
     html += '<div class="settings-inline"><div><label style="margin-bottom:0.4rem; display:block;">' + tr('profile_lang') + '</label>' + renderLangToggle() + '</div>' +
       '<div><label style="margin-bottom:0.4rem; display:block;">' + tr('profile_theme') + '</label>' + renderThemeToggle() + '</div></div>';
@@ -4936,8 +4937,11 @@
     sections.compte = renderAccountBar(p) + accountHtml + (isAdmin() ? '<div style="margin-top:1.2rem;">' + renderSelfBadges(p) + '</div>' : '');
     var items = [['affichage', 'Général'], ['notifications', 'Notifications']];
     items.push(['confidentialite', 'Vie privée'], ['donnees', L('Mes données', 'My data')]);
-    items.push(['compte', 'Compte']);
-    if (profileEmailMessage || profilePasswordMessage || profileDeleteConfirmOpen) pillState.settings = 'compte';
+    // Compte : son propre onglet (même niveau que Réglages).
+    if (only === 'compte') return '<div class="card"><div class="compte-switch"><span class="help-text">' + L('Connecté avec ', 'Signed in with ') + '<strong>' + escapeHtml((auth.currentUser && auth.currentUser.email) || p.name) + '</strong></span>' +
+      '<button type="button" class="ghost" id="compte-switch-btn">' + L('Changer de compte', 'Switch account') + '</button></div>' + sections.compte + '</div>';
+    if (profileEmailMessage || profilePasswordMessage || profileDeleteConfirmOpen) profileSubTab = 'compte';
+    if (pillState.settings === 'compte') pillState.settings = 'affichage';
     var pillsHtml = renderPills('settings', items);
     var sec = sections[pillState.settings] || sections.affichage;
     return pillsHtml + (sec.indexOf('<div class="sub-pills">') === 0 ? sec : '<div class="card">' + sec + '</div>');
@@ -5141,6 +5145,7 @@
     if (profileSubTab === 'plus') html += renderCarnetPlusTab(p);
     else if (profileSubTab === 'audience') html += renderAudienceTab(p);
     else if (profileSubTab === 'reglages') html += renderProfileReglagesTab(p);
+    else if (profileSubTab === 'compte') html += renderProfileReglagesTab(p, 'compte');
     else if (profileSubTab === 'aide') html += renderProfileAideTab(p);
     else if (profileSubTab === 'suggestion') html += '<div class="card">' + renderProfileSuggestionTab(p) + '</div>';
     else html += renderProfileProfilTab(p);
@@ -5456,7 +5461,7 @@
         Object.keys(d.reactions).forEach(function (who) {
           if (who === name || !d.reactions[who]) return;
           items.push({ key: 'bravo:' + coll + ':' + d.id + ':' + who, kind: 'bravo', time: d.createdAt || 0,
-            html: '<strong>' + escapeHtml(who) + '</strong>' + L(' : « Gaz ! » ', ': “Full gas!” ') + label(d), go: go });
+            html: '<strong>' + escapeHtml(who) + '</strong>' + L(' a réagi ', ' reacted ') + label(d), go: go });
         });
       });
     };
@@ -5470,6 +5475,16 @@
     (STATE.postComments || []).forEach(function (c) {
       if (c.author === name || myPostIds.indexOf(c.postId) === -1) return;
       items.push({ key: 'comment:' + c.id, kind: 'bravo', time: c.createdAt || 0, html: '<strong>' + escapeHtml(c.author) + '</strong>' + L(' a commenté ton message', ' commented on your post') + excerpt(c.text), go: { to: 'fil' } });
+    });
+    // @ : on m'a cité dans une publication ou un commentaire.
+    var atMe = new RegExp('@' + name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '(?![\\w\u00C0-\u017F])', 'i');
+    (STATE.wallPosts || []).forEach(function (w) {
+      if (w.author === name || !w.text || !atMe.test(w.text)) return;
+      items.push({ key: 'mention:' + w.id, kind: 'bravo', time: w.createdAt || 0, html: '<strong>' + escapeHtml(w.author) + '</strong>' + L(' t\'a cité', ' mentioned you') + excerpt(w.text), go: { to: 'fil' } });
+    });
+    (STATE.postComments || []).forEach(function (c) {
+      if (c.author === name || !c.text || !atMe.test(c.text)) return;
+      items.push({ key: 'mention-c:' + c.id, kind: 'bravo', time: c.createdAt || 0, html: '<strong>' + escapeHtml(c.author) + '</strong>' + L(' t\'a cité dans un commentaire', ' mentioned you in a comment') + excerpt(c.text), go: { to: 'fil' } });
     });
     (STATE.allUserFollows || []).forEach(function (f) {
       if (f.followee !== name || f.follower === name) return;
@@ -5573,13 +5588,18 @@
   }
   // Seen keys, per device. First run: everything already there counts as
   // seen, so only what happens next shows up as new.
-  var notifSeen = null, notifSeenOnOpen = null;
+  var notifSeen = null, notifSeenOnOpen = null, notifSeenAtOnOpen = null;
   function loadNotifSeen() {
-    if (notifSeen) return notifSeen;
-    try { notifSeen = JSON.parse(localStorage.getItem('cdp-notif-seen') || 'null'); } catch (e) { notifSeen = null; }
-    if (!notifSeen || !notifSeen.keys) {
-      notifSeen = { keys: {} };
+    // Lu / non lu : rangé sur le compte (notifSeenAt), pas seulement sur
+    // ce navigateur ; les clés locales (par compte) complètent.
+    if (notifSeen && notifSeen.uid === myUid()) return notifSeen;
+    try { notifSeen = JSON.parse(localStorage.getItem('cdp-notif-seen-' + myUid()) || 'null'); } catch (e) { notifSeen = null; }
+    if (!notifSeen || !notifSeen.keys) notifSeen = { keys: {} };
+    notifSeen.uid = myUid();
+    if (currentUserProfile && !currentUserProfile.notifSeenAt) {
+      // Premier passage sur ce compte : ce qui existe déjà compte comme lu.
       activityItems().forEach(function (it) { notifSeen.keys[it.key] = 1; (it.keys || []).forEach(function (k) { notifSeen.keys[k] = 1; }); });
+      setNotifSeenAt(Date.now());
       saveNotifSeen();
     }
     return notifSeen;
@@ -5588,21 +5608,32 @@
     try {
       var keys = Object.keys(notifSeen.keys);
       if (keys.length > 800) keys.slice(0, keys.length - 800).forEach(function (k) { delete notifSeen.keys[k]; });
-      localStorage.setItem('cdp-notif-seen', JSON.stringify(notifSeen));
+      localStorage.setItem('cdp-notif-seen-' + myUid(), JSON.stringify(notifSeen));
     } catch (e) {}
+  }
+  function setNotifSeenAt(t) {
+    if (!currentUserProfile) return;
+    currentUserProfile.notifSeenAt = t;
+    db.collection('users').doc(myUid()).update({ notifSeenAt: t }).catch(function () {});
+  }
+  function notifIsSeen(it, seenKeys) {
+    var at = (currentUserProfile && currentUserProfile.notifSeenAt) || 0;
+    return !!seenKeys[it.key] || (it.time && it.time <= at);
   }
   function unreadActivityCount() {
     if (!currentUserProfile) return 0;
     var seen = loadNotifSeen().keys;
-    return activityItems().filter(function (it) { return !seen[it.key]; }).length;
+    return activityItems().filter(function (it) { return !notifIsSeen(it, seen); }).length;
   }
   // Opening the panel marks everything seen, but the dots stay for this
   // visit (notifSeenOnOpen) so you can still tell what was new.
   function markNotificationsSeen() {
     var seen = loadNotifSeen();
     notifSeenOnOpen = Object.assign({}, seen.keys);
+    notifSeenAtOnOpen = (currentUserProfile && currentUserProfile.notifSeenAt) || 0;
     activityItems().forEach(function (it) { seen.keys[it.key] = 1; (it.keys || []).forEach(function (k) { seen.keys[k] = 1; }); });
     saveNotifSeen();
+    setNotifSeenAt(Date.now());
   }
   function activityTimeLabel(it) {
     return it.timeLabel || (it.time ? relativeTime(it.time) : '');
@@ -5716,12 +5747,12 @@
     var going = allActs.filter(function (it) { return it.key.indexOf('going:') === 0; });
     var acts = allActs.filter(function (it) { return it.key.indexOf('going:') !== 0; });
     if (going.length) html += '<div class="notif-group-title">' + L('Tes amis roulent', 'Your friends are riding') + '</div>' + going.map(function (it) {
-      var unread = !seenBefore[it.key];
+      var unread = !seenBefore[it.key] && !(it.time && it.time <= (notifSeenAtOnOpen != null ? notifSeenAtOnOpen : ((currentUserProfile && currentUserProfile.notifSeenAt) || 0)));
       return '<button type="button" class="notif-row' + (unread ? ' unread' : '') + '"' + notifGoAttrs(it.go) + '>' + notifIconHtml(it.kind) +
         '<span class="notif-body"><span class="notif-text">' + it.html + '</span></span>' + (unread ? '<span class="notif-dot" aria-label="Nouveau"></span>' : '') + '</button>';
     }).join('') + '</div><div class="card notifications-panel">' + (acts.length ? '<div class="notif-group-title">' + L('Activité', 'Activity') + '</div>' : '');
     html += acts.length ? acts.map(function (it) {
-      var unread = !seenBefore[it.key];
+      var unread = !seenBefore[it.key] && !(it.time && it.time <= (notifSeenAtOnOpen != null ? notifSeenAtOnOpen : ((currentUserProfile && currentUserProfile.notifSeenAt) || 0)));
       return '<button type="button" class="notif-row' + (unread ? ' unread' : '') + '"' + notifGoAttrs(it.go) + '>' + notifIconHtml(it.kind) +
         '<span class="notif-body"><span class="notif-text">' + it.html + '</span><span class="notif-time">' + escapeHtml(activityTimeLabel(it)) + '</span></span>' +
         (unread ? '<span class="notif-dot" aria-label="Nouveau"></span>' : '') + '</button>';
@@ -6529,7 +6560,7 @@
     }).then(function () {
       return db.collection('userPrivate').doc(uid).delete().catch(function () {});
     }).then(function () {
-      try { ['cdp-notif-seen', 'cdp-pending-roulage'].forEach(function (k) { localStorage.removeItem(k); sessionStorage.removeItem(k); }); } catch (e) {}
+      try { ['cdp-notif-seen', 'cdp-notif-seen-' + myUid(), 'cdp-pending-roulage'].forEach(function (k) { localStorage.removeItem(k); sessionStorage.removeItem(k); }); } catch (e) {}
     });
   }
 
@@ -8427,8 +8458,8 @@
     var overlay = document.createElement('div');
     overlay.className = 'crop-modal-overlay';
     overlay.innerHTML = '<div class="crop-modal invite-qr-modal">' +
-      '<h2 class="section-title">Invite un pilote</h2>' +
-      '<div class="help-text">Fais scanner ce code : il s\'inscrit avec ton lien et devient ton filleul.</div>' +
+      '<h2 class="section-title">Invite un pote</h2>' +
+      '<div class="help-text qr-oneline">Scanne : inscription et parrainage direct.</div>' +
       '<div class="invite-qr-box" id="invite-qr-box">Chargement…</div>' +
       '<div class="invite-qr-link">' + escapeHtml(link) + '</div>' +
       '<div class="invite-qr-stats" id="invite-qr-stats"></div>' +
@@ -9684,15 +9715,31 @@
   // leur détail, rangés par année. Simple estimation : l'inscription et le
   // paiement restent chez l'orga. Stocké dans le document privé du pilote
   // (userPrivate/{uid}.budget et .budgetExtras), jamais visible des autres.
+  // Lignes d'un roulage (le prix orga = « Roulage »). Clés nouvelles
+  // ajoutées : les anciennes (travel, hotel, tyres, other) restent telles quelles.
   function budgetCosts() { return [
-    ['travel', L('Déplacement', 'Travel'), L('Essence, péages, vol', 'Fuel, tolls, flight')],
-    ['hotel', L('Hébergement', 'Accommodation'), L('Hôtel, repas', 'Hotel, meals')],
+    ['rc', L('RC (assurance)', 'Insurance'), ''],
     ['tyres', L('Pneus', 'Tyres'), L('Ex. 450 si neufs', 'E.g. 450 if new')],
-    ['other', L('Autre', 'Other'), L('Location, essence moto', 'Rental, bike fuel')]
+    ['fuel', L('Essence', 'Fuel'), ''],
+    ['coaching', L('Coaching', 'Coaching'), ''],
+    ['rental', L('Location', 'Rental'), ''],
+    ['photos', L('Photos', 'Photos'), ''],
+    ['travel', L('Déplacement', 'Travel'), L('Péages, vol', 'Tolls, flight')],
+    ['hotel', L('Hébergement', 'Accommodation'), ''],
+    ['meals', L('Repas', 'Meals'), ''],
+    ['other', L('Autre', 'Other'), '']
   ]; }
-  function budgetCostLabel(k) { return { travel: L('Déplacement', 'Travel'), hotel: L('Hébergement', 'Accommodation'), tyres: L('Pneus', 'Tyres'), other: L('Autre', 'Other'), lines: L('Mes lignes', 'My lines'), extras: L('Hors roulage', 'Outside trackdays') }[k] || k; }
+  function emptyBudgetPerso() { var o = { lines: 0, extras: 0 }; budgetCosts().forEach(function (c) { o[c[0]] = 0; }); return o; }
+  function budgetCostLabel(k) { var c = budgetCosts().filter(function (x) { return x[0] === k; })[0]; if (c) return c[1]; return { lines: L('Mes lignes', 'My lines'), extras: L('Hors roulage', 'Outside trackdays') }[k] || k; }
+  // Monnaie du compte : $ (États-Unis), £ (Royaume-Uni), sinon €.
+  function currencySymbol() {
+    var n = (currentUserProfile && currentUserProfile.nationality) || '';
+    return n === 'US' ? '$' : n === 'GB' ? '£' : '€';
+  }
   function formatEuros(n, approx) {
     var s = Math.round(n || 0).toLocaleString(currentLang() === 'en' ? 'en-GB' : 'fr-FR').replace(/[  ]/g, ' ');
+    var cur = currencySymbol();
+    if (cur !== '€') return (approx ? '~' : '') + cur + s;
     return (approx ? '~' : '') + L(s + ' €', '€' + s);
   }
   function parseEuroNumber(s) {
@@ -9767,7 +9814,7 @@
     });
     var years = {};
     function yearOf(y) {
-      return years[y] = years[y] || { year: y, total: 0, orga: 0, spent: 0, planned: 0, toPay: 0, count: 0, countPast: 0, approx: false, missing: 0, perso: { travel: 0, hotel: 0, tyres: 0, other: 0, lines: 0, extras: 0 } };
+      return years[y] = years[y] || { year: y, total: 0, orga: 0, spent: 0, planned: 0, toPay: 0, count: 0, countPast: 0, approx: false, missing: 0, perso: emptyBudgetPerso() };
     }
     rows.forEach(function (r) {
       if (!r.on) return;
@@ -9817,14 +9864,29 @@
   // gardés, et ceux à ajouter (le calendrier d'un Team, par ex.). Chaque
   // saisie s'enregistre toute seule.
   var budgetFocusId = null;
+  // Hors roulage : catégorie (équipement du pistard, paddock…), date,
+  // roulage lié, et qui a avancé l'argent.
+  function budgetExtraCats() { return [['equip', L('Équipement', 'Gear')], ['paddock', L('Paddock', 'Paddock')], ['moto', L('Moto', 'Bike')], ['licence', L('Licence', 'Licence')], ['other', L('Autre', 'Other')]]; }
   function budgetLinesHtml(lines, attrs) {
+    var isExtra = /data-year=/.test(attrs), cur = currencySymbol();
     return (lines || []).map(function (l) {
-      return '<div class="budget-line">' +
-        '<input type="text" maxlength="60" id="bl-' + l.id + '-label" ' + attrs + ' data-line="' + escapeHtml(l.id) + '" data-f="label" value="' + escapeHtml(l.label || '') + '" placeholder="' + escapeHtml(L('Libellé', 'Label')) + '">' +
-        '<input type="number" inputmode="decimal" min="0" step="1" id="bl-' + l.id + '-amount" ' + attrs + ' data-line="' + escapeHtml(l.id) + '" data-f="amount" value="' + escapeHtml(l.amount != null ? String(l.amount) : '') + '" placeholder="€">' +
-        '<button type="button" class="budget-line-del" data-budget-act="del-line" ' + attrs + ' data-line="' + escapeHtml(l.id) + '" aria-label="' + escapeHtml(L('Supprimer la ligne', 'Delete line')) + '">×</button></div>';
-    }).join('');
+      var more = '';
+      if (isExtra) {
+        var evs = budgetCandidates().slice().sort(function (a, b) { return b.dateStart.localeCompare(a.dateStart); }).slice(0, 40);
+        more = '<details class="budget-line-more"' + (l.date || l.ev || l.owed ? ' open' : '') + '><summary>' + L('Détails', 'Details') + (l.owed ? ' · ' + L('avancé par ', 'paid by ') + escapeHtml(l.owed) : '') + '</summary><div class="budget-line-extra">' +
+          '<label><span>' + L('Date', 'Date') + '</span><input type="date" ' + attrs + ' data-line="' + escapeHtml(l.id) + '" data-f="date" value="' + escapeHtml(l.date || '') + '"></label>' +
+          '<label><span>' + L('Roulage', 'Trackday') + '</span><select ' + attrs + ' data-line="' + escapeHtml(l.id) + '" data-f="ev"><option value="">—</option>' + evs.map(function (ev) { return '<option value="' + escapeHtml(ev.id) + '"' + (l.ev === ev.id ? ' selected' : '') + '>' + escapeHtml(ev.circuit + ' · ' + formatDate(ev.dateStart)) + '</option>'; }).join('') + '</select></label>' +
+          '<label><span>' + L('Avancé par', 'Paid by') + '</span><input type="text" list="budget-owed-list" maxlength="40" ' + attrs + ' data-line="' + escapeHtml(l.id) + '" data-f="owed" value="' + escapeHtml(l.owed || '') + '" placeholder="' + escapeHtml(L('Ex. Marc (je lui dois)', 'E.g. Marc (I owe him)')) + '"></label>' +
+          '</div></details>';
+      }
+      return '<div class="budget-line' + (isExtra ? ' is-extra' : '') + '">' +
+        (isExtra ? '<select class="budget-line-cat" ' + attrs + ' data-line="' + escapeHtml(l.id) + '" data-f="cat" aria-label="' + escapeHtml(L('Catégorie', 'Category')) + '">' + budgetExtraCats().map(function (c) { return '<option value="' + c[0] + '"' + ((l.cat || 'other') === c[0] ? ' selected' : '') + '>' + escapeHtml(c[1]) + '</option>'; }).join('') + '</select>' : '') +
+        '<input type="text" maxlength="60" id="bl-' + l.id + '-label" ' + attrs + ' data-line="' + escapeHtml(l.id) + '" data-f="label" value="' + escapeHtml(l.label || '') + '" placeholder="' + escapeHtml(isExtra ? L('Ex. casque, combi, ventilo', 'E.g. helmet, suit, fan') : L('Libellé', 'Label')) + '">' +
+        '<span class="money-in"><input type="number" inputmode="decimal" min="0" step="1" id="bl-' + l.id + '-amount" ' + attrs + ' data-line="' + escapeHtml(l.id) + '" data-f="amount" value="' + escapeHtml(l.amount != null ? String(l.amount) : '') + '" placeholder="0"><i>' + cur + '</i></span>' +
+        '<button type="button" class="budget-line-del" data-budget-act="del-line" ' + attrs + ' data-line="' + escapeHtml(l.id) + '" aria-label="' + escapeHtml(L('Supprimer la ligne', 'Delete line')) + '">×</button>' + more + '</div>';
+    }).join('') + (isExtra ? '<datalist id="budget-owed-list">' + friendsOf((currentUserProfile || {}).name || '').map(function (f) { return '<option value="' + escapeHtml(f.name) + '">'; }).join('') + '</datalist>' : '');
   }
+
   function budgetRowHtml(r, opts) {
     opts = opts || {};
     var ev = r.ev, team = ev.teamId ? teamById(ev.teamId) : null;
@@ -9836,11 +9898,13 @@
       : L('Pas de prix annoncé', 'No announced price') + (team ? ' · ' + escapeHtml(team.name) : '');
     function idFor(k) { return 'bud-' + ev.id + '-' + k; }
     var attrs = 'data-ev="' + escapeHtml(ev.id) + '"';
-    var fields = '<label class="setup-field setup-half"><span>' + L('Prix orga', 'Organiser price') + '</span><input type="number" inputmode="decimal" min="0" step="1" id="' + idFor('price') + '" ' + attrs + ' data-k="price" value="' + escapeHtml(r.entry.price != null ? String(r.entry.price) : '') + '" placeholder="' + escapeHtml(r.orga != null ? String(Math.round(r.orga)) : L('à saisir', 'enter')) + '"></label>' +
+    var fields = '<label class="setup-field setup-half"><span>' + L('Roulage', 'Trackday') + '</span><input type="number" inputmode="decimal" min="0" step="1" id="' + idFor('price') + '" ' + attrs + ' data-k="price" value="' + escapeHtml(r.entry.price != null ? String(r.entry.price) : '') + '" placeholder="' + escapeHtml(r.orga != null ? String(Math.round(r.orga)) : L('à saisir', 'enter')) + '"></label>' +
       (r.past ? '<span></span>' : '<label class="setup-field setup-half budget-paid"><input type="checkbox" id="' + idFor('paid') + '" ' + attrs + ' data-k="paid"' + (r.entry.paid ? ' checked' : '') + '><span>' + L('Déjà payé', 'Already paid') + '</span></label>') +
       budgetCosts().map(function (c) {
         return '<label class="setup-field setup-half"><span>' + c[1] + '</span><input type="number" inputmode="decimal" min="0" step="1" id="' + idFor(c[0]) + '" ' + attrs + ' data-k="' + c[0] + '" value="' + escapeHtml(r.entry[c[0]] != null ? String(r.entry[c[0]]) : '') + '" placeholder="' + escapeHtml(c[2]) + '"></label>';
       }).join('');
+    // Montants : la monnaie du compte affichée dans la case.
+    fields = fields.replace(/(<input type="number"[^>]*>)/g, '<span class="money-in">$1<i>' + currencySymbol() + '</i></span>');
     var hasCosts = budgetCosts().some(function (c) { return r.entry[c[0]]; }) || r.entry.price != null || (r.entry.lines || []).length;
     return '<div class="budget-row' + (r.on ? '' : ' budget-row-off') + '" data-row="' + escapeHtml(ev.id) + '">' +
       '<div class="budget-row-head"><input type="checkbox" id="' + idFor('on') + '" ' + attrs + ' data-k="on" aria-label="' + escapeHtml(L('Dans mon budget', 'In my budget')) + '"' + (r.on ? ' checked' : '') + '>' +
@@ -9860,8 +9924,8 @@
   // à la couleur du pilote, trois chiffres, la répartition des dépenses,
   // puis les dépenses hors roulage et la liste des roulages de la saison.
   var budgetSeason = null;
-  var BUDGET_PARTS = ['orga', 'travel', 'hotel', 'tyres', 'other', 'lines', 'extras'];
-  function budgetPartLabel(k) { return k === 'orga' ? L('Roulages (orga)', 'Trackdays (organiser)') : budgetCostLabel(k); }
+  var BUDGET_PARTS = ['orga', 'rc', 'tyres', 'fuel', 'coaching', 'rental', 'photos', 'travel', 'hotel', 'meals', 'other', 'lines', 'extras'];
+  function budgetPartLabel(k) { return k === 'orga' ? L('Roulage', 'Trackday') : budgetCostLabel(k); }
   function budgetSeasonsList(cb) {
     var ys = {};
     ys[dateKey(new Date()).slice(0, 4)] = 1;
@@ -9871,7 +9935,7 @@
   }
   function budgetSummaryHtml(cb, year) {
     var y = cb.years.filter(function (x) { return x.year === year; })[0] ||
-      { year: year, total: 0, orga: 0, spent: 0, planned: 0, toPay: 0, count: 0, countPast: 0, approx: false, missing: 0, perso: { travel: 0, hotel: 0, tyres: 0, other: 0, lines: 0, extras: 0 } };
+      { year: year, total: 0, orga: 0, spent: 0, planned: 0, toPay: 0, count: 0, countPast: 0, approx: false, missing: 0, perso: emptyBudgetPerso() };
     var look = (currentUserProfile && lookOf(currentUserProfile)) || {};
     var on = cb.rows.filter(function (r) { return r.on && r.ev.dateStart.slice(0, 4) === year; });
     var top = on.slice().sort(function (a, b) { return b.total - a.total; })[0];
@@ -9882,6 +9946,9 @@
     var html = '<div class="card ph-feature budget-hero" style="' + lookStyle(look) + '">' +
       (outline ? '<img class="ph-feature-trace" src="' + escapeHtml(outline) + '" alt="">' : '') +
       '<span class="ph-feature-k">' + L('Budget saison ', 'Season budget ') + escapeHtml(year) + '</span>' +
+      // Masquer les montants (montrer l'appli sans dévoiler ses dépenses).
+      '<button type="button" class="budget-hide-btn" data-action="budget-hide" aria-pressed="' + budgetHidden() + '" title="' + escapeHtml(budgetHidden() ? L('Afficher les montants', 'Show amounts') : L('Masquer les montants', 'Hide amounts')) + '" aria-label="' + escapeHtml(budgetHidden() ? L('Afficher les montants', 'Show amounts') : L('Masquer les montants', 'Hide amounts')) + '">' +
+        (budgetHidden() ? '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3l18 18"/><path d="M10.6 5.1A10 10 0 0 1 12 5c6.4 0 10 7 10 7a17 17 0 0 1-3.2 4.1M6.6 6.6C3.9 8.3 2 12 2 12s3.6 7 10 7a9.6 9.6 0 0 0 5.4-1.6"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg>' : '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>') + '</button>' +
       '<strong class="ph-feature-time">' + budgetYearTotal(y) + '</strong>' +
       '<span class="ph-feature-s">' + (y.count ? y.count + (y.count > 1 ? L(' roulages', ' trackdays') : L(' roulage', ' trackday')) : L('Aucun roulage gardé', 'No trackday kept')) +
       (y.perso.extras ? L(' · dont ', ' · incl. ') + formatEuros(y.perso.extras) + L(' hors roulage', ' outside trackdays') : '') + '</span>';
@@ -9908,11 +9975,12 @@
     }
     return html;
   }
+  function budgetHidden() { try { return localStorage.getItem('cdp-budget-hidden') === '1'; } catch (e) { return false; } }
   function budgetExtrasCardHtml(year) {
     var extras = (myBudgetExtras && myBudgetExtras[year]) || [];
     var sum = budgetLinesSum(extras);
     return '<div class="card budget-extras-card"><div class="budget-card-head"><h2 class="section-title">' + L('Hors roulage', 'Outside trackdays') + '</h2><strong data-yextra="' + escapeHtml(year) + '">' + (sum ? formatEuros(sum) : '') + '</strong></div>' +
-      '<div class="help-text">' + L('Licence, équipement, entretien de la moto…', 'Licence, gear, bike servicing…') + '</div>' +
+      '<div class="help-text">' + L('Équipement du pistard (casque, combi, gants, bottes), paddock (armoire, cintres, ventilo, table pliable), licence, entretien…', 'Rider gear (helmet, suit, gloves, boots), paddock (rack, hangers, fan, folding table), licence, servicing…') + '</div>' +
       '<div class="budget-lines">' + budgetLinesHtml(extras, 'data-year="' + escapeHtml(year) + '"') + '</div>' +
       '<div class="budget-row-actions"><button type="button" class="link-btn inline-link" data-budget-act="add-line" data-year="' + escapeHtml(year) + '">' + L('+ Ajouter une ligne', '+ Add a line') + '</button></div></div>';
   }
@@ -10032,7 +10100,9 @@
       if (lineId && t.getAttribute('data-f')) {
         var line = budgetLineList(t).filter(function (l) { return l.id === lineId; })[0];
         if (!line) return;
-        if (t.getAttribute('data-f') === 'label') line.label = t.value.slice(0, 60);
+        var f = t.getAttribute('data-f');
+        if (f === 'label') line.label = t.value.slice(0, 60);
+        else if (f === 'cat' || f === 'date' || f === 'ev' || f === 'owed') { if (e.type !== 'change' && f !== 'owed') return; var v2 = t.value.trim().slice(0, 60); if (v2) line[f] = v2; else delete line[f]; }
         else { var a = t.value.trim(); line.amount = a === '' ? null : Math.max(0, Math.round(parseEuroNumber(a) || 0)); }
       } else {
         var id = t.getAttribute('data-ev'), k = t.getAttribute('data-k');
@@ -10130,7 +10200,8 @@
     // Courbe : plus haut = plus rapide.
     var W = 300, H = 70, pad = 10, span = Math.max(hi - lo, 0.5);
     var pts = bests.map(function (b, i) {
-      return [pad + (W - 2 * pad) * (i / (bests.length - 1)), pad + (H - 2 * pad) * ((b - lo) / span)];
+      // Gagner du temps = la courbe descend (comme le chrono).
+      return [pad + (W - 2 * pad) * (i / (bests.length - 1)), pad + (H - 2 * pad) * ((hi - b) / span)];
     });
     var svg = '<svg class="day-prog-chart" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' + L('Meilleur tour de chaque session', 'Best lap of each session') + '">' +
       '<polyline points="' + pts.map(function (q) { return q[0].toFixed(1) + ',' + q[1].toFixed(1); }).join(' ') + '" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>' +
@@ -10284,7 +10355,7 @@
       // The team leader manages the roulage (participants, groups,
       // horaires…) straight from here, not only from the team's page.
       if (leaderHere) acts += '<button type="button" class="primary" data-action="manage-from-outing" data-id="' + escapeHtml(ev.id) + '" data-team="' + escapeHtml(ev.teamId) + '">' + L('Gérer', 'Manage') + '</button>';
-      if (!isRiderHere && status !== 'terminee') acts += joinEventButtonHtml(ev, leaderHere);
+      if (!isRiderHere && (status !== 'terminee' || (currentUserProfile && currentUserProfile.role === 'accompagnant'))) acts += joinEventButtonHtml(ev, leaderHere);
       if (ev.bookingUrl && !isRiderHere) acts += '<button type="button" class="primary" data-action="open-external-url" data-url="' + escapeHtml(ev.bookingUrl) + '">' + tr('book_register') + '</button>';
       if ((isRiderHere || leaderHere) && status !== 'terminee') acts += '<button type="button" class="ghost" data-action="share-roulage" data-id="' + escapeHtml(ev.id) + '">' + L('Inviter', 'Invite') + '</button>';
       // QR paddock : à afficher au paddock, on scanne et on rejoint (avec son groupe).
@@ -11376,7 +11447,7 @@
       if (map && admin) map.addEventListener('click', function (e) {
         var r = map.querySelector('img').getBoundingClientRect();
         adding = { x: Math.round(Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)) * 1000) / 1000, y: Math.round(Math.max(0, Math.min(1, (e.clientY - r.top) / r.height)) * 1000) / 1000 };
-        access = 'public'; ov.querySelector('.mini-sheet').innerHTML = draw(); bind();
+        access = 'public'; ov.querySelector('.mini-sheet').innerHTML = miniSheetX() + draw(); bind();
         var lb = ov.querySelector('#spot-label'); if (lb) lb.focus();
       });
       ov.querySelectorAll('[data-spot-access]').forEach(function (b) { b.addEventListener('click', function () {
@@ -11386,10 +11457,10 @@
       var add = ov.querySelector('[data-spot="add"]');
       if (add) add.addEventListener('click', function () {
         spots.push({ x: adding.x, y: adding.y, label: (ov.querySelector('#spot-label').value || '').trim().slice(0, 60), access: access });
-        adding = null; save(); ov.querySelector('.mini-sheet').innerHTML = draw(); bind();
+        adding = null; save(); ov.querySelector('.mini-sheet').innerHTML = miniSheetX() + draw(); bind();
       });
       ov.querySelectorAll('[data-spot-del]').forEach(function (b) { b.addEventListener('click', function () {
-        spots.splice(Number(b.getAttribute('data-spot-del')), 1); save(); ov.querySelector('.mini-sheet').innerHTML = draw(); bind();
+        spots.splice(Number(b.getAttribute('data-spot-del')), 1); save(); ov.querySelector('.mini-sheet').innerHTML = miniSheetX() + draw(); bind();
       }); });
     };
     bind();
@@ -11411,14 +11482,14 @@
     };
     var ov = openMiniSheet(draw());
     var bind = function () {
-      ov.querySelectorAll('[data-inc-type]').forEach(function (b) { b.addEventListener('click', function () { st.note = ov.querySelector('#inc-note').value; st.type = b.getAttribute('data-inc-type'); ov.querySelector('.mini-sheet').innerHTML = draw(); bind(); }); });
+      ov.querySelectorAll('[data-inc-type]').forEach(function (b) { b.addEventListener('click', function () { st.note = ov.querySelector('#inc-note').value; st.type = b.getAttribute('data-inc-type'); ov.querySelector('.mini-sheet').innerHTML = miniSheetX() + draw(); bind(); }); });
       var map = ov.querySelector('.incident-map');
       if (map) map.addEventListener('click', function (e) {
         var r = map.querySelector('img').getBoundingClientRect();
         st.x = Math.round(Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)) * 1000) / 1000;
         st.y = Math.round(Math.max(0, Math.min(1, (e.clientY - r.top) / r.height)) * 1000) / 1000;
         st.note = ov.querySelector('#inc-note').value; st.publish = ov.querySelector('#inc-publish').checked;
-        ov.querySelector('.mini-sheet').innerHTML = draw(); bind();
+        ov.querySelector('.mini-sheet').innerHTML = miniSheetX() + draw(); bind();
       });
       var clr = ov.querySelector('[data-inc="clear"]');
       if (clr) clr.addEventListener('click', function () { pendingIncident = null; ov.remove(); renderRoot(); });
@@ -14350,9 +14421,29 @@
     if (isPilote) out.push(['saisons', L('Saisons', 'Seasons')]);
     return out;
   }
+  // Circuits où je suis allé (roulages passés où je suis sur la liste).
+  function visitedCircuits(name) {
+    var today = dateKey(new Date()), by = {};
+    eventsList().forEach(function (ev) {
+      if ((ev.riders || []).indexOf(name) === -1 || (ev.dateStart || '') > today || !ev.circuit) return;
+      var k = circuitKey(ev.circuit), v = by[k] || (by[k] = { circuit: ev.circuit, n: 0, last: '' });
+      v.n++; if (ev.dateStart > v.last) v.last = ev.dateStart;
+    });
+    return Object.keys(by).map(function (k) { return by[k]; }).sort(function (a, b) { return b.last.localeCompare(a.last); });
+  }
+  function renderVisitedCircuits() {
+    var me = currentUserProfile; if (!me) return '';
+    var list = visitedCircuits(me.name);
+    if (!list.length) return '<div class="card"><div class="empty-state">' + L('Aucun circuit visité pour l\'instant. Sur un roulage passé, touche « J\'y étais ».', 'No circuit visited yet. On a past trackday, tap “I was there”.') + '</div></div>';
+    return '<div class="card"><h2 class="section-title">' + plural(list.length, L('circuit visité', 'circuit visited'), L('circuits visités', 'circuits visited')) + '</h2><div class="visited-grid">' + list.map(function (v) {
+      return '<button type="button" class="visited-tile" data-open-circuit="' + escapeHtml(v.circuit) + '"><span class="outing-thumb">' + circuitThumbHtml(v.circuit) + '</span><strong>' + escapeHtml(v.circuit) + '</strong><span class="help-text">' + plural(v.n, L('fois', 'time'), L('fois', 'times')) + ' · ' + escapeHtml(formatDate(v.last)) + '</span></button>';
+    }).join('') + '</div></div>';
+  }
   function isDesktopNav() { return !!(window.matchMedia && window.matchMedia('(min-width: 960px)').matches); }
   function carnetSubItems() {
     var items = [['carnet', L('Roulages', 'Trackdays')], ['circuit', 'Circuits'], ['stats', 'Stats']];
+    // Accompagnant : les circuits déjà visités.
+    if (meIsNonRider()) items.splice(2, 0, ['visites', L('Visités', 'Visited')]);
     // PC : Budget a sa propre entrée dans Carnet, entre Stats et Coaching.
     if (isDesktopNav()) items.push(['budget', 'Budget']);
     if (canAccessCoachSpace() && (isAdmin() || featureEnabled('teamsCoaching') || (STATE.myTeamMemberships || []).length > 0)) items.push(['coach', 'Coaching']);
@@ -18628,7 +18719,11 @@
       (names.length ? '<span class="reaction-top">' + top + '</span> ' + names.length : L('Réagir', 'React')) + '</button>' +
       '<div class="reaction-picker" hidden>' + REACTION_EMOJIS.map(function (e) {
         return '<button type="button" class="reaction-pick' + (mine === e ? ' active' : '') + '" data-action="' + dataAction + '" data-id="' + escapeHtml(id) + '" data-emoji="' + e + '" aria-label="' + e + '">' + e + '</button>';
-      }).join('') + '</div></div>';
+      }).join('') +
+      // Qui a réagi : visible en ouvrant les réactions (appui), par emoji.
+      (names.length ? '<div class="reaction-who">' + Object.keys(counts).map(function (e) {
+        return '<span><b>' + e + '</b> ' + escapeHtml(names.filter(function (n) { return (REACTION_EMOJIS.indexOf(reactions[n]) !== -1 ? reactions[n] : '👍') === e; }).join(', ')) + '</span>';
+      }).join('') + '</div>' : '') + '</div></div>';
   }
   // Réactions sur un élément du fil qui n'est pas un document (roulage,
   // récap, photos) : une ligne par personne dans postReactions.
@@ -18948,6 +19043,7 @@
   // 30 jours), day/capped (plafond 100/jour des actions), rx (likes et
   // commentaires reçus déjà comptés), fol/ses (abonnés et chronos comptés),
   // total (pour le classement). Profil rempli et trophées : calculés.
+  var pneusBoardAll = false;
   var PNEUS_DAY_CAP = 100, pneusWatchAt = 0, pneusReadySince = 0, pneusWatchTimer = null;
   var TYRE_SVG = '<svg class="tyre-ico" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"/></svg>';
   var pneusLocal = null, pneusSyncTimer = null;
@@ -19109,7 +19205,10 @@
       var board = friends.map(function (n) {
         var x = (STATE.usersByName || {})[n] || {};
         return { n: n, t: n === me.name ? pneusTotal() : ((x.pneus && x.pneus.total) || 0) };
-      }).sort(function (a, b) { return b.t - a.t; }).slice(0, 10);
+      }).sort(function (a, b) { return b.t - a.t; });
+      // Top 3 (moi compris) ; « … » déplie la suite.
+      var meIdx = board.map(function (r) { return r.n; }).indexOf(me.name);
+      var shownBoard = pneusBoardAll ? board.slice(0, 50) : board.slice(0, 3).concat(meIdx > 2 ? [board[meIdx]] : []);
       return '<h2 class="section-title">' + L('Mes pneus', 'My tyres') + '</h2>' +
         '<div class="pneus-total">' + TYRE_SVG + '<b>' + pneusTotal() + '</b><span class="help-text">' + p.bank + ' ' + L('gagnés', 'earned') + ' · ' + prof + ' ' + L('profil', 'profile') + ' · ' + tro + ' ' + L('trophées', 'trophies') + '</span></div>' +
         '<div class="pneus-why"><strong>' + L('À quoi servent les pneus ?', 'What are tyres for?') + '</strong><p>' + L('C\'est la monnaie de Carnet Piste : elle récompense ton activité (rouler, publier, encourager tes potes). Plus tu en as, plus tu montes dans le classement entre amis. Bientôt, tu pourras les miser sur les chronos entre potes et débloquer des styles pour ta fiche.', 'It\'s Pitbook\'s currency: it rewards your activity (riding, posting, cheering your mates). The more you have, the higher you rank among friends. Soon you\'ll be able to bet them on lap times between mates and unlock styles for your profile.') + '</p></div>' +
@@ -19124,16 +19223,19 @@
           '<li>' + L('Profil : +5 par élément rempli (présentation, sponsors, bannière, photo, moto, numéro, pays, liens).', 'Profile: +5 per filled item (bio, sponsors, banner, photo, bike, number, country, links).') + '</li>' +
           '<li>' + L('Trophées : 10, 25, 50, 100, 200 puis 400 par niveau.', 'Trophies: 10, 25, 50, 100, 200 then 400 per level.') + '</li>' +
         '</ul></details>' +
-        (board.length > 1 ? '<div class="pneus-board"><strong>' + L('Classement entre amis', 'Friends leaderboard') + '</strong>' + board.map(function (r, i) {
-          return '<div class="pneus-row' + (r.n === me.name ? ' me' : '') + '"><span class="pneus-rank">' + (i + 1) + '</span>' + avatarHtml((STATE.usersByName || {})[r.n] || {}, r.n).replace(/ data-person="[^"]*"/, '') + '<span class="pneus-name">' + escapeHtml(r.n) + '</span><b>' + r.t + '</b></div>';
-        }).join('') + '</div>' : '') +
+        (board.length > 1 ? '<div class="pneus-board"><strong>' + L('Classement entre amis', 'Friends leaderboard') + '</strong>' + shownBoard.map(function (r) {
+          return '<div class="pneus-row' + (r.n === me.name ? ' me' : '') + '"><span class="pneus-rank">' + (board.indexOf(r) + 1) + '</span>' + avatarHtml((STATE.usersByName || {})[r.n] || {}, r.n).replace(/ data-person="[^"]*"/, '') + '<span class="pneus-name">' + escapeHtml(r.n) + '</span><b>' + r.t + '</b></div>';
+        }).join('') + (!pneusBoardAll && board.length > shownBoard.length ? '<button type="button" class="link-btn pneus-more" data-pneus="more" aria-label="' + escapeHtml(L('Voir tout le classement', 'See the whole leaderboard')) + '">…</button>' : '') + '</div>' : '') +
         '<div class="mini-sheet-actions"><button type="button" class="link-btn" data-mini-close>' + L('Fermer', 'Close') + '</button></div>';
     };
+    pneusBoardAll = false;
     var ov = openMiniSheet(draw());
     ov.querySelector('.mini-sheet').classList.add('pneus-sheet');
     var bind = function () {
+      var mo = ov.querySelector('[data-pneus="more"]');
+      if (mo) mo.addEventListener('click', function () { pneusBoardAll = true; ov.querySelector('.mini-sheet').innerHTML = miniSheetX() + draw(); bind(); });
       var c = ov.querySelector('[data-pneus="collect"]');
-      if (c) c.addEventListener('click', function () { var g = collectDailyPneus(); if (g) showToast('+' + g + ' ' + L('pneus', 'tyres'), 'success'); ov.querySelector('.mini-sheet').innerHTML = draw(); bind(); renderRoot(); });
+      if (c) c.addEventListener('click', function () { var g = collectDailyPneus(); if (g) showToast('+' + g + ' ' + L('pneus', 'tyres'), 'success'); ov.querySelector('.mini-sheet').innerHTML = miniSheetX() + draw(); bind(); renderRoot(); });
     };
     bind();
   }
@@ -22540,7 +22642,7 @@
       else if (activeView === 'circuit') {
         // Ouvert depuis le fil, une fiche, un roulage… : « ‹ Retour » y ramène.
         var prevNav = navCurrent && navCurrent.view !== 'circuit' ? navCurrent : navStack[navStack.length - 1];
-        var backHere = prevNav && ['carnet', 'circuit', 'stats', 'budget', 'coach', 'event'].indexOf(prevNav.view) === -1;
+        var backHere = prevNav && ['carnet', 'circuit', 'stats', 'budget', 'visites', 'coach', 'event'].indexOf(prevNav.view) === -1;
         body = (backHere ? '<button type="button" class="link-btn back-link nav-back-btn">‹ ' + L('Retour', 'Back') + '</button>' : '') + carnetSub + renderCircuitTab();
       }
       else if (activeView === 'stats') {
@@ -22558,6 +22660,7 @@
       else if (activeView === 'team') body = renderCommunauteNav() + renderTeamTab();
       else if (activeView === 'coach') body = carnetSub + renderCoachTab();
       else if (activeView === 'budget') body = carnetSub + renderBudgetTab();
+      else if (activeView === 'visites') body = carnetSub + renderVisitedCircuits();
       else body = carnetSub + carnetPillsHtml(myOutings()) + renderEventTab(); // 'event' (Carnet › Roulages › Calendrier) and safety fallback
       // Big section title so it's always clear which main tab you're in.
     }
@@ -22569,7 +22672,7 @@
             '<button type="button" class="header-hello" id="profile-toggle" aria-label="' + L('Ma fiche', 'My page') + '" title="' + L('Ma fiche', 'My page') + '">' + avatarHtml(currentUserProfile, currentUserProfile.name) +
               '<span class="hello-text"><span class="hello-small">Bonjour</span><span class="hello-name">' + escapeHtml(currentUserProfile.firstName || currentUserProfile.name || '') + '</span></span></button>' +
             '<div class="header-controls">' + pneusChipHtml('header-pneus') +
-              '<button type="button" class="header-icon-btn" id="invite-qr-btn" aria-label="Inviter un pilote (QR code)" title="Inviter un pilote">' +
+              '<button type="button" class="header-icon-btn" id="invite-qr-btn" aria-label="Inviter un pote (QR code)" title="Inviter un pote">' +
                 '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3zM20 14v.01M14 20h.01M17 20h4v-3"/></svg></button>' +
               '<button type="button" class="header-icon-btn' + (profilePanelOpen ? ' is-open' : '') + '" id="settings-toggle" aria-label="Mon compte" title="Mon compte">' +
                 '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>' +
@@ -22777,7 +22880,13 @@
   // « Demandé » tant qu'elle attend.
   function joinEventButtonHtml(ev, leaderHere) {
     var me = currentUserProfile && currentUserProfile.name;
-    if (!ev || !me || meIsNonRider()) return '';
+    if (!ev || !me) return '';
+    // Accompagnant : « J'y vais » (à venir) ou « J'y étais » (passé), sans team.
+    if (currentUserProfile.role === 'accompagnant') {
+      var past = (ev.dateEnd || ev.dateStart) < dateKey(new Date());
+      return '<button type="button" class="primary" data-action="join-roulage-link" data-id="' + escapeHtml(ev.id) + '">' + (past ? L('J\'y étais', 'I was there') : L('J\'y vais', 'I\'m going')) + '</button>';
+    }
+    if (meIsNonRider()) return '';
     var direct = !ev.teamId || ev.eventVisibility === 'ouvert' || leaderHere;
     var pending = !direct && (STATE.eventJoinRequests || []).concat(myEventJoinRequestsOut || []).some(function (r) { return r.eventId === ev.id && r.from === me && r.status === 'pending'; });
     if (pending) return '<button type="button" class="ghost" disabled>' + L('Demandé', 'Requested') + '</button>';
@@ -22802,12 +22911,12 @@
     var qrGroup = pendingJoinGroup;
     pendingJoinGroup = null;
     try { sessionStorage.removeItem('cdp-pending-group'); } catch (e) {}
-    if (!ev.teamId || ev.eventVisibility === 'ouvert' || isLeaderOfTeam(ev.teamId)) {
+    if (!ev.teamId || ev.eventVisibility === 'ouvert' || isLeaderOfTeam(ev.teamId) || (currentUserProfile && currentUserProfile.role === 'accompagnant')) {
       var prevState = JSON.parse(JSON.stringify(STATE));
       ev.riders = (ev.riders || []).concat([me]);
       if (qrGroup && (!ev.teamId || isLeaderOfTeam(ev.teamId))) setMyGroupAllDays(ev, me, qrGroup);
       persist(prevState);
-      showToast('Tu es sur la liste de ' + ev.circuit + '.', 'success');
+      showToast((meIsNonRider() ? L('C\'est noté : tu accompagnes à ', 'Noted: you\'re coming along at ') : L('Tu es sur la liste de ', 'You\'re on the list for ')) + ev.circuit + '.', 'success');
     } else {
       var req = { eventId: ev.id, teamId: ev.teamId, circuit: ev.circuit, from: me, status: 'pending', fromUid: myUid() };
       if (qrGroup) req.group = qrGroup;
@@ -22887,7 +22996,7 @@
     // publicly readable pseudo->email lookup, which let anyone harvest
     // every account's email. Sign in with the email address instead.
     if (identifier.indexOf('@') !== -1) return Promise.resolve(identifier);
-    return Promise.reject({ code: 'custom/pseudo-not-found', message: 'Connecte-toi avec ton adresse email (la connexion par pseudo a été retirée pour des raisons de sécurité).' });
+    return Promise.reject({ code: 'custom/pseudo-not-found', message: 'Connecte-toi avec ton adresse email.' });
   }
 
   function onLoginSubmit(evt) {
@@ -23191,6 +23300,8 @@
   function attachHandlers() {
     var logoutBtn = document.getElementById('logout-btn');
     if (logoutBtn) logoutBtn.addEventListener('click', function () { auth.signOut(); });
+    var switchBtn = document.getElementById('compte-switch-btn');
+    if (switchBtn) switchBtn.addEventListener('click', function () { auth.signOut(); });
     // Badges (compte certifié, Team PRO, chrono vérifié...) are icon-only,
     // so their explanation normally only shows on hover (title=...) -- no
     // way to hover on mobile. Tapping one shows the same text as a toast,
@@ -23935,6 +24046,12 @@
       outingSearch = /\balbum\b/i.test(outingSearch) ? outingSearch.replace(/\s*\balbum\b\s*/i, ' ').trim() : (outingSearch + ' album').trim();
       renderRoot();
     }); });
+    document.querySelectorAll('[data-action="budget-hide"]').forEach(function (b) { b.addEventListener('click', function () {
+      try { localStorage.setItem('cdp-budget-hidden', budgetHidden() ? '0' : '1'); } catch (e) {}
+      renderRoot();
+    }); });
+    if (document.querySelector('.budget-hero')) document.body.classList.toggle('budget-masked', budgetHidden());
+    else document.body.classList.remove('budget-masked');
     document.querySelectorAll('[data-action="copy-notes"]').forEach(function (b) { b.addEventListener('click', function (e) { e.stopPropagation(); copySharedNotes(b.getAttribute('data-id')); }); });
     document.querySelectorAll('[data-action="photo-spots"]').forEach(function (b) { b.addEventListener('click', function () { if (selectedCircuit) openPhotoSpots(selectedCircuit); }); });
     document.querySelectorAll('[data-action="circuit-create"]').forEach(function (b) { b.addEventListener('click', openCircuitCreate); });
@@ -26550,6 +26667,8 @@
       h += '<label for="imp-laps" style="margin-top:0.7rem; display:block;">Tours (un par ligne, modifiables)</label>' +
         '<textarea id="imp-laps" rows="7" style="width:100%;"></textarea><div class="help-text" id="imp-rebuilt"></div><div class="help-text" id="imp-flags"></div>' +
         '<div class="imp-split" id="imp-split" style="display:none;"></div>' +
+        // Chrono pour un pote : on choisit le pilote ici aussi.
+        (riderEl && riderEl.tagName === 'SELECT' && riderEl.options.length > 1 ? '<div style="margin-top:0.6rem;"><label for="imp-rider">' + tr('rider_label') + '</label><select id="imp-rider">' + [].map.call(riderEl.options, function (o) { return o.value ? '<option value="' + escapeHtml(o.value) + '"' + (o.value === riderName ? ' selected' : '') + '>' + escapeHtml(o.textContent) + '</option>' : ''; }).join('') + '</select></div>' : '') +
         '<div class="field-row" style="margin-top:0.6rem;"><div><label for="imp-date">Date' + (result.date ? ' (lue sur la feuille)' : '') + '</label>' +
         '<input type="text" id="imp-date" inputmode="numeric" value="' + escapeHtml(dateVal) + '"></div>' +
         '<div><label for="imp-circuit">Circuit' + (result.circuit ? ' (reconnu)' : '') + '</label><select id="imp-circuit">' +
@@ -26648,6 +26767,12 @@
       });
       lapsEl.addEventListener('input', function () { refreshFlags(); renderSplit(); });
       box.querySelector('#imp-date').addEventListener('input', refreshFlags);
+      var impRider = box.querySelector('#imp-rider');
+      if (impRider) impRider.addEventListener('change', function () {
+        riderName = impRider.value;
+        if (riderEl) { riderEl.value = riderName; riderEl.dispatchEvent(new Event('change', { bubbles: true })); }
+        refreshFlags();
+      });
       box.querySelector('#imp-circuit').addEventListener('change', refreshFlags);
       box.querySelector('[data-imp="apply"]').addEventListener('click', function () {
         var laps = currentLaps();
@@ -26738,11 +26863,13 @@
     if (candidateEventsForCircuitDate(circuit, date).some(function (e) { return (e.riders || []).indexOf(rider) !== -1; })) return true;
     return (STATE.sessions || []).some(function (x) { return x.rider === rider && sameCircuit(x.circuit, circuit) && x.date === date; });
   }
+  // Croix en haut à droite de chaque fenêtre (un appui dehors ferme aussi).
+  function miniSheetX() { return '<button type="button" class="mini-sheet-x" data-mini-close aria-label="' + escapeHtml(L('Fermer', 'Close')) + '">✕</button>'; }
   function openMiniSheet(innerHtml) {
     var old = document.getElementById('mini-sheet'); if (old) old.remove();
     var ov = document.createElement('div');
     ov.id = 'mini-sheet'; ov.className = 'mini-sheet-overlay';
-    ov.innerHTML = '<div class="mini-sheet" role="dialog" aria-modal="true">' + innerHtml + '</div>';
+    ov.innerHTML = '<div class="mini-sheet" role="dialog" aria-modal="true">' + miniSheetX() + innerHtml + '</div>';
     document.body.appendChild(ov);
     ov.addEventListener('click', function (e) { if (e.target === ov || e.target.closest('[data-mini-close]')) ov.remove(); });
     return ov;
@@ -26875,7 +27002,7 @@
     var bike = bikeEl.value.trim();
     var note = noteEl.value.trim();
     var group = groupEl ? groupEl.value : '';
-    var rawLaps = lapsEl.value.split(/[\n,;]+/).map(function (s) { return s.trim(); }).filter(Boolean);
+    var rawLaps = lapsEl.value.replace(/(\d:\d{1,2}),(\d{1,3})(?!\d)/g, '$1.$2').split(/[\n,;]+/).map(function (s) { return s.trim(); }).filter(Boolean);
     var laps = [];
     var invalid = false;
     rawLaps.forEach(function (raw) {

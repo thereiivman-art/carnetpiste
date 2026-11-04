@@ -18,7 +18,7 @@ const { chromium, BASE } = require('../lib');
   console.log('intérêt remonté:', await p.evaluate(() => firebase.firestore().collection('feedback').get().then(s => s.docs.some(d => /\[Carnet\+\]/.test(d.data().text)))));
   // Admin : attribuer Carnet+ à Sam
   await p.click('[data-profile-tab="reglages"]'); await p.waitForTimeout(300);
-  await p.click('[data-pill-group="settings"][data-pill="compte"]'); await p.waitForTimeout(300);
+  await p.click('[data-profile-tab="compte"]'); await p.waitForTimeout(300);
   await p.click('#account-manager-toggle').catch(() => {}); await p.waitForTimeout(900);
   const btn = await p.$('li:has-text("Sam") [data-action="toggle-account-badge"][data-field="plus"]');
   console.log('bouton admin Carnet+:', !!btn);
