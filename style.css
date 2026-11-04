@@ -4726,3 +4726,12 @@ html.kb-open .dm-form, .dm-form:focus-within { bottom: 0; }
 .fsug-top .fsug-head { flex: 1; cursor: default; }
 .fsug-close { width: 2rem; height: 2rem; min-width: 0; padding: 0; border: 0; border-radius: 50%; background: var(--surface-alt); color: var(--text-muted); cursor: pointer; display: grid; place-items: center; font-size: 0.85rem; }
 .notes-copy-btn { margin: 0.2rem 0 0.4rem; border-radius: 999px; padding: 0.4rem 0.9rem; font-weight: 700; color: var(--text); }
+.cf-incident { width: 100%; margin-top: 0.5rem; border-radius: 999px; font-weight: 700; color: var(--text); }
+.cf-incident.on { border-color: var(--accent); color: var(--accent); }
+.incident-types { margin: 0.2rem 0 0.4rem; }
+.incident-map { position: relative; background: #fff; border-radius: 0.6rem; overflow: hidden; cursor: crosshair; }
+.incident-map img { display: block; width: 100%; height: auto; }
+.incident-x { position: absolute; width: 28px; height: 28px; transform: translate(-50%, -50%); pointer-events: none; }
+.incident-x::before, .incident-x::after { content: ''; position: absolute; left: 50%; top: 50%; width: 30px; height: 5px; border-radius: 3px; background: #c8261f; box-shadow: 0 0 0 2px #fff; transform: translate(-50%, -50%) rotate(45deg); }
+.incident-x::after { transform: translate(-50%, -50%) rotate(-45deg); }
+.incident-chip { display: inline-flex; align-items: center; margin-right: 0.4rem; padding: 0.1rem 0.5rem; border-radius: 999px; background: color-mix(in srgb, #c8261f 14%, transparent); color: #c8261f; font-size: 0.75rem; font-weight: 700; }

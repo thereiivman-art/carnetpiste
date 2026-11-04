@@ -236,7 +236,9 @@ service cloud.firestore {
       return shortStr(d, 'rider', 80) && shortStr(d, 'circuit', 100) && shortStr(d, 'bike', 100)
         && shortStr(d, 'group', 10) && shortStr(d, 'slotLabel', 60) && shortStr(d, 'videoUrl', 600)
         && d.get('track', 'sec') in ['sec', 'humide', 'pluie']
-        && d.get('discipline', 'moto') in ['moto', 'auto'];
+        && d.get('discipline', 'moto') in ['moto', 'auto']
+        && (!('incident' in d) || (d.incident is map && d.incident.keys().hasOnly(['type', 'x', 'y'])
+            && d.incident.get('type', '') in ['chute', 'sortie', 'contact', 'panne']));
     }
     match /sessions/{id} {
       allow read: if verified();

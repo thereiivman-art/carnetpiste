@@ -4465,7 +4465,7 @@
         var deltaHtml = (personalBest !== null && best > personalBest)
           ? '<div class="lap-delta-line" title="Écart à ton record perso">+' + formatGap(best - personalBest) + '</div>'
           : (personalBest !== null && best === personalBest && !isRecord ? '<div class="lap-delta-line best">Record perso</div>' : '');
-        var noteHtml = (s.note ? '<div class="note-text">' + escapeHtml(s.note) + '</div>' : '') + (s.videoUrl ? '<div>' + sessionVideoHtml(s) + '</div>' : '');
+        var noteHtml = (s.note ? '<div class="note-text">' + escapeHtml(s.note) + '</div>' : '') + (s.videoUrl || s.incident ? '<div>' + sessionVideoHtml(s) + '</div>' : '');
         var periodLabel = s.period === 'matin' ? tr('period_morning') : s.period === 'apres-midi' ? tr('period_afternoon') : '';
         var sessionTagParts = [];
         if (s.slotLabel) sessionTagParts.push(s.slotLabel);
@@ -6915,6 +6915,8 @@
       '<input type="file" id="import-photo-input" accept="image/*,application/pdf" multiple hidden></div>';
     html += '<div class="field-error" id="form-error"></div>';
     html += '<button type="submit" class="primary cf-submit" id="submit-btn">' + L('Enregistrer', 'Save') + '</button>';
+    // Accident (chute, sortie, contact, panne) : l'endroit sur le plan.
+    html += '<button type="button" class="ghost cf-incident' + (pendingIncident ? ' on' : '') + '" id="cf-incident" title="' + escapeHtml(L('Chute, sortie de piste, contact ou panne : note l\'endroit sur le plan', 'Crash, off, contact or breakdown: mark the spot on the map')) + '">' + (pendingIncident ? L('Accident ✓', 'Incident ✓') : L('Accident', 'Incident')) + '</button>';
     html += '<details class="cf-more"' + (formCircuitsKnown ? '' : ' open') + '><summary>⋯ ' + L('Piste, note, vidéo, autres réglages', 'Track, note, video, other details') + '</summary>';
     var trackIco = {
       sec: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
@@ -10355,7 +10357,7 @@
           var su = mySetupFor(x.id);
           html += '<div class="outing-session"><div><strong>' + escapeHtml(x.slotLabel || (x.group ? 'Groupe ' + x.group : 'Session')) + '</strong>' +
             '<div class="outing-session-laps">' + x.laps.map(function (l) { return l === b ? '<span class="best-lap">' + formatTime(l) + '</span>' : '<span class="other-lap">' + formatTime(l) + '</span>'; }).join(' ') + '</div>' +
-            (x.videoUrl || x.createdAt ? '<div class="outing-session-meta">' + sessionVideoHtml(x) + (x.createdAt ? '<span class="help-text">' + escapeHtml(enteredAtText(x.createdAt)) + '</span>' : '') + '</div>' : '') +
+            (x.videoUrl || x.incident || x.createdAt ? '<div class="outing-session-meta">' + sessionVideoHtml(x) + (x.createdAt ? '<span class="help-text">' + escapeHtml(enteredAtText(x.createdAt)) + '</span>' : '') + '</div>' : '') +
             (su ? '<div class="setup-summary">' + escapeHtml(setupSummary(su)) + '</div>' : '') +
             '<button type="button" class="link-btn inline-link setup-link" data-action="session-setup" data-id="' + escapeHtml(x.id) + '">' + (su ? 'Modifier mes réglages' : 'Noter mes réglages') + '</button></div>' +
             shareControl(x) + '</div>';
@@ -10976,7 +10978,8 @@
     return L('Saisi le ', 'Logged ') + formatDate(dateKey(d)) + L(' à ' + hh + 'h' + mm, ' at ' + hh + ':' + mm);
   }
   function sessionVideoHtml(s) {
-    return s.videoUrl ? '<a class="session-video-link" href="' + escapeHtml(s.videoUrl) + '" target="_blank" rel="noopener">▶ ' + L('Vidéo', 'Video') + '</a>' : '';
+    var inc = s.incident ? '<span class="incident-chip" title="' + escapeHtml(L('Accident pendant cette session', 'Incident during this session')) + '">' + escapeHtml(incidentLabel(s.incident.type)) + '</span>' : '';
+    return inc + (s.videoUrl ? '<a class="session-video-link" href="' + escapeHtml(s.videoUrl) + '" target="_blank" rel="noopener">▶ ' + L('Vidéo', 'Video') + '</a>' : '');
   }
   // Une journée de chronos est « rattachée » si un de mes roulages couvre
   // ce circuit à cette date (lien explicite ou date/circuit qui collent).
@@ -11296,6 +11299,83 @@
     var pin = '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-6-5.6-6-11a6 6 0 0 1 12 0c0 5.4-6 11-6 11z"/><circle cx="12" cy="10" r="2.3"/></svg>';
     return '<div class="map-mode-switch" role="tablist"><button type="button" class="' + (active === 'draw' ? 'on' : '') + '" data-map-mode="draw" aria-pressed="' + (active === 'draw') + '" title="' + escapeHtml(L('Dessin à main libre', 'Freehand drawing')) + '" aria-label="' + escapeHtml(L('Dessin à main libre', 'Freehand drawing')) + '">' + pencil + '</button>' +
       '<button type="button" class="' + (active === 'pins' ? 'on' : '') + '" data-map-mode="pins" aria-pressed="' + (active === 'pins') + '" title="' + escapeHtml(L('Repères', 'Marks')) + '" aria-label="' + escapeHtml(L('Repères', 'Marks')) + '">' + pin + '</button></div>';
+  }
+  // ---- Accident (chute, sortie de piste, contact, panne) ----
+  var pendingIncident = null;
+  var INCIDENT_TYPES = function () { return [['chute', isCarMode() ? L('Tête-à-queue', 'Spin') : L('Chute', 'Crash')], ['sortie', L('Sortie', 'Off')], ['contact', L('Contact', 'Contact')], ['panne', L('Panne', 'Breakdown')]]; };
+  function incidentLabel(t) { var x = INCIDENT_TYPES().filter(function (o) { return o[0] === t; })[0]; return x ? x[1] : L('Accident', 'Incident'); }
+  function openIncidentSheet(circuit) {
+    var info = circuitInfo(circuit || ''), base = circuit ? (info.mapImage || outlineImageFor(info, circuit)) : null;
+    var st = pendingIncident ? Object.assign({}, pendingIncident) : { type: 'chute', publish: true };
+    var draw = function () {
+      return '<h2 class="section-title">' + L('Accident', 'Incident') + (circuit ? ' · ' + escapeHtml(circuit) : '') + '</h2>' +
+        '<div class="look-seg incident-types">' + INCIDENT_TYPES().map(function (o) { return '<button type="button" data-inc-type="' + o[0] + '" aria-pressed="' + (st.type === o[0]) + '">' + escapeHtml(o[1]) + '</button>'; }).join('') + '</div>' +
+        (base ? '<p class="help-text">' + L('Touche le plan à l\'endroit de l\'accident.', 'Tap the map where it happened.') + '</p><div class="incident-map"><img src="' + escapeHtml(base) + '" alt="">' + (st.x != null ? '<span class="incident-x" style="left:' + (st.x * 100) + '%;top:' + (st.y * 100) + '%"></span>' : '') + '</div>' : '<p class="help-text">' + L('Choisis d\'abord le circuit dans le formulaire pour placer l\'endroit.', 'Pick the circuit in the form first to mark the spot.') + '</p>') +
+        '<label for="inc-note" style="margin-top:0.6rem;">' + L('Un mot (facultatif)', 'A word (optional)') + '</label><input type="text" id="inc-note" maxlength="140" value="' + escapeHtml(st.note || '') + '" placeholder="' + escapeHtml(L('Ex. Tout va bien, juste la moto à réparer', 'E.g. All good, just the bike to fix')) + '">' +
+        '<label class="checklist-item" style="margin-top:0.5rem;"><input type="checkbox" id="inc-publish"' + (st.publish ? ' checked' : '') + '> ' + L('Publier sur mon Social (mes amis)', 'Post on my Social (my friends)') + '</label>' +
+        '<div class="after-publish"><button type="button" class="primary" data-inc="ok">' + L('Valider', 'Confirm') + '</button>' + (pendingIncident ? '<button type="button" class="ghost" data-inc="clear">' + L('Retirer', 'Remove') + '</button>' : '') + '<button type="button" class="link-btn" data-mini-close>' + L('Annuler', 'Cancel') + '</button></div>';
+    };
+    var ov = openMiniSheet(draw());
+    var bind = function () {
+      ov.querySelectorAll('[data-inc-type]').forEach(function (b) { b.addEventListener('click', function () { st.note = ov.querySelector('#inc-note').value; st.type = b.getAttribute('data-inc-type'); ov.querySelector('.mini-sheet').innerHTML = draw(); bind(); }); });
+      var map = ov.querySelector('.incident-map');
+      if (map) map.addEventListener('click', function (e) {
+        var r = map.querySelector('img').getBoundingClientRect();
+        st.x = Math.round(Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)) * 1000) / 1000;
+        st.y = Math.round(Math.max(0, Math.min(1, (e.clientY - r.top) / r.height)) * 1000) / 1000;
+        st.note = ov.querySelector('#inc-note').value; st.publish = ov.querySelector('#inc-publish').checked;
+        ov.querySelector('.mini-sheet').innerHTML = draw(); bind();
+      });
+      var clr = ov.querySelector('[data-inc="clear"]');
+      if (clr) clr.addEventListener('click', function () { pendingIncident = null; ov.remove(); renderRoot(); });
+      ov.querySelector('[data-inc="ok"]').addEventListener('click', function () {
+        st.note = ov.querySelector('#inc-note').value.trim().slice(0, 140); st.publish = ov.querySelector('#inc-publish').checked;
+        var lapsEl = document.getElementById('f-laps');
+        ov.remove();
+        // Sans chrono saisi : l'accident est publié tout de suite (DNF).
+        if (!lapsEl || !lapsEl.value.trim()) {
+          pendingIncident = null;
+          if (st.publish) publishIncident(Object.assign({ circuit: circuit }, st));
+          showToast(L('Accident noté. Prends soin de toi !', 'Incident noted. Take care!'), 'success');
+          return;
+        }
+        pendingIncident = st;
+        var btn = document.getElementById('cf-incident'); if (btn) { btn.textContent = L('Accident ✓', 'Incident ✓'); btn.classList.add('on'); }
+        showToast(L('Accident ajouté au chrono : enregistre pour le garder.', 'Incident added to the lap time: save to keep it.'));
+      });
+    };
+    bind();
+  }
+  // Image : le plan avec une croix rouge à l'endroit de l'accident.
+  function incidentImage(circuit, x, y, cb) {
+    var info = circuitInfo(circuit || ''), base = circuit ? (info.mapImage || outlineImageFor(info, circuit)) : null;
+    if (!base || x == null) return cb(null);
+    var im = new Image();
+    im.onload = function () {
+      var W = 900, H = Math.round(W * im.naturalHeight / im.naturalWidth);
+      var c = document.createElement('canvas'); c.width = W; c.height = H;
+      var ctx = c.getContext('2d'); ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, W, H); ctx.drawImage(im, 0, 0, W, H);
+      var px = x * W, py = y * H, r = 26;
+      ctx.lineWidth = 10; ctx.lineCap = 'round'; ctx.strokeStyle = '#ffffff';
+      ctx.beginPath(); ctx.moveTo(px - r, py - r); ctx.lineTo(px + r, py + r); ctx.moveTo(px + r, py - r); ctx.lineTo(px - r, py + r); ctx.stroke();
+      ctx.lineWidth = 6; ctx.strokeStyle = '#c8261f';
+      ctx.beginPath(); ctx.moveTo(px - r, py - r); ctx.lineTo(px + r, py + r); ctx.moveTo(px + r, py - r); ctx.lineTo(px - r, py + r); ctx.stroke();
+      cb(c.toDataURL('image/jpeg', 0.82));
+    };
+    im.onerror = function () { cb(null); };
+    im.src = base;
+  }
+  function publishIncident(inc) {
+    var me = currentUserProfile; if (!me) return;
+    incidentImage(inc.circuit, inc.x, inc.y, function (img) {
+      var post = { id: genId(), author: me.name, authorUid: myUid(), audience: 'friends', visibleTo: friendUidsOf(me.name), createdAt: Date.now(),
+        text: incidentLabel(inc.type) + (inc.circuit ? L(' à ', ' at ') + inc.circuit : '') + (inc.note ? '. ' + inc.note : '.'), incident: { type: inc.type, circuit: inc.circuit || '' } };
+      if (img) post.photoURL = img;
+      if (inc.circuit) post.place = inc.circuit.slice(0, 80);
+      STATE.wallPosts = [post].concat(STATE.wallPosts || []);
+      renderRoot();
+      db.collection('wallPosts').doc(post.id).set(post).catch(function (err) { showToast(tr('error_prefix') + ((err && err.message) || err)); });
+    });
   }
   // ---- Repères : image (plan + repères numérotés + liste), PDF, post /
   // story, et copie des repères partagés par un pote. ----
@@ -23742,6 +23822,12 @@
       if (!/^https:\/\/(www\.)?youtube\.com|^https:\/\/youtu\.be/.test(a.href) || !youtubeAppUrl(a.href)) return;
       e.preventDefault(); openYoutube(a.href);
     }); });
+    var incBtn = document.getElementById('cf-incident');
+    if (incBtn) incBtn.addEventListener('click', function () {
+      var cs = document.getElementById('f-circuit'), c = cs ? cs.value : '';
+      if (c === '__other__') c = ((document.getElementById('f-circuit-other') || {}).value || '').trim();
+      openIncidentSheet(c || '');
+    });
     document.querySelectorAll('[data-action="copy-notes"]').forEach(function (b) { b.addEventListener('click', function (e) { e.stopPropagation(); copySharedNotes(b.getAttribute('data-id')); }); });
     document.querySelectorAll('[data-action="circuit-create"]').forEach(function (b) { b.addEventListener('click', openCircuitCreate); });
     document.querySelectorAll('[data-action="map-open"]').forEach(function (b) { b.addEventListener('click', function () {
@@ -26739,6 +26825,13 @@
     }
     chronoDateConfirmed = false;
     var session = { id: genId(), rider: rider, date: date, circuit: circuit, laps: laps, createdAt: Date.now() };
+    var incidentForPost = null;
+    if (pendingIncident) {
+      session.incident = { type: pendingIncident.type };
+      if (pendingIncident.x != null) { session.incident.x = pendingIncident.x; session.incident.y = pendingIncident.y; }
+      incidentForPost = Object.assign({ circuit: circuit }, pendingIncident);
+      pendingIncident = null;
+    }
     var trackEl = document.querySelector('input[name="f-track"]:checked');
     if (trackEl && (trackEl.value === 'humide' || trackEl.value === 'pluie')) session.track = trackEl.value;
     // Discipline du pilote du chrono (moi, ou l'équipier pour un Team Leader).
@@ -26792,6 +26885,7 @@
     addChronoOpen = false;
     renderRoot();
     var saved = persist(prevState);
+    if (incidentForPost && incidentForPost.publish) saved.then(function (ok) { if (ok !== false) publishIncident(incidentForPost); });
 
     var newBest = sessionBest(session);
     if (!isWetSession(session) && (previousBest === null || newBest < previousBest)) {
