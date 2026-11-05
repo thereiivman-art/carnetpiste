@@ -2080,13 +2080,25 @@
     return choices;
   }
 
-  function createTeam(name, teamPro) {
+  // Type de team : pas seulement des pilotes. Aucune limite de membres.
+  var TEAM_KINDS = function () { return [['pilotes', L('Pilotes', 'Riders')], ['accompagnants', L('Accompagnants', 'Companions')], ['photographes', L('Photographes', 'Photographers')], ['mixte', L('Mixte', 'Mixed')]]; };
+  function teamKindLabel(t) {
+    var k = t && t.kind;
+    if (!k || k === 'pilotes') return '';
+    var f = TEAM_KINDS().filter(function (o) { return o[0] === k; })[0];
+    return f ? L('Team ', 'Team of ') + f[1].toLowerCase() : '';
+  }
+  function teamKindSelectHtml(id, val) {
+    return '<select id="' + id + '">' + TEAM_KINDS().map(function (o) { return '<option value="' + o[0] + '"' + ((val || 'pilotes') === o[0] ? ' selected' : '') + '>' + escapeHtml(o[1]) + '</option>'; }).join('') + '</select>';
+  }
+  function createTeam(name, teamPro, kind) {
     var me = currentUserProfile;
     name = (name || '').trim();
     if (!me || !name) return;
     var teamId = genId();
     var uid = auth.currentUser && auth.currentUser.uid;
     var doc = { id: teamId, name: name, createdBy: me.name, createdAt: Date.now(), memberCount: 1 };
+    if (kind && kind !== 'pilotes' && TEAM_KINDS().some(function (o) { return o[0] === kind; })) doc.kind = kind;
     // Only actually takes effect for an Organisateur (see firestore.rules'
     // teams create rule) -- the checkbox itself is hidden for anyone else.
     if (teamPro && me.role === 'organisateur') doc.teamPro = true;
@@ -3077,6 +3089,11 @@
       if (dataUrl.length > 700000) {
         showToast(tr('image_too_large_detailed'));
         return;
+      }
+      if (kind === 'cover' && teamId) {
+        // Couverture d'un team : dans le brouillon, enregistrée avec la fiche.
+        if (lookDraft && lookDraft.__team === teamId) { lookDraft.cover = 'photo'; lookDraft.coverPhoto = dataUrl; }
+        closeCropModal(); renderRoot(); return;
       }
       if (kind === 'cover') saveCoverPhoto(dataUrl);
       else if (kind === 'team') saveTeamPhoto(teamId, dataUrl);
@@ -4963,6 +4980,7 @@
       '<button type="button" class="primary add-chrono-btn" data-action="export-chronos-csv" style="margin-top:0.7rem;">' + L('Exporter mes chronos (tableur CSV)', 'Export my lap times (CSV spreadsheet)') + '</button></div>') + myDataHtml;
     {
       sections.affichage += '<div class="app-version-row"><span class="help-text">' + L('Version de l\'appli : ', 'App version: ') + escapeHtml(currentAppVersion()) + '</span>' +
+        '<button type="button" class="ghost" data-action="open-patchnotes">' + L('Nouveautés', 'What\'s new') + '</button>' +
         '<button type="button" class="ghost" data-action="check-app-update">' + L('Mettre à jour', 'Update') + '</button></div>';
       // « Voyage par défaut » retiré : les infos de voyage se notent sur chaque roulage.
 
@@ -5223,6 +5241,33 @@
     return m ? m[1] : '';
   }
   var lastUpdateCheck = 0;
+  // Version de l'appli : les nouveautés (PATCHNOTES.md du dépôt, lu à
+  // chaque ouverture) et le bouton de mise à jour.
+  function patchNotesHtml(md) {
+    var inline = function (t) { return escapeHtml(t).replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>').replace(/`([^`]+)`/g, '<code>$1</code>'); };
+    var out = '', inList = false;
+    md.split(/\r?\n/).forEach(function (line) {
+      var m;
+      if (/^\s*-\s+/.test(line)) { if (!inList) { out += '<ul>'; inList = true; } out += '<li>' + inline(line.replace(/^\s*-\s+/, '')) + '</li>'; return; }
+      if (inList) { out += '</ul>'; inList = false; }
+      if ((m = line.match(/^#\s+(.*)/))) return;
+      if ((m = line.match(/^##\s+(.*)/))) out += '<h3 class="pn-date">' + inline(m[1]) + '</h3>';
+      else if (line.trim()) out += '<p>' + inline(line) + '</p>';
+    });
+    if (inList) out += '</ul>';
+    return out;
+  }
+  function openPatchNotes() {
+    openMiniSheet('<h2 class="section-title">' + L('Nouveautés', 'What\'s new') + '</h2><div class="pn-head"><span class="help-text">' + L('Version ', 'Version ') + escapeHtml(currentAppVersion()) + '</span>' +
+      '<button type="button" class="ghost" data-pn-update>' + L('Mettre à jour', 'Update') + '</button></div><div class="patchnotes"><div class="empty-state">' + L('Chargement…', 'Loading…') + '</div></div>');
+    var sheet = document.getElementById('mini-sheet'); if (!sheet) return;
+    var up = sheet.querySelector('[data-pn-update]'); if (up) up.addEventListener('click', function () { checkForAppUpdate(true); });
+    fetch('PATCHNOTES.md?t=' + Date.now(), { cache: 'no-store' }).then(function (r) { if (!r.ok) throw new Error(r.status); return r.text(); }).then(function (md) {
+      var box = sheet.querySelector('.patchnotes'); if (box) box.innerHTML = patchNotesHtml(md);
+    }).catch(function () {
+      var box = sheet.querySelector('.patchnotes'); if (box) box.innerHTML = '<div class="empty-state">' + L('Nouveautés indisponibles hors ligne.', 'What\'s new is unavailable offline.') + '</div>';
+    });
+  }
   function checkForAppUpdate(manual) {
     if (!manual && Date.now() - lastUpdateCheck < 10 * 60000) return;
     lastUpdateCheck = Date.now();
@@ -9884,7 +9929,11 @@
     var spots = ((u.look || {}).favSpots || []).slice(0, 6);
     var h = '<div class="person-kpis"><div><strong>' + evs.length + '</strong><span>' + L('roulages accompagnés', 'trackdays supported') + '</span></div><div><strong>' + Object.keys(riders).length + '</strong><span>' + L('pilotes accompagnés', 'riders supported') + '</span></div><div><strong>' + visited.length + '</strong><span>' + L('circuits visités', 'circuits visited') + '</span></div></div>';
     if (visited.length) h += '<div class="card"><h2 class="section-title">' + L('Circuits visités', 'Circuits visited') + '</h2><div class="visited-grid">' + visited.slice(0, 8).map(function (v) {
-      return '<button type="button" class="visited-tile" data-open-circuit="' + escapeHtml(v.circuit) + '"><span class="outing-thumb">' + circuitThumbHtml(v.circuit) + '</span><strong>' + escapeHtml(v.circuit) + '</strong><span class="help-text">' + plural(v.n, L('fois', 'time'), L('fois', 'times')) + '</span></button>';
+      return '<div class="visited-tile"><button type="button" class="visited-tile-head" data-open-circuit="' + escapeHtml(v.circuit) + '"><span class="outing-thumb">' + circuitThumbHtml(v.circuit) + '</span><strong>' + escapeHtml(v.circuit) + '</strong><span class="help-text">' + plural(v.n, L('fois', 'time'), L('fois', 'times')) + '</span></button>' +
+        // Chaque roulage ouvre sa propre page (le bon roulage passé).
+        '<span class="visited-evs">' + (v.events || []).slice().sort(function (a, b) { return (b.dateStart || '').localeCompare(a.dateStart || ''); }).map(function (ev) {
+          return '<button type="button" class="visited-ev" data-open-outing="' + escapeHtml(ev.circuit) + '" data-outing-date="' + escapeHtml(ev.dateStart || '') + '" data-outing-event="' + escapeHtml(ev.id) + '">' + escapeHtml(formatDate(ev.dateStart)) + '</button>';
+        }).join('') + '</span></div>';
     }).join('') + '</div></div>';
     if (spots.length) h += '<div class="card"><h2 class="section-title">' + L('Spots photo préférés', 'Favourite photo spots') + '</h2>' + spots.map(function (sp) {
       return '<div class="spot-row"><span class="spot-pin static ' + (sp.access === 'pro' ? 'pro' : 'public') + '">★</span><span class="spot-row-main"><strong>' + escapeHtml(sp.label || L('Spot', 'Spot')) + '</strong><span class="help-text">' + escapeHtml(sp.circuit || '') + '</span></span></div>';
@@ -10581,7 +10630,7 @@
   // ---- Ajouter le roulage à l'agenda du téléphone (.ics) ----
   function icsDate(d) { return d.replace(/-/g, ''); }
   function icsDateTime(d, minutes) { return icsDate(d) + 'T' + pad2(Math.floor(minutes / 60)) + pad2(minutes % 60) + '00'; }
-  function icsEscape(t) { return String(t || '').replace(/\\/g, '\\\\').replace(/;/g, '\;').replace(/,/g, '\\,').replace(/\n/g, '\\n'); }
+  function icsEscape(t) { return String(t || '').replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\n/g, '\\n'); }
   function buildEventIcs(ev) {
     var me = currentUserProfile && currentUserProfile.name;
     var days = datesInRange(ev.dateStart, ev.dateEnd || ev.dateStart);
@@ -10612,19 +10661,50 @@
     return '<div class="add-cal-row"><button type="button" class="link-btn inline-link" data-action="add-to-calendar" data-id="' + escapeHtml(ev.id) + '">+ ' +
       L('Ajouter à mon agenda', 'Add to my calendar') + '</button></div>';
   }
+  // « Ajouter à mon agenda » : un choix d'agenda. Google Agenda et Outlook
+  // s'ouvrent par un lien (marche sur Android et PC, où un fichier .ics
+  // téléchargé ne s'ouvre pas tout seul) ; le fichier .ics (avec les
+  // sessions et un rappel 20 min avant) reste là pour Apple et les autres.
+  function calendarLinks(ev) {
+    var endNext = parseLocalDate(ev.dateEnd || ev.dateStart); endNext.setDate(endNext.getDate() + 1);
+    var title = L('Roulage – ', 'Trackday – ') + ev.circuit, details = L('Horaires et infos : ', 'Schedule and info: ') + publicRoulageLink(ev.id);
+    var q = function (o) { return Object.keys(o).map(function (k) { return k + '=' + encodeURIComponent(o[k]); }).join('&'); };
+    return {
+      google: 'https://calendar.google.com/calendar/render?' + q({ action: 'TEMPLATE', text: title, dates: icsDate(ev.dateStart) + '/' + icsDate(dateKey(endNext)), details: details, location: ev.circuit }),
+      outlook: 'https://outlook.live.com/calendar/0/deeplink/compose?' + q({ path: '/calendar/action/compose', rru: 'addevent', subject: title, startdt: ev.dateStart, enddt: dateKey(endNext), allday: 'true', body: details, location: ev.circuit })
+    };
+  }
   function addEventToCalendar(evId) {
     var ev = eventsList().filter(function (e) { return e.id === evId; })[0];
     if (!ev) return;
+    var links = calendarLinks(ev);
+    var opt = function (href, label, sub) { return '<a class="cal-choice" href="' + escapeHtml(href) + '" target="_blank" rel="noopener"><strong>' + label + '</strong><span class="help-text">' + sub + '</span></a>'; };
+    openMiniSheet('<h2 class="section-title">' + L('Ajouter à mon agenda', 'Add to my calendar') + '</h2><div class="cal-choices">' +
+      opt(links.google, 'Google Agenda', L('Android, PC', 'Android, PC')) +
+      opt(links.outlook, 'Outlook', L('Outlook, Hotmail', 'Outlook, Hotmail')) +
+      '<button type="button" class="cal-choice" data-cal-ics="' + escapeHtml(ev.id) + '"><strong>' + L('Fichier agenda (.ics)', 'Calendar file (.ics)') + '</strong><span class="help-text">' + L('iPhone, Mac, autres agendas · avec tes sessions', 'iPhone, Mac, other calendars · with your sessions') + '</span></button></div>');
+    var sheet = document.getElementById('mini-sheet');
+    var b = sheet && sheet.querySelector('[data-cal-ics]');
+    if (b) b.addEventListener('click', function () { downloadEventIcs(ev); });
+  }
+  function downloadEventIcs(ev) {
     var text = buildEventIcs(ev);
     var name = 'pitbook-' + String(ev.circuit || 'roulage').toLowerCase().replace(/[^a-z0-9]+/g, '-') + '-' + ev.dateStart + '.ics';
     // iPhone : ouvrir le fichier propose directement « Ajouter au calendrier ».
     if (/iPhone|iPad|iPod/.test(navigator.userAgent)) { window.location.href = 'data:text/calendar;charset=utf-8,' + encodeURIComponent(text); return; }
+    // Android : le partage propose les applis d'agenda installées.
+    try {
+      var file = new File([text], name, { type: 'text/calendar' });
+      if (/Android/.test(navigator.userAgent) && navigator.canShare && navigator.canShare({ files: [file] })) { navigator.share({ files: [file], title: name }).catch(function () {}); return; }
+    } catch (e) {}
     var url = URL.createObjectURL(new Blob([text], { type: 'text/calendar;charset=utf-8' }));
     var a = document.createElement('a');
     a.href = url; a.download = name;
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
+    showToast(L('Fichier téléchargé : ouvre-le pour l\'ajouter à ton agenda.', 'File downloaded: open it to add it to your calendar.'), 'success');
   }
+
 
 
   function renderOutingPage() {
@@ -14888,6 +14968,7 @@
       if ((ev.riders || []).indexOf(name) === -1 || (ev.dateStart || '') > today || !ev.circuit) return;
       var k = circuitKey(ev.circuit), v = by[k] || (by[k] = { circuit: ev.circuit, n: 0, last: '' });
       v.n++; if (ev.dateStart > v.last) v.last = ev.dateStart;
+      (v.events || (v.events = [])).push(ev);
     });
     return Object.keys(by).map(function (k) { return by[k]; }).sort(function (a, b) { return b.last.localeCompare(a.last); });
   }
@@ -15040,12 +15121,14 @@
       var d = Math.round((parseLocalDate(t.ev.dateStart) - parseLocalDate(today0)) / 86400000);
       t.who = t.who.filter(function (n) { return !!String(n || '').trim(); });
       var who = (t.mine ? [L('Toi', 'You')] : []).concat(t.who);
-      return '<button type="button" class="rail-tile" data-open-outing="' + escapeHtml(t.ev.circuit) + '" data-outing-date="' + escapeHtml(t.ev.dateStart) + '" data-outing-event="' + escapeHtml(t.ev.id) + '">' +
+      // Album photo dispo : icône touchable à droite de la tuile (hors du bouton).
+      var alb = albumChipHtml(t.ev);
+      return (alb ? '<div class="rail-tile-wrap">' : '') + '<button type="button" class="rail-tile" data-open-outing="' + escapeHtml(t.ev.circuit) + '" data-outing-date="' + escapeHtml(t.ev.dateStart) + '" data-outing-event="' + escapeHtml(t.ev.id) + '">' +
         '<span class="rt-top"><span class="outing-thumb">' + circuitThumbHtml(t.ev.circuit) + '</span><span class="rt-id"><strong>' + escapeHtml(t.ev.circuit) + '</strong>' +
         (d >= 0 ? '<span class="feed-upcoming-j">' + countdownLabel(d) + '</span>' : '') + '</span></span>' +
         '<span class="help-text rt-dates">' + escapeHtml(formatEventRange(t.ev, true)) + '</span>' +
         (who.length ? '<span class="rt-who">' + (t.who.length ? '<span class="rail-faces">' + t.who.slice(0, 3).map(function (n) { return avatarHtml((STATE.usersByName || {})[n] || {}, n); }).join('') + '</span>' : '') +
-          '<span class="rt-names">' + escapeHtml(who.slice(0, 3).join(', ') + (who.length > 3 ? ' +' + (who.length - 3) : '')) + '</span></span>' : '') + '</button>';
+          '<span class="rt-names">' + escapeHtml(who.slice(0, 3).join(', ') + (who.length > 3 ? ' +' + (who.length - 3) : '')) + '</span></span>' : '') + '</button>' + (alb ? alb.replace('class="album-chip"', 'class="album-chip rail-album"') + '</div>' : '');
     }).join('') + '</div>' : '<div class="help-text">' + (railEvMode === 'passes' ? L('Aucun roulage passé.', 'No past trackday.') : L('Aucun roulage à venir.', 'No upcoming trackday.')) + '</div>') + '</div>';
     var sug = followSuggestions(me.name, 5);
     if (sug.length) {
@@ -18216,8 +18299,9 @@
     var initial = escapeHtml((name || '?').trim().charAt(0).toUpperCase() || '?');
     var flag = u && !u.photoURL && u.nationality ? countryBallHtml(u.nationality, 'avatar-ball') : '';
     var look = lookOf(u);
-    var sAt = name ? activeStoryAuthors()[name] : 0, sSeen = false;
-    if (sAt) { try { sSeen = Number(localStorage.getItem('cdp-story-' + name)) >= sAt; } catch (e) {} }
+    // Plus d'anneau de story autour des avatars (il cachait le cadre de la
+    // photo) : les stories se voient seulement dans la barre des stories.
+    var sAt = 0, sSeen = false;
     var frame = u && u.look && u.look.frame && cosmeticOk(PNEUS_FRAMES(), u.look.frame) ? ' frame-' + u.look.frame : '';
     return '<span class="mini-avatar' + frame + (flag ? ' has-flag' : '') + (look ? ' has-look' : '') + (sAt ? ' has-story' + (sSeen ? ' story-seen' : '') : '') + '" data-person="' + escapeHtml(name || '') + '"' + (look ? ' style="--ring:' + safeColor(look.color) + '"' : '') + (flag ? ' title="' + escapeHtml(countryName(u.nationality)) + '"' : '') + '>' + (u && u.photoURL
       ? '<img src="' + escapeHtml(u.photoURL) + '" alt="">'
@@ -18332,6 +18416,16 @@
   function lookCovers() { return [['', L('Aucune', 'None')], ['vibreur', L('Vibreur', 'Kerb')], ['damier', L('Damier', 'Chequered')], ['trace', L('Tracé', 'Track')], ['photo', L('Ma photo', 'My photo')]]; }
   function lookPlates() { return [['', L('Aucune', 'None')], ['course', L('Course', 'Race')], ['signature', L('Signature', 'Signature')], ['endurance', L('Endurance', 'Endurance')]]; }
   var lookDraft = null, lookMessage = '';
+  // Éditeur de la fiche d'un team : état de départ, pour demander avant de
+  // perdre des changements (Annuler, quitter la page).
+  var lookDraftOrig = null;
+  function teamLookDirty() { return !!(lookDraft && lookDraft.__team && lookDraftOrig && JSON.stringify(lookDraft) !== lookDraftOrig); }
+  // true : on peut quitter (rien à perdre, ou changements abandonnés).
+  function confirmLeaveTeamLook() {
+    if (!teamLookDirty()) return true;
+    if (!confirm(L('Annuler les changements de la fiche du team ? (OK : annuler, Annuler : rester pour enregistrer)', 'Discard the team page changes? (OK: discard, Cancel: stay to save)'))) return false;
+    lookDraft = null; lookDraftOrig = null; return true;
+  }
   function lookOf(u) {
     var l = u && u.look;
     return l && (l.cover || l.plate || l.bio || l.color) ? l : null;
@@ -18475,6 +18569,7 @@
     var memberCount = (membersOfTeam(t.id).length || t.memberCount || (myRoleInTeam(t.id) ? 1 : 0));
     var likeCount = (STATE.teamLikes || []).filter(function (x) { return x.teamId === t.id; }).length;
     var sub = [memberCount + L(memberCount > 1 ? ' membres' : ' membre', memberCount > 1 ? ' members' : ' member')];
+    if (teamKindLabel(t)) sub.unshift(teamKindLabel(t));
     if (likeCount) sub.push(likeCount + L(likeCount > 1 ? ' j\'aime' : ' j\'aime', likeCount > 1 ? ' likes' : ' like'));
     var next = teamEvents(t).filter(function (ev) { return (ev.dateEnd || ev.dateStart) >= dateKey(new Date()); }).sort(function (a, b) { return a.dateStart < b.dateStart ? -1 : 1; })[0];
     return renderLookHero(l, {
@@ -18532,7 +18627,8 @@
     if (!t) return;
     var l = t.look || {};
     lookDraft = { __team: teamId, color: l.color || '#c8261f', cover: l.cover != null ? l.cover : 'vibreur', coverPhoto: l.coverPhoto || null, bio: l.bio != null ? l.bio : (t.description || ''),
-      links: (l.links || []).slice(), sponsors: (l.sponsors || []).slice(), show: Object.assign({}, l.show || {}), favRiders: (l.favRiders || []).slice() };
+      links: (l.links || (t.links || []).map(function (x) { return { url: x.url, comment: x.label || '' }; })).slice(), sponsors: (l.sponsors || []).slice(), show: Object.assign({}, l.show || {}), favRiders: (l.favRiders || []).slice(), name: t.name || '', kind: t.kind || 'pilotes' };
+    lookDraftOrig = JSON.stringify(lookDraft);
     lookMessage = ''; lookPendingLogo = null;
     countUsageOnce('teamLookOpen', 'team_look_open');
     renderRoot();
@@ -18679,18 +18775,25 @@
     // l'image sur la fiche.
     if (!team) html += '<div class="look-field"><label class="look-label" for="look-bio">' + L('Bio', 'Bio') + '</label><textarea id="look-bio" maxlength="250" rows="3" placeholder="' + L('Ex. Pistard depuis 2019, objectif sous les 2’00” à Misano.', 'E.g. Track rider since 2019, aiming under 2’00” at Misano.') + '">' + escapeHtml(d.bio || '') + '</textarea><span class="help-text look-bio-count" id="look-bio-count">' + (d.bio || '').length + ' / 250</span></div>';
     // Photo ronde et logo du team, directement ici (avant : seulement dans Réglages).
-    if (team) html += '<div class="look-field"><span class="look-label">' + L('Photo et logo du team', 'Team photo and logo') + '</span><div class="look-team-media">' +
+    // Nom, puis photo, logo et couverture du team sur une seule ligne
+    // (une seule fenêtre d'édition, un seul Enregistrer).
+    if (team) html += '<div class="look-field"><label class="look-label" for="look-team-name">' + L('Nom du team', 'Team name') + '</label><input type="text" id="look-team-name" maxlength="60" value="' + escapeHtml(d.name || '') + '"></div>' +
+      '<div class="look-field"><label class="look-label" for="look-team-kind">' + L('Type de team', 'Team type') + '</label>' + teamKindSelectHtml('look-team-kind', d.kind) + '</div>';
+    if (team) html += '<div class="look-field"><span class="look-label">' + L('Photo, logo et couverture', 'Photo, logo and cover') + '</span><div class="look-team-media">' +
       '<span class="look-team-av">' + teamAvatarHtml(team) + '</span>' +
-      '<button type="button" class="ghost" data-action="team-photo-btn" data-team="' + escapeHtml(team.id) + '">' + (team.photoURL ? L('Changer la photo', 'Change photo') : L('Ajouter une photo', 'Add a photo')) + '</button>' +
-      '<button type="button" class="ghost" data-action="team-logo-btn" data-team="' + escapeHtml(team.id) + '">' + (team.logoURL ? L('Changer le logo', 'Change logo') : L('Ajouter un logo', 'Add a logo')) + '</button></div></div>';
+      '<button type="button" class="ghost" data-action="team-photo-btn" data-team="' + escapeHtml(team.id) + '">' + L('Photo', 'Photo') + '</button>' +
+      '<button type="button" class="ghost" data-action="team-logo-btn" data-team="' + escapeHtml(team.id) + '">' + L('Logo', 'Logo') + '</button>' +
+      '<button type="button" class="ghost" data-action="team-cover-pick" data-team="' + escapeHtml(team.id) + '">' + L('Couverture', 'Cover') + '</button>' +
+      (d.coverPhoto ? '<button type="button" class="link-btn" data-action="team-cover-recrop" data-team="' + escapeHtml(team.id) + '">' + L('Recadrer', 'Crop') + '</button>' : '') +
+      '</div></div>';
     if (team) html += '<div class="look-field"><span class="look-label">' + L('Couleur', 'Colour') + '</span><div class="look-swatches">' + LOOK_COLORS.map(function (c) {
       return '<button type="button" class="look-sw" style="background:' + c[0] + '" data-look-set="color" data-val="' + c[0] + '" aria-label="' + c[1] + '" aria-pressed="' + (d.color === c[0]) + '"></button>';
     }).join('') + '</div></div>';
     if (team) html += '<div class="look-field"><span class="look-label">' + L('Couverture', 'Cover') + '</span>' + seg('cover', lookCovers());
-    if (team && d.cover === 'photo') html += '<div class="look-photo-row"><button type="button" class="ghost" id="look-cover-btn">' + (d.coverPhoto ? L('Changer la photo', 'Change photo') : L('Choisir une photo', 'Choose a photo')) + '</button><input type="file" id="look-cover-input" accept="image/*" style="display:none;"><span class="help-text">' + L('Une photo de toi en piste, en largeur de préférence.', 'A photo of you on track, landscape if possible.') + '</span></div>';
+    if (false && team && d.cover === 'photo') html += '<div class="look-photo-row"><button type="button" class="ghost" id="look-cover-btn">' + (d.coverPhoto ? L('Changer la photo', 'Change photo') : L('Choisir une photo', 'Choose a photo')) + '</button><input type="file" id="look-cover-input" accept="image/*" style="display:none;"><span class="help-text">' + L('Une photo de toi en piste, en largeur de préférence.', 'A photo of you on track, landscape if possible.') + '</span></div>';
     if (team) html += '</div>';
     else html += '<div class="help-text look-hint">' + L('Bannière (style, couleur, photo) et photo de profil : touche-les sur ta fiche.', 'Banner (style, colour, photo) and profile photo: tap them on your profile.') + '</div>';
-    if (team) html += team.logoURL ? '' : '<div class="help-text">' + L('Ajoute le logo du team dans Réglages pour l\'afficher sur la couverture.', 'Add the team logo in Settings to show it on the cover.') + '</div>';
+
 
     if (circuits.length && !team && !meIsNonRider()) html += '<div class="look-field"><label class="look-label" for="look-featured">' + L('Chrono vedette', 'Featured lap') + '</label><select id="look-featured"><option value="">' + L('Mon dernier record', 'My latest record') + '</option>' +
       circuits.map(function (c) { return '<option value="' + escapeHtml(c) + '"' + (d.featured === c ? ' selected' : '') + '>' + escapeHtml(c) + '</option>'; }).join('') + '</select></div>';
@@ -18778,9 +18881,17 @@
         links: (lookDraft.links || []).slice(0, 6), sponsors: (lookDraft.sponsors || []).slice(0, 6), show: lookDraft.show || {},
         favRiders: (lookDraft.favRiders || []).slice(0, 5), coverPhoto: lookDraft.cover === 'photo' ? (lookDraft.coverPhoto || null) : null
       };
-      db.collection('teams').doc(teamId).update({ look: tv }).then(function () {
-        if (t) t.look = tv;
-        lookDraft = null; lookMessage = '';
+      var newName = (lookDraft.name || '').trim().replace(/\s+/g, ' ').slice(0, 60);
+      if (!reset && t && newName !== t.name) {
+        if (!newName) { showToast(L('Donne un nom au team.', 'Give the team a name.')); return; }
+        if ((STATE.teams || []).some(function (x) { return x.id !== teamId && (x.name || '').toLowerCase() === newName.toLowerCase(); })) { showToast(L('Un autre team porte déjà ce nom.', 'Another team already has that name.')); return; }
+        renameTeam(teamId, newName);
+      }
+      var tPatch = { look: tv };
+      if (tv) { tPatch.description = tv.bio; tPatch.kind = lookDraft.kind || 'pilotes'; }
+      db.collection('teams').doc(teamId).update(tPatch).then(function () {
+        if (t) { t.look = tv; if (tv) { t.description = tv.bio; t.kind = tPatch.kind; } }
+        lookDraft = null; lookDraftOrig = null; lookMessage = '';
         if (!reset) countUsageOnce('teamLookSaved', 'team_look_saved');
         showToast(reset ? L('Fiche standard rétablie.', 'Standard page restored.') : L('Fiche du team enregistrée.', 'Team page saved.'));
         renderRoot();
@@ -22166,7 +22277,10 @@
       '<textarea id="team-links-' + team.id + '" data-team-links-input rows="3" placeholder="Site internet | https://...\nBoutique | https://...\nPhotographe | https://...">' +
       escapeHtml((team.links || []).map(function (l) { return l.label + ' | ' + l.url; }).join('\n')) + '</textarea>' +
       '<button type="submit" class="ghost" style="margin-top:0.4rem;">' + tr('save_links_btn') + '</button></form></div>';
-    var profileCard = teamCard('Profil du team', html);
+    // Nom, photo, logo, couverture, présentation et liens : tout se modifie
+    // dans la fiche du team (une seule fenêtre d'édition).
+    var profileCard = teamCard(L('Profil du team', 'Team profile'), '<div class="help-text">' + L('Nom, photo, logo, couverture, présentation et liens.', 'Name, photo, logo, cover, about and links.') + '</div>' +
+      '<button type="button" class="primary" data-action="team-look-edit" data-team="' + escapeHtml(team.id) + '" style="margin-top:0.6rem;">' + L('Modifier', 'Edit') + '</button>');
     html = '<label for="team-visibility-select-' + team.id + '">' + tr('visibility_who_label') + '</label>' +
       '<select id="team-visibility-select-' + team.id + '" data-action="team-visibility" data-team="' + escapeHtml(team.id) + '">' +
       '<option value="private"' + (visibility === 'private' ? ' selected' : '') + '>' + tr('vis_invite_only') + '</option>' +
@@ -22663,7 +22777,9 @@
     // d'abord, deux lignes d'explication, le détail PRO replié.
     var html = '<div class="card"><form id="create-team-form">' +
       '<label for="new-team-name">' + tr('team_name_label') + '</label>' +
-      '<input type="text" id="new-team-name" placeholder="Ex. Mototeam95" required>';
+      '<input type="text" id="new-team-name" placeholder="Ex. Mototeam95" required>' +
+      '<label for="new-team-kind" style="margin-top:0.6rem;">' + L('Type de team', 'Team type') + '</label>' + teamKindSelectHtml('new-team-kind', 'pilotes') +
+      '<div class="help-text">' + L('Pilotes, accompagnants, photographes ou mixte. Pas de limite de membres.', 'Riders, companions, photographers or mixed. No member limit.') + '</div>';
     if (isOrganisateur) {
       html += '<label class="checklist-item" style="margin-top:0.6rem;"><input type="checkbox" id="new-team-pro"> ' + tr('create_as_pro') + '</label>';
     }
@@ -23318,7 +23434,7 @@
     html += '<div class="section-title" style="display:flex; align-items:center; gap:0.6rem;">' +
       '<button type="button" class="back-chevron" data-action="team-tile-close" aria-label="' + L('Retour', 'Back') + '">‹</button>' + avatarHtml(t, t.name) +
       '<span style="flex:1;">' + escapeHtml(t.name) + teamBadgesHtml(t) + '</span></div>';
-    html += '<div class="team-stats-row"><span>' + memberCount + L(memberCount > 1 ? ' membres' : ' membre', memberCount > 1 ? ' members' : ' member') + '</span>' +
+    html += '<div class="team-stats-row">' + (teamKindLabel(t) ? '<span>' + escapeHtml(teamKindLabel(t)) + '</span>' : '') + '<span>' + memberCount + L(memberCount > 1 ? ' membres' : ' membre', memberCount > 1 ? ' members' : ' member') + '</span>' +
       '<span>' + likeCount + tr(likeCount > 1 ? 'likes_suffix' : 'like_suffix') + '</span></div>';
     if (t.logoURL) html += '<div class="team-logo-frame"><img class="team-logo-img" data-autotrim src="' + escapeHtml(t.logoURL) + '" alt="Logo ' + escapeHtml(t.name) + '"></div>';
     if (t.description) html += '<p class="team-slogan">' + escapeHtml(t.description) + '</p>';
@@ -23477,6 +23593,14 @@
       if (a.getAttribute('target') === '_blank') a.setAttribute('rel', 'noopener noreferrer');
     });
   }
+  // Fiche d'un team en cours d'édition : quitter par la navigation demande
+  // d'abord si on abandonne les changements.
+  document.addEventListener('click', function (e) {
+    if (!teamLookDirty()) return;
+    var t = e.target.closest && e.target.closest('.bottom-nav-btn, .nav-sub-btn, .subnav-btn, .back-chevron, .side-nav a, .side-nav button');
+    if (!t || t.closest('.look-editor')) return;
+    if (!confirmLeaveTeamLook()) { e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation(); }
+  }, true);
   // Image de circuit introuvable : lettre de repli (remplace l'ancien
   // onerror en ligne, pour pouvoir durcir la CSP).
   document.addEventListener('error', function (e) {
@@ -25193,8 +25317,19 @@
     document.querySelectorAll('[data-action="open-my-profile"]').forEach(function (btn) {
       btn.addEventListener('click', function () { profilePanelOpen = true; profileSubTab = 'compte'; notificationsPanelOpen = false; profileSaveMessage = ''; renderRoot(); window.scrollTo(0, 0); });
     });
-    document.querySelectorAll('[data-action="team-look-edit"]').forEach(function (btn) { btn.addEventListener('click', function () { openTeamLookEditor(btn.getAttribute('data-team')); }); });
-    document.querySelectorAll('[data-action="look-cancel"]').forEach(function (btn) { btn.addEventListener('click', function () { lookDraft = null; lookMessage = ''; renderRoot(); }); });
+    document.querySelectorAll('[data-action="team-look-edit"]').forEach(function (btn) { btn.addEventListener('click', function () { teamSettingsOpenId = null; openTeamLookEditor(btn.getAttribute('data-team')); window.scrollTo(0, 0); }); });
+    document.querySelectorAll('[data-action="look-cancel"]').forEach(function (btn) { btn.addEventListener('click', function () { if (!confirmLeaveTeamLook()) return; lookDraft = null; lookDraftOrig = null; lookMessage = ''; renderRoot(); }); });
+    var tnInput = document.getElementById('look-team-name');
+    if (tnInput) tnInput.addEventListener('input', function () { if (lookDraft) lookDraft.name = tnInput.value; });
+    var tkSel = document.getElementById('look-team-kind');
+    if (tkSel) tkSel.addEventListener('change', function () { if (lookDraft) lookDraft.kind = tkSel.value; });
+    document.querySelectorAll('[data-action="team-cover-pick"]').forEach(function (btn) { btn.addEventListener('click', function () {
+      var tid = btn.getAttribute('data-team');
+      pickImageFile(1600, function (url) { openCropModal('cover', tid, url); });
+    }); });
+    document.querySelectorAll('[data-action="team-cover-recrop"]').forEach(function (btn) { btn.addEventListener('click', function () {
+      if (lookDraft && lookDraft.coverPhoto) openCropModal('cover', btn.getAttribute('data-team'), lookDraft.coverPhoto);
+    }); });
     document.querySelectorAll('[data-action="open-trophies"]').forEach(function (btn) {
       btn.addEventListener('click', function () {
         var key = btn.getAttribute('data-key');
@@ -25403,7 +25538,7 @@
           e.preventDefault(); e.stopPropagation();
           var go = sg.getAttribute('data-settings-go');
           if (go === '@legal-privacy' || go === '@legal-notice') { openLegal(go === '@legal-privacy' ? 'privacy' : 'notice'); return; }
-          if (go === '@update') { checkForAppUpdate(true); return; }
+          if (go === '@update') { openPatchNotes(); return; }
           if (go.charAt(0) === '@') { profileSubTab = go.slice(1); settingsSection = null; renderRoot(); window.scrollTo(0, 0); return; }
           settingsSection = go || null; renderRoot(); window.scrollTo(0, 0); return;
         }
@@ -25628,7 +25763,8 @@
         evt.preventDefault();
         var input = document.getElementById('new-team-name');
         var proEl = document.getElementById('new-team-pro');
-        createTeam(input.value, proEl ? proEl.checked : false);
+        var kindEl = document.getElementById('new-team-kind');
+        createTeam(input.value, proEl ? proEl.checked : false, kindEl ? kindEl.value : 'pilotes');
         input.value = '';
       });
     }
@@ -25795,7 +25931,7 @@
       select.addEventListener('change', function () { setTeamVisibility(select.getAttribute('data-team'), select.value); });
     });
     document.querySelectorAll('[data-action="team-settings-open"]').forEach(function (btn) {
-      btn.addEventListener('click', function () { teamSettingsOpenId = btn.getAttribute('data-team'); renderRoot(); window.scrollTo(0, 0); });
+      btn.addEventListener('click', function () { if (!confirmLeaveTeamLook()) return; teamSettingsOpenId = btn.getAttribute('data-team'); renderRoot(); window.scrollTo(0, 0); });
     });
     document.querySelectorAll('[data-action="team-settings-close"]').forEach(function (btn) {
       btn.addEventListener('click', function () { teamSettingsOpenId = null; renderRoot(); });
@@ -26170,6 +26306,7 @@
       });
       var em = document.querySelector('.settings-ig .set-empty'); if (em) em.hidden = any;
     });
+    document.querySelectorAll('[data-action="open-patchnotes"]').forEach(function (btn) { btn.addEventListener('click', openPatchNotes); });
     document.querySelectorAll('[data-action="check-app-update"]').forEach(function (btn) {
       btn.addEventListener('click', function () { btn.disabled = true; checkForAppUpdate(true); });
     });
@@ -26233,7 +26370,7 @@
       btn.addEventListener('click', function () { teamInviteOpen = !teamInviteOpen; renderRoot(); });
     });
     document.querySelectorAll('[data-action="team-tile-close"]').forEach(function (btn) {
-      btn.addEventListener('click', function () { expandedTeamId = null; managingEventId = null; teamMemberSearch = ''; if (lookDraft && lookDraft.__team) lookDraft = null; renderRoot(); });
+      btn.addEventListener('click', function () { if (!confirmLeaveTeamLook()) return; expandedTeamId = null; managingEventId = null; teamMemberSearch = ''; if (lookDraft && lookDraft.__team) lookDraft = null; renderRoot(); });
     });
     var teamMemberSearchEl = expandedTeamId && document.getElementById('team-member-search-' + expandedTeamId);
     if (teamMemberSearchEl) {

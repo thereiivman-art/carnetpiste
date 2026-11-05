@@ -4768,8 +4768,12 @@ html.kb-open .dm-form, .dm-form:focus-within { bottom: 0; }
 .pneus-more { display: block; margin: 0.2rem auto 0; font-size: 1.3rem; text-decoration: none; letter-spacing: 0.1em; }
 .compte-switch { display: flex; align-items: center; justify-content: space-between; gap: 0.6rem; flex-wrap: wrap; padding-bottom: 0.7rem; margin-bottom: 0.7rem; border-bottom: 1px solid var(--border); }
 .visited-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 0.6rem; }
-.visited-tile { display: flex; flex-direction: column; align-items: flex-start; gap: 0.25rem; padding: 0.7rem; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); color: var(--text); text-align: left; cursor: pointer; font: inherit; }
+.visited-tile { display: flex; flex-direction: column; align-items: flex-start; gap: 0.25rem; padding: 0.7rem; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); color: var(--text); text-align: left; font: inherit; }
 .visited-tile .outing-thumb { width: 44px; height: 44px; }
+.visited-tile-head { display: flex; flex-direction: column; align-items: flex-start; gap: 0.25rem; padding: 0; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.visited-evs { display: flex; flex-wrap: wrap; gap: 0.3rem; margin-top: 0.2rem; }
+.visited-ev { font: inherit; font-size: 0.78rem; padding: 0.2rem 0.5rem; border: 1px solid var(--border); border-radius: 999px; background: var(--bg); color: var(--text); cursor: pointer; }
+.visited-ev:hover { border-color: var(--accent, #c8261f); }
 /* Budget : monnaie dans la case, lignes plus longues sur PC, montants masquables */
 .money-in { position: relative; display: block; }
 .money-in input { width: 100%; padding-right: 1.8rem !important; text-align: right; }
@@ -5136,3 +5140,21 @@ body.budget-masked .budget-season strong, body.budget-masked .budget-row .carnet
 .tr-cat-gt3 { background: #6b3fc4; }
 .tr-cat-app { background: var(--accent); }
 .tr-app-sep { margin: 0.7rem 0 0.2rem; padding-top: 0.6rem; border-top: 1px dashed var(--border); font-size: 0.78rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); }
+/* Ajouter à mon agenda : choix de l'agenda */
+.cal-choices { display: flex; flex-direction: column; gap: 0.5rem; }
+.cal-choice { display: flex; flex-direction: column; align-items: flex-start; gap: 0.1rem; padding: 0.75rem 0.9rem; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); color: var(--text); text-decoration: none; font: inherit; text-align: left; cursor: pointer; }
+.cal-choice:hover { border-color: var(--accent, #c8261f); }
+/* Nouveautés (version de l'appli) */
+.pn-head { display: flex; align-items: center; justify-content: space-between; gap: 0.6rem; margin-bottom: 0.4rem; }
+.patchnotes { max-height: 65vh; overflow-y: auto; font-size: 0.92rem; line-height: 1.45; }
+.patchnotes .pn-date { font-family: 'Barlow Condensed', sans-serif; font-size: 1.05rem; text-transform: uppercase; margin: 1rem 0 0.3rem; color: var(--accent, #c8261f); }
+.patchnotes ul { margin: 0.2rem 0 0.5rem; padding-left: 1.1rem; }
+.patchnotes p { margin: 0.5rem 0 0.2rem; }
+/* PC, colonne de droite : album photo du roulage, à droite de la tuile */
+.rail-tile-wrap { position: relative; }
+.rail-tile-wrap .rail-tile { width: 100%; }
+.rail-tile-wrap .rail-album { position: absolute; top: 0.45rem; right: 0.45rem; left: auto; transform: none; }
+/* Photo, logo, couverture du team : une seule ligne */
+.look-team-media { flex-wrap: nowrap; gap: 0.4rem; }
+.look-team-media .ghost { flex: 1 1 0; min-width: 0; padding-left: 0.4rem; padding-right: 0.4rem; white-space: nowrap; }
+.look-team-media .link-btn { flex: 0 0 auto; }
