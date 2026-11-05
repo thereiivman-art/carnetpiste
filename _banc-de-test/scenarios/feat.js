@@ -14,7 +14,12 @@ const { chromium, BASE } = require('../lib');
   await p.screenshot({ path: 'f-tyre-' + lang + '.png' });
   await p.goto('about:blank'); await p.goto(BASE + 'index.html#lang=' + lang); await p.waitForTimeout(1500);
   await p.click('.bottom-nav-btn.bottom-nav-main'); await p.waitForTimeout(400); await p.click('#root [data-view="planning"]'); await p.waitForTimeout(500);
-  const [dl] = await Promise.all([p.waitForEvent('download', { timeout: 5000 }).catch(() => null), p.click('[data-action="add-to-calendar"]')]);
+  // Ajouter à mon agenda : choix Google Agenda, Outlook ou fichier .ics.
+  await p.click('[data-action="add-to-calendar"]'); await p.waitForTimeout(300);
+  console.log('choix agenda:', await p.$$eval('.cal-choice strong', e => e.map(x => x.innerText).join(' / ')), '| lien Google:', await p.$eval('.cal-choice[href*="calendar.google.com"]', e => /action=TEMPLATE/.test(e.href)).catch(() => false));
+  const [dl] = await Promise.all([p.waitForEvent('download', { timeout: 5000 }).catch(() => null), p.click('[data-cal-ics]')]);
+  await p.click('#mini-sheet [data-mini-close], #mini-sheet .mini-sheet-x, #mini-sheet .card-close').catch(() => {}); await p.waitForTimeout(300);
+  if (await p.$('#mini-sheet')) await p.keyboard.press('Escape');
   if (dl) { const path = 'f-cal-' + lang + '.ics'; await dl.saveAs(path); console.log(require('fs').readFileSync(path, 'utf8')); }
   await p.click('.bottom-nav button:nth-child(3)'); await p.waitForTimeout(600);
   console.log('community subnav:', await p.$$eval('.subnav-btn', e => e.map(x => x.textContent)));
