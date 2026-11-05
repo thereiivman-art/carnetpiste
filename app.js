@@ -5560,7 +5560,7 @@
         if (!d.reactions) return;
         Object.keys(d.reactions).forEach(function (who) {
           if (who === name || !d.reactions[who]) return;
-          items.push({ key: 'bravo:' + coll + ':' + d.id + ':' + who, kind: 'flame', time: d.createdAt || 0,
+          items.push({ key: 'bravo:' + coll + ':' + d.id + ':' + who, kind: 'flame', time: d.createdAt || 0, grp: 'bravo:' + coll + ':' + d.id, who: who, label: label(d),
             html: '<strong>' + escapeHtml(who) + '</strong>' + L(' a réagi ', ' reacted ') + label(d), go: go });
         });
       });
@@ -5588,7 +5588,7 @@
     });
     (STATE.allUserFollows || []).forEach(function (f) {
       if (f.followee !== name || f.follower === name) return;
-      items.push({ key: 'follow:' + f.follower, kind: 'follow', time: f.createdAt || 0, html: '<strong>' + escapeHtml(f.follower) + '</strong>' + L(' s\'est abonné à toi', ' started following you'), go: { to: 'suivis' } });
+      items.push({ key: 'follow:' + f.follower, kind: 'follow', time: f.createdAt || 0, grp: 'follow', who: f.follower, html: '<strong>' + escapeHtml(f.follower) + '</strong>' + L(' s\'est abonné à toi', ' started following you'), go: { to: 'suivis' } });
     });
     bravoOn('team', (STATE.teamFeed || []).filter(function (p) { return p.author === name; }), function (p) { return L('sur ton message au team', 'on your team post') + excerpt(p.text || p.question); }, { to: 'fil' });
     // Records des amis
@@ -5597,7 +5597,7 @@
       if (e.type !== 'record' || friends.indexOf(e.actor) === -1) return;
       var day = e.createdAt ? dateKey(new Date(e.createdAt)) : '';
       recordKeys[e.actor + '|' + e.circuit + '|' + day] = true;
-      items.push({ key: 'rec:' + e.id, kind: 'trophy', time: e.createdAt || 0,
+      items.push({ key: 'rec:' + e.id, kind: 'trophy', time: e.createdAt || 0, grp: 'rec:' + circuitKey(e.circuit) + ':' + day, who: e.actor, lap: e.time, circuit: e.circuit,
         html: '<strong>' + escapeHtml(e.actor) + '</strong>' + L(' a battu son record à ', ' set a new record at ') + escapeHtml(e.circuit) + ' · <span class="notif-chrono">' + formatTime(e.time) + '</span>',
         go: { to: 'outing', circuit: e.circuit, date: day } });
     });
@@ -5681,8 +5681,44 @@
     var ts = pendingTimesheetReminder();
     if (ts) items.push({ key: 'ts:' + ts.ev.id + ':' + ts.date, kind: 'camera', time: Date.now() - 4, timeLabel: ts.date === dateKey(new Date()) ? L('Ce soir', 'Tonight') : formatDate(ts.date),
       html: L('Ajoute ton chrono de ', 'Add your lap time from ') + '<strong>' + escapeHtml(ts.ev.circuit) + '</strong>' + L(' : ta place « Entre amis » t\'attend.', ': your place in “Between friends” is waiting.'), go: { to: 'carnet' } });
+    items = groupActivityItems(items);
     items.sort(function (a, b) { return (b.time || 0) - (a.time || 0); });
     return items;
+  }
+  // Regroupe les notifications du même genre : « X, Y et Z ont réagi à ton
+  // message » (les plus récents d'abord), « X, Y et Z se sont abonnés à toi »,
+  // les records du jour sur un même circuit (le meilleur temps d'abord).
+  function groupActivityItems(items) {
+    var groups = {}, out = [];
+    items.forEach(function (it) {
+      if (!it.grp) { out.push(it); return; }
+      var g = groups[it.grp];
+      if (!g) { g = groups[it.grp] = []; out.push({ __grp: it.grp }); }
+      g.push(it);
+    });
+    var names = function (list) {
+      var n = list.map(function (x) { return '<strong>' + escapeHtml(x) + '</strong>'; });
+      if (n.length <= 3) return n.length < 2 ? n.join('') : n.slice(0, -1).join(', ') + L(' et ', ' and ') + n[n.length - 1];
+      return n.slice(0, 2).join(', ') + L(' et ' + (n.length - 2) + ' autres', ' and ' + (n.length - 2) + ' others');
+    };
+    return out.map(function (x) {
+      if (!x.__grp) return x;
+      var g = groups[x.__grp];
+      if (g.length === 1) return g[0];
+      g.sort(function (a, b) { return (b.time || 0) - (a.time || 0); });
+      var first = g[0], time = Math.max.apply(null, g.map(function (y) { return y.time || 0; }));
+      var base = { key: x.__grp + ':' + g.length, keys: g.map(function (y) { return y.key; }), kind: first.kind, time: time, go: first.go };
+      if (/^bravo:/.test(x.__grp)) {
+        var who = g.map(function (y) { return y.who; }).reverse();
+        return Object.assign(base, { html: names(who) + L(' ont réagi ', ' reacted ') + first.label });
+      }
+      if (x.__grp === 'follow') return Object.assign(base, { html: names(g.map(function (y) { return y.who; })) + L(' se sont abonnés à toi', ' started following you') });
+      if (/^rec:/.test(x.__grp)) {
+        var recs = g.slice().sort(function (a, b) { return a.lap - b.lap; });
+        return Object.assign(base, { html: L('Records à ', 'Records at ') + escapeHtml(first.circuit) + ' : ' + recs.map(function (y, k) { return (k ? '' : '') + '<strong>' + escapeHtml(y.who) + '</strong> <span class="notif-chrono">' + formatTime(y.lap) + '</span>'; }).join(', '), go: recs[0].go });
+      }
+      return g[0];
+    });
   }
   // Seen keys, per device. First run: everything already there counts as
   // seen, so only what happens next shows up as new.
@@ -8067,9 +8103,9 @@
     var car = isCarMode();
     var recs = Object.assign({}, builtinTrackRecords(circuit), circuitInfo(circuit).trackRecords || {});
     var rows = TRACK_RECORD_CLASSES.filter(function (c) { return !!c[2] === car; }).filter(function (c) { return recs[c[0]] && recs[c[0]].t; }).map(function (c) {
-      return { label: c[1], who: recs[c[0]].who || '', t: recs[c[0]].t, kind: 'pro' };
+      return { label: c[1], who: recs[c[0]].who || '', t: recs[c[0]].t, kind: 'pro', cls: c[0] };
     });
-    if (!rows.length) return '';
+    var hasPro = rows.length > 0;
     var me = currentUserProfile && currentUserProfile.name, all = bestsByRiderCircuit(), k = circuitKey(circuit);
     var mine = me && !meIsNonRider() && all[me] && all[me][k] ? all[me][k].best : null;
     var friends = friendsOf(me || '').map(function (f) { return f.name; }).filter(function (n) { return !isNonRiderName(n) && all[n] && all[n][k]; })
@@ -8077,12 +8113,23 @@
     rows = rows.concat(friends);
     if (mine !== null) rows.push({ label: L('Moi', 'Me'), t: mine, kind: 'me' });
     rows.sort(function (a, b) { return a.t - b.t; });
+    // Record de l'appli : le meilleur tour de tous les membres ici, tout en bas.
+    var appRec = null;
+    (STATE.sessions || []).forEach(function (x) {
+      if (!x.laps || !x.laps.length || !sameCircuit(x.circuit, circuit) || (((x.discipline || 'moto') === 'auto') !== car)) return;
+      if (x.rider !== me && ((STATE.usersByName || {})[x.rider] || {}).shareSorties === false) return;
+      var b = sessionBest(x); if (!appRec || b < appRec.t) appRec = { t: b, who: x.rider + ', ' + String(x.date || '').slice(0, 4) };
+    });
+    var rowHtml = function (r) {
+      var gap = mine !== null && r.kind !== 'me' ? '<span class="tr-gap">' + (r.t < mine ? '−' : '+') + formatGap(Math.abs(mine - r.t)) + '</span>' : '<span class="tr-gap"></span>';
+      var badge = r.kind === 'pro' ? '<span class="tr-cat tr-cat-' + escapeHtml(r.cls || '') + '">' + escapeHtml(r.label) + '</span>' : r.kind === 'app' ? '<span class="tr-cat tr-cat-app">Carnet Piste</span>' : '';
+      return '<div class="tr-row tr-' + r.kind + '"><span class="tr-label">' + (badge || '<strong>' + escapeHtml(r.label) + '</strong>') + (r.who ? '<span class="help-text">' + escapeHtml(r.who) + '</span>' : '') + '</span>' +
+        '<span class="carnet-time">' + formatTime(r.t) + '</span>' + gap + '</div>';
+    };
+    if (!hasPro && !appRec) return '';
     return '<div class="card track-records"><h2 class="section-title">' + L('Records de la piste', 'Track records') + '</h2>' +
-      rows.map(function (r) {
-        var gap = mine !== null && r.kind !== 'me' ? '<span class="tr-gap">' + (r.t < mine ? '−' : '+') + formatGap(Math.abs(mine - r.t)) + '</span>' : '<span class="tr-gap"></span>';
-        return '<div class="tr-row tr-' + r.kind + '"><span class="tr-label"><strong>' + escapeHtml(r.label) + '</strong>' + (r.who ? '<span class="help-text">' + escapeHtml(r.who) + '</span>' : '') + '</span>' +
-          '<span class="carnet-time">' + formatTime(r.t) + '</span>' + gap + '</div>';
-      }).join('') +
+      rows.map(rowHtml).join('') +
+      (appRec ? '<div class="tr-app-sep">' + L('Record de l\'appli', 'App record') + '</div>' + rowHtml({ kind: 'app', label: L('Record de l\'appli', 'App record'), who: appRec.who, t: appRec.t }) : '') +
       '<div class="help-text tr-foot">' + (mine !== null ? L('Écarts mesurés depuis ton record. ', 'Gaps measured from your record. ') : '') + L('Records officiels en course, tracé actuel.', 'Official race lap records, current layout.') + '</div></div>';
   }
   // Pas encore de chrono sur ce circuit : le chrono estimé, en tête de
@@ -8707,17 +8754,11 @@
     return Object.keys(best).map(function (k) { return best[k]; }).sort(function (a, b) { return a.best - b.best; });
   }
   function renderGlobalPodiums() {
-    var me = currentUserProfile && currentUserProfile.name, by = {};
+    var by = {};
     (STATE.sessions || []).forEach(function (x) { if (x.certifiedBy && x.laps && x.laps.length) by[circuitKey(x.circuit)] = by[circuitKey(x.circuit)] || x.circuit; });
     var circuits = Object.keys(by).map(function (k) { return by[k]; }).sort(function (a, b) { return a.localeCompare(b); });
     if (!circuits.length) return '<div class="card help-text">' + L('Pas encore de chrono vérifié par un organisateur.', 'No lap time verified by an organiser yet.') + '</div>';
-    return circuits.map(function (c) {
-      var rows = globalPodiumRows(c); if (!rows.length) return '';
-      return '<div class="card podium-card"><div class="podium-head"><div class="podium-head-text"><span class="podium-kicker">' + L('Tous les membres · chronos vérifiés', 'All members · verified laps') + '</span><strong class="podium-circuit">' + cName(c) + '</strong></div></div>' +
-        '<div class="global-podium">' + rows.slice(0, 10).map(function (r, i) {
-          return '<div class="global-podium-row' + (r.rider === me ? ' me' : '') + '"><span class="pneus-rank">' + (i + 1) + '</span>' + avatarHtml((STATE.usersByName || {})[r.rider] || {}, r.rider) + '<span class="pneus-name">' + pName(r.rider) + '</span><span class="carnet-time">' + formatTime(r.best) + '</span></div>';
-        }).join('') + '</div></div>';
-    }).join('');
+    return circuits.map(function (c) { return globalPodiumRows(c).length ? renderFriendsPodium(c, true) : ''; }).join('');
   }
   function renderStatsPodiums() {
     var sc = podiumScopeNow();
@@ -8743,18 +8784,22 @@
       : L('Ajoute tes chronos : le podium entre amis apparaît pour chaque circuit où tu as roulé.', 'Add your lap times: the friends\' podium shows for every circuit you\'ve ridden.')) + '</div>';
     return list.map(renderFriendsPodium).join('');
   }
-  function renderFriendsPodium(circuit) {
+  // Podium « Tous » : même affichage que celui des amis (chronos vérifiés),
+  // 10 lignes puis « Voir plus » jusqu'au top 100.
+  var globalPodiumOpen = {};
+  function renderFriendsPodium(circuit, globalMode) {
     var me = currentUserProfile && currentUserProfile.name;
-    var rows = friendsPodium(circuit);
+    var rows = globalMode ? globalPodiumRows(circuit).slice(0, globalPodiumOpen[circuit] ? 100 : 10) : friendsPodium(circuit);
+    var nAll = globalMode ? Math.min(100, globalPodiumRows(circuit).length) : rows.length;
     // En-tête façon fiche : le circuit en grand, son drapeau et son tracé.
     var info = circuitInfo(circuit), outline = outlineImageFor(info, circuit);
     var html = '<div class="card podium-card"><div class="podium-head">' +
       (outline ? '<img class="podium-trace" src="' + escapeHtml(outline) + '" alt="">' : '') +
-      '<div class="podium-head-text"><span class="podium-kicker">' + L('Podium des amis', 'Friends\' podium') + '</span>' +
+      '<div class="podium-head-text"><span class="podium-kicker">' + (globalMode ? L('Tous les membres · chronos vérifiés', 'All members · verified laps') : L('Podium des amis', 'Friends\' podium')) + '</span>' +
       '<strong class="podium-circuit">' + (info.country ? countryBallHtml(info.country, 'inline') + ' ' : '') + cName(circuit) + '</strong>' +
       '<span class="podium-sub">' + L('Meilleur tour de chacun', 'Everyone\'s best lap') + (rows.length > 1 ? ' · ' + rows.length + L(' pilotes', ' riders') : '') + '</span></div>' +
-      (rows.length > 1 ? '<button type="button" class="ghost podium-share" data-action="share-podium" data-circuit="' + escapeHtml(circuit) + '">' + L('Partager', 'Share') + '</button>' : '') + '</div>';
-    if (rows.length < (meIsNonRider() ? 1 : 2)) {
+      (rows.length > 1 && !globalMode ? '<button type="button" class="ghost podium-share" data-action="share-podium" data-circuit="' + escapeHtml(circuit) + '">' + L('Partager', 'Share') + '</button>' : '') + '</div>';
+    if (rows.length < (meIsNonRider() || globalMode ? 1 : 2)) {
       return html + '<div class="empty-state">' + (rows.length ? L('Tu es seul sur ce circuit pour l\'instant. Invite tes amis à y rouler pour lancer le podium.', 'You\'re alone on this circuit so far. Invite your friends to ride here to start the podium.')
         : L('Personne de ta bande n\'a encore roulé ici.', 'Nobody in your crew has ridden here yet.')) + '</div></div>';
     }
@@ -8773,6 +8818,10 @@
       return '<div class="feed-recap-row' + (r.rider === me ? ' me' : '') + '"><span class="feed-recap-pos">' + (i + 4) + '</span>' + avatarHtml(u, r.rider) +
         '<span class="feed-recap-name">' + (r.rider === me ? escapeHtml(L('Toi', 'You')) : personLinkHtml(r.rider)) + '</span><span class="feed-recap-time">' + formatTime(r.best) + '</span><span class="feed-recap-gap">+' + formatGap(r.best - leader) + '</span></div>';
     }).join('') + '</div>';
+    if (globalMode) {
+      if (nAll > rows.length || globalPodiumOpen[circuit]) html += '<button type="button" class="link-btn podium-more" data-podium-more="' + escapeHtml(circuit) + '">' + (globalPodiumOpen[circuit] ? L('Voir moins', 'Show less') : L('Voir plus (top ' + nAll + ')', 'Show more (top ' + nAll + ')')) + '</button>';
+      return html + '</div>';
+    }
     var mine = rows.filter(function (r) { return r.rider === me; })[0];
     if (mine && rows[0].rider !== me) {
       var ahead = rows[rows.indexOf(mine) - 1];
@@ -19254,31 +19303,48 @@
     var acts = [];
     var row = function (k, label, sub, fn) { acts.push(fn); return '<button type="button" class="gsearch-row" data-gs="' + (acts.length - 1) + '">' + ico(k) + '<span class="gsearch-main"><strong>' + escapeHtml(label) + '</strong>' + (sub ? '<span class="help-text">' + escapeHtml(sub) + '</span>' : '') + '</span></button>'; };
     var group = function (title, rows) { return rows.length ? '<div class="gsearch-group"><div class="gsearch-title">' + title + '</div>' + rows.join('') + '</div>' : ''; };
+    // Filtres (catégorie) et tri (récents / anciens) ; avec un filtre, pas
+    // besoin de taper : la catégorie s'affiche en entier.
+    var o = gsearchOpts, ty = o.type, asc = o.sort === 'asc';
     var t = norm(String(qText || '').trim());
-    if (t.length < 2) return { html: '<div class="help-text">' + L('Tape au moins 2 lettres.', 'Type at least 2 letters.') + '</div>', acts: acts };
-    var people = allKnownUserNames().filter(function (n) { return norm(n).indexOf(t) !== -1; }).slice(0, 6).map(function (n) {
+    var bar = '<div class="gsearch-filters">' + [['all', L('Tout', 'All')], ['person', L('Profils', 'Profiles')], ['team', 'Teams'], ['circuit', 'Circuits'], ['event', L('Roulages', 'Trackdays')], ['post', L('Publications', 'Posts')], ['photo', L('Photos', 'Photos')]].map(function (f) {
+      return '<button type="button" class="' + (ty === f[0] ? 'on' : '') + '" data-gs-type="' + f[0] + '">' + f[1] + '</button>'; }).join('') +
+      '<button type="button" class="gsearch-sort" data-gs-sort="1" title="' + escapeHtml(L('Ordre des dates', 'Date order')) + '">' + (asc ? L('Plus anciens', 'Oldest') : L('Plus récents', 'Newest')) + ' ⇅</button></div>';
+    if (t.length < 2 && ty === 'all') return { html: bar + '<div class="help-text gsearch-hint">' + L('Choisis une catégorie ou tape au moins 2 lettres.', 'Pick a category or type at least 2 letters.') + '</div>', acts: acts };
+    var hit = function (x) { return t.length < 2 || norm(x).indexOf(t) !== -1; };
+    var want = function (k) { return ty === 'all' || ty === k; };
+    var lim = ty === 'all' ? 6 : 60;
+    var byDate = function (a, b) { return asc ? a - b : b - a; };
+    var people = !want('person') ? [] : allKnownUserNames().filter(hit).sort(function (a, b) { return a.localeCompare(b); }).slice(0, lim).map(function (n) {
       var u = (STATE.usersByName || {})[n] || {};
       return row('person', n, roleLabel(u.role) + (u.bike ? ' · ' + u.bike : ''), function () { openPerson(n); });
     });
-    var teams = (STATE.teams || []).filter(function (tm) { return tm.name && norm(tm.name).indexOf(t) !== -1; }).slice(0, 5).map(function (tm) {
+    var teams = !want('team') ? [] : (STATE.teams || []).filter(function (tm) { return tm.name && hit(tm.name); }).slice(0, lim).map(function (tm) {
       return row('team', tm.name, tm.teamPro ? 'Team PRO' : 'Team', function () { expandedTeamId = tm.id; managingEventId = null; activeView = 'team'; personView = null; renderRoot(); window.scrollTo(0, 0); });
     });
-    var circuits = allCircuits().filter(function (c) { return norm(c).indexOf(t) !== -1; }).slice(0, 6).map(function (c) {
+    var circuits = !want('circuit') ? [] : allCircuits().filter(hit).sort(function (a, b) { return a.localeCompare(b); }).slice(0, lim).map(function (c) {
       return row('circuit', c, countryName((circuitInfo(c) || {}).country || '') || '', function () { selectedCircuit = c; userPickedCircuit = true; activeView = 'circuit'; outingView = null; personView = null; renderRoot(); window.scrollTo(0, 0); });
     });
-    var today = dateKey(new Date());
-    var events = eventsList().filter(function (ev) { return norm(ev.circuit + ' ' + (ev.title || '') + ' ' + formatEventRange(ev, true)).indexOf(t) !== -1; })
-      .sort(function (a, b) { var fa = (a.dateEnd || a.dateStart) >= today, fb = (b.dateEnd || b.dateStart) >= today; return fa !== fb ? (fa ? -1 : 1) : (fa ? a.dateStart.localeCompare(b.dateStart) : b.dateStart.localeCompare(a.dateStart)); })
-      .slice(0, 6).map(function (ev) { return row('event', ev.circuit, formatEventRange(ev, true) + ((ev.riders || []).length ? ' · ' + plural(ev.riders.length, L('inscrit', 'rider'), L('inscrits', 'riders')) : ''), function () { openOuting(ev.circuit, ev.dateStart, ev.id); }); });
-    var posts = (STATE.wallPosts || []).filter(function (w) { return !w.story && norm((w.text || '') + ' ' + (w.place || '') + ' ' + w.author).indexOf(t) !== -1; })
-      .sort(function (a, b) { return (b.createdAt || 0) - (a.createdAt || 0); }).slice(0, 6)
-      .map(function (w) { return row('post', w.author + (w.place ? ' · ' + w.place : ''), String(w.text || '').slice(0, 90), function () { goToOriginal(w.id, w.author, 'wall'); }); });
-    var html = group(L('Pilotes et membres', 'Riders and members'), people) + group('Teams', teams) + group('Circuits', circuits) + group(L('Roulages', 'Trackdays'), events) + group(L('Publications', 'Posts'), posts);
-    return { html: html || '<div class="help-text">' + L('Aucun résultat.', 'No result.') + '</div>', acts: acts };
+    var events = !want('event') ? [] : eventsList().filter(function (ev) { return hit(ev.circuit + ' ' + (ev.title || '') + ' ' + formatEventRange(ev, true)); })
+      .sort(function (a, b) { return asc ? a.dateStart.localeCompare(b.dateStart) : b.dateStart.localeCompare(a.dateStart); })
+      .slice(0, lim).map(function (ev) { return row('event', ev.circuit, formatEventRange(ev, true) + ((ev.riders || []).length ? ' · ' + plural(ev.riders.length, L('inscrit', 'rider'), L('inscrits', 'riders')) : ''), function () { openOuting(ev.circuit, ev.dateStart, ev.id); }); });
+    var postList = (STATE.wallPosts || []).filter(function (w) { return !w.story && hit((w.text || '') + ' ' + (w.place || '') + ' ' + w.author); }).sort(function (a, b) { return byDate(a.createdAt || 0, b.createdAt || 0); });
+    var posts = !want('post') ? [] : postList.slice(0, lim).map(function (w) { return row('post', w.author + (w.place ? ' · ' + w.place : ''), (w.createdAt ? formatDate(dateKey(new Date(w.createdAt))) + ' · ' : '') + String(w.text || '').slice(0, 80), function () { goToOriginal(w.id, w.author, 'wall'); }); });
+    var photos = !want('photo') ? '' : postList.filter(function (w) { return w.photoURL && /^(data:image|https:)/.test(w.photoURL); }).slice(0, ty === 'all' ? 8 : 60);
+    var photoHtml = '';
+    if (photos.length) photoHtml = '<div class="gsearch-group"><div class="gsearch-title">' + L('Photos', 'Photos') + '</div><div class="gsearch-photos">' + photos.map(function (w) {
+      acts.push(function () { goToOriginal(w.id, w.author, 'wall'); });
+      return '<button type="button" class="gsearch-photo" data-gs="' + (acts.length - 1) + '" title="' + escapeHtml(w.author) + '"><img src="' + escapeHtml(w.photoURL) + '" alt="" loading="lazy"></button>';
+    }).join('') + '</div></div>';
+    var html = group(L('Pilotes et membres', 'Riders and members'), people) + group('Teams', teams) + group('Circuits', circuits) + group(L('Roulages', 'Trackdays'), events) + group(L('Publications', 'Posts'), posts) + photoHtml;
+    return { html: bar + (html || '<div class="help-text gsearch-hint">' + L('Aucun résultat.', 'No result.') + '</div>'), acts: acts };
   }
+  var gsearchOpts = { type: 'all', sort: 'desc' };
   function gsearchFill(box, qText, onPick) {
     var r = gsearchBuild(qText);
     box.innerHTML = r.html;
+    box.querySelectorAll('[data-gs-type]').forEach(function (b) { b.addEventListener('mousedown', function (e) { e.preventDefault(); }); b.addEventListener('click', function () { gsearchOpts.type = b.getAttribute('data-gs-type'); gsearchFill(box, qText, onPick); }); });
+    box.querySelectorAll('[data-gs-sort]').forEach(function (b) { b.addEventListener('mousedown', function (e) { e.preventDefault(); }); b.addEventListener('click', function () { gsearchOpts.sort = gsearchOpts.sort === 'asc' ? 'desc' : 'asc'; gsearchFill(box, qText, onPick); }); });
     box.querySelectorAll('[data-gs]').forEach(function (b) { b.addEventListener('mousedown', function (e) { e.preventDefault(); }); b.addEventListener('click', function () { var fn = r.acts[+b.getAttribute('data-gs')]; onPick(); profilePanelOpen = false; notificationsPanelOpen = false; fn(); }); });
   }
   // PC : le bouton « Rechercher » devient un champ, résultats juste à côté.
@@ -19295,7 +19361,7 @@
     if (!pop) { pop = document.createElement('div'); pop.id = 'gsearch-pop'; pop.className = 'gsearch-pop'; document.body.appendChild(pop); }
     var place = function () { var r = inp.closest('.gsearch-inline').getBoundingClientRect(); pop.style.top = Math.max(12, r.top - 8) + 'px'; pop.style.left = (r.right + 12) + 'px'; };
     place();
-    var refresh = function () { gsearchInline.q = inp.value; gsearchFill(pop, inp.value, closeSearchInline); pop.hidden = inp.value.trim().length < 2; };
+    var refresh = function () { gsearchInline.q = inp.value; gsearchFill(pop, inp.value, closeSearchInline); };
     refresh();
     inp.addEventListener('input', refresh);
     inp.addEventListener('keydown', function (e) {
@@ -19314,10 +19380,12 @@
     if (isDesktopNav()) { gsearchInline.open = true; renderRoot(); return; }
     var ov = openMiniSheet('<h2 class="section-title">' + L('Rechercher', 'Search') + '</h2>' +
       '<input type="search" id="gsearch-q" placeholder="' + escapeHtml(L('Pilote, team, circuit, roulage, publication…', 'Rider, team, circuit, trackday, post…')) + '" autocomplete="off">' +
-      '<div class="gsearch-results" id="gsearch-results"><div class="help-text">' + L('Tape au moins 2 lettres.', 'Type at least 2 letters.') + '</div></div>');
+      '<div class="gsearch-results" id="gsearch-results"></div>');
     ov.querySelector('.mini-sheet').classList.add('gsearch-sheet');
     var q = ov.querySelector('#gsearch-q'), box = ov.querySelector('#gsearch-results');
-    q.addEventListener('input', function () { gsearchFill(box, q.value, function () { ov.remove(); }); });
+    var fill = function () { gsearchFill(box, q.value, function () { ov.remove(); }); };
+    fill();
+    q.addEventListener('input', fill);
     q.addEventListener('keydown', function (e) { if (e.key === 'Enter') { var f = box.querySelector('[data-gs]'); if (f) f.click(); } });
     setTimeout(function () { q.focus(); }, 30);
   }
@@ -25311,6 +25379,8 @@
         }
         var bh = e.target.closest('[data-action="budget-hide"]');
         if (bh) { e.preventDefault(); e.stopPropagation(); try { localStorage.setItem('cdp-budget-hidden', budgetHidden() ? '0' : '1'); } catch (er) {} renderRoot(); return; }
+        var pm = e.target.closest('[data-podium-more]');
+        if (pm) { e.preventDefault(); e.stopPropagation(); var pc = pm.getAttribute('data-podium-more'); globalPodiumOpen[pc] = !globalPodiumOpen[pc]; renderRoot(); return; }
         var mj = e.target.closest('[data-moi-jump]');
         if (mj) { e.preventDefault(); e.stopPropagation(); var t = document.getElementById('moi-' + mj.getAttribute('data-moi-jump')); if (t) t.scrollIntoView({ block: 'start', behavior: 'smooth' }); return; }
         var tsr = e.target.closest('[data-action="team-season-recap"]');

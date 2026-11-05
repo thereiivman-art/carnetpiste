@@ -5115,3 +5115,24 @@ body.budget-masked .budget-season strong, body.budget-masked .budget-row .carnet
 .ph-body .outing-actions { display: flex; gap: 0.5rem; }
 .ph-body .outing-actions > button { flex: 1 1 0; }
 .look-team-media { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; } .look-team-av .mini-avatar { width: 48px; height: 48px; } .look-team-media button { border-radius: 999px; font-weight: 700; color: var(--text); }
+.gsearch-filters { display: flex; flex-wrap: wrap; gap: 0.35rem; }
+.gsearch-filters button { border: 1px solid var(--border); background: var(--surface); color: var(--text-muted); border-radius: 999px; padding: 0.3rem 0.75rem; font-size: 0.82rem; font-weight: 700; cursor: pointer; }
+.gsearch-filters button.on { background: var(--text); color: var(--bg); border-color: var(--text); }
+.gsearch-filters .gsearch-sort { margin-left: auto; border-style: dashed; }
+.gsearch-hint { padding: 0.4rem 0.2rem; }
+.gsearch-photos { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.3rem; }
+.gsearch-photo { padding: 0; border: 0; border-radius: 8px; overflow: hidden; aspect-ratio: 1; cursor: pointer; background: var(--surface-alt); }
+.gsearch-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.podium-more { display: block; margin: 0.6rem auto 0.2rem; font-weight: 700; }
+/* Records : pastille de catégorie devant le nom */
+.tr-cat { display: inline-block; align-self: flex-start; padding: 0.1rem 0.45rem; border-radius: 6px; font-family: 'Barlow Condensed', sans-serif; font-style: italic; font-weight: 800; font-size: 0.85rem; letter-spacing: 0.02em; color: #fff; background: #14161a; }
+.tr-cat-motogp { background: #c8261f; }
+.tr-cat-moto2 { background: #3a3f47; }
+.tr-cat-moto3 { background: #e0701a; }
+.tr-cat-wsbk { background: #1f4fb8; }
+.tr-cat-fsbk { background: linear-gradient(90deg, #1f4fb8 0 33%, #ffffff 33% 66%, #c8261f 66%); color: #14161a; text-shadow: 0 0 3px #fff; }
+.tr-cat-f1 { background: #e10600; }
+.tr-cat-wec { background: #0b3d91; }
+.tr-cat-gt3 { background: #6b3fc4; }
+.tr-cat-app { background: var(--accent); }
+.tr-app-sep { margin: 0.7rem 0 0.2rem; padding-top: 0.6rem; border-top: 1px dashed var(--border); font-size: 0.78rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); }
