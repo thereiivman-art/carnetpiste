@@ -4822,3 +4822,34 @@ body.budget-masked .ph-feature-time, body.budget-masked .budget-kpis strong, bod
 }
 @media (max-width: 380px) { .map-open-choice svg { display: none; } }
 #annot-overlay.map-docked .map-mode-switch { position: static; left: auto; top: auto; transform: none; margin: 0.4rem auto 0.2rem; }
+/* Story active : anneau doré bien visible (le rouge se confondait avec la charte). */
+.story-ring { background: conic-gradient(from 200deg, #ffb703, #fb8500, #c8261f, #fb8500, #ffb703); padding: 3.5px; }
+.story-bubble.seen .story-ring { background: var(--border); padding: 2px; }
+.mini-avatar.has-story { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4.5px #fb8500; }
+.outing-row-wrap > .album-chip { flex: 0 0 auto; padding: 0.45rem 0.6rem; }
+.album-chip { display: inline-flex; align-items: center; gap: 0.25rem; min-width: 0; padding: 0.2rem 0.5rem; border: 0; border-radius: 999px; background: color-mix(in srgb, var(--accent) 12%, transparent); color: var(--accent); font-weight: 800; font-size: 0.8rem; text-decoration: none; cursor: pointer; }
+.album-sheet-row { display: flex; align-items: center; gap: 0.6rem; padding: 0.7rem 0.2rem; border-bottom: 1px solid var(--border); color: var(--text); text-decoration: none; }
+.album-sheet-row svg { color: var(--accent); }
+.comp-carnet-title { margin: 0 0 0.6rem; }
+.post-extra-chips { display: flex; gap: 0.4rem; margin-top: 0.6rem; }
+.post-extra-chip { display: inline-flex; align-items: center; gap: 0.3rem; border-radius: 999px; padding: 0.35rem 0.8rem; font-size: 0.85rem; font-weight: 700; color: var(--text); }
+.post-extra-chip.on { border-color: var(--accent); color: var(--accent); }
+/* Lien vidéo dans un post : lecteur intégré. */
+.link-player { position: relative; margin: 0.5rem 0; border-radius: 12px; overflow: hidden; background: #14161a; aspect-ratio: 16 / 9; }
+.link-player.tall { aspect-ratio: 9 / 16; max-height: 70vh; margin-inline: auto; }
+.link-player-face { position: absolute; inset: 0; width: 100%; height: 100%; padding: 0; border: 0; border-radius: 0; background: #14161a; cursor: pointer; display: block; }
+.link-player-face img { width: 100%; height: 100%; object-fit: cover; display: block; opacity: 0.9; }
+.link-player-play { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 64px; height: 64px; border-radius: 50%; display: grid; place-items: center; background: #c8261f; color: #fff; box-shadow: 0 4px 18px rgba(0,0,0,0.35); }
+.link-player-host { position: absolute; left: 0.6rem; bottom: 0.5rem; padding: 0.15rem 0.5rem; border-radius: 999px; background: rgba(0,0,0,0.6); color: #fff; font-size: 0.75rem; font-weight: 700; }
+.link-player-out { position: absolute; right: 0.5rem; top: 0.5rem; z-index: 2; padding: 0.2rem 0.6rem; border-radius: 999px; background: rgba(0,0,0,0.6); color: #fff; font-size: 0.75rem; font-weight: 700; text-decoration: none; }
+.link-player-frame { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+.link-player:has(iframe) .link-player-out { display: none; }
+.dm-app-av { width: 2.4rem; height: 2.4rem; border-radius: 50%; object-fit: cover; flex: 0 0 auto; background: #fff; }
+.dm-welcome { white-space: pre-line; }
+/* Discussion d'un roulage */
+.mini-sheet.ev-chat-sheet { display: flex; flex-direction: column; max-height: calc(100dvh - 2rem); }
+.ev-chat-list { flex: 1 1 auto; min-height: 12rem; max-height: 55dvh; overflow-y: auto; margin: 0.6rem 0; }
+.ev-chat-form { position: static; display: flex; gap: 0.4rem; align-items: flex-end; }
+.ev-chat-form textarea { flex: 1; min-width: 0; resize: none; }
+.mini-sheet.player-sheet { width: min(960px, calc(100vw - 1.5rem)); max-width: none; padding-top: 2.6rem; }
+.link-player.in-sheet { margin: 0; }

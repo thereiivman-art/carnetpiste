@@ -8,7 +8,7 @@ const { chromium, BASE } = require('../lib');
   const bank0 = await p.evaluate(() => firebase.firestore().collection('users').doc(firebase.auth().currentUser.uid).get().then(d => (d.data().pneus || {}).bank || 0));
   console.log('pneus gagnés à l\'ouverture:', bank0);
   await p.click('#wall-composer-toggle'); await p.waitForTimeout(300);
-  await p.fill('#wall-post-text', 'Paddock !'); await p.fill('#wall-post-place', 'Barcelone');
+  await p.fill('#wall-post-text', 'Paddock !'); await p.click('[data-post-extra="place"]'); await p.fill('#wall-post-place', 'Barcelone');
   await p.click('#wall-post-form button[type="submit"]'); await p.waitForTimeout(600);
   await p.click('[data-mini-close]').catch(() => {}); await p.waitForTimeout(300);
   console.log('lieu stocké:', await p.evaluate(() => Object.values(window.__MOCK_DATA.wallPosts).filter(w => w.text === 'Paddock !').map(w => w.place).join()), '| affiché:', await p.$eval('.post-place', e => e.innerText + ' → ' + e.href.slice(0, 40)).catch(() => 'non'));

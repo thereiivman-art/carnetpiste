@@ -904,6 +904,25 @@ service cloud.firestore {
         && onlyOwnKeyChanged(resource.data.get('reactions', {}), request.resource.data.reactions);
       allow delete: if request.auth != null && request.auth.uid in resource.data.members;
     }
+    // Discussion d'un roulage : lue par les comptes vérifiés (comme le
+    // roulage lui-même), écrite par ses pilotes/accompagnants inscrits,
+    // le Team Leader de l'organisateur, ou l'admin.
+    match /eventMessages/{id} {
+      allow read: if verified();
+      allow create: if verified() && realAccount()
+        && request.resource.data.keys().hasOnly(['eventId', 'from', 'fromName', 'text', 'createdAt'])
+        && request.resource.data.from == request.auth.uid
+        && request.resource.data.fromName == myName()
+        && request.resource.data.text is string && request.resource.data.text.size() > 0 && request.resource.data.text.size() <= 1000
+        && request.resource.data.createdAt is number
+        && request.resource.data.eventId is string
+        && exists(/databases/$(database)/documents/events/$(request.resource.data.eventId))
+        && (isAdmin()
+            || myName() in get(/databases/$(database)/documents/events/$(request.resource.data.eventId)).data.get('riders', [])
+            || (get(/databases/$(database)/documents/events/$(request.resource.data.eventId)).data.get('teamId', null) != null
+                && isTeamLeader(get(/databases/$(database)/documents/events/$(request.resource.data.eventId)).data.teamId)));
+      allow delete: if request.auth != null && (resource.data.from == request.auth.uid || isAdmin());
+    }
     // Messages à un team : une conversation par pilote et par team. Le
     // pilote écrit en son nom ; seuls les Team Leaders lisent et répondent,
     // au nom du team (asTeam).
