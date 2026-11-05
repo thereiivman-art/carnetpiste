@@ -15,8 +15,8 @@ const { chromium } = require('../lib');
 
 const DEPOT = banc.DEPOT;
 const TMP = path.join(banc.BANC, '.sortie', 'guide');
-const LIEN = 'https://thereiivman-art.github.io/carnetpiste/';
-const LIEN_COURT = 'thereiivman-art.github.io/carnetpiste';
+const LIEN = 'https://thereiivman-art.github.io/pitbook/';
+const LIEN_COURT = 'thereiivman-art.github.io/pitbook';
 
 const ICON = {
   trend: '<path d="M3 17l6-6 4 4 8-8"/><path d="M14 7h7v7"/>',

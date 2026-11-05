@@ -2,6 +2,14 @@
 
 Les nouveautés, de la plus récente à la plus ancienne. Le détail complet est dans l'historique git.
 
+## 6 novembre 2026 (suite)
+
+- Tracés du Mans et de Magny-Cours remis à la bonne place.
+- Plus de plans généraux importés : seulement les tracés.
+- Notifications : une personne n'apparaît plus deux fois (« Xav, Xav et 2 autres… »).
+- Infos du circuit : lien vers le site officiel du circuit ; avis sur la difficulté en moto et en voiture.
+- Adresse de l'appli : prête pour thereiivman-art.github.io/pitbook.
+
 ## 6 novembre 2026
 
 **L'appli s'appelle Pitbook** partout (Pitbook+ pour l'offre).

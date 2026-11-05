@@ -1672,6 +1672,13 @@
     });
   }
 
+  // Adresse de l'appli affichée sur les images partagées : celle où elle
+  // tourne (thereiivman-art.github.io/pitbook une fois le dépôt renommé).
+  function appShortUrl() {
+    var h = location.host || '';
+    if (/github\.io$/.test(h)) return (h + location.pathname).replace(/\/(index\.html)?$/, '');
+    return 'thereiivman-art.github.io/pitbook';
+  }
   function referralLinkFor(name) {
     return window.location.origin + window.location.pathname + '?ref=' + encodeURIComponent(name);
   }
@@ -5713,8 +5720,10 @@
       if (c.author === name || !c.text || !atMe.test(c.text)) return;
       items.push({ key: 'mention-c:' + c.id, kind: 'mention', time: c.createdAt || 0, html: '<strong>' + escapeHtml(c.author) + '</strong>' + L(' t\'a cité dans un commentaire', ' mentioned you in a comment') + excerpt(c.text), go: { to: 'fil' } });
     });
+    var followSeen = {}; // un abonnement en double (deux documents) = une seule notification
     (STATE.allUserFollows || []).forEach(function (f) {
-      if (f.followee !== name || f.follower === name) return;
+      if (f.followee !== name || f.follower === name || followSeen[f.follower]) return;
+      followSeen[f.follower] = 1;
       items.push({ key: 'follow:' + f.follower, kind: 'follow', time: f.createdAt || 0, grp: 'follow', who: f.follower, html: '<strong>' + escapeHtml(f.follower) + '</strong>' + L(' s\'est abonné à toi', ' started following you'), go: { to: 'suivis' } });
     });
     bravoOn('team', (STATE.teamFeed || []).filter(function (p) { return p.author === name; }), function (p) { return L('sur ton message au team', 'on your team post') + excerpt(p.text || p.question); }, { to: 'fil' });
@@ -5823,7 +5832,10 @@
       if (!g) { g = groups[it.grp] = []; out.push({ __grp: it.grp }); }
       g.push(it);
     });
+    // Une personne n'apparaît qu'une fois (« Xav, Xav et 2 autres »…).
+    var uniq = function (list) { return list.filter(function (v, i) { return list.indexOf(v) === i; }); };
     var names = function (list) {
+      list = uniq(list);
       var n = list.map(function (x) { return '<strong>' + escapeHtml(x) + '</strong>'; });
       if (n.length <= 3) return n.length < 2 ? n.join('') : n.slice(0, -1).join(', ') + L(' et ', ' and ') + n[n.length - 1];
       return n.slice(0, 2).join(', ') + L(' et ' + (n.length - 2) + ' autres', ' and ' + (n.length - 2) + ' others');
@@ -5836,10 +5848,13 @@
       var first = g[0], time = Math.max.apply(null, g.map(function (y) { return y.time || 0; }));
       var base = { key: x.__grp + ':' + g.length, keys: g.map(function (y) { return y.key; }), kind: first.kind, time: time, go: first.go };
       if (/^bravo:/.test(x.__grp)) {
-        var who = g.map(function (y) { return y.who; }).reverse();
-        return Object.assign(base, { html: names(who) + L(' ont réagi ', ' reacted ') + first.label });
+        var who = uniq(g.map(function (y) { return y.who; }).reverse());
+        return Object.assign(base, { html: names(who) + (who.length > 1 ? L(' ont réagi ', ' reacted ') : L(' a réagi ', ' reacted ')) + first.label });
       }
-      if (x.__grp === 'follow') return Object.assign(base, { html: names(g.map(function (y) { return y.who; })) + L(' se sont abonnés à toi', ' started following you') });
+      if (x.__grp === 'follow') {
+        var fw = uniq(g.map(function (y) { return y.who; }));
+        return Object.assign(base, { html: names(fw) + (fw.length > 1 ? L(' se sont abonnés à toi', ' started following you') : L(' s\'est abonné à toi', ' started following you')) });
+      }
       if (/^rec:/.test(x.__grp)) {
         var recs = g.slice().sort(function (a, b) { return a.lap - b.lap; });
         return Object.assign(base, { html: L('Records à ', 'Records at ') + escapeHtml(first.circuit) + ' : ' + recs.map(function (y, k) { return (k ? '' : '') + '<strong>' + escapeHtml(y.who) + '</strong> <span class="notif-chrono">' + formatTime(y.lap) + '</span>'; }).join(', '), go: recs[0].go });
@@ -7890,8 +7905,8 @@
       ctx.fillStyle = C.line; ctx.fillRect(80, H - 250, W - 160, 2);
       ctx.fillStyle = C.ink; ctx.font = '700 46px "Barlow", sans-serif';
       ctx.fillText(EN ? 'My trackday logbook, free:' : 'Mon carnet de piste, gratuit :', 80, H - 175);
-      ctx.fillStyle = C.red; fitText(ctx, 'thereiivman-art.github.io/carnetpiste', W - 160, 46, '700');
-      ctx.fillText('thereiivman-art.github.io/carnetpiste', 80, H - 105);
+      ctx.fillStyle = C.red; fitText(ctx, appShortUrl(), W - 160, 46, '700');
+      ctx.fillText(appShortUrl(), 80, H - 105);
       return new Promise(function (resolve) { canvas.toBlob(function (b) { resolve(b); }, 'image/png'); });
     });
   }
@@ -7906,7 +7921,7 @@
       var file = new File([blob], fileName, { type: 'image/png' });
       countUsage('story'); countUsage('story_session');
       var text = formatTime(sessionBest(session)) + L(' à ', ' at ') + session.circuit + L(' — mon carnet de piste : ', ' — my Pitbook: ') +
-        (currentUserProfile && currentUserProfile.name ? referralLinkFor(currentUserProfile.name) : 'https://thereiivman-art.github.io/carnetpiste/');
+        (currentUserProfile && currentUserProfile.name ? referralLinkFor(currentUserProfile.name) : 'https://' + appShortUrl() + '/');
       if (navigator.canShare && navigator.canShare({ files: [file] })) {
         return navigator.share({ files: [file], text: text }).catch(function () {});
       }
@@ -8016,8 +8031,11 @@
   function circuitInfo(name) {
     STATE.circuits = STATE.circuits || {};
     var stored = STATE.circuits[name], b = builtinCircuit(name);
-    if (!b) return stored || {};
+    if (!b) { var st = Object.assign({}, stored || {}); if (st.mapImage && outlineImageFor(st, name)) delete st.mapImage; return st; }
     var info = Object.assign({}, stored || {});
+    // Seulement les tracés : un plan général importé n'est plus utilisé
+    // quand le circuit a son tracé (simplification).
+    if (info.mapImage && outlineImageFor(info, name)) delete info.mapImage;
     if (info.km == null && b.km != null) info.km = b.km;
     if (!info.country) info.country = b.country;
     return info;
@@ -8321,11 +8339,36 @@
     return '<div class="circuit-rules"><span class="look-label">' + L('Sur ce circuit', 'At this circuit') + '</span><ul>' + L(r.fr, r.en).map(function (t) { return '<li>' + escapeHtml(t) + '</li>'; }).join('') + '</ul>' +
       '<span class="help-text">' + L('Vérifié le ', 'Checked on ') + escapeHtml(formatDate(CIRCUIT_RULES_CHECKED)) + ' · ' + r.src.map(function (u, i) { return '<a href="' + escapeHtml(u) + '" target="_blank" rel="noopener">' + L('source', 'source') + (r.src.length > 1 ? ' ' + (i + 1) : '') + '</a>'; }).join(' · ') + '</span></div>';
   }
+  // Sites officiels des circuits (vérifiés). L'admin peut en saisir un autre
+  // dans la fiche du circuit (info.website), qui passe devant.
+  var CIRCUIT_SITES = {
+    'Paul Ricard': 'https://www.circuitpaulricard.com', 'Magny Cours': 'https://www.circuitmagnycours.com', 'Le Mans': 'https://www.lemans.org',
+    'Lédenon': 'https://www.ledenon.com', 'Dijon-Prenois': 'https://www.circuit-dijon-prenois.com', 'Haute Saintonge': 'https://www.circuitdehautesaintonge.com',
+    'Le Vigeant': 'https://www.circuit-valdevienne.com', 'Alès': 'https://www.pole-mecanique.fr', 'Charade': 'https://www.charade.fr', 'Nogaro': 'https://www.circuit-nogaro.com',
+    'Barcelone': 'https://www.circuitcat.com', 'Jerez': 'https://www.circuitodejerez.com', 'Valence': 'https://www.circuitricardotormo.com', 'Aragón': 'https://www.motorlandaragon.com',
+    'Navarra': 'https://www.circuitodenavarra.com', 'Jarama': 'https://www.jarama.org', 'Portimão': 'https://www.autodromodoalgarve.com', 'Estoril': 'https://www.circuito-estoril.pt',
+    'Mugello': 'https://www.mugellocircuit.com', 'Misano': 'https://www.misanocircuit.com', 'Imola': 'https://www.autodromoimola.it', 'Vallelunga': 'https://www.vallelunga.it', 'Cremona': 'https://www.cremonacircuit.it',
+    'Spa-Francorchamps': 'https://www.spa-francorchamps.be', 'Zolder': 'https://www.circuit-zolder.be', 'Mettet': 'https://www.circuit-mettet.be',
+    'Assen': 'https://www.tt-circuit.nl', 'Sachsenring': 'https://www.sachsenring-circuit.com', 'Hockenheim': 'https://www.hockenheimring.de', 'Nürburgring': 'https://www.nuerburgring.de',
+    'Red Bull Ring': 'https://www.redbullring.com', 'Brno': 'https://www.automotodrombrno.cz', 'Most': 'https://www.autodrom-most.cz', 'Slovakia Ring': 'https://www.slovakiaring.sk', 'Grobnik': 'https://grobnik.hr', 'Pannonia-Ring': 'https://www.pannonia-ring.com',
+    'Silverstone': 'https://www.silverstone.co.uk', 'Donington': 'https://www.donington-park.co.uk', 'Brands Hatch': 'https://www.brandshatch.co.uk',
+    'Losail': 'https://www.lcsc.qa', 'COTA': 'https://circuitoftheamericas.com', 'Buriram': 'https://www.changinternationalcircuit.com', 'Motegi': 'https://www.mr-motegi.jp',
+    'Phillip Island': 'https://www.phillipislandcircuit.com.au', 'Sepang': 'https://www.sepangcircuit.com'
+  };
+  function circuitWebsite(circuit) {
+    var own = circuitInfo(circuit).website;
+    if (own) return own;
+    var k = Object.keys(CIRCUIT_SITES).filter(function (n) { return circuitKey(n) === circuitKey(circuit); })[0];
+    return k ? CIRCUIT_SITES[k] : null;
+  }
   function renderCircuitLevelGearCard(circuit) {
     if (!circuit) return '';
     loadLevelVotes(circuit);
     var lv = circuitLevel(circuit), car = typeof isCarMode === 'function' && isCarMode();
-    var html = '<div class="card circuit-lg"><h2 class="section-title">' + L('Niveau et matériel', 'Level and gear') + '</h2>';
+    var site = circuitWebsite(circuit);
+    var html = '<div class="card circuit-lg"><h2 class="section-title">' + L('Niveau et matériel', 'Level and gear') + '</h2>' +
+      '<div class="circuit-site">' + (site ? '<a class="ghost" href="' + escapeHtml(site) + '" target="_blank" rel="noopener">' + L('Site officiel du circuit', 'Official circuit website') + ' ↗</a>'
+        : '<a class="link-btn" href="https://www.google.com/search?q=' + encodeURIComponent('circuit ' + circuit + ' site officiel') + '" target="_blank" rel="noopener">' + L('Chercher le site officiel', 'Search the official website') + ' ↗</a>') + '</div>';
     if (lv) {
       var pill = function (who, n) { return '<span class="lvl lvl-' + n + '"><span class="lvl-who">' + who + '</span><strong>' + levelLabel(n) + '</strong><span class="lvl-bars">' + [1, 2, 3].map(function (i) { return '<i' + (i <= n ? ' class="on"' : '') + '></i>'; }).join('') + '</span></span>'; };
       html += '<div class="lvl-row">' + (car ? pill(L('Voiture', 'Car'), lv[1]) + pill(L('Moto', 'Bike'), lv[0]) : pill(L('Moto', 'Bike'), lv[0]) + pill(L('Voiture', 'Car'), lv[1])) + '</div>' +
@@ -8336,10 +8379,15 @@
         })() + '</div>';
     }
     // Mon avis sur le niveau (moto ou voiture, selon mon véhicule).
-    var vf = car ? 'car' : 'moto', mv = myLevelVote(circuit);
-    html += '<div class="lvl-vote"><span class="look-label">' + (car ? L('Ton avis (voiture)', 'Your opinion (car)') : L('Ton avis (moto)', 'Your opinion (bike)')) + '</span><div class="look-seg">' + [1, 2, 3].map(function (n) {
-      return '<button type="button" data-lvl-vote="' + n + '" data-lvl-field="' + vf + '" data-lvl-circuit="' + escapeHtml(circuit) + '" aria-pressed="' + !!(mv && mv[vf] === n) + '">' + levelLabel(n) + '</button>';
-    }).join('') + '</div></div>';
+    // Mon avis sur la difficulté, en moto et en voiture (l'un, l'autre ou les deux).
+    var mv = myLevelVote(circuit);
+    var voteRow = function (vf, label) {
+      return '<div class="lvl-vote-row"><span class="lvl-who">' + label + '</span><div class="look-seg">' + [1, 2, 3].map(function (n) {
+        return '<button type="button" data-lvl-vote="' + n + '" data-lvl-field="' + vf + '" data-lvl-circuit="' + escapeHtml(circuit) + '" aria-pressed="' + !!(mv && mv[vf] === n) + '">' + levelLabel(n) + '</button>';
+      }).join('') + '</div></div>';
+    };
+    html += '<div class="lvl-vote"><span class="look-label">' + L('Ton avis sur la difficulté', 'Your opinion on difficulty') + '</span>' +
+      (car ? voteRow('car', L('Voiture', 'Car')) + voteRow('moto', L('Moto', 'Bike')) : voteRow('moto', L('Moto', 'Bike')) + voteRow('car', L('Voiture', 'Car'))) + '</div>';
     var g = gearLists(car), li = function (a) { return '<ul>' + a.map(function (x) { return '<li>' + escapeHtml(x) + '</li>'; }).join('') + '</ul>'; };
     html += '<div class="gear-cols"><div class="gear-col gear-req"><span class="look-label">' + L('Obligatoire', 'Required') + '</span>' + li(g.req) + '</div>' +
       '<div class="gear-col gear-no"><span class="look-label">' + L('Interdit', 'Not allowed') + '</span>' + li(g.no) + '</div></div>' +
@@ -8704,14 +8752,9 @@
     // it could only ever be seeded by hand -- so "Aucun plan importé pour
     // ce circuit" (renderCircuitVisual) had no way to actually get fixed
     // from here.
-    html += '<div style="margin-top:0.9rem;"><label>' + tr('circuit_map_label') + '</label>' +
-      '<div style="display:flex; gap:0.5rem; margin-top:0.3rem; flex-wrap:wrap;">' +
-      '<button type="button" class="ghost" id="circuit-map-upload-btn">' + (info.mapImage ? tr('circuit_map_replace') : tr('circuit_map_import')) + '</button>' +
-      (info.mapImage ? '<button type="button" class="ghost" id="circuit-map-remove-btn">' + tr('circuit_map_remove') + '</button>' : '') +
-      '</div>' +
-      '<input type="file" id="circuit-map-input" accept="image/*" style="display:none;">' +
-      (circuitMapMessage ? '<div class="help-text" style="margin-top:0.4rem;">' + escapeHtml(circuitMapMessage) + '</div>' : '') +
-      '</div>';
+    // Plus de plan général importé : seulement les tracés. Le site
+    // officiel du circuit s'affiche dans Infos.
+    html += '<div style="margin-top:0.9rem;"><label for="ci-website">' + L('Site officiel du circuit', 'Official circuit website') + '</label><input type="url" id="ci-website" value="' + escapeHtml(info.website || '') + '" placeholder="https://"></div>';
     // Same pattern as the plan above, for the "Contour du tracé" annotation
     // level's own reference image (see ANNOT_OUTLINE_LEVEL/outlineImageFor)
     // -- most circuits already have a built-in default (DEFAULT_TRACK_OUTLINES),
@@ -9431,8 +9474,8 @@
       ctx.fillStyle = C.line; ctx.fillRect(80, H - 250, W - 160, 2);
       ctx.fillStyle = C.ink; ctx.font = '700 46px "Barlow", sans-serif';
       ctx.fillText(EN ? 'Ride with us, compare your lap times:' : 'Viens rouler, compare tes chronos :', 80, H - 175);
-      ctx.fillStyle = C.red; fitText(ctx, 'thereiivman-art.github.io/carnetpiste', W - 160, 46, '700');
-      ctx.fillText('thereiivman-art.github.io/carnetpiste', 80, H - 105);
+      ctx.fillStyle = C.red; fitText(ctx, appShortUrl(), W - 160, 46, '700');
+      ctx.fillText(appShortUrl(), 80, H - 105);
       return new Promise(function (resolve) { canvas.toBlob(function (b) { resolve(b); }, 'image/png'); });
     });
   }
@@ -9498,8 +9541,8 @@
       ctx.fillStyle = C.line; ctx.fillRect(80, H - 250, W - 160, 3);
       ctx.fillStyle = C.ink; ctx.font = '700 46px "Barlow", sans-serif';
       ctx.fillText(L('Monte sur le podium, compare tes chronos :', 'Get on the podium, compare your lap times:'), 80, H - 175);
-      ctx.fillStyle = C.red; fitText(ctx, 'thereiivman-art.github.io/carnetpiste', W - 160, 46, '700');
-      ctx.fillText('thereiivman-art.github.io/carnetpiste', 80, H - 105);
+      ctx.fillStyle = C.red; fitText(ctx, appShortUrl(), W - 160, 46, '700');
+      ctx.fillText(appShortUrl(), 80, H - 105);
       return new Promise(function (resolve) { canvas.toBlob(function (b) { resolve(b); }, 'image/png'); });
     });
   }
@@ -12656,6 +12699,8 @@
     entry.liveTimingUrl = liveTimingUrl || null;
     var lapVidEl = document.getElementById('ci-lap-video'), lapVid = lapVidEl ? lapVidEl.value.trim() : '';
     entry.lapVideo = /^https:\/\/(www\.|m\.)?(youtube\.com|youtu\.be)\//.test(lapVid) ? lapVid : null;
+    var webEl = document.getElementById('ci-website'), web = webEl ? webEl.value.trim() : '';
+    entry.website = /^https:\/\/[^\s]+\.[^\s]+$/.test(web) ? web.slice(0, 200) : null;
     entry.horaires = anyHoraire ? horaires : null;
     STATE.circuits[selectedCircuit] = entry;
     editingCircuitInfo = false;
@@ -14078,8 +14123,8 @@
       ctx.fillStyle = C.line; ctx.fillRect(80, H - 250, W - 160, 2);
       ctx.fillStyle = C.ink; ctx.font = '700 44px "Barlow", sans-serif';
       ctx.fillText(L('Compare tes chronos avec tes amis :', 'Compare lap times with your friends:'), 80, H - 175);
-      ctx.fillStyle = C.red; fitText(ctx, 'thereiivman-art.github.io/carnetpiste', W - 160, 46, '700');
-      ctx.fillText('thereiivman-art.github.io/carnetpiste', 80, H - 105);
+      ctx.fillStyle = C.red; fitText(ctx, appShortUrl(), W - 160, 46, '700');
+      ctx.fillText(appShortUrl(), 80, H - 105);
       return new Promise(function (resolve) { canvas.toBlob(function (b) { resolve(b); }, 'image/png'); });
     });
   }
@@ -14184,8 +14229,8 @@
       ctx.fillStyle = C.line; ctx.fillRect(80, H - 250, W - 160, 2);
       ctx.fillStyle = C.ink; ctx.font = '700 44px "Barlow", sans-serif';
       ctx.fillText(L('Réserve chez l\'orga et rejoins-nous :', 'Book with the organiser and join us:'), 80, H - 175);
-      ctx.fillStyle = C.red; fitText(ctx, 'thereiivman-art.github.io/carnetpiste', W - 160, 46, '700');
-      ctx.fillText('thereiivman-art.github.io/carnetpiste', 80, H - 105);
+      ctx.fillStyle = C.red; fitText(ctx, appShortUrl(), W - 160, 46, '700');
+      ctx.fillText(appShortUrl(), 80, H - 105);
       return new Promise(function (resolve) { canvas.toBlob(function (b) { resolve(b); }, 'image/png'); });
     });
   }
@@ -19389,8 +19434,8 @@
       ctx.fillStyle = C.line; ctx.fillRect(80, H - 250, W - 160, 3);
       ctx.fillStyle = C.ink; ctx.font = '700 46px "Barlow", sans-serif';
       ctx.fillText(L('Mon carnet de piste, gratuit :', 'My trackday logbook, free:'), 80, H - 175);
-      ctx.fillStyle = C.red; fitText(ctx, 'thereiivman-art.github.io/carnetpiste', W - 160, 46, '700');
-      ctx.fillText('thereiivman-art.github.io/carnetpiste', 80, H - 105);
+      ctx.fillStyle = C.red; fitText(ctx, appShortUrl(), W - 160, 46, '700');
+      ctx.fillText(appShortUrl(), 80, H - 105);
       return new Promise(function (resolve) { canvas.toBlob(function (b) { resolve(b); }, 'image/png'); });
     });
   }

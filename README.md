@@ -2,7 +2,7 @@
 
 Carnet de roulage pour la moto sur circuit. Le pilote y note ses chronos et ses repères, prépare ses journées et suit ses amis. C'est une application web installable (PWA), sans serveur à nous : tout tourne dans le navigateur et les données sont dans Firebase (Firestore + Auth, offre gratuite).
 
-En ligne : https://thereiivman-art.github.io/carnetpiste/
+En ligne : https://thereiivman-art.github.io/pitbook/
 
 ## Lire le code en 5 minutes
 

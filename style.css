@@ -5222,3 +5222,7 @@ html.simple-mode { font-size: 112%; }
 .circuit-rules { margin-top: 0.8rem; padding: 0.6rem 0.75rem; border: 1px solid var(--border); border-left: 3px solid var(--accent, #c8261f); border-radius: 12px; background: var(--surface-alt); } .circuit-rules ul { margin: 0.25rem 0 0.35rem; padding-left: 1.1rem; font-size: 0.92rem; }
 .team-gear.is-open { background: var(--accent, #c8261f); color: #fff; border-color: var(--accent, #c8261f); }
 .lvl-vote { margin: 0.6rem 0 0.2rem; } .lvl-vote .look-seg { margin-top: 0.3rem; }
+.circuit-site { margin: 0.2rem 0 0.7rem; }
+.circuit-site a.ghost { display: inline-flex; align-items: center; text-decoration: none; }
+.lvl-vote-row { display: flex; align-items: center; gap: 0.6rem; margin-top: 0.35rem; flex-wrap: wrap; }
+.lvl-vote-row .lvl-who { min-width: 4.2rem; }
