@@ -4941,3 +4941,9 @@ body.budget-masked .budget-season strong, body.budget-masked .budget-row .carnet
 .moi-jumps { gap: 1rem; margin: -0.2rem 0 0.4rem; }
 .moi-jump { border: 0; background: none; padding: 0.2rem 0; color: var(--text-muted); font-size: 0.85rem; font-weight: 700; text-decoration: underline; text-underline-offset: 3px; text-decoration-color: var(--border); }
 .moi-jump:hover { color: var(--accent); }
+/* Cadre de photo + story : le cadre reste, l'anneau de story passe autour. */
+.mini-avatar.has-story.frame-carbone, .mini-avatar.has-story.story-seen.frame-carbone { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4.5px #2b2f36, 0 0 0 5.5px #5a606a; }
+.mini-avatar.has-story.frame-or, .mini-avatar.has-story.story-seen.frame-or { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4.5px #c9a227, 0 0 8px 3px rgba(201,162,39,0.45); }
+.mini-avatar.has-story.frame-flamme, .mini-avatar.has-story.story-seen.frame-flamme { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4.5px #fb8500, 0 0 10px 4px rgba(200,38,31,0.55); }
+.mini-avatar.has-story[class*="frame-"]:not(.frame-damier) { outline: 2.5px solid #fb8500; outline-offset: 6px; }
+.mini-avatar.has-story.story-seen[class*="frame-"]:not(.frame-damier) { outline-color: var(--border); }
