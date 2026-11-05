@@ -4940,10 +4940,18 @@
     return html;
   }
 
+  function simpleModeOn() { try { return localStorage.getItem('cdp-simple') === '1'; } catch (e) { return false; } }
+  function setSimpleMode(on) {
+    try { localStorage.setItem('cdp-simple', on ? '1' : '0'); } catch (e) {}
+    document.documentElement.classList.toggle('simple-mode', !!on);
+  }
   function renderProfileReglagesTab(p, only) {
     var html = '<div class="settings-block">';
     html += '<div class="settings-inline"><div><label style="margin-bottom:0.4rem; display:block;">' + tr('profile_lang') + '</label>' + renderLangToggle() + '</div>' +
       '<div><label style="margin-bottom:0.4rem; display:block;">' + tr('profile_theme') + '</label>' + renderThemeToggle() + '</div></div>';
+    // Mode simple (paddock) : gros textes et gros boutons, sans stories,
+    // pneus ni suggestions. Réglé sur cet appareil.
+    html += '<label class="checklist-item simple-mode-opt" style="margin-top:0.8rem;"><input type="checkbox" id="simple-mode-toggle"' + (simpleModeOn() ? ' checked' : '') + '> <span><strong>' + L('Mode simple', 'Simple mode') + '</strong><span class="help-text"> · ' + L('gros textes et gros boutons, l\'essentiel seulement (chronos, roulages, repères)', 'larger text and buttons, only the essentials (lap times, trackdays, marks)') + '</span></span></label>';
     html += '<label class="checklist-item" style="margin-top:0.8rem;"><input type="checkbox" id="profile-feeling-enabled"' + (p.sessionFeelingEnabled !== false ? ' checked' : '') + '> ' + tr('enable_feeling') + '</label>';
     html += '</div>';
     var sections = { affichage: html };
@@ -8122,7 +8130,7 @@
       return html;
     }
     // Records de la piste (MotoGP, F1…) : à la fin d'Infos.
-    if (cp === 'infos') { html += renderCircuitInfoCard('infos') + renderTrackRecordsCard(selectedCircuit); return html; }
+    if (cp === 'infos') { html += renderCircuitInfoCard('infos') + renderCircuitLevelGearCard(selectedCircuit) + renderTrackRecordsCard(selectedCircuit); return html; }
     // Objectif pour la prochaine session lives in EN PISTE now (see
     // renderPlanningTab), keyed off the current/next event's own circuit --
     // not repeated here.
@@ -8187,6 +8195,53 @@
     var k = circuitKey(circuit);
     for (var n in BUILTIN_TRACK_RECORDS) if (circuitKey(n) === k) return BUILTIN_TRACK_RECORDS[n];
     return {};
+  }
+  // ---- Niveau et matériel (Infos du circuit) ----
+  // Niveau : avis général des pistards (forums, organisateurs, presse
+  // moto / auto), indicatif. 1 Débutant, 2 Normal, 3 Difficile ; [moto, voiture].
+  var CIRCUIT_LEVELS = {
+    'Carole': [1, 1], 'Croix-en-Ternois': [1, 1], 'Vaison Piste': [1, 1], 'Clastres': [1, 1], 'Bresse': [1, 1], 'Albi': [1, 1], 'Nogaro': [1, 1], 'Le Vigeant': [1, 1],
+    'Haute Saintonge': [2, 2], 'Mas du Clos': [2, 2], 'Alès': [2, 2], 'Dijon-Prenois': [2, 2], 'Le Mans': [2, 2], 'Magny Cours': [2, 2], 'Paul Ricard': [2, 2],
+    'Charade': [3, 3], 'Lédenon': [3, 2], 'Pau-Arnos': [3, 2],
+    'Barcelone': [2, 2], 'Jerez': [2, 2], 'Valence': [2, 2], 'Aragón': [2, 2], 'Navarra': [2, 2], 'Jarama': [2, 2], 'Almería': [1, 1], 'Cartagena': [2, 2], 'Calafat': [2, 2], 'Alcarràs': [1, 1],
+    'Portimão': [3, 3], 'Estoril': [2, 2],
+    'Mugello': [3, 2], 'Misano': [2, 2], 'Imola': [3, 3], 'Vallelunga': [2, 2], 'Cremona': [1, 1], 'Varano': [2, 2],
+    'Spa-Francorchamps': [3, 3], 'Zolder': [2, 2], 'Mettet': [2, 2],
+    'Assen': [2, 2], 'Sachsenring': [3, 2], 'Hockenheim': [2, 2], 'Nürburgring': [2, 2],
+    'Red Bull Ring': [2, 2], 'Brno': [2, 2], 'Most': [2, 2], 'Slovakia Ring': [2, 2], 'Grobnik': [2, 2], 'Pannonia-Ring': [1, 1],
+    'Silverstone': [2, 2], 'Donington': [2, 2], 'Brands Hatch': [3, 3],
+    'Losail': [2, 2], 'COTA': [2, 2], 'Termas de Río Hondo': [2, 2], 'Buriram': [2, 2], 'Mandalika': [2, 2], 'Motegi': [2, 2], 'Phillip Island': [3, 3]
+  };
+  function circuitLevel(circuit) {
+    var k = Object.keys(CIRCUIT_LEVELS).filter(function (n) { return circuitKey(n) === circuitKey(circuit); })[0];
+    return k ? CIRCUIT_LEVELS[k] : null;
+  }
+  function levelLabel(n) { return [L('Débutant', 'Beginner'), L('Normal', 'Intermediate'), L('Difficile', 'Difficult')][n - 1]; }
+  // Matériel : ce que demandent la plupart des organisateurs de roulages.
+  // Le règlement de l'organisateur (et du circuit) fait toujours foi.
+  function gearLists(car) {
+    return car ? {
+      req: [L('Casque homologué', 'Approved helmet'), L('Vêtements couvrants (bras et jambes), chaussures fermées', 'Covering clothes (arms and legs), closed shoes'), L('Anneau de remorquage en place', 'Tow hook fitted'), L('Ceinture bouclée, habitacle vidé de tout objet libre', 'Seat belt fastened, no loose objects in the cabin')],
+      no: [L('Caméra sur ventouse ou mal fixée', 'Suction-cup or loosely mounted camera'), L('Objets non fixés dans la voiture', 'Loose objects in the car'), L('Passager sans accord de l\'organisateur', 'Passenger without the organiser\'s approval'), L('Échappement au-delà de la limite de bruit du circuit', 'Exhaust above the circuit noise limit')]
+    } : {
+      req: [L('Casque intégral homologué', 'Approved full-face helmet'), L('Combinaison cuir (1 pièce, ou 2 pièces zippées)', 'Leather suit (one-piece, or zipped two-piece)'), L('Gants et bottes moto', 'Riding gloves and boots'), L('Dorsale (souvent obligatoire)', 'Back protector (often required)')],
+      no: [L('Caméra fixée sur le casque (souvent interdite)', 'Helmet-mounted camera (often banned)'), L('Rétroviseurs et feux non démontés ou non scotchés', 'Mirrors and lights not removed or taped'), L('Béquille non retirée ou non bloquée', 'Side stand not removed or secured'), L('Échappement au-delà de la limite de bruit du circuit', 'Exhaust above the circuit noise limit')]
+    };
+  }
+  function renderCircuitLevelGearCard(circuit) {
+    if (!circuit) return '';
+    var lv = circuitLevel(circuit), car = typeof isCarMode === 'function' && isCarMode();
+    var html = '<div class="card circuit-lg"><h2 class="section-title">' + L('Niveau et matériel', 'Level and gear') + '</h2>';
+    if (lv) {
+      var pill = function (who, n) { return '<span class="lvl lvl-' + n + '"><span class="lvl-who">' + who + '</span><strong>' + levelLabel(n) + '</strong><span class="lvl-bars">' + [1, 2, 3].map(function (i) { return '<i' + (i <= n ? ' class="on"' : '') + '></i>'; }).join('') + '</span></span>'; };
+      html += '<div class="lvl-row">' + (car ? pill(L('Voiture', 'Car'), lv[1]) + pill(L('Moto', 'Bike'), lv[0]) : pill(L('Moto', 'Bike'), lv[0]) + pill(L('Voiture', 'Car'), lv[1])) + '</div>' +
+        '<div class="help-text">' + L('Avis général des pistards, indicatif.', 'General opinion of trackday riders, indicative.') + '</div>';
+    }
+    var g = gearLists(car), li = function (a) { return '<ul>' + a.map(function (x) { return '<li>' + escapeHtml(x) + '</li>'; }).join('') + '</ul>'; };
+    html += '<div class="gear-cols"><div class="gear-col gear-req"><span class="look-label">' + L('Obligatoire', 'Required') + '</span>' + li(g.req) + '</div>' +
+      '<div class="gear-col gear-no"><span class="look-label">' + L('Interdit', 'Not allowed') + '</span>' + li(g.no) + '</div></div>' +
+      '<div class="help-text">' + L('Le plus souvent demandé en roulage. Le règlement de l\'organisateur fait foi.', 'What most trackday organisers ask. The organiser\'s rules always prevail.') + '</div></div>';
+    return html;
   }
   function renderTrackRecordsCard(circuit) {
     // Moto : MotoGP, Moto2, Moto3, FSBK, WorldSBK ; voiture : F1, WEC, GT3.
@@ -8604,9 +8659,10 @@
       return (
         '<div class="circuit-visual-frame">' +
           '<button type="button" class="circuit-visual-btn" data-action="open-track-notes" data-circuit="' + escapeHtml(circuitName) + '" aria-label="Mes repères sur ' + escapeHtml(circuitName) + '">' +
-            '<span class="track-mini-wrap"><img src="' + styledPlanSrc(base) + '"' + styledPlanAttr(base, info) + ' alt="Tracé de ' + escapeHtml(circuitName) + '">' + pins + '</span>' +
+            '<span class="track-mini-wrap"><img src="' + styledPlanSrc(base) + '"' + styledPlanAttr(base, info) + ' alt="Tracé de ' + escapeHtml(circuitName) + '">' + heatLayerHtml(circuitName) + pins + '</span>' +
           '</button>' +
           '<div class="circuit-visual-caption">' + (notes.length ? notes.length + ' repère' + (notes.length > 1 ? 's' : '') + ' · toucher pour voir' : 'Toucher pour noter tes repères') + '</div>' +
+          heatControlsHtml(circuitName) +
         '</div>'
       );
     }
@@ -11907,9 +11963,59 @@
     currentUserProfile.trackNotes = Object.assign({}, currentUserProfile.trackNotes || {});
     currentUserProfile.trackNotes[circuit] = list;
     var patch = {}; patch[circuit] = list;
+    publishTrackHeat(circuit, list);
     return db.collection('userPrivate').doc(auth.currentUser.uid).set({ trackNotes: patch }, { merge: true }).catch(function (err) {
       showToast(L('Repère non enregistré : ', 'Mark not saved: ') + ((err && err.message) || err));
     });
+  }
+  // ---- Carte de chaleur des repères ----
+  // Chacun partage seulement la position de ses repères, arrondie à une
+  // grille de 24 × 24, sans texte (trackHeat/{uid}__{circuit}). La carte
+  // n'apparaît qu'à partir de 3 pilotes sur le circuit, et une case ne
+  // s'allume que si 2 pilotes au moins y ont un repère. Désactivable.
+  var HEAT_GRID = 24, HEAT_MIN_RIDERS = 3, heatCache = {}, heatOn = {};
+  function heatShareOff() { try { return localStorage.getItem('cdp-heat-off') === '1'; } catch (e) { return false; } }
+  function heatDocId(circuit) { return auth.currentUser ? auth.currentUser.uid + '__' + circuitKey(circuit).replace(/[^a-z0-9-]/gi, '-').slice(0, 60) : null; }
+  function publishTrackHeat(circuit, list) {
+    var id = heatDocId(circuit); if (!id) return;
+    if (heatShareOff() || !list || !list.length) { db.collection('trackHeat').doc(id).delete().catch(function () {}); return; }
+    var pts = [];
+    list.forEach(function (n) {
+      if (typeof n.x !== 'number' || typeof n.y !== 'number') return;
+      var c = Math.max(0, Math.min(HEAT_GRID - 1, Math.floor(n.x * HEAT_GRID))) * HEAT_GRID + Math.max(0, Math.min(HEAT_GRID - 1, Math.floor(n.y * HEAT_GRID)));
+      if (pts.indexOf(c) === -1) pts.push(c);
+    });
+    db.collection('trackHeat').doc(id).set({ circuit: String(circuit).slice(0, 80), pts: pts.slice(0, 80), updatedAt: Date.now() }).catch(function () {});
+    delete heatCache[circuit];
+  }
+  function loadTrackHeat(circuit) {
+    if (heatCache[circuit]) return;
+    heatCache[circuit] = { loading: true };
+    db.collection('trackHeat').where('circuit', '==', circuit).get().then(function (snap) {
+      var cells = {}, riders = 0;
+      snap.forEach(function (d) { var pts = (d.data() || {}).pts || []; if (!pts.length) return; riders++; pts.forEach(function (c) { cells[c] = (cells[c] || 0) + 1; }); });
+      heatCache[circuit] = { cells: cells, riders: riders };
+      renderRoot();
+    }).catch(function () { heatCache[circuit] = { cells: {}, riders: 0, error: true }; renderRoot(); });
+  }
+  function heatLayerHtml(circuit) {
+    var h = heatCache[circuit];
+    if (!heatOn[circuit] || !h || h.loading || h.riders < HEAT_MIN_RIDERS) return '';
+    var max = 1; Object.keys(h.cells).forEach(function (c) { if (h.cells[c] > max) max = h.cells[c]; });
+    var step = 100 / HEAT_GRID;
+    return '<span class="heat-layer" aria-hidden="true">' + Object.keys(h.cells).filter(function (c) { return h.cells[c] >= 2; }).map(function (c) {
+      var x = Math.floor(c / HEAT_GRID), y = c % HEAT_GRID, k = h.cells[c] / max;
+      return '<i style="left:' + ((x + 0.5) * step) + '%;top:' + ((y + 0.5) * step) + '%;--k:' + k.toFixed(2) + '"></i>';
+    }).join('') + '</span>';
+  }
+  function heatControlsHtml(circuit) {
+    var h = heatCache[circuit], on = !!heatOn[circuit];
+    var note = !on ? '' : (!h || h.loading) ? L('Chargement…', 'Loading…')
+      : h.riders < HEAT_MIN_RIDERS ? L('Pas encore assez de pilotes ont noté leurs repères ici (3 minimum).', 'Not enough riders have noted marks here yet (3 minimum).')
+      : plural(h.riders, L('pilote', 'rider'), L('pilotes', 'riders')) + L(' · là où tout le monde note ses repères', ' · where everyone notes their marks');
+    return '<div class="heat-ctl"><button type="button" class="ghost' + (on ? ' on' : '') + '" data-heat-toggle="' + escapeHtml(circuit) + '" aria-pressed="' + on + '">' + L('Carte de chaleur', 'Heatmap') + '</button>' +
+      (note ? '<span class="help-text">' + escapeHtml(note) + '</span>' : '') +
+      (on ? '<button type="button" class="link-btn" data-heat-share>' + (heatShareOff() ? L('Partager mes repères (anonyme)', 'Share my marks (anonymous)') : L('Ne pas partager mes repères', 'Don\'t share my marks')) + '</button>' : '') + '</div>';
   }
   function trackNoteSummary(n) {
     var parts = [];
@@ -11945,6 +12051,22 @@
     l.favSpots = list.slice(-12);
     db.collection('users').doc(myUid()).update({ 'look.favSpots': l.favSpots }).catch(function (err) { showToast(tr('error_prefix') + ((err && err.message) || err)); });
   }
+  // Accès des photographes et du public pendant les roulages : vérifié sur
+  // internet (sources affichées), circuit par circuit. Par défaut, un
+  // circuit est un site privé : l'accès passe par l'organisateur.
+  var SPOT_ACCESS_CHECKED = '2026-11-05';
+  var SPOT_ACCESS = {
+    'Carole': { fr: 'Roulages libres ouverts aux motos le week-end, géré par la FFM. Certains organisateurs interdisent les caméras personnelles (photographe sur place à la place).', en: 'Open weekend ride sessions for bikes, run by the FFM. Some organisers ban personal cameras (an on-site photographer instead).', src: 'https://www.lerepairedesmotards.com/reportages/circuit-carole-roulages-semaine-week-end.php' },
+    'Le Mans': { fr: 'Roulages par des organisateurs et écoles. Caméras personnelles interdites chez certains organisateurs : demande avant de venir photographier.', en: 'Trackdays run by organisers and schools. Personal cameras banned by some organisers: ask before coming to shoot.', src: 'https://www.adrenactive.com/journee-roulage-moto-le-mans-9423.htm' },
+    'Lédenon': { fr: 'Les spectateurs ont déjà été interdits par arrêté préfectoral lors de certains roulages. Accompagnants souvent admis gratuitement : vérifie auprès de l\'organisateur.', en: 'Spectators have been banned by prefectoral order at some trackdays. Companions often admitted for free: check with the organiser.', src: 'https://www.tourismegard.com/fr/fiche/equipement/circuit-de-ledenon-ledenon_TFO6357785/' },
+    'Paul Ricard': { fr: 'Propriété privée : il faut un titre d\'accès (billet, accréditation ou invitation) pour chaque événement, selon le règlement intérieur.', en: 'Private property: an access pass (ticket, accreditation or invitation) is needed for each event, per the house rules.', src: 'https://www.trophee-endurance.fr/wp-content/uploads/2022/02/CPR_Reglement-interieur.pdf' }
+  };
+  function spotAccessHtml(circuit) {
+    var k = Object.keys(SPOT_ACCESS).filter(function (n) { return circuitKey(n) === circuitKey(circuit); })[0], a = k && SPOT_ACCESS[k];
+    var txt = a ? L(a.fr, a.en) : L('Un circuit est un site privé : pendant un roulage, l\'accès (même pour photographier) passe par l\'organisateur.', 'A circuit is private ground: during a trackday, access (even to shoot photos) goes through the organiser.');
+    return '<div class="spot-access"><span class="look-label">' + L('Accès public', 'Public access') + '</span><p>' + escapeHtml(txt) + '</p>' +
+      (a ? '<span class="help-text">' + L('Vérifié le ', 'Checked on ') + escapeHtml(formatDate(SPOT_ACCESS_CHECKED)) + ' · <a href="' + escapeHtml(a.src) + '" target="_blank" rel="noopener">' + L('source', 'source') + '</a></span>' : '') + '</div>';
+  }
   function openPhotoSpots(circuit) {
     var info = circuitInfo(circuit), base = info.mapImage || outlineImageFor(info, circuit);
     var admin = isAdmin(), adding = null;
@@ -11964,6 +12086,7 @@
           return '<span class="spot-pin ' + (sp.access === 'pro' ? 'pro' : 'public') + '" style="left:' + (sp.x * 100) + '%;top:' + (sp.y * 100) + '%">' + (i + 1) + '</span>';
         }).join('') + (adding ? '<span class="spot-pin new" style="left:' + (adding.x * 100) + '%;top:' + (adding.y * 100) + '%">+</span>' : '') + '</div>' : '') +
         (adding ? '<div class="spot-add"><input type="text" id="spot-label" maxlength="60" placeholder="' + escapeHtml(L('Ex. Sortie du virage 5, tribune', 'E.g. Turn 5 exit, grandstand')) + '"><div class="look-seg"><button type="button" data-spot-access="public" aria-pressed="true">' + L('Tout public', 'Public') + '</button><button type="button" data-spot-access="pro" aria-pressed="false">' + L('Accès pro', 'Pro access') + '</button></div><button type="button" class="primary" data-spot="add">' + L('Ajouter', 'Add') + '</button></div>' : '') +
+        spotAccessHtml(circuit) +
         '<div class="spots-list">' + (spots.length ? spots.map(function (sp, i) {
           return '<div class="spot-row"><span class="spot-pin static ' + (sp.access === 'pro' ? 'pro' : 'public') + '">' + (i + 1) + '</span><span class="spot-row-main"><strong>' + escapeHtml(sp.label || L('Spot ', 'Spot ') + (i + 1)) + '</strong><span class="spot-access ' + (sp.access === 'pro' ? 'pro' : '') + '">' + (sp.access === 'pro' ? L('Accès pro (photographes accrédités)', 'Pro access (accredited photographers)') : L('Tout public', 'Public')) + '</span></span>' +
             (meIsNonRider() ? '<button type="button" class="link-btn spot-fav' + (isFavSpot(circuit, sp) ? ' on' : '') + '" data-spot-fav="' + i + '" aria-label="' + escapeHtml(L('Spot préféré', 'Favourite spot')) + '">' + (isFavSpot(circuit, sp) ? '★' : '☆') + '</button>' : '') +
@@ -22052,14 +22175,20 @@
         '<button type="button" class="ghost" data-action="team-post-edit-cancel">' + tr('cancel') + '</button></div></form></div>';
     }
     var html = '<div class="wall-post">';
-    html += '<div class="wall-post-head">' + personLinkHtml(f.author) +
-      (teamName ? '<span class="friend-role-badge">' + (teamById(f.teamId) ? tName(teamById(f.teamId)) : escapeHtml(teamName)) + '</span>' : '') +
-      (f.audience === 'adherents' ? '<span class="friend-role-badge adherent-badge">' + tr('adherents_badge') + '</span>' : '') +
-      '<span class="feed-entry-time">' + escapeHtml(relativeTime(f.editedAt || f.createdAt)) + (f.editedAt ? tr('edited_suffix') : '') + '</span>' +
-      '</div>';
-    if (f.text) html += '<div class="wall-post-text">' + escapeHtml(f.text) + '</div>';
-    if (f.linkUrl) html += postLinkHtml(f.linkUrl);
-    if (f.photoURL) html += '<img class="wall-post-photo" src="' + escapeHtml(f.photoURL) + '" alt="">';
+    var tm = teamName ? teamById(f.teamId) : null;
+    var inner = (f.text ? '<div class="wall-post-text">' + escapeHtml(f.text) + '</div>' : '') + (f.linkUrl ? postLinkHtml(f.linkUrl) : '') +
+      (f.photoURL ? '<img class="wall-post-photo" src="' + escapeHtml(f.photoURL) + '" alt="">' : '');
+    var when = '<span class="feed-entry-time">' + escapeHtml(relativeTime(f.editedAt || f.createdAt)) + (f.editedAt ? tr('edited_suffix') : '') + '</span>';
+    var adh = f.audience === 'adherents' ? '<span class="friend-role-badge adherent-badge">' + tr('adherents_badge') + '</span>' : '';
+    if (tm) {
+      // Dans le Fil : le team en tête (sa photo, son nom), puis l'auteur dans
+      // une sous-boîte, comme une citation.
+      var au = (STATE.usersByName || {})[f.author] || {};
+      html += '<div class="wall-post-head"><span class="team-post-av" data-team-link="' + escapeHtml(tm.id) + '">' + teamAvatarHtml(tm) + '</span>' + tName(tm) + adh + when + '</div>' +
+        '<div class="team-post-quote"><div class="team-post-by">' + avatarHtml(au, f.author) + personLinkHtml(f.author) + '</div>' + inner + '</div>';
+    } else {
+      html += '<div class="wall-post-head">' + personLinkHtml(f.author) + (teamName ? '<span class="friend-role-badge">' + escapeHtml(teamName) + '</span>' : '') + adh + when + '</div>' + inner;
+    }
     html += inFeedRow ? (canEdit || canDelete ? '<div class="feed-entry-foot">' + postEditLinks('team-post-edit', 'team-post-delete', f.id, canEdit, canDelete) + '</div>' : '')
       : '<div class="feed-entry-foot">' + renderReactionBar(f.reactions, 'react-team-post', f.id) + postEditLinks('team-post-edit', 'team-post-delete', f.id, canEdit, canDelete) + '</div>';
     html += '</div>';
@@ -26306,6 +26435,23 @@
       });
       var em = document.querySelector('.settings-ig .set-empty'); if (em) em.hidden = any;
     });
+    var smt = document.getElementById('simple-mode-toggle');
+    if (smt) smt.addEventListener('change', function () { setSimpleMode(smt.checked); showToast(smt.checked ? L('Mode simple activé.', 'Simple mode on.') : L('Mode simple désactivé.', 'Simple mode off.')); renderRoot(); });
+    document.querySelectorAll('[data-heat-toggle]').forEach(function (b) { b.addEventListener('click', function () {
+      var c = b.getAttribute('data-heat-toggle'); heatOn[c] = !heatOn[c];
+      if (heatOn[c]) { delete heatCache[c]; loadTrackHeat(c); }
+      renderRoot();
+    }); });
+    document.querySelectorAll('[data-heat-share]').forEach(function (b) { b.addEventListener('click', function () {
+      var off = !heatShareOff();
+      try { localStorage.setItem('cdp-heat-off', off ? '1' : '0'); } catch (e) {}
+      // Republier (ou retirer) mes positions sur tous mes circuits.
+      var all = (currentUserProfile && currentUserProfile.trackNotes) || {};
+      Object.keys(all).forEach(function (c) { publishTrackHeat(c, all[c]); });
+      heatCache = {}; Object.keys(heatOn).forEach(function (c) { if (heatOn[c]) loadTrackHeat(c); });
+      showToast(off ? L('Tes repères ne sont plus partagés.', 'Your marks are no longer shared.') : L('Tes repères sont partagés, sans texte.', 'Your marks are shared, without text.'));
+      renderRoot();
+    }); });
     document.querySelectorAll('[data-action="open-patchnotes"]').forEach(function (btn) { btn.addEventListener('click', openPatchNotes); });
     document.querySelectorAll('[data-action="check-app-update"]').forEach(function (btn) {
       btn.addEventListener('click', function () { btn.disabled = true; checkForAppUpdate(true); });

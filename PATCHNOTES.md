@@ -2,6 +2,23 @@
 
 Les nouveautés, de la plus récente à la plus ancienne. Le détail complet est dans l'historique git.
 
+## 5 novembre 2026 (soir)
+
+**Retours Alexis**
+- Mode simple : gros textes et gros boutons, sans stories, pneus ni suggestions (Réglages › Langue et affichage).
+- Circuits visités : chaque roulage a sa pastille et ouvre sa propre page.
+- Ajouter à mon agenda : Google Agenda, Outlook ou fichier .ics (partage vers les agendas sur Android).
+- Version de l'appli : ouvre ces nouveautés.
+- PC : icône album touchable sur les tuiles À venir / Passés quand un album existe.
+- Fil : un post publié dans un team affiche le team en tête, l'auteur en citation.
+- Teams : une seule fenêtre d'édition (nom, type, photo, logo, couverture recadrable sur une ligne), un seul Enregistrer, confirmation avant de perdre les changements.
+- Teams : type pilotes, accompagnants, photographes ou mixte, sans limite de membres.
+- Infos du circuit : niveau Débutant / Normal / Difficile (moto et voiture, indicatif) et matériel obligatoire / interdit.
+- Carte de chaleur des repères : où tout le monde note ses repères (positions seules, sans texte, à partir de 3 pilotes, désactivable).
+- Spots photo : accès public vérifié pour Carole, Le Mans, Lédenon et Paul Ricard, avec la source.
+- Mode sombre : tous les tracés en blanc sur fond noir (miniatures, plan, saisons).
+- Plus d'anneau de story autour des photos de profil.
+
 ## 5 novembre 2026
 
 **Amis et abonnés fusionnés**

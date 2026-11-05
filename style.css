@@ -5158,3 +5158,50 @@ body.budget-masked .budget-season strong, body.budget-masked .budget-row .carnet
 .look-team-media { flex-wrap: nowrap; gap: 0.4rem; }
 .look-team-media .ghost { flex: 1 1 0; min-width: 0; padding-left: 0.4rem; padding-right: 0.4rem; white-space: nowrap; }
 .look-team-media .link-btn { flex: 0 0 auto; }
+/* Post publié dans un team, vu dans le Fil : team en tête, auteur en citation */
+.team-post-quote { margin-top: 0.4rem; border: 1px solid var(--border); border-left: 3px solid var(--accent, #c8261f); border-radius: 12px; padding: 0.55rem 0.7rem; background: var(--surface-alt); }
+.team-post-by { display: flex; align-items: center; gap: 0.45rem; font-weight: 600; font-size: 0.9rem; margin-bottom: 0.25rem; }
+.team-post-by .mini-avatar { width: 26px; height: 26px; font-size: 0.75rem; }
+.team-post-quote .wall-post-text { margin-top: 0.15rem; }
+/* Mode sombre : tous les tracés (miniatures, plan, saisons) en blanc sur fond
+   noir, la ligne de départ reste rouge. Les plans importés (photos) restent tels quels. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) img.trace-img,
+  :root:not([data-theme="light"]) img[data-track-plan] { filter: invert(1) hue-rotate(180deg) brightness(1.1); }
+  :root:not([data-theme="light"]) .season-tile-map { background: #000; }
+}
+:root[data-theme="dark"] img.trace-img,
+:root[data-theme="dark"] img[data-track-plan] { filter: invert(1) hue-rotate(180deg) brightness(1.1); }
+:root[data-theme="dark"] .season-tile-map { background: #000; }
+/* Infos du circuit : niveau et matériel */
+.lvl-row { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 0.3rem; }
+.lvl { display: inline-flex; align-items: center; gap: 0.45rem; padding: 0.4rem 0.7rem; border: 1px solid var(--border); border-radius: 999px; background: var(--surface-alt); }
+.lvl-who { font-size: 0.78rem; color: var(--muted, #6b7079); text-transform: uppercase; letter-spacing: 0.03em; }
+.lvl-bars { display: inline-flex; gap: 2px; }
+.lvl-bars i { width: 5px; height: 12px; border-radius: 2px; background: var(--border); }
+.lvl-1 .lvl-bars i.on { background: #2e9e5b; } .lvl-2 .lvl-bars i.on { background: #e0a21a; } .lvl-3 .lvl-bars i.on { background: #c8261f; }
+.gear-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem; margin: 0.7rem 0 0.3rem; }
+@media (max-width: 520px) { .gear-cols { grid-template-columns: 1fr; } }
+.gear-col ul { margin: 0.25rem 0 0; padding-left: 1.1rem; font-size: 0.92rem; }
+.gear-req .look-label { color: #2e9e5b; } .gear-no .look-label { color: #c8261f; }
+/* Carte de chaleur des repères */
+.track-mini-wrap { position: relative; }
+.heat-layer { position: absolute; inset: 0; pointer-events: none; }
+.heat-layer i { position: absolute; width: 14%; aspect-ratio: 1; transform: translate(-50%, -50%); border-radius: 50%; background: radial-gradient(circle, rgba(200,38,31,calc(0.25 + var(--k) * 0.6)) 0%, rgba(240,140,30,calc(var(--k) * 0.35)) 45%, transparent 70%); mix-blend-mode: multiply; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .heat-layer i { mix-blend-mode: screen; } }
+:root[data-theme="dark"] .heat-layer i { mix-blend-mode: screen; }
+.heat-ctl { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; margin-top: 0.5rem; }
+.heat-ctl .ghost.on { border-color: var(--accent, #c8261f); color: var(--accent, #c8261f); }
+.heat-ctl .link-btn { font-size: 0.82rem; color: var(--muted, #6b7079); text-decoration: underline; font-weight: 400; }
+.spot-access { margin: 0.6rem 0; padding: 0.6rem 0.75rem; border: 1px solid var(--border); border-radius: 12px; background: var(--surface-alt); } .spot-access p { margin: 0.2rem 0 0.25rem; font-size: 0.92rem; }
+/* Mode simple (paddock) : plus grand, plus lisible, l'essentiel seulement */
+html.simple-mode { font-size: 112%; }
+.simple-mode .stories-row, .simple-mode .pneus-chip, .simple-mode #invite-qr-btn, .simple-mode .fsug,
+.simple-mode .heat-ctl, .simple-mode .story-me, .simple-mode .rail-section + .rail-section { display: none !important; }
+.simple-mode .primary, .simple-mode .ghost:not(.icon-btn):not(.small) { min-height: 48px; font-size: 1.02rem; }
+.simple-mode .subnav-btn { font-size: 1.05rem; padding-top: 0.7rem; padding-bottom: 0.7rem; }
+.simple-mode .bottom-nav-btn { font-size: 0.85rem; }
+.simple-mode .help-text { font-size: 0.95rem; }
+.simple-mode .outing-thumb { width: 52px; height: 52px; }
+.simple-mode .card { padding: 1.1rem; }
+.simple-mode-opt { align-items: flex-start; }

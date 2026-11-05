@@ -122,6 +122,10 @@ Chaque partie de `app.js` commence par un titre `// ---- Nom ----`. La table ci-
 
 Depuis novembre 2026, il n'y a plus de demande d'ami. On **suit** quelqu'un, et deux personnes qui se suivent l'une l'autre sont **amies** (`friendsOf`). Les anciennes amitiés acceptées comptent toujours. À la connexion, `migrateFriendsToFollows` transforme une fois les amitiés et demandes envoyées du compte en abonnements.
 
+## Carte de chaleur des repères
+
+Les repères restent privés (`userPrivate`). Pour la carte de chaleur, chaque compte publie seulement les cases occupées par ses repères (grille 24 × 24, sans texte) dans `trackHeat/{uid}__{circuit}` (`publishTrackHeat`). La carte s'affiche à partir de 3 pilotes et une case s'allume si 2 pilotes y ont un repère (`heatLayerHtml`). Partage désactivable sur l'appareil.
+
 ## Tester
 
 ```

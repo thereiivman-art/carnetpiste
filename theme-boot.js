@@ -5,6 +5,8 @@
   try {
     var t = localStorage.getItem('carnet-de-piste-theme');
     if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t;
+    // Mode simple (Réglages) : appliqué avant l'affichage.
+    if (localStorage.getItem('cdp-simple') === '1') document.documentElement.classList.add('simple-mode');
   } catch (e) {}
   // Barres du téléphone (Android : état et navigation) à la couleur du
   // thème : celui de l'appareil, ou le choix fait dans l'appli.
