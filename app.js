@@ -4770,9 +4770,8 @@
     var pills = renderClientPills('profil', [['identite', 'Identité'], ['role', 'Rôle']]);
     var html = '<form id="profile-form">';
     html += cpillSection('profil', 'identite');
-    html += '<div class="my-fiche-cta"><span><strong>' + L('Ma fiche', 'My profile page') + '</strong><span class="help-text">' + L('Ce que tes amis voient. Couverture, couleur, plaque, vitrine : à ton image.', 'What your friends see. Cover, colour, plate, showcase: make it yours.') + '</span></span>' +
+    html += '<div class="my-fiche-cta"><span><strong>' + L('Ma fiche', 'My profile page') + '</strong><span class="help-text">' + L('Photo, nom, nationalité, moto, bio, bannière : tout se modifie depuis ta fiche, dans Social.', 'Photo, name, nationality, bike, bio, banner: edit it all from your profile, in Social.') + '</span></span>' +
       '<button type="button" class="ghost" data-action="open-my-fiche">' + L('Voir et personnaliser', 'View and customise') + '</button></div>';
-    html += renderProfileAvatar(p);
     html += '<label for="profile-name">' + tr('pseudo_label') + '</label>';
     var renameBlockedUntil = renameAllowedAt(p);
     if (renameBlockedUntil) {
@@ -4788,12 +4787,6 @@
     // Distinct de Pseudo (l'identifiant utilisé partout dans l'app --
     // chronos, riders, connexion) -- Prénom/Nom sont facultatifs, remplis
     // par le user quand il veut, jamais requis, et ne cascadent nulle part.
-    html += '<div style="display:flex; gap:0.6rem; margin-top:0.7rem;">' +
-      '<div style="flex:1;"><label for="profile-firstname">' + tr('firstname_label') + '</label><input type="text" id="profile-firstname" value="' + escapeHtml(p.firstName || '') + '"></div>' +
-      '<div style="flex:1;"><label for="profile-lastname">' + tr('lastname_label') + '</label><input type="text" id="profile-lastname" value="' + escapeHtml(p.lastName || '') + '"></div>' +
-      '</div><div style="margin-top:0.7rem;"><label for="profile-nationality">' + L('Nationalité', 'Nationality') + '</label>' + nationalitySelectHtml('profile-nationality', p.nationality || '', true) +
-      '<div class="help-text">' + L('Ta country ball remplace ta photo tant que tu n\'en as pas ajouté.', 'Your country ball replaces your photo until you add one.') + '</div>' +
-      '</div>';
     html += '</div>' + cpillSection('profil', 'role');
     html += '<label style="margin-top:0.2rem;">' + tr('i_am_label') + '</label>';
     html += '<div class="auth-role-choice">' +
@@ -4977,10 +4970,68 @@
     if (only === 'compte') return '<div class="card"><div class="compte-switch"><span class="help-text">' + L('Connecté avec ', 'Signed in with ') + '<strong>' + escapeHtml((auth.currentUser && auth.currentUser.email) || p.name) + '</strong></span>' +
       '<button type="button" class="ghost" id="compte-switch-btn">' + L('Changer de compte', 'Switch account') + '</button></div>' + sections.compte + '</div>';
     if (profileEmailMessage || profilePasswordMessage || profileDeleteConfirmOpen) profileSubTab = 'compte';
-    if (pillState.settings === 'compte') pillState.settings = 'affichage';
-    var pillsHtml = renderPills('settings', items);
-    var sec = sections[pillState.settings] || sections.affichage;
-    return pillsHtml + (sec.indexOf('<div class="sub-pills">') === 0 ? sec : '<div class="card">' + sec + '</div>');
+    // Façon « Paramètres et activité » d'Instagram : une liste avec
+    // recherche, chaque ligne ouvre sa page (flèche retour).
+    if (!settingsSection || !sections[settingsSection]) { settingsSection = null; return renderSettingsList(p); }
+    var titles = { affichage: L('Langue et affichage', 'Language and display'), notifications: 'Notifications', confidentialite: L('Confidentialité', 'Privacy'), donnees: L('Mes données', 'My data') };
+    var sec = sections[settingsSection];
+    return '<div class="settings-page-head"><button type="button" class="back-chevron settings-back" data-settings-go="" aria-label="' + escapeHtml(L('Retour', 'Back')) + '">‹</button><h2 class="section-title">' + titles[settingsSection] + '</h2></div>' +
+      (sec.indexOf('<div class="sub-pills">') === 0 ? sec : '<div class="card">' + sec + '</div>');
+  }
+  var settingsSection = null;
+  var SET_ICO = {
+    user: '<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/>',
+    bell: '<path d="M6 9a6 6 0 0 1 12 0c0 6 3 7 3 7H3s3-1 3-7"/><path d="M10 20a2 2 0 0 0 4 0"/>',
+    globe: '<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/>',
+    lock: '<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>',
+    chat: '<path d="M4 5h16v11H8l-4 4z"/>',
+    dot: '<circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r="9"/>',
+    eye: '<path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
+    download: '<path d="M12 4v11M7 10l5 5 5-5"/><path d="M4 20h16"/>',
+    star: '<path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/>',
+    chart: '<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',
+    help: '<circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6V14"/><circle cx="12" cy="17.5" r=".6"/>',
+    idea: '<path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2.1h5c0-.9.4-1.6 1-2.1A6 6 0 0 0 12 3z"/>',
+    doc: '<path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4"/>',
+    refresh: '<path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 5v6h-6"/>',
+    swap: '<path d="M7 7h13l-3-3M17 17H4l3 3"/>',
+    logout: '<path d="M15 4h4v16h-4"/><path d="M10 8l-4 4 4 4M6 12h10"/>'
+  };
+  function setIco(k) { return '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + SET_ICO[k] + '</svg>'; }
+  function renderSettingsList(p) {
+    var dmLbl = { friends: L('Mes amis', 'My friends'), followers: L('Amis et abonnés', 'Friends and followers'), all: L('Tout le monde', 'Everyone'), none: L('Personne', 'Nobody') };
+    var row = function (go, ico, label, value, keys, extra) {
+      return '<button type="button" class="set-row' + (extra || '') + '"' + (go.charAt(0) === '#' ? ' id="' + go.slice(1) + '"' : ' data-settings-go="' + go + '"') + ' data-set-keys="' + escapeHtml((label + ' ' + (keys || '')).toLowerCase()) + '">' +
+        '<span class="set-ico">' + setIco(ico) + '</span><span class="set-label">' + label + '</span>' + (value ? '<span class="set-value">' + escapeHtml(value) + '</span>' : '') +
+        (go.charAt(0) === '#' ? '' : '<span class="set-chev" aria-hidden="true">›</span>') + '</button>';
+    };
+    var group = function (title, rows) { return '<div class="set-group"><div class="set-group-title">' + title + '</div><div class="card set-card">' + rows + '</div></div>'; };
+    var email = (auth.currentUser && auth.currentUser.email) || '';
+    return '<div class="settings-ig">' +
+      '<div class="set-search"><input type="search" id="settings-search" placeholder="' + escapeHtml(L('Rechercher', 'Search')) + '" autocomplete="off"></div>' +
+      group(L('Ton compte', 'Your account'),
+        row('@compte', 'user', L('Compte', 'Account'), p.name, L('profil fiche photo pseudo email mot de passe supprimer rôle', 'profile photo name email password delete role'))) +
+      group(L('Comment tu utilises Carnet Piste', 'How you use Pitbook'),
+        row('notifications', 'bell', 'Notifications', '', L('alertes push rappels duel podium amis roulage', 'alerts push reminders duel podium friends trackday')) +
+        row('affichage', 'globe', L('Langue et affichage', 'Language and display'), currentLang() === 'en' ? 'English' : 'Français', L('langue thème sombre clair ressenti version mise à jour', 'language theme dark light feeling version update'))) +
+      group(L('Qui peut voir ton contenu', 'Who can see your content'),
+        row('confidentialite', 'lock', L('Confidentialité', 'Privacy'), p.profileVisibility === 'friends' ? L('Amis', 'Friends') : L('Public', 'Public'), L('fiche visible chronos roulages trophées voyage abonnés', 'profile visible lap times trackdays trophies travel followers')) +
+        row('confidentialite', 'chat', L('Messages', 'Messages'), dmLbl[p.dmPolicy || 'friends'] || '', L('qui peut m\'écrire messages privés', 'who can message me private messages')) +
+        row('confidentialite', 'dot', L('Statut en ligne', 'Online status'), p.hidePresence ? L('Masqué', 'Hidden') : L('Visible', 'Visible'), L('présence pastille en ligne', 'presence dot online'))) +
+      group(L('Ton activité', 'Your activity'),
+        row('donnees', 'download', L('Mes données', 'My data'), '', L('exporter télécharger csv chronos rgpd', 'export download csv lap times gdpr')) +
+        row('@audience', 'chart', L('Audience', 'Audience'), '', L('statistiques vues portée', 'stats views reach')) +
+        row('@plus', 'star', 'Carnet+', '', L('abonnement', 'subscription'))) +
+      group(L('Plus d\'infos et assistance', 'More info and support'),
+        row('@aide', 'help', L('Aide', 'Help'), '', L('tutoriel guide faq', 'tutorial guide faq')) +
+        row('@suggestion', 'idea', L('Suggestion', 'Suggestion'), '', L('idée bug retour', 'idea bug feedback')) +
+        row('@legal-privacy', 'doc', L('Politique de confidentialité', 'Privacy policy'), '', 'rgpd') +
+        row('@legal-notice', 'doc', L('Mentions légales', 'Legal notice'), '', '') +
+        row('@update', 'refresh', L('Version de l\'appli', 'App version'), currentAppVersion(), L('mise à jour', 'update'))) +
+      group(L('Connexion', 'Login'),
+        row('#compte-switch-btn', 'swap', L('Changer de compte', 'Switch account'), email, L('connexion', 'login')) +
+        row('#logout-btn', 'logout', L('Se déconnecter', 'Log out'), '', L('déconnexion', 'logout'), ' set-danger')) +
+      '<div class="help-text set-empty" hidden>' + L('Aucun réglage trouvé.', 'No setting found.') + '</div></div>';
   }
 
   // Sharing this link and someone signing up through it makes p the
@@ -11263,7 +11314,7 @@
       msgs.sort(function (a, b) { return (a.createdAt || 0) - (b.createdAt || 0); });
       list.innerHTML = msgs.length ? msgs.map(function (m) {
         var mine = m.from === myUid();
-        return '<div class="dm-msg' + (mine ? ' mine' : '') + '">' + (mine ? '' : '<span class="dm-sig">' + escapeHtml(m.fromName || '') + '</span>') + '<div class="dm-bubble">' + mentionsHtml(m.text || '') + '</div><span class="dm-time">' + escapeHtml(dmTime(m.createdAt)) + '</span></div>';
+        return '<div class="dm-msg' + (mine ? ' mine' : '') + '"' + bubbleStyle(m.fromName) + '>' + (mine ? '' : '<span class="dm-sig">' + escapeHtml(m.fromName || '') + '</span>') + '<div class="dm-bubble">' + mentionsHtml(m.text || '') + '</div><span class="dm-time">' + escapeHtml(dmTime(m.createdAt)) + '</span></div>';
       }).join('') : '<div class="help-text dm-empty">' + L('Pas encore de message. Lance la discussion : horaires, covoiturage, place au paddock…', 'No message yet. Start the chat: times, car sharing, paddock spot…') + '</div>';
       list.scrollTop = list.scrollHeight;
     };
@@ -17974,7 +18025,8 @@
     var look = lookOf(u);
     var sAt = name ? activeStoryAuthors()[name] : 0, sSeen = false;
     if (sAt) { try { sSeen = Number(localStorage.getItem('cdp-story-' + name)) >= sAt; } catch (e) {} }
-    return '<span class="mini-avatar' + (flag ? ' has-flag' : '') + (look ? ' has-look' : '') + (sAt ? ' has-story' + (sSeen ? ' story-seen' : '') : '') + '" data-person="' + escapeHtml(name || '') + '"' + (look ? ' style="--ring:' + safeColor(look.color) + '"' : '') + (flag ? ' title="' + escapeHtml(countryName(u.nationality)) + '"' : '') + '>' + (u && u.photoURL
+    var frame = u && u.look && u.look.frame && cosmeticOk(PNEUS_FRAMES(), u.look.frame) ? ' frame-' + u.look.frame : '';
+    return '<span class="mini-avatar' + frame + (flag ? ' has-flag' : '') + (look ? ' has-look' : '') + (sAt ? ' has-story' + (sSeen ? ' story-seen' : '') : '') + '" data-person="' + escapeHtml(name || '') + '"' + (look ? ' style="--ring:' + safeColor(look.color) + '"' : '') + (flag ? ' title="' + escapeHtml(countryName(u.nationality)) + '"' : '') + '>' + (u && u.photoURL
       ? '<img src="' + escapeHtml(u.photoURL) + '" alt="">'
       // The flag alone (the pseudo is always shown next to it).
       : (flag || '<span class="mini-avatar-placeholder">' + initial + '</span>')) + '</span>';
@@ -18053,7 +18105,42 @@
   // Personnalisation débloquée par les pneus (total atteint) : de
   // nouvelles couleurs et une bannière, sans rien retirer aux autres.
   var PNEUS_UNLOCK_COLORS = [['#3a3f47', 'Carbone', 150], ['#c9a227', 'Or', 300], ['#d63f8c', 'Rose', 600], ['#0f9fa8', 'Turquoise', 1000]];
-  var PNEUS_UNLOCK_COVERS = function () { return [['carbone', L('Carbone', 'Carbon'), 800]]; };
+  var PNEUS_UNLOCK_COVERS = function () { return [['carbone', L('Carbone', 'Carbon'), 800], ['damier-anim', L('Damier animé', 'Waving flag'), 1100], ['nuit', L('Piste de nuit', 'Night track'), 1600]]; };
+  // Cosmétiques façon Discord : rien d'utile, juste montrer qu'on est actif.
+  var PNEUS_FRAMES = function () { return [['carbone', L('Carbone', 'Carbon'), 250], ['or', L('Or', 'Gold'), 500], ['damier', L('Damier', 'Chequered'), 900], ['flamme', L('Flammes', 'Flames'), 1400]]; };
+  var PNEUS_TITLES = function () { return [['dimanche', L('Pistard du dimanche', 'Sunday rider'), 100], ['freinage', L('Roi du freinage', 'Late braker'), 400], ['chrono', L('Chasseur de chronos', 'Lap hunter'), 700], ['pilier', L('Pilier du paddock', 'Paddock regular'), 1200], ['legende', L('Légende du paddock', 'Paddock legend'), 2500]]; };
+  var NAME_ICON_SVG = {
+    casque: '<path d="M4 15a8 8 0 0 1 16-2v4H8a4 4 0 0 1-4-2z"/><path d="M12 13h8"/>',
+    flamme: '<path d="M12 21c-4 0-6-3-6-6 0-4 4-6 4-10 2 2 3 3 3 5 1-1 2-2 2-3 2 2 3 5 3 8 0 3-2 6-6 6z"/>',
+    damier: '<path d="M5 21V4h14v10H5"/><path d="M5 4h4v5H5zM13 4h4v5h-4zM9 9h4v5H9z" fill="currentColor"/>'
+  };
+  var PNEUS_NAME_ICONS = function () { return [['casque', L('Casque', 'Helmet'), 350], ['flamme', L('Flamme', 'Flame'), 650], ['damier', L('Drapeau', 'Flag'), 1500]]; };
+  var PNEUS_BUBBLES = function () { return [['#1f4fb8', L('Bleu', 'Blue'), 450], ['#2f8f3a', L('Vert', 'Green'), 450], ['#14161a', L('Encre', 'Ink'), 450], ['#c9a227', L('Or', 'Gold'), 900]]; };
+  function cosmeticOk(list, key) { return list.some(function (o) { return o[0] === key; }); }
+  function nameIconHtml(u) {
+    var k = u && u.look && u.look.nameIcon;
+    return k && NAME_ICON_SVG[k] ? '<svg class="name-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + NAME_ICON_SVG[k] + '</svg>' : '';
+  }
+  function userTitle(u) {
+    var k = u && u.look && u.look.title, t = PNEUS_TITLES().filter(function (o) { return o[0] === k; })[0];
+    return t ? t[1] : '';
+  }
+  // Bulle de message aux couleurs de son auteur (débloquée).
+  function bubbleStyle(name) {
+    var u = (STATE.usersByName || {})[name] || (currentUserProfile && currentUserProfile.name === name ? currentUserProfile : null);
+    var c = u && u.look && u.look.bubble;
+    if (!c || !PNEUS_BUBBLES().some(function (o) { return o[0] === c; })) return '';
+    return ' style="--bub:' + c + ';--bub-ink:' + (c === '#c9a227' ? '#14161a' : '#ffffff') + '"';
+  }
+  // Choix débloqué / verrouillé dans l'éditeur de fiche.
+  function unlockChips(key, list, cur, render) {
+    var t = pneusTotal();
+    return '<div class="look-pins unlock-chips"><button type="button" data-look-set="' + key + '" data-val="" aria-pressed="' + !cur + '">' + L('Aucun', 'None') + '</button>' + list.map(function (o) {
+      var ok = t >= o[2], inner = render ? render(o) : escapeHtml(o[1]);
+      return ok ? '<button type="button" data-look-set="' + key + '" data-val="' + o[0] + '" aria-pressed="' + (cur === o[0]) + '">' + inner + '</button>'
+        : '<button type="button" disabled class="locked" title="' + escapeHtml(L('Débloqué à ', 'Unlocked at ') + o[2] + L(' pneus', ' tyres')) + '">' + LOCK_SVG + ' ' + inner + ' · ' + o[2] + '</button>';
+    }).join('') + '</div>';
+  }
   var LOCK_SVG = '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>';
   function unlockSwatchesHtml(attr, cur) {
     var t = pneusTotal();
@@ -18109,8 +18196,8 @@
       outline: f ? outlineImageFor(circuitInfo(f.circuit), f.circuit) : null,
       plateHtml: l.plate && u.bikeNumber ? '<span class="ph-plate">' + escapeHtml(u.bikeNumber) + '</span>' : '',
       avatar: avatarHtml(u, name),
-      nameHtml: escapeHtml(name) + badgesHtml(u),
-      subHtml: '<span class="friend-role-badge">' + roleLabel(u.role) + '</span>' + (sub.length ? ' ' + sub.join(' · ') : ''),
+      nameHtml: escapeHtml(name) + nameIconHtml(u) + badgesHtml(u),
+      subHtml: (userTitle(u) ? '<span class="ph-title">' + escapeHtml(userTitle(u)) + '</span>' : '') + '<span class="friend-role-badge">' + roleLabel(u.role) + '</span>' + (sub.length ? ' ' + sub.join(' · ') : ''),
       bio: l.bio, acts: acts, idExtra: idExtra, ownCover: !!(currentUserProfile && name === currentUserProfile.name)
     });
   }
@@ -18387,6 +18474,27 @@
     var html = '<div class="card look-editor"><h2 class="section-title">' + (team ? L('Personnaliser la fiche du team', 'Customise the team page') : L('Personnaliser ma fiche', 'Customise my profile')) + '</h2>' +
       '<div class="help-text">' + (team ? L('Offert pendant la phase de test. Cette personnalisation fera partie de Team PRO, l\'offre payante prévue plus tard.', 'Free during the test phase. This will be part of Team PRO, the paid plan planned later.')
         : L('Offert pendant la phase de test. Cette personnalisation fera partie de Carnet+, l\'offre payante prévue plus tard.', 'Free during the test phase. This will be part of Carnet+, the paid plan planned later.')) + '</div>';
+    // Identité (photo : touche-la sur la fiche ; pseudo : Compte, règle des 30 jours).
+    if (!team && d.id) {
+      html += '<div class="look-field look-identity"><span class="look-label">' + L('Identité', 'Identity') + '</span>' +
+        renderProfileAvatar(me) +
+        '<div class="look-id-pseudo"><span><span class="help-text">' + L('Pseudo', 'Username') + '</span><strong>' + escapeHtml(me.name) + '</strong></span><button type="button" class="link-btn" data-action="open-my-profile">' + L('Modifier', 'Edit') + '</button></div>' +
+        '<div class="look-id-row"><div><label for="fiche-firstname">' + tr('firstname_label') + '</label><input type="text" id="fiche-firstname" data-look-id="firstName" maxlength="40" value="' + escapeHtml(d.id.firstName) + '"></div>' +
+        '<div><label for="fiche-lastname">' + tr('lastname_label') + '</label><input type="text" id="fiche-lastname" data-look-id="lastName" maxlength="40" value="' + escapeHtml(d.id.lastName) + '"></div></div>' +
+        '<label for="fiche-nationality">' + L('Nationalité', 'Nationality') + '</label>' + nationalitySelectHtml('fiche-nationality', d.id.nationality, true).replace('<select ', '<select data-look-id="nationality" ') +
+        (meIsNonRider() ? '' : '<div class="look-id-row"><div style="flex:2;"><label for="fiche-bike">' + (isCarMode() ? L('Ma voiture', 'My car') : L('Ma moto', 'My bike')) + '</label><input type="text" id="fiche-bike" data-look-id="bike" maxlength="60" value="' + escapeHtml(d.id.bike) + '"></div>' +
+          '<div><label for="fiche-bike-number">' + L('Numéro', 'Number') + '</label><input type="text" id="fiche-bike-number" data-look-id="bikeNumber" inputmode="numeric" maxlength="3" value="' + escapeHtml(d.id.bikeNumber) + '"></div></div>') +
+        '<div class="help-text">' + L('Bannière : touche-la directement sur ta fiche.', 'Banner: tap it right on your profile.') + '</div></div>';
+    }
+    if (!team) {
+      html += '<div class="look-field look-unlocks"><span class="look-label">' + L('Débloqués avec tes pneus', 'Unlocked with your tyres') + ' <span class="help-text">· ' + pneusTotal() + L(' pneus', ' tyres') + '</span></span>' +
+        '<div class="help-text">' + L('Juste pour le style : ça montre que tu es actif dans la communauté.', 'Just for style: it shows you\'re active in the community.') + '</div>' +
+        '<span class="look-sub">' + L('Cadre de photo', 'Photo frame') + '</span>' + unlockChips('frame', PNEUS_FRAMES(), d.frame) +
+        '<span class="look-sub">' + L('Titre sous ton nom', 'Title under your name') + '</span>' + unlockChips('title', PNEUS_TITLES(), d.title) +
+        '<span class="look-sub">' + L('Icône à côté du pseudo', 'Icon next to your name') + '</span>' + unlockChips('nameIcon', PNEUS_NAME_ICONS(), d.nameIcon, function (o) { return '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + NAME_ICON_SVG[o[0]] + '</svg> ' + escapeHtml(o[1]); }) +
+        '<span class="look-sub">' + L('Couleur de tes bulles de message', 'Your message bubble colour') + '</span>' + unlockChips('bubble', PNEUS_BUBBLES(), d.bubble, function (o) { return '<span class="bub-dot" style="background:' + o[0] + '"></span>' + escapeHtml(o[1]); }) +
+        '<div class="help-text">' + L('Bannières Damier animé et Piste de nuit : touche ta bannière sur la fiche.', 'Waving flag and Night track banners: tap your banner on your profile.') + '</div></div>';
+    }
     // La bio d'abord ; photo de profil et bannière se changent en touchant
     // l'image sur la fiche.
     if (!team) html += '<div class="look-field"><label class="look-label" for="look-bio">' + L('Bio', 'Bio') + '</label><textarea id="look-bio" maxlength="250" rows="3" placeholder="' + L('Ex. Pistard depuis 2019, objectif sous les 2’00” à Misano.', 'E.g. Track rider since 2019, aiming under 2’00” at Misano.') + '">' + escapeHtml(d.bio || '') + '</textarea><span class="help-text look-bio-count" id="look-bio-count">' + (d.bio || '').length + ' / 250</span></div>';
@@ -18466,7 +18574,10 @@
     lookDraft = { color: l.color || '#c8261f', cover: l.cover != null ? l.cover : 'vibreur', coverPhoto: l.coverPhoto || null, plate: l.plate != null ? l.plate : (me.bikeNumber ? 'course' : ''),
       bio: l.bio || '', featured: l.featured || '', pinned: (l.pinned || []).slice(),
       links: (l.links || []).slice(), sponsors: (l.sponsors || []).slice(),
-      show: Object.assign({}, l.show || {}), favCircuits: (l.favCircuits || []).slice(), favTeams: (l.favTeams || []).slice(), favFriends: (l.favFriends || []).slice() };
+      show: Object.assign({}, l.show || {}), favCircuits: (l.favCircuits || []).slice(), favTeams: (l.favTeams || []).slice(), favFriends: (l.favFriends || []).slice(),
+      // Identité : modifiée ici aussi (la fiche se règle entièrement dans Social).
+      frame: l.frame || '', title: l.title || '', nameIcon: l.nameIcon || '', bubble: l.bubble || '',
+      id: { firstName: me.firstName || '', lastName: me.lastName || '', nationality: me.nationality || '', bike: me.bike || '', bikeNumber: me.bikeNumber || '' } };
     lookMessage = '';
     lookPendingLogo = null;
     countUsageOnce('lookOpen', 'look_open');
@@ -18495,12 +18606,25 @@
       color: lookDraft.color, cover: lookDraft.cover || '', plate: lookDraft.plate || '', bio: (lookDraft.bio || '').trim().slice(0, 250),
       featured: lookDraft.featured || '', pinned: (lookDraft.pinned || []).slice(0, 3),
       links: (lookDraft.links || []).slice(0, 6), sponsors: (lookDraft.sponsors || []).slice(0, 6),
-      show: lookDraft.show || {}, favCircuits: (lookDraft.favCircuits || []).slice(0, 3), favTeams: (lookDraft.favTeams || []).slice(0, 3), favFriends: (lookDraft.favFriends || []).slice(0, 5), coverPhoto: lookDraft.coverPhoto || null
+      show: lookDraft.show || {}, favCircuits: (lookDraft.favCircuits || []).slice(0, 3), favTeams: (lookDraft.favTeams || []).slice(0, 3), favFriends: (lookDraft.favFriends || []).slice(0, 5), coverPhoto: lookDraft.coverPhoto || null,
+      frame: cosmeticOk(PNEUS_FRAMES(), lookDraft.frame) ? lookDraft.frame : '', title: cosmeticOk(PNEUS_TITLES(), lookDraft.title) ? lookDraft.title : '',
+      nameIcon: cosmeticOk(PNEUS_NAME_ICONS(), lookDraft.nameIcon) ? lookDraft.nameIcon : '', bubble: cosmeticOk(PNEUS_BUBBLES(), lookDraft.bubble) ? lookDraft.bubble : ''
     };
+    // Identité saisie dans l'éditeur.
+    var idPatch = null;
+    if (!reset && lookDraft && lookDraft.id) {
+      var di = lookDraft.id;
+      if (di.bikeNumber && !/^\d{1,3}$/.test(String(di.bikeNumber).trim())) { lookMessage = tr('bike_number_digits_error'); renderRoot(); return; }
+      idPatch = { firstName: String(di.firstName || '').trim().slice(0, 40), lastName: String(di.lastName || '').trim().slice(0, 40) };
+      if (!meIsNonRider()) { idPatch.bike = String(di.bike || '').trim().slice(0, 60); idPatch.bikeNumber = String(di.bikeNumber || '').trim(); }
+      idPatch.nationality = di.nationality || firebase.firestore.FieldValue.delete();
+    }
     // La photo de bannière n'est jamais effacée par l'édition de la fiche :
     // on repart de la version enregistrée (changer de style la garde).
     var draftPhoto = lookDraft && lookDraft.coverPhoto;
-    db.collection('users').doc(uid).get().then(function (snap) {
+    (idPatch ? db.collection('users').doc(uid).update(idPatch).then(function () {
+      Object.keys(idPatch).forEach(function (k) { me[k] = k === 'nationality' ? (lookDraft.id.nationality || null) : idPatch[k]; });
+    }) : Promise.resolve()).then(function () { return db.collection('users').doc(uid).get(); }).then(function (snap) {
       var saved = (snap.exists && snap.data().look) || {};
       if (value && !draftPhoto && saved.coverPhoto) value.coverPhoto = saved.coverPhoto;
       return db.collection('users').doc(uid).update({ look: value });
@@ -18718,7 +18842,7 @@
     if (isPilote && u.bike) sub.push(escapeHtml(u.bike) + (u.bikeNumber ? ' #' + escapeHtml(u.bikeNumber) : ''));
     // Actions
     var acts = '';
-    if (isMe) acts += myDraft ? '' : '<button type="button" class="primary" data-action="look-edit">' + (lookOf(u) ? L('Modifier', 'Edit') : L('Personnaliser', 'Customise')) + '</button>' +
+    if (isMe) acts += myDraft ? '' : '<button type="button" class="primary" data-action="look-edit">' + L('Modifier', 'Edit') + '</button>' +
       '<button type="button" class="ghost" data-action="open-my-profile">' + L('Mon compte', 'My account') + '</button>';
     else if (friendship) acts += '<button type="button" class="ghost" disabled>' + L('Amis', 'Friends') + '</button>';
     else if (received) acts += '<button type="button" class="primary" data-action="accept-friend" data-id="' + escapeHtml(received.id) + '">' + L('Accepter son invitation', 'Accept the request') + '</button>';
@@ -19491,7 +19615,7 @@
           '<li>' + L('Parrainage : +100 par ami inscrit avec ton lien, +1000 au 5e filleul.', 'Referrals: +100 per mate who signs up with your link, +1000 at the 5th.') + '</li>' +
           '<li>' + L('Profil : +5 par élément rempli (présentation, sponsors, bannière, photo, moto, numéro, pays, liens).', 'Profile: +5 per filled item (bio, sponsors, banner, photo, bike, number, country, links).') + '</li>' +
           '<li>' + L('Trophées : 10, 25, 50, 100, 200 puis 400 par niveau.', 'Trophies: 10, 25, 50, 100, 200 then 400 per level.') + '</li>' +
-          '<li>' + L('À débloquer (bannière de ta fiche) : couleurs Carbone (150), Or (300), Rose (600), Turquoise (1000), bannière Carbone (800).', 'To unlock (profile banner): Carbon (150), Gold (300), Pink (600), Turquoise (1000) colours, Carbon banner (800).') + '</li>' +
+          '<li>' + L('À débloquer (juste pour le style) : titres sous ton nom (dès 100), couleurs de bannière (150 à 1000), cadres de photo (250 à 1400), icône à côté du pseudo (350 à 1500), couleur des bulles de message (450), bannières Carbone (800), Damier animé (1100) et Piste de nuit (1600). Tout se choisit dans « Modifier » sur ta fiche.', 'To unlock (just for style): titles under your name (from 100), banner colours (150 to 1000), photo frames (250 to 1400), name icon (350 to 1500), message bubble colour (450), Carbon (800), Waving flag (1100) and Night track (1600) banners. Pick them all from “Edit” on your profile.') + '</li>' +
         '</ul></details>' +
         (board.length > 1 ? '<div class="pneus-board"><strong>' + L('Classement entre amis', 'Friends leaderboard') + '</strong>' + shownBoard.map(function (r) {
           return '<div class="pneus-row' + (r.n === me.name ? ' me' : '') + '"><span class="pneus-rank">' + (board.indexOf(r) + 1) + '</span>' + avatarHtml((STATE.usersByName || {})[r.n] || {}, r.n).replace(/ data-person="[^"]*"/, '') + '<span class="pneus-name">' + escapeHtml(r.n) + '</span><b>' + r.t + '</b></div>';
@@ -21069,7 +21193,7 @@
       '<button type="button" class="dm-who" data-action="group-info" data-id="' + escapeHtml(id) + '">' + groupAvatarHtml(g) + '<strong>' + escapeHtml(g.name || '') + '</strong><small class="dm-via">' + escapeHtml(plural((g.members || []).length, L('membre', 'member'), L('membres', 'members'))) + '</small></button></div>' +
       '<div class="dm-list" id="dm-list">' + (thread.length ? thread.map(function (m) {
         var isMine = m.from === mine;
-        return '<div class="dm-msg' + (isMine ? ' mine' : '') + '">' + (isMine ? '' : '<span class="dm-sig">' + escapeHtml(m.fromName || '') + '</span>') + '<div class="dm-bubble">' + mentionsHtml(m.text || '') + '</div><span class="dm-time">' + escapeHtml(dmTime(m.createdAt)) + '</span></div>';
+        return '<div class="dm-msg' + (isMine ? ' mine' : '') + '"' + bubbleStyle(m.fromName) + '>' + (isMine ? '' : '<span class="dm-sig">' + escapeHtml(m.fromName || '') + '</span>') + '<div class="dm-bubble">' + mentionsHtml(m.text || '') + '</div><span class="dm-time">' + escapeHtml(dmTime(m.createdAt)) + '</span></div>';
       }).join('') : '<div class="help-text dm-empty">' + L('Lance la discussion : prochain roulage, covoiturage, hôtel…', 'Start the chat: next trackday, car sharing, hotel…') + '</div>') + '</div>';
     return h + '<form class="dm-form" id="dm-form"><textarea id="dm-text" rows="1" maxlength="2000" placeholder="' + escapeHtml(L('Ton message…', 'Your message…')) + '"></textarea><button type="submit" class="primary">' + L('Envoyer', 'Send') + '</button></form></div>';
   }
@@ -21221,7 +21345,7 @@
         '<div class="dm-list" id="dm-list">' + (thread.length ? thread.map(function (m) {
           // Plusieurs leaders : chacun voit qui a répondu au nom du team.
           var sig = ti && ti.leader && m.asTeam && m.from !== mineUid ? '<span class="dm-sig">' + escapeHtml(m.fromName || '') + '</span>' : '';
-          return '<div class="dm-msg' + (isMine(m) ? ' mine' : '') + '">' + sig + '<div class="dm-bubble" data-dm-react="' + escapeHtml(m.id || '') + '" data-dm-coll="' + (ti ? 'teamMessages' : 'directMessages') + '">' + mentionsHtml(m.text || '') + '</div>' + dmReactsHtml(m) + '<span class="dm-time">' + escapeHtml(dmTime(m.createdAt)) + '</span></div>';
+          return '<div class="dm-msg' + (isMine(m) ? ' mine' : '') + '"' + (m.asTeam ? '' : bubbleStyle(m.fromName)) + '>' + sig + '<div class="dm-bubble" data-dm-react="' + escapeHtml(m.id || '') + '" data-dm-coll="' + (ti ? 'teamMessages' : 'directMessages') + '">' + mentionsHtml(m.text || '') + '</div>' + dmReactsHtml(m) + '<span class="dm-time">' + escapeHtml(dmTime(m.createdAt)) + '</span></div>';
         }).join('') : '<div class="help-text dm-empty">' + escapeHtml(ti ? L('Écris au team ' + tm.name + ' : ses Team Leaders te répondront ici.', 'Write to ' + tm.name + ': its Team Leaders will reply here.') : L('Écris le premier message à ' + name + '.', 'Write the first message to ' + name + '.')) + '</div>') + '</div>';
       if (ti && ti.leader) h += '<div class="help-text dm-as">' + escapeHtml(L('Tu réponds au nom de ' + tm.name + '.', 'You reply as ' + tm.name + '.')) + '</div>';
       if (canMessage(name)) h += '<form class="dm-form" id="dm-form"><textarea id="dm-text" rows="1" maxlength="2000" placeholder="' + escapeHtml(L('Ton message…', 'Your message…')) + '"></textarea><button type="submit" class="primary">' + L('Envoyer', 'Send') + '</button></form>';
@@ -21243,7 +21367,7 @@
       return h2 + '<div class="card dm-convs">' + (convs.length ? convs.map(dmConvRow).join('') : '<div class="empty-state">' + L('Aucun message reçu par tes teams pour l\'instant.', 'No message received by your teams yet.') + '</div>') + '</div>';
     }
     h2 += '<div class="dm-top"><button type="button" class="primary" data-action="dm-new">' + L('Nouveau message', 'New message') + '</button><button type="button" class="ghost" data-action="group-new">' + L('Nouveau groupe', 'New group') + '</button>' +
-      '<span class="help-text">' + L('Qui peut t\'écrire : Réglages › Vie privée.', 'Who can write to you: Settings › Privacy.') + '</span></div>';
+      '<span class="help-text">' + L('Qui peut t\'écrire : Réglages › Confidentialité.', 'Who can write to you: Settings › Privacy.') + '</span></div>';
     h2 += '<div class="card dm-convs">' + (convs.length ? convs.map(dmConvRow).join('') : '<div class="empty-state">' + L('Aucune conversation pour l\'instant. Écris à un ami depuis « Nouveau message » ou depuis sa fiche.', 'No conversation yet. Write to a friend from “New message” or from their profile.') + '</div>') + '</div>';
     return h2;
   }
@@ -23812,7 +23936,7 @@
     if (settingsToggle) settingsToggle.addEventListener('click', function () {
       var alreadyOn = profilePanelOpen && profileSubTab === 'reglages';
       profilePanelOpen = !alreadyOn;
-      profileSubTab = 'reglages';
+      profileSubTab = 'reglages'; settingsSection = null;
       notificationsPanelOpen = false;
       accountManagerOpen = false;
       renderRoot();
@@ -24100,9 +24224,9 @@
         var notifyEl = document.getElementById('profile-notify');
         var notify = notifyEl ? notifyEl.checked : !!currentUserProfile.notifyBeforeSession;
         var bikeEl = document.getElementById('profile-bike');
-        var bike = bikeEl ? bikeEl.value.trim() : '';
+        var bike = bikeEl ? bikeEl.value.trim() : (currentUserProfile.bike || '');
         var bikeNumberEl = document.getElementById('profile-bike-number');
-        var bikeNumber = bikeNumberEl ? bikeNumberEl.value.trim() : '';
+        var bikeNumber = bikeNumberEl ? bikeNumberEl.value.trim() : (currentUserProfile.bikeNumber || '');
         if (bikeNumber && !/^\d{1,3}$/.test(bikeNumber)) {
           profileSaveMessage = tr('bike_number_digits_error');
           renderRoot();
@@ -24113,9 +24237,9 @@
         var nameEl = document.getElementById('profile-name');
         var newName = nameEl ? nameEl.value.trim() : '';
         var firstNameEl = document.getElementById('profile-firstname');
-        var firstName = firstNameEl ? firstNameEl.value.trim() : '';
+        var firstName = firstNameEl ? firstNameEl.value.trim() : (currentUserProfile.firstName || '');
         var lastNameEl = document.getElementById('profile-lastname');
-        var lastName = lastNameEl ? lastNameEl.value.trim() : '';
+        var lastName = lastNameEl ? lastNameEl.value.trim() : (currentUserProfile.lastName || '');
         var chronoLinkEl = document.getElementById('profile-chrono-link');
         var chronoLink = chronoLinkEl ? chronoLinkEl.value.trim() : '';
         if (pseudoEditUnlocked && newName && newName !== currentUserProfile.name && !pseudoRenameConfirmPending) {
@@ -24656,7 +24780,7 @@
       });
     });
     document.querySelectorAll('[data-action="open-my-fiche"]').forEach(function (btn) {
-      btn.addEventListener('click', function () { if (currentUserProfile) { openPerson(currentUserProfile.name); if (!lookOf(currentUserProfile)) openLookEditor(); } });
+      btn.addEventListener('click', function () { if (currentUserProfile) { openPerson(currentUserProfile.name); openLookEditor(); } });
     });
     document.querySelectorAll('[data-action="look-edit"]').forEach(function (btn) { btn.addEventListener('click', openLookEditor); });
     document.querySelectorAll('[data-action="open-my-profile"]').forEach(function (btn) {
@@ -24672,6 +24796,9 @@
         var card = document.querySelector('.achievements-card');
         if (card) card.scrollIntoView({ behavior: 'smooth', block: 'start' });
       });
+    });
+    document.querySelectorAll('[data-look-id]').forEach(function (el) {
+      el.addEventListener(el.tagName === 'SELECT' ? 'change' : 'input', function () { if (lookDraft && lookDraft.id) lookDraft.id[el.getAttribute('data-look-id')] = el.value; });
     });
     document.querySelectorAll('[data-action="look-save"]').forEach(function (btn) { btn.addEventListener('click', function () { saveLook(false); }); });
     document.querySelectorAll('[data-action="look-reset"]').forEach(function (btn) { btn.addEventListener('click', function () { saveLook(true); }); });
@@ -24864,6 +24991,15 @@
     if (rootEl && !rootEl.__socialLinks) {
       rootEl.__socialLinks = true;
       rootEl.addEventListener('click', function (e) {
+        var sg = e.target.closest('[data-settings-go]');
+        if (sg) {
+          e.preventDefault(); e.stopPropagation();
+          var go = sg.getAttribute('data-settings-go');
+          if (go === '@legal-privacy' || go === '@legal-notice') { openLegal(go === '@legal-privacy' ? 'privacy' : 'notice'); return; }
+          if (go === '@update') { checkForAppUpdate(true); return; }
+          if (go.charAt(0) === '@') { profileSubTab = go.slice(1); settingsSection = null; renderRoot(); window.scrollTo(0, 0); return; }
+          settingsSection = go || null; renderRoot(); window.scrollTo(0, 0); return;
+        }
         if (e.target.closest('.back-chevron, .nav-back-btn') && navStack.length) { e.preventDefault(); e.stopPropagation(); navBack(); return; }
         // Partout dans l'appli : pilote, circuit, team.
         var emf = e.target.closest('.link-player-face[data-embed]');
@@ -25586,6 +25722,16 @@
         var cs = document.getElementById('f-circuit'); if (c && cs) { cs.value = c; cs.dispatchEvent(new Event('change', { bubbles: true })); }
         if (btn.getAttribute('data-import')) { var inp = document.getElementById('import-photo-input'); if (inp) inp.click(); }
       });
+    });
+    var setSearch = document.getElementById('settings-search');
+    if (setSearch) setSearch.addEventListener('input', function () {
+      var q = setSearch.value.trim().toLowerCase(), any = false;
+      document.querySelectorAll('.settings-ig .set-group').forEach(function (g) {
+        var vis = 0;
+        g.querySelectorAll('.set-row').forEach(function (r) { var on = !q || (r.getAttribute('data-set-keys') || '').indexOf(q) !== -1; r.hidden = !on; if (on) vis++; });
+        g.hidden = !vis; if (vis) any = true;
+      });
+      var em = document.querySelector('.settings-ig .set-empty'); if (em) em.hidden = any;
     });
     document.querySelectorAll('[data-action="check-app-update"]').forEach(function (btn) {
       btn.addEventListener('click', function () { btn.disabled = true; checkForAppUpdate(true); });

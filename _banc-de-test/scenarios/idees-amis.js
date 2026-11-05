@@ -43,15 +43,13 @@ const { chromium, BASE } = require('../lib');
   console.log('appui → trophées:', await p.$eval('[data-pill-group="person"].active', e => e.innerText).catch(() => '?'), '|', await p.evaluate(() => { const c = document.querySelector('.achievements-card'); if (!c) return 'absente'; const r = c.getBoundingClientRect(); return (r.top < innerHeight && r.bottom > 0 ? 'à l\'écran' : 'hors écran') + (c.querySelector('details[open], .open') ? ', ouverte' : ''); }));
   await p.click('[data-action="look-edit"]'); await p.waitForTimeout(400);
   console.log('présentation:', await p.$eval('#look-bio', e => e.maxLength), '|', await p.$eval('#look-bio-count', e => e.innerText));
-  await p.click('[data-action="look-cancel"]').catch(() => {}); await p.waitForTimeout(300);
-  await p.click('#settings-toggle'); await p.waitForTimeout(400);
-  await p.click('[data-profile-tab="compte"]').catch(() => {}); await p.waitForTimeout(300);
+  // Images prêtes : dans l'éditeur de fiche (Social).
   console.log('images prêtes:', await p.$$eval('.avatar-preset', e => e.length));
   await p.click('.avatar-preset >> nth=1'); await p.waitForTimeout(500);
   console.log('photo enregistrée:', await p.evaluate(() => firebase.firestore().collection('users').doc(firebase.auth().currentUser.uid).get().then(d => (d.data().photoURL || '').slice(0, 26))));
   // Réglages › Confidentialité
-  await p.click('[data-profile-tab="reglages"]'); await p.waitForTimeout(300);
-  await p.click('[data-pill-group="settings"][data-pill="confidentialite"]').catch(() => {}); await p.waitForTimeout(300);
+  await p.click('#settings-toggle'); await p.waitForTimeout(400);
+  await p.click('[data-settings-go="confidentialite"]').catch(() => {}); await p.waitForTimeout(300);
   await p.selectOption('#profile-visibility', 'friends').catch(e => console.log('pas de choix fiche'));
   await p.selectOption('#lists-visibility', 'private').catch(e => console.log('pas de choix listes'));
   await p.waitForTimeout(400);
