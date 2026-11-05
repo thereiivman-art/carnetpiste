@@ -7,11 +7,15 @@ Les nouveautés, de la plus récente à la plus ancienne. Le détail complet est
 **L'appli s'appelle Pitbook** partout (Pitbook+ pour l'offre).
 
 **Retours Alexis**
+- Niveau des circuits : chacun donne son avis (Débutant, Normal, Difficile) ; à partir de 10 avis, la moyenne des Pitbookers remplace le niveau par défaut.
+- Saisons : les roulages passés sans chrono noté comptent aussi (Le Mans 2024 apparaît bien).
+- Team : un seul bouton pour modifier, l'engrenage, qui ouvre et referme la fenêtre.
+- Nouveaux tracés du Mans et de Magny-Cours.
 - Circuits : tri du sélecteur par pays, A → Z, niveau, distance ou mon temps.
 - Circuits › Visités : chaque roulage ouvre bien sa page (le correctif précédent visait la mauvaise liste).
 - Circuit visité sans y rouler (un GP en spectateur…) : s'ajoute à la main, avec l'année. Sepang ajouté.
 - Ajouter à mon agenda sur Android : « Agenda du téléphone » ouvre l'appli agenda installée ; Google Agenda s'ouvre dans l'appli.
-- Teams : l'engrenage et « Modifier » ouvrent la même et unique fenêtre (confidentialité comprise), un seul Enregistrer.
+- Teams : une seule fenêtre d'édition (confidentialité comprise), un seul Enregistrer.
 - Lien « Découvre le team… » : ouvre directement le team.
 - Miniatures des circuits : tracé blanc sur fond noir, cuit dans l'image, dans les deux thèmes (plus de miniatures blanches avec le mode sombre du navigateur).
 - Roulages de mes amis (PC) : album au milieu, temps à droite.

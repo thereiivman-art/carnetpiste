@@ -8244,9 +8244,44 @@
     'Silverstone': [2, 2], 'Donington': [2, 2], 'Brands Hatch': [3, 3],
     'Losail': [2, 2], 'COTA': [2, 2], 'Termas de Río Hondo': [2, 2], 'Buriram': [2, 2], 'Mandalika': [2, 2], 'Motegi': [2, 2], 'Phillip Island': [3, 3]
   };
-  function circuitLevel(circuit) {
+  function defaultCircuitLevel(circuit) {
     var k = Object.keys(CIRCUIT_LEVELS).filter(function (n) { return circuitKey(n) === circuitKey(circuit); })[0];
     return k ? CIRCUIT_LEVELS[k] : null;
+  }
+  // Avis des Pitbookers (circuitVotes/{uid}__{circuit}) : à partir de 10
+  // avis, la moyenne remplace le niveau par défaut, moto et voiture à part.
+  var LEVEL_MIN_VOTES = 10, levelVotes = {};
+  function levelVoteId(circuit) { return auth.currentUser ? auth.currentUser.uid + '__' + circuitKey(circuit).replace(/[^a-z0-9-]/gi, '-').slice(0, 60) : null; }
+  function loadLevelVotes(circuit) {
+    if (levelVotes[circuit]) return;
+    levelVotes[circuit] = { loading: true, list: [] };
+    db.collection('circuitVotes').where('circuit', '==', circuit).get().then(function (snap) {
+      var list = []; snap.forEach(function (d) { list.push(Object.assign({ id: d.id }, d.data())); });
+      levelVotes[circuit] = { list: list }; renderRoot();
+    }).catch(function () { levelVotes[circuit] = { list: [], error: true }; });
+  }
+  function levelVoteStats(circuit, field) {
+    var v = levelVotes[circuit], list = v && v.list ? v.list.filter(function (x) { return x[field] >= 1 && x[field] <= 3; }) : [];
+    var avg = list.length ? list.reduce(function (a, x) { return a + x[field]; }, 0) / list.length : null;
+    return { n: list.length, avg: avg };
+  }
+  function myLevelVote(circuit) { var id = levelVoteId(circuit), v = levelVotes[circuit]; return v && v.list ? v.list.filter(function (x) { return x.id === id; })[0] || null : null; }
+  function circuitLevel(circuit) {
+    var d = defaultCircuitLevel(circuit), out = d ? d.slice() : [null, null];
+    ['moto', 'car'].forEach(function (f, i) { var st = levelVoteStats(circuit, f); if (st.n >= LEVEL_MIN_VOTES) out[i] = Math.max(1, Math.min(3, Math.round(st.avg))); });
+    return out[0] || out[1] ? out : null;
+  }
+  function saveLevelVote(circuit, field, val) {
+    var id = levelVoteId(circuit); if (!id) return;
+    var mine = myLevelVote(circuit) || { id: id, circuit: circuit };
+    var doc = { circuit: String(circuit).slice(0, 80), updatedAt: Date.now() };
+    if (mine.moto) doc.moto = mine.moto; if (mine.car) doc.car = mine.car;
+    doc[field] = val;
+    var v = levelVotes[circuit] || (levelVotes[circuit] = { list: [] });
+    v.list = (v.list || []).filter(function (x) { return x.id !== id; }).concat([Object.assign({ id: id }, doc)]);
+    renderRoot();
+    db.collection('circuitVotes').doc(id).set(doc).then(function () { showToast(L('Merci pour ton avis.', 'Thanks for your opinion.'), 'success'); })
+      .catch(function (err) { showToast(tr('error_prefix') + ((err && err.message) || err)); });
   }
   function levelLabel(n) { return [L('Débutant', 'Beginner'), L('Normal', 'Intermediate'), L('Difficile', 'Difficult')][n - 1]; }
   // Matériel : ce que demandent la plupart des organisateurs de roulages.
@@ -8288,13 +8323,23 @@
   }
   function renderCircuitLevelGearCard(circuit) {
     if (!circuit) return '';
+    loadLevelVotes(circuit);
     var lv = circuitLevel(circuit), car = typeof isCarMode === 'function' && isCarMode();
     var html = '<div class="card circuit-lg"><h2 class="section-title">' + L('Niveau et matériel', 'Level and gear') + '</h2>';
     if (lv) {
       var pill = function (who, n) { return '<span class="lvl lvl-' + n + '"><span class="lvl-who">' + who + '</span><strong>' + levelLabel(n) + '</strong><span class="lvl-bars">' + [1, 2, 3].map(function (i) { return '<i' + (i <= n ? ' class="on"' : '') + '></i>'; }).join('') + '</span></span>'; };
       html += '<div class="lvl-row">' + (car ? pill(L('Voiture', 'Car'), lv[1]) + pill(L('Moto', 'Bike'), lv[0]) : pill(L('Moto', 'Bike'), lv[0]) + pill(L('Voiture', 'Car'), lv[1])) + '</div>' +
-        '<div class="help-text">' + L('Avis général des pistards, indicatif.', 'General opinion of trackday riders, indicative.') + '</div>';
+        '<div class="help-text">' + (function () {
+          var stM = levelVoteStats(circuit, 'moto'), stC = levelVoteStats(circuit, 'car'), n = Math.max(stM.n, stC.n);
+          return n >= LEVEL_MIN_VOTES ? L('Moyenne des avis des Pitbookers', 'Average of Pitbookers\' opinions') + ' (' + plural(n, L('avis', 'opinion'), L('avis', 'opinions')) + ').'
+            : L('Niveau indicatif, remplacé par la moyenne des Pitbookers à partir de 10 avis', 'Indicative level, replaced by the Pitbookers\' average from 10 opinions') + (n ? ' (' + n + '/10)' : '') + '.';
+        })() + '</div>';
     }
+    // Mon avis sur le niveau (moto ou voiture, selon mon véhicule).
+    var vf = car ? 'car' : 'moto', mv = myLevelVote(circuit);
+    html += '<div class="lvl-vote"><span class="look-label">' + (car ? L('Ton avis (voiture)', 'Your opinion (car)') : L('Ton avis (moto)', 'Your opinion (bike)')) + '</span><div class="look-seg">' + [1, 2, 3].map(function (n) {
+      return '<button type="button" data-lvl-vote="' + n + '" data-lvl-field="' + vf + '" data-lvl-circuit="' + escapeHtml(circuit) + '" aria-pressed="' + !!(mv && mv[vf] === n) + '">' + levelLabel(n) + '</button>';
+    }).join('') + '</div></div>';
     var g = gearLists(car), li = function (a) { return '<ul>' + a.map(function (x) { return '<li>' + escapeHtml(x) + '</li>'; }).join('') + '</ul>'; };
     html += '<div class="gear-cols"><div class="gear-col gear-req"><span class="look-label">' + L('Obligatoire', 'Required') + '</span>' + li(g.req) + '</div>' +
       '<div class="gear-col gear-no"><span class="look-label">' + L('Interdit', 'Not allowed') + '</span>' + li(g.no) + '</div></div>' +
@@ -19192,18 +19237,33 @@
 
   // ---- Saisons : one year at a time, visual, shareable ----
   var seasonYear = {};   // key (rider or 'team:'+id) -> selected year
+  // Saison = les journées avec chronos ET les roulages passés du calendrier
+  // où le pilote était inscrit, même sans chrono noté (avant, un roulage
+  // sans chrono n'apparaissait pas dans la saison).
+  function seasonRidesFor(name) {
+    var rides = ridesFor([name], 3650), today = dateKey(new Date());
+    eventsList().forEach(function (ev) {
+      if (!ev.dateStart || ev.dateStart > today || (ev.riders || []).indexOf(name) === -1 || !ev.circuit) return;
+      var end = ev.dateEnd || ev.dateStart;
+      var covered = rides.some(function (r) { return r.eventId === ev.id || (sameCircuit(r.circuit, ev.circuit) && r.date >= ev.dateStart && r.date <= end); });
+      if (covered) return;
+      rides.push({ key: 'ev:' + ev.id, rider: name, circuit: ev.circuit, date: ev.dateStart, best: null, laps: 0, group: '', eventId: ev.id, createdAt: 0, noLaps: true, dayList: datesInRange(ev.dateStart, end > today ? today : end) });
+    });
+    return rides;
+  }
   function riderSeasonYears(name) {
     var ys = {};
-    ridesFor([name], 3650).forEach(function (r) { ys[r.date.slice(0, 4)] = 1; });
+    seasonRidesFor(name).forEach(function (r) { ys[r.date.slice(0, 4)] = 1; });
     return Object.keys(ys).sort().reverse();
   }
   function riderSeason(name, year) {
-    var rides = ridesFor([name], 3650).filter(function (r) { return r.date.slice(0, 4) === year; }).sort(function (a, b) { return a.date < b.date ? -1 : 1; });
+    var rides = seasonRidesFor(name).filter(function (r) { return r.date.slice(0, 4) === year; }).sort(function (a, b) { return a.date < b.date ? -1 : 1; });
     var days = {}, circuits = {}, records = 0, laps = 0;
     rides.forEach(function (r) {
-      days[r.date] = 1; laps += r.laps;
+      (r.dayList || [r.date]).forEach(function (d) { days[d] = 1; }); laps += r.laps;
       var c = circuits[r.circuit] || (circuits[r.circuit] = { circuit: r.circuit, days: 0, best: null });
-      c.days++; if (c.best === null || r.best < c.best) c.best = r.best;
+      c.days++; if (r.best !== null && (c.best === null || r.best < c.best)) c.best = r.best;
+      if (r.best === null) return;
       var prev = bestBefore(name, r.circuit, r.date);
       r.isRecord = prev !== null && r.best < prev; r.isFirst = prev === null;
       if (r.isRecord) records++;
@@ -19220,7 +19280,7 @@
   }
   function renderRiderSeasons(name, l, isMe) {
     var years = riderSeasonYears(name);
-    if (!years.length) return '<div class="card"><div class="empty-state">' + L('Pas encore de roulage avec chronos.', 'No trackday with lap times yet.') + '</div></div>';
+    if (!years.length) return '<div class="card"><div class="empty-state">' + L('Pas encore de roulage passé.', 'No past trackday yet.') + '</div></div>';
     var year = seasonYear[name] && years.indexOf(seasonYear[name]) !== -1 ? seasonYear[name] : years[0];
     var se = riderSeason(name, year), st = lookStyle(l || {});
     var html = seasonYearChips(name, years, year);
@@ -19231,13 +19291,13 @@
       '<div><b>' + se.records + '</b><span>' + L(se.records > 1 ? 'records battus' : 'record battu', se.records > 1 ? 'records beaten' : 'record beaten') + '</span></div></div>' +
       (isMe ? '<button type="button" class="season-share" data-action="share-season" data-name="' + escapeHtml(name) + '" data-year="' + year + '">' + L('Partager ma saison', 'Share my season') + '</button>' : '') + '</div>';
     html += '<div class="card"><h2 class="section-title">' + L('Circuits', 'Circuits') + '</h2><div class="season-circuits">' + se.circuits.map(function (c) {
-      return '<span class="season-circuit"><span class="outing-thumb">' + circuitThumbHtml(c.circuit) + '</span><strong>' + escapeHtml(c.circuit) + '</strong><span class="carnet-time">' + formatTime(c.best) + '</span><span class="help-text">' + c.days + L(c.days > 1 ? ' roulages' : ' roulage', c.days > 1 ? ' trackdays' : ' trackday') + '</span></span>';
+      return '<span class="season-circuit"><span class="outing-thumb">' + circuitThumbHtml(c.circuit) + '</span><strong>' + escapeHtml(c.circuit) + '</strong><span class="carnet-time">' + (c.best !== null ? formatTime(c.best) : '') + '</span><span class="help-text">' + c.days + L(c.days > 1 ? ' roulages' : ' roulage', c.days > 1 ? ' trackdays' : ' trackday') + '</span></span>';
     }).join('') + '</div></div>';
     html += '<div class="card"><h2 class="section-title">' + L('Roulages', 'Trackdays') + '</h2><div class="season-tiles">' + se.rides.slice().reverse().map(function (r) {
       return '<button type="button" class="season-tile" data-open-outing="' + escapeHtml(r.circuit) + '" data-outing-date="' + escapeHtml(r.date) + '" data-outing-event="' + escapeHtml(r.eventId || '') + '" style="' + st + '">' +
         '<span class="season-tile-map">' + circuitThumbHtml(r.circuit) + seasonDateBox(r.date) + (r.isRecord ? '<span class="record-chip season-tile-chip">' + L('Record', 'Record') + '</span>' : r.isFirst ? '<span class="season-tile-chip first">' + L('1re fois', 'First') + '</span>' : '') + '</span>' +
-        '<strong>' + escapeHtml(r.circuit) + '</strong><span class="season-tile-time">' + formatTime(r.best) + '</span>' +
-        '<span class="help-text">' + r.laps + L(r.laps > 1 ? ' tours' : ' tour', r.laps > 1 ? ' laps' : ' lap') + (r.group ? ' · ' + groupChip(r.group) : '') + '</span></button>';
+        '<strong>' + escapeHtml(r.circuit) + '</strong><span class="season-tile-time">' + (r.best !== null ? formatTime(r.best) : '') + '</span>' +
+        '<span class="help-text">' + (r.noLaps ? L('Sans chrono noté', 'No lap time logged') : r.laps + L(r.laps > 1 ? ' tours' : ' tour', r.laps > 1 ? ' laps' : ' lap')) + (r.group ? ' · ' + groupChip(r.group) : '') + '</span></button>';
     }).join('') + '</div></div>';
     return html;
   }
@@ -22889,15 +22949,16 @@
     var editing = !!(lookDraft && lookDraft.__team === team.id);
     // Réglages du team : un petit engrenage en haut de la fiche, pour ses
     // leaders seulement ; un simple suiveur garde « Ne plus suivre ».
-    var gearBtn = isLeader ? '<button type="button" class="team-gear" data-action="team-settings-open" data-team="' + escapeHtml(team.id) + '" aria-label="' + escapeHtml(L('Réglages du team', 'Team settings')) + '" title="' + escapeHtml(L('Réglages du team', 'Team settings')) + '">' +
+    var gearBtn = isLeader ? '<button type="button" class="team-gear' + (editing ? ' is-open' : '') + '" aria-pressed="' + editing + '" data-action="team-settings-open" data-team="' + escapeHtml(team.id) + '" aria-label="' + escapeHtml(L('Réglages du team', 'Team settings')) + '" title="' + escapeHtml(L('Réglages du team', 'Team settings')) + '">' +
       '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button>' : '';
     var unfollowBtn = !isMember && !isLeader && isAdherentOf(team.id) ? ''
       : !isMember && !isLeader && (STATE.myFollowedTeams || []).indexOf(team.id) !== -1
       ? '<button type="button" class="ghost" data-action="unfollow-team" data-team="' + escapeHtml(team.id) + '">' + tr('unfollow') + '</button>' : '';
-    var lookBtn = isLeader && !editing ? '<button type="button" class="ghost" data-action="team-look-edit" data-team="' + escapeHtml(team.id) + '">' + (tLook ? L('Modifier', 'Edit') : L('Personnaliser', 'Customise')) + '</button>' : '';
+    // Un seul bouton pour modifier le team : l'engrenage (leaders seulement).
+    var lookBtn = '';
     lookBtn += unfollowBtn;
 
-    headHtml = headHtml.replace('%%TEAM_GEAR%%', gearBtn.replace('class="team-gear"', 'class="team-gear team-gear-inline"'));
+    headHtml = headHtml.replace('%%TEAM_GEAR%%', gearBtn.replace('class="team-gear', 'class="team-gear team-gear-inline'));
     headHtml = headHtml.replace('%%TEAM_ACTIONS%%', teamActionsHtml(team, me, isMember || !!myRoleInTeam(team.id)).replace(/<\/div>$/, lookBtn + '</div>'));
     if (tLook) {
       var roleLabelTxt = isLeader ? tr('team_leader_label') : (isMember ? tr('member_label') : tr('follower_label'));
@@ -26207,7 +26268,13 @@
     });
     document.querySelectorAll('[data-action="team-settings-open"]').forEach(function (btn) {
       // Engrenage = la même fenêtre d'édition que « Modifier » (une seule).
-      btn.addEventListener('click', function () { var tid = btn.getAttribute('data-team'); if (lookDraft && lookDraft.__team === tid) return; if (!confirmLeaveTeamLook()) return; teamSettingsOpenId = null; openTeamLookEditor(tid); window.scrollTo(0, 0); });
+      // Un appui ouvre, un second referme (en demandant si des changements seraient perdus).
+      btn.addEventListener('click', function () {
+        var tid = btn.getAttribute('data-team');
+        if (!confirmLeaveTeamLook()) return;
+        if (lookDraft && lookDraft.__team === tid) { lookDraft = null; lookDraftOrig = null; lookMessage = ''; renderRoot(); return; }
+        teamSettingsOpenId = null; openTeamLookEditor(tid); window.scrollTo(0, 0);
+      });
     });
     document.querySelectorAll('[data-action="team-settings-close"]').forEach(function (btn) {
       btn.addEventListener('click', function () { teamSettingsOpenId = null; renderRoot(); });
@@ -26600,6 +26667,9 @@
     }); });
     var csort = document.getElementById('circuit-sort');
     if (csort) csort.addEventListener('change', function () { circuitSort = csort.value; try { localStorage.setItem('cdp-circuit-sort', circuitSort); } catch (e) {} renderRoot(); });
+    document.querySelectorAll('[data-lvl-vote]').forEach(function (b) { b.addEventListener('click', function () {
+      saveLevelVote(b.getAttribute('data-lvl-circuit'), b.getAttribute('data-lvl-field'), Number(b.getAttribute('data-lvl-vote')));
+    }); });
     document.querySelectorAll('[data-heat-toggle]').forEach(function (b) { b.addEventListener('click', function () {
       var c = b.getAttribute('data-heat-toggle'); heatOn[c] = !heatOn[c];
       if (heatOn[c]) { delete heatCache[c]; loadTrackHeat(c); }

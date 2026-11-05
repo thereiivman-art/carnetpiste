@@ -1021,6 +1021,18 @@ service cloud.firestore {
     // Carte de chaleur des repères : position seule (cases d'une grille
     // 24 × 24, sans texte), un document par pilote et par circuit, dont
     // l'id commence par son uid. Lisible par les comptes vérifiés.
+    // Avis des Pitbookers sur le niveau d'un circuit (1 Débutant, 2 Normal,
+    // 3 Difficile ; moto et voiture) : un document par compte et circuit,
+    // dont l'id commence par son uid.
+    match /circuitVotes/{id} {
+      allow read: if verified();
+      allow create, update: if verified() && id.matches(request.auth.uid + '__[A-Za-z0-9-]{1,60}')
+        && request.resource.data.keys().hasOnly(['circuit', 'moto', 'car', 'updatedAt'])
+        && request.resource.data.circuit is string && request.resource.data.circuit.size() <= 80
+        && (request.resource.data.get('moto', 1) in [1, 2, 3]) && (request.resource.data.get('car', 1) in [1, 2, 3])
+        && request.resource.data.updatedAt is int;
+      allow delete: if verified() && id.matches(request.auth.uid + '__.+');
+    }
     match /trackHeat/{id} {
       allow read: if verified();
       allow create, update: if verified() && id.matches(request.auth.uid + '__[A-Za-z0-9-]{1,60}')
