@@ -5017,3 +5017,16 @@ body.budget-masked .budget-season strong, body.budget-masked .budget-row .carnet
 }
 .subnav.main-subnav:has(+ .pill-tabs) .subnav-btn.active { background: var(--surface); color: var(--text); font-weight: 800; box-shadow: 0 -1px 0 var(--border), 1px 0 0 var(--border), -1px 0 0 var(--border); }
 @media (max-width: 959px) { .page-head + .subnav.main-subnav { margin-top: -0.4rem; } }
+/* Téléphone : le masque des côtés de la barre fixée ne déborde plus vers le
+   bas (il dessinait une bande de la couleur de page entre l'onglet actif et
+   ses sous-onglets). */
+@media (max-width: 959px) {
+  .subnav.main-subnav:has(+ .pill-tabs) { clip-path: inset(-1px -1rem 0 -1rem); }
+  .subnav.main-subnav:has(+ .pill-tabs) .subnav-btn.active { margin-bottom: -1px; padding-bottom: calc(0.6rem + 1px); position: relative; z-index: 1; }
+}
+/* Les sous-onglets restent collés sous leur onglet pendant le défilement :
+   le bloc onglet + sous-onglets ne se sépare plus. */
+@media (max-width: 959px) {
+  .subnav.main-subnav + .pill-tabs { position: sticky; top: calc(var(--header-h, 64px) - 1px + var(--subnav-h, 44px) - 1px); z-index: 7; box-shadow: 0 0 0 1rem var(--bg); clip-path: inset(0 -1rem -1rem -1rem); }
+}
+.subnav + .pill-tabs .pill-btn, .subnav + .pill-tabs .pill-btn.active { flex: 1 1 auto; min-width: 0; }
