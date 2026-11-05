@@ -4996,3 +4996,24 @@ body.budget-masked .budget-season strong, body.budget-masked .budget-row .carnet
 .ph-bio { font-size: 0.95rem; }
 /* Fil / Messages / Teams collé sous l'en-tête : pas de bande vide au-dessus. */
 @media (max-width: 959px) { .page-head + .subnav.main-subnav { margin-top: -0.9rem; } }
+/* ==== Onglets : maquette A « classeur allégé » ====
+   Barre claire à fin contour ; l'onglet actif s'ouvre sur un panneau blanc
+   qui porte ses sous-onglets (texte, l'actif souligné en rouge). */
+.subnav.main-subnav { display: flex; gap: 3px; padding: 3px 3px 0; margin-bottom: 0; background: var(--surface-alt); border: 1px solid var(--border); border-bottom: 0; border-radius: 12px 12px 0 0; }
+.subnav.main-subnav .subnav-btn, .subnav.main-subnav:has(+ .pill-tabs) .subnav-btn.active { flex: 1; margin: 0; padding: 0.6rem 0.25rem; border: 0; border-radius: 9px 9px 0 0; background: none; box-shadow: none; font-family: inherit; font-size: 0.95rem; font-weight: 700; text-transform: none; letter-spacing: 0; color: var(--text-muted); }
+.subnav.main-subnav .subnav-btn.active { background: var(--surface); color: var(--text); font-weight: 800; box-shadow: 0 -1px 0 var(--border), 1px 0 0 var(--border), -1px 0 0 var(--border); }
+/* Pas de sous-onglets : la barre se ferme sur elle-même. */
+.subnav.main-subnav:not(:has(+ .pill-tabs)) { border-bottom: 1px solid var(--border); border-radius: 12px; padding-bottom: 3px; margin-bottom: 0.8rem; }
+.subnav.main-subnav:not(:has(+ .pill-tabs)) .subnav-btn { border-radius: 9px; }
+.subnav.main-subnav:not(:has(+ .pill-tabs)) .subnav-btn.active { box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+.subnav + .pill-tabs { display: flex; gap: 0; margin: 0 0 0.8rem; padding: 0 6px; background: var(--surface); border: 1px solid var(--border); border-top: 0; border-radius: 0 0 12px 12px; box-shadow: none; }
+.subnav + .pill-tabs .pill-btn, .subnav + .pill-tabs .pill-btn.active { flex: 1 0 auto; border: 0; border-bottom: 2.5px solid transparent; border-radius: 0; background: none; padding: 0.6rem 0.4rem 0.5rem; font-size: 0.9rem; font-weight: 700; color: var(--text-muted); }
+.subnav + .pill-tabs .pill-btn.active { color: var(--text); border-bottom-color: var(--accent); }
+.subnav + .pill-tabs .pill-btn.active::after { display: none; }
+@media (max-width: 959px) {
+  .subnav.main-subnav { margin-bottom: 0; }
+  .subnav.main-subnav:not(:has(+ .pill-tabs)) { margin-bottom: 0.8rem; }
+  .subnav.main-subnav::after { display: none; }
+}
+.subnav.main-subnav:has(+ .pill-tabs) .subnav-btn.active { background: var(--surface); color: var(--text); font-weight: 800; box-shadow: 0 -1px 0 var(--border), 1px 0 0 var(--border), -1px 0 0 var(--border); }
+@media (max-width: 959px) { .page-head + .subnav.main-subnav { margin-top: -0.4rem; } }
