@@ -4921,3 +4921,23 @@ body.budget-masked .budget-season strong, body.budget-masked .budget-row .carnet
 .moi-sec-title { font-family: 'Barlow Condensed', sans-serif; font-weight: 800; font-size: 1.35rem; text-transform: uppercase; letter-spacing: 0.02em; margin: 0 0 0.5rem; }
 .coach-entry { display: flex; align-items: center; justify-content: space-between; gap: 0.6rem; width: 100%; padding: 0.8rem 1rem; margin: 0 0 0.8rem; border: 1px solid var(--border); border-radius: 14px; background: var(--surface); color: var(--text); text-align: left; cursor: pointer; }
 .coach-entry > span { display: flex; flex-direction: column; }
+/* ==== Passe visuelle : épurée ====
+   Onglets principaux : texte souligné sur le fond de page (plus de bloc gris) ;
+   pastilles juste dessous : petites puces (plus de carte) ; cartes plus plates. */
+.subnav.main-subnav { background: var(--bg); border: 0; border-bottom: 1px solid var(--border); border-radius: 0; padding: 0; gap: 0; margin-bottom: 0.2rem; }
+.subnav.main-subnav .subnav-btn { border-radius: 0; padding: 0.75rem 0.25rem 0.6rem; font-family: 'Barlow Condensed', sans-serif; font-size: 1.1rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.03em; color: var(--text-muted); border-bottom: 3px solid transparent; margin-bottom: -1px; background: none; box-shadow: none; }
+.subnav.main-subnav .subnav-btn.active { background: none; box-shadow: none; color: var(--text); border-bottom-color: var(--accent); }
+.subnav + .pill-tabs { background: none; border: 0; box-shadow: none; border-radius: 0; padding: 0.6rem 0 0.15rem; margin: 0 0 0.75rem; gap: 0.4rem; }
+.subnav + .pill-tabs .pill-btn { flex: 0 0 auto; border: 1px solid var(--border); border-radius: 999px; padding: 0.35rem 0.95rem; font-size: 0.86rem; font-weight: 700; background: var(--surface); color: var(--text-muted); }
+.subnav + .pill-tabs .pill-btn.active { background: var(--text); border-color: var(--text); color: var(--bg); }
+.subnav + .pill-tabs .pill-btn.active::after { display: none; }
+.card { box-shadow: 0 1px 2px rgba(22,33,44,0.05); border-radius: 16px; }
+.moi-jumps { margin-top: -0.2rem; }
+@media (max-width: 959px) {
+  .subnav.main-subnav { box-shadow: 0 0 0 1rem var(--bg); }
+}
+.subnav.main-subnav:has(+ .pill-tabs) .subnav-btn.active { border: 0; border-bottom: 3px solid var(--accent); border-radius: 0; padding-bottom: 0.6rem; margin-bottom: -1px; }
+/* Raccourcis de Bilan : de simples liens, pas une rangée de pastilles de plus. */
+.moi-jumps { gap: 1rem; margin: -0.2rem 0 0.4rem; }
+.moi-jump { border: 0; background: none; padding: 0.2rem 0; color: var(--text-muted); font-size: 0.85rem; font-weight: 700; text-decoration: underline; text-underline-offset: 3px; text-decoration-color: var(--border); }
+.moi-jump:hover { color: var(--accent); }

@@ -4468,7 +4468,7 @@
     var sessions = getDisplaySessions();
     var showRider = selectedRiders.size !== 1;
     var html = '<div class="card sessions-card">';
-    html += '<div class="circuit-head"><h2 class="section-title" style="margin:0;">Historique</h2>';
+    html += '<div class="circuit-head"><h2 class="section-title" style="margin:0;">' + L('Mes chronos', 'My lap times') + '</h2>';
     var record = null;
     sessions.forEach(function (s) {
       var b = sessionBest(s);
@@ -11647,7 +11647,7 @@
   var moiScrollTo = null;
   function renderMoiTab() {
     var rider = !meIsNonRider();
-    var pills = rider ? [['stats', 'Stats'], ['garage', L('Garage', 'Garage')], ['budget', 'Budget']] : [['stats', 'Stats'], ['budget', 'Budget']];
+    var pills = rider ? [['stats', L('Perfs', 'Stats')], ['garage', L('Garage', 'Garage')], ['budget', 'Budget']] : [['stats', L('Perfs', 'Stats')], ['budget', 'Budget']];
     // Liens d'avant (notifications : podium, trophées ; ancienne pastille Budget).
     if (pillState.stats === 'budget') { pillState.moi = 'budget'; pillState.stats = 'records'; }
     if (pillState.stats === 'podium' || pillState.stats === 'trophees') { pillState.moi = 'stats'; moiScrollTo = pillState.stats; pillState.stats = 'records'; }
@@ -14798,8 +14798,8 @@
   }
   function isDesktopNav() { return !!(window.matchMedia && window.matchMedia('(min-width: 960px)').matches); }
   function carnetSubItems() {
-    // 3 onglets : Roulages, Circuits, Moi (stats, garage, budget).
-    var items = [['carnet', L('Roulages', 'Trackdays')], ['circuit', 'Circuits'], ['stats', L('Moi', 'Me')]];
+    // 3 onglets : Roulages, Circuits, Bilan (perfs, garage, budget).
+    var items = [['carnet', L('Roulages', 'Trackdays')], ['circuit', 'Circuits'], ['stats', L('Bilan', 'Progress')]];
     if (currentUserProfile && currentUserProfile.role === 'organisateur') items.unshift(['orgaev', L('Événements', 'Events')]);
     return items;
     // Organisateur : ses événements en premier.
