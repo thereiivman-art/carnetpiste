@@ -5070,3 +5070,30 @@ body.budget-masked .budget-season strong, body.budget-masked .budget-row .carnet
 .gsearch-ico { width: 2.1rem; height: 2.1rem; flex: 0 0 auto; border-radius: 50%; display: grid; place-items: center; background: var(--surface-alt); color: var(--text-muted); }
 .gsearch-main { display: flex; flex-direction: column; min-width: 0; }
 .gsearch-main .help-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.team-year-head { display: flex; align-items: center; justify-content: space-between; gap: 0.6rem; margin-bottom: 0.3rem; } .team-year-head .section-title { margin: 0; } .team-season-btn { border-radius: 999px; padding: 0.35rem 0.85rem; font-weight: 700; font-size: 0.85rem; color: var(--text); }
+.story-play { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 3; width: 72px; height: 72px; min-width: 0; padding: 0; border: 0; border-radius: 50%; display: grid; place-items: center; background: #c8261f; color: #fff; box-shadow: 0 6px 22px rgba(0,0,0,0.4); cursor: pointer; }
+.story-embed { width: 100%; aspect-ratio: 16 / 9; border: 0; border-radius: 12px; background: #000; }
+.story-card.story-photo { position: relative; }
+.story-playing .story-nav { pointer-events: none; }
+/* Ma bulle de story : photo + petit + */
+.story-me { position: relative; flex: 0 0 auto; }
+.story-me-btn { -webkit-touch-callout: none; user-select: none; }
+.story-me-btn.no-story .story-ring { background: var(--border); }
+.story-plus-btn { position: absolute; right: 2px; top: calc(3.6rem - 12px); width: 22px; height: 22px; min-width: 0; padding: 0; border: 2px solid var(--bg); border-radius: 50%; background: var(--accent); color: #fff; font-weight: 800; font-size: 15px; line-height: 1; display: grid; place-items: center; cursor: pointer; z-index: 2; }
+/* Colonne de droite : À venir / Passés, tuiles compactes */
+.rail-mode { display: inline-flex; gap: 0.8rem; }
+.rail-mode button { border: 0; background: none; padding: 0; font: inherit; font-weight: 700; color: var(--text-muted); cursor: pointer; }
+.rail-mode button.on { color: var(--text); text-decoration: underline; text-decoration-color: var(--accent); text-decoration-thickness: 2px; text-underline-offset: 4px; }
+.rail-tile { gap: 0.35rem; }
+.rt-top { display: flex; align-items: center; gap: 0.5rem; width: 100%; min-width: 0; }
+.rt-top .outing-thumb { width: 36px; height: 36px; flex: 0 0 auto; }
+.rt-id { display: flex; flex-direction: column; min-width: 0; }
+.rt-id strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rt-dates { font-size: 0.8rem; }
+.rt-who { display: flex; align-items: center; gap: 0.45rem; min-width: 0; width: 100%; }
+.rt-who .rail-faces { margin-top: 0; flex: 0 0 auto; }
+.rt-names { font-size: 0.78rem; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+/* PC : champ de recherche dans la barre de gauche, résultats à côté */
+.gsearch-inline { display: flex; align-items: center; gap: 0.7rem; width: 100%; padding: 0.35rem 0.6rem 0.35rem 0.85rem; border: 1.5px solid var(--accent); border-radius: 12px; background: var(--surface); color: var(--text-muted); }
+.gsearch-inline input { flex: 1; min-width: 0; border: 0; background: none; padding: 0.35rem 0; font: inherit; font-size: 0.95rem; color: var(--text); outline: none; box-shadow: none; }
+.gsearch-pop { position: fixed; z-index: 80; width: 380px; max-height: min(70vh, 560px); overflow-y: auto; padding: 0.7rem; background: var(--surface); border: 1px solid var(--border); border-radius: 14px; box-shadow: 0 12px 40px rgba(0,0,0,0.18); display: flex; flex-direction: column; gap: 0.7rem; }

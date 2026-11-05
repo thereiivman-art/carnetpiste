@@ -7988,7 +7988,7 @@
         '<button type="button" class="ghost" data-action="map-open" data-mode="draw" title="' + escapeHtml(L('Dessin à main levée', 'Freehand drawing')) + '"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M14 6l4 4"/></svg>' + L('Dessin', 'Draw') + '</button>' +
         '<button type="button" class="ghost" data-action="map-open" data-mode="pins" title="' + escapeHtml(L('Repères pro', 'Pro marks')) + '"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-6-5.6-6-11a6 6 0 0 1 12 0c0 5.4-6 11-6 11z"/><circle cx="12" cy="10" r="2.3"/></svg>' + L('Repères', 'Marks') + '</button>' +
         // Spots photo (accompagnants, photographes) : tout public ou accès pro.
-        (meIsNonRider() || isAdmin() || (circuitInfo(selectedCircuit).photoSpots || []).length ? '<button type="button" class="ghost" data-action="photo-spots" title="' + escapeHtml(L('Spots photo du circuit', 'Circuit photo spots')) + '"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>' + L('Photo', 'Photo') + '</button>' : '') + lapVideoLinkHtml(selectedCircuit) + '</div>';
+        (meIsNonRider() || isAdmin() || (circuitInfo(selectedCircuit).photoSpots || []).length ? '<button type="button" class="ghost" data-action="photo-spots" title="' + escapeHtml(L('Spots photo du circuit', 'Circuit photo spots')) + '"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>' + L('Spots photo', 'Photo spots') + '</button>' : '') + lapVideoLinkHtml(selectedCircuit) + '</div>';
       var nNotes = myTrackNotes(selectedCircuit).length;
       // PC large : les repères à droite de la carte (voir style.css).
       html += '<div class="circuit-plan-wrap"><div class="circuit-plan-map">' + renderCircuitInfoCard('plan') + '</div>' +
@@ -14921,25 +14921,38 @@
         '<button type="button" class="rail-next" data-open-outing="' + escapeHtml(next.circuit) + '" data-outing-date="' + escapeHtml(next.dateStart) + '" data-outing-event="' + escapeHtml(next.id) + '">' +
         '<span class="outing-thumb">' + circuitThumbHtml(next.circuit) + '</span><span><strong>' + escapeHtml(next.circuit) + ' <span class="feed-upcoming-j">' + countdownLabel(days) + '</span></strong><span class="help-text">' + escapeHtml(formatEventRange(next, true)) + '</span></span></button></div>';
     }
-    // Grille de rappels : mes autres roulages à venir et ceux de mes amis.
+    // Grille de rappels : mes roulages et ceux de mes amis, à venir ou passés.
     var today0 = dateKey(new Date()), tiles = [], seenEv = {};
-    if (next) seenEv[next.id] = 1;
-    (typeof myUpcomingEvents === 'function' ? myUpcomingEvents() : []).slice(1, 40).forEach(function (ev) { seenEv[ev.id] = 1; tiles.push({ ev: ev, mine: true, who: [] }); });
+    var meN = me.name, frN = friendsOf(meN).map(function (f) { return f.name; });
+    if (railEvMode === 'passes') {
+      eventsList().filter(function (ev) { return (ev.dateEnd || ev.dateStart) < today0; }).forEach(function (ev) {
+        var who = (ev.riders || []).filter(function (n) { return frN.indexOf(n) !== -1; }), mine = (ev.riders || []).indexOf(meN) !== -1;
+        if (mine || who.length) tiles.push({ ev: ev, mine: mine, who: who });
+      });
+      tiles.sort(function (a, b) { return a.ev.dateStart < b.ev.dateStart ? 1 : -1; });
+    } else {
+      if (next) seenEv[next.id] = 1;
+      (typeof myUpcomingEvents === 'function' ? myUpcomingEvents() : []).slice(1, 40).forEach(function (ev) { seenEv[ev.id] = 1; tiles.push({ ev: ev, mine: true, who: [] }); });
     friendsUpcoming(365).forEach(function (x) { x = { ev: x.ev, mine: x.mine, friends: x.friends.concat(x.companions) }; if (seenEv[x.ev.id] && !x.friends.length) return; if (seenEv[x.ev.id]) { tiles.forEach(function (t) { if (t.ev.id === x.ev.id) t.who = x.friends; }); return; } seenEv[x.ev.id] = 1; tiles.push({ ev: x.ev, mine: x.mine, who: x.friends.concat(x.companions) }); });
+      tiles.sort(function (a, b) { return a.ev.dateStart < b.ev.dateStart ? -1 : 1; });
+    }
     // 5 par page, petites flèches rouges pour voir les suivants.
-    tiles = tiles.sort(function (a, b) { return a.ev.dateStart < b.ev.dateStart ? -1 : 1; });
     var evPages = Math.max(1, Math.ceil(tiles.length / RAIL_EV_PER_PAGE));
     if (railEvPage >= evPages) railEvPage = evPages - 1;
     var evNav = evPages > 1 ? '<span class="rail-pager"><button type="button" class="rail-arrow" data-rail-ev="-1"' + (railEvPage === 0 ? ' disabled' : '') + ' aria-label="' + escapeHtml(L('Précédents', 'Previous')) + '">‹</button><span class="help-text">' + (railEvPage + 1) + '/' + evPages + '</span><button type="button" class="rail-arrow" data-rail-ev="1"' + (railEvPage >= evPages - 1 ? ' disabled' : '') + ' aria-label="' + escapeHtml(L('Suivants', 'Next')) + '">›</button></span>' : '';
     tiles = tiles.slice(railEvPage * RAIL_EV_PER_PAGE, (railEvPage + 1) * RAIL_EV_PER_PAGE);
-    if (tiles.length) h += '<div class="rail-section"><div class="rail-title rail-title-row">' + L('À venir', 'Coming up') + evNav + '</div><div class="rail-grid">' + tiles.map(function (t) {
-      var d = Math.max(0, Math.round((parseLocalDate(t.ev.dateStart) - parseLocalDate(today0)) / 86400000));
+    var evToggle = '<span class="rail-mode"><button type="button" class="' + (railEvMode !== 'passes' ? 'on' : '') + '" data-rail-mode="avenir">' + L('À venir', 'Upcoming') + '</button><button type="button" class="' + (railEvMode === 'passes' ? 'on' : '') + '" data-rail-mode="passes">' + L('Passés', 'Past') + '</button></span>';
+    h += '<div class="rail-section"><div class="rail-title rail-title-row">' + evToggle + evNav + '</div>' + (tiles.length ? '<div class="rail-grid">' + tiles.map(function (t) {
+      var d = Math.round((parseLocalDate(t.ev.dateStart) - parseLocalDate(today0)) / 86400000);
+      t.who = t.who.filter(function (n) { return !!String(n || '').trim(); });
+      var who = (t.mine ? [L('Toi', 'You')] : []).concat(t.who);
       return '<button type="button" class="rail-tile" data-open-outing="' + escapeHtml(t.ev.circuit) + '" data-outing-date="' + escapeHtml(t.ev.dateStart) + '" data-outing-event="' + escapeHtml(t.ev.id) + '">' +
-        '<span class="outing-thumb">' + circuitThumbHtml(t.ev.circuit) + '</span><strong>' + escapeHtml(t.ev.circuit) + '</strong>' +
-        '<span class="feed-upcoming-j">' + countdownLabel(d) + '</span>' +
-        '<span class="help-text">' + escapeHtml(t.mine ? L('Tu y vas', 'You\'re going') + (t.who.length ? ' · ' + t.who.slice(0, 2).join(', ') : '') : t.who.slice(0, 2).join(', ') + (t.who.length > 2 ? ' +' + (t.who.length - 2) : '')) + '</span>' +
-        (t.who.length ? '<span class="rail-faces">' + t.who.slice(0, 4).map(function (n) { return avatarHtml((STATE.usersByName || {})[n] || {}, n); }).join('') + '</span>' : '') + '</button>';
-    }).join('') + '</div></div>';
+        '<span class="rt-top"><span class="outing-thumb">' + circuitThumbHtml(t.ev.circuit) + '</span><span class="rt-id"><strong>' + escapeHtml(t.ev.circuit) + '</strong>' +
+        (d >= 0 ? '<span class="feed-upcoming-j">' + countdownLabel(d) + '</span>' : '') + '</span></span>' +
+        '<span class="help-text rt-dates">' + escapeHtml(formatEventRange(t.ev, true)) + '</span>' +
+        (who.length ? '<span class="rt-who">' + (t.who.length ? '<span class="rail-faces">' + t.who.slice(0, 3).map(function (n) { return avatarHtml((STATE.usersByName || {})[n] || {}, n); }).join('') + '</span>' : '') +
+          '<span class="rt-names">' + escapeHtml(who.slice(0, 3).join(', ') + (who.length > 3 ? ' +' + (who.length - 3) : '')) + '</span></span>' : '') + '</button>';
+    }).join('') + '</div>' : '<div class="help-text">' + (railEvMode === 'passes' ? L('Aucun roulage passé.', 'No past trackday.') : L('Aucun roulage à venir.', 'No upcoming trackday.')) + '</div>') + '</div>';
     var sug = followSuggestions(me.name, 5);
     if (sug.length) {
       h += '<div class="rail-section"><div class="rail-title">' + L('Pilotes à suivre', 'Riders to follow') + '</div>' + sug.map(function (sg) {
@@ -14964,7 +14977,7 @@
     h += '<div class="rail-foot help-text">' + L('Carnet Piste', 'Pitbook') + ' · <button type="button" class="link-btn" data-action="open-legal" data-kind="privacy">' + L('Confidentialité', 'Privacy') + '</button></div>';
     return h + '</aside>';
   }
-  var RAIL_EV_PER_PAGE = 5, railEvPage = 0;
+  var RAIL_EV_PER_PAGE = 6, railEvPage = 0, railEvMode = 'avenir';
   function renderBottomNav() {
     // Nom de l'app en haut de la barre de gauche (PC) : à côté de la barre,
     // pas dedans, pour ne pas décaler l'ordre de ses boutons.
@@ -19194,7 +19207,7 @@
   // Lecteur dans le post : l'iframe vit hors de la page (calque posé pile
   // sur l'emplacement du post et qui le suit), donc les mises à jour du fil
   // ne coupent plus la vidéo. Disparaît si le post n'est plus à l'écran.
-  var inlinePlayer = null;
+  var inlinePlayer = null, teamSeasonScroll = false;
   function stopInlinePlayer() {
     if (!inlinePlayer) return;
     clearInterval(inlinePlayer.timer);
@@ -19226,13 +19239,9 @@
   }
   window.addEventListener('resize', positionInlinePlayer);
   // ---- Recherche dans toute l'appli (façon Discord : Ctrl/Cmd + K) ----
-  function openGlobalSearch() {
-    var me = currentUserProfile; if (!me) return;
-    var ov = openMiniSheet('<h2 class="section-title">' + L('Rechercher', 'Search') + '</h2>' +
-      '<input type="search" id="gsearch-q" placeholder="' + escapeHtml(L('Pilote, team, circuit, roulage, publication…', 'Rider, team, circuit, trackday, post…')) + '" autocomplete="off">' +
-      '<div class="gsearch-results" id="gsearch-results"><div class="help-text">' + L('Tape au moins 2 lettres.', 'Type at least 2 letters.') + '</div></div>');
-    ov.querySelector('.mini-sheet').classList.add('gsearch-sheet');
-    var q = ov.querySelector('#gsearch-q'), box = ov.querySelector('#gsearch-results');
+  // Résultats de recherche (partagés : fenêtre sur téléphone, champ dans la
+  // barre de gauche sur PC). Renvoie le HTML et les actions de chaque ligne.
+  function gsearchBuild(qText) {
     var norm = function (x) { return String(x || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, ''); };
     var ICO = { person: '<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/>', team: '<circle cx="8" cy="9" r="3"/><circle cx="16" cy="9" r="3"/><path d="M2 20c0-3 2.7-5 6-5s6 2 6 5M14 15c3.3 0 6 2 6 5"/>',
       circuit: '<path d="M4 15c0-5 4-9 8-9 3 0 5 2 5 4s-2 3-4 3-3 2-1 4 6 1 8-2"/>', event: '<rect x="4" y="5" width="16" height="15" rx="2"/><path d="M8 3v4M16 3v4M4 10h16"/>', post: '<path d="M4 5h16v11H9l-5 4z"/>' };
@@ -19240,31 +19249,70 @@
     var acts = [];
     var row = function (k, label, sub, fn) { acts.push(fn); return '<button type="button" class="gsearch-row" data-gs="' + (acts.length - 1) + '">' + ico(k) + '<span class="gsearch-main"><strong>' + escapeHtml(label) + '</strong>' + (sub ? '<span class="help-text">' + escapeHtml(sub) + '</span>' : '') + '</span></button>'; };
     var group = function (title, rows) { return rows.length ? '<div class="gsearch-group"><div class="gsearch-title">' + title + '</div>' + rows.join('') + '</div>' : ''; };
-    var run = function () {
-      var t = norm(q.value.trim()); acts = [];
-      if (t.length < 2) { box.innerHTML = '<div class="help-text">' + L('Tape au moins 2 lettres.', 'Type at least 2 letters.') + '</div>'; return; }
-      var people = allKnownUserNames().filter(function (n) { return norm(n).indexOf(t) !== -1; }).slice(0, 6).map(function (n) {
-        var u = (STATE.usersByName || {})[n] || {};
-        return row('person', n, roleLabel(u.role) + (u.bike ? ' · ' + u.bike : ''), function () { openPerson(n); });
-      });
-      var teams = (STATE.teams || []).filter(function (tm) { return tm.name && norm(tm.name).indexOf(t) !== -1; }).slice(0, 5).map(function (tm) {
-        return row('team', tm.name, tm.teamPro ? 'Team PRO' : 'Team', function () { expandedTeamId = tm.id; managingEventId = null; activeView = 'team'; personView = null; renderRoot(); window.scrollTo(0, 0); });
-      });
-      var circuits = allCircuits().filter(function (c) { return norm(c).indexOf(t) !== -1; }).slice(0, 6).map(function (c) {
-        return row('circuit', c, countryName((circuitInfo(c) || {}).country || '') || '', function () { selectedCircuit = c; userPickedCircuit = true; activeView = 'circuit'; outingView = null; personView = null; renderRoot(); window.scrollTo(0, 0); });
-      });
-      var today = dateKey(new Date());
-      var events = eventsList().filter(function (ev) { return norm(ev.circuit + ' ' + (ev.title || '') + ' ' + formatEventRange(ev, true)).indexOf(t) !== -1; })
-        .sort(function (a, b) { var fa = (a.dateEnd || a.dateStart) >= today, fb = (b.dateEnd || b.dateStart) >= today; return fa !== fb ? (fa ? -1 : 1) : (fa ? a.dateStart.localeCompare(b.dateStart) : b.dateStart.localeCompare(a.dateStart)); })
-        .slice(0, 6).map(function (ev) { return row('event', ev.circuit, formatEventRange(ev, true) + ((ev.riders || []).length ? ' · ' + plural(ev.riders.length, L('inscrit', 'rider'), L('inscrits', 'riders')) : ''), function () { openOuting(ev.circuit, ev.dateStart, ev.id); }); });
-      var posts = (STATE.wallPosts || []).filter(function (w) { return !w.story && norm((w.text || '') + ' ' + (w.place || '') + ' ' + w.author).indexOf(t) !== -1; })
-        .sort(function (a, b) { return (b.createdAt || 0) - (a.createdAt || 0); }).slice(0, 6)
-        .map(function (w) { return row('post', w.author + (w.place ? ' · ' + w.place : ''), String(w.text || '').slice(0, 90), function () { goToOriginal(w.id, w.author, 'wall'); }); });
-      var html = group(L('Pilotes et membres', 'Riders and members'), people) + group('Teams', teams) + group('Circuits', circuits) + group(L('Roulages', 'Trackdays'), events) + group(L('Publications', 'Posts'), posts);
-      box.innerHTML = html || '<div class="help-text">' + L('Aucun résultat.', 'No result.') + '</div>';
-      box.querySelectorAll('[data-gs]').forEach(function (b) { b.addEventListener('click', function () { var fn = acts[+b.getAttribute('data-gs')]; ov.remove(); profilePanelOpen = false; notificationsPanelOpen = false; fn(); }); });
-    };
-    q.addEventListener('input', run);
+    var t = norm(String(qText || '').trim());
+    if (t.length < 2) return { html: '<div class="help-text">' + L('Tape au moins 2 lettres.', 'Type at least 2 letters.') + '</div>', acts: acts };
+    var people = allKnownUserNames().filter(function (n) { return norm(n).indexOf(t) !== -1; }).slice(0, 6).map(function (n) {
+      var u = (STATE.usersByName || {})[n] || {};
+      return row('person', n, roleLabel(u.role) + (u.bike ? ' · ' + u.bike : ''), function () { openPerson(n); });
+    });
+    var teams = (STATE.teams || []).filter(function (tm) { return tm.name && norm(tm.name).indexOf(t) !== -1; }).slice(0, 5).map(function (tm) {
+      return row('team', tm.name, tm.teamPro ? 'Team PRO' : 'Team', function () { expandedTeamId = tm.id; managingEventId = null; activeView = 'team'; personView = null; renderRoot(); window.scrollTo(0, 0); });
+    });
+    var circuits = allCircuits().filter(function (c) { return norm(c).indexOf(t) !== -1; }).slice(0, 6).map(function (c) {
+      return row('circuit', c, countryName((circuitInfo(c) || {}).country || '') || '', function () { selectedCircuit = c; userPickedCircuit = true; activeView = 'circuit'; outingView = null; personView = null; renderRoot(); window.scrollTo(0, 0); });
+    });
+    var today = dateKey(new Date());
+    var events = eventsList().filter(function (ev) { return norm(ev.circuit + ' ' + (ev.title || '') + ' ' + formatEventRange(ev, true)).indexOf(t) !== -1; })
+      .sort(function (a, b) { var fa = (a.dateEnd || a.dateStart) >= today, fb = (b.dateEnd || b.dateStart) >= today; return fa !== fb ? (fa ? -1 : 1) : (fa ? a.dateStart.localeCompare(b.dateStart) : b.dateStart.localeCompare(a.dateStart)); })
+      .slice(0, 6).map(function (ev) { return row('event', ev.circuit, formatEventRange(ev, true) + ((ev.riders || []).length ? ' · ' + plural(ev.riders.length, L('inscrit', 'rider'), L('inscrits', 'riders')) : ''), function () { openOuting(ev.circuit, ev.dateStart, ev.id); }); });
+    var posts = (STATE.wallPosts || []).filter(function (w) { return !w.story && norm((w.text || '') + ' ' + (w.place || '') + ' ' + w.author).indexOf(t) !== -1; })
+      .sort(function (a, b) { return (b.createdAt || 0) - (a.createdAt || 0); }).slice(0, 6)
+      .map(function (w) { return row('post', w.author + (w.place ? ' · ' + w.place : ''), String(w.text || '').slice(0, 90), function () { goToOriginal(w.id, w.author, 'wall'); }); });
+    var html = group(L('Pilotes et membres', 'Riders and members'), people) + group('Teams', teams) + group('Circuits', circuits) + group(L('Roulages', 'Trackdays'), events) + group(L('Publications', 'Posts'), posts);
+    return { html: html || '<div class="help-text">' + L('Aucun résultat.', 'No result.') + '</div>', acts: acts };
+  }
+  function gsearchFill(box, qText, onPick) {
+    var r = gsearchBuild(qText);
+    box.innerHTML = r.html;
+    box.querySelectorAll('[data-gs]').forEach(function (b) { b.addEventListener('mousedown', function (e) { e.preventDefault(); }); b.addEventListener('click', function () { var fn = r.acts[+b.getAttribute('data-gs')]; onPick(); profilePanelOpen = false; notificationsPanelOpen = false; fn(); }); });
+  }
+  // PC : le bouton « Rechercher » devient un champ, résultats juste à côté.
+  var gsearchInline = { open: false, q: '' };
+  function renderSearchInline() {
+    return '<div class="gsearch-inline"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>' +
+      '<input type="search" id="gsearch-inline-q" value="' + escapeHtml(gsearchInline.q) + '" placeholder="' + escapeHtml(L('Rechercher…', 'Search…')) + '" autocomplete="off"></div>';
+  }
+  function closeSearchInline() { if (!gsearchInline.open) return; gsearchInline.open = false; gsearchInline.q = ''; var pop = document.getElementById('gsearch-pop'); if (pop) pop.remove(); renderRoot(); }
+  function bindSearchInline() {
+    var inp = document.getElementById('gsearch-inline-q');
+    var pop = document.getElementById('gsearch-pop');
+    if (!inp) { if (pop) pop.remove(); return; }
+    if (!pop) { pop = document.createElement('div'); pop.id = 'gsearch-pop'; pop.className = 'gsearch-pop'; document.body.appendChild(pop); }
+    var place = function () { var r = inp.closest('.gsearch-inline').getBoundingClientRect(); pop.style.top = Math.max(12, r.top - 8) + 'px'; pop.style.left = (r.right + 12) + 'px'; };
+    place();
+    var refresh = function () { gsearchInline.q = inp.value; gsearchFill(pop, inp.value, closeSearchInline); pop.hidden = inp.value.trim().length < 2; };
+    refresh();
+    inp.addEventListener('input', refresh);
+    inp.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') closeSearchInline();
+      if (e.key === 'Enter') { var f = pop.querySelector('[data-gs]'); if (f) f.click(); }
+    });
+    if (document.activeElement !== inp) { inp.focus(); try { inp.setSelectionRange(inp.value.length, inp.value.length); } catch (e) {} }
+  }
+  document.addEventListener('mousedown', function (e) {
+    if (!gsearchInline.open) return;
+    if (e.target.closest && (e.target.closest('.gsearch-inline') || e.target.closest('#gsearch-pop'))) return;
+    closeSearchInline();
+  }, true);
+  function openGlobalSearch() {
+    var me = currentUserProfile; if (!me) return;
+    if (isDesktopNav()) { gsearchInline.open = true; renderRoot(); return; }
+    var ov = openMiniSheet('<h2 class="section-title">' + L('Rechercher', 'Search') + '</h2>' +
+      '<input type="search" id="gsearch-q" placeholder="' + escapeHtml(L('Pilote, team, circuit, roulage, publication…', 'Rider, team, circuit, trackday, post…')) + '" autocomplete="off">' +
+      '<div class="gsearch-results" id="gsearch-results"><div class="help-text">' + L('Tape au moins 2 lettres.', 'Type at least 2 letters.') + '</div></div>');
+    ov.querySelector('.mini-sheet').classList.add('gsearch-sheet');
+    var q = ov.querySelector('#gsearch-q'), box = ov.querySelector('#gsearch-results');
+    q.addEventListener('input', function () { gsearchFill(box, q.value, function () { ov.remove(); }); });
     q.addEventListener('keydown', function (e) { if (e.key === 'Enter') { var f = box.querySelector('[data-gs]'); if (f) f.click(); } });
     setTimeout(function () { q.focus(); }, 30);
   }
@@ -19364,19 +19412,7 @@
       var inner = '<strong>' + n + '</strong> ' + (n > 1 ? many : one);
       return mine ? '<button type="button" class="social-count" data-action="open-social" data-list="' + list + '">' + inner + '</button>' : '<span class="social-count">' + inner + '</span>';
     };
-    // Circuits roulés (ou visités pour un accompagnant) et teams : plus
-    // parlant que le nombre de posts, déjà affiché dans « Mes publications ».
-    var uu = (STATE.usersByName || {})[name] || {}, nonRider = uu.role === 'accompagnant' || uu.role === 'organisateur';
-    var nc = 0;
-    try { nc = nonRider ? visitedCircuits(name).length : Object.keys(riderBestsByCircuit(name)).length; } catch (e) {}
-    var tIds = {};
-    (STATE.teams || []).forEach(function (t) { if (t.createdBy === name) tIds[t.id] = 1; });
-    (STATE.allTeamLeaders || []).forEach(function (m) { if (m.name === name) tIds[m.teamId] = 1; });
-    Object.keys(STATE.teamMembersByTeam || {}).forEach(function (tid) { if (membersOfTeam(tid).some(function (m) { return m.name === name; })) tIds[tid] = 1; });
-    var nt = Object.keys(tIds).length;
-    if (mine) nt = Math.max(nt, (STATE.myTeamMemberships || []).length);
-    var plain = function (n, one, many) { return '<span class="social-count"><strong>' + n + '</strong> ' + (n > 1 ? many : one) + '</span>'; };
-    return '<div class="social-counts">' + plain(nc, 'circuit', 'circuits') + (nt ? plain(nt, 'team', 'teams') : '') + (mine ? item(nf, L('ami', 'friend'), L('amis', 'friends'), 'amis') : (friendsOf(currentUserProfile ? currentUserProfile.name : '').some(function (f) { return f.name === name; }) ? '<span class="social-count"><strong>' + L('Ami', 'Friend') + '</strong> ' + L('avec toi', 'with you') + '</span>' : '')) + (hideLists ? '' : item(nfo, L('abonné', 'follower'), L('abonnés', 'followers'), 'abonnes') + item(nfg, L('abonnement', 'following'), L('abonnements', 'following'), 'abonnements')) + '</div>';
+    return '<div class="social-counts">' + (mine ? item(nf, L('ami', 'friend'), L('amis', 'friends'), 'amis') : (friendsOf(currentUserProfile ? currentUserProfile.name : '').some(function (f) { return f.name === name; }) ? '<span class="social-count"><strong>' + L('Ami', 'Friend') + '</strong> ' + L('avec toi', 'with you') + '</span>' : '')) + (hideLists ? '' : item(nfo, L('abonné', 'follower'), L('abonnés', 'followers'), 'abonnes') + item(nfg, L('abonnement', 'following'), L('abonnements', 'following'), 'abonnements')) + '</div>';
   }
   function followBtnHtml(name, small) {
     if (!currentUserProfile || name === currentUserProfile.name) return '';
@@ -19855,6 +19891,7 @@
       // et un bouton « Voir le post » dans la story.
       var vthumb = post.linkUrl && videoEmbedOf(post.linkUrl) ? videoEmbedOf(post.linkUrl).thumb : '';
       var st = { id: genId(), author: me.name, authorUid: myUid(), audience: 'all', story: true, photoURL: post.photoURL || vthumb || 'icons/icon-192.png', fromPost: post.id, createdAt: Date.now() };
+      if (post.linkUrl) st.linkUrl = post.linkUrl;
       if (post.text) st.text = post.text.slice(0, 120);
       STATE.wallPosts = [st].concat(STATE.wallPosts || []);
       db.collection('wallPosts').doc(st.id).set(st).then(function () { awardPneus(10, true); showToast(L('Aussi en story : visible 24 h.', 'Also in your story: visible for 24 h.'), 'success'); }).catch(function (err) { showToast(tr('error_prefix') + ((err && err.message) || err)); });
@@ -20139,9 +20176,20 @@
   }
   function renderStoriesRow(me) {
     var list = storyItems(me);
-    var add = '<button type="button" class="story-bubble story-add" data-action="story-new"><span class="story-ring story-ring-add"><img src="icons/icon-192.png" alt=""><span class="story-plus">+</span></span><span class="story-name">' + L('Ta story', 'Your story') + '</span></button>' +
+    // « Ta story » et « Moi » ne font qu'une bulle : ma photo ouvre ma story
+    // (ou en crée une si je n'en ai pas), le petit + et l'appui long en ajoutent une.
+    var myIdx = -1;
+    list.forEach(function (st, k) { if (myIdx === -1 && !st.teamId && st.who === me.name) myIdx = k; });
+    var meU = (STATE.usersByName || {})[me.name] || me;
+    var myLeft = myIdx !== -1 && list[myIdx].posted ? storyTimeLeft(list[myIdx].at) : '';
+    var add = '<div class="story-me">' +
+      '<button type="button" class="story-bubble story-me-btn' + (myIdx !== -1 && storySeen(list[myIdx]) ? ' seen' : '') + (myIdx === -1 ? ' no-story' : '') + '"' + (myIdx !== -1 ? ' data-action="open-story" data-index="' + myIdx + '"' : ' data-story-me-new="1"') + '>' +
+        '<span class="story-ring' + (myIdx === -1 ? ' story-ring-add' : '') + '">' + avatarHtml(meU, me.name).replace(/ data-person="[^"]*"/, '') + (myLeft ? '<span class="story-left">' + myLeft + '</span>' : '') + '</span>' +
+        '<span class="story-name">' + (myIdx !== -1 ? L('Ma story', 'My story') : L('Ta story', 'Your story')) + '</span></button>' +
+      '<button type="button" class="story-plus-btn" data-action="story-new" aria-label="' + escapeHtml(L('Ajouter à ma story', 'Add to my story')) + '">+</button></div>' +
       '<input type="file" id="story-input" accept="' + (canPostVideoStory() ? 'image/*,video/*' : 'image/*') + '" hidden>';
     return '<div class="stories-row">' + add + list.map(function (st, i) {
+      if (i === myIdx) return '';
       if (st.teamId) {
         var tm = teamById(st.teamId) || { name: 'Team' };
         return '<button type="button" class="story-bubble team-story' + (storySeen(st) ? ' seen' : '') + '" data-action="open-story" data-index="' + i + '"><span class="story-ring">' + teamAvatarHtml(tm) + '</span><span class="story-name">' + escapeHtml(tm.name) + '</span></button>';
@@ -20245,6 +20293,7 @@
     function show() {
       var st = list[i];
       if (!st) return close();
+      ov.classList.remove('story-playing');
       try { localStorage.setItem('cdp-story-' + st.who, String(st.at)); } catch (e) {}
       var u = (STATE.usersByName || {})[st.who] || {}, body;
       var tm = st.teamId ? (teamById(st.teamId) || { name: 'Team' }) : null;
@@ -20324,6 +20373,25 @@
           clearTimeout(timer); timer = setTimeout(function () { if (shownAt === i) { i++; show(); } }, 13000);
         }).catch(function () {});
       } else timer = setTimeout(function () { i++; show(); }, 6000);
+      // Story liée à un post avec une vidéo (YouTube…) : bouton lecture, la
+      // vidéo se lit dans la story et l'avance automatique s'arrête.
+      var srcPost = st.post && st.post.fromPost ? (STATE.wallPosts || []).filter(function (w) { return w.id === st.post.fromPost; })[0] : null;
+      var vlink = (st.post && st.post.linkUrl) || (srcPost && srcPost.linkUrl) || '';
+      var vemb = vlink ? videoEmbedOf(vlink) : null;
+      var scard = ov.querySelector('.story-card.story-photo');
+      if (vemb && scard && !vbox) {
+        var pb = document.createElement('button');
+        pb.type = 'button'; pb.className = 'story-play'; pb.setAttribute('aria-label', L('Lire la vidéo', 'Play video'));
+        pb.innerHTML = '<svg viewBox="0 0 24 24" width="34" height="34" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>';
+        scard.appendChild(pb);
+        pb.addEventListener('click', function (e) {
+          e.stopPropagation(); clearTimeout(timer);
+          var fr = document.createElement('iframe');
+          fr.src = vemb.src; fr.className = 'story-embed'; fr.setAttribute('allow', 'autoplay; encrypted-media; picture-in-picture; fullscreen'); fr.setAttribute('allowfullscreen', '');
+          var im = scard.querySelector('img'); if (im) im.replaceWith(fr); else scard.insertBefore(fr, scard.firstChild);
+          pb.remove(); ov.classList.add('story-playing');
+        });
+      }
     }
     show();
   }
@@ -22106,10 +22174,23 @@
       : '<button type="button" class="primary add-chrono-btn" data-action="team-event-add" data-team="' + escapeHtml(team.id) + '">+ ' + tr('add_event_heading') + '</button>';
     if (!all.length) {
       body += evCard('', '<div class="empty-state">' + tr('no_events_team') + '</div>');
+      return body;
+    }
+    // Comme dans Carnet : À venir / Passés, et les passés rangés par année
+    // avec le résumé de chaque saison.
+    var nUp = ongoing.length + upcoming.length;
+    body += renderSubPillRow('teamev', [['avenir', L('À venir', 'Upcoming') + ' (' + nUp + ')'], ['passes', L('Passés', 'Past') + ' (' + past.length + ')']]);
+    if (pillState.teamev === 'passes') {
+      if (!past.length) body += evCard('', '<div class="help-text">' + L('Pas encore de roulage passé.', 'No past trackday yet.') + '</div>');
+      var byYear = {}, years = [];
+      past.forEach(function (ev) { var y = ev.dateStart.slice(0, 4); if (!byYear[y]) { byYear[y] = []; years.push(y); } byYear[y].push(ev); });
+      years.forEach(function (y) {
+        body += '<div class="card team-card events-list-card"><div class="team-year-head"><h2 class="section-title">' + y + ' <span class="help-text">(' + byYear[y].length + ')</span></h2>' +
+          '<button type="button" class="ghost team-season-btn" data-action="team-season-recap" data-team="' + escapeHtml(team.id) + '" data-year="' + y + '">' + L('Résumé de la saison', 'Season recap') + '</button></div>' +
+          byYear[y].map(eventRow).join('') + '</div>';
+      });
     } else {
-      if (ongoing.length) body += evCard(tr('ongoing_label') + ' (' + ongoing.length + ')', ongoing.map(eventRow).join(''));
-      body += evCard(tr('upcoming_label') + ' (' + upcoming.length + ')', upcoming.length ? upcoming.map(eventRow).join('') : '<div class="help-text">' + tr('nothing_planned') + '</div>');
-      if (past.length) body += evCard(tr('past_label') + ' (' + past.length + ')', past.map(eventRow).join(''));
+      body += evCard('', nUp ? ongoing.concat(upcoming).map(eventRow).join('') : '<div class="help-text">' + tr('nothing_planned') + '</div>');
     }
     return body;
     // Same collapsibleSection style as every other sub-section of this
@@ -22953,7 +23034,7 @@
 
     var html = '';
     // Coaching (avant : un onglet du Carnet) : ici, avec les teams.
-    if (canAccessCoachSpace() && (isAdmin() || featureEnabled('teamsCoaching') || (STATE.myTeamMemberships || []).length > 0)) html += '<button type="button" class="coach-entry" data-view="coach"><span><strong>Coaching</strong><span class="help-text">' + L('Tes coachs, tes séances et tes demandes', 'Your coaches, sessions and requests') + '</span></span><span class="set-chev" aria-hidden="true">›</span></button>';
+    if (!expandedTeamId && canAccessCoachSpace() && (isAdmin() || featureEnabled('teamsCoaching') || (STATE.myTeamMemberships || []).length > 0)) html += '<button type="button" class="coach-entry" data-view="coach"><span><strong>Coaching</strong><span class="help-text">' + L('Tes coachs, tes séances et tes demandes', 'Your coaches, sessions and requests') + '</span></span><span class="set-chev" aria-hidden="true">›</span></button>';
     if (incoming.length) {
       var incomingBody = incoming.map(function (r) {
         return '<div class="friend-row"><div class="friend-row-main"><span class="friend-name-plain">' + escapeHtml((teamById(r.teamId) || {}).name || r.teamName) + '</span> <span class="help-text">' + tr('invited_by') + escapeHtml(r.from) + '</span></div>' +
@@ -23333,6 +23414,8 @@
       markScrollableTabs();
       sanitizeLinks(document.getElementById('root'));
       if (inlinePlayer) positionInlinePlayer();
+      bindSearchInline();
+      if (teamSeasonScroll) { teamSeasonScroll = false; var shero = document.querySelector('#root .season-years, #root .season-hero'); if (shero) setTimeout(function () { shero.scrollIntoView({ block: 'start' }); window.scrollBy(0, -140); }, 0); }
       if (moiScrollTo) { var mst = document.getElementById('moi-' + moiScrollTo); moiScrollTo = null; if (mst) setTimeout(function () { mst.scrollIntoView({ block: 'start' }); }, 0); }
       // Montants du budget floutés (œil) : sur toute page qui montre le budget.
       document.body.classList.toggle('budget-masked', !!document.querySelector('.budget-hide-btn') && budgetHidden());
@@ -23445,7 +23528,7 @@
             '<button type="button" class="header-hello" id="profile-toggle" aria-label="' + L('Ma fiche', 'My page') + '" title="' + L('Ma fiche', 'My page') + '">' + avatarHtml(currentUserProfile, currentUserProfile.name) +
               '<span class="hello-text"><span class="hello-small">Bonjour</span><span class="hello-name">' + escapeHtml(currentUserProfile.firstName || currentUserProfile.name || '') + '</span></span></button>' +
             '<div class="header-controls">' + pneusChipHtml('header-pneus') +
-              '<button type="button" class="header-icon-btn" id="search-toggle" aria-label="' + escapeHtml(L('Rechercher', 'Search')) + '" title="' + escapeHtml(L('Rechercher', 'Search')) + '"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg></button>' +
+              (gsearchInline.open && isDesktopNav() ? renderSearchInline() : '<button type="button" class="header-icon-btn" id="search-toggle" aria-label="' + escapeHtml(L('Rechercher', 'Search')) + '" title="' + escapeHtml(L('Rechercher', 'Search')) + '"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg></button>') +
               '<button type="button" class="header-icon-btn" id="invite-qr-btn" aria-label="Inviter un ami (QR code)" title="Inviter un ami">' +
                 '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3zM20 14v.01M14 20h.01M17 20h4v-3"/></svg></button>' +
               '<button type="button" class="header-icon-btn' + (profilePanelOpen ? ' is-open' : '') + '" id="settings-toggle" aria-label="Mon compte" title="Mon compte">' +
@@ -24797,6 +24880,7 @@
       h.push(b.getAttribute('data-fsug-hide')); try { localStorage.setItem('cdp-friend-sug-hidden', JSON.stringify(h.slice(-200))); } catch (e) {}
       renderRoot();
     }); });
+    document.querySelectorAll('[data-rail-mode]').forEach(function (b) { b.addEventListener('click', function (e) { e.stopPropagation(); railEvMode = b.getAttribute('data-rail-mode'); railEvPage = 0; renderRoot(); }); });
     document.querySelectorAll('[data-rail-ev]').forEach(function (b) { b.addEventListener('click', function (e) { e.stopPropagation(); railEvPage = Math.max(0, railEvPage + Number(b.getAttribute('data-rail-ev'))); renderRoot(); }); });
     document.querySelectorAll('[data-action="pneus-open"]').forEach(function (b) { b.addEventListener('click', function (e) { e.stopPropagation(); openPneusSheet(); }); });
     if (currentUserProfile && !coreDataLoading()) {
@@ -25201,7 +25285,9 @@
           if (go.charAt(0) === '@') { profileSubTab = go.slice(1); settingsSection = null; renderRoot(); window.scrollTo(0, 0); return; }
           settingsSection = go || null; renderRoot(); window.scrollTo(0, 0); return;
         }
-        if (e.target.closest('.back-chevron, .nav-back-btn') && navStack.length) { e.preventDefault(); e.stopPropagation(); navBack(); return; }
+        // Une flèche qui a sa propre action (ex. fermer un team pour revenir à
+        // la liste des teams) la garde ; les autres reviennent en arrière.
+        if (e.target.closest('.back-chevron:not([data-action]), .nav-back-btn') && navStack.length) { e.preventDefault(); e.stopPropagation(); navBack(); return; }
         // Partout dans l'appli : pilote, circuit, team.
         var emf = e.target.closest('.link-player-face[data-embed]');
         if (emf) {
@@ -25215,6 +25301,14 @@
         if (bh) { e.preventDefault(); e.stopPropagation(); try { localStorage.setItem('cdp-budget-hidden', budgetHidden() ? '0' : '1'); } catch (er) {} renderRoot(); return; }
         var mj = e.target.closest('[data-moi-jump]');
         if (mj) { e.preventDefault(); e.stopPropagation(); var t = document.getElementById('moi-' + mj.getAttribute('data-moi-jump')); if (t) t.scrollIntoView({ block: 'start', behavior: 'smooth' }); return; }
+        var tsr = e.target.closest('[data-action="team-season-recap"]');
+        if (tsr) {
+          e.preventDefault(); e.stopPropagation();
+          var tid = tsr.getAttribute('data-team'), tt = teamById(tid);
+          seasonYear['team:' + tid] = tsr.getAttribute('data-year');
+          pillState.team = tt && teamLookFor(tt) ? 'fiche' : 'saisons'; teamSeasonScroll = true;
+          renderRoot(); return;
+        }
         var gst = e.target.closest('#search-toggle');
         if (gst) { e.preventDefault(); e.stopPropagation(); openGlobalSearch(); return; }
         var gn = e.target.closest('[data-action="group-new"]');
@@ -25298,6 +25392,16 @@
     var storyBtn = document.querySelector('[data-action="story-new"]'), storyInput = document.getElementById('story-input');
     if (storyBtn && storyInput) {
       storyBtn.addEventListener('click', function () { storyInput.click(); });
+      var meBubble = document.querySelector('.story-me-btn');
+      if (meBubble) {
+        if (meBubble.hasAttribute('data-story-me-new')) meBubble.addEventListener('click', function () { storyInput.click(); });
+        // Appui long sur ma photo : ajouter une story.
+        var lpTimer = null, lpFired = false;
+        meBubble.addEventListener('pointerdown', function () { lpFired = false; lpTimer = setTimeout(function () { lpFired = true; storyInput.click(); }, 550); });
+        ['pointerup', 'pointerleave', 'pointercancel'].forEach(function (t) { meBubble.addEventListener(t, function () { clearTimeout(lpTimer); }); });
+        meBubble.addEventListener('click', function (e) { if (lpFired) { e.stopImmediatePropagation(); e.preventDefault(); lpFired = false; } }, true);
+        meBubble.addEventListener('contextmenu', function (e) { e.preventDefault(); });
+      }
       storyInput.addEventListener('change', function () {
         var file = storyInput.files && storyInput.files[0];
         storyInput.value = '';
