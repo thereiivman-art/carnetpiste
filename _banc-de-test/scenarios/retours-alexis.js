@@ -29,7 +29,7 @@ const { chromium, BASE } = require('../lib');
   await p.locator('#root [data-open-outing="Barcelone"]:visible').first().click(); await p.waitForTimeout(600);
   await p.click('[data-action="event-chat"]'); await p.waitForTimeout(400);
   await p.fill('#ev-chat-text', 'Qui vient en camion ?'); await p.click('#ev-chat-form button[type="submit"]'); await p.waitForTimeout(500);
-  console.log('message de discussion:', await p.$$eval('#ev-chat-list .dm-bubble', e => e.map(x => x.innerText).join(' | ')), '| stocké:', await p.evaluate(() => Object.values(window.__MOCK_DATA.eventMessages || {}).map(m => m.eventId + ':' + m.text).join()));
+  console.log('message de discussion:', await p.$$eval('#ev-chat-list .dm-bubble', e => e.map(x => x.innerText).join(' | ')), '| stocké:', await p.evaluate(() => Object.keys(window.__MOCK_DATA).filter(k => /^events\/e1\/messages/.test(k)).map(k => Object.values(window.__MOCK_DATA[k]).map(m => m.text).join()).join()));
   await p.screenshot({ path: 'retours-alexis-discussion.png' });
   await p.close();
   // 4. Compte tout neuf : message d'accueil dans la messagerie.

@@ -73,7 +73,10 @@ service cloud.firestore {
         && d.pneus.get('bank', 0) - (('pneus' in before) ? before.pneus.get('bank', 0) : 0) <= 1000
         // Pneus dépensés (cosmétiques achetés) : jamais remboursés.
         && d.pneus.get('spent', 0) is int
-        && d.pneus.get('spent', 0) >= (('pneus' in before) ? before.pneus.get('spent', 0) : 0));
+        && d.pneus.get('spent', 0) >= (('pneus' in before) ? before.pneus.get('spent', 0) : 0)
+        // Un cosmétique de plus seulement en dépensant des pneus.
+        && (d.pneus.get('owned', []).size() <= (('pneus' in before) ? before.pneus.get('owned', []).size() : 0)
+            || d.pneus.get('spent', 0) > (('pneus' in before) ? before.pneus.get('spent', 0) : 0)));
     }
     function onlyOwnKeyChanged(beforeMap, afterMap) {
       return afterMap.diff(beforeMap).affectedKeys().hasOnly([myName()]);
@@ -327,6 +330,24 @@ service cloud.firestore {
     }
     match /events/{id} {
       allow read: if verified();
+      // Discussion du roulage : ses inscrits (pilotes, accompagnants), le
+      // Team Leader de l'organisateur et l'admin, en lecture comme en écriture.
+      function eventChatMember() {
+        return verified() && (isAdmin()
+          || myName() in get(/databases/$(database)/documents/events/$(id)).data.get('riders', [])
+          || (get(/databases/$(database)/documents/events/$(id)).data.get('teamId', null) != null
+              && isTeamLeader(get(/databases/$(database)/documents/events/$(id)).data.teamId)));
+      }
+      match /messages/{mid} {
+        allow read: if eventChatMember();
+        allow create: if realAccount() && eventChatMember()
+          && request.resource.data.keys().hasOnly(['from', 'fromName', 'text', 'createdAt'])
+          && request.resource.data.from == request.auth.uid
+          && request.resource.data.fromName == myName()
+          && request.resource.data.text is string && request.resource.data.text.size() > 0 && request.resource.data.text.size() <= 1000
+          && request.resource.data.createdAt is number;
+        allow delete: if request.auth != null && (resource.data.from == request.auth.uid || isAdmin());
+      }
       // À la création, la liste ne contient que moi (ou personne) : les
       // autres sont invités ensuite.
       allow create: if verified() && (isAdmin() || (
@@ -947,25 +968,6 @@ service cloud.firestore {
           && request.resource.data.createdAt is number;
         allow delete: if request.auth != null && resource.data.from == request.auth.uid;
       }
-    }
-    // Discussion d'un roulage : lue par les comptes vérifiés (comme le
-    // roulage lui-même), écrite par ses pilotes/accompagnants inscrits,
-    // le Team Leader de l'organisateur, ou l'admin.
-    match /eventMessages/{id} {
-      allow read: if verified();
-      allow create: if verified() && realAccount()
-        && request.resource.data.keys().hasOnly(['eventId', 'from', 'fromName', 'text', 'createdAt'])
-        && request.resource.data.from == request.auth.uid
-        && request.resource.data.fromName == myName()
-        && request.resource.data.text is string && request.resource.data.text.size() > 0 && request.resource.data.text.size() <= 1000
-        && request.resource.data.createdAt is number
-        && request.resource.data.eventId is string
-        && exists(/databases/$(database)/documents/events/$(request.resource.data.eventId))
-        && (isAdmin()
-            || myName() in get(/databases/$(database)/documents/events/$(request.resource.data.eventId)).data.get('riders', [])
-            || (get(/databases/$(database)/documents/events/$(request.resource.data.eventId)).data.get('teamId', null) != null
-                && isTeamLeader(get(/databases/$(database)/documents/events/$(request.resource.data.eventId)).data.teamId)));
-      allow delete: if request.auth != null && (resource.data.from == request.auth.uid || isAdmin());
     }
     // Messages à un team : une conversation par pilote et par team. Le
     // pilote écrit en son nom ; seuls les Team Leaders lisent et répondent,

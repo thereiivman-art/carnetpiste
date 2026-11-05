@@ -49,9 +49,7 @@ const { chromium, BASE } = require('../lib');
   await p.click('.pill-btn[data-view="event"]').catch(() => {}); await p.waitForTimeout(300);
   await p.locator('#root :is(button,summary):visible', { hasText: /^(À venir|Upcoming) \(/ }).last().click().catch(() => {}); await p.waitForTimeout(300);
   await p.locator('.event-row:visible', { hasText: /Barcelon/ }).first().click(); await p.waitForTimeout(600);
-  await p.click('[data-action="outing-paddock-qr"]'); await p.waitForTimeout(400);
-  await p.click('[data-qr-group="B"]'); await p.waitForTimeout(300);
-  console.log('QR:', await p.$eval('#paddock-qr-caption', e => e.innerText), '|', await p.$eval('#paddock-qr-link', e => /roulage=e1.*&g=B/.test(e.innerText)));
+  console.log('bouton QR retiré (Inviter suffit):', !(await p.$('[data-action="outing-paddock-qr"]')));
   // Arrivée par un QR (roulage de Carole auquel Alex n'est pas inscrit, groupe B)
   const q = await ctx.newPage(); q.on('pageerror', e => errs.push(e.message));
   await q.goto(BASE + 'index.html?roulage=e9&g=B#lang=' + lang); await q.waitForTimeout(2000);

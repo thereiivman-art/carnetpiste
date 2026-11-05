@@ -31,7 +31,7 @@ const { chromium, BASE } = require('../lib');
   console.log('Sam bientôt:', await p.$$eval('.feed-upcoming-row strong', e => e.map(x => x.innerText).join(', ')));
   // Réglage Vie privée
   await p.click('#settings-toggle'); await p.waitForTimeout(300);
-  await p.click('[data-profile-tab="reglages"]'); await p.waitForTimeout(300);
+  await p.click('[data-settings-go="@reglages"]', { timeout: 1500 }).catch(() => {}); await p.waitForTimeout(300);
   await p.click('[data-settings-go="confidentialite"]'); await p.waitForTimeout(300);
   await p.selectOption('#profile-share-upcoming', 'public'); await p.waitForTimeout(500);
   console.log('réglage stocké:', await p.evaluate(() => window.__MOCK_DATA.users.u1.shareUpcoming));

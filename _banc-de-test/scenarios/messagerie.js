@@ -38,7 +38,7 @@ const { chromium, BASE } = require('../lib');
   console.log('nouveau message, Tom proposé (refuse tout):', await p.$$eval('[data-dm-pick]', e => e.some(x => x.getAttribute('data-dm-pick') === 'Tom')), '| Sam proposé:', await p.$$eval('[data-dm-pick]', e => e.some(x => x.getAttribute('data-dm-pick') === 'Sam')));
   await p.click('[data-mini-close]'); await p.waitForTimeout(200);
   await p.click('#settings-toggle'); await p.waitForTimeout(400);
-  await p.click('[data-profile-tab="reglages"]'); await p.waitForTimeout(300);
+  await p.click('[data-settings-go="@reglages"]', { timeout: 1500 }).catch(() => {}); await p.waitForTimeout(300);
   await p.click('[data-settings-go="confidentialite"]').catch(() => {}); await p.waitForTimeout(300);
   await p.selectOption('#dm-policy', 'followers'); await p.waitForTimeout(400);
   console.log('réglage enregistré:', await p.evaluate(() => firebase.firestore().collection('users').doc(firebase.auth().currentUser.uid).get().then(d => d.data().dmPolicy)));

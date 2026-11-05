@@ -13,7 +13,7 @@ const { chromium, BASE } = require('../lib');
   await p.click('.settings-back'); await p.waitForTimeout(300);
   console.log('liste revenue:', !!(await p.$('#settings-search')));
   await p.click('[data-settings-go="@aide"]'); await p.waitForTimeout(300);
-  console.log('onglet Aide:', await p.$eval('.profile-tab-btn.active', e => e.innerText));
+  console.log('page Aide:', await p.$eval('.settings-page-head .section-title', e => e.innerText));
   // Fiche : Modifier dans Social.
   await p.click('#profile-toggle'); await p.waitForTimeout(500);
   await p.click('[data-action="look-edit"]'); await p.waitForTimeout(400);

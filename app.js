@@ -4652,6 +4652,7 @@
   }
   // PC : sous-menus de Mon compte, sous son bouton dans la barre de gauche.
   function accountNavHtml() {
+    return ''; // la liste des Réglages remplace les sous-menus
     if (!profilePanelOpen || !(window.matchMedia && window.matchMedia('(min-width: 960px)').matches)) return '';
     var items = [];
     profileTabList().forEach(function (t) {
@@ -5225,7 +5226,11 @@
     // Réglages -> Compte.
     var html = '<div class="profile-panel">';
     html += '<div class="section-heading"><span class="section-heading-kerb" aria-hidden="true"></span><h1 class="section-heading-title">' + tr('my_profile_label') + '</h1></div>';
-    html += renderProfileTabBar();
+    // Plus de barre d'onglets : tout part de la liste des Réglages ; les
+    // autres pages ont une flèche de retour vers cette liste.
+    var subTitles = { compte: L('Compte', 'Account'), plus: 'Carnet+', audience: L('Audience', 'Audience'), aide: tr('tab_aide'), suggestion: tr('tab_suggestion') };
+    if (profileSubTab === 'parrainage' || profileSubTab === 'moto' || profileSubTab === 'profil') profileSubTab = 'compte';
+    if (profileSubTab !== 'reglages' && subTitles[profileSubTab]) html += '<div class="settings-page-head"><button type="button" class="back-chevron settings-back" data-settings-go="@reglages" aria-label="' + escapeHtml(L('Retour', 'Back')) + '">‹</button><h2 class="section-title">' + subTitles[profileSubTab] + '</h2></div>';
     html += '<div class="profile-tab-body">';
     // Profil et Compte fusionnés sous « Compte ».
     if (profileSubTab === 'parrainage' || profileSubTab === 'moto' || profileSubTab === 'profil') profileSubTab = 'compte';
@@ -10608,7 +10613,7 @@
       if (isRiderHere || leaderHere || isAdmin()) acts += '<button type="button" class="ghost" data-action="event-chat" data-id="' + escapeHtml(ev.id) + '">' + L('Discussion', 'Chat') + '</button>';
       if ((isRiderHere || leaderHere) && status !== 'terminee') acts += '<button type="button" class="ghost" data-action="share-roulage" data-id="' + escapeHtml(ev.id) + '">' + L('Inviter', 'Invite') + '</button>';
       // QR paddock : à afficher au paddock, on scanne et on rejoint (avec son groupe).
-      if ((leaderHere || (!ev.teamId && isRiderHere)) && status !== 'terminee') acts += '<button type="button" class="ghost" data-action="outing-paddock-qr" data-id="' + escapeHtml(ev.id) + '">QR</button>';
+      // QR paddock retiré : « Inviter » fait la même chose.
       if (!ev.teamId && (isRiderHere || isAdmin())) acts += '<button type="button" class="ghost" id="edit-event-btn" data-id="' + escapeHtml(ev.id) + '">' + tr('modify') + '</button>';
       html += '<div class="outing-actions">' + acts + '</div>';
       if (status !== 'terminee') html += addToCalendarLink(ev);
@@ -11369,7 +11374,7 @@
       }).join('') : '<div class="help-text dm-empty">' + L('Pas encore de message. Lance la discussion : horaires, covoiturage, place au paddock…', 'No message yet. Start the chat: times, car sharing, paddock spot…') + '</div>';
       list.scrollTop = list.scrollHeight;
     };
-    var unsub = db.collection('eventMessages').where('eventId', '==', id).onSnapshot(function (snap) {
+    var unsub = db.collection('events').doc(id).collection('messages').onSnapshot(function (snap) {
       if (!document.body.contains(ov)) { unsub(); return; }
       msgs = snap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); });
       draw();
@@ -11380,10 +11385,10 @@
     ov.querySelector('#ev-chat-form').addEventListener('submit', function (e) {
       e.preventDefault();
       var text = ta.value.trim().slice(0, 1000); if (!text) return;
-      var msg = { eventId: id, from: myUid(), fromName: me.name, text: text, createdAt: Date.now() };
+      var msg = { from: myUid(), fromName: me.name, text: text, createdAt: Date.now() };
       ta.value = '';
       msgs.push(Object.assign({ id: 'tmp' }, msg)); draw();
-      db.collection('eventMessages').doc(genId()).set(msg).catch(function (err) { showToast(tr('error_prefix') + ((err && err.message) || err)); });
+      db.collection('events').doc(id).collection('messages').doc(genId()).set(msg).catch(function (err) { showToast(tr('error_prefix') + ((err && err.message) || err)); });
     });
   }
   function openAlbumsSheet(id) {
@@ -18160,6 +18165,7 @@
   // Cosmétiques façon Discord : rien d'utile, juste montrer qu'on est actif.
   var PNEUS_FRAMES = function () { return [['carbone', L('Carbone', 'Carbon'), 250], ['or', L('Or', 'Gold'), 500], ['damier', L('Damier', 'Chequered'), 900], ['flamme', L('Flammes', 'Flames'), 1400]]; };
   // Couleurs foncées : texte blanc toujours lisible (contraste ≥ 4,5:1).
+  var PNEUS_BFRAMES = function () { return [['carbone', L('Carbone', 'Carbon'), 300], ['or', L('Or', 'Gold'), 600], ['damier', L('Damier', 'Chequered'), 1000], ['neon', L('Néon', 'Neon'), 1500]]; };
   var PNEUS_BUBBLES = function () { return [['#1f4fb8', L('Bleu', 'Blue'), 450], ['#23702d', L('Vert', 'Green'), 450], ['#14161a', L('Encre', 'Ink'), 450], ['#6b3fc4', L('Violet', 'Purple'), 600], ['#8a6a12', L('Or', 'Gold'), 900]]; };
   function cosmeticOk(list, key) { return list.some(function (o) { return o[0] === key; }); }
   // Bulle de message aux couleurs de son auteur (débloquée).
@@ -18217,7 +18223,7 @@
   // o: { backAttr, outline, plateHtml, avatar, nameHtml, subHtml, bio, acts }
   function renderLookHero(l, o) {
     var coverInner = l.cover === 'photo' && l.coverPhoto ? '<img class="ph-photo" src="' + escapeHtml(l.coverPhoto) + '" alt="">' : (o.outline ? '<img class="ph-trace" src="' + escapeHtml(o.outline) + '" alt="">' : '');
-    return '<div class="card person-hero" data-cover="' + escapeHtml(l.cover === 'photo' && !l.coverPhoto ? 'vibreur' : (l.cover || 'none')) + '" data-plate="' + escapeHtml(l.plate || '') + '" style="' + lookStyle(l) + '">' +
+    return '<div class="card person-hero" data-cover="' + escapeHtml(l.cover === 'photo' && !l.coverPhoto ? 'vibreur' : (l.cover || 'none')) + '" data-plate="' + escapeHtml(l.plate || '') + '"' + (l.bannerFrame && cosmeticOk(PNEUS_BFRAMES(), l.bannerFrame) ? ' data-bframe="' + l.bannerFrame + '"' : '') + ' style="' + lookStyle(l) + '">' +
       '<div class="ph-cover"' + (o.ownCover ? ' data-own-cover="1" role="button" tabindex="0" aria-label="' + escapeHtml(L('Bannière : agrandir, recadrer ou changer', 'Banner: enlarge, crop or change')) + '"' : '') + '>' + coverInner + '<button type="button" class="back-chevron ph-back" ' + o.backAttr + ' aria-label="' + L('Retour', 'Back') + '">‹</button>' + (o.plateHtml || '') + '</div>' +
       '<div class="ph-body"><div class="ph-id"><span class="person-avatar ph-avatar">' + o.avatar + '</span>' +
       '<span class="person-id"><strong class="person-name">' + o.nameHtml + '</strong><span class="help-text">' + o.subHtml + '</span></span>' + (o.idExtra || '') + '</div>' +
@@ -18524,6 +18530,7 @@
     if (!team) {
       html += '<div class="look-field look-unlocks"><span class="look-label">' + L('À débloquer avec tes pneus', 'Unlock with your tyres') + ' <span class="help-text">· ' + L('solde ', 'balance ') + pneusBalance() + '</span></span>' +
         '<div class="help-text">' + L('Juste pour le style : ça montre que tu es actif dans la communauté.', 'Just for style: it shows you\'re active in the community.') + '</div>' +
+        '<span class="look-sub">' + L('Cadre de ta bannière', 'Banner frame') + '</span>' + unlockChips('bannerFrame', PNEUS_BFRAMES(), d.bannerFrame, null, L('Cadre de bannière', 'Banner frame')) +
         '<span class="look-sub">' + L('Cadre de ta photo de profil', 'Profile photo frame') + '</span>' + unlockChips('frame', PNEUS_FRAMES(), d.frame, null, L('Cadre', 'Frame')) +
         '<span class="look-sub">' + L('Couleur de tes bulles de message', 'Your message bubble colour') + '</span>' + unlockChips('bubble', PNEUS_BUBBLES(), d.bubble, function (o) { return '<span class="bub-dot" style="background:' + o[0] + '"></span>' + escapeHtml(o[1]); }, L('Bulles', 'Bubbles')) +
         '<div class="help-text">' + L('Couleurs et bannières (Carbone, Damier animé, Piste de nuit) : touche ta bannière sur la fiche.', 'Colours and banners (Carbon, Waving flag, Night track): tap your banner on your profile.') + '</div></div>';
@@ -18609,7 +18616,7 @@
       links: (l.links || []).slice(), sponsors: (l.sponsors || []).slice(),
       show: Object.assign({}, l.show || {}), favCircuits: (l.favCircuits || []).slice(), favTeams: (l.favTeams || []).slice(), favFriends: (l.favFriends || []).slice(),
       // Identité : modifiée ici aussi (la fiche se règle entièrement dans Social).
-      frame: l.frame || '', bubble: l.bubble || '',
+      frame: l.frame || '', bubble: l.bubble || '', bannerFrame: l.bannerFrame || '',
       id: { firstName: me.firstName || '', lastName: me.lastName || '', nationality: me.nationality || '', bike: me.bike || '', bikeNumber: me.bikeNumber || '' } };
     lookMessage = '';
     lookPendingLogo = null;
@@ -18640,7 +18647,7 @@
       featured: lookDraft.featured || '', pinned: (lookDraft.pinned || []).slice(0, 3),
       links: (lookDraft.links || []).slice(0, 6), sponsors: (lookDraft.sponsors || []).slice(0, 6),
       show: lookDraft.show || {}, favCircuits: (lookDraft.favCircuits || []).slice(0, 3), favTeams: (lookDraft.favTeams || []).slice(0, 3), favFriends: (lookDraft.favFriends || []).slice(0, 5), coverPhoto: lookDraft.coverPhoto || null,
-      frame: cosmeticOk(PNEUS_FRAMES(), lookDraft.frame) ? lookDraft.frame : '', bubble: cosmeticOk(PNEUS_BUBBLES(), lookDraft.bubble) ? lookDraft.bubble : ''
+      frame: cosmeticOk(PNEUS_FRAMES(), lookDraft.frame) ? lookDraft.frame : '', bannerFrame: cosmeticOk(PNEUS_BFRAMES(), lookDraft.bannerFrame) ? lookDraft.bannerFrame : '', bubble: cosmeticOk(PNEUS_BUBBLES(), lookDraft.bubble) ? lookDraft.bubble : ''
     };
     // Identité saisie dans l'éditeur.
     var idPatch = null;
@@ -19142,6 +19149,7 @@
   // Lien vidéo dans un post : lecteur dans l'appli (YouTube, Vimeo,
   // Dailymotion). Miniature d'abord, le lecteur ne charge qu'au toucher.
   function videoEmbedOf(url) {
+    if (!/^https:\/\/[^\s"'<>]+$/i.test(String(url || ''))) return null; // https seulement (jamais javascript:)
     var m = String(url || '').match(/(?:youtube\.com\/(?:watch\?(?:.*&)?v=|shorts\/|live\/|embed\/)|youtu\.be\/)([\w-]{11})/);
     if (m) return { src: 'https://www.youtube-nocookie.com/embed/' + m[1] + '?autoplay=1&playsinline=1&rel=0', thumb: 'https://img.youtube.com/vi/' + m[1] + '/hqdefault.jpg', name: 'YouTube', tall: /shorts\//.test(url) };
     m = String(url || '').match(/vimeo\.com\/(?:video\/)?(\d{5,})/);
@@ -19507,7 +19515,7 @@
     var p = pneusState(), me = currentUserProfile, l = (me && me.look) || {};
     if (p && (p.owned || []).indexOf(key) !== -1) return true;
     var k = key.split(':'), v = k.slice(1).join(':');
-    return (k[0] === 'color' && l.color === v) || (k[0] === 'cover' && l.cover === v) || (k[0] === 'frame' && l.frame === v) || (k[0] === 'bubble' && l.bubble === v);
+    return (k[0] === 'color' && l.color === v) || (k[0] === 'cover' && l.cover === v) || (k[0] === 'frame' && l.frame === v) || (k[0] === 'bubble' && l.bubble === v) || (k[0] === 'bannerFrame' && l.bannerFrame === v);
   }
   // Bouton d'achat d'un cosmétique (prix en pneus).
   function pneusBuyAttrs(key, price, label) { return ' data-pneus-buy="' + escapeHtml(key) + '" data-price="' + price + '" data-label="' + escapeHtml(label) + '"'; }
@@ -19680,7 +19688,7 @@
           '<li>' + L('Parrainage : +100 par ami inscrit avec ton lien, +1000 au 5e filleul.', 'Referrals: +100 per mate who signs up with your link, +1000 at the 5th.') + '</li>' +
           '<li>' + L('Profil : +5 par élément rempli (présentation, sponsors, bannière, photo, moto, numéro, pays, liens).', 'Profile: +5 per filled item (bio, sponsors, banner, photo, bike, number, country, links).') + '</li>' +
           '<li>' + L('Trophées : 10, 25, 50, 100, 200 puis 400 par niveau.', 'Trophies: 10, 25, 50, 100, 200 then 400 per level.') + '</li>' +
-          '<li>' + L('À dépenser (juste pour le style) : couleurs de bannière (150 à 1000), cadres de photo de profil (250 à 1400), couleur des bulles de message (450 à 900), bannières Carbone (800), Damier animé (1100) et Piste de nuit (1600). Un achat est gardé pour toujours. Touche un choix verrouillé sur ta fiche pour l\'acheter.', 'To spend (just for style): banner colours (150 to 1000), profile photo frames (250 to 1400), message bubble colour (450 to 900), Carbon (800), Waving flag (1100) and Night track (1600) banners. A purchase is yours for good. Tap a locked choice on your profile to buy it.') + '</li>' +
+          '<li>' + L('À dépenser (juste pour le style) : couleurs de bannière (150 à 1000), cadres de bannière (300 à 1500), cadres de photo de profil (250 à 1400), couleur des bulles de message (450 à 900), bannières Carbone (800), Damier animé (1100) et Piste de nuit (1600). Un achat est gardé pour toujours. Touche un choix verrouillé sur ta fiche pour l\'acheter.', 'To spend (just for style): banner colours (150 to 1000), banner frames (300 to 1500), profile photo frames (250 to 1400), message bubble colour (450 to 900), Carbon (800), Waving flag (1100) and Night track (1600) banners. A purchase is yours for good. Tap a locked choice on your profile to buy it.') + '</li>' +
         '</ul></details>' +
         (board.length > 1 ? '<div class="pneus-board"><strong>' + L('Classement entre amis', 'Friends leaderboard') + '</strong>' + shownBoard.map(function (r) {
           return '<div class="pneus-row' + (r.n === me.name ? ' me' : '') + '"><span class="pneus-rank">' + (board.indexOf(r) + 1) + '</span>' + avatarHtml((STATE.usersByName || {})[r.n] || {}, r.n).replace(/ data-person="[^"]*"/, '') + '<span class="pneus-name">' + escapeHtml(r.n) + '</span><b>' + r.t + '</b></div>';

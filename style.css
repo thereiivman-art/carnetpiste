@@ -4907,3 +4907,9 @@ body.budget-masked .budget-season strong, body.budget-masked .budget-row .carnet
 .unlock-chips button.locked, .look-sw.locked, .look-seg button.locked { opacity: 0.8; cursor: pointer; }
 .pneus-buy-price { display: flex; align-items: center; gap: 0.4rem; margin: 0.4rem 0 0.6rem; font-size: 1.6rem; font-weight: 800; }
 .pneus-buy-price svg { width: 1.6rem; height: 1.6rem; }
+/* Cadre de bannière (acheté avec les pneus) */
+.person-hero[data-bframe] .ph-cover::before { content: ''; position: absolute; inset: 0; z-index: 3; pointer-events: none; border-radius: inherit; }
+.person-hero[data-bframe="carbone"] .ph-cover::before { border: 5px solid #2b2f36; box-shadow: inset 0 0 0 1px #5a606a; }
+.person-hero[data-bframe="or"] .ph-cover::before { border: 5px solid #c9a227; box-shadow: inset 0 0 14px rgba(201,162,39,0.55); }
+.person-hero[data-bframe="damier"] .ph-cover::before { border: 7px solid transparent; border-image: repeating-linear-gradient(45deg, #14161a 0 7px, #f4f3ef 7px 14px) 7; }
+.person-hero[data-bframe="neon"] .ph-cover::before { border: 3px solid #ff3d7f; box-shadow: inset 0 0 12px 2px rgba(255,61,127,0.7), 0 0 10px rgba(255,61,127,0.6); }
