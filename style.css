@@ -4954,12 +4954,23 @@ body.budget-masked .budget-season strong, body.budget-masked .budget-row .carnet
    suit les coins) et en style de bannière. */
 /* Vibreur seulement dans les 4 coins (les « virages ») : le milieu de chaque
    bord est recouvert par la couleur de la page. */
-.person-hero[data-bframe^="k-"] { box-shadow: none; outline: 0; border: 5px solid transparent;
+/* Vibreur seulement dans les 4 coins (les « virages ») : chaque virage
+   commence et finit par un triangle blanc, pour tous les coloris ; le
+   milieu des bords est recouvert par la couleur de la page. */
+.person-hero[data-bframe^="k-"] { box-shadow: none; outline: 0; border: 6px solid transparent;
   background: linear-gradient(var(--surface), var(--surface)) padding-box,
-    linear-gradient(var(--bg), var(--bg)) center / calc(100% - 120px) calc(100% + 4px) no-repeat border-box,
-    linear-gradient(var(--bg), var(--bg)) center / calc(100% + 4px) calc(100% - 120px) no-repeat border-box,
+    linear-gradient(var(--bg), var(--bg)) center / calc(100% - 124px) calc(100% + 4px) no-repeat border-box,
+    linear-gradient(var(--bg), var(--bg)) center / calc(100% + 4px) calc(100% - 124px) no-repeat border-box,
+    linear-gradient(120deg, transparent 6px, #ffffff 6px) left 44px top 0 / 18px 6px no-repeat border-box,
+    linear-gradient(240deg, transparent 6px, #ffffff 6px) right 44px top 0 / 18px 6px no-repeat border-box,
+    linear-gradient(60deg, transparent 6px, #ffffff 6px) left 44px bottom 0 / 18px 6px no-repeat border-box,
+    linear-gradient(300deg, transparent 6px, #ffffff 6px) right 44px bottom 0 / 18px 6px no-repeat border-box,
+    linear-gradient(150deg, transparent 6px, #ffffff 6px) left 0 top 44px / 6px 18px no-repeat border-box,
+    linear-gradient(30deg, transparent 6px, #ffffff 6px) left 0 bottom 44px / 6px 18px no-repeat border-box,
+    linear-gradient(210deg, transparent 6px, #ffffff 6px) right 0 top 44px / 6px 18px no-repeat border-box,
+    linear-gradient(330deg, transparent 6px, #ffffff 6px) right 0 bottom 44px / 6px 18px no-repeat border-box,
     var(--kerb-f) border-box;
-  background-origin: padding-box, border-box, border-box, border-box; }
+  background-origin: padding-box, border-box, border-box, border-box, border-box, border-box, border-box, border-box, border-box, border-box, border-box, border-box; }
 .person-hero[data-bframe="k-classique"] { --kerb-f: repeating-linear-gradient(45deg, #c8261f 0 12px, #ffffff 12px 24px); }
 .person-hero[data-cover="k-classique"] .ph-cover { background: repeating-linear-gradient(45deg, #c8261f 0 22px, #ffffff 22px 44px); }
 .person-hero[data-bframe="k-lemans"] { --kerb-f: repeating-linear-gradient(45deg, #f2c500 0 12px, #1d4fb6 12px 24px); }
