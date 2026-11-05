@@ -4909,7 +4909,6 @@ body.budget-masked .budget-season strong, body.budget-masked .budget-row .carnet
 .pneus-buy-price svg { width: 1.6rem; height: 1.6rem; }
 /* Cadre de bannière (acheté avec les pneus) : un liseré autour de toute la
    carte de la fiche, qui suit ses coins arrondis et ne passe jamais sur les photos. */
-.person-hero[data-bframe] { overflow: visible; }
 .person-hero[data-bframe="carbone"] { box-shadow: 0 0 0 2px #2b2f36, 0 0 0 3px #6b717b; }
 .person-hero[data-bframe="or"] { box-shadow: 0 0 0 2px #c9a227, 0 4px 18px rgba(201,162,39,0.35); }
 .person-hero[data-bframe="damier"] { outline: 3px dashed #14161a; outline-offset: 3px; }
@@ -4948,3 +4947,19 @@ body.budget-masked .budget-season strong, body.budget-masked .budget-row .carnet
 .mini-avatar.has-story.frame-flamme, .mini-avatar.has-story.story-seen.frame-flamme { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4.5px #fb8500, 0 0 10px 4px rgba(200,38,31,0.55); }
 .mini-avatar.has-story[class*="frame-"]:not(.frame-damier) { outline: 2.5px solid #fb8500; outline-offset: 6px; }
 .mini-avatar.has-story.story-seen[class*="frame-"]:not(.frame-damier) { outline-color: var(--border); }
+
+/* Les onglets fixés ne mordent plus sur ce qui suit (cercles des stories). */
+@media (max-width: 959px) { .subnav.main-subnav { margin-bottom: calc(var(--subnav-gap, 0.5rem) + 0.25rem); } }
+/* Vibreurs des circuits : en liseré autour de la fiche (bordure rayée qui
+   suit les coins) et en style de bannière. */
+.person-hero[data-bframe^="k-"] { box-shadow: none; outline: 0; border: 5px solid transparent; background: linear-gradient(var(--surface), var(--surface)) padding-box, var(--kerb-f) border-box; }
+.person-hero[data-bframe="k-classique"] { --kerb-f: repeating-linear-gradient(45deg, #c8261f 0 12px, #ffffff 12px 24px); }
+.person-hero[data-cover="k-classique"] .ph-cover { background: repeating-linear-gradient(45deg, #c8261f 0 22px, #ffffff 22px 44px); }
+.person-hero[data-bframe="k-lemans"] { --kerb-f: repeating-linear-gradient(45deg, #f2c500 0 12px, #1d4fb6 12px 24px); }
+.person-hero[data-cover="k-lemans"] .ph-cover { background: repeating-linear-gradient(45deg, #f2c500 0 22px, #1d4fb6 22px 44px); }
+.person-hero[data-bframe="k-mugello"] { --kerb-f: repeating-linear-gradient(45deg, #1f8a3b 0 12px, #ffffff 12px 24px, #c8261f 24px 36px); }
+.person-hero[data-cover="k-mugello"] .ph-cover { background: repeating-linear-gradient(45deg, #1f8a3b 0 22px, #ffffff 22px 44px, #c8261f 44px 66px); }
+.person-hero[data-bframe="k-ricard"] { --kerb-f: repeating-linear-gradient(45deg, #1d4fb6 0 12px, #c8261f 12px 24px, #14161a 24px 30px); }
+.person-hero[data-cover="k-ricard"] .ph-cover { background: repeating-linear-gradient(45deg, #1d4fb6 0 22px, #c8261f 22px 44px, #14161a 44px 55px); }
+.person-hero[data-bframe="k-misano"] { --kerb-f: repeating-linear-gradient(45deg, #0a7fc2 0 12px, #ffffff 12px 24px, #e2231a 24px 36px, #ffffff 36px 48px); }
+.person-hero[data-cover="k-misano"] .ph-cover { background: repeating-linear-gradient(45deg, #0a7fc2 0 22px, #ffffff 22px 44px, #e2231a 44px 66px, #ffffff 66px 88px); }
