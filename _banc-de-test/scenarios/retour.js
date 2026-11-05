@@ -12,7 +12,7 @@ const { chromium, BASE } = require('../lib');
   await p.click('.bottom-nav-btn:nth-child(3)'); await p.waitForTimeout(400);
   await p.click('[data-pill-group="social"][data-pill="fil"]'); await p.waitForTimeout(300);
   // Profil › Bientôt en piste → le roulage, puis retour
-  await p.click('[data-pill-group="social"][data-pill="profil"]'); await p.waitForTimeout(400);
+  await p.click('#profile-toggle'); await p.waitForTimeout(400);
   await p.click('[data-pill-group="person"][data-pill="bientot"]'); await p.waitForTimeout(300);
   await p.click('.feed-upcoming-open >> nth=1'); await p.waitForTimeout(600);
   console.log('bientôt → roulage:', !!(await p.$('.outing-group-card')));

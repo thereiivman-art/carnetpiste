@@ -47,7 +47,7 @@ const { chromium, BASE } = require('../lib');
   await p.click('.subnav-btn[data-view="circuit"]'); await p.waitForTimeout(400);
   console.log('pastille Visités dans Circuits:', !!(await p.$('[data-pill-group="circuit"][data-pill="visites"]')));
   await p.click('.subnav-btn[data-view="stats"]'); await p.waitForTimeout(300);
-  await p.click('[data-pill-group="stats"][data-pill="podium"]').catch(() => {}); await p.waitForTimeout(400);
+  await p.click('[data-moi-jump="podium"]').catch(() => {}); await p.waitForTimeout(400);
   console.log('podium par défaut:', await p.$eval('.podium-scope .primary', e => e.innerText).catch(() => '?'));
   await p.click('.subnav-btn[data-view="carnet"]'); await p.waitForTimeout(300);
   console.log('titre carnet:', await p.$eval('.comp-carnet-title', e => e.innerText).catch(() => 'non'));

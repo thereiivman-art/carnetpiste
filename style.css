@@ -4913,3 +4913,11 @@ body.budget-masked .budget-season strong, body.budget-masked .budget-row .carnet
 .person-hero[data-bframe="or"] .ph-cover::before { border: 5px solid #c9a227; box-shadow: inset 0 0 14px rgba(201,162,39,0.55); }
 .person-hero[data-bframe="damier"] .ph-cover::before { border: 7px solid transparent; border-image: repeating-linear-gradient(45deg, #14161a 0 7px, #f4f3ef 7px 14px) 7; }
 .person-hero[data-bframe="neon"] .ph-cover::before { border: 3px solid #ff3d7f; box-shadow: inset 0 0 12px 2px rgba(255,61,127,0.7), 0 0 10px rgba(255,61,127,0.6); }
+/* Moi : une page qui défile, avec raccourcis */
+.moi-jumps { display: flex; gap: 0.4rem; margin: 0 0 0.6rem; flex-wrap: wrap; }
+.moi-jump { border: 1px solid var(--border); background: var(--surface); color: var(--text); border-radius: 999px; padding: 0.3rem 0.8rem; font-size: 0.82rem; font-weight: 700; cursor: pointer; }
+.moi-sec { scroll-margin-top: calc(var(--header-h, 64px) + 0.6rem); }
+.moi-sec + .moi-sec { margin-top: 1.4rem; }
+.moi-sec-title { font-family: 'Barlow Condensed', sans-serif; font-weight: 800; font-size: 1.35rem; text-transform: uppercase; letter-spacing: 0.02em; margin: 0 0 0.5rem; }
+.coach-entry { display: flex; align-items: center; justify-content: space-between; gap: 0.6rem; width: 100%; padding: 0.8rem 1rem; margin: 0 0 0.8rem; border: 1px solid var(--border); border-radius: 14px; background: var(--surface); color: var(--text); text-align: left; cursor: pointer; }
+.coach-entry > span { display: flex; flex-direction: column; }

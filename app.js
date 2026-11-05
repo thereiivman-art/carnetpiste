@@ -11642,6 +11642,29 @@
         '<span class="outing-row-right"><span class="carnet-time">' + formatTime(o.riders[rs[0]]) + '</span><span class="help-text">' + escapeHtml(rs[0]) + '</span></span></button>' + albumChipHtml(oev) + '</div>';
     }).join('') + '</div>';
   }
+  // « Moi » : Stats (une page qui défile : records, podium, trophées),
+  // Garage (pilotes) et Budget.
+  var moiScrollTo = null;
+  function renderMoiTab() {
+    var rider = !meIsNonRider();
+    var pills = rider ? [['stats', 'Stats'], ['garage', L('Garage', 'Garage')], ['budget', 'Budget']] : [['stats', 'Stats'], ['budget', 'Budget']];
+    // Liens d'avant (notifications : podium, trophées ; ancienne pastille Budget).
+    if (pillState.stats === 'budget') { pillState.moi = 'budget'; pillState.stats = 'records'; }
+    if (pillState.stats === 'podium' || pillState.stats === 'trophees') { pillState.moi = 'stats'; moiScrollTo = pillState.stats; pillState.stats = 'records'; }
+    var html = renderPills('moi', pills);
+    if (pillState.moi === 'garage') return html + renderGarage();
+    if (pillState.moi === 'budget') return html + renderBudgetTab();
+    var jump = function (k, lbl) { return '<button type="button" class="moi-jump" data-moi-jump="' + k + '">' + lbl + '</button>'; };
+    html += '<div class="moi-jumps">' + (rider ? jump('records', 'Records') : '') + jump('podium', L('Podium', 'Podium')) + jump('trophees', L('Trophées', 'Trophies')) + '</div>';
+    var keep = pillState.stats, out = '';
+    if (rider) { pillState.stats = 'records'; out += '<section class="moi-sec" id="moi-records"><h2 class="moi-sec-title">Records</h2>' + renderStatsTab() + '</section>'; }
+    out += '<section class="moi-sec" id="moi-podium"><h2 class="moi-sec-title">' + L('Podium', 'Podium') + '</h2>' + withRepost(renderMonthRanking(), 'month:' + dateKey(new Date()).slice(0, 7), function () {
+      return { kind: 'month', author: currentUserProfile.name, createdAt: Date.now(), data: { rows: JSON.parse(JSON.stringify(monthProgressRanking().slice(0, 5))), month: new Date().toLocaleDateString(currentLang() === 'en' ? 'en-GB' : 'fr-FR', { month: 'long' }) } };
+    }) + renderStatsPodiums() + '</section>';
+    pillState.stats = 'trophees'; out += '<section class="moi-sec" id="moi-trophees"><h2 class="moi-sec-title">' + L('Trophées', 'Trophies') + '</h2>' + renderStatsTab() + '</section>';
+    pillState.stats = keep;
+    return html + out;
+  }
   function renderCarnetTab() {
     if (meIsNonRider()) {
       var tgt = targetPlanningEvent(), h = '';
@@ -14739,7 +14762,7 @@
     // calendrier vit dans Carnet › Roulages.
     if (view === 'chrono' || view === 'planning') return 'chrono';
     if (view === 'event') return 'carnet';
-    if (view === 'social' || view === 'team') return 'communaute';
+    if (view === 'social' || view === 'team' || view === 'coach') return 'communaute';
     return 'carnet';
   }
   var lastSubView = { carnet: 'carnet', chrono: 'chrono', communaute: 'social' };
@@ -14775,7 +14798,10 @@
   }
   function isDesktopNav() { return !!(window.matchMedia && window.matchMedia('(min-width: 960px)').matches); }
   function carnetSubItems() {
-    var items = [['carnet', L('Roulages', 'Trackdays')], ['circuit', 'Circuits'], ['stats', 'Stats']];
+    // 3 onglets : Roulages, Circuits, Moi (stats, garage, budget).
+    var items = [['carnet', L('Roulages', 'Trackdays')], ['circuit', 'Circuits'], ['stats', L('Moi', 'Me')]];
+    if (currentUserProfile && currentUserProfile.role === 'organisateur') items.unshift(['orgaev', L('Événements', 'Events')]);
+    return items;
     // Organisateur : ses événements en premier.
     if (currentUserProfile && currentUserProfile.role === 'organisateur') items.unshift(['orgaev', L('Événements', 'Events')]);
     // Accompagnant : les circuits déjà visités ; pilote : son garage.
@@ -14794,12 +14820,12 @@
   }
   // Pastilles (3e niveau, à l'intérieur d'un sous-onglet) : même style que
   // le filtre Passés/À venir du carnet. État mémorisé par groupe.
-  var pillState = { person: 'monfil', profil: 'identite', settings: 'affichage', social: 'fil', events: 'avenir', circuit: 'plan', stats: 'records', teams: 'mine', team: 'fil', dmbox: 'perso', coach: 'demandes', planning: 'programme', outing: 'chronos', evmanage: 'participants', statsrec: 'circuits', passub: 'calendrier', outinfo: 'horaires' };
+  var pillState = { person: 'monfil', profil: 'identite', settings: 'affichage', social: 'fil', events: 'avenir', circuit: 'plan', stats: 'records', moi: 'stats', teams: 'mine', team: 'fil', dmbox: 'perso', coach: 'demandes', planning: 'programme', outing: 'chronos', evmanage: 'participants', statsrec: 'circuits', passub: 'calendrier', outinfo: 'horaires' };
   // Même chose que renderPills, en petites pastilles (sous une pastille).
   // PC : les onglets de page de ces groupes passent dans la barre de gauche
   // (sous leur menu) ; relevés pendant le rendu de la page, qui précède
   // celui de la barre.
-  var NAV_PILL_VIEWS = { circuit: 'circuit', stats: 'stats', coach: 'coach', events: 'event', compcarnet: 'carnet', settings: '', aide: '' };
+  var NAV_PILL_VIEWS = { circuit: 'circuit', stats: 'stats', moi: 'stats', coach: 'coach', events: 'event', compcarnet: 'carnet', settings: '', aide: '' };
   var navPillCapture = {};
   function capturePills(group, items, cur) {
     if (!NAV_PILL_VIEWS.hasOwnProperty(group) || !(window.matchMedia && window.matchMedia('(min-width: 960px)').matches)) return false;
@@ -14843,12 +14869,13 @@
   function renderCommunauteNav() {
     var me = currentUserProfile, nIn = me ? incomingFriendRequests(me.name).length : 0;
     var nDm = unreadDmCount();
-    var items = [['profil', L('Profil', 'Profile') + (nIn ? ' (' + nIn + ')' : '')], ['fil', L('Social', 'Social')], ['messages', L('Messages', 'Messages') + (nDm ? ' (' + nDm + ')' : '')]];
+    // 3 onglets : Fil, Messages, Teams. Ma fiche s'ouvre par mon avatar en haut.
+    var items = [['fil', L('Fil', 'Feed') + (nIn ? ' (' + nIn + ')' : '')], ['messages', L('Messages', 'Messages') + (nDm ? ' (' + nDm + ')' : '')]];
     var html = '<div class="subnav main-subnav" role="tablist">' + items.map(function (it) {
-      var on = activeView === 'social' && (pillState.social === it[0] || (it[0] === 'profil' && pillState.social === 'abonnements'));
+      var on = activeView === 'social' && pillState.social === it[0];
       return '<button type="button" role="tab" class="subnav-btn' + (on ? ' active' : '') + '" data-view="social" data-pill-group="social" data-pill="' + it[0] + '">' + it[1] + '</button>';
     }).join('');
-    if (communauteSubItems().some(function (it) { return it[0] === 'team'; })) html += '<button type="button" role="tab" class="subnav-btn' + (activeView === 'team' ? ' active' : '') + '" data-view="team">Teams</button>';
+    if (communauteSubItems().some(function (it) { return it[0] === 'team'; })) html += '<button type="button" role="tab" class="subnav-btn' + (activeView === 'team' || activeView === 'coach' ? ' active' : '') + '" data-view="team">Teams</button>';
     return html + '</div>';
   }
   function communauteSubItems() {
@@ -14965,23 +14992,17 @@
             if (activeView === 'event') carnetNav = carnetNav.concat(navPillEntries('events', 4));
             carnetNav.push([L('Passés', 'Past'), 'data-view="carnet" data-cards-mode="passees" data-level="3"', activeView === 'carnet' && carnetCardsMode === 'passees']);
           } else if (it[0] === 'carnet' && on) carnetNav = carnetNav.concat(navPillEntries('compcarnet', 3));
-          if (on && it[0] !== 'carnet') carnetNav = carnetNav.concat(navPillEntries(it[0], 3));
+          if (on && it[0] !== 'carnet') carnetNav = carnetNav.concat(navPillEntries(it[0] === 'stats' ? 'moi' : it[0], 3));
         });
         html += sub(1, carnetNav);
       }
       if (current === 'communaute') {
         var me = currentUserProfile, nIn = incomingFriendRequests(me.name).length;
-        var onProfil = !onPanel && activeView === 'social' && (pillState.social === 'profil' || pillState.social === 'abonnements');
-        var comm = [[L('Profil', 'Profile') + (nIn ? ' (' + nIn + ')' : ''), 'data-view="social" data-pill-group="social" data-pill="profil"', onProfil]];
-        // 3e niveau sous Profil : Mon fil, Fiche, Bientôt en piste, Saisons.
-        if (onProfil) myProfileNavPills().forEach(function (it) {
-          comm.push([it[1], 'data-nav-person="' + it[0] + '" data-level="3"', pillState.person === it[0]]);
-        });
-        comm.push([L('Social', 'Social'), 'data-view="social" data-pill-group="social" data-pill="fil"', !onPanel && activeView === 'social' && pillState.social === 'fil']);
+        var comm = [[L('Fil', 'Feed') + (nIn ? ' (' + nIn + ')' : ''), 'data-view="social" data-pill-group="social" data-pill="fil"', !onPanel && activeView === 'social' && pillState.social === 'fil']];
         var nDmPc = unreadDmCount();
         comm.push([L('Messages', 'Messages') + (nDmPc ? ' (' + nDmPc + ')' : ''), 'data-view="social" data-pill-group="social" data-pill="messages"', !onPanel && activeView === 'social' && pillState.social === 'messages']);
         if (communauteSubItems().some(function (it) { return it[0] === 'team'; })) {
-          var onTeam = !onPanel && activeView === 'team';
+          var onTeam = !onPanel && (activeView === 'team' || activeView === 'coach');
           comm.push(['Teams', 'data-view="team"', onTeam]);
           // Pas de 3e niveau : Mes teams, Découvrir et Créer sont une seule page sur PC.
         }
@@ -19513,6 +19534,7 @@
   // Déjà acheté, ou déjà porté avant le passage à l'achat (gardé).
   function pneusOwned(key) {
     var p = pneusState(), me = currentUserProfile, l = (me && me.look) || {};
+    if (isAdmin()) return true; // l'admin a tout débloqué
     if (p && (p.owned || []).indexOf(key) !== -1) return true;
     var k = key.split(':'), v = k.slice(1).join(':');
     return (k[0] === 'color' && l.color === v) || (k[0] === 'cover' && l.cover === v) || (k[0] === 'frame' && l.frame === v) || (k[0] === 'bubble' && l.bubble === v) || (k[0] === 'bannerFrame' && l.bannerFrame === v);
@@ -22820,6 +22842,8 @@
       .sort(function (a, b) { return a.name.localeCompare(b.name); });
 
     var html = '';
+    // Coaching (avant : un onglet du Carnet) : ici, avec les teams.
+    if (canAccessCoachSpace() && (isAdmin() || featureEnabled('teamsCoaching') || (STATE.myTeamMemberships || []).length > 0)) html += '<button type="button" class="coach-entry" data-view="coach"><span><strong>Coaching</strong><span class="help-text">' + L('Tes coachs, tes séances et tes demandes', 'Your coaches, sessions and requests') + '</span></span><span class="set-chev" aria-hidden="true">›</span></button>';
     if (incoming.length) {
       var incomingBody = incoming.map(function (r) {
         return '<div class="friend-row"><div class="friend-row-main"><span class="friend-name-plain">' + escapeHtml((teamById(r.teamId) || {}).name || r.teamName) + '</span> <span class="help-text">' + tr('invited_by') + escapeHtml(r.from) + '</span></div>' +
@@ -23198,6 +23222,7 @@
       renderRootUnsafe();
       markScrollableTabs();
       sanitizeLinks(document.getElementById('root'));
+      if (moiScrollTo) { var mst = document.getElementById('moi-' + moiScrollTo); moiScrollTo = null; if (mst) setTimeout(function () { mst.scrollIntoView({ block: 'start' }); }, 0); }
       // Montants du budget floutés (œil) : sur toute page qui montre le budget.
       document.body.classList.toggle('budget-masked', !!document.querySelector('.budget-hide-btn') && budgetHidden());
       navTrack();
@@ -23277,8 +23302,9 @@
       if (activeView === 'person' && !personView) activeView = 'social';
       // Le bouton Chrono ramène toujours à l'écran du jour, jamais à la prépa.
       if (activeView !== 'outing' && activeView !== 'person' && activeView !== 'planning') lastSubView[navTabFor(activeView)] = activeView;
-      // Budget est une pastille de Stats ; l'ancienne vue y renvoie.
-      if (activeView === 'budget' && !isDesktopNav()) { activeView = 'stats'; pillState.stats = 'budget'; }
+      // Garage et Budget sont des pastilles de « Moi » ; les anciennes vues y renvoient.
+      if (activeView === 'budget') { activeView = 'stats'; pillState.moi = 'budget'; }
+      if (activeView === 'garage') { activeView = 'stats'; pillState.moi = 'garage'; }
       var carnetSub = renderSubNav(carnetSubItems());
       if (activeView === 'outing') body = renderOutingPage();
       else if (activeView === 'person') body = renderPersonPage();
@@ -23289,23 +23315,13 @@
         var backHere = prevNav && ['carnet', 'circuit', 'stats', 'budget', 'visites', 'garage', 'orgaev', 'coach', 'event'].indexOf(prevNav.view) === -1;
         body = (backHere ? '<button type="button" class="link-btn back-link nav-back-btn">‹ ' + L('Retour', 'Back') + '</button>' : '') + carnetSub + renderCircuitTab();
       }
-      else if (activeView === 'stats') {
-        var statPills = meIsNonRider()
-          ? [['podium', L('Podium', 'Podium')], ['trophees', 'Trophées'], ['budget', 'Budget']]
-          : [['records', 'Records'], ['podium', L('Podium', 'Podium')], ['trophees', 'Trophées'], ['budget', 'Budget']];
-        if (isDesktopNav()) statPills = statPills.filter(function (x) { return x[0] !== 'budget'; });
-        body = carnetSub + renderPills('stats', statPills) + (pillState.stats === 'podium' ? withRepost(renderMonthRanking(), 'month:' + dateKey(new Date()).slice(0, 7), function () {
-          return { kind: 'month', author: currentUserProfile.name, createdAt: Date.now(), data: { rows: JSON.parse(JSON.stringify(monthProgressRanking().slice(0, 5))), month: new Date().toLocaleDateString(currentLang() === 'en' ? 'en-GB' : 'fr-FR', { month: 'long' }) } };
-        }) + renderStatsPodiums() : pillState.stats === 'budget' ? renderBudgetTab() : renderStatsTab());
-      }
+      else if (activeView === 'stats') body = carnetSub + renderMoiTab();
       else if (activeView === 'chrono') body = renderChronoTab();
       else if (activeView === 'planning') body = '<button type="button" class="link-btn back-link" data-view="chrono">‹ ' + L('Chrono', 'Lap times') + '</button>' + renderTimesheetReminder() + renderPlanningTab();
       else if (activeView === 'social') body = renderCommunauteNav() + renderSocialTab();
       else if (activeView === 'team') body = renderCommunauteNav() + renderTeamTab();
-      else if (activeView === 'coach') body = carnetSub + renderCoachTab();
-      else if (activeView === 'budget') body = carnetSub + renderBudgetTab();
+      else if (activeView === 'coach') body = renderCommunauteNav() + '<button type="button" class="link-btn back-link" data-view="team">‹ Teams</button>' + renderCoachTab();
       else if (activeView === 'visites') { activeView = 'circuit'; pillState.circuit = 'visites'; body = carnetSub + renderCircuitTab(); }
-      else if (activeView === 'garage') body = carnetSub + renderGarage();
       else if (activeView === 'orgaev') body = carnetSub + renderOrgaEvents();
       else body = carnetSub + carnetPillsHtml(myOutings()) + renderEventTab(); // 'event' (Carnet › Roulages › Calendrier) and safety fallback
       // Big section title so it's always clear which main tab you're in.
@@ -25085,6 +25101,8 @@
         }
         var bh = e.target.closest('[data-action="budget-hide"]');
         if (bh) { e.preventDefault(); e.stopPropagation(); try { localStorage.setItem('cdp-budget-hidden', budgetHidden() ? '0' : '1'); } catch (er) {} renderRoot(); return; }
+        var mj = e.target.closest('[data-moi-jump]');
+        if (mj) { e.preventDefault(); e.stopPropagation(); var t = document.getElementById('moi-' + mj.getAttribute('data-moi-jump')); if (t) t.scrollIntoView({ block: 'start', behavior: 'smooth' }); return; }
         var gn = e.target.closest('[data-action="group-new"]');
         if (gn) { e.preventDefault(); e.stopPropagation(); openGroupEditor(null); return; }
         var gi = e.target.closest('[data-action="group-info"]');

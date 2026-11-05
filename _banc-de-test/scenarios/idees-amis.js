@@ -37,7 +37,7 @@ const { chromium, BASE } = require('../lib');
   console.log('fiche Luca:', await p.$eval('.person-page', e => (e.innerText.match(/Fiche privée[^\n]*|Private profile[^\n]*/) || ['visible'])[0]), '| compteurs abonnés:', await p.$$eval('.social-counts .social-count', e => e.length));
   // Mon profil : bannière, images prêtes, présentation
   await p.click('.bottom-nav-btn:nth-child(3)'); await p.waitForTimeout(400);
-  await p.click('[data-pill-group="social"][data-pill="profil"]'); await p.waitForTimeout(400);
+  await p.click('#profile-toggle'); await p.waitForTimeout(400);
   console.log('mon profil, onglets:', await p.$$eval('[data-pill-group="person"]', e => e.map(x => x.innerText + (x.classList.contains('active') ? '✓' : '')).join(' / ')), '| bouton Bannière:', !!(await p.$('[data-action="pick-cover"]')), '| trophées près du nom:', await p.$$eval('.mini-vitrine .trophy-ico', e => e.length), '| carte Vitrine:', await p.$$eval('.ph-vitrine', e => e.length));
   await p.click('.mini-vitrine').catch(() => {}); await p.waitForTimeout(700);
   console.log('appui → trophées:', await p.$eval('[data-pill-group="person"].active', e => e.innerText).catch(() => '?'), '|', await p.evaluate(() => { const c = document.querySelector('.achievements-card'); if (!c) return 'absente'; const r = c.getBoundingClientRect(); return (r.top < innerHeight && r.bottom > 0 ? 'à l\'écran' : 'hors écran') + (c.querySelector('details[open], .open') ? ', ouverte' : ''); }));

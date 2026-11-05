@@ -22,6 +22,6 @@ const { chromium, BASE } = require('../lib');
   await p2.goto(BASE + 'index.html#lang=' + (process.argv[2] || 'fr')); await p2.waitForTimeout(1500);
   await p2.click('.bottom-nav-btn:nth-child(1)'); await p2.waitForTimeout(300);
   await p2.click('.subnav-btn[data-view="stats"]'); await p.waitForTimeout(300);
-  await p2.click('[data-pill-group="stats"][data-pill="podium"]'); await p2.waitForTimeout(400);
+  await p2.click('[data-moi-jump="podium"]'); await p2.waitForTimeout(400);
   console.log('podiums:', await p2.$$eval('.podium-circuit', e => e.map(x => x.innerText.trim()).join(', ')));
   console.log('errs', JSON.stringify(errs)); await b.close(); })();

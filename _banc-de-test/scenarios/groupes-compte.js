@@ -26,7 +26,7 @@ const { chromium, BASE } = require('../lib');
   // Budget masqué.
   await p.click('.bottom-nav-btn:nth-child(1)'); await p.waitForTimeout(300);
   await p.click('.subnav-btn[data-view="stats"]'); await p.waitForTimeout(300);
-  await p.click('[data-pill-group="stats"][data-pill="budget"]').catch(() => {}); await p.waitForTimeout(300);
+  await p.click('[data-pill-group="moi"][data-pill="budget"]').catch(() => {}); await p.waitForTimeout(300);
   await p.click('[data-action="budget-hide"]'); await p.waitForTimeout(300);
   console.log('budget masqué:', await p.evaluate(() => document.body.classList.contains('budget-masked')));
   await p.click('[data-action="budget-hide"]'); await p.waitForTimeout(300);
