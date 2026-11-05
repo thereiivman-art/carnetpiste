@@ -4203,7 +4203,13 @@
       return r.status === 'accepted' && (r.from === name || r.to === name);
     }).length;
     var founded = (STATE.teams || []).filter(function (t) { return t.createdBy === name; });
-    var biggestTeam = founded.reduce(function (m, t) { return Math.max(m, t.memberCount || 1); }, 0);
+    // Teams que je gère : fondés par moi ou dont je suis Team Leader.
+    var ledIds = {};
+    founded.forEach(function (t) { ledIds[t.id] = 1; });
+    (STATE.allTeamLeaders || []).forEach(function (m) { if (m.name === name) ledIds[m.teamId] = 1; });
+    var led = (STATE.teams || []).filter(function (t) { return ledIds[t.id]; });
+    var biggestTeam = led.filter(function (t) { return !t.teamPro; }).reduce(function (m, t) { return Math.max(m, t.memberCount || 1); }, 0);
+    var biggestPro = led.filter(function (t) { return t.teamPro; }).reduce(function (m, t) { return Math.max(m, t.memberCount || 1); }, 0);
     var wallPostCount = (STATE.wallPosts || []).filter(function (w) { return w.author === name && !w.story; }).length;
     var streakBest = (((STATE.usersByName || {})[name] || (currentUserProfile && currentUserProfile.name === name ? currentUserProfile : {})).loginStreak || {}).best || 0;
     loadFilleulCount(name);
@@ -4219,9 +4225,12 @@
         function (t) { return L('Publier ' + t + ' message' + (t > 1 ? 's' : '') + ' dans le Social.', 'Post ' + t + ' message' + (t > 1 ? 's' : '') + ' in the feed.'); }),
       tieredEntry('calendar', 'communaute', L('Assidu', 'Regular visitor'), streakBest, [3, 7, 14, 30, 60, 100], [L('jour d\'affilée', 'day in a row'), L('jours d\'affilée', 'days in a row')],
         function (t) { return L('Ouvrir l\'appli ' + t + ' jours d\'affilée.', 'Open the app ' + t + ' days in a row.'); }),
-      tieredEntry('team', 'communaute', L('Bâtisseur de team', 'Team builder'), biggestTeam, [1, 5, 15, 30, 60, 100], [L('membre', 'member'), L('membres', 'members')],
-        function (t) { return t === 1 ? L('Créer un team.', 'Create a team.') : L('Réunir ' + t + ' membres dans un team que tu as créé.', 'Gather ' + t + ' members in a team you created.'); }),
-      singleEntry('check', 'communaute', 'Team PRO', founded.some(function (t) { return t.teamPro; }), L('Fonder un team certifié PRO.', 'Found a certified PRO team.'))
+      // Gestion d'un team : compté à partir de 2 membres (créer seul ne suffit pas).
+      tieredEntry('team', 'communaute', L('Chef de team', 'Team leader'), biggestTeam < 2 ? 0 : biggestTeam, [2, 5, 10, 20, 50, 100], [L('membre', 'member'), L('membres', 'members')],
+        function (t) { return L('Réunir ' + t + ' membres dans un team que tu gères.', 'Gather ' + t + ' members in a team you run.'); }),
+      tieredEntry('team', 'communaute', L('Team PRO', 'PRO team'), biggestPro < 2 ? 0 : biggestPro, [5, 10, 20, 50, 100, 250], [L('membre', 'member'), L('membres', 'members')],
+        function (t) { return L('Réunir ' + t + ' membres dans un Team PRO que tu gères.', 'Gather ' + t + ' members in a PRO team you run.'); }),
+      singleEntry('check', 'communaute', L('Team certifié', 'Certified team'), founded.some(function (t) { return t.teamPro; }), L('Fonder un team certifié PRO.', 'Found a certified PRO team.'))
     ];
   }
 
@@ -4639,7 +4648,7 @@
   // signup (see resolveUniquePseudo) if the new pseudo collides with
   // someone else's.
   function profileTabList() {
-    return [['profil', tr('tab_profil')], ['plus', 'Carnet+'], ['audience', L('Audience', 'Audience')], ['reglages', tr('tab_reglages')], ['compte', L('Compte', 'Account')], ['aide', tr('tab_aide')], ['suggestion', tr('tab_suggestion')]];
+    return [['compte', L('Compte', 'Account')], ['reglages', tr('tab_reglages')], ['plus', 'Carnet+'], ['audience', L('Audience', 'Audience')], ['aide', tr('tab_aide')], ['suggestion', tr('tab_suggestion')]];
   }
   // PC : sous-menus de Mon compte, sous son bouton dans la barre de gauche.
   function accountNavHtml() {
@@ -4653,7 +4662,7 @@
     return '<div class="nav-sub nav-sub-account">' + items.map(function (it) { return '<button type="button" class="nav-sub-btn' + (/data-level="3"/.test(it[1]) ? ' nav-sub3' : '') + (it[2] ? ' active' : '') + '" ' + it[1] + '>' + it[0] + '</button>'; }).join('') + '</div>';
   }
   function renderProfileTabBar() {
-    var tabs = [['profil', tr('tab_profil')], ['plus', 'Carnet+'], ['audience', L('Audience', 'Audience')], ['reglages', tr('tab_reglages')], ['compte', L('Compte', 'Account')], ['aide', tr('tab_aide')], ['suggestion', tr('tab_suggestion')]];
+    var tabs = [['compte', L('Compte', 'Account')], ['reglages', tr('tab_reglages')], ['plus', 'Carnet+'], ['audience', L('Audience', 'Audience')], ['aide', tr('tab_aide')], ['suggestion', tr('tab_suggestion')]];
     return '<div class="subnav profile-tabs main-subnav" role="tablist">' + tabs.map(function (t) {
       return '<button type="button" class="subnav-btn profile-tab-btn' + (profileSubTab === t[0] ? ' active' : '') + '" role="tab" aria-selected="' + (profileSubTab === t[0]) + '" data-profile-tab="' + t[0] + '">' + t[1] + '</button>';
     }).join('') + '</div>';
@@ -5167,15 +5176,15 @@
     html += '<div class="section-heading"><span class="section-heading-kerb" aria-hidden="true"></span><h1 class="section-heading-title">' + tr('my_profile_label') + '</h1></div>';
     html += renderProfileTabBar();
     html += '<div class="profile-tab-body">';
-    if (profileSubTab === 'parrainage') profileSubTab = 'profil'; // fusionné dans le QR d'invitation
-    if (profileSubTab === 'moto') profileSubTab = 'profil'; // Ma moto est dans Roulages › Ma prépa
+    // Profil et Compte fusionnés sous « Compte ».
+    if (profileSubTab === 'parrainage' || profileSubTab === 'moto' || profileSubTab === 'profil') profileSubTab = 'compte';
     if (profileSubTab === 'plus') html += renderCarnetPlusTab(p);
     else if (profileSubTab === 'audience') html += renderAudienceTab(p);
     else if (profileSubTab === 'reglages') html += renderProfileReglagesTab(p);
-    else if (profileSubTab === 'compte') html += renderProfileReglagesTab(p, 'compte');
+    else if (profileSubTab === 'compte') html += renderProfileProfilTab(p) + renderProfileReglagesTab(p, 'compte');
     else if (profileSubTab === 'aide') html += renderProfileAideTab(p);
     else if (profileSubTab === 'suggestion') html += '<div class="card">' + renderProfileSuggestionTab(p) + '</div>';
-    else html += renderProfileProfilTab(p);
+    else html += renderProfileProfilTab(p) + renderProfileReglagesTab(p, 'compte');
     html += '</div>';
     html += '</div>';
     return html;
@@ -5556,13 +5565,11 @@
     // Amis qui roulent bientôt
     friendsUpcoming().forEach(function (x) {
       var ev = x.ev;
-      var who = x.friends.length ? x.friends : x.companions, riding = !!x.friends.length;
-      var verbFr = riding ? (who.length > 1 ? ' roulent' : ' roule') : (who.length > 1 ? ' viennent' : ' vient');
-      var verbEn = riding ? (who.length > 1 ? ' ride' : ' rides') : (who.length > 1 ? ' are coming' : ' is coming');
-      items.push({ key: 'going:' + ev.id + ':' + x.friends.concat(x.companions).sort().join(','), kind: 'calendar', time: Date.now() - 1,
+      // Pilotes et accompagnants ensemble : « X, Y et Z viennent à … ».
+      var who = x.friends.concat(x.companions);
+      items.push({ key: 'going:' + ev.id + ':' + who.slice().sort().join(','), kind: 'calendar', time: Date.now() - 1,
         timeLabel: formatEventRange(ev, true),
-        html: namesList(who) + L(verbFr + (x.mine ? ' aussi' : '') + ' à ', (x.mine ? ' also' : '') + verbEn + (riding ? ' at ' : ' to ')) + escapeHtml(ev.circuit) +
-          (riding && x.companions.length ? L(', avec ', ', with ') + namesList(x.companions) : ''),
+        html: namesList(who) + L((who.length > 1 ? ' viennent' : ' vient') + (x.mine ? ' aussi' : '') + ' à ', (who.length > 1 ? ' are' : ' is') + (x.mine ? ' also' : '') + ' coming to ') + escapeHtml(ev.circuit),
         go: { to: 'event', id: ev.id, join: !x.mine } });
     });
     // Mes trophées
@@ -7885,24 +7892,12 @@
     if (best) return best.videoUrl;
     return 'https://www.youtube.com/results?search_query=' + encodeURIComponent(circuit + ' onboard lap moto');
   }
-  // Sur téléphone : l'appli YouTube (vidéo ou recherche), sinon le site.
-  function youtubeAppUrl(u) {
-    var ua = navigator.userAgent || '', id = '', q = '';
-    var m = u.match(/[?&]v=([\w-]{6,})/) || u.match(/youtu\.be\/([\w-]{6,})/) || u.match(/\/shorts\/([\w-]{6,})/);
-    if (m) id = m[1];
-    var mq = u.match(/[?&]search_query=([^&]+)/); if (mq) q = mq[1];
-    if (/Android/i.test(ua)) return id ? 'vnd.youtube:' + id : 'intent://www.youtube.com/results?search_query=' + q + '#Intent;package=com.google.android.youtube;scheme=https;S.browser_fallback_url=' + encodeURIComponent(u) + ';end';
-    if (/iPhone|iPad|iPod/i.test(ua)) return id ? 'youtube://www.youtube.com/watch?v=' + id : 'youtube://www.youtube.com/results?search_query=' + q;
-    return '';
-  }
+  // Vidéo : lecteur dans l'appli ; sinon le lien https (iOS et Android
+  // ouvrent l'appli YouTube d'eux-mêmes). Les schémas youtube:// donnaient
+  // « adresse non valide » sur Safari sans l'appli.
   function openYoutube(u) {
-    var app = youtubeAppUrl(u);
-    if (!app) { window.open(u, '_blank', 'noopener'); return; }
-    var left = false, onHide = function () { left = true; };
-    document.addEventListener('visibilitychange', onHide, { once: true });
-    window.location.href = app;
-    // Pas d'appli YouTube : le site s'ouvre.
-    setTimeout(function () { document.removeEventListener('visibilitychange', onHide); if (!left && !document.hidden) window.open(u, '_blank', 'noopener'); }, 1200);
+    if (videoEmbedOf(u)) { openPlayerSheet(u); return; }
+    window.open(u, '_blank', 'noopener');
   }
   function lapVideoLinkHtml(circuit) {
     var u = lapVideoUrl(circuit);
@@ -7936,7 +7931,8 @@
         '<div class="card circuit-plan-notes"><h2 class="section-title">Mes repères' + (nNotes ? ' (' + nNotes + ')' : '') + '</h2>' + flatSections(renderTrackNotesReminder(selectedCircuit)) + '</div></div>';
       return html;
     }
-    if (cp === 'infos') { html += renderCircuitInfoCard('infos'); return html; }
+    // Records de la piste (MotoGP, F1…) : à la fin d'Infos.
+    if (cp === 'infos') { html += renderCircuitInfoCard('infos') + renderTrackRecordsCard(selectedCircuit); return html; }
     // Objectif pour la prochaine session lives in EN PISTE now (see
     // renderPlanningTab), keyed off the current/next event's own circuit --
     // not repeated here.
@@ -7944,18 +7940,18 @@
     // "the currently active circuit", so it lives here now, right after
     // the circuit's own info.
     html += renderEstimateCard(selectedCircuit);
-    html += renderTrackRecordsCard(selectedCircuit);
     html += renderChronosTab();
     return html;
   }
   // Records de la piste par catégorie (saisis par l'admin dans la fiche
   // circuit), rangés avec mon record et ceux de mes potes : l'échelle
   // complète, de la MotoGP à moi.
-  var TRACK_RECORD_CLASSES = [['motogp', 'MotoGP'], ['moto2', 'Moto2'], ['moto3', 'Moto3'], ['fsbk', 'FSBK']];
+  var TRACK_RECORD_CLASSES = [['motogp', 'MotoGP'], ['moto2', 'Moto2'], ['moto3', 'Moto3'], ['fsbk', 'FSBK'], ['wsbk', 'WorldSBK'], ['f1', 'F1', 1], ['wec', 'WEC Hypercar', 1], ['gt3', 'GT3', 1]];
   function renderTrackRecordsCard(circuit) {
-    if (isCarMode()) return ''; // records MotoGP / Moto2 / Moto3 / FSBK : sans objet en voiture
+    // Moto : MotoGP, Moto2, Moto3, FSBK, WorldSBK ; voiture : F1, WEC, GT3.
+    var car = isCarMode();
     var recs = circuitInfo(circuit).trackRecords || {};
-    var rows = TRACK_RECORD_CLASSES.filter(function (c) { return recs[c[0]] && recs[c[0]].t; }).map(function (c) {
+    var rows = TRACK_RECORD_CLASSES.filter(function (c) { return !!c[2] === car; }).filter(function (c) { return recs[c[0]] && recs[c[0]].t; }).map(function (c) {
       return { label: c[1], who: recs[c[0]].who || '', t: recs[c[0]].t, kind: 'pro' };
     });
     if (!rows.length) return '';
@@ -19003,6 +18999,12 @@
     if (m) return { src: 'https://www.dailymotion.com/embed/video/' + m[1] + '?autoplay=1', thumb: 'https://www.dailymotion.com/thumbnail/video/' + m[1], name: 'Dailymotion' };
     return null;
   }
+  function openPlayerSheet(url) {
+    var emb = videoEmbedOf(url); if (!emb) return;
+    var pov = openMiniSheet('<div class="link-player in-sheet' + (emb.tall ? ' tall' : '') + '"><iframe class="link-player-frame" src="' + escapeHtml(emb.src) + '" title="' + escapeHtml(L('Vidéo', 'Video')) + '" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe></div>' +
+      '<div class="mini-sheet-actions"><a class="ghost link-btn" href="' + escapeHtml(url) + '" target="_blank" rel="noopener">' + L('Ouvrir', 'Open') + ' ↗</a></div>');
+    pov.querySelector('.mini-sheet').classList.add('player-sheet');
+  }
   function postLinkHtml(url) {
     var emb = videoEmbedOf(url);
     if (emb) {
@@ -20944,6 +20946,7 @@
         'Welcome to Pitbook, ' + (me.firstName || me.name) + '!\n\nA few tips to get started:\n· Add your friends (Community › Friends) to follow their trackdays and lap times.\n· Sign up for a trackday or tap “I\'m going”: your friends will see you.\n· Log your lap time after each session, your chart and podiums build themselves.\n· Draw your marks on the circuit map (Logbook › Circuits).\n\nA question, an idea? Write to us from Settings. Enjoy the track!') };
   }
   function dmThreadWith(name) {
+    if (typeof name === 'string' && name.indexOf('grp:') === 0) { watchGroup(name.slice(4)); return (groupMsgs[name.slice(4)] || []).slice().sort(function (a, b) { return (a.createdAt || 0) - (b.createdAt || 0); }); }
     if (name === WELCOME_DM) { var w = welcomeDm(); return w ? [w] : []; }
     var ti = teamDmInfo(name);
     if (ti) return (STATE.teamDms || []).filter(function (m) { return m.convId === ti.convId; }).sort(function (a, b) { return (a.createdAt || 0) - (b.createdAt || 0); });
@@ -20986,6 +20989,12 @@
       var fromUs = mineConv ? m.from === me : !!m.asTeam;
       if (!fromUs && (m.createdAt || 0) > (read[m.convId] || 0)) c.unread++;
     });
+    (STATE.groupChats || []).forEach(function (g) {
+      var at = g.lastAt || g.createdAt || 0, myName = currentUserProfile && currentUserProfile.name;
+      by['g/' + g.id] = { convId: 'grp:' + g.id, key: 'grp:' + g.id, group: g, other: g.name || L('Groupe', 'Group'),
+        last: { text: g.lastText || L('Groupe créé par ', 'Group created by ') + (g.createdByName || ''), createdAt: at, fromName: g.lastFrom || '', from: g.lastFrom && g.lastFrom === myName ? me : '' },
+        unread: g.lastAt && g.lastFrom !== myName && g.lastAt > (read['grp:' + g.id] || 0) ? 1 : 0 };
+    });
     var wd = welcomeDm();
     if (wd) by.welcome = { convId: 'welcome', last: wd, unread: (read.welcome || 0) < wd.createdAt ? 1 : 0, other: 'Carnet Piste', key: WELCOME_DM };
     return Object.keys(by).map(function (k) { return by[k]; }).filter(function (c) { return c.other; }).sort(function (a, b) { return (b.last.createdAt || 0) - (a.last.createdAt || 0); });
@@ -21003,6 +21012,7 @@
     db.collection('teamMessages').doc(id).set(msg).catch(function (err) { showToast(tr('error_prefix') + ((err && err.message) || err)); });
   }
   function sendDm(name, text) {
+    if (typeof name === 'string' && name.indexOf('grp:') === 0) { sendGroupMsg(name.slice(4), text); return; }
     var me = currentUserProfile, mine = myUid(), other = uidOf(name);
     text = (text || '').trim().slice(0, 2000);
     var ti = teamDmInfo(name);
@@ -21016,6 +21026,127 @@
     markDmRead(msg.convId);
     renderRoot();
     db.collection('directMessages').doc(id).set(msg).catch(function (err) { showToast(tr('error_prefix') + ((err && err.message) || err)); });
+  }
+  // ---- Groupes de discussion : amis et/ou membres d'un team ----
+  // groupChats/{id} (membres, nom, aperçu du dernier message) et ses
+  // messages en sous-collection, écoutés seulement quand le groupe est ouvert.
+  var groupMsgs = {}, groupWatch = null;
+  function groupById(id) { return (STATE.groupChats || []).filter(function (g) { return g.id === id; })[0] || null; }
+  function watchGroup(id) {
+    if (groupWatch && groupWatch.id === id) return;
+    if (groupWatch) groupWatch.unsub();
+    var unsub = db.collection('groupChats').doc(id).collection('messages').onSnapshot(function (snap) {
+      groupMsgs[id] = snap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); });
+      if (dmOpenWith === 'grp:' + id) markDmRead('grp:' + id);
+      scheduleRender();
+    }, function () {});
+    groupWatch = { id: id, unsub: unsub };
+  }
+  function stopGroupWatch() { if (groupWatch) { groupWatch.unsub(); groupWatch = null; } }
+  function groupAvatarHtml(g) {
+    var ini = String(g.name || '?').trim().split(/\s+/).slice(0, 2).map(function (w) { return w.charAt(0).toUpperCase(); }).join('');
+    return '<span class="group-av" aria-hidden="true">' + escapeHtml(ini || '?') + '</span>';
+  }
+  function sendGroupMsg(id, text) {
+    var me = currentUserProfile, g = groupById(id); text = (text || '').trim().slice(0, 2000);
+    if (!me || !g || !text) return;
+    var msg = { from: myUid(), fromName: me.name, text: text, createdAt: Date.now() }, mid = genId();
+    groupMsgs[id] = (groupMsgs[id] || []).concat([Object.assign({ id: mid }, msg)]);
+    g.lastText = text.slice(0, 200); g.lastAt = msg.createdAt; g.lastFrom = me.name;
+    markDmRead('grp:' + id);
+    renderRoot();
+    var ref = db.collection('groupChats').doc(id);
+    ref.collection('messages').doc(mid).set(msg).then(function () {
+      return ref.update({ lastText: g.lastText, lastAt: g.lastAt, lastFrom: me.name });
+    }).catch(function (err) { showToast(tr('error_prefix') + ((err && err.message) || err)); });
+  }
+  function renderGroupThread(id) {
+    var g = groupById(id), mine = myUid();
+    if (!g) return '<div class="card dm-thread"><div class="dm-head"><button type="button" class="dm-back-btn" data-action="dm-back" aria-label="' + L('Retour', 'Back') + '">‹</button></div><div class="help-text dm-empty">' + L('Groupe introuvable.', 'Group not found.') + '</div></div>';
+    var thread = dmThreadWith('grp:' + id);
+    markDmRead('grp:' + id);
+    var h = '<div class="card dm-thread"><div class="dm-head"><button type="button" class="dm-back-btn" data-action="dm-back" aria-label="' + L('Retour', 'Back') + '">‹</button>' +
+      '<button type="button" class="dm-who" data-action="group-info" data-id="' + escapeHtml(id) + '">' + groupAvatarHtml(g) + '<strong>' + escapeHtml(g.name || '') + '</strong><small class="dm-via">' + escapeHtml(plural((g.members || []).length, L('membre', 'member'), L('membres', 'members'))) + '</small></button></div>' +
+      '<div class="dm-list" id="dm-list">' + (thread.length ? thread.map(function (m) {
+        var isMine = m.from === mine;
+        return '<div class="dm-msg' + (isMine ? ' mine' : '') + '">' + (isMine ? '' : '<span class="dm-sig">' + escapeHtml(m.fromName || '') + '</span>') + '<div class="dm-bubble">' + mentionsHtml(m.text || '') + '</div><span class="dm-time">' + escapeHtml(dmTime(m.createdAt)) + '</span></div>';
+      }).join('') : '<div class="help-text dm-empty">' + L('Lance la discussion : prochain roulage, covoiturage, hôtel…', 'Start the chat: next trackday, car sharing, hotel…') + '</div>') + '</div>';
+    return h + '<form class="dm-form" id="dm-form"><textarea id="dm-text" rows="1" maxlength="2000" placeholder="' + escapeHtml(L('Ton message…', 'Your message…')) + '"></textarea><button type="submit" class="primary">' + L('Envoyer', 'Send') + '</button></form></div>';
+  }
+  // Qui je peux ajouter : mes amis et les membres de mes teams.
+  function groupCandidates() {
+    var me = currentUserProfile && currentUserProfile.name, out = {};
+    friendsOf(me || '').forEach(function (f) { out[f.name] = 1; });
+    (STATE.myTeamMemberships || []).forEach(function (m) { membersOfTeam(m.teamId).forEach(function (x) { if (x.name) out[x.name] = 1; }); });
+    delete out[me];
+    return Object.keys(out).filter(function (n) { return !!uidOf(n); }).sort(function (a, b) { return a.localeCompare(b); });
+  }
+  function openGroupEditor(id) {
+    var me = currentUserProfile; if (!me) return;
+    var g = id ? groupById(id) : null, picked = {};
+    if (g) (g.memberNames || []).forEach(function (n) { if (n !== me.name) picked[n] = 1; });
+    var cands = groupCandidates();
+    (g ? g.memberNames || [] : []).forEach(function (n) { if (n !== me.name && cands.indexOf(n) === -1) cands.push(n); });
+    var teams = (STATE.myTeamMemberships || []).map(function (m) { return teamById(m.teamId); }).filter(Boolean);
+    var ov = openMiniSheet('<h2 class="section-title">' + (g ? L('Modifier le groupe', 'Edit group') : L('Nouveau groupe', 'New group')) + '</h2>' +
+      '<label for="grp-name">' + L('Nom du groupe', 'Group name') + '</label><input type="text" id="grp-name" maxlength="60" placeholder="' + escapeHtml(L('Ex. La bande du Mugello', 'E.g. The Mugello crew')) + '" value="' + escapeHtml(g ? g.name || '' : '') + '">' +
+      (teams.length ? '<div class="help-text" style="margin-top:0.6rem;">' + L('Ajouter tout un team :', 'Add a whole team:') + '</div><div class="grp-teams">' + teams.map(function (t) { return '<button type="button" class="ghost" data-grp-team="' + escapeHtml(t.id) + '">' + escapeHtml(t.name) + '</button>'; }).join('') + '</div>' : '') +
+      '<input type="search" id="grp-q" placeholder="' + escapeHtml(L('Chercher un ami…', 'Search a friend…')) + '" autocomplete="off" style="margin-top:0.6rem;">' +
+      '<div class="grp-list" id="grp-list"></div>' +
+      '<div class="mini-sheet-actions"><button type="button" class="primary" id="grp-save">' + (g ? L('Enregistrer', 'Save') : L('Créer', 'Create')) + '</button></div>');
+    var q = '';
+    var draw = function () {
+      var list = cands.filter(function (n) { return n.toLowerCase().indexOf(q) !== -1; });
+      ov.querySelector('#grp-list').innerHTML = list.length ? list.map(function (n) {
+        return '<label class="grp-row"><input type="checkbox" data-grp-pick="' + escapeHtml(n) + '"' + (picked[n] ? ' checked' : '') + '>' + avatarHtml((STATE.usersByName || {})[n] || {}, n).replace(/ data-person="[^"]*"/, '') + '<span>' + escapeHtml(n) + '</span></label>';
+      }).join('') : '<div class="help-text">' + L('Ajoute des amis ou rejoins un team pour créer un groupe.', 'Add friends or join a team to create a group.') + '</div>';
+      ov.querySelectorAll('[data-grp-pick]').forEach(function (c) { c.addEventListener('change', function () { if (c.checked) picked[c.getAttribute('data-grp-pick')] = 1; else delete picked[c.getAttribute('data-grp-pick')]; }); });
+    };
+    draw();
+    ov.querySelector('#grp-q').addEventListener('input', function (e) { q = e.target.value.trim().toLowerCase(); draw(); });
+    ov.querySelectorAll('[data-grp-team]').forEach(function (b) { b.addEventListener('click', function () {
+      var tm = teamById(b.getAttribute('data-grp-team'));
+      membersOfTeam(b.getAttribute('data-grp-team')).forEach(function (x) { if (x.name && x.name !== me.name && uidOf(x.name)) picked[x.name] = 1; });
+      var nm = ov.querySelector('#grp-name'); if (!nm.value.trim() && tm) nm.value = tm.name;
+      draw();
+    }); });
+    ov.querySelector('#grp-save').addEventListener('click', function () {
+      var name = ov.querySelector('#grp-name').value.trim().slice(0, 60);
+      var names = Object.keys(picked).filter(function (n) { return !!uidOf(n); }).slice(0, 49);
+      if (!name) return showToast(L('Donne un nom au groupe.', 'Give the group a name.'));
+      if (!names.length) return showToast(L('Ajoute au moins une personne.', 'Add at least one person.'));
+      var memberNames = [me.name].concat(names), members = memberNames.map(uidOf);
+      if (g) {
+        db.collection('groupChats').doc(g.id).update({ name: name, members: members, memberNames: memberNames }).catch(function (err) { showToast(tr('error_prefix') + ((err && err.message) || err)); });
+        Object.assign(g, { name: name, members: members, memberNames: memberNames });
+        ov.remove(); renderRoot(); return;
+      }
+      var gid = genId(), doc = { name: name, members: members, memberNames: memberNames, createdBy: myUid(), createdByName: me.name, createdAt: Date.now() };
+      STATE.groupChats = (STATE.groupChats || []).concat([Object.assign({ id: gid }, doc)]);
+      db.collection('groupChats').doc(gid).set(doc).catch(function (err) { showToast(tr('error_prefix') + ((err && err.message) || err)); });
+      ov.remove(); openDm('grp:' + gid);
+    });
+  }
+  function openGroupInfo(id) {
+    var g = groupById(id), me = currentUserProfile; if (!g || !me) return;
+    var isOwner = g.createdBy === myUid();
+    var ov = openMiniSheet('<h2 class="section-title">' + escapeHtml(g.name || '') + '</h2><div class="help-text">' + L('Créé par ', 'Created by ') + escapeHtml(g.createdByName || '') + '</div>' +
+      '<div class="grp-list">' + (g.memberNames || []).map(function (n) { return '<button type="button" class="grp-row" data-person-link="' + escapeHtml(n) + '">' + avatarHtml((STATE.usersByName || {})[n] || {}, n).replace(/ data-person="[^"]*"/, '') + '<span>' + escapeHtml(n) + (n === me.name ? ' (' + L('toi', 'you') + ')' : '') + '</span></button>'; }).join('') + '</div>' +
+      '<div class="mini-sheet-actions">' + (isOwner ? '<button type="button" class="primary" id="grp-edit">' + L('Modifier', 'Edit') + '</button><button type="button" class="ghost" id="grp-del">' + L('Supprimer', 'Delete') + '</button>' : '<button type="button" class="ghost" id="grp-leave">' + L('Quitter', 'Leave') + '</button>') + '</div>');
+    var ed = ov.querySelector('#grp-edit'); if (ed) ed.addEventListener('click', function () { ov.remove(); openGroupEditor(id); });
+    var del = ov.querySelector('#grp-del'); if (del) del.addEventListener('click', function () {
+      if (!confirm(L('Supprimer ce groupe pour tout le monde ?', 'Delete this group for everyone?'))) return;
+      db.collection('groupChats').doc(id).delete().catch(function () {});
+      STATE.groupChats = (STATE.groupChats || []).filter(function (x) { return x.id !== id; });
+      ov.remove(); dmOpenWith = null; stopGroupWatch(); renderRoot();
+    });
+    var lv = ov.querySelector('#grp-leave'); if (lv) lv.addEventListener('click', function () {
+      var i = (g.members || []).indexOf(myUid()); if (i === -1) return;
+      var members = g.members.filter(function (u) { return u !== myUid(); }), memberNames = (g.memberNames || []).filter(function (n) { return n !== me.name; });
+      db.collection('groupChats').doc(id).update({ members: members, memberNames: memberNames }).catch(function (err) { showToast(tr('error_prefix') + ((err && err.message) || err)); });
+      STATE.groupChats = (STATE.groupChats || []).filter(function (x) { return x.id !== id; });
+      ov.remove(); dmOpenWith = null; stopGroupWatch(); renderRoot();
+    });
   }
   function openDm(name) {
     dmOpenWith = name; activeView = 'social'; pillState.social = 'messages'; personView = null;
@@ -21071,6 +21202,7 @@
     return dateKey(d) === today ? pad2(d.getHours()) + ':' + pad2(d.getMinutes()) : formatDateShortYear(dateKey(d));
   }
   function renderMessagesTab(me) {
+    if (typeof dmOpenWith === 'string' && dmOpenWith.indexOf('grp:') === 0) return renderGroupThread(dmOpenWith.slice(4));
     if (dmOpenWith === WELCOME_DM) {
       var wm = welcomeDm(); markDmRead('welcome');
       return '<div class="card dm-thread"><div class="dm-head"><button type="button" class="dm-back-btn" data-action="dm-back" aria-label="' + L('Retour', 'Back') + '">‹</button><span class="dm-who"><img class="dm-app-av" src="icons/icon-192.png" alt=""><strong>Carnet Piste</strong></span></div>' +
@@ -21110,17 +21242,17 @@
       h2 += '<div class="dm-top"><span class="help-text">' + L('Messages reçus par tes teams. Tu réponds au nom du team.', 'Messages received by your teams. You reply as the team.') + '</span></div>';
       return h2 + '<div class="card dm-convs">' + (convs.length ? convs.map(dmConvRow).join('') : '<div class="empty-state">' + L('Aucun message reçu par tes teams pour l\'instant.', 'No message received by your teams yet.') + '</div>') + '</div>';
     }
-    h2 += '<div class="dm-top"><button type="button" class="primary" data-action="dm-new">' + L('Nouveau message', 'New message') + '</button>' +
+    h2 += '<div class="dm-top"><button type="button" class="primary" data-action="dm-new">' + L('Nouveau message', 'New message') + '</button><button type="button" class="ghost" data-action="group-new">' + L('Nouveau groupe', 'New group') + '</button>' +
       '<span class="help-text">' + L('Qui peut t\'écrire : Réglages › Vie privée.', 'Who can write to you: Settings › Privacy.') + '</span></div>';
     h2 += '<div class="card dm-convs">' + (convs.length ? convs.map(dmConvRow).join('') : '<div class="empty-state">' + L('Aucune conversation pour l\'instant. Écris à un ami depuis « Nouveau message » ou depuis sa fiche.', 'No conversation yet. Write to a friend from “New message” or from their profile.') + '</div>') + '</div>';
     return h2;
   }
   function dmConvRow(c) {
       var u = (STATE.usersByName || {})[c.other] || {};
-      var av = c.key === WELCOME_DM ? '<img class="dm-app-av" src="icons/icon-192.png" alt="">' : c.team && c.key.indexOf('team:') === 0 ? teamAvatarHtml(c.team) : avatarHtml(u, c.other).replace(/ data-person="[^"]*"/, '');
+      var av = c.group ? groupAvatarHtml(c.group) : c.key === WELCOME_DM ? '<img class="dm-app-av" src="icons/icon-192.png" alt="">' : c.team && c.key.indexOf('team:') === 0 ? teamAvatarHtml(c.team) : avatarHtml(u, c.other).replace(/ data-person="[^"]*"/, '');
       var lbl = escapeHtml(c.other) + (c.team && c.key.indexOf('tu:') === 0 ? ' <small class="dm-via">' + escapeHtml(L('à ', 'to ') + c.team.name) + '</small>' : '');
       return '<button type="button" class="dm-conv' + (c.unread ? ' unread' : '') + '" data-action="dm-open" data-name="' + escapeHtml(c.key || c.other) + '">' + av +
-        '<span class="dm-conv-main"><strong>' + lbl + '</strong><span class="help-text">' + (c.last.from === myUid() ? L('Toi : ', 'You: ') : c.team && c.last.asTeam && c.key.indexOf('tu:') === 0 ? escapeHtml(c.last.fromName || '') + ' : ' : '') + escapeHtml((c.last.text || '').slice(0, 80)) + '</span></span>' +
+        '<span class="dm-conv-main"><strong>' + lbl + '</strong><span class="help-text">' + (c.last.from === myUid() ? L('Toi : ', 'You: ') : c.group && c.last.fromName ? escapeHtml(c.last.fromName) + ' : ' : c.team && c.last.asTeam && c.key.indexOf('tu:') === 0 ? escapeHtml(c.last.fromName || '') + ' : ' : '') + escapeHtml((c.last.text || '').slice(0, 80)) + '</span></span>' +
         '<span class="dm-conv-side"><span class="dm-time">' + escapeHtml(dmTime(c.last.createdAt)) + '</span>' + (c.unread ? '<span class="dm-unread">' + c.unread + '</span>' : '') + '</span></button>';
   }
   function openDmPicker() {
@@ -22869,6 +23001,8 @@
       renderRootUnsafe();
       markScrollableTabs();
       sanitizeLinks(document.getElementById('root'));
+      // Montants du budget floutés (œil) : sur toute page qui montre le budget.
+      document.body.classList.toggle('budget-masked', !!document.querySelector('.budget-hide-btn') && budgetHidden());
       navTrack();
       observeViews();
       var appTitle = L('Carnet Piste', 'Pitbook'); // nom de l'appli selon la langue
@@ -23606,7 +23740,7 @@
     profilePanelOpen = true; profileSubTab = 'plus'; notificationsPanelOpen = false; profileSaveMessage = '';
     renderRoot(); window.scrollTo(0, 0);
   }
-  var profileSubTab = 'profil'; // 'profil' | 'reglages' | 'aide' -- pure UI state, not persisted
+  var profileSubTab = 'compte'; // 'profil' | 'reglages' | 'aide' -- pure UI state, not persisted
   var profileDeleteConfirmOpen = false; // pure UI state, not persisted
   var riderManagerOpen = false; // pure UI state, not persisted
   var editingRiderName = null; // rider currently shown as an inline rename form, or null
@@ -24353,7 +24487,7 @@
       if (teamCreateOpen) { var i = document.getElementById('new-team-name'); if (i) i.focus(); }
     }); });
     document.querySelectorAll('a[data-yt]').forEach(function (a) { a.addEventListener('click', function (e) {
-      if (!/^https:\/\/(www\.)?youtube\.com|^https:\/\/youtu\.be/.test(a.href) || !youtubeAppUrl(a.href)) return;
+      if (!videoEmbedOf(a.href)) return;
       e.preventDefault(); openYoutube(a.href);
     }); });
     var incBtn = document.getElementById('cf-incident');
@@ -24375,14 +24509,9 @@
       outingSearch = /\balbum\b/i.test(outingSearch) ? outingSearch.replace(/\s*\balbum\b\s*/i, ' ').trim() : (outingSearch + ' album').trim();
       renderRoot();
     }); });
-    document.querySelectorAll('[data-action="budget-hide"]').forEach(function (b) { b.addEventListener('click', function () {
-      try { localStorage.setItem('cdp-budget-hidden', budgetHidden() ? '0' : '1'); } catch (e) {}
-      renderRoot();
-    }); });
-    if (document.querySelector('.budget-hero')) document.body.classList.toggle('budget-masked', budgetHidden());
-    else document.body.classList.remove('budget-masked');
+
     document.querySelectorAll('[data-action="garage-edit-bike"]').forEach(function (b) { b.addEventListener('click', function () {
-      profilePanelOpen = true; profileSubTab = 'profil'; pillState.profil = 'role'; renderRoot(); window.scrollTo(0, 0);
+      profilePanelOpen = true; profileSubTab = 'compte'; pillState.profil = 'role'; renderRoot(); window.scrollTo(0, 0);
     }); });
     document.querySelectorAll('[data-action="orga-manage"], [data-action="orga-new-event"]').forEach(function (b) { b.addEventListener('click', function () {
       expandedTeamId = b.getAttribute('data-team'); activeView = 'team'; personView = null; editingEventId = null;
@@ -24531,7 +24660,7 @@
     });
     document.querySelectorAll('[data-action="look-edit"]').forEach(function (btn) { btn.addEventListener('click', openLookEditor); });
     document.querySelectorAll('[data-action="open-my-profile"]').forEach(function (btn) {
-      btn.addEventListener('click', function () { profilePanelOpen = true; profileSubTab = 'profil'; notificationsPanelOpen = false; profileSaveMessage = ''; renderRoot(); window.scrollTo(0, 0); });
+      btn.addEventListener('click', function () { profilePanelOpen = true; profileSubTab = 'compte'; notificationsPanelOpen = false; profileSaveMessage = ''; renderRoot(); window.scrollTo(0, 0); });
     });
     document.querySelectorAll('[data-action="team-look-edit"]').forEach(function (btn) { btn.addEventListener('click', function () { openTeamLookEditor(btn.getAttribute('data-team')); }); });
     document.querySelectorAll('[data-action="look-cancel"]').forEach(function (btn) { btn.addEventListener('click', function () { lookDraft = null; lookMessage = ''; renderRoot(); }); });
@@ -24742,12 +24871,15 @@
           e.preventDefault(); e.stopPropagation();
           // Fenêtre de lecture hors de la page : les mises à jour du fil
           // ne coupent pas la vidéo.
-          var tall = emf.closest('.link-player.tall');
-          var pov = openMiniSheet('<div class="link-player in-sheet' + (tall ? ' tall' : '') + '"><iframe class="link-player-frame" src="' + escapeHtml(emf.getAttribute('data-embed')) + '" title="' + escapeHtml(L('Vidéo', 'Video')) + '" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe></div>' +
-            '<div class="mini-sheet-actions"><a class="ghost link-btn" href="' + escapeHtml(emf.getAttribute('data-url') || '') + '" target="_blank" rel="noopener">' + L('Ouvrir', 'Open') + ' ↗</a></div>');
-          pov.querySelector('.mini-sheet').classList.add('player-sheet');
+          openPlayerSheet(emf.getAttribute('data-url'));
           return;
         }
+        var bh = e.target.closest('[data-action="budget-hide"]');
+        if (bh) { e.preventDefault(); e.stopPropagation(); try { localStorage.setItem('cdp-budget-hidden', budgetHidden() ? '0' : '1'); } catch (er) {} renderRoot(); return; }
+        var gn = e.target.closest('[data-action="group-new"]');
+        if (gn) { e.preventDefault(); e.stopPropagation(); openGroupEditor(null); return; }
+        var gi = e.target.closest('[data-action="group-info"]');
+        if (gi) { e.preventDefault(); e.stopPropagation(); openGroupInfo(gi.getAttribute('data-id')); return; }
         var ech = e.target.closest('[data-action="event-chat"]');
         if (ech) { e.preventDefault(); e.stopPropagation(); openEventChat(ech.getAttribute('data-id')); return; }
         var alb = e.target.closest('[data-action="open-albums"]');
@@ -26227,7 +26359,7 @@
       var bub = b.closest('.dm-msg').querySelector('[data-dm-react]');
       reactToDm(bub.getAttribute('data-dm-coll'), b.getAttribute('data-dm-react-chip'), b.getAttribute('data-emoji'));
     }); });
-    document.querySelectorAll('[data-action="dm-back"]').forEach(function (b) { b.addEventListener('click', function (e) { e.stopPropagation(); dmOpenWith = null; renderRoot(); }); });
+    document.querySelectorAll('[data-action="dm-back"]').forEach(function (b) { b.addEventListener('click', function (e) { e.stopPropagation(); dmOpenWith = null; stopGroupWatch(); renderRoot(); }); });
     var dmForm = document.getElementById('dm-form');
     if (dmForm) {
       var dmTa = document.getElementById('dm-text');
@@ -27767,6 +27899,11 @@
     // l'auteur et les uids de visibleTo (voir firestore.rules). D'où trois
     // requêtes (public, partagé avec moi, les miens) fusionnées ici.
     // Messages privés : seulement ceux dont je suis l'un des deux membres.
+    // Groupes de discussion dont je suis membre.
+    unsubscribers.push(db.collection('groupChats').where('members', 'array-contains', myUid()).onSnapshot(function (snap) {
+      STATE.groupChats = snap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); });
+      scheduleRender();
+    }, function () {}));
     unsubscribers.push(db.collection('directMessages').where('members', 'array-contains', myUid()).onSnapshot(function (snap) {
       STATE.dms = snap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); });
       // Conversation ouverte à l'écran : ses nouveaux messages sont lus.

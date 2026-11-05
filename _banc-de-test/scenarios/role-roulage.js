@@ -25,7 +25,7 @@ const { chromium, BASE } = require('../lib');
   console.log('retour pilote:', JSON.stringify(await p.evaluate(() => window.__MOCK_DATA.events.e1.riderRoles)), '|', await tabs());
   // Avertissement au changement de rôle du compte
   await p.click('#settings-toggle'); await p.waitForTimeout(300);
-  await p.click('[data-profile-tab="profil"]'); await p.waitForTimeout(300);
+  await p.click('[data-profile-tab="compte"]'); await p.waitForTimeout(300);
   await p.click('[data-cpill-group="profil"][data-cpill="role"]'); await p.waitForTimeout(300);
   await p.check('input[name="profile-role"][value="accompagnant"]');
   await p.click('#profile-form [type="submit"]'); await p.waitForTimeout(400);

@@ -4853,3 +4853,13 @@ body.budget-masked .ph-feature-time, body.budget-masked .budget-kpis strong, bod
 .ev-chat-form textarea { flex: 1; min-width: 0; resize: none; }
 .mini-sheet.player-sheet { width: min(960px, calc(100vw - 1.5rem)); max-width: none; padding-top: 2.6rem; }
 .link-player.in-sheet { margin: 0; }
+body.budget-masked .budget-season strong, body.budget-masked .budget-row .carnet-time, body.budget-masked .budget-row strong { filter: blur(7px); user-select: none; }
+/* Groupes de discussion */
+.group-av { width: 2.4rem; height: 2.4rem; flex: 0 0 auto; border-radius: 50%; display: grid; place-items: center; background: #14161a; color: #f4f3ef; font-family: 'Barlow Condensed', sans-serif; font-weight: 800; font-size: 1rem; letter-spacing: 0.02em; }
+.dm-top { flex-wrap: wrap; }
+.grp-teams { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.3rem; }
+.grp-teams button { border-radius: 999px; padding: 0.35rem 0.8rem; font-weight: 700; color: var(--text); }
+.grp-list { max-height: 45dvh; overflow-y: auto; margin-top: 0.5rem; }
+.grp-row { display: flex; align-items: center; gap: 0.6rem; width: 100%; padding: 0.45rem 0.2rem; border: 0; border-bottom: 1px solid var(--border); background: none; color: var(--text); font-weight: 600; text-align: left; cursor: pointer; }
+.grp-row input[type="checkbox"] { width: 1.1rem; height: 1.1rem; margin: 0; flex: 0 0 auto; }
+#grp-q { width: 100%; }

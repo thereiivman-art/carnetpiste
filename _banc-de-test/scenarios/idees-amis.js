@@ -45,7 +45,7 @@ const { chromium, BASE } = require('../lib');
   console.log('présentation:', await p.$eval('#look-bio', e => e.maxLength), '|', await p.$eval('#look-bio-count', e => e.innerText));
   await p.click('[data-action="look-cancel"]').catch(() => {}); await p.waitForTimeout(300);
   await p.click('#settings-toggle'); await p.waitForTimeout(400);
-  await p.click('[data-profile-tab="profil"]').catch(() => {}); await p.waitForTimeout(300);
+  await p.click('[data-profile-tab="compte"]').catch(() => {}); await p.waitForTimeout(300);
   console.log('images prêtes:', await p.$$eval('.avatar-preset', e => e.length));
   await p.click('.avatar-preset >> nth=1'); await p.waitForTimeout(500);
   console.log('photo enregistrée:', await p.evaluate(() => firebase.firestore().collection('users').doc(firebase.auth().currentUser.uid).get().then(d => (d.data().photoURL || '').slice(0, 26))));

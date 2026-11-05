@@ -904,6 +904,47 @@ service cloud.firestore {
         && onlyOwnKeyChanged(resource.data.get('reactions', {}), request.resource.data.reactions);
       allow delete: if request.auth != null && request.auth.uid in resource.data.members;
     }
+    // Groupes de discussion (amis, membres d'un team) : lus par leurs seuls
+    // membres. Le créateur gère le nom et les membres ; chacun peut partir ;
+    // tout membre met à jour l'aperçu du dernier message (le sien).
+    match /groupChats/{gid} {
+      allow read: if request.auth != null && request.auth.uid in resource.data.members;
+      allow create: if verified() && realAccount()
+        && request.resource.data.keys().hasOnly(['name', 'members', 'memberNames', 'createdBy', 'createdByName', 'createdAt'])
+        && request.resource.data.createdBy == request.auth.uid
+        && request.resource.data.createdByName == myName()
+        && request.resource.data.name is string && request.resource.data.name.size() > 0 && request.resource.data.name.size() <= 60
+        && request.resource.data.members is list && request.resource.data.members.size() >= 2 && request.resource.data.members.size() <= 50
+        && request.auth.uid in request.resource.data.members
+        && request.resource.data.memberNames is list && request.resource.data.memberNames.size() == request.resource.data.members.size()
+        && request.resource.data.createdAt is number;
+      allow update: if verified() && request.auth.uid in resource.data.members && (
+        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lastText', 'lastAt', 'lastFrom'])
+          && request.resource.data.lastFrom == myName()
+          && request.resource.data.lastText is string && request.resource.data.lastText.size() <= 200
+          && request.resource.data.lastAt is number)
+        || (resource.data.createdBy == request.auth.uid
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'members', 'memberNames'])
+          && request.resource.data.name is string && request.resource.data.name.size() > 0 && request.resource.data.name.size() <= 60
+          && request.resource.data.members is list && request.resource.data.members.size() >= 2 && request.resource.data.members.size() <= 50
+          && request.auth.uid in request.resource.data.members
+          && request.resource.data.memberNames is list && request.resource.data.memberNames.size() == request.resource.data.members.size())
+        || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['members', 'memberNames'])
+          && request.resource.data.members.toSet() == resource.data.members.toSet().difference([request.auth.uid].toSet())
+          && request.resource.data.memberNames.size() == request.resource.data.members.size()));
+      allow delete: if request.auth != null && resource.data.createdBy == request.auth.uid;
+      match /messages/{mid} {
+        allow read: if request.auth != null && request.auth.uid in get(/databases/$(database)/documents/groupChats/$(gid)).data.members;
+        allow create: if verified() && realAccount()
+          && request.auth.uid in get(/databases/$(database)/documents/groupChats/$(gid)).data.members
+          && request.resource.data.keys().hasOnly(['from', 'fromName', 'text', 'createdAt'])
+          && request.resource.data.from == request.auth.uid
+          && request.resource.data.fromName == myName()
+          && request.resource.data.text is string && request.resource.data.text.size() > 0 && request.resource.data.text.size() <= 2000
+          && request.resource.data.createdAt is number;
+        allow delete: if request.auth != null && resource.data.from == request.auth.uid;
+      }
+    }
     // Discussion d'un roulage : lue par les comptes vérifiés (comme le
     // roulage lui-même), écrite par ses pilotes/accompagnants inscrits,
     // le Team Leader de l'organisateur, ou l'admin.
