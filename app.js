@@ -18261,7 +18261,8 @@
       plateHtml: l.plate && u.bikeNumber ? '<span class="ph-plate">' + escapeHtml(u.bikeNumber) + '</span>' : '',
       avatar: avatarHtml(u, name),
       nameHtml: escapeHtml(name) + badgesHtml(u),
-      subHtml: '<span class="friend-role-badge">' + roleLabel(u.role) + '</span>' + (sub.length ? ' ' + sub.join(' · ') : ''),
+      // Ligne d'infos propre : rôle, pays, moto et numéro, chaque élément d'un bloc.
+      subHtml: '<span class="ph-meta-line"><span class="friend-role-badge">' + roleLabel(u.role) + '</span>' + sub.map(function (x) { return '<span class="ph-meta">' + x + '</span>'; }).join('') + '</span>',
       bio: l.bio, acts: acts, idExtra: idExtra, ownCover: !!(currentUserProfile && name === currentUserProfile.name)
     });
   }
@@ -18896,7 +18897,7 @@
     // Identity
     var sub = [];
     if (u.nationality) sub.push(countryBallHtml(u.nationality, 'inline') + ' ' + escapeHtml(countryName(u.nationality)));
-    if (isPilote && u.bike) sub.push(escapeHtml(u.bike) + (u.bikeNumber ? ' #' + escapeHtml(u.bikeNumber) : ''));
+    if (isPilote && u.bike) sub.push(escapeHtml(u.bike) + (u.bikeNumber ? ' <span class="ph-num">#' + escapeHtml(u.bikeNumber) + '</span>' : ''));
     // Actions
     var acts = '';
     if (isMe) acts += myDraft ? '' : '<button type="button" class="primary" data-action="look-edit">' + L('Modifier', 'Edit') + '</button>' +
@@ -25010,7 +25011,7 @@
         var p = document.querySelector('.person-hero .ph-bio');
         if (p) p.textContent = lookBio.value;
       });
-      lookBio.addEventListener('change', function () { renderRoot(); });
+      // Pas de re-rendu en quittant le champ : il avalait le premier toucher suivant.
     }
     var lookCoverBtn = document.getElementById('look-cover-btn'), lookCoverInput = document.getElementById('look-cover-input');
     if (lookCoverBtn && lookCoverInput) {

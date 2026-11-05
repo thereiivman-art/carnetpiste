@@ -4952,7 +4952,14 @@ body.budget-masked .budget-season strong, body.budget-masked .budget-row .carnet
 @media (max-width: 959px) { .subnav.main-subnav { margin-bottom: calc(var(--subnav-gap, 0.5rem) + 0.25rem); } }
 /* Vibreurs des circuits : en liseré autour de la fiche (bordure rayée qui
    suit les coins) et en style de bannière. */
-.person-hero[data-bframe^="k-"] { box-shadow: none; outline: 0; border: 5px solid transparent; background: linear-gradient(var(--surface), var(--surface)) padding-box, var(--kerb-f) border-box; }
+/* Vibreur seulement dans les 4 coins (les « virages ») : le milieu de chaque
+   bord est recouvert par la couleur de la page. */
+.person-hero[data-bframe^="k-"] { box-shadow: none; outline: 0; border: 5px solid transparent;
+  background: linear-gradient(var(--surface), var(--surface)) padding-box,
+    linear-gradient(var(--bg), var(--bg)) center / calc(100% - 120px) calc(100% + 4px) no-repeat border-box,
+    linear-gradient(var(--bg), var(--bg)) center / calc(100% + 4px) calc(100% - 120px) no-repeat border-box,
+    var(--kerb-f) border-box;
+  background-origin: padding-box, border-box, border-box, border-box; }
 .person-hero[data-bframe="k-classique"] { --kerb-f: repeating-linear-gradient(45deg, #c8261f 0 12px, #ffffff 12px 24px); }
 .person-hero[data-cover="k-classique"] .ph-cover { background: repeating-linear-gradient(45deg, #c8261f 0 22px, #ffffff 22px 44px); }
 .person-hero[data-bframe="k-lemans"] { --kerb-f: repeating-linear-gradient(45deg, #f2c500 0 12px, #1d4fb6 12px 24px); }
@@ -4963,3 +4970,18 @@ body.budget-masked .budget-season strong, body.budget-masked .budget-row .carnet
 .person-hero[data-cover="k-ricard"] .ph-cover { background: repeating-linear-gradient(45deg, #1d4fb6 0 22px, #c8261f 22px 44px, #14161a 44px 55px); }
 .person-hero[data-bframe="k-misano"] { --kerb-f: repeating-linear-gradient(45deg, #0a7fc2 0 12px, #ffffff 12px 24px, #e2231a 24px 36px, #ffffff 36px 48px); }
 .person-hero[data-cover="k-misano"] .ph-cover { background: repeating-linear-gradient(45deg, #0a7fc2 0 22px, #ffffff 22px 44px, #e2231a 44px 66px, #ffffff 66px 88px); }
+
+/* En-tête de fiche : photo à gauche (sur la bannière), trophées à droite,
+   puis nom, infos et bio alignés sur la même marge. */
+.ph-id { display: grid; grid-template-columns: auto 1fr; grid-template-areas: "av vit" "id id"; align-items: end; column-gap: 0.75rem; row-gap: 0.35rem; }
+.ph-id > .ph-avatar { grid-area: av; }
+.ph-id > .person-id { grid-area: id; padding-top: 0; }
+.ph-id > .mini-vitrine { grid-area: vit; justify-self: end; align-self: end; padding-top: 0; margin-left: 0; }
+.ph-id .person-name { font-size: 1.6rem; line-height: 1.1; }
+.ph-meta-line { display: flex; flex-wrap: wrap; align-items: center; gap: 0.3rem 0.5rem; color: var(--text-muted); font-size: 0.88rem; font-weight: 600; }
+.ph-meta { display: inline-flex; align-items: center; gap: 0.3rem; white-space: nowrap; }
+.ph-meta + .ph-meta::before, .friend-role-badge + .ph-meta::before { content: '·'; margin-right: 0.2rem; color: var(--border); font-weight: 800; }
+.ph-num { display: inline-block; padding: 0 0.35rem; border-radius: 6px; background: var(--text); color: var(--bg); font-family: 'Barlow Condensed', sans-serif; font-weight: 800; font-size: 0.85rem; }
+.ph-bio { font-size: 0.95rem; }
+/* Fil / Messages / Teams collé sous l'en-tête : pas de bande vide au-dessus. */
+@media (max-width: 959px) { .page-head + .subnav.main-subnav { margin-top: -0.9rem; } }
