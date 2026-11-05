@@ -1,4 +1,4 @@
-# Carnet Piste (Pitbook)
+# Pitbook (Pitbook)
 
 Carnet de roulage pour la moto sur circuit. Le pilote y note ses chronos et ses repères, prépare ses journées et suit ses amis. C'est une application web installable (PWA), sans serveur à nous : tout tourne dans le navigateur et les données sont dans Firebase (Firestore + Auth, offre gratuite).
 
@@ -92,25 +92,25 @@ Chaque partie de `app.js` commence par un titre `// ---- Nom ----`. La table ci-
 | Compteurs d'usage (anonymes) | 17976 | `usageMonthKey`, `countUsage`, `countUsageOnce`, `countChronoMilestones`, `countActiveMonth`, `renderUsageStatsCard` |
 | Nationalité | 18071 | `countryName`, `stripes`, `nordic`, `centreDot`, `countryBallHtml`, `flagEmoji`, `deviceCountryCode`, `nationalitySelectHtml` … |
 | Fiche d'un pilote (page) | 18245 | `teamAvatarRaw`, `openPerson`, `pName`, `cName`, `tName`, `personLinkHtml` |
-| Fiche personnalisée (aperçu de Carnet+) | 18294 | `cosmeticOk`, `bubbleStyle`, `unlockChips`, `unlockSwatchesHtml`, `lookCovers`, `lookPlates`, `lookOf`, `lookInk` … |
+| Fiche personnalisée (aperçu de Pitbook+) | 18294 | `cosmeticOk`, `bubbleStyle`, `unlockChips`, `unlockSwatchesHtml`, `lookCovers`, `lookPlates`, `lookOf`, `lookInk` … |
 | Fiche team personnalisée (aperçu de Team PRO) | 18457 | `teamLookFor`, `teamEvents`, `teamPalmares`, `renderTeamHero`, `renderTeamShowcase`, `openTeamLookEditor`, `lookShows`, `normalizeUrl` … |
 | Saisons : one year at a time, visual, shareable | 18824 | `riderSeasonYears`, `riderSeason`, `seasonYearChips`, `seasonDateBox`, `renderRiderSeasons`, `teamSeasonYears`, `teamSeasonDays`, `teamEventBest` … |
 | Recherche dans toute l'appli (façon Discord : Ctrl/Cmd + K) | 19336 | `gsearchBuild`, `gsearchFill`, `renderSearchInline`, `closeSearchInline`, `bindSearchInline`, `openGlobalSearch`, `openPlayerSheet`, `postLinkHtml` … |
 | Réseau : abonnés, abonnements, suggestions | 19502 | `friendNamesOf`, `uniqNames`, `followersOf`, `followingOf`, `followedRidersOf`, `iFollow`, `plural`, `socialCountsHtml` … |
 | Stories : le dernier roulage (7 jours) ou la dernière photo | 19656 | `storyItems`, `storyTimeLeft` |
-| Stories vidéo (Carnet+) : 10 s max, recompressées sur le | 19687 | `dataUrlToFile`, `shareElsewhere`, `postShareLink`, `copyText`, `openPostShareSheet` |
-| Pneus : la monnaie de Carnet Piste | 19744 | `pneusState`, `pneusDayCalc`, `pneusProfilePoints`, `pneusTrophyPoints`, `pneusTotal`, `pneusBalance`, `pneusOwned`, `pneusBuyAttrs` … |
+| Stories vidéo (Pitbook+) : 10 s max, recompressées sur le | 19687 | `dataUrlToFile`, `shareElsewhere`, `postShareLink`, `copyText`, `openPostShareSheet` |
+| Pneus : la monnaie de Pitbook | 19744 | `pneusState`, `pneusDayCalc`, `pneusProfilePoints`, `pneusTrophyPoints`, `pneusTotal`, `pneusBalance`, `pneusOwned`, `pneusBuyAttrs` … |
 | Présence : en ligne (vert), actif il y a moins de 2 h (orange), | 20214 | `loginStreakTick`, `presenceBeat`, `presenceOf`, `presenceLabel`, `friendsPresenceBubbles` |
 | Ajoute des amis : suggestions façon Instagram, repliables | 20254 | `friendSuggestions`, `renderFriendSuggestBar`, `renderStoriesRow`, `storyAsTeamHtml`, `openStoryComposer`, `likeOnDoubleTap`, `openStoryOf`, `openTeamFromStory` … |
 | Zoom sur une photo (profil) : plein écran, pincer pour zoomer, | 20518 | `openPhotoZoom` |
 | Audience : vues des publications et visites du profil | 20556 | `viewAttrs`, `recordView`, `observeViews`, `ensureAudienceSync`, `myAudience`, `postLabel` |
-| Espace Carnet+ (simulation de l'offre payante) | 20634 | `hasCarnetPlus`, `renderCarnetPlusTab`, `renderAudienceTab`, `mediaKitText` |
+| Espace Pitbook+ (simulation de l'offre payante) | 20634 | `hasCarnetPlus`, `renderCarnetPlusTab`, `renderAudienceTab`, `mediaKitText` |
 | Commentaires des messages | 20708 | `commentRowHtml`, `renderPostComments`, `likeComment`, `addComment`, `renderPersonalitiesSection` |
 | Mur (wall) | 20795 | `visibleWallPosts`, `consumeSharedIn`, `postPlaceHtml`, `renderWallComposer`, `mentionsHtml`, `storyViewCount`, `inFeed`, `mentionCandidates` … |
 | Messagerie privée | 21433 | `dmPolicyOf`, `isFriendName`, `teamDmInfo`, `teamDmUserName`, `welcomeDm`, `dmThreadWith`, `canMessage`, `dmReadMap` … |
 | Groupes de discussion : amis et/ou membres d'un team | 21547 | `groupById`, `watchGroup`, `stopGroupWatch`, `groupAvatarHtml`, `sendGroupMsg`, `renderGroupThread`, `groupCandidates`, `openGroupEditor` … |
 | Team | 21889 | `renderTeamPollEntry`, `renderTeamFeedEntry`, `updateTeamFeedPost`, `deleteTeamFeedPost`, `renderTeamPersonRow`, `teamCard`, `renderTeamMembersSection`, `renderTeamFollowersSection` |
-| Audience du team (Carnet+ motoclubs) | 22089 | `loadTeamAudience`, `renderTeamAudience`, `renderTeamSettings`, `renderTeamProBadgeGrantSection`, `renderTeamEventsManagement`, `renderEventManagementScreen`, `flatSections`, `renderTeamCard` … |
+| Audience du team (Pitbook+ motoclubs) | 22089 | `loadTeamAudience`, `renderTeamAudience`, `renderTeamSettings`, `renderTeamProBadgeGrantSection`, `renderTeamEventsManagement`, `renderEventManagementScreen`, `flatSections`, `renderTeamCard` … |
 | Coach | 22677 | `renderCoachMessageThread`, `paintApplySlot`, `aggregatedCoachAvailability`, `coachAvailabilitySlotClass`, `slotAvailableTypes`, `renderCoachPlanningSection` |
 | Demander depuis un créneau du planning (voir renderCoachPlanningSection) | 22838 | `openCoachSlotModal`, `coachSlotModalAllowedTypes`, `closeCoachSlotModal`, `renderCoachSlotModal`, `coachRequestAwaitingMe`, `coachRequestSlotHtml`, `renderCoachActionRow`, `renderCoachWaitingRow` … |
 | Revenir en arrière | 23403 | `navSnapshot`, `navSig`, `navTrack`, `navBack`, `isSafeUrl`, `sanitizeLinks`, `captureDirtyFields`, `restoreDirtyFields` … |

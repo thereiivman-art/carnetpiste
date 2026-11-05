@@ -119,7 +119,7 @@
       visibility_label: 'Visibilité', vis_public_full: 'Public (visible par tous, invitation requise)', vis_ouvert_full: 'Ouvert (inscription libre)',
       teampro_only_help: 'Réservé aux Teams PRO – un team amateur reste visible par ses membres et les pilotes invités.',
       booking_url_label: 'Lien de réservation (optionnel)',
-      booking_url_help: 'Carnet Piste ne gère pas les paiements – ce lien renvoie vers ta billetterie (Billetweb ou autre) pour l\'inscription/le paiement.',
+      booking_url_help: 'Pitbook ne gère pas les paiements – ce lien renvoie vers ta billetterie (Billetweb ou autre) pour l\'inscription/le paiement.',
       more_options_less: '− Moins d\'options', more_options_more: '+ Plus d\'options (horaires, pilotes, organisateur...)',
       horaires_this_event_label: 'Horaires par groupe (ce roulage – laisser vide pour utiliser les horaires habituels du circuit)',
       organizer_note_label: 'Organisateur (si absent de l\'app)', riders_label: 'Pilotes',
@@ -277,7 +277,7 @@
       role_info_organisateur_3: 'Partager un lien photos/vidéos après le roulage',
       role_info_organisateur_4: 'Suivre des pilotes et être notifié de leurs départs, comme un accompagnant',
       role_info_organisateur_5: 'Si tu es aussi Team Leader d\'un team : gérer ses membres, son Social, ses roulages et certifier les chronos de tes pilotes',
-      carnet_helps_you: 'Carnet Piste t\'aide à :',
+      carnet_helps_you: 'Pitbook t\'aide à :',
       pseudo_label: 'Pseudo', rename_limit_prefix: '1 changement de pseudo par mois – possible à nouveau le ',
       rename_warning: '⚠ Renommer va changer ton identité partout dans l\'app (chronos, roulages, teams, coaching, amis...).',
       edit_pseudo_btn: 'Modifier le pseudo', firstname_label: 'Prénom', lastname_label: 'Nom',
@@ -285,14 +285,14 @@
       my_bike_label: 'Ma moto', bike_suggested_help: 'Suggérée automatiquement quand tu entres un chrono.',
       bike_number_label: 'N° de moto', bike_number_help: '1 à 3 chiffres.',
       chrono_app_link_label: 'Lien vers ton appli de chrono (optionnel)',
-      chrono_app_link_help: 'Carnet Piste reste déclaratif – ce lien renvoie vers ton appli de chrono officielle (Superlaps ou autre) si tu en utilises une.',
+      chrono_app_link_help: 'Pitbook reste déclaratif – ce lien renvoie vers ton appli de chrono officielle (Superlaps ou autre) si tu en utilises une.',
       followed_riders_label: 'Pilotes que je suis', no_rider_registered: 'Aucun pilote enregistré pour l\'instant.',
       close_label: 'Fermer',
       my_badges_admin_heading: 'Mes badges (admin)',
       my_badges_admin_help: 'Pour tout autre compte, ces badges se gèrent depuis Gestion des comptes.',
       // Aide / Suggestion tabs
       about_heading: 'À propos',
-      about_text: 'Carnet Piste, c\'est ton carnet de pilote : avant le roulage (prépa, horaires, repères), pendant (jour J, chronos en direct de l\'orga), après (chronos, progression, partage). Il complète l\'appli de ton organisateur, il ne la remplace pas : la réservation, le paiement et le chronométrage officiel restent chez lui.',
+      about_text: 'Pitbook, c\'est ton carnet de pilote : avant le roulage (prépa, horaires, repères), pendant (jour J, chronos en direct de l\'orga), après (chronos, progression, partage). Il complète l\'appli de ton organisateur, il ne la remplace pas : la réservation, le paiement et le chronométrage officiel restent chez lui.',
       review_tutorial_btn: 'Revoir le tutoriel',
       badges_legend_heading: 'Que veulent dire ces badges ?',
       team_pro_legend: 'Team PRO — club officiel certifié par l\'administrateur.',
@@ -301,7 +301,7 @@
       follower_legend: 'Suit un team sans en être membre – droits limités (voir la fiche du team).',
       no_partner_yet: 'Aucun partenaire pour l\'instant.',
       partners_input_label: 'Un par ligne : Nom | URL (URL optionnelle)',
-      our_partners_heading: 'Nos partenaires de Carnet Piste',
+      our_partners_heading: 'Nos partenaires de Pitbook',
       optional_features_heading: 'Fonctionnalités optionnelles',
       optional_features_help: 'Masquées pour tout le monde par défaut – à activer seulement si un team en a besoin.',
       feature_teams_coaching_label: 'Teams et coaching (onglets de Communauté)',
@@ -962,8 +962,8 @@
 "Ex. vibreur rouge intérieur": "E.g. red inside kerb",
 "Ex. 2e vibreur, après la bosse": "E.g. 2nd kerb, after the bump",
 "Ex. laisser filer jusqu'au vibreur extérieur": "E.g. let it run out to the outside kerb",
-"Te signale au team sur Carnet Piste – ne réserve ni ne paie rien.": "Lets the team know on Pitbook – doesn't book or pay for anything.",
-"L'inscription et le paiement se font chez l'organisateur (« Réserver chez l'orga »). « J'y vais » te met seulement sur la liste des pilotes du roulage dans Carnet Piste, pour retrouver horaires, groupe et copains.": "Registration and payment are with the organiser (\"Book with the organiser\"). \"I'm going\" only puts you on the trackday's rider list in Pitbook, to find your schedule, group and friends.",
+"Te signale au team sur Pitbook – ne réserve ni ne paie rien.": "Lets the team know on Pitbook – doesn't book or pay for anything.",
+"L'inscription et le paiement se font chez l'organisateur (« Réserver chez l'orga »). « J'y vais » te met seulement sur la liste des pilotes du roulage dans Pitbook, pour retrouver horaires, groupe et copains.": "Registration and payment are with the organiser (\"Book with the organiser\"). \"I'm going\" only puts you on the trackday's rider list in Pitbook, to find your schedule, group and friends.",
 "Modifier le lien": "Edit the link",
 "Modifier": "Edit",
 "Modifier mon lien": "Edit my link",
@@ -1079,7 +1079,7 @@
 "Ton groupe part rouler": "Your group is heading out",
 "Prochaine session dans": "Next session in",
 "Ajoute au moins un pilote pour lui assigner un groupe de départ.": "Add at least one rider to assign them a starting group.",
-"C'est une demande au coach, à confirmer avec lui (et avec l'organisateur si besoin) : Carnet Piste ne réserve ni ne fait payer de créneau.": "This is a request to the coach, to confirm with them (and with the organiser if needed): Pitbook doesn't book or charge for any slot.",
+"C'est une demande au coach, à confirmer avec lui (et avec l'organisateur si besoin) : Pitbook ne réserve ni ne fait payer de créneau.": "This is a request to the coach, to confirm with them (and with the organiser if needed): Pitbook doesn't book or charge for any slot.",
 "À découvrir": "Discover",
 "Quelque chose a mal tourné en construisant la page. Envoie ce message tel quel :": "Something went wrong building the page. Send this message as is:",
 "Hors ligne : tu vois les dernières données synchronisées. Tes chronos sont gardés sur le téléphone et envoyés dès que le réseau revient.": "Offline: you're seeing the last synced data. Your lap times are kept on the phone and sent as soon as you have a signal again.",
@@ -1118,7 +1118,7 @@
 "Ce chrono existe déjà (même pilote, même date, même circuit et mêmes tours) – rien n'a été ajouté.": "This lap time already exists (same rider, date, circuit and laps) – nothing was added.",
 "Nouveau lien partagé": "New link shared",
 "Nouvelle photo partagée": "New photo shared",
-"Rejoins-nous sur Carnet Piste !": "Join us on Pitbook!",
+"Rejoins-nous sur Pitbook !": "Join us on Pitbook!",
 "+ Ajouter un chrono": "+ Add a lap time",
 "Saisie, photo de la feuille de temps, capture d'écran ou PDF.": "Type it in, or snap your timesheet, a screenshot or a PDF.",
 "Inviter un ami": "Invite a mate",
@@ -1232,7 +1232,7 @@
 "Cet email est déjà utilisé — connecte-toi plutôt.": "This email is already in use — sign in instead.", "Email invalide.": "Invalid email.", "Trop de tentatives — attends quelques minutes avant de renvoyer l'email.": "Too many attempts — wait a few minutes before resending the email.",
 "Mot de passe trop court (6 caractères minimum).": "Password too short (6 characters minimum).", "Email ou mot de passe incorrect.": "Wrong email or password.",
 "Connecte-toi avec ton adresse email.": "Sign in with your email address.",
-"Carnet Piste": "Pitbook", "QR code indisponible hors connexion – partage le lien ci-dessous.": "QR code unavailable offline – share the link below.", "Accepter": "Accept", "Refuser": "Decline", "Demande d'ami": "Friend request",
+"Pitbook": "Pitbook", "QR code indisponible hors connexion – partage le lien ci-dessous.": "QR code unavailable offline – share the link below.", "Accepter": "Accept", "Refuser": "Decline", "Demande d'ami": "Friend request",
 "Invite un ami": "Invite a mate", "Scanne : inscription et parrainage direct.": "Scan: sign up and referral in one go.",
 "Partager le lien": "Share the link", "Copier": "Copy", "Lien copié": "Link copied",
 "souhaite rejoindre": "wants to join", "Accepter comme membre": "Accept as member", "comme adhérent": "as club member", "comme Team Leader": "as Team Leader",
@@ -1441,7 +1441,7 @@
 "J'y vais": "I'm going",
 "En attente du team": "Waiting for the Team",
 "Tu y vas aussi ?": "Are you going too?",
-"« J'y vais » te met sur la liste du roulage dans Carnet Piste. L'inscription et le paiement se font chez l'orga.": "\"I'm going\" puts you on this trackday's list in Pitbook. Registration and payment are with the organiser.",
+"« J'y vais » te met sur la liste du roulage dans Pitbook. L'inscription et le paiement se font chez l'orga.": "\"I'm going\" puts you on this trackday's list in Pitbook. Registration and payment are with the organiser.",
 "Roulage": "Trackday",
 "Créer mon carnet": "Create my Pitbook",
 "J'ai déjà un compte": "I already have an account",
@@ -2444,7 +2444,7 @@
   // "Nom | URL", parsed into {label, url} objects. A free-form textarea
   // rather than an add/remove-row widget, consistent with how riders/
   // horaires are typed elsewhere in this app.
-  // "Nos partenaires de Carnet Piste" -- one shared doc
+  // "Nos partenaires de Pitbook" -- one shared doc
   // (settings/partners), admin-only (Xavier), shown in Profil > Aide >
   // À propos. Not to be confused with a Team's own Partenaires (see
   // renderTeamPartnersSection below) -- that one's per-Team, set by that
@@ -3163,6 +3163,7 @@
   var pendingRoulageId = null;
   var pendingJoinGroup = null; // groupe porté par un QR paddock (&g=B)
   var pendingPostId = null; // ?post=<id> : une publication partagée ailleurs
+  var pendingTeamId = null; // ?team=<id> : un team partagé (« Découvre le team… »)
   var pendingShareIn = false; // ?shared=1 : publication reçue d'une autre appli (voir sw.js)
   (function captureReferrer() {
     try {
@@ -3171,6 +3172,9 @@
       var roulage = params.get('roulage');
       var qrGroup = params.get('g');
       if (params.get('shared') === '1') { pendingShareIn = true; params.delete('shared'); window.history.replaceState(null, '', window.location.pathname + (params.toString() ? '?' + params.toString() : '') + window.location.hash); }
+      var sharedTeam = params.get('team');
+      if (sharedTeam && /^[\w-]{1,80}$/.test(sharedTeam)) { pendingTeamId = sharedTeam; params.delete('team'); try { sessionStorage.setItem('cdp-pending-team', sharedTeam); } catch (e) {} window.history.replaceState(null, '', window.location.pathname + (params.toString() ? '?' + params.toString() : '') + window.location.hash); }
+      else { try { pendingTeamId = sessionStorage.getItem('cdp-pending-team') || null; } catch (e) {} }
       var sharedPost = params.get('post');
       if (sharedPost && /^[\w-]{1,80}$/.test(sharedPost)) { pendingPostId = sharedPost; params.delete('post'); window.history.replaceState(null, '', window.location.pathname + (params.toString() ? '?' + params.toString() : '') + window.location.hash); }
       if (qrGroup && /^[A-Za-z]{1,4}$/.test(qrGroup)) { pendingJoinGroup = qrGroup.toUpperCase(); params.delete('g'); try { sessionStorage.setItem('cdp-pending-group', pendingJoinGroup); } catch (e) {} }
@@ -3396,7 +3400,7 @@
     ['Red Bull Ring', 'AT', 4.318], ['Brno', 'CZ', 5.403], ['Most', 'CZ', 4.212], ['Slovakia Ring', 'SK', 5.922], ['Grobnik', 'HR', 4.168], ['Pannonia-Ring', 'HU', 4.74],
     ['Silverstone', 'GB', 5.891], ['Donington', 'GB', 4.023], ['Brands Hatch', 'GB', 3.916],
     ['Losail', 'QA', 5.38], ['COTA', 'US', 5.513], ['Termas de Río Hondo', 'AR', 4.806], ['Buriram', 'TH', 4.554],
-    ['Mandalika', 'ID', 4.31], ['Motegi', 'JP', 4.801], ['Phillip Island', 'AU', 4.448]
+    ['Mandalika', 'ID', 4.31], ['Motegi', 'JP', 4.801], ['Phillip Island', 'AU', 4.448], ['Sepang', 'MY', 5.543]
   ];
   function builtinCircuit(name) {
     for (var i = 0; i < BUILTIN_CIRCUITS.length; i++) {
@@ -3406,6 +3410,31 @@
     return null;
   }
   // <option>s for a circuit picker: mine first, then the others by country.
+  // Tri du sélecteur de circuits (onglet Circuits) : par pays (défaut),
+  // alphabétique, niveau, distance ou mon meilleur temps.
+  var circuitSort = 'pays';
+  try { circuitSort = localStorage.getItem('cdp-circuit-sort') || 'pays'; } catch (e) {}
+  function sortedCircuitOptionsHtml(circuits, selected, sort) {
+    if (!sort || sort === 'pays') return circuitOptionsHtml(circuits, selected);
+    var me = currentUserProfile && currentUserProfile.name, bests = me ? riderBestsByCircuit(me) : {};
+    var car = isCarMode();
+    var info = function (c) {
+      var b = builtinCircuit(c) || {}, lv = circuitLevel(c), km = b.km != null ? b.km : circuitInfo(c).km, best = bests[c] ? bests[c].best : null;
+      return { c: c, lv: lv ? lv[car ? 1 : 0] : null, km: km != null ? Number(km) : null, best: best };
+    };
+    var list = circuits.map(info);
+    var last = function (v) { return v == null ? Infinity : v; };
+    list.sort(function (a, b) {
+      if (sort === 'niveau') return last(a.lv) - last(b.lv) || a.c.localeCompare(b.c);
+      if (sort === 'distance') return last(a.km) - last(b.km) || a.c.localeCompare(b.c);
+      if (sort === 'temps') return last(a.best) - last(b.best) || a.c.localeCompare(b.c);
+      return a.c.localeCompare(b.c);
+    });
+    return list.map(function (x) {
+      var extra = sort === 'niveau' ? (x.lv ? levelLabel(x.lv) : '') : sort === 'distance' ? (x.km != null ? String(x.km).replace('.', currentLang() === 'en' ? '.' : ',') + ' km' : '') : sort === 'temps' ? (x.best != null ? formatTime(x.best) : '') : '';
+      return '<option value="' + escapeHtml(x.c) + '"' + (x.c === selected ? ' selected' : '') + '>' + escapeHtml(x.c + (extra ? ' · ' + extra : '')) + '</option>';
+    }).join('');
+  }
   function circuitOptionsHtml(circuits, selected) {
     var me = currentUserProfile && currentUserProfile.name, mine = {};
     (STATE.sessions || []).forEach(function (x) { if (x.rider === me) mine[x.circuit] = 1; });
@@ -4710,7 +4739,7 @@
   // signup (see resolveUniquePseudo) if the new pseudo collides with
   // someone else's.
   function profileTabList() {
-    return [['compte', L('Compte', 'Account')], ['reglages', tr('tab_reglages')], ['plus', 'Carnet+'], ['audience', L('Audience', 'Audience')], ['aide', tr('tab_aide')], ['suggestion', tr('tab_suggestion')]];
+    return [['compte', L('Compte', 'Account')], ['reglages', tr('tab_reglages')], ['plus', 'Pitbook+'], ['audience', L('Audience', 'Audience')], ['aide', tr('tab_aide')], ['suggestion', tr('tab_suggestion')]];
   }
   // PC : sous-menus de Mon compte, sous son bouton dans la barre de gauche.
   function accountNavHtml() {
@@ -4725,7 +4754,7 @@
     return '<div class="nav-sub nav-sub-account">' + items.map(function (it) { return '<button type="button" class="nav-sub-btn' + (/data-level="3"/.test(it[1]) ? ' nav-sub3' : '') + (it[2] ? ' active' : '') + '" ' + it[1] + '>' + it[0] + '</button>'; }).join('') + '</div>';
   }
   function renderProfileTabBar() {
-    var tabs = [['compte', L('Compte', 'Account')], ['reglages', tr('tab_reglages')], ['plus', 'Carnet+'], ['audience', L('Audience', 'Audience')], ['aide', tr('tab_aide')], ['suggestion', tr('tab_suggestion')]];
+    var tabs = [['compte', L('Compte', 'Account')], ['reglages', tr('tab_reglages')], ['plus', 'Pitbook+'], ['audience', L('Audience', 'Audience')], ['aide', tr('tab_aide')], ['suggestion', tr('tab_suggestion')]];
     return '<div class="subnav profile-tabs main-subnav" role="tablist">' + tabs.map(function (t) {
       return '<button type="button" class="subnav-btn profile-tab-btn' + (profileSubTab === t[0] ? ' active' : '') + '" role="tab" aria-selected="' + (profileSubTab === t[0]) + '" data-profile-tab="' + t[0] + '">' + t[1] + '</button>';
     }).join('') + '</div>';
@@ -5083,7 +5112,7 @@
       '<div class="set-search"><input type="search" id="settings-search" placeholder="' + escapeHtml(L('Rechercher', 'Search')) + '" autocomplete="off"></div>' +
       group(L('Ton compte', 'Your account'),
         row('@compte', 'user', L('Compte', 'Account'), p.name, L('profil fiche photo pseudo email mot de passe supprimer rôle', 'profile photo name email password delete role'))) +
-      group(L('Comment tu utilises Carnet Piste', 'How you use Pitbook'),
+      group(L('Comment tu utilises Pitbook', 'How you use Pitbook'),
         row('notifications', 'bell', 'Notifications', '', L('alertes push rappels duel podium amis roulage', 'alerts push reminders duel podium friends trackday')) +
         row('affichage', 'globe', L('Langue et affichage', 'Language and display'), currentLang() === 'en' ? 'English' : 'Français', L('langue thème sombre clair ressenti version mise à jour', 'language theme dark light feeling version update'))) +
       group(L('Qui peut voir ton contenu', 'Who can see your content'),
@@ -5093,7 +5122,7 @@
       group(L('Ton activité', 'Your activity'),
         row('donnees', 'download', L('Mes données', 'My data'), '', L('exporter télécharger csv chronos rgpd', 'export download csv lap times gdpr')) +
         row('@audience', 'chart', L('Audience', 'Audience'), '', L('statistiques vues portée', 'stats views reach')) +
-        row('@plus', 'star', 'Carnet+', '', L('abonnement', 'subscription'))) +
+        row('@plus', 'star', 'Pitbook+', '', L('abonnement', 'subscription'))) +
       group(L('Plus d\'infos et assistance', 'More info and support'),
         row('@aide', 'help', L('Aide', 'Help'), '', L('tutoriel guide faq', 'tutorial guide faq')) +
         row('@suggestion', 'idea', L('Suggestion', 'Suggestion'), '', L('idée bug retour', 'idea bug feedback')) +
@@ -5179,7 +5208,7 @@
     html += '<div style="margin-top:1.1rem;"><button type="button" class="ghost" id="tutorial-open-btn">' + tr('review_tutorial_btn') + '</button></div>';
     // Guide en PDF (2 pages de résumé + 2 de détail), à lire ou à envoyer à un pote.
     var guideLink = function (lang, label) { return '<a class="ghost guide-link" href="guides/Pitbook-' + lang + '.pdf?v=' + encodeURIComponent(currentAppVersion()) + '" target="_blank" rel="noopener">' + label + ' ↗</a>'; };
-    html += '<div class="guide-links"><div class="help-text">' + L('Le guide Carnet Piste : ce que l\'appli t\'apporte, en 5 pages, à lire ou à envoyer à un ami :', 'The Pitbook guide: what the app does for you, in 5 pages, to read or send to a friend:') + '</div>' +
+    html += '<div class="guide-links"><div class="help-text">' + L('Le guide Pitbook : ce que l\'appli t\'apporte, en 5 pages, à lire ou à envoyer à un ami :', 'The Pitbook guide: what the app does for you, in 5 pages, to read or send to a friend:') + '</div>' +
       '<div class="guide-links-row">' + (currentLang() === 'en'
         ? guideLink('EN', 'Guide (English)') + guideLink('FR', 'Guide (français)')
         : guideLink('FR', 'Guide (français)') + guideLink('EN', 'Guide (English)')) + '</div></div>';
@@ -5326,7 +5355,7 @@
     html += '<div class="section-heading"><span class="section-heading-kerb" aria-hidden="true"></span><h1 class="section-heading-title">' + tr('my_profile_label') + '</h1></div>';
     // Plus de barre d'onglets : tout part de la liste des Réglages ; les
     // autres pages ont une flèche de retour vers cette liste.
-    var subTitles = { compte: L('Compte', 'Account'), plus: 'Carnet+', audience: L('Audience', 'Audience'), aide: tr('tab_aide'), suggestion: tr('tab_suggestion') };
+    var subTitles = { compte: L('Compte', 'Account'), plus: 'Pitbook+', audience: L('Audience', 'Audience'), aide: tr('tab_aide'), suggestion: tr('tab_suggestion') };
     if (profileSubTab === 'parrainage' || profileSubTab === 'moto' || profileSubTab === 'profil') profileSubTab = 'compte';
     if (profileSubTab !== 'reglages' && subTitles[profileSubTab]) html += '<div class="settings-page-head"><button type="button" class="back-chevron settings-back" data-settings-go="@reglages" aria-label="' + escapeHtml(L('Retour', 'Back')) + '">‹</button><h2 class="section-title">' + subTitles[profileSubTab] + '</h2></div>';
     html += '<div class="profile-tab-body">';
@@ -6621,16 +6650,16 @@
   // À remplacer par l'identité définitive (nom ou société, adresse,
   // e-mail) avant l'ouverture au public.
   var LEGAL_INFO = {
-    get editor() { return L('Carnet Piste, projet personnel d\'un particulier (phase de test)', 'Pitbook, a personal project by a private individual (test phase)'); },
+    get editor() { return L('Pitbook, projet personnel d\'un particulier (phase de test)', 'Pitbook, a personal project by a private individual (test phase)'); },
     get address() { return L('Adresse communiquée sur simple demande (phase de test)', 'Address available on request (test phase)'); },
     get contact() { return L('Mon compte › Suggestion, dans l\'appli', 'My account › Suggestion, in the app'); },
     get updated() { return L('1er novembre 2026', '1 November 2026'); }
   };
   function legalTestPhaseHtml() {
     return legalSection('Phase de test', '<ul>' +
-      '<li>Carnet Piste est en <strong>version de test</strong>, gratuite et non commerciale, ouverte à un petit groupe de testeurs.</li>' +
+      '<li>Pitbook est en <strong>version de test</strong>, gratuite et non commerciale, ouverte à un petit groupe de testeurs.</li>' +
       '<li>Des fonctions peuvent changer ou disparaître, et des données de test peuvent être remises à zéro. Garde une copie de ce qui compte pour toi (Réglages → Mes données → Télécharger).</li>' +
-      '<li><strong>Carnet+</strong> est une simulation : aucun paiement n\'est demandé ni encaissé, le badge est attribué à la main pendant le test.</li>' +
+      '<li><strong>Pitbook+</strong> est une simulation : aucun paiement n\'est demandé ni encaissé, le badge est attribué à la main pendant le test.</li>' +
       '<li>Aucune publicité pendant la phase de test. Si de la publicité est ajoutée plus tard, cette page sera mise à jour avant, avec ton accord quand la loi le demande.</li>' +
       '<li>Un souci, un bug, une question sur tes données : Mon compte → Suggestion.</li></ul>');
   }
@@ -6638,7 +6667,7 @@
   function renderPrivacyPolicyHtml() {
     var c = escapeHtml(LEGAL_INFO.contact);
     return '<div class="legal">' +
-      (currentLang() === 'en' ? '<p class="legal-note">Summary in English: Pitbook only keeps what the app needs (account, lap times, trackdays, posts), never sells it, shows no ads and uses no trackers. This is a free test version: features may change, test data may be reset, and Carnet+ is a simulation (no payment). You can download or erase all your data yourself from Settings. Contact: My account › Suggestion. The full policy below is in French.</p>' : '') +
+      (currentLang() === 'en' ? '<p class="legal-note">Summary in English: Pitbook only keeps what the app needs (account, lap times, trackdays, posts), never sells it, shows no ads and uses no trackers. This is a free test version: features may change, test data may be reset, and Pitbook+ is a simulation (no payment). You can download or erase all your data yourself from Settings. Contact: My account › Suggestion. The full policy below is in French.</p>' : '') +
       '<p class="help-text">Dernière mise à jour : ' + escapeHtml(LEGAL_INFO.updated) + '</p>' +
       legalTestPhaseHtml() +
       legalSection('Qui est responsable de tes données ?', '<p>L\'éditeur de l\'appli : ' + escapeHtml(LEGAL_INFO.editor) + '. Contact : ' + c + '.</p>') +
@@ -6684,7 +6713,7 @@
       legalSection('Éditeur', '<p>' + escapeHtml(LEGAL_INFO.editor) + '<br>' + escapeHtml(LEGAL_INFO.address) + '<br>Contact : ' + escapeHtml(LEGAL_INFO.contact) + '<br>Directeur de la publication : ' + escapeHtml(LEGAL_INFO.editor) + '</p>') +
       legalSection('Hébergement', '<p>Fichiers de l\'appli : GitHub Inc., 88 Colin P. Kelly Jr. Street, San Francisco, CA 94107, États-Unis.<br>Données : Google Firebase, Google Ireland Ltd, Gordon House, Barrow Street, Dublin 4, Irlande.</p>') +
       legalSection('Conditions d\'utilisation', '<ul>' +
-        '<li>Carnet Piste est un carnet personnel de pilote. Il ne vend ni réservation ni créneau : l\'inscription, le paiement et le chronométrage officiel restent chez l\'organisateur.</li>' +
+        '<li>Pitbook est un carnet personnel de pilote. Il ne vend ni réservation ni créneau : l\'inscription, le paiement et le chronométrage officiel restent chez l\'organisateur.</li>' +
         '<li>Les chronos saisis ou importés sont <strong>non officiels</strong>, y compris ceux « validés par le team ». La référence reste le chronométrage de l\'organisateur.</li>' +
         '<li>Tu es responsable de ce que tu publies (messages, photos, liens). Pas de contenu illégal, injurieux ou portant atteinte aux droits d\'autrui ; l\'éditeur peut retirer un contenu signalé et suspendre un compte qui ne respecte pas ces règles.</li>' +
         '<li>Les horaires, groupes et infos pratiques sont reportés par les utilisateurs : vérifie-les toujours auprès de l\'organisateur. La pratique de la moto ou de l\'auto sur circuit se fait sous ta responsabilité et selon les règles du circuit. L\'appli ne donne aucun conseil de réglage ni de pression de pneus : ceux que tu notes sont les tiens.</li>' +
@@ -8113,8 +8142,11 @@
     var html = renderPills('circuit', [['plan', 'Plan & repères'], ['chronos', 'Chronos'], ['infos', 'Infos']].concat(visitPill ? [['visites', L('Visités', 'Visited')]] : []));
     if (visitPill && pillState.circuit === 'visites') return html + renderVisitedCircuits();
     html += '<div class="circuit-picker"><select id="f-filter-circuit" aria-label="' + tr('circuit_label') + '">';
-    html += circuitOptionsHtml(circuits, selectedCircuit);
-    html += '</select><button type="button" class="ghost circuit-create-btn" data-action="circuit-create" title="' + escapeHtml(L('Créer mon circuit perso (dessin ou image)', 'Create my own circuit (drawing or image)')) + '">+ ' + L('Créer', 'Create') + '</button></div>';
+    html += sortedCircuitOptionsHtml(circuits, selectedCircuit, circuitSort);
+    html += '</select><select id="circuit-sort" class="circuit-sort" aria-label="' + escapeHtml(L('Trier les circuits', 'Sort circuits')) + '">' +
+      [['pays', L('Par pays', 'By country')], ['alpha', L('A → Z', 'A → Z')], ['niveau', L('Niveau', 'Level')], ['distance', L('Distance', 'Length')], ['temps', L('Mon temps', 'My time')]].map(function (o) {
+        return '<option value="' + o[0] + '"' + (circuitSort === o[0] ? ' selected' : '') + '>' + escapeHtml(o[1]) + '</option>';
+      }).join('') + '</select><button type="button" class="ghost circuit-create-btn" data-action="circuit-create" title="' + escapeHtml(L('Créer mon circuit perso (dessin ou image)', 'Create my own circuit (drawing or image)')) + '">+ ' + L('Créer', 'Create') + '</button></div>';
     var cp = pillState.circuit;
     if (cp === 'plan') {
       // Les deux façons d'annoter, visibles dès l'arrivée sur la page.
@@ -8228,6 +8260,32 @@
       no: [L('Caméra fixée sur le casque (souvent interdite)', 'Helmet-mounted camera (often banned)'), L('Rétroviseurs et feux non démontés ou non scotchés', 'Mirrors and lights not removed or taped'), L('Béquille non retirée ou non bloquée', 'Side stand not removed or secured'), L('Échappement au-delà de la limite de bruit du circuit', 'Exhaust above the circuit noise limit')]
     };
   }
+  // Règles propres à un circuit, trouvées en ligne (règlement intérieur,
+  // fiches d'organisateurs). Vérifiées le 5 novembre 2026 ; sources affichées.
+  var CIRCUIT_RULES_CHECKED = '2026-11-05';
+  var CIRCUIT_RULES = {
+    'Carole': { fr: ['Caméras personnelles (GoPro) interdites selon un organisateur de roulages.', 'Équipement contrôlé à l\'entrée : casque intégral, combinaison ou blouson et pantalon cuir, gants, bottes.'],
+      en: ['Personal cameras (GoPro) banned according to a trackday organiser.', 'Gear checked at the gate: full-face helmet, leather suit or jacket and trousers, gloves, boots.'],
+      src: ['https://www.adrenactive.com/journee-roulage-moto-circuit-carole-9420.htm', 'https://www.lerepairedesmotards.com/actualites/2010/actu_100916-journees-securisees-roulage-circuit-carole.php'] },
+    'Lédenon': { fr: ['Bruit contrôlé : 99 dB à l\'entrée de piste et 109 dB en roulant (stage), 105 dB maximum annoncé pour un roulage avec sa moto.', 'Assurance RC circuit obligatoire : attestation à présenter avant de rouler.'],
+      en: ['Noise checked: 99 dB at track entry and 109 dB on the move (course), 105 dB max stated for a ride with your own bike.', 'Circuit liability insurance required: certificate shown before riding.'],
+      src: ['https://www.ledenon.com/LEDENON_WEB/photos/ImgMenu/Download/REGLEMENT%20INTERIEUR%202025.pdf', 'https://www.sport-decouverte.com/journee-roulage-moto-personnelle-circuit-ledenon.html'] },
+    'Magny Cours': { fr: ['Limite de bruit citée : 100 à 102 dB selon les sources.', 'Demandé : casque intégral homologué, gants, bottes et combinaison cuir, dorsale.'],
+      en: ['Noise limit quoted: 100 to 102 dB depending on the source.', 'Required: approved full-face helmet, gloves, boots and leather suit, back protector.'],
+      src: ['https://www.sport-decouverte.com/sessions-roulage-moto-circuit-magny-cours.html', 'https://www.lerepairedesmotards.com/chronos/circuit-magny-cours-17.php'] },
+    'Le Mans': { fr: ['Limite de bruit : 102 dB en roulant (annonce 2026), 100 dB dans un briefing 2023.', 'Caméras personnelles interdites chez certains organisateurs.'],
+      en: ['Noise limit: 102 dB on the move (2026 listing), 100 dB in a 2023 briefing.', 'Personal cameras banned by some organisers.'],
+      src: ['https://www.helloasso.com/associations/club-911-net/evenements/trackday-le-bugatti', 'https://www.adrenactive.com/journee-roulage-moto-le-mans-9423.htm'] },
+    'Nogaro': { fr: ['Limite de bruit citée : 102 dB (fiche ancienne). Contrôles stricts à cause des riverains.'],
+      en: ['Noise limit quoted: 102 dB (older listing). Strict checks because of neighbours.'],
+      src: ['https://www.lerepairedesmotards.com/chronos/circuit-nogaro-paul-armagnac-10.php'] }
+  };
+  function circuitRulesHtml(circuit) {
+    var k = Object.keys(CIRCUIT_RULES).filter(function (n) { return circuitKey(n) === circuitKey(circuit); })[0], r = k && CIRCUIT_RULES[k];
+    if (!r) return '';
+    return '<div class="circuit-rules"><span class="look-label">' + L('Sur ce circuit', 'At this circuit') + '</span><ul>' + L(r.fr, r.en).map(function (t) { return '<li>' + escapeHtml(t) + '</li>'; }).join('') + '</ul>' +
+      '<span class="help-text">' + L('Vérifié le ', 'Checked on ') + escapeHtml(formatDate(CIRCUIT_RULES_CHECKED)) + ' · ' + r.src.map(function (u, i) { return '<a href="' + escapeHtml(u) + '" target="_blank" rel="noopener">' + L('source', 'source') + (r.src.length > 1 ? ' ' + (i + 1) : '') + '</a>'; }).join(' · ') + '</span></div>';
+  }
   function renderCircuitLevelGearCard(circuit) {
     if (!circuit) return '';
     var lv = circuitLevel(circuit), car = typeof isCarMode === 'function' && isCarMode();
@@ -8240,7 +8298,7 @@
     var g = gearLists(car), li = function (a) { return '<ul>' + a.map(function (x) { return '<li>' + escapeHtml(x) + '</li>'; }).join('') + '</ul>'; };
     html += '<div class="gear-cols"><div class="gear-col gear-req"><span class="look-label">' + L('Obligatoire', 'Required') + '</span>' + li(g.req) + '</div>' +
       '<div class="gear-col gear-no"><span class="look-label">' + L('Interdit', 'Not allowed') + '</span>' + li(g.no) + '</div></div>' +
-      '<div class="help-text">' + L('Le plus souvent demandé en roulage. Le règlement de l\'organisateur fait foi.', 'What most trackday organisers ask. The organiser\'s rules always prevail.') + '</div></div>';
+      '<div class="help-text">' + L('Le plus souvent demandé en roulage. Le règlement de l\'organisateur fait foi.', 'What most trackday organisers ask. The organiser\'s rules always prevail.') + '</div>' + circuitRulesHtml(circuit) + '</div>';
     return html;
   }
   function renderTrackRecordsCard(circuit) {
@@ -8267,7 +8325,7 @@
     });
     var rowHtml = function (r) {
       var gap = mine !== null && r.kind !== 'me' ? '<span class="tr-gap">' + (r.t < mine ? '−' : '+') + formatGap(Math.abs(mine - r.t)) + '</span>' : '<span class="tr-gap"></span>';
-      var badge = r.kind === 'pro' ? '<span class="tr-cat tr-cat-' + escapeHtml(r.cls || '') + '">' + escapeHtml(r.label) + '</span>' : r.kind === 'app' ? '<span class="tr-cat tr-cat-app">Carnet Piste</span>' : '';
+      var badge = r.kind === 'pro' ? '<span class="tr-cat tr-cat-' + escapeHtml(r.cls || '') + '">' + escapeHtml(r.label) + '</span>' : r.kind === 'app' ? '<span class="tr-cat tr-cat-app">Pitbook</span>' : '';
       return '<div class="tr-row tr-' + r.kind + '"><span class="tr-label">' + (badge || '<strong>' + escapeHtml(r.label) + '</strong>') + (r.who ? '<span class="help-text">' + escapeHtml(r.who) + '</span>' : '') + '</span>' +
         '<span class="carnet-time">' + formatTime(r.t) + '</span>' + gap + '</div>';
     };
@@ -8288,7 +8346,7 @@
     if (est) return '<div class="outing-best-card estimate-card">' + estimateCardInner(est) + '</div>';
     // Pas d'estimation possible : dire ce qui manque.
     var why = !Object.keys(all[me] || {}).length
-      ? L('Ajoute un premier chrono sur n\'importe quel circuit : Carnet Piste pourra alors estimer ton temps ici.', 'Add a first lap time on any circuit: Pitbook can then estimate your time here.')
+      ? L('Ajoute un premier chrono sur n\'importe quel circuit : Pitbook pourra alors estimer ton temps ici.', 'Add a first lap time on any circuit: Pitbook can then estimate your time here.')
       : L('Pas encore d\'estimation ici : il faudrait la longueur du circuit, ou un pilote qui roule à la fois ici et sur tes circuits.', 'No estimate here yet: it needs the circuit length, or a rider who rides both here and on your circuits.');
     return '<div class="card help-text estimate-none">' + why + '</div>';
   }
@@ -8807,7 +8865,7 @@
     overlay.querySelector('[data-q="close"]').addEventListener('click', close);
     var shareBtn = overlay.querySelector('[data-q="share"]');
     if (shareBtn) shareBtn.addEventListener('click', function () {
-      navigator.share({ text: (currentLang() === 'en' ? 'Join me on Pitbook, my lap times and track marks: ' : 'Rejoins-moi sur Carnet Piste, mon carnet de chronos et de repères : ') + link }).catch(function () {});
+      navigator.share({ text: (currentLang() === 'en' ? 'Join me on Pitbook, my lap times and track marks: ' : 'Rejoins-moi sur Pitbook, mon carnet de chronos et de repères : ') + link }).catch(function () {});
     });
     overlay.querySelector('[data-q="copy"]').addEventListener('click', function () {
       if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(link).then(function () { showToast('Lien copié', 'success'); }).catch(function () {});
@@ -9049,6 +9107,25 @@
       });
     });
   }
+  // Miniatures : toujours un tracé blanc sur fond noir, cuit dans l'image
+  // (gris inversés, couleurs gardées : la ligne de départ reste rouge).
+  // Ainsi aucun mode sombre du navigateur ne peut les repasser en blanc.
+  function bakeDarkThumb(src) {
+    var c = document.createElement('canvas'); c.width = src.width; c.height = src.height;
+    var ctx = c.getContext('2d');
+    ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, c.width, c.height);
+    ctx.drawImage(src, 0, 0);
+    try {
+      var img = ctx.getImageData(0, 0, c.width, c.height), d = img.data;
+      for (var i = 0; i < d.length; i += 4) {
+        var r = d[i], g = d[i + 1], b = d[i + 2], mx = Math.max(r, g, b), mn = Math.min(r, g, b);
+        if (mx - mn < 60) { d[i] = 255 - r; d[i + 1] = 255 - g; d[i + 2] = 255 - b; } // gris : inversé
+        d[i + 3] = 255;
+      }
+      ctx.putImageData(img, 0, 0);
+    } catch (e) {}
+    return c;
+  }
   function styleTrackThumbs() {
     styleTrackPlans();
     document.querySelectorAll('img[data-track-thumb]').forEach(function (img) {
@@ -9060,8 +9137,8 @@
         var box = 360, k = Math.min(box / probe.width, box / probe.height);
         var out = styledTrack(probe, Math.round(probe.width * k), Math.round(probe.height * k), SHARE_COLORS, { radii: [2, 4, 6], shadow: 7, pad: 20 });
         if (!out) return;
-        styledThumbs[src] = out.toDataURL('image/png');
-        document.querySelectorAll('img[data-track-thumb]').forEach(function (el) { if (el.getAttribute('data-track-thumb') === src) el.src = styledThumbs[src]; });
+        styledThumbs[src] = bakeDarkThumb(out).toDataURL('image/png');
+        document.querySelectorAll('img[data-track-thumb]').forEach(function (el) { if (el.getAttribute('data-track-thumb') === src) { el.src = styledThumbs[src]; el.classList.add('baked'); } });
       });
     });
   }
@@ -9812,7 +9889,7 @@
     if (myTyreSets === null) return '';
     if (!set) {
       return '<div class="card tyre-card tyre-card-empty"><div><strong>' + L('Combien de sessions sur tes pneus ?', 'How many sessions on your tyres?') + '</strong>' +
-        '<div class="help-text">' + L('Indique quand tu montes des pneus, neufs ou déjà roulés : Carnet Piste compte les sessions, les tours et les km faits depuis.', 'Tell Pitbook when you fit tyres, new or used: it counts the sessions, laps and km done since.') + '</div></div>' +
+        '<div class="help-text">' + L('Indique quand tu montes des pneus, neufs ou déjà roulés : Pitbook compte les sessions, les tours et les km faits depuis.', 'Tell Pitbook when you fit tyres, new or used: it counts the sessions, laps and km done since.') + '</div></div>' +
         '<button type="button" class="ghost" data-action="tyre-new">' + L('Noter mes pneus', 'Log my tyres') + '</button></div>';
     }
     var u = tyreSetUsage(set, null);
@@ -9865,7 +9942,7 @@
     // Onglet Moto d'un roulage : seulement ce circuit.
     if (opts.only) order = hereKey ? [hereKey] : [];
     var html = '<div class="card pressures-card"><div class="budget-card-head"><h2 class="section-title">' + L('Mes pressions', 'My pressures') + '</h2></div>' +
-      '<div class="help-text">' + L('Tes relevés à toi, AV et AR, circuit par circuit. Carnet Piste ne conseille aucune pression : suis les préconisations du manufacturier de tes pneus ou du technicien pneus du circuit.', 'Your own readings, front and rear, circuit by circuit. Pitbook never recommends a pressure: follow your tyre manufacturer\'s guidance or the trackside tyre technician\'s.') + '</div>' +
+      '<div class="help-text">' + L('Tes relevés à toi, AV et AR, circuit par circuit. Pitbook ne conseille aucune pression : suis les préconisations du manufacturier de tes pneus ou du technicien pneus du circuit.', 'Your own readings, front and rear, circuit by circuit. Pitbook never recommends a pressure: follow your tyre manufacturer\'s guidance or the trackside tyre technician\'s.') + '</div>' +
       '<button type="button" class="primary pressures-add" data-action="pressure-new"' + (circuit ? ' data-circuit="' + escapeHtml(circuit) + '"' : '') + (opts.date ? ' data-date="' + escapeHtml(opts.date) + '"' : '') + '>' + L('+ Noter mes pressions', '+ Log my pressures') + '</button>' +
       (circuit && !hereKey ? '<div class="help-text pressures-none-here">' + L('Pas encore de relevé à ', 'No reading yet at ') + escapeHtml(circuit) + '.</div>' : '');
     if (!order.length) return html + '</div>';
@@ -9908,7 +9985,7 @@
     var sheet = document.createElement('div');
     sheet.className = 'crop-modal-overlay setup-sheet pressure-sheet';
     sheet.innerHTML = '<div class="crop-modal setup-modal"><h2 class="section-title">' + L('Mes pressions', 'My pressures') + '</h2>' +
-      '<div class="help-text">' + L('Note ce que tu as mis. Aucune valeur n\'est proposée par Carnet Piste. Visible par toi seul.', 'Log what you used. Pitbook suggests no value. Visible to you only.') + '</div>' +
+      '<div class="help-text">' + L('Note ce que tu as mis. Aucune valeur n\'est proposée par Pitbook. Visible par toi seul.', 'Log what you used. Pitbook suggests no value. Visible to you only.') + '</div>' +
       '<div class="setup-grid">' +
       '<label class="setup-field"><span>Circuit</span><input type="text" id="pr-circuit" list="pr-circuits" maxlength="60" value="' + escapeHtml(v.circuit || '') + '"><datalist id="pr-circuits">' + circuitDatalist() + '</datalist></label>' +
       '<label class="setup-field setup-half"><span>' + L('Date', 'Date') + '</span><input type="date" id="pr-date" value="' + escapeHtml(v.date || dateKey(new Date())) + '"></label>' +
@@ -9985,10 +10062,12 @@
     var spots = ((u.look || {}).favSpots || []).slice(0, 6);
     var h = '<div class="person-kpis"><div><strong>' + evs.length + '</strong><span>' + L('roulages accompagnés', 'trackdays supported') + '</span></div><div><strong>' + Object.keys(riders).length + '</strong><span>' + L('pilotes accompagnés', 'riders supported') + '</span></div><div><strong>' + visited.length + '</strong><span>' + L('circuits visités', 'circuits visited') + '</span></div></div>';
     if (visited.length) h += '<div class="card"><h2 class="section-title">' + L('Circuits visités', 'Circuits visited') + '</h2><div class="visited-grid">' + visited.slice(0, 8).map(function (v) {
-      return '<div class="visited-tile"><button type="button" class="visited-tile-head" data-open-circuit="' + escapeHtml(v.circuit) + '"><span class="outing-thumb">' + circuitThumbHtml(v.circuit) + '</span><strong>' + escapeHtml(v.circuit) + '</strong><span class="help-text">' + plural(v.n, L('fois', 'time'), L('fois', 'times')) + '</span></button>' +
+      return '<div class="visited-tile"><button type="button" class="visited-tile-head" data-open-circuit="' + escapeHtml(v.circuit) + '"><span class="outing-thumb">' + circuitThumbHtml(v.circuit) + '</span><strong>' + escapeHtml(v.circuit) + '</strong><span class="help-text">' + (v.n ? plural(v.n, L('roulage', 'trackday'), L('roulages', 'trackdays')) : L('Sans rouler', 'Without riding')) + '</span></button>' +
         // Chaque roulage ouvre sa propre page (le bon roulage passé).
         '<span class="visited-evs">' + (v.events || []).slice().sort(function (a, b) { return (b.dateStart || '').localeCompare(a.dateStart || ''); }).map(function (ev) {
           return '<button type="button" class="visited-ev" data-open-outing="' + escapeHtml(ev.circuit) + '" data-outing-date="' + escapeHtml(ev.dateStart || '') + '" data-outing-event="' + escapeHtml(ev.id) + '">' + escapeHtml(formatDate(ev.dateStart)) + '</button>';
+        }).join('') + (v.manual || []).map(function (x, mi) {
+          return '<span class="visited-ev visited-manual">' + escapeHtml(L('Visité', 'Visited') + (x.year ? ' ' + x.year : '')) + (isMe ? '<button type="button" class="link-btn" data-extra-visit-del="' + escapeHtml(x.circuit) + '|' + escapeHtml(String(x.year || '')) + '" aria-label="' + escapeHtml(L('Retirer', 'Remove')) + '">✕</button>' : '') + '</span>';
         }).join('') + '</span></div>';
     }).join('') + '</div></div>';
     if (spots.length) h += '<div class="card"><h2 class="section-title">' + L('Spots photo préférés', 'Favourite photo spots') + '</h2>' + spots.map(function (sp) {
@@ -10085,7 +10164,7 @@
     var sheetEl = document.createElement('div');
     sheetEl.className = 'crop-modal-overlay setup-sheet tyre-sessions-sheet';
     sheetEl.innerHTML = '<div class="crop-modal setup-modal"><h2 class="section-title">' + L('Mes sessions sur ces pneus', 'My sessions on these tyres') + '</h2>' +
-      '<div class="help-text">' + L('Depuis le ', 'Since ') + escapeHtml(formatDate(set.since)) + L(' : coche les sessions que tu as roulées. Carnet Piste en estime les tours et les km avec ton temps au tour.', ': tick the sessions you rode. Pitbook estimates the laps and km from your lap time.') + '</div>' +
+      '<div class="help-text">' + L('Depuis le ', 'Since ') + escapeHtml(formatDate(set.since)) + L(' : coche les sessions que tu as roulées. Pitbook en estime les tours et les km avec ton temps au tour.', ': tick the sessions you rode. Pitbook estimates the laps and km from your lap time.') + '</div>' +
       '<div class="tyre-days">' + body + '</div>' +
       '<div class="tyre-sessions-actions"><button type="button" class="primary" data-ts="save">' + tr('save') + '</button><button type="button" class="ghost" data-ts="cancel">' + tr('cancel') + '</button></div></div>';
     document.body.appendChild(sheetEl);
@@ -10116,7 +10195,7 @@
     var sheet = document.createElement('div');
     sheet.className = 'crop-modal-overlay setup-sheet tyre-sheet';
     sheet.innerHTML = '<div class="crop-modal setup-modal"><h2 class="section-title">' + L('Mes pneus', 'My tyres') + '</h2>' +
-      '<div class="help-text">' + L('À partir de cette date, Carnet Piste compte les sessions, les tours et les km sur ce train. Visible par toi seul.', 'From this date, Pitbook counts the sessions, laps and km on this set. Visible to you only.') + '</div>' +
+      '<div class="help-text">' + L('À partir de cette date, Pitbook compte les sessions, les tours et les km sur ce train. Visible par toi seul.', 'From this date, Pitbook counts the sessions, laps and km on this set. Visible to you only.') + '</div>' +
       '<div class="tyre-state" role="radiogroup" aria-label="' + escapeHtml(L('État des pneus', 'Tyre condition')) + '">' +
       '<label><input type="radio" name="tyre-state" value="new" checked> ' + L('Neufs', 'New') + '</label>' +
       '<label><input type="radio" name="tyre-state" value="used"> ' + L('Déjà roulés', 'Already used') + '</label></div>' +
@@ -10726,7 +10805,16 @@
     var title = L('Roulage – ', 'Trackday – ') + ev.circuit, details = L('Horaires et infos : ', 'Schedule and info: ') + publicRoulageLink(ev.id);
     var q = function (o) { return Object.keys(o).map(function (k) { return k + '=' + encodeURIComponent(o[k]); }).join('&'); };
     return {
-      google: 'https://calendar.google.com/calendar/render?' + q({ action: 'TEMPLATE', text: title, dates: icsDate(ev.dateStart) + '/' + icsDate(dateKey(endNext)), details: details, location: ev.circuit }),
+      // /calendar/event : lien que l'appli Google Agenda ouvre directement sur Android.
+      google: 'https://calendar.google.com/calendar/' + (/Android/.test(navigator.userAgent) ? 'event' : 'render') + '?' + q({ action: 'TEMPLATE', text: title, dates: icsDate(ev.dateStart) + '/' + icsDate(dateKey(endNext)), details: details, location: ev.circuit }),
+      // Android : l'agenda installé sur le téléphone (Samsung, Google…), via
+      // l'action « ajouter un événement » ; sinon Google Agenda.
+      android: (function () {
+        var b = parseLocalDate(ev.dateStart).getTime(), e = endNext.getTime();
+        var enc = function (t) { return encodeURIComponent(t).replace(/;/g, '%3B'); };
+        return 'intent:#Intent;action=android.intent.action.INSERT;type=vnd.android.cursor.dir/event;S.title=' + enc(title) + ';S.eventLocation=' + enc(ev.circuit) +
+          ';S.description=' + enc(details) + ';l.beginTime=' + b + ';l.endTime=' + e + ';B.allDay=true;S.browser_fallback_url=' + enc('https://calendar.google.com/calendar/event?' + q({ action: 'TEMPLATE', text: title, dates: icsDate(ev.dateStart) + '/' + icsDate(dateKey(endNext)), details: details, location: ev.circuit })) + ';end';
+      })(),
       outlook: 'https://outlook.live.com/calendar/0/deeplink/compose?' + q({ path: '/calendar/action/compose', rru: 'addevent', subject: title, startdt: ev.dateStart, enddt: dateKey(endNext), allday: 'true', body: details, location: ev.circuit })
     };
   }
@@ -10735,13 +10823,18 @@
     if (!ev) return;
     var links = calendarLinks(ev);
     var opt = function (href, label, sub) { return '<a class="cal-choice" href="' + escapeHtml(href) + '" target="_blank" rel="noopener"><strong>' + label + '</strong><span class="help-text">' + sub + '</span></a>'; };
+    var isAndroid = /Android/.test(navigator.userAgent);
     openMiniSheet('<h2 class="section-title">' + L('Ajouter à mon agenda', 'Add to my calendar') + '</h2><div class="cal-choices">' +
+      (isAndroid ? '<button type="button" class="cal-choice cal-native" data-cal-native><strong>' + L('Agenda du téléphone', 'Phone calendar') + '</strong><span class="help-text">' + L('L\'appli agenda installée (Samsung, Google…)', 'Your installed calendar app (Samsung, Google…)') + '</span></button>' : '') +
       opt(links.google, 'Google Agenda', L('Android, PC', 'Android, PC')) +
       opt(links.outlook, 'Outlook', L('Outlook, Hotmail', 'Outlook, Hotmail')) +
       '<button type="button" class="cal-choice" data-cal-ics="' + escapeHtml(ev.id) + '"><strong>' + L('Fichier agenda (.ics)', 'Calendar file (.ics)') + '</strong><span class="help-text">' + L('iPhone, Mac, autres agendas · avec tes sessions', 'iPhone, Mac, other calendars · with your sessions') + '</span></button></div>');
     var sheet = document.getElementById('mini-sheet');
     var b = sheet && sheet.querySelector('[data-cal-ics]');
     if (b) b.addEventListener('click', function () { downloadEventIcs(ev); });
+    // Lien intent: (refusé dans un href par sanitizeLinks) : ouvert par le code.
+    var nat = sheet && sheet.querySelector('[data-cal-native]');
+    if (nat) nat.addEventListener('click', function () { window.location.href = links.android; });
   }
   function downloadEventIcs(ev) {
     var text = buildEventIcs(ev);
@@ -10833,7 +10926,7 @@
 
     var meName = currentUserProfile && currentUserProfile.name;
     if (ev && joinBannerEventId === ev.id && (ev.riders || []).indexOf(meName) === -1) {
-      html += '<div class="card join-banner"><strong>Tu y vas aussi ?</strong><div class="help-text">« J\'y vais » te met sur la liste du roulage dans Carnet Piste. L\'inscription et le paiement se font chez l\'orga.</div>' +
+      html += '<div class="card join-banner"><strong>Tu y vas aussi ?</strong><div class="help-text">« J\'y vais » te met sur la liste du roulage dans Pitbook. L\'inscription et le paiement se font chez l\'orga.</div>' +
         '<div class="join-banner-actions">' + (ev.bookingUrl ? '<button type="button" class="primary" data-action="open-external-url" data-url="' + escapeHtml(ev.bookingUrl) + '">' + tr('book_register') + '</button>' : '') +
         '<button type="button" class="' + (ev.bookingUrl ? 'ghost' : 'primary') + '" data-action="join-roulage-link" data-id="' + escapeHtml(ev.id) + '">J\'y vais</button></div></div>';
     }
@@ -11526,8 +11619,9 @@
     var src = info.mapImage || outlineImageFor(info, circuit);
     var letter = escapeHtml((circuit || '?').charAt(0).toUpperCase());
     var styledAttr = src && !info.mapImage && src.indexOf('data:') !== 0 ? ' data-track-thumb="' + escapeHtml(src) + '"' : '';
-    if (styledAttr && styledThumbs[src] && styledThumbs[src] !== 'x') src = styledThumbs[src];
-    return src ? '<img' + (info.mapImage ? '' : ' class="trace-img"') + ' src="' + src + '" alt=""' + styledAttr + ' data-fallback-letter="' + letter + '">' : '<span class="outing-thumb-letter">' + letter + '</span>';
+    var baked = false;
+    if (styledAttr && styledThumbs[src] && styledThumbs[src] !== 'x') { src = styledThumbs[src]; baked = true; }
+    return src ? '<img' + (info.mapImage ? '' : ' class="trace-img' + (baked ? ' baked' : '') + '"') + ' src="' + src + '" alt=""' + styledAttr + ' data-fallback-letter="' + letter + '">' : '<span class="outing-thumb-letter">' + letter + '</span>';
   }
   function myUpcomingEvents() {
     var me = currentUserProfile && currentUserProfile.name;
@@ -12242,7 +12336,7 @@
       ctx.fillStyle = '#14161a'; ctx.font = '28px Barlow, sans-serif';
       wrapped.forEach(function (t) { y += lineH; ctx.fillText(t, pad, y - 10); });
       ctx.fillStyle = '#8a8d93'; ctx.font = '22px Barlow, sans-serif';
-      ctx.fillText(L('Carnet Piste', 'Pitbook'), pad, c.height - pad + 10);
+      ctx.fillText(L('Pitbook', 'Pitbook'), pad, c.height - pad + 10);
       cb(c);
     };
     if (!base) return draw(null);
@@ -14847,7 +14941,7 @@
         ? '<button type="button" class="' + (ev.bookingUrl ? 'ghost' : 'primary') + '" data-action="event-join-ouvert" data-id="' + escapeHtml(ev.id) + '">J\'y vais</button>'
         : (myRequest
           ? '<span class="help-text">En attente du team</span>'
-          : '<button type="button" class="ghost" data-action="event-join-request" data-id="' + escapeHtml(ev.id) + '" title="Te signale au team sur Carnet Piste – ne réserve ni ne paie rien.">J\'y vais</button>');
+          : '<button type="button" class="ghost" data-action="event-join-request" data-id="' + escapeHtml(ev.id) + '" title="Te signale au team sur Pitbook – ne réserve ni ne paie rien.">J\'y vais</button>');
       var actionHtml = (ev.bookingUrl ? '<button type="button" class="primary" data-action="open-external-url" data-url="' + escapeHtml(ev.bookingUrl) + '">' + tr('book_register') + '</button> ' : '') + goHtml;
       // The Team leads here (avatar, name, ✓ badge) rather than a bare
       // name in the help-text -- the whole point of this card is "which
@@ -14858,7 +14952,7 @@
         ' · ' + (visTags[vis] || '') + '</span></div>' +
         '<div class="friend-row-actions">' + actionHtml + '</div></div>';
     }
-    var legend = '<div class="help-text" style="margin-bottom:0.7rem;">L\'inscription et le paiement se font chez l\'organisateur (« Réserver chez l\'orga »). « J\'y vais » te met seulement sur la liste des pilotes du roulage dans Carnet Piste, pour retrouver horaires, groupe et copains.</div>';
+    var legend = '<div class="help-text" style="margin-bottom:0.7rem;">L\'inscription et le paiement se font chez l\'organisateur (« Réserver chez l\'orga »). « J\'y vais » te met seulement sur la liste des pilotes du roulage dans Pitbook, pour retrouver horaires, groupe et copains.</div>';
     var toggle = legend + '<div style="display:flex; flex-wrap:wrap; gap:0.5rem; margin-bottom:0.7rem;">' +
       '<button type="button" class="calendar-view-btn' + (discoveryViewMode === 'list' ? ' active' : '') + '" data-action="discovery-view-mode" data-mode="list">Liste</button>' +
       '<button type="button" class="calendar-view-btn' + (discoveryViewMode === 'month' ? ' active' : '') + '" data-action="discovery-view-mode" data-mode="month">Mois</button>' +
@@ -15093,14 +15187,46 @@
       v.n++; if (ev.dateStart > v.last) v.last = ev.dateStart;
       (v.events || (v.events = [])).push(ev);
     });
+    // Circuits visités sans y rouler (un GP en spectateur…), ajoutés à la main.
+    var u = (currentUserProfile && currentUserProfile.name === name) ? currentUserProfile : ((STATE.usersByName || {})[name] || {});
+    (u.extraVisits || []).forEach(function (x) {
+      if (!x || !x.circuit) return;
+      var k = circuitKey(x.circuit), v = by[k] || (by[k] = { circuit: x.circuit, n: 0, last: '' });
+      v.manual = (v.manual || []).concat([x]);
+      var d = x.year ? String(x.year) + '-01-01' : '';
+      if (!v.n && d > v.last) v.last = d;
+    });
     return Object.keys(by).map(function (k) { return by[k]; }).sort(function (a, b) { return b.last.localeCompare(a.last); });
+  }
+  var extraVisitOpen = false;
+  function saveExtraVisits(list) {
+    var me = currentUserProfile; if (!me) return;
+    me.extraVisits = list.slice(0, 40);
+    if (STATE.usersByName && STATE.usersByName[me.name]) STATE.usersByName[me.name].extraVisits = me.extraVisits;
+    db.collection('users').doc(myUid()).update({ extraVisits: me.extraVisits }).catch(function (err) { showToast(tr('error_prefix') + ((err && err.message) || err)); });
+    renderRoot();
+  }
+  function extraVisitFormHtml() {
+    var years = []; for (var y = new Date().getFullYear(); y >= 1980; y--) years.push(y);
+    return '<div class="card extra-visit"><h2 class="section-title">' + L('Ajouter un circuit visité', 'Add a visited circuit') + '</h2>' +
+      '<div class="help-text">' + L('Même sans y avoir roulé : un Grand Prix en spectateur, une visite…', 'Even without riding it: a Grand Prix as a spectator, a visit…') + '</div>' +
+      '<div class="extra-visit-row"><select id="extra-visit-circuit">' + circuitOptionsHtml(allCircuits(), '') + '</select>' +
+      '<select id="extra-visit-year"><option value="">' + L('Année', 'Year') + '</option>' + years.map(function (y) { return '<option value="' + y + '">' + y + '</option>'; }).join('') + '</select></div>' +
+      '<div class="extra-visit-row"><button type="button" class="primary" data-action="extra-visit-add">' + L('Ajouter', 'Add') + '</button><button type="button" class="ghost" data-action="extra-visit-cancel">' + L('Annuler', 'Cancel') + '</button></div></div>';
   }
   function renderVisitedCircuits() {
     var me = currentUserProfile; if (!me) return '';
     var list = visitedCircuits(me.name);
-    if (!list.length) return '<div class="card"><div class="empty-state">' + L('Aucun circuit visité pour l\'instant. Sur un roulage passé, touche « J\'y étais ».', 'No circuit visited yet. On a past trackday, tap “I was there”.') + '</div></div>';
-    return '<div class="card"><h2 class="section-title">' + plural(list.length, L('circuit visité', 'circuit visited'), L('circuits visités', 'circuits visited')) + '</h2><div class="visited-grid">' + list.map(function (v) {
-      return '<button type="button" class="visited-tile" data-open-circuit="' + escapeHtml(v.circuit) + '"><span class="outing-thumb">' + circuitThumbHtml(v.circuit) + '</span><strong>' + escapeHtml(v.circuit) + '</strong><span class="help-text">' + plural(v.n, L('fois', 'time'), L('fois', 'times')) + ' · ' + escapeHtml(formatDate(v.last)) + '</span></button>';
+    var addBtn = extraVisitOpen ? extraVisitFormHtml() : '<button type="button" class="ghost add-visit-btn" data-action="extra-visit-open">+ ' + L('Circuit visité sans y rouler', 'Circuit visited without riding') + '</button>';
+    if (!list.length) return addBtn + '<div class="card"><div class="empty-state">' + L('Aucun circuit visité pour l\'instant. Sur un roulage passé, touche « J\'y étais ».', 'No circuit visited yet. On a past trackday, tap “I was there”.') + '</div></div>';
+    return addBtn + '<div class="card"><h2 class="section-title">' + plural(list.length, L('circuit visité', 'circuit visited'), L('circuits visités', 'circuits visited')) + '</h2><div class="visited-grid">' + list.map(function (v) {
+      return '<div class="visited-tile"><button type="button" class="visited-tile-head" data-open-circuit="' + escapeHtml(v.circuit) + '"><span class="outing-thumb">' + circuitThumbHtml(v.circuit) + '</span><strong>' + escapeHtml(v.circuit) + '</strong><span class="help-text">' + (v.n ? plural(v.n, L('roulage', 'trackday'), L('roulages', 'trackdays')) : L('Sans rouler', 'Without riding')) + '</span></button>' +
+        // Chaque roulage ouvre sa propre page (le bon roulage passé).
+        '<span class="visited-evs">' + (v.events || []).slice().sort(function (a, b) { return (b.dateStart || '').localeCompare(a.dateStart || ''); }).map(function (ev) {
+          return '<button type="button" class="visited-ev" data-open-outing="' + escapeHtml(ev.circuit) + '" data-outing-date="' + escapeHtml(ev.dateStart || '') + '" data-outing-event="' + escapeHtml(ev.id) + '">' + escapeHtml(formatDate(ev.dateStart)) + '</button>';
+        }).join('') + (v.manual || []).map(function (x, mi) {
+          return '<span class="visited-ev visited-manual">' + escapeHtml(L('Visité', 'Visited') + (x.year ? ' ' + x.year : '')) + (true ? '<button type="button" class="link-btn" data-extra-visit-del="' + escapeHtml(x.circuit) + '|' + escapeHtml(String(x.year || '')) + '" aria-label="' + escapeHtml(L('Retirer', 'Remove')) + '">✕</button>' : '') + '</span>';
+        }).join('') + '</span></div>';
     }).join('') + '</div></div>';
   }
   function isDesktopNav() { return !!(window.matchMedia && window.matchMedia('(min-width: 960px)').matches); }
@@ -15272,16 +15398,16 @@
           '<button type="button" class="primary follow-btn small" data-action="follow-team" data-team="' + escapeHtml(t.id) + '">' + L('Suivre', 'Follow') + '</button></div>';
       }).join('') + '</div>';
     }
-    // Emplacement pub ciblée (PC seulement) ; jamais pour Carnet+.
+    // Emplacement pub ciblée (PC seulement) ; jamais pour Pitbook+.
     if (!hasCarnetPlus(me)) h += '<div class="rail-section rail-ad" aria-label="' + escapeHtml(L('Publicité', 'Advertising')) + '"><span class="rail-ad-tag">' + L('Publicité', 'Ad') + '</span><div class="rail-ad-box"><strong>' + L('Ton annonce ici', 'Your ad here') + '</strong><span class="help-text">' + L('Équipementiers, circuits, préparateurs : touche les pilotes de ta région.', 'Gear makers, circuits, tuners: reach riders near you.') + '</span></div></div>';
-    h += '<div class="rail-foot help-text">' + L('Carnet Piste', 'Pitbook') + ' · <button type="button" class="link-btn" data-action="open-legal" data-kind="privacy">' + L('Confidentialité', 'Privacy') + '</button></div>';
+    h += '<div class="rail-foot help-text">' + L('Pitbook', 'Pitbook') + ' · <button type="button" class="link-btn" data-action="open-legal" data-kind="privacy">' + L('Confidentialité', 'Privacy') + '</button></div>';
     return h + '</aside>';
   }
   var RAIL_EV_PER_PAGE = 6, railEvPage = 0, railEvMode = 'avenir';
   function renderBottomNav() {
     // Nom de l'app en haut de la barre de gauche (PC) : à côté de la barre,
     // pas dedans, pour ne pas décaler l'ordre de ses boutons.
-    var html = '<button type="button" class="nav-brand keep-words" data-action="brand-home" aria-label="' + escapeHtml(L('Accueil : Social', 'Home: Social')) + '"><img src="icons/favicon-32.png" alt="" width="26" height="26"><span>' + L('Carnet Piste', 'Pitbook') + '</span></button><nav class="bottom-nav">';
+    var html = '<button type="button" class="nav-brand keep-words" data-action="brand-home" aria-label="' + escapeHtml(L('Accueil : Social', 'Home: Social')) + '"><img src="icons/favicon-32.png" alt="" width="26" height="26"><span>' + L('Pitbook', 'Pitbook') + '</span></button><nav class="bottom-nav">';
     var visibleTabs = MAIN_TABS;
     // Profile and notifications aren't one of the 3 tabs: none lit up then.
     var current = (profilePanelOpen || notificationsPanelOpen) ? null : navTabFor(activeView);
@@ -16179,7 +16305,7 @@
     return isAdmin() || (ev.teamId ? isLeaderOfTeam(ev.teamId) : false);
   }
   function albumHelpHtml() {
-    return '<div class="help-text">' + L('Crée un album partagé dans Google Photos, iCloud ou Drive, copie son lien de partage et colle-le ici. Les photos restent chez toi : Carnet Piste ne garde que le lien.',
+    return '<div class="help-text">' + L('Crée un album partagé dans Google Photos, iCloud ou Drive, copie son lien de partage et colle-le ici. Les photos restent chez toi : Pitbook ne garde que le lien.',
       'Create a shared album in Google Photos, iCloud or Drive, copy its share link and paste it here. The photos stay with you: Pitbook only keeps the link.') + '</div>';
   }
   function albumRow(label, url, editAction, evId) {
@@ -17153,10 +17279,10 @@
   function sendAppNotification(body) {
     if (navigator.serviceWorker && navigator.serviceWorker.ready) {
       navigator.serviceWorker.ready.then(function (reg) {
-        reg.showNotification(L('Carnet Piste', 'Pitbook'), { body: body, icon: 'icons/icon-192.png', badge: 'icons/icon-192.png' });
-      }).catch(function () { new Notification(L('Carnet Piste', 'Pitbook'), { body: body }); });
+        reg.showNotification(L('Pitbook', 'Pitbook'), { body: body, icon: 'icons/icon-192.png', badge: 'icons/icon-192.png' });
+      }).catch(function () { new Notification(L('Pitbook', 'Pitbook'), { body: body }); });
     } else {
-      new Notification(L('Carnet Piste', 'Pitbook'), { body: body });
+      new Notification(L('Pitbook', 'Pitbook'), { body: body });
     }
   }
 
@@ -18142,8 +18268,8 @@
       { field: 'organizer', icon: 'ORGA', label: tr('badge_organizer_label'), desc: tr('badge_organizer_desc'), cssClass: 'organizer-badge', check: isOrganizerBadge },
       { field: 'coach', icon: 'COACH', label: tr('coach_label'), desc: tr('badge_coach_desc'), cssClass: 'coach-badge', check: isCoachBadge },
       { field: 'photographer', icon: 'PHOTO', label: tr('badge_photographer_label'), desc: tr('badge_photographer_desc'), cssClass: 'photographer-badge', check: isPhotographerBadge },
-      // Abonné Carnet+ (simulation : attribué par l'admin, sans paiement).
-      { field: 'plus', icon: 'C+', label: 'Carnet+', desc: L('Membre Carnet+ : soutient l\'appli et profite des fonctions avancées.', 'Carnet+ member: supports the app and gets the advanced features.'), cssClass: 'plus-badge', check: function (u) { return !!(u && u.plus); } }
+      // Abonné Pitbook+ (simulation : attribué par l'admin, sans paiement).
+      { field: 'plus', icon: 'P+', label: 'Pitbook+', desc: L('Membre Pitbook+ : soutient l\'appli et profite des fonctions avancées.', 'Pitbook+ member: supports the app and gets the advanced features.'), cssClass: 'plus-badge', check: function (u) { return !!(u && u.plus); } }
     ];
   }
 
@@ -18154,7 +18280,7 @@
   // identically on touch and desktop.
   function badgesHtml(u) {
     return profileBadges().map(function (b) {
-      // Vérifié et Carnet+ : un appui mène à l'espace Carnet+.
+      // Vérifié et Pitbook+ : un appui mène à l'espace Pitbook+.
       var toPlus = b.field === 'plus' || b.field === 'certified';
       return b.check(u) ? ' <span class="' + b.cssClass + (b.icon.length > 1 ? ' badge-text' : '') + '" title="' + escapeHtml(b.desc) + '" data-badge-info="' + escapeHtml(b.desc) + '"' + (toPlus ? ' data-badge-plus="1" role="link" tabindex="0"' : '') + '>' + b.icon + '</span>' : '';
     }).join('');
@@ -18498,9 +18624,9 @@
     if (!name || (!(STATE.usersByName || {})[name] && name !== me)) return personNameHtml(name);
     return '<button type="button" class="friend-name-link' + nameColorClass(name) + '" data-action="open-person" data-name="' + escapeHtml(name) + '">' + escapeHtml(name) + '</button>';
   }
-  // ---- Fiche personnalisée (aperçu de Carnet+) ----
+  // ---- Fiche personnalisée (aperçu de Pitbook+) ----
   // users/{uid}.look : { color, cover, coverPhoto, plate, bio, featured, pinned }.
-  // Offerte à tous pendant la phase de test ; deviendra Carnet+.
+  // Offerte à tous pendant la phase de test ; deviendra Pitbook+.
   var LOOK_COLORS = [['#c8261f', 'Rouge'], ['#1f4fb8', 'Bleu'], ['#2f8f3a', 'Vert'], ['#e0701a', 'Orange'], ['#e1b10f', 'Jaune'], ['#6b3fc4', 'Violet'], ['#14161a', 'Encre']];
   // Personnalisation débloquée par les pneus (total atteint) : de
   // nouvelles couleurs et une bannière, sans rien retirer aux autres.
@@ -18750,7 +18876,7 @@
     if (!t) return;
     var l = t.look || {};
     lookDraft = { __team: teamId, color: l.color || '#c8261f', cover: l.cover != null ? l.cover : 'vibreur', coverPhoto: l.coverPhoto || null, bio: l.bio != null ? l.bio : (t.description || ''),
-      links: (l.links || (t.links || []).map(function (x) { return { url: x.url, comment: x.label || '' }; })).slice(), sponsors: (l.sponsors || []).slice(), show: Object.assign({}, l.show || {}), favRiders: (l.favRiders || []).slice(), name: t.name || '', kind: t.kind || 'pilotes' };
+      links: (l.links || (t.links || []).map(function (x) { return { url: x.url, comment: x.label || '' }; })).slice(), sponsors: (l.sponsors || []).slice(), show: Object.assign({}, l.show || {}), favRiders: (l.favRiders || []).slice(), name: t.name || '', kind: t.kind || 'pilotes', visibility: t.visibility || 'private', postPolicy: t.postPolicy === 'members' ? 'members' : 'leaders' };
     lookDraftOrig = JSON.stringify(lookDraft);
     lookMessage = ''; lookPendingLogo = null;
     countUsageOnce('teamLookOpen', 'team_look_open');
@@ -18873,7 +18999,7 @@
     var earned = ach.filter(function (a) { return a.earned; });
     var html = '<div class="card look-editor"><h2 class="section-title">' + (team ? L('Personnaliser la fiche du team', 'Customise the team page') : L('Personnaliser ma fiche', 'Customise my profile')) + '</h2>' +
       '<div class="help-text">' + (team ? L('Offert pendant la phase de test. Cette personnalisation fera partie de Team PRO, l\'offre payante prévue plus tard.', 'Free during the test phase. This will be part of Team PRO, the paid plan planned later.')
-        : L('Offert pendant la phase de test. Cette personnalisation fera partie de Carnet+, l\'offre payante prévue plus tard.', 'Free during the test phase. This will be part of Carnet+, the paid plan planned later.')) + '</div>';
+        : L('Offert pendant la phase de test. Cette personnalisation fera partie de Pitbook+, l\'offre payante prévue plus tard.', 'Free during the test phase. This will be part of Pitbook+, the paid plan planned later.')) + '</div>';
     // Identité (photo : touche-la sur la fiche ; pseudo : Compte, règle des 30 jours).
     if (!team && d.id) {
       html += '<div class="look-field look-identity"><span class="look-label">' + L('Identité', 'Identity') + '</span>' +
@@ -18947,9 +19073,17 @@
       if (lookShows(d, 'riders')) html += '<div class="look-field"><span class="look-label">' + L('Pilotes du team (5 max)', 'Team riders (up to 5)') + '</span>' +
         (memberNames.length ? pick('favRiders', memberNames, memberNames, 5) : '<div class="help-text">' + L('Les membres du team apparaîtront ici.', 'Team members will show here.') + '</div>') + '</div>';
       html += '<div class="look-field"><label class="look-label" for="look-bio">' + L('Présentation', 'About') + '</label><textarea id="look-bio" maxlength="250" rows="3" placeholder="' + L('Ex. Roulages circuit en France et en Espagne depuis 2012.', 'E.g. Track days in France and Spain since 2012.') + '">' + escapeHtml(d.bio || '') + '</textarea><span class="help-text look-bio-count" id="look-bio-count">' + (d.bio || '').length + ' / 250</span></div>';
+      // Confidentialité : dans la même fenêtre, enregistrée avec le reste.
+      var opt = function (v, cur, label) { return '<option value="' + v + '"' + (cur === v ? ' selected' : '') + '>' + label + '</option>'; };
+      html += '<div class="look-field"><label class="look-label" for="look-team-vis">' + tr('visibility_who_label') + '</label><select id="look-team-vis">' +
+        opt('private', d.visibility, tr('vis_invite_only')) + opt('all', d.visibility, tr('vis_all')) + opt('pro', d.visibility, tr('vis_pro_riders')) + opt('certified', d.visibility, tr('vis_certified')) + '</select>' +
+        '<label class="look-label" for="look-team-post" style="margin-top:0.6rem;">' + tr('who_can_post_label') + '</label><select id="look-team-post">' +
+        opt('leaders', d.postPolicy, tr('leaders_only_option')) + opt('members', d.postPolicy, tr('all_members_option')) + '</select></div>';
       html += '<div class="look-actions"><button type="button" class="primary" data-action="look-save">' + L('Enregistrer', 'Save') + '</button><button type="button" class="ghost" data-action="look-cancel">' + L('Annuler', 'Cancel') + '</button>' +
         (lookOf(team) ? '<button type="button" class="link-btn" data-action="look-reset">' + L('Revenir à la fiche standard', 'Back to the standard page') + '</button>' : '') + '</div>' +
         (lookMessage ? '<div class="help-text">' + escapeHtml(lookMessage) + '</div>' : '') + '</div>';
+      // Partenaires et suppression du team : actions directes, sous la fiche.
+      html += '<div class="look-team-extra">' + renderTeamSettings(team, true, true) + '</div>';
       return html;
     }
     var allCircuitsMap = {};
@@ -19012,8 +19146,9 @@
       }
       var tPatch = { look: tv };
       if (tv) { tPatch.description = tv.bio; tPatch.kind = lookDraft.kind || 'pilotes'; }
+      if (!reset) { tPatch.visibility = lookDraft.visibility || 'private'; tPatch.postPolicy = lookDraft.postPolicy || 'leaders'; }
       db.collection('teams').doc(teamId).update(tPatch).then(function () {
-        if (t) { t.look = tv; if (tv) { t.description = tv.bio; t.kind = tPatch.kind; } }
+        if (t) { t.look = tv; if (tv) { t.description = tv.bio; t.kind = tPatch.kind; } if (tPatch.visibility) { t.visibility = tPatch.visibility; t.postPolicy = tPatch.postPolicy; } }
         lookDraft = null; lookDraftOrig = null; lookMessage = '';
         if (!reset) countUsageOnce('teamLookSaved', 'team_look_saved');
         showToast(reset ? L('Fiche standard rétablie.', 'Standard page restored.') : L('Fiche du team enregistrée.', 'Team page saved.'));
@@ -19918,7 +20053,7 @@
     var h = Math.floor(ms / 3600e3), m = Math.max(1, Math.floor((ms % 3600e3) / 60e3));
     return h >= 1 ? h + ' h' : m + ' min';
   }
-  // ---- Stories vidéo (Carnet+) : 10 s max, recompressées sur le
+  // ---- Stories vidéo (Pitbook+) : 10 s max, recompressées sur le
   // téléphone (480 px, faible débit) pour tenir dans un document.
   // Partage vers les autres réseaux (feuille de partage du téléphone),
   // proposé au moment de publier. Appelé dans le clic, avant tout envoi.
@@ -19932,7 +20067,7 @@
   }
   function shareElsewhere(mediaDataUrl, text) {
     if (!navigator.share) { showToast(L('Le partage vers les autres réseaux n\'est pas proposé par ce navigateur.', 'Sharing to other apps is not available in this browser.')); return; }
-    var data = { text: (text ? text + ' · ' : '') + L('via Carnet Piste', 'via Pitbook') };
+    var data = { text: (text ? text + ' · ' : '') + L('via Pitbook', 'via Pitbook') };
     var f = mediaDataUrl && /^data:/.test(mediaDataUrl) ? dataUrlToFile(mediaDataUrl, 'carnet-piste') : null;
     if (f && navigator.canShare && navigator.canShare({ files: [f] })) data.files = [f];
     navigator.share(data).catch(function () {});
@@ -19947,7 +20082,7 @@
   }
   function openPostShareSheet(id) {
     var p = (STATE.wallPosts || []).filter(function (x) { return x.id === id; })[0]; if (!p) return;
-    var link = postShareLink(id), text = ((p.text || '').slice(0, 240) + (p.text ? ' · ' : '') + L('via Carnet Piste', 'via Pitbook')).trim();
+    var link = postShareLink(id), text = ((p.text || '').slice(0, 240) + (p.text ? ' · ' : '') + L('via Pitbook', 'via Pitbook')).trim();
     var opts = [
       ['whatsapp', 'WhatsApp'], ['x', 'X (Twitter)'], ['facebook', 'Facebook'], ['instagram', 'Instagram'], ['tiktok', 'TikTok'], ['copy', L('Lien', 'Link')]
     ];
@@ -19975,7 +20110,7 @@
       ov.remove();
     }); });
   }
-  // ---- Pneus : la monnaie de Carnet Piste ----
+  // ---- Pneus : la monnaie de Pitbook ----
   // Rangés sur mon profil (users.pneus) : bank (gagnés), cal (calendrier
   // 30 jours), day/capped (plafond 100/jour des actions), rx (likes et
   // commentaires reçus déjà comptés), fol/ses (abonnés et chronos comptés),
@@ -20187,7 +20322,7 @@
       var shownBoard = pneusBoardAll ? board.slice(0, 50) : board.slice(0, 3).concat(meIdx > 2 ? [board[meIdx]] : []);
       return '<h2 class="section-title">' + L('Mes pneus', 'My tyres') + '</h2>' +
         '<div class="pneus-total">' + TYRE_SVG + '<b>' + pneusBalance() + '</b><span class="help-text">' + L('à dépenser · ', 'to spend · ') + pneusTotal() + ' ' + L('gagnés au total', 'earned in total') + ' (' + p.bank + ' ' + L('activité', 'activity') + ', ' + prof + ' ' + L('profil', 'profile') + ', ' + tro + ' ' + L('trophées', 'trophies') + ')' + (p.spent ? ' · ' + p.spent + ' ' + L('dépensés', 'spent') : '') + '</span></div>' +
-        '<div class="pneus-why"><strong>' + L('À quoi servent les pneus ?', 'What are tyres for?') + '</strong><p>' + L('C\'est la monnaie de Carnet Piste : elle récompense ton activité (rouler, publier, encourager tes amis). Plus tu en as, plus tu montes dans le classement entre amis. Ils débloquent aussi des couleurs et des styles pour ta fiche (voir plus bas).', 'It\'s Pitbook\'s currency: it rewards your activity (riding, posting, cheering your mates). The more you have, the higher you rank among friends. They also unlock colours and styles for your profile (see below).') + '</p></div>' +
+        '<div class="pneus-why"><strong>' + L('À quoi servent les pneus ?', 'What are tyres for?') + '</strong><p>' + L('C\'est la monnaie de Pitbook : elle récompense ton activité (rouler, publier, encourager tes amis). Plus tu en as, plus tu montes dans le classement entre amis. Ils débloquent aussi des couleurs et des styles pour ta fiche (voir plus bas).', 'It\'s Pitbook\'s currency: it rewards your activity (riding, posting, cheering your mates). The more you have, the higher you rank among friends. They also unlock colours and styles for your profile (see below).') + '</p></div>' +
         '<div class="pneus-cal-head"><strong>' + L('Récolte de la semaine', 'Weekly collection') + '</strong><span class="help-text">' + (can ? L('Ta récolte du jour t\'attend.', 'Today\'s tyres are waiting.') : L('Prochaine récolte à minuit.', 'Next collection at midnight.')) + '</span></div>' +
         '<div class="pneus-cal">' + cells + '</div>' +
         (can ? '<button type="button" class="primary pneus-collect" data-pneus="collect">' + L('Récolter', 'Collect') + ' +' + pneusDayCalc(next) + '</button>' : '') +
@@ -20497,7 +20632,7 @@
       var mutual = friendsOf(n).filter(function (f) { return friends.indexOf(f.name) !== -1; }).length;
       var shared = mineEv.filter(function (e) { return (e.riders || []).indexOf(n) !== -1; }).length;
       var fo = followers.indexOf(n) !== -1, fi = (STATE.myFollows || []).indexOf(n) !== -1;
-      var reason = fo ? L('Te suit', 'Follows you') : mutual ? plural(mutual, L('ami en commun', 'mutual friend'), L('amis en commun', 'mutual friends')) : shared ? plural(shared, L('roulage en commun', 'shared trackday'), L('roulages en commun', 'shared trackdays')) : fi ? L('Tu le suis', 'You follow them') : L('Sur Carnet Piste', 'On Pitbook');
+      var reason = fo ? L('Te suit', 'Follows you') : mutual ? plural(mutual, L('ami en commun', 'mutual friend'), L('amis en commun', 'mutual friends')) : shared ? plural(shared, L('roulage en commun', 'shared trackday'), L('roulages en commun', 'shared trackdays')) : fi ? L('Tu le suis', 'You follow them') : L('Sur Pitbook', 'On Pitbook');
       return { name: n, reason: reason, score: mutual * 3 + shared * 2 + (fo ? 4 : 0) + (fi ? 2 : 0) };
     }).sort(function (a, b) { return b.score - a.score || a.name.localeCompare(b.name); }).slice(0, max || 12);
   }
@@ -20791,7 +20926,7 @@
   // Une vue = un lecteur (pas l'auteur) qui a eu la publication à l'écran
   // au moins une seconde ; comptée une fois par lecteur et par jour
   // (postViews/{post__lecteur__jour}). Pareil pour les visites de profil.
-  // C'est ce que demanderont les marques aux pilotes influents (Carnet+).
+  // C'est ce que demanderont les marques aux pilotes influents (Pitbook+).
   function viewAttrs(key, owner, teamId) {
     return key && owner ? ' data-view-key="' + escapeHtml(key) + '" data-view-owner="' + escapeHtml(owner) + '"' + (teamId ? ' data-view-team="' + escapeHtml(teamId) + '"' : '') : '';
   }
@@ -20865,9 +21000,9 @@
     if (fe && fe.type === 'record') return L('Record · ', 'Record · ') + fe.circuit + ' · ' + formatTime(fe.time);
     return L('Publication', 'Post');
   }
-  // ---- Espace Carnet+ (simulation de l'offre payante) ----
+  // ---- Espace Pitbook+ (simulation de l'offre payante) ----
   // Ce qui est compris, le prix, et le statut du compte. Pas de paiement :
-  // l'admin attribue Carnet+ depuis la gestion des comptes ; « Ça
+  // l'admin attribue Pitbook+ depuis la gestion des comptes ; « Ça
   // m'intéresse » remonte une suggestion pour mesurer la demande.
   var CARNET_PLUS_PRICE = { get month() { return L('0,99 €', '€0.99'); }, get team() { return L('19 €', '€19'); } };
   function hasCarnetPlus(u) { return !!((u || currentUserProfile || {}).plus); }
@@ -20877,20 +21012,20 @@
     var feats = [
       [L('Sans publicité', 'No ads'), L('Aucune pub dans Social ni dans Mon Box.', 'No ads in Social or My Box.'), 'ok'],
       [L('Stories vidéo', 'Video stories'), L('Des vidéos de 10 secondes en story, compressées sur ton téléphone.', '10-second video stories, compressed on your phone.'), 'ok'],
-      [L('Badge Carnet+', 'Carnet+ badge'), L('Le badge C+ à côté de ton nom, partout dans l\'appli.', 'The C+ badge next to your name, everywhere in the app.'), 'ok'],
+      [L('Badge Pitbook+', 'Pitbook+ badge'), L('Le badge P+ à côté de ton nom, partout dans l\'appli.', 'The P+ badge next to your name, everywhere in the app.'), 'ok'],
       [L('Fiche personnalisée', 'Custom profile'), L('Couverture, plaque de course, couleur, sponsors, chrono vedette et vitrine.', 'Cover, race plate, colour, sponsors, featured lap and showcase.'), 'ok'],
       [L('Audience et media kit', 'Audience and media kit'), L('Impressions, comptes touchés, engagement, visites : à montrer aux marques.', 'Impressions, reach, engagement, visits: to show to brands.'), 'ok'],
       [L('Rapport de saison', 'Season report'), L('Ta saison en PDF : records, progression, roulages, budget.', 'Your season as a PDF: records, progress, trackdays, budget.'), 'soon'],
       [L('Garage multi-véhicules', 'Multi-vehicle garage'), L('Plusieurs motos ou voitures, réglages et pneus séparés pour chacune.', 'Several bikes or cars, separate setups and tyres for each.'), 'soon']
     ];
     var free = [L('Chronos, roulages et jour J', 'Lap times, trackdays and race day'), L('Classements et podiums entre amis', 'Rankings and podiums with friends'), L('Import des feuilles de temps', 'Timesheet import'), L('Réglages, pneus, pressions, budget', 'Setup, tyres, pressures, budget'), L('Communauté, stories, teams', 'Community, stories, teams')];
-    var h = '<div class="card cp-hero"><div class="cp-hero-top"><span class="cp-logo">C+</span><div><div class="cp-title">Carnet+</div><div class="cp-sub">' +
+    var h = '<div class="card cp-hero"><div class="cp-hero-top"><span class="cp-logo">P+</span><div><div class="cp-title">Pitbook+</div><div class="cp-sub">' +
       L('Pour les pilotes qui veulent aller plus loin et soutenir l\'appli.', 'For riders who want to go further and support the app.') + '</div></div></div>' +
-      '<div class="cp-status ' + (on ? 'on' : 'off') + '">' + (on ? L('Carnet+ actif sur ton compte', 'Carnet+ is active on your account') : L('Tu es sur la version gratuite', 'You\'re on the free version')) + '</div>' +
+      '<div class="cp-status ' + (on ? 'on' : 'off') + '">' + (on ? L('Pitbook+ actif sur ton compte', 'Pitbook+ is active on your account') : L('Tu es sur la version gratuite', 'You\'re on the free version')) + '</div>' +
       '<div class="cp-prices"><div class="cp-price best"><strong>' + CARNET_PLUS_PRICE.month + '</strong><span>' + L('par mois, sans engagement', 'per month, cancel anytime') + '</span></div></div>' +
       (on ? '' : '<button type="button" class="primary cp-cta" data-action="carnet-plus-interest">' + L('Ça m\'intéresse', 'I\'m interested') + '</button>') +
       '<div class="help-text cp-note">' + L('Simulation : aucun paiement pour l\'instant. Pendant la phase de test, tout reste offert.', 'Simulation: no payment for now. Everything stays free during the test phase.') + '</div></div>';
-    h += '<div class="card"><h2 class="section-title">' + L('Compris dans Carnet+', 'Included in Carnet+') + '</h2>' + feats.map(function (f) {
+    h += '<div class="card"><h2 class="section-title">' + L('Compris dans Pitbook+', 'Included in Pitbook+') + '</h2>' + feats.map(function (f) {
       return '<div class="cp-feat">' + check + '<div><strong>' + escapeHtml(f[0]) + (f[2] === 'soon' ? ' <span class="cp-soon">' + L('bientôt', 'soon') + '</span>' : '') + '</strong><div class="help-text">' + escapeHtml(f[1]) + '</div></div></div>';
     }).join('') + '</div>';
     h += '<div class="card"><h2 class="section-title">' + L('Toujours gratuit', 'Always free') + '</h2><div class="help-text" style="margin-bottom:0.5rem;">' +
@@ -20907,7 +21042,7 @@
     var daysPills = renderSubPillRow('auddays', [['7', L('7 jours', '7 days')], ['30', L('30 jours', '30 days')], ['90', L('90 jours', '90 days')]]);
     var a = myAudience(parseInt(pillState.auddays, 10) || 30), rate = a.reach ? Math.round(a.engagement / a.reach * 1000) / 10 : 0;
     var tile = function (n, label, sub) { return '<div class="aud-tile"><strong>' + n + '</strong><span>' + label + '</span>' + (sub ? '<em>' + sub + '</em>' : '') + '</div>'; };
-    var html = '<div class="card aud-card"><div class="aud-head"><h2 class="section-title">' + L('Mon audience', 'My audience') + '</h2><span class="carnet-plus">Carnet+</span></div>' +
+    var html = '<div class="card aud-card"><div class="aud-head"><h2 class="section-title">' + L('Mon audience', 'My audience') + '</h2><span class="carnet-plus">Pitbook+</span></div>' +
       daysPills +
       '<div class="aud-tiles">' +
         tile(a.impressions, L('impressions', 'impressions'), L('vues de tes publications', 'views of your posts')) +
@@ -20935,7 +21070,7 @@
   }
   function mediaKitText(me) {
     var a = myAudience(30), rate = a.reach ? Math.round(a.engagement / a.reach * 1000) / 10 : 0;
-    return L('Kit média · ', 'Media kit · ') + me.name + (me.bike ? ' (' + me.bike + ')' : '') + L(' sur Carnet Piste — 30 derniers jours : ', ' on Pitbook — last 30 days: ') +
+    return L('Kit média · ', 'Media kit · ') + me.name + (me.bike ? ' (' + me.bike + ')' : '') + L(' sur Pitbook — 30 derniers jours : ', ' on Pitbook — last 30 days: ') +
       a.impressions + L(' impressions, ', ' impressions, ') + a.reach + L(' comptes touchés, ', ' accounts reached, ') + a.engagement + L(' interactions (taux ', ' interactions (rate ') + rate + ' %), ' +
       a.visits + L(' visites du profil, ', ' profile visits, ') + a.followers + L(' abonnés', ' followers') + (a.newFollowers ? ' (+' + a.newFollowers + ')' : '') + '. ' + referralLinkFor(me.name);
   }
@@ -21076,7 +21211,7 @@
   var wallFeedVisibleCount = 5; // how many of Mon Journal's items are rendered -- +5 each time the scroll sentinel is reached (see attachHandlers)
 
   // Importer une publication d'un autre réseau : on partage depuis
-  // Facebook, Instagram… vers Carnet Piste (feuille de partage Android, appli
+  // Facebook, Instagram… vers Pitbook (feuille de partage Android, appli
   // installée). Le texte, le lien et l'image arrivent pré-remplis.
   function consumeSharedIn() {
     if (!window.caches) return;
@@ -21684,7 +21819,7 @@
     var m = (STATE.teamDms || []).filter(function (x) { return x.convId === info.convId && x.userName; })[0];
     return m ? m.userName : '';
   }
-  // Message d'accueil : une conversation « Carnet Piste » dans la messagerie
+  // Message d'accueil : une conversation « Pitbook » dans la messagerie
   // pendant les 30 jours qui suivent la création du compte (rien d'envoyé
   // au serveur : elle est construite ici).
   var WELCOME_DM = 'cp:welcome';
@@ -21692,8 +21827,8 @@
     var u = auth.currentUser, me = currentUserProfile;
     var ct = u && u.metadata && Date.parse(u.metadata.creationTime);
     if (!me || !ct || Date.now() - ct > 30 * 86400000) return null;
-    return { id: '', convId: 'welcome', from: 'carnetpiste', fromName: 'Carnet Piste', toName: me.name, createdAt: ct,
-      text: L('Bienvenue sur Carnet Piste, ' + (me.firstName || me.name) + ' !\n\nQuelques pistes pour bien démarrer :\n· Ajoute tes amis (Communauté › Amis) pour suivre leurs roulages et leurs chronos.\n· Inscris-toi à un roulage ou dis « J\'y vais » : tes amis te verront.\n· Note ton chrono après chaque session, ta courbe et tes podiums se font seuls.\n· Dessine tes repères sur le plan du circuit (Carnet › Circuits).\n\nUne question, une idée ? Écris-nous depuis Réglages. Bonne piste !',
+    return { id: '', convId: 'welcome', from: 'carnetpiste', fromName: 'Pitbook', toName: me.name, createdAt: ct,
+      text: L('Bienvenue sur Pitbook, ' + (me.firstName || me.name) + ' !\n\nQuelques pistes pour bien démarrer :\n· Ajoute tes amis (Communauté › Amis) pour suivre leurs roulages et leurs chronos.\n· Inscris-toi à un roulage ou dis « J\'y vais » : tes amis te verront.\n· Note ton chrono après chaque session, ta courbe et tes podiums se font seuls.\n· Dessine tes repères sur le plan du circuit (Carnet › Circuits).\n\nUne question, une idée ? Écris-nous depuis Réglages. Bonne piste !',
         'Welcome to Pitbook, ' + (me.firstName || me.name) + '!\n\nA few tips to get started:\n· Add your friends (Community › Friends) to follow their trackdays and lap times.\n· Sign up for a trackday or tap “I\'m going”: your friends will see you.\n· Log your lap time after each session, your chart and podiums build themselves.\n· Draw your marks on the circuit map (Logbook › Circuits).\n\nA question, an idea? Write to us from Settings. Enjoy the track!') };
   }
   function dmThreadWith(name) {
@@ -21747,7 +21882,7 @@
         unread: g.lastAt && g.lastFrom !== myName && g.lastAt > (read['grp:' + g.id] || 0) ? 1 : 0 };
     });
     var wd = welcomeDm();
-    if (wd) by.welcome = { convId: 'welcome', last: wd, unread: (read.welcome || 0) < wd.createdAt ? 1 : 0, other: 'Carnet Piste', key: WELCOME_DM };
+    if (wd) by.welcome = { convId: 'welcome', last: wd, unread: (read.welcome || 0) < wd.createdAt ? 1 : 0, other: 'Pitbook', key: WELCOME_DM };
     return Object.keys(by).map(function (k) { return by[k]; }).filter(function (c) { return c.other; }).sort(function (a, b) { return (b.last.createdAt || 0) - (a.last.createdAt || 0); });
   }
   function unreadDmCount() { return dmConversations().reduce(function (n, c) { return n + (c.unread ? 1 : 0); }, 0); }
@@ -21956,7 +22091,7 @@
     if (typeof dmOpenWith === 'string' && dmOpenWith.indexOf('grp:') === 0) return renderGroupThread(dmOpenWith.slice(4));
     if (dmOpenWith === WELCOME_DM) {
       var wm = welcomeDm(); markDmRead('welcome');
-      return '<div class="card dm-thread"><div class="dm-head"><button type="button" class="dm-back-btn" data-action="dm-back" aria-label="' + L('Retour', 'Back') + '">‹</button><span class="dm-who"><img class="dm-app-av" src="icons/icon-192.png" alt=""><strong>Carnet Piste</strong></span></div>' +
+      return '<div class="card dm-thread"><div class="dm-head"><button type="button" class="dm-back-btn" data-action="dm-back" aria-label="' + L('Retour', 'Back') + '">‹</button><span class="dm-who"><img class="dm-app-av" src="icons/icon-192.png" alt=""><strong>Pitbook</strong></span></div>' +
         '<div class="dm-list" id="dm-list">' + (wm ? '<div class="dm-msg"><div class="dm-bubble dm-welcome">' + escapeHtml(wm.text) + '</div><span class="dm-time">' + escapeHtml(dmTime(wm.createdAt)) + '</span></div>' : '') + '</div></div>';
     }
     if (dmOpenWith) {
@@ -22326,7 +22461,7 @@
     return teamCard(tr('followers_label') + names.length + ')', body);
   }
 
-  // ---- Audience du team (Carnet+ motoclubs) ----
+  // ---- Audience du team (Pitbook+ motoclubs) ----
   var teamAudienceCache = {};
   function loadTeamAudience(teamId) {
     if (teamAudienceCache[teamId] && Date.now() - teamAudienceCache[teamId].at < 60000) return;
@@ -22358,7 +22493,7 @@
     var tile = function (n, label, sub) { return '<div class="aud-tile"><strong>' + n + '</strong><span>' + label + '</span>' + (sub ? '<em>' + sub + '</em>' : '') + '</div>'; };
     var byPost = {}; views.forEach(function (v) { (byPost[v.postId] = byPost[v.postId] || {}).n = ((byPost[v.postId] || {}).n || 0) + 1; });
     var top = Object.keys(byPost).sort(function (a, b) { return byPost[b].n - byPost[a].n; }).slice(0, 5);
-    return '<div class="card aud-card"><div class="aud-head"><h2 class="section-title">' + L('Audience du team', 'Team audience') + '</h2><span class="carnet-plus">Carnet+</span></div>' +
+    return '<div class="card aud-card"><div class="aud-head"><h2 class="section-title">' + L('Audience du team', 'Team audience') + '</h2><span class="carnet-plus">Pitbook+</span></div>' +
       renderSubPillRow('teamauddays', [['7', L('7 jours', '7 days')], ['30', L('30 jours', '30 days')], ['90', L('90 jours', '90 days')]]) +
       '<div class="aud-tiles">' +
         tile(views.length, L('impressions', 'impressions'), L('vues des messages du team', 'views of team posts')) +
@@ -22373,7 +22508,7 @@
         return '<div class="aud-post"><span class="aud-post-label">' + escapeHtml(f ? (f.text || f.question || L('Message', 'Post')) : L('Message', 'Post')) + '</span><span class="aud-post-nums"><b>' + byPost[k].n + '</b> ' + L('vues', 'views') + (f ? ' · ' + Object.keys(f.reactions || {}).length + ' ' + L('réac.', 'react.') + ' · ' + commentCount(k) + ' ' + L('comm.', 'comm.') : '') + '</span></div>';
       }).join('') : '<div class="help-text">' + L('Pas encore de vues : publie sur le Social du team.', 'No views yet: post on the team feed.') + '</div>') + '</div>';
   }
-  function renderTeamSettings(team, isLeader) {
+  function renderTeamSettings(team, isLeader, inEditor) {
     if (!isLeader) {
       return teamCard('', '<div class="help-text">' + tr('leaders_only_reserved') + '</div>');
     }
@@ -22438,6 +22573,7 @@
         '</form>';
     }
     html += '</div>';
+    if (inEditor) return renderTeamPartnersSection(team, true) + teamCard(L('Zone sensible', 'Danger zone'), html);
     return profileCard + renderTeamPartnersSection(team, true) + privacyCard + teamCard('Zone sensible', html);
   }
 
@@ -23148,7 +23284,7 @@
     });
     var html = '<div class="crop-modal-overlay"><div class="crop-modal">' +
       '<h2 class="section-title">' + tr('ask_for_slot_heading') + escapeHtml(coachSlotModal.slotLabel) + '</h2>' +
-      '<div class="help-text" style="margin-bottom:0.5rem;">C\'est une demande au coach, à confirmer avec lui (et avec l\'organisateur si besoin) : Carnet Piste ne réserve ni ne fait payer de créneau.</div>';
+      '<div class="help-text" style="margin-bottom:0.5rem;">C\'est une demande au coach, à confirmer avec lui (et avec l\'organisateur si besoin) : Pitbook ne réserve ni ne fait payer de créneau.</div>';
     if (me && proposeRoles.indexOf(me.role || 'pilote') === -1) {
       html += '<div class="help-text">' + tr('coaching_riders_only') + '</div>';
     }
@@ -23585,8 +23721,9 @@
   function shareTeam(teamId) {
     var t = teamById(teamId);
     if (!t) return;
-    var link = currentUserProfile ? referralLinkFor(currentUserProfile.name) : 'https://thereiivman-art.github.io/carnetpiste';
-    var text = L('Découvre le team ' + t.name + ' sur Carnet Piste : ', 'Check out the team ' + t.name + ' on Pitbook: ') + link;
+    // Le lien ouvre directement le team (et parraine si on s'inscrit).
+    var link = window.location.origin + window.location.pathname + '?team=' + encodeURIComponent(t.id) + (currentUserProfile ? '&ref=' + encodeURIComponent(currentUserProfile.name) : '');
+    var text = L('Découvre le team ' + t.name + ' sur Pitbook : ', 'Check out the team ' + t.name + ' on Pitbook: ') + link;
     if (navigator.share) return navigator.share({ title: t.name, text: text }).catch(function () {});
     if (navigator.clipboard) navigator.clipboard.writeText(text).then(function () { showToast(L('Lien copié.', 'Link copied.'), 'success'); });
   }
@@ -23796,7 +23933,7 @@
       document.body.classList.toggle('budget-masked', !!document.querySelector('.budget-hide-btn') && budgetHidden());
       navTrack();
       observeViews();
-      var appTitle = L('Carnet Piste', 'Pitbook'); // nom de l'appli selon la langue
+      var appTitle = L('Pitbook', 'Pitbook'); // nom de l'appli selon la langue
       if (document.title !== appTitle) document.title = appTitle;
     } catch (err) {
       if (window.console) console.error('renderRoot failed', err);
@@ -23833,7 +23970,7 @@
       else if (pendingRoulageId && !publicRoulageDismissed && authState !== 'verify-email') authBody = renderPublicRoulage();
       else authBody = renderAuthScreen();
       root.innerHTML =
-        '<header class="page-head"><div class="page-head-inner"><h1 class="title">Carnet Piste</h1><p class="app-tagline">' + L('Le carnet de bord de tes roulages', 'Your trackday logbook') + '</p></div></header>' +
+        '<header class="page-head"><div class="page-head-inner"><h1 class="title">Pitbook</h1><p class="app-tagline">' + L('Le carnet de bord de tes roulages', 'Your trackday logbook') + '</p></div></header>' +
         '<div class="auth-screen">' + authBody + '</div>';
       var prSignup = document.getElementById('public-roulage-signup');
       if (prSignup) prSignup.addEventListener('click', function () { publicRoulageDismissed = true; authMode = 'signup'; renderRoot(); window.scrollTo(0, 0); });
@@ -24164,7 +24301,7 @@
     if (authMode === 'signup') {
       html += '<h2 class="section-title">Créer un compte</h2>';
       // Arrivé par le QR / lien d'un pote : son parrainage, bien visible.
-      if (pendingReferrer) html += '<div class="auth-referral">' + L('Parrainage : ', 'Referral: ') + '<strong>' + escapeHtml(pendingReferrer) + '</strong>' + L(' t\'invite sur Carnet Piste.', ' invites you to Pitbook.') + '</div>';
+      if (pendingReferrer) html += '<div class="auth-referral">' + L('Parrainage : ', 'Referral: ') + '<strong>' + escapeHtml(pendingReferrer) + '</strong>' + L(' t\'invite sur Pitbook.', ' invites you to Pitbook.') + '</div>';
       html += '<form id="signup-form" novalidate>';
       html += '<label for="au-name">Pseudo</label><input type="text" id="au-name" name="name" autocomplete="username" placeholder="Ex. Julien #12" required>';
       html += '<div class="help-text" style="margin-top:0.2rem;">C\'est le pseudo que verront les autres pilotes – en cas de doublon, ajoute ton numéro de course (ex. "Julien #12").</div>';
@@ -24612,7 +24749,7 @@
     document.querySelectorAll('[data-action="carnet-plus-interest"], [data-action="team-pro-interest"]').forEach(function (b) {
       b.addEventListener('click', function () {
         var team = b.getAttribute('data-action') === 'team-pro-interest';
-        sendFeedback(team ? '[Team PRO] Mon club est intéressé par Team PRO.' : '[Carnet+] Je suis intéressé par Carnet+.');
+        sendFeedback(team ? '[Team PRO] Mon club est intéressé par Team PRO.' : '[Pitbook+] Je suis intéressé par Pitbook+.');
         b.disabled = true;
         b.textContent = L('Merci, c\'est noté !', 'Thanks, noted!');
       });
@@ -25329,6 +25466,11 @@
     document.querySelectorAll('[data-action="share-post"]').forEach(function (btn) { btn.addEventListener('click', function (e) { e.stopPropagation(); openPostShareSheet(btn.getAttribute('data-id')); }); });
     if (pendingShareIn && currentUserProfile) { pendingShareIn = false; consumeSharedIn(); }
     // Lien partagé (?post=<id>) : on ouvre Social sur la publication.
+    // Team partagé : on l'ouvre dès que la liste des teams est arrivée.
+    if (pendingTeamId && currentUserProfile && teamById(pendingTeamId)) {
+      var ptid = pendingTeamId; pendingTeamId = null; try { sessionStorage.removeItem('cdp-pending-team'); } catch (e) {}
+      setTimeout(function () { expandedTeamId = ptid; managingEventId = null; personView = null; activeView = 'team'; renderRoot(); window.scrollTo(0, 0); }, 0);
+    }
     if (pendingPostId && currentUserProfile) {
       var pc = document.querySelector('[data-view-key="' + pendingPostId.replace(/"/g, '') + '"]');
       if (pc) { pendingPostId = null; pc.scrollIntoView({ block: 'center' }); pc.classList.add('post-flash'); }
@@ -25450,6 +25592,10 @@
     document.querySelectorAll('[data-action="look-cancel"]').forEach(function (btn) { btn.addEventListener('click', function () { if (!confirmLeaveTeamLook()) return; lookDraft = null; lookDraftOrig = null; lookMessage = ''; renderRoot(); }); });
     var tnInput = document.getElementById('look-team-name');
     if (tnInput) tnInput.addEventListener('input', function () { if (lookDraft) lookDraft.name = tnInput.value; });
+    ['vis', 'post'].forEach(function (k) {
+      var el = document.getElementById('look-team-' + k);
+      if (el) el.addEventListener('change', function () { if (lookDraft) lookDraft[k === 'vis' ? 'visibility' : 'postPolicy'] = el.value; });
+    });
     var tkSel = document.getElementById('look-team-kind');
     if (tkSel) tkSel.addEventListener('change', function () { if (lookDraft) lookDraft.kind = tkSel.value; });
     document.querySelectorAll('[data-action="team-cover-pick"]').forEach(function (btn) { btn.addEventListener('click', function () {
@@ -25794,7 +25940,7 @@
         var file = storyInput.files && storyInput.files[0];
         storyInput.value = '';
         if (file && /^video\//.test(file.type)) {
-          if (!canPostVideoStory()) return showToast(L('Les stories vidéo sont réservées à Carnet+.', 'Video stories are for Carnet+ members.'));
+          if (!canPostVideoStory()) return showToast(L('Les stories vidéo sont réservées à Pitbook+.', 'Video stories are for Pitbook+ members.'));
           return prepareStoryVideo(file);
         }
         if (!file || !/^image\//.test(file.type)) return;
@@ -26060,7 +26206,8 @@
       select.addEventListener('change', function () { setTeamVisibility(select.getAttribute('data-team'), select.value); });
     });
     document.querySelectorAll('[data-action="team-settings-open"]').forEach(function (btn) {
-      btn.addEventListener('click', function () { if (!confirmLeaveTeamLook()) return; teamSettingsOpenId = btn.getAttribute('data-team'); renderRoot(); window.scrollTo(0, 0); });
+      // Engrenage = la même fenêtre d'édition que « Modifier » (une seule).
+      btn.addEventListener('click', function () { var tid = btn.getAttribute('data-team'); if (lookDraft && lookDraft.__team === tid) return; if (!confirmLeaveTeamLook()) return; teamSettingsOpenId = null; openTeamLookEditor(tid); window.scrollTo(0, 0); });
     });
     document.querySelectorAll('[data-action="team-settings-close"]').forEach(function (btn) {
       btn.addEventListener('click', function () { teamSettingsOpenId = null; renderRoot(); });
@@ -26437,6 +26584,22 @@
     });
     var smt = document.getElementById('simple-mode-toggle');
     if (smt) smt.addEventListener('change', function () { setSimpleMode(smt.checked); showToast(smt.checked ? L('Mode simple activé.', 'Simple mode on.') : L('Mode simple désactivé.', 'Simple mode off.')); renderRoot(); });
+    document.querySelectorAll('[data-action="extra-visit-open"]').forEach(function (b) { b.addEventListener('click', function () { extraVisitOpen = true; renderRoot(); }); });
+    document.querySelectorAll('[data-action="extra-visit-cancel"]').forEach(function (b) { b.addEventListener('click', function () { extraVisitOpen = false; renderRoot(); }); });
+    document.querySelectorAll('[data-action="extra-visit-add"]').forEach(function (b) { b.addEventListener('click', function () {
+      var c = (document.getElementById('extra-visit-circuit') || {}).value, y = (document.getElementById('extra-visit-year') || {}).value;
+      if (!c) return;
+      var list = ((currentUserProfile && currentUserProfile.extraVisits) || []).filter(function (x) { return !(circuitKey(x.circuit) === circuitKey(c) && String(x.year || '') === String(y || '')); });
+      list.push(y ? { circuit: c, year: Number(y) } : { circuit: c });
+      extraVisitOpen = false; saveExtraVisits(list);
+    }); });
+    document.querySelectorAll('[data-extra-visit-del]').forEach(function (b) { b.addEventListener('click', function (e) {
+      e.stopPropagation();
+      var parts = b.getAttribute('data-extra-visit-del').split('|');
+      saveExtraVisits(((currentUserProfile && currentUserProfile.extraVisits) || []).filter(function (x) { return !(x.circuit === parts[0] && String(x.year || '') === parts[1]); }));
+    }); });
+    var csort = document.getElementById('circuit-sort');
+    if (csort) csort.addEventListener('change', function () { circuitSort = csort.value; try { localStorage.setItem('cdp-circuit-sort', circuitSort); } catch (e) {} renderRoot(); });
     document.querySelectorAll('[data-heat-toggle]').forEach(function (b) { b.addEventListener('click', function () {
       var c = b.getAttribute('data-heat-toggle'); heatOn[c] = !heatOn[c];
       if (heatOn[c]) { delete heatCache[c]; loadTrackHeat(c); }
@@ -27007,7 +27170,7 @@
         if (!currentUserProfile) return;
         var link = referralLinkFor(currentUserProfile.name);
         if (navigator.share) {
-          navigator.share({ title: L('Carnet Piste', 'Pitbook'), text: L('Rejoins-nous sur Carnet Piste !', 'Join us on Pitbook!'), url: link }).catch(function () {});
+          navigator.share({ title: L('Pitbook', 'Pitbook'), text: L('Rejoins-nous sur Pitbook !', 'Join us on Pitbook!'), url: link }).catch(function () {});
         } else if (navigator.clipboard && navigator.clipboard.writeText) {
           navigator.clipboard.writeText(link).then(function () {
             showToast(tr('referral_link_copied'), 'success');

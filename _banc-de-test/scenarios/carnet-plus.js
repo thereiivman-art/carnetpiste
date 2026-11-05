@@ -1,6 +1,6 @@
-// Carnet+ (simulation) : l'espace Carnet+ dans Mon compte (offre, prix,
+// Pitbook+ (simulation) : l'espace Pitbook+ dans Mon compte (offre, prix,
 // statut), « Ça m'intéresse » qui remonte une suggestion, l'admin qui
-// attribue Carnet+ à un compte depuis la gestion des comptes, et le badge
+// attribue Pitbook+ à un compte depuis la gestion des comptes, et le badge
 // C+ affiché à côté du nom.
 const { chromium, BASE } = require('../lib');
 (async () => {
@@ -16,12 +16,12 @@ const { chromium, BASE } = require('../lib');
   console.log('compris:', await p.$$eval('.cp-feat:not(.free) strong', e => e.map(x => x.innerText.replace(/\s+/g, ' ')).join(' | ')));
   await p.click('[data-action="carnet-plus-interest"]'); await p.waitForTimeout(400);
   console.log('intérêt remonté:', await p.evaluate(() => firebase.firestore().collection('feedback').get().then(s => s.docs.some(d => /\[Carnet\+\]/.test(d.data().text)))));
-  // Admin : attribuer Carnet+ à Sam
+  // Admin : attribuer Pitbook+ à Sam
   await p.click('[data-settings-go="@reglages"]'); await p.waitForTimeout(300);
   await p.click('[data-settings-go="@compte"]'); await p.waitForTimeout(300);
   await p.click('#account-manager-toggle').catch(() => {}); await p.waitForTimeout(900);
   const btn = await p.$('li:has-text("Sam") [data-action="toggle-account-badge"][data-field="plus"]');
-  console.log('bouton admin Carnet+:', !!btn);
+  console.log('bouton admin Pitbook+:', !!btn);
   if (btn) { await btn.click(); await p.waitForTimeout(500); }
   console.log('Sam en base:', await p.evaluate(() => firebase.firestore().collection('users').doc('u2').get().then(d => !!d.data().plus)));
   // Badge à côté du nom de Sam (fil)

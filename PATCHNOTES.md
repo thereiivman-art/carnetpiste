@@ -1,6 +1,21 @@
-# Patch notes · Carnet Piste
+# Patch notes · Pitbook
 
 Les nouveautés, de la plus récente à la plus ancienne. Le détail complet est dans l'historique git.
+
+## 6 novembre 2026
+
+**L'appli s'appelle Pitbook** partout (Pitbook+ pour l'offre).
+
+**Retours Alexis**
+- Circuits : tri du sélecteur par pays, A → Z, niveau, distance ou mon temps.
+- Circuits › Visités : chaque roulage ouvre bien sa page (le correctif précédent visait la mauvaise liste).
+- Circuit visité sans y rouler (un GP en spectateur…) : s'ajoute à la main, avec l'année. Sepang ajouté.
+- Ajouter à mon agenda sur Android : « Agenda du téléphone » ouvre l'appli agenda installée ; Google Agenda s'ouvre dans l'appli.
+- Teams : l'engrenage et « Modifier » ouvrent la même et unique fenêtre (confidentialité comprise), un seul Enregistrer.
+- Lien « Découvre le team… » : ouvre directement le team.
+- Miniatures des circuits : tracé blanc sur fond noir, cuit dans l'image, dans les deux thèmes (plus de miniatures blanches avec le mode sombre du navigateur).
+- Roulages de mes amis (PC) : album au milieu, temps à droite.
+- Infos du circuit : règles trouvées en ligne pour Carole, Lédenon, Magny-Cours, Le Mans et Nogaro (bruit, caméras, assurance), avec les sources.
 
 ## 5 novembre 2026 (soir)
 
@@ -91,4 +106,4 @@ Les nouveautés, de la plus récente à la plus ancienne. Le détail complet est
 - Fiches pilote et team personnalisables, saisons, stories « On roule à » et « Mon roulage à ».
 - RGPD : effacement et export du compte, pages légales.
 - Tracés de plus de 40 circuits ; fonctionne en mode avion.
-- L'appli s'appelle Carnet Piste (Pitbook en anglais).
+- L'appli s'appelle Pitbook (Pitbook en anglais).

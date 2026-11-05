@@ -1,4 +1,4 @@
-// Audience (Carnet+) : Sam voit le message d'Alex dans son fil (vue comptée
+// Audience (Pitbook+) : Sam voit le message d'Alex dans son fil (vue comptée
 // une fois par jour, jamais pour l'auteur), visite son profil ; Alex voit
 // ensuite impressions, comptes touchés, visites et le kit média.
 const { chromium, BASE } = require('../lib');

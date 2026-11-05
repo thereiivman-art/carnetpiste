@@ -1,4 +1,4 @@
-// Stories vidéo (Carnet+) : 10 s max, recompressées, rangées dans storyMedia ;
+// Stories vidéo (Pitbook+) : 10 s max, recompressées, rangées dans storyMedia ;
 // lecture à l'ouverture et « J'aime » sur la story d'un ami.
 const { chromium, BASE } = require('../lib');
 (async () => {
@@ -6,9 +6,9 @@ const { chromium, BASE } = require('../lib');
   const b = await chromium.launch({ args: ['--autoplay-policy=no-user-gesture-required'] }); const p = await b.newPage({ viewport: { width: 390, height: 800 } });
   const errs = []; p.on('pageerror', e => errs.push(e.message));
   await p.goto(BASE + 'index.html#lang=' + lang + ''); await p.waitForTimeout(1600);
-  console.log('sans Carnet+, accept:', await p.$eval('#story-input', e => e.accept));
+  console.log('sans Pitbook+, accept:', await p.$eval('#story-input', e => e.accept));
   await p.goto(BASE + 'index.html#lang=' + lang + '&admin=1'); await p.reload(); await p.waitForTimeout(1600);
-  console.log('avec Carnet+, accept:', await p.$eval('#story-input', e => e.accept));
+  console.log('avec Pitbook+, accept:', await p.$eval('#story-input', e => e.accept));
   // Vidéo de 14 s générée dans la page (1280x720)
   await p.evaluate(() => new Promise(res => {
     const c = document.createElement('canvas'); c.width = 1280; c.height = 720; const x = c.getContext('2d');

@@ -1,6 +1,6 @@
 // Idées des amis :
 // - fiche d'un pilote : Fil d'abord, puis Fiche, Bientôt en piste, Saisons ;
-// - coche de vérification / C+ : un appui ouvre l'espace Carnet+ ;
+// - coche de vérification / C+ : un appui ouvre l'espace Pitbook+ ;
 // - images de profil prêtes, bouton « Bannière », présentation 250 car. ;
 // - logos des réseaux sociaux ;
 // - fiche privée (amis) et abonnés/abonnements masqués ;

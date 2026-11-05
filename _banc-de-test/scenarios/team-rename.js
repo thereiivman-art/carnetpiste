@@ -1,4 +1,4 @@
-// Fiche d'un Team : une seule fenêtre d'édition (engrenage › Modifier),
+// Fiche d'un Team : une seule fenêtre d'édition (engrenage = Modifier),
 // nom (doublon refusé), type, couverture recadrable, Enregistrer unique,
 // confirmation avant de perdre des changements.
 const { chromium, BASE } = require('../lib');
@@ -15,17 +15,16 @@ const { chromium, BASE } = require('../lib');
     await p.click('[data-action="team-settings-open"]'); await p.waitForTimeout(400);
   };
   await open();
-  await p.click('[data-action="team-look-edit"]'); await p.waitForTimeout(500);
   console.log('éditeur unique:', await p.$$eval('.look-editor', e => e.length), '| boutons média:', await p.$$eval('.look-team-media button', e => e.map(x => x.innerText).join(' / ')));
+  console.log('confidentialité dans la fiche:', !!(await p.$('#look-team-vis')), '| zone sensible:', !!(await p.$('.look-team-extra [data-action="team-delete-request"]')), '| un seul Enregistrer:', await p.$$eval('[data-action="look-save"]', e => e.length));
   console.log('une ligne:', await p.$eval('.look-team-media', e => { const ys = [...e.querySelectorAll('button')].map(b => Math.round(b.getBoundingClientRect().top)); return new Set(ys).size === 1; }));
   await p.fill('#look-team-name', 'Mototeam95'); await p.click('[data-action="look-save"]'); await p.waitForTimeout(500);
   console.log('duplicate ->', (await p.$$eval('.toast', e => e.map(x => x.innerText))).pop());
   console.log('toujours ouvert après le refus:', !!(await p.$('.look-editor')));
   p.once('dialog', d => d.accept());
   await p.click('[data-action="look-cancel"]'); await p.waitForTimeout(300);
-  await p.click('[data-action="team-settings-open"]'); await p.waitForTimeout(300);
-  await p.click('[data-action="team-look-edit"]'); await p.waitForTimeout(400);
-  await p.fill('#look-team-name', '  Team   Piste  Sud '); await p.selectOption('#look-team-kind', 'photographes');
+  await p.click('[data-action="team-settings-open"]'); await p.waitForTimeout(400);
+  await p.fill('#look-team-name', '  Team   Piste  Sud '); await p.selectOption('#look-team-kind', 'photographes'); await p.selectOption('#look-team-vis', 'all');
   // Quitter sans enregistrer : confirmation (on reste).
   let asked = ''; p.once('dialog', d => { asked = d.message().slice(0, 30); d.dismiss(); });
   await p.click('[data-action="look-cancel"]'); await p.waitForTimeout(300);
@@ -39,7 +38,7 @@ const { chromium, BASE } = require('../lib');
   console.log('bouton valider recadrage:', !!saveBtn); if (saveBtn) { await saveBtn.click(); await p.waitForTimeout(900); }
   console.log('bouton Recadrer:', !!(await p.$('[data-action="team-cover-recrop"]')));
   await p.click('[data-action="look-save"]'); await p.waitForTimeout(700);
-  console.log('stored:', await p.evaluate(() => Object.values(window.__MOCK_DATA.teams).map(t => t.name + ':' + (t.kind || '-') + ':' + !!(t.look && t.look.coverPhoto)).join(', ')));
+  console.log('stored:', await p.evaluate(() => Object.values(window.__MOCK_DATA.teams).map(t => t.name + ':' + (t.kind || '-') + ':' + (t.visibility || '-') + ':' + !!(t.look && t.look.coverPhoto)).join(', ')));
   await p.screenshot({ path: 'team-rename-' + lang + '.png' });
   console.log('errs', JSON.stringify(errs)); await b.close();
 })();
