@@ -22,7 +22,7 @@ const { chromium, BASE } = require('../lib');
   const face = p.locator('.link-player-face').first();
   console.log('lecteur dans le post:', await face.count() > 0);
   await face.click().catch(() => {}); await p.waitForTimeout(300);
-  console.log('fenêtre de lecture:', await p.$eval('.player-sheet .link-player-frame', e => e.src.slice(0, 45)).catch(() => 'non')); await p.click('[data-mini-close]').catch(() => {}); await p.waitForTimeout(200);
+  console.log('lecteur dans le post:', await p.$eval('.inline-player iframe', e => e.src.slice(0, 45)).catch(() => 'non')); await p.click('.inline-player-x').catch(() => {}); await p.waitForTimeout(200);
   // 3. Discussion du roulage (Barcelone, à venir).
   await p.click('.bottom-nav-btn:nth-child(1)'); await p.waitForTimeout(300);
   await p.click('.subnav-btn[data-view="carnet"]'); await p.waitForTimeout(400);

@@ -5330,6 +5330,14 @@
     clock: '<circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2"/>',
     medal: '<circle cx="12" cy="15" r="5"/><path d="M8.5 11L6 4h4l2 4 2-4h4l-2.5 7"/>',
     users: '<circle cx="9" cy="8" r="3"/><path d="M3 20c0-3 3-5 6-5s6 2 6 5"/><circle cx="17" cy="9" r="2.5"/><path d="M16 15c3 0 5 1.5 5 4.5"/>',
+    comment: '<path d="M4 5h16v11H9l-5 4z"/>',
+    mention: '<circle cx="12" cy="12" r="3.5"/><path d="M15.5 12v1.5a2.5 2.5 0 0 0 5 0V12a8.5 8.5 0 1 0-3.4 6.8"/>',
+    follow: '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c0-3.6 2.9-6 6.5-6s6.5 2.4 6.5 6"/><path d="M19 8v6M16 11h6"/>',
+    duel: '<path d="M5 19L19 5M14 5h5v5"/><path d="M5 5l14 14M10 19H5v-5"/>',
+    ride: '<circle cx="12" cy="13" r="7"/><path d="M12 13V9.5M10 3h4M12 3v3"/>',
+    podium: '<path d="M3 20h18M9 20V9h6v11M3 20v-6h6M15 20v-8h6v8"/>',
+    flame: '<path d="M12 21c-4 0-6-3-6-6 0-4 4-6 4-10 2 2 3 3 3 5 1-1 2-2 2-3 2 2 3 5 3 8 0 3-2 6-6 6z"/>',
+    group: '<circle cx="8" cy="9" r="3"/><circle cx="16" cy="9" r="3"/><path d="M2 20c0-3 2.7-5 6-5s6 2 6 5M14 15c3.3 0 6 2 6 5"/>',
     camera: '<rect x="3" y="7" width="18" height="13" rx="2"/><circle cx="12" cy="13.5" r="3.5"/><path d="M8 7l1.5-3h5L16 7"/>'
   };
   function notifIconHtml(kind) {
@@ -5521,11 +5529,11 @@
   }
   // Upcoming roulages with friends on them (next 45 days): riders apart
   // from companions (« Maymay vient », not « roule »).
-  function friendsUpcoming() {
+  function friendsUpcoming(days) {
     var me = currentUserProfile && currentUserProfile.name;
     if (!me) return [];
     var friends = friendsOf(me).map(function (f) { return f.name; });
-    var today = dateKey(new Date()), limit = dateKey(new Date(Date.now() + 45 * 86400000));
+    var today = dateKey(new Date()), limit = dateKey(new Date(Date.now() + (days || 45) * 86400000));
     return eventsList().filter(function (ev) { return (ev.dateEnd || ev.dateStart) >= today && ev.dateStart <= limit; })
       .map(function (ev) {
         var on = (ev.riders || []).filter(function (n) { return friends.indexOf(n) !== -1; });
@@ -5552,7 +5560,7 @@
         if (!d.reactions) return;
         Object.keys(d.reactions).forEach(function (who) {
           if (who === name || !d.reactions[who]) return;
-          items.push({ key: 'bravo:' + coll + ':' + d.id + ':' + who, kind: 'bravo', time: d.createdAt || 0,
+          items.push({ key: 'bravo:' + coll + ':' + d.id + ':' + who, kind: 'flame', time: d.createdAt || 0,
             html: '<strong>' + escapeHtml(who) + '</strong>' + L(' a réagi ', ' reacted ') + label(d), go: go });
         });
       });
@@ -5566,21 +5574,21 @@
     var myPostIds = (STATE.wallPosts || []).filter(function (p) { return p.author === name; }).map(function (p) { return p.id; });
     (STATE.postComments || []).forEach(function (c) {
       if (c.author === name || myPostIds.indexOf(c.postId) === -1) return;
-      items.push({ key: 'comment:' + c.id, kind: 'bravo', time: c.createdAt || 0, html: '<strong>' + escapeHtml(c.author) + '</strong>' + L(' a commenté ton message', ' commented on your post') + excerpt(c.text), go: { to: 'fil' } });
+      items.push({ key: 'comment:' + c.id, kind: 'comment', time: c.createdAt || 0, html: '<strong>' + escapeHtml(c.author) + '</strong>' + L(' a commenté ton message', ' commented on your post') + excerpt(c.text), go: { to: 'fil' } });
     });
     // @ : on m'a cité dans une publication ou un commentaire.
     var atMe = new RegExp('@' + name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '(?![\\w\u00C0-\u017F])', 'i');
     (STATE.wallPosts || []).forEach(function (w) {
       if (w.author === name || !w.text || !atMe.test(w.text)) return;
-      items.push({ key: 'mention:' + w.id, kind: 'bravo', time: w.createdAt || 0, html: '<strong>' + escapeHtml(w.author) + '</strong>' + L(' t\'a cité', ' mentioned you') + excerpt(w.text), go: { to: 'fil' } });
+      items.push({ key: 'mention:' + w.id, kind: 'mention', time: w.createdAt || 0, html: '<strong>' + escapeHtml(w.author) + '</strong>' + L(' t\'a cité', ' mentioned you') + excerpt(w.text), go: { to: 'fil' } });
     });
     (STATE.postComments || []).forEach(function (c) {
       if (c.author === name || !c.text || !atMe.test(c.text)) return;
-      items.push({ key: 'mention-c:' + c.id, kind: 'bravo', time: c.createdAt || 0, html: '<strong>' + escapeHtml(c.author) + '</strong>' + L(' t\'a cité dans un commentaire', ' mentioned you in a comment') + excerpt(c.text), go: { to: 'fil' } });
+      items.push({ key: 'mention-c:' + c.id, kind: 'mention', time: c.createdAt || 0, html: '<strong>' + escapeHtml(c.author) + '</strong>' + L(' t\'a cité dans un commentaire', ' mentioned you in a comment') + excerpt(c.text), go: { to: 'fil' } });
     });
     (STATE.allUserFollows || []).forEach(function (f) {
       if (f.followee !== name || f.follower === name) return;
-      items.push({ key: 'follow:' + f.follower, kind: 'bravo', time: f.createdAt || 0, html: '<strong>' + escapeHtml(f.follower) + '</strong>' + L(' s\'est abonné à toi', ' started following you'), go: { to: 'suivis' } });
+      items.push({ key: 'follow:' + f.follower, kind: 'follow', time: f.createdAt || 0, html: '<strong>' + escapeHtml(f.follower) + '</strong>' + L(' s\'est abonné à toi', ' started following you'), go: { to: 'suivis' } });
     });
     bravoOn('team', (STATE.teamFeed || []).filter(function (p) { return p.author === name; }), function (p) { return L('sur ton message au team', 'on your team post') + excerpt(p.text || p.question); }, { to: 'fil' });
     // Records des amis
@@ -5597,22 +5605,22 @@
     friendRides(21).forEach(function (r) {
       var duel = rideDuel(r);
       if (duel) {
-        items.push({ key: 'duel:' + r.key, kind: 'trophy', time: r.createdAt + 1, html: duelText(duel, r), go: { to: 'outing', circuit: r.circuit, date: r.date, event: r.eventId || '' } });
+        items.push({ key: 'duel:' + r.key, kind: 'duel', time: r.createdAt + 1, html: duelText(duel, r), go: { to: 'outing', circuit: r.circuit, date: r.date, event: r.eventId || '' } });
         return;
       }
       if (recordKeys[r.rider + '|' + r.circuit + '|' + r.date]) return;
-      items.push({ key: r.key, kind: 'flag', time: r.createdAt,
+      items.push({ key: r.key, kind: 'ride', time: r.createdAt,
         html: '<strong>' + escapeHtml(r.rider) + '</strong>' + L(' a roulé à ', ' rode at ') + escapeHtml(r.circuit) + ' · <span class="notif-chrono">' + formatTime(r.best) + '</span>',
         go: { to: 'outing', circuit: r.circuit, date: r.date, event: r.eventId || '' } });
     });
     // Podium des amis: my own climbs (friends' climbs show in their ride line).
     ridesFor([name], 21).forEach(function (r) {
       var pc = podiumClimb(r);
-      if (pc) items.push({ key: 'podium:' + r.key + ':' + pc.place, kind: 'trophy', time: r.createdAt + 2, html: podiumClimbText(r, pc), go: { to: 'podium', circuit: r.circuit } });
+      if (pc) items.push({ key: 'podium:' + r.key + ':' + pc.place, kind: 'podium', time: r.createdAt + 2, html: podiumClimbText(r, pc), go: { to: 'podium', circuit: r.circuit } });
     });
     friendRides(21).forEach(function (r) {
       var pc = podiumClimb(r);
-      if (pc && (pc.place === 1 || meIsNonRider()) && !rideDuel(r)) items.push({ key: 'podium:' + r.key + ':' + pc.place, kind: 'trophy', time: r.createdAt + 2, html: podiumClimbText(r, pc), go: { to: 'podium', circuit: r.circuit } });
+      if (pc && (pc.place === 1 || meIsNonRider()) && !rideDuel(r)) items.push({ key: 'podium:' + r.key + ':' + pc.place, kind: 'podium', time: r.createdAt + 2, html: podiumClimbText(r, pc), go: { to: 'podium', circuit: r.circuit } });
     });
     friendPhotoLinks().forEach(function (ph) {
       items.push({ key: ph.key, kind: 'camera', time: ph.createdAt, html: '<strong>' + escapeHtml(ph.rider) + '</strong>' + L(' a ajouté ses photos de ', ' added photos from ') + escapeHtml(ph.ev.circuit),
@@ -11598,7 +11606,7 @@
   function refuseChronoProposal(id) {
     db.collection('chronoProposals').doc(id).set({ status: 'refused' }, { merge: true }).catch(function (err) { showToast(tr('error_prefix') + ((err && err.message) || err)); });
   }
-  function renderCompanionCarnet() {
+  function renderCompanionCarnet(extraTop) {
     var me = currentUserProfile && currentUserProfile.name, friends = friendRiderNames(), today = dateKey(new Date());
     var past = friendsOutings();
     var upcoming = eventsList().filter(function (ev) {
@@ -11612,7 +11620,8 @@
     var others = eventsList().filter(function (ev) { return (ev.dateEnd || ev.dateStart) >= today && upcoming.indexOf(ev) === -1; })
       .sort(function (a, b) { return a.dateStart.localeCompare(b.dateStart); }).slice(0, 20);
     // Titre clair : on sait qu'on est dans le carnet des roulages.
-    var html = '<h2 class="section-title comp-carnet-title">' + L('Roulages de mes amis', 'My friends\' trackdays') + '</h2>' + renderPills('compcarnet', [['avenir', L('À venir', 'Upcoming') + (upcoming.length ? ' (' + upcoming.length + ')' : '')], ['passes', L('Passés', 'Past') + (past.length ? ' (' + past.length + ')' : '')]]);
+    // Les sous-onglets d'abord (collés à l'onglet Roulages), puis le titre.
+    var html = renderPills('compcarnet', [['avenir', L('À venir', 'Upcoming') + (upcoming.length ? ' (' + upcoming.length + ')' : '')], ['passes', L('Passés', 'Past') + (past.length ? ' (' + past.length + ')' : '')]]) + (extraTop || '') + '<h2 class="section-title comp-carnet-title">' + L('Roulages de mes amis', 'My friends\' trackdays') + '</h2>';
     var othersHtml = others.length ? '<h2 class="section-title feed-section-title">' + L('Autres roulages à venir', 'Other upcoming trackdays') + '</h2><div class="card outings-card">' + others.map(function (ev) {
       return '<div class="outing-row comp-other-row"><button type="button" class="comp-other-open" data-open-outing="' + escapeHtml(ev.circuit) + '" data-outing-date="' + escapeHtml(ev.dateStart) + '" data-outing-event="' + escapeHtml(ev.id) + '"><span class="outing-thumb">' + circuitThumbHtml(ev.circuit) + '</span>' +
         '<span class="outing-row-main"><strong>' + escapeHtml(ev.circuit) + '</strong><span class="help-text">' + escapeHtml(formatEventRange(ev, true)) + '</span></span></button>' +
@@ -11673,7 +11682,7 @@
       if (canLogChronoForOthers()) h += '<button type="button" class="primary add-chrono-btn" id="carnet-add-chrono">' + L('+ Ajouter un chrono pour un pilote du team', '+ Add a lap time for a team rider') + '</button>';
       else h += '<button type="button" class="primary add-chrono-btn" data-action="chrono-proposal">' + L('+ Saisir le chrono d\'un ami', '+ Log a friend\'s lap time') + '</button>' +
         '<div class="help-text carnet-add-help">' + L('Ton ami le valide, puis il entre dans son carnet.', 'Your friend confirms it, then it goes into their logbook.') + '</div>';
-      return h + renderCompanionCarnet();
+      return renderCompanionCarnet(h);
     }
     var outings = myOutings();
     var html = carnetPillsHtml(outings);
@@ -14916,7 +14925,7 @@
     var today0 = dateKey(new Date()), tiles = [], seenEv = {};
     if (next) seenEv[next.id] = 1;
     (typeof myUpcomingEvents === 'function' ? myUpcomingEvents() : []).slice(1, 40).forEach(function (ev) { seenEv[ev.id] = 1; tiles.push({ ev: ev, mine: true, who: [] }); });
-    friendsUpcoming().forEach(function (x) { if (seenEv[x.ev.id] && !x.friends.length) return; if (seenEv[x.ev.id]) { tiles.forEach(function (t) { if (t.ev.id === x.ev.id) t.who = x.friends; }); return; } seenEv[x.ev.id] = 1; tiles.push({ ev: x.ev, mine: x.mine, who: x.friends.concat(x.companions) }); });
+    friendsUpcoming(365).forEach(function (x) { x = { ev: x.ev, mine: x.mine, friends: x.friends.concat(x.companions) }; if (seenEv[x.ev.id] && !x.friends.length) return; if (seenEv[x.ev.id]) { tiles.forEach(function (t) { if (t.ev.id === x.ev.id) t.who = x.friends; }); return; } seenEv[x.ev.id] = 1; tiles.push({ ev: x.ev, mine: x.mine, who: x.friends.concat(x.companions) }); });
     // 5 par page, petites flèches rouges pour voir les suivants.
     tiles = tiles.sort(function (a, b) { return a.ev.dateStart < b.ev.dateStart ? -1 : 1; });
     var evPages = Math.max(1, Math.ceil(tiles.length / RAIL_EV_PER_PAGE));
@@ -14971,7 +14980,7 @@
     visibleTabs.forEach(function (tab, i) {
       var toFil = desk && tab[0] === 'communaute';
       html += '<button type="button" class="bottom-nav-btn' + (tab[0] === 'chrono' ? ' bottom-nav-main' : '') + (current === tab[0] ? ' active' : '') + '" style="order:' + (i * 2) + '" data-view="' + (toFil ? 'social' : (lastSubView[tab[0]] || tab[0])) + '"' + (toFil ? ' data-pill-group="social" data-pill="fil"' : '') + '>' +
-        '<span class="bottom-nav-icon">' + tab[2] + (tab[0] === 'communaute' && currentUserProfile && unreadDmCount() ? '<span class="nav-dm-badge">' + unreadDmCount() + '</span>' : '') + '</span><span class="bottom-nav-label">' + (tab[0] === 'chrono' && currentUserProfile && meIsNonRider() ? L('Chrono ami', 'Friend lap') : tr(tab[1])) + '</span></button>';
+        '<span class="bottom-nav-icon">' + tab[2] + (tab[0] === 'communaute' && currentUserProfile && unreadDmCount() ? '<span class="nav-dm-badge">' + unreadDmCount() + '</span>' : '') + '</span><span class="bottom-nav-label">' + (tab[0] === 'chrono' && currentUserProfile && meIsNonRider() ? L('Chrono d\'ami', 'Friend lap') : tr(tab[1])) + '</span></button>';
     });
     if (desk && currentUserProfile) {
       var sub = function (order, items) {
@@ -19182,6 +19191,86 @@
     if (m) return { src: 'https://www.dailymotion.com/embed/video/' + m[1] + '?autoplay=1', thumb: 'https://www.dailymotion.com/thumbnail/video/' + m[1], name: 'Dailymotion' };
     return null;
   }
+  // Lecteur dans le post : l'iframe vit hors de la page (calque posé pile
+  // sur l'emplacement du post et qui le suit), donc les mises à jour du fil
+  // ne coupent plus la vidéo. Disparaît si le post n'est plus à l'écran.
+  var inlinePlayer = null;
+  function stopInlinePlayer() {
+    if (!inlinePlayer) return;
+    clearInterval(inlinePlayer.timer);
+    if (inlinePlayer.el.parentNode) inlinePlayer.el.parentNode.removeChild(inlinePlayer.el);
+    inlinePlayer = null;
+  }
+  function positionInlinePlayer() {
+    if (!inlinePlayer) return;
+    var face = null;
+    document.querySelectorAll('#root .link-player-face[data-url]').forEach(function (f) { if (!face && f.getAttribute('data-url') === inlinePlayer.url && f.offsetParent) face = f; });
+    if (!face) { stopInlinePlayer(); return; }
+    var box = face.parentNode.getBoundingClientRect();
+    var st = inlinePlayer.el.style;
+    st.top = (box.top + window.scrollY) + 'px'; st.left = (box.left + window.scrollX) + 'px';
+    st.width = box.width + 'px'; st.height = box.height + 'px';
+  }
+  function startInlinePlayer(face) {
+    var url = face.getAttribute('data-url'), emb = videoEmbedOf(url);
+    if (!emb) return;
+    stopInlinePlayer();
+    var el = document.createElement('div');
+    el.className = 'inline-player';
+    el.innerHTML = '<iframe src="' + escapeHtml(emb.src) + '" title="' + escapeHtml(L('Vidéo', 'Video')) + '" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe>' +
+      '<button type="button" class="inline-player-x" aria-label="' + escapeHtml(L('Fermer la vidéo', 'Close video')) + '">✕</button>';
+    document.body.appendChild(el);
+    el.querySelector('.inline-player-x').addEventListener('click', stopInlinePlayer);
+    inlinePlayer = { el: el, url: url, timer: setInterval(positionInlinePlayer, 400) };
+    positionInlinePlayer();
+  }
+  window.addEventListener('resize', positionInlinePlayer);
+  // ---- Recherche dans toute l'appli (façon Discord : Ctrl/Cmd + K) ----
+  function openGlobalSearch() {
+    var me = currentUserProfile; if (!me) return;
+    var ov = openMiniSheet('<h2 class="section-title">' + L('Rechercher', 'Search') + '</h2>' +
+      '<input type="search" id="gsearch-q" placeholder="' + escapeHtml(L('Pilote, team, circuit, roulage, publication…', 'Rider, team, circuit, trackday, post…')) + '" autocomplete="off">' +
+      '<div class="gsearch-results" id="gsearch-results"><div class="help-text">' + L('Tape au moins 2 lettres.', 'Type at least 2 letters.') + '</div></div>');
+    ov.querySelector('.mini-sheet').classList.add('gsearch-sheet');
+    var q = ov.querySelector('#gsearch-q'), box = ov.querySelector('#gsearch-results');
+    var norm = function (x) { return String(x || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, ''); };
+    var ICO = { person: '<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/>', team: '<circle cx="8" cy="9" r="3"/><circle cx="16" cy="9" r="3"/><path d="M2 20c0-3 2.7-5 6-5s6 2 6 5M14 15c3.3 0 6 2 6 5"/>',
+      circuit: '<path d="M4 15c0-5 4-9 8-9 3 0 5 2 5 4s-2 3-4 3-3 2-1 4 6 1 8-2"/>', event: '<rect x="4" y="5" width="16" height="15" rx="2"/><path d="M8 3v4M16 3v4M4 10h16"/>', post: '<path d="M4 5h16v11H9l-5 4z"/>' };
+    var ico = function (k) { return '<span class="gsearch-ico"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + ICO[k] + '</svg></span>'; };
+    var acts = [];
+    var row = function (k, label, sub, fn) { acts.push(fn); return '<button type="button" class="gsearch-row" data-gs="' + (acts.length - 1) + '">' + ico(k) + '<span class="gsearch-main"><strong>' + escapeHtml(label) + '</strong>' + (sub ? '<span class="help-text">' + escapeHtml(sub) + '</span>' : '') + '</span></button>'; };
+    var group = function (title, rows) { return rows.length ? '<div class="gsearch-group"><div class="gsearch-title">' + title + '</div>' + rows.join('') + '</div>' : ''; };
+    var run = function () {
+      var t = norm(q.value.trim()); acts = [];
+      if (t.length < 2) { box.innerHTML = '<div class="help-text">' + L('Tape au moins 2 lettres.', 'Type at least 2 letters.') + '</div>'; return; }
+      var people = allKnownUserNames().filter(function (n) { return norm(n).indexOf(t) !== -1; }).slice(0, 6).map(function (n) {
+        var u = (STATE.usersByName || {})[n] || {};
+        return row('person', n, roleLabel(u.role) + (u.bike ? ' · ' + u.bike : ''), function () { openPerson(n); });
+      });
+      var teams = (STATE.teams || []).filter(function (tm) { return tm.name && norm(tm.name).indexOf(t) !== -1; }).slice(0, 5).map(function (tm) {
+        return row('team', tm.name, tm.teamPro ? 'Team PRO' : 'Team', function () { expandedTeamId = tm.id; managingEventId = null; activeView = 'team'; personView = null; renderRoot(); window.scrollTo(0, 0); });
+      });
+      var circuits = allCircuits().filter(function (c) { return norm(c).indexOf(t) !== -1; }).slice(0, 6).map(function (c) {
+        return row('circuit', c, countryName((circuitInfo(c) || {}).country || '') || '', function () { selectedCircuit = c; userPickedCircuit = true; activeView = 'circuit'; outingView = null; personView = null; renderRoot(); window.scrollTo(0, 0); });
+      });
+      var today = dateKey(new Date());
+      var events = eventsList().filter(function (ev) { return norm(ev.circuit + ' ' + (ev.title || '') + ' ' + formatEventRange(ev, true)).indexOf(t) !== -1; })
+        .sort(function (a, b) { var fa = (a.dateEnd || a.dateStart) >= today, fb = (b.dateEnd || b.dateStart) >= today; return fa !== fb ? (fa ? -1 : 1) : (fa ? a.dateStart.localeCompare(b.dateStart) : b.dateStart.localeCompare(a.dateStart)); })
+        .slice(0, 6).map(function (ev) { return row('event', ev.circuit, formatEventRange(ev, true) + ((ev.riders || []).length ? ' · ' + plural(ev.riders.length, L('inscrit', 'rider'), L('inscrits', 'riders')) : ''), function () { openOuting(ev.circuit, ev.dateStart, ev.id); }); });
+      var posts = (STATE.wallPosts || []).filter(function (w) { return !w.story && norm((w.text || '') + ' ' + (w.place || '') + ' ' + w.author).indexOf(t) !== -1; })
+        .sort(function (a, b) { return (b.createdAt || 0) - (a.createdAt || 0); }).slice(0, 6)
+        .map(function (w) { return row('post', w.author + (w.place ? ' · ' + w.place : ''), String(w.text || '').slice(0, 90), function () { goToOriginal(w.id, w.author, 'wall'); }); });
+      var html = group(L('Pilotes et membres', 'Riders and members'), people) + group('Teams', teams) + group('Circuits', circuits) + group(L('Roulages', 'Trackdays'), events) + group(L('Publications', 'Posts'), posts);
+      box.innerHTML = html || '<div class="help-text">' + L('Aucun résultat.', 'No result.') + '</div>';
+      box.querySelectorAll('[data-gs]').forEach(function (b) { b.addEventListener('click', function () { var fn = acts[+b.getAttribute('data-gs')]; ov.remove(); profilePanelOpen = false; notificationsPanelOpen = false; fn(); }); });
+    };
+    q.addEventListener('input', run);
+    q.addEventListener('keydown', function (e) { if (e.key === 'Enter') { var f = box.querySelector('[data-gs]'); if (f) f.click(); } });
+    setTimeout(function () { q.focus(); }, 30);
+  }
+  document.addEventListener('keydown', function (e) {
+    if ((e.ctrlKey || e.metaKey) && (e.key === 'k' || e.key === 'K') && currentUserProfile) { e.preventDefault(); openGlobalSearch(); }
+  });
   function openPlayerSheet(url) {
     var emb = videoEmbedOf(url); if (!emb) return;
     var pov = openMiniSheet('<div class="link-player in-sheet' + (emb.tall ? ' tall' : '') + '"><iframe class="link-player-frame" src="' + escapeHtml(emb.src) + '" title="' + escapeHtml(L('Vidéo', 'Video')) + '" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe></div>' +
@@ -19275,9 +19364,19 @@
       var inner = '<strong>' + n + '</strong> ' + (n > 1 ? many : one);
       return mine ? '<button type="button" class="social-count" data-action="open-social" data-list="' + list + '">' + inner + '</button>' : '<span class="social-count">' + inner + '</span>';
     };
-    // Nombre de posts publiés, en premier (façon Instagram).
-    var np = (STATE.wallPosts || []).filter(function (w) { return w.author === name && !w.story; }).length;
-    return '<div class="social-counts"><span class="social-count"><strong>' + np + '</strong> ' + (np > 1 ? L('posts', 'posts') : L('post', 'post')) + '</span>' + (mine ? item(nf, L('ami', 'friend'), L('amis', 'friends'), 'amis') : (friendsOf(currentUserProfile ? currentUserProfile.name : '').some(function (f) { return f.name === name; }) ? '<span class="social-count"><strong>' + L('Ami', 'Friend') + '</strong> ' + L('avec toi', 'with you') + '</span>' : '')) + (hideLists ? '' : item(nfo, L('abonné', 'follower'), L('abonnés', 'followers'), 'abonnes') + item(nfg, L('abonnement', 'following'), L('abonnements', 'following'), 'abonnements')) + '</div>';
+    // Circuits roulés (ou visités pour un accompagnant) et teams : plus
+    // parlant que le nombre de posts, déjà affiché dans « Mes publications ».
+    var uu = (STATE.usersByName || {})[name] || {}, nonRider = uu.role === 'accompagnant' || uu.role === 'organisateur';
+    var nc = 0;
+    try { nc = nonRider ? visitedCircuits(name).length : Object.keys(riderBestsByCircuit(name)).length; } catch (e) {}
+    var tIds = {};
+    (STATE.teams || []).forEach(function (t) { if (t.createdBy === name) tIds[t.id] = 1; });
+    (STATE.allTeamLeaders || []).forEach(function (m) { if (m.name === name) tIds[m.teamId] = 1; });
+    Object.keys(STATE.teamMembersByTeam || {}).forEach(function (tid) { if (membersOfTeam(tid).some(function (m) { return m.name === name; })) tIds[tid] = 1; });
+    var nt = Object.keys(tIds).length;
+    if (mine) nt = Math.max(nt, (STATE.myTeamMemberships || []).length);
+    var plain = function (n, one, many) { return '<span class="social-count"><strong>' + n + '</strong> ' + (n > 1 ? many : one) + '</span>'; };
+    return '<div class="social-counts">' + plain(nc, 'circuit', 'circuits') + (nt ? plain(nt, 'team', 'teams') : '') + (mine ? item(nf, L('ami', 'friend'), L('amis', 'friends'), 'amis') : (friendsOf(currentUserProfile ? currentUserProfile.name : '').some(function (f) { return f.name === name; }) ? '<span class="social-count"><strong>' + L('Ami', 'Friend') + '</strong> ' + L('avec toi', 'with you') + '</span>' : '')) + (hideLists ? '' : item(nfo, L('abonné', 'follower'), L('abonnés', 'followers'), 'abonnes') + item(nfg, L('abonnement', 'following'), L('abonnements', 'following'), 'abonnements')) + '</div>';
   }
   function followBtnHtml(name, small) {
     if (!currentUserProfile || name === currentUserProfile.name) return '';
@@ -19752,7 +19851,10 @@
     var sb = ov.querySelector('[data-after="story"]');
     if (sb) sb.addEventListener('click', function () {
       var me = currentUserProfile; if (!me) return;
-      var st = { id: genId(), author: me.name, authorUid: myUid(), audience: 'all', story: true, photoURL: post.photoURL || 'icons/icon-192.png', createdAt: Date.now() };
+      // Story liée au post : son image, sinon la miniature de la vidéo du lien,
+      // et un bouton « Voir le post » dans la story.
+      var vthumb = post.linkUrl && videoEmbedOf(post.linkUrl) ? videoEmbedOf(post.linkUrl).thumb : '';
+      var st = { id: genId(), author: me.name, authorUid: myUid(), audience: 'all', story: true, photoURL: post.photoURL || vthumb || 'icons/icon-192.png', fromPost: post.id, createdAt: Date.now() };
       if (post.text) st.text = post.text.slice(0, 120);
       STATE.wallPosts = [st].concat(STATE.wallPosts || []);
       db.collection('wallPosts').doc(st.id).set(st).then(function () { awardPneus(10, true); showToast(L('Aussi en story : visible 24 h.', 'Also in your story: visible for 24 h.'), 'success'); }).catch(function (err) { showToast(tr('error_prefix') + ((err && err.message) || err)); });
@@ -20175,9 +20277,12 @@
       ov.innerHTML = '<div class="story-bars">' + list.map(function (_, k) { return '<span class="' + (k < i ? 'done' : k === i ? 'now' : '') + '"></span>'; }).join('') + '</div>' +
         '<div class="story-head"><button type="button" class="story-author" data-who="' + escapeHtml(st.who) + '">' + (tm ? teamAvatarHtml(tm) : avatarHtml(u, st.who)) + '<strong>' + escapeHtml(whoName) + '</strong>' + (tm && mine ? '<small class="story-as">' + L('par toi', 'by you') + '</small>' : '') + '</button><span>' + escapeHtml(relativeTime(st.at)) + (st.posted && storyTimeLeft(st.at) ? ' · ' + L('encore ', '') + storyTimeLeft(st.at) + L('', ' left') : '') + '</span><button type="button" class="story-close" aria-label="' + escapeHtml(L('Fermer', 'Close')) + '">✕</button></div>' + body +
         '<button type="button" class="story-nav prev" aria-label="' + escapeHtml(L('Précédente', 'Previous')) + '"></button><button type="button" class="story-nav next" aria-label="' + escapeHtml(L('Suivante', 'Next')) + '"></button>' +
+        (st.post && st.post.fromPost ? '<button type="button" class="story-goto-post">' + L('Voir le post', 'See post') + '</button>' : '') +
         (tm ? '<button type="button" class="story-profile" data-who="' + escapeHtml(st.who) + '">' + L('Voir le team', 'See team') + '</button>'
           : st.who !== me.name ? '<button type="button" class="story-profile" data-who="' + escapeHtml(st.who) + '">' + L('Voir son profil', 'See profile') + '</button>' : '');
       ov.querySelector('.story-close').addEventListener('click', close);
+      var gp = ov.querySelector('.story-goto-post');
+      if (gp) gp.addEventListener('click', function () { var pid = st.post.fromPost, au = st.post.author; close(); goToOriginal(pid, au, 'wall'); });
       ov.querySelector('.story-nav.prev').addEventListener('click', function () { if (i > 0) { i--; show(); } });
       ov.querySelector('.story-nav.next').addEventListener('click', function () { i++; show(); });
       var pb = ov.querySelector('.story-profile');
@@ -20583,7 +20688,9 @@
   // « à Barcelone » sous le texte : un appui ouvre Plans (Apple) ou Google Maps.
   function postPlaceHtml(p) {
     var apple = /iPhone|iPad|iPod|Macintosh/.test(navigator.userAgent || '');
-    var g = p.geo && isFinite(p.geo.lat) && isFinite(p.geo.lng) ? p.geo : null;
+    // Position approximative (~1 km) : jamais l'adresse exacte ; avec un nom
+    // de lieu, la carte cherche le nom, pas les coordonnées.
+    var g = p.geo && isFinite(p.geo.lat) && isFinite(p.geo.lng) && !String(p.place || '').trim() ? { lat: Math.round(p.geo.lat * 100) / 100, lng: Math.round(p.geo.lng * 100) / 100 } : null;
     var url = apple
       ? 'https://maps.apple.com/?' + (g ? 'll=' + g.lat + ',' + g.lng + '&q=' + encodeURIComponent(p.place) : 'q=' + encodeURIComponent(p.place))
       : 'https://www.google.com/maps/search/?api=1&query=' + (g ? g.lat + ',' + g.lng : encodeURIComponent(p.place));
@@ -23225,6 +23332,7 @@
       renderRootUnsafe();
       markScrollableTabs();
       sanitizeLinks(document.getElementById('root'));
+      if (inlinePlayer) positionInlinePlayer();
       if (moiScrollTo) { var mst = document.getElementById('moi-' + moiScrollTo); moiScrollTo = null; if (mst) setTimeout(function () { mst.scrollIntoView({ block: 'start' }); }, 0); }
       // Montants du budget floutés (œil) : sur toute page qui montre le budget.
       document.body.classList.toggle('budget-masked', !!document.querySelector('.budget-hide-btn') && budgetHidden());
@@ -23337,6 +23445,7 @@
             '<button type="button" class="header-hello" id="profile-toggle" aria-label="' + L('Ma fiche', 'My page') + '" title="' + L('Ma fiche', 'My page') + '">' + avatarHtml(currentUserProfile, currentUserProfile.name) +
               '<span class="hello-text"><span class="hello-small">Bonjour</span><span class="hello-name">' + escapeHtml(currentUserProfile.firstName || currentUserProfile.name || '') + '</span></span></button>' +
             '<div class="header-controls">' + pneusChipHtml('header-pneus') +
+              '<button type="button" class="header-icon-btn" id="search-toggle" aria-label="' + escapeHtml(L('Rechercher', 'Search')) + '" title="' + escapeHtml(L('Rechercher', 'Search')) + '"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg></button>' +
               '<button type="button" class="header-icon-btn" id="invite-qr-btn" aria-label="Inviter un ami (QR code)" title="Inviter un ami">' +
                 '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3zM20 14v.01M14 20h.01M17 20h4v-3"/></svg></button>' +
               '<button type="button" class="header-icon-btn' + (profilePanelOpen ? ' is-open' : '') + '" id="settings-toggle" aria-label="Mon compte" title="Mon compte">' +
@@ -24620,8 +24729,8 @@
       if (!navigator.geolocation) return showToast(L('Position non disponible sur cet appareil.', 'Location not available on this device.'));
       geoBtn.textContent = '…';
       navigator.geolocation.getCurrentPosition(function (pos) {
-        // Arrondi à ~100 m : assez pour la carte, sans l'adresse exacte.
-        wallPostPlace.geo = { lat: Math.round(pos.coords.latitude * 1000) / 1000, lng: Math.round(pos.coords.longitude * 1000) / 1000 };
+        // Arrondi à ~1 km : la zone, jamais l'adresse exacte.
+        wallPostPlace.geo = { lat: Math.round(pos.coords.latitude * 100) / 100, lng: Math.round(pos.coords.longitude * 100) / 100 };
         geoBtn.textContent = L('Position ✓', 'Location ✓');
         var pl = document.getElementById('wall-post-place'); if (pl && !pl.value.trim()) pl.placeholder = L('Nom du lieu (ex. Paddock Barcelone)', 'Place name (e.g. Barcelona paddock)');
       }, function () { geoBtn.textContent = L('Position', 'Location'); showToast(L('Position refusée ou introuvable.', 'Location denied or unavailable.')); }, { enableHighAccuracy: false, timeout: 10000, maximumAge: 300000 });
@@ -25099,13 +25208,15 @@
           e.preventDefault(); e.stopPropagation();
           // Fenêtre de lecture hors de la page : les mises à jour du fil
           // ne coupent pas la vidéo.
-          openPlayerSheet(emf.getAttribute('data-url'));
+          startInlinePlayer(emf);
           return;
         }
         var bh = e.target.closest('[data-action="budget-hide"]');
         if (bh) { e.preventDefault(); e.stopPropagation(); try { localStorage.setItem('cdp-budget-hidden', budgetHidden() ? '0' : '1'); } catch (er) {} renderRoot(); return; }
         var mj = e.target.closest('[data-moi-jump]');
         if (mj) { e.preventDefault(); e.stopPropagation(); var t = document.getElementById('moi-' + mj.getAttribute('data-moi-jump')); if (t) t.scrollIntoView({ block: 'start', behavior: 'smooth' }); return; }
+        var gst = e.target.closest('#search-toggle');
+        if (gst) { e.preventDefault(); e.stopPropagation(); openGlobalSearch(); return; }
         var gn = e.target.closest('[data-action="group-new"]');
         if (gn) { e.preventDefault(); e.stopPropagation(); openGroupEditor(null); return; }
         var gi = e.target.closest('[data-action="group-info"]');

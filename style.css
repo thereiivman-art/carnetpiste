@@ -5030,3 +5030,43 @@ body.budget-masked .budget-season strong, body.budget-masked .budget-row .carnet
   .subnav.main-subnav + .pill-tabs { position: sticky; top: calc(var(--header-h, 64px) - 1px + var(--subnav-h, 44px) - 1px); z-index: 7; box-shadow: 0 0 0 1rem var(--bg); clip-path: inset(0 -1rem -1rem -1rem); }
 }
 .subnav + .pill-tabs .pill-btn, .subnav + .pill-tabs .pill-btn.active { flex: 1 1 auto; min-width: 0; }
+/* Icône et couleur selon le type de notification */
+.notif-ico-flame { color: #e0701a; }
+.notif-ico-comment, .notif-ico-mention { color: #1f4fb8; }
+.notif-ico-follow { color: #2f8f3a; }
+.notif-ico-duel { color: var(--accent); }
+.notif-ico-ride { color: var(--text); }
+.notif-ico-podium { color: #b07a0c; }
+.notif-ico-camera { color: #6b3fc4; }
+/* Avatars : un seul rond à la fois. Pas de bordure de base ; story active =
+   anneau doré (gris une fois vue), qui remplace le cadre acheté le temps de
+   la story ; sinon le cadre acheté s'il y en a un. */
+.mini-avatar.has-look { box-shadow: none; }
+.ph-avatar .mini-avatar { box-shadow: 0 0 0 3px var(--surface); }
+.mini-avatar.has-story, .mini-avatar.has-story[class*="frame-"] { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4.5px #fb8500 !important; outline: none !important; }
+.mini-avatar.has-story.story-seen, .mini-avatar.has-story.story-seen[class*="frame-"] { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--border) !important; }
+.ph-avatar .mini-avatar.has-story { box-shadow: 0 0 0 3px var(--surface), 0 0 0 6px #fb8500 !important; }
+.ph-avatar .mini-avatar.has-story.story-seen { box-shadow: 0 0 0 3px var(--surface), 0 0 0 6px var(--border) !important; }
+.story-ring .mini-avatar.has-story, .story-ring .mini-avatar.has-story.story-seen { box-shadow: none !important; }
+/* PC : onglets et sous-onglets aussi en haut de page (en plus de la barre de gauche). */
+@media (min-width: 960px) {
+  .pill-tabs.main-subnav-pills, .sub-pills.main-subnav-pills { display: flex; }
+  /* Album photo d'un roulage : une colonne au milieu de la ligne. */
+  .outing-row-wrap { position: relative; }
+  .outing-row-wrap > .album-chip { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 2; }
+}
+.story-goto-post { align-self: center; z-index: 2; border: 0; background: #fff; color: #14161a; border-radius: 999px; padding: 0.55rem 1.3rem; font-weight: 800; cursor: pointer; margin-bottom: 0.5rem; }
+/* Lecteur vidéo posé sur le post (sous l'en-tête et les onglets fixés). */
+.inline-player { position: absolute; z-index: 5; border-radius: 12px; overflow: hidden; background: #000; }
+.inline-player iframe { width: 100%; height: 100%; border: 0; display: block; }
+.inline-player-x { position: absolute; top: 0.4rem; right: 0.4rem; width: 2rem; height: 2rem; min-width: 0; padding: 0; border: 0; border-radius: 50%; background: rgba(0,0,0,0.6); color: #fff; font-size: 0.85rem; cursor: pointer; }
+/* Recherche globale */
+.mini-sheet.gsearch-sheet { max-height: calc(100dvh - 2rem); display: flex; flex-direction: column; }
+#gsearch-q { width: 100%; border-radius: 12px; padding: 0.7rem 0.9rem; font-size: 1rem; }
+.gsearch-results { overflow-y: auto; margin-top: 0.6rem; display: flex; flex-direction: column; gap: 0.7rem; }
+.gsearch-title { font-size: 0.78rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); margin: 0 0 0.25rem 0.2rem; }
+.gsearch-row { display: flex; align-items: center; gap: 0.7rem; width: 100%; padding: 0.55rem 0.5rem; border: 0; border-radius: 10px; background: none; color: var(--text); text-align: left; cursor: pointer; }
+.gsearch-row:hover, .gsearch-row:focus-visible { background: var(--surface-alt); }
+.gsearch-ico { width: 2.1rem; height: 2.1rem; flex: 0 0 auto; border-radius: 50%; display: grid; place-items: center; background: var(--surface-alt); color: var(--text-muted); }
+.gsearch-main { display: flex; flex-direction: column; min-width: 0; }
+.gsearch-main .help-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
