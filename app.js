@@ -1682,16 +1682,55 @@
   // doc that names this pilote either as from or to -- accepted rows are
   // friendships, pending rows sorted by which side sent them. Deriving all
   // three lists from that one array here keeps the UI code simple.
+  // Amis et abonnés fusionnés (novembre 2026) : plus de demande d'ami.
+  // Deux personnes qui se suivent l'une l'autre sont amies. Les anciennes
+  // amitiés acceptées (friendRequests) comptent toujours, le temps que
+  // chacun se reconnecte et que migrateFriendsToFollows crée ses
+  // abonnements.
+  var friendsMemo = { key: null, map: {} };
+  function rawFollowingOf(n) {
+    if (currentUserProfile && n === currentUserProfile.name && STATE.myFollows) return STATE.myFollows;
+    return (STATE.allUserFollows || []).filter(function (f) { return f.follower === n; }).map(function (f) { return f.followee; });
+  }
+  function rawFollowersOf(n) {
+    return (STATE.allUserFollows || []).filter(function (f) { return f.followee === n; }).map(function (f) { return f.follower; });
+  }
   function friendsOf(name) {
-    return (STATE.friendRequests || [])
+    // Mémo : la liste se recalcule seulement quand les abonnements ou
+    // les amitiés changent (friendsOf est appelé pour chaque compte).
+    if (friendsMemo.key !== (STATE.allUserFollows || null) || friendsMemo.fr !== (STATE.friendRequests || null) || friendsMemo.my !== (STATE.myFollows || null)) {
+      friendsMemo = { key: STATE.allUserFollows || null, fr: STATE.friendRequests || null, my: STATE.myFollows || null, map: {} };
+    }
+    if (friendsMemo.map[name]) return friendsMemo.map[name];
+    var out = (STATE.friendRequests || [])
       .filter(function (r) { return r.status === 'accepted' && (r.from === name || r.to === name); })
       .map(function (r) { return { id: r.id, name: r.from === name ? r.to : r.from }; });
+    var fans = rawFollowersOf(name);
+    rawFollowingOf(name).forEach(function (n) {
+      if (fans.indexOf(n) !== -1 && !out.some(function (f) { return f.name === n; })) out.push({ id: null, name: n });
+    });
+    return (friendsMemo.map[name] = out);
   }
-  function incomingFriendRequests(name) {
-    return (STATE.friendRequests || []).filter(function (r) { return r.status === 'pending' && r.to === name; });
-  }
-  function outgoingFriendRequests(name) {
-    return (STATE.friendRequests || []).filter(function (r) { return r.status === 'pending' && r.from === name; });
+  // Les demandes en attente ne s'affichent plus : suivre suffit.
+  function incomingFriendRequests() { return []; }
+  function outgoingFriendRequests() { return []; }
+  // Une fois par compte : mes amitiés acceptées et mes demandes envoyées
+  // deviennent des abonnements (je ne peux créer que les miens ; l'autre
+  // fera de même à sa prochaine connexion).
+  var followMigrationDone = false;
+  function migrateFriendsToFollows() {
+    var me = currentUserProfile;
+    if (followMigrationDone || !me || !STATE.friendRequests || !STATE.myFollows) return;
+    followMigrationDone = true;
+    try { if (localStorage.getItem('cdp-follow-fusion-' + me.name) === '1') return; } catch (e) {}
+    var targets = uniqNames(STATE.friendRequests.filter(function (r) {
+      return r.status === 'accepted' ? (r.from === me.name || r.to === me.name) : r.from === me.name;
+    }).map(function (r) { return r.from === me.name ? r.to : r.from; })).filter(function (n) { return STATE.myFollows.indexOf(n) === -1; });
+    Promise.all(targets.map(function (n) {
+      return db.collection('follows').add({ follower: me.name, followee: n, followerUid: myUid(), followeeUid: uidOf(n), createdAt: Date.now() });
+    })).then(function () {
+      try { localStorage.setItem('cdp-follow-fusion-' + me.name, '1'); } catch (e) {}
+    }).catch(function () { followMigrationDone = false; });
   }
   // Everyone with an account (pilote/accompagnant/organisateur) is a valid
   // friend candidate, not just riders -- allKnownRiders() would miss
@@ -1701,7 +1740,9 @@
     return Object.keys(STATE.usersByName || {}).sort(function (a, b) { return a.localeCompare(b); });
   }
 
-  function sendFriendRequest(toName) {
+  // Ancien « Ajouter en ami » : c'est maintenant un abonnement.
+  function sendFriendRequest(toName) { followName(toName); }
+  function sendFriendRequestLegacy(toName) {
     var me = currentUserProfile;
     if (!me || !toName || toName === me.name) return;
     var already = (STATE.friendRequests || []).some(function (r) {
@@ -1748,7 +1789,11 @@
     });
   }
   function unfollowName(name) {
-    if (isFriendName(name)) return showToast(L('Vous êtes amis, donc abonnés l\'un à l\'autre : retire-le de tes amis pour ne plus le suivre.', 'You are friends, so you follow each other: remove the friend to stop following.'));
+    // Ne plus suivre un ami met fin à l'amitié (ancienne demande acceptée comprise).
+    (STATE.friendRequests || []).filter(function (r) { return r.status === 'accepted' && ((r.from === name && r.to === (currentUserProfile || {}).name) || (r.to === name && r.from === (currentUserProfile || {}).name)); }).forEach(function (r) {
+      STATE.friendRequests = STATE.friendRequests.filter(function (x) { return x !== r; });
+      removeFriendRequest(r.id);
+    });
     var me = currentUserProfile && currentUserProfile.name;
     STATE.myFollows = (STATE.myFollows || []).filter(function (n) { return n !== name; });
     STATE.allUserFollows = (STATE.allUserFollows || []).filter(function (f) { return !(f.follower === me && f.followee === name); });
@@ -18978,10 +19023,6 @@
     var acts = '';
     if (isMe) acts += myDraft ? '' : '<button type="button" class="primary" data-action="look-edit">' + L('Modifier', 'Edit') + '</button>' +
       '<button type="button" class="ghost" data-action="open-my-profile">' + L('Mon compte', 'My account') + '</button>';
-    else if (friendship) acts += '<button type="button" class="ghost" disabled>' + L('Amis', 'Friends') + '</button>';
-    else if (received) acts += '<button type="button" class="primary" data-action="accept-friend" data-id="' + escapeHtml(received.id) + '">' + L('Accepter son invitation', 'Accept the request') + '</button>';
-    else if (sent) acts += '<button type="button" class="ghost" disabled>' + L('Demande envoyée', 'Request sent') + '</button>';
-    else acts += '<button type="button" class="primary" data-action="quick-add-friend" data-name="' + escapeHtml(name) + '">' + L('Ajouter en ami', 'Add friend') + '</button>';
     if (!isMe) acts += followBtnHtml(name);
     if (!isMe && canMessage(name)) acts += '<button type="button" class="ghost" data-action="dm-open" data-name="' + escapeHtml(name) + '">' + L('Message', 'Message') + '</button>';
     if (isPilote && u.chronoLink && friendship) acts += '<button type="button" class="ghost" data-action="open-external-url" data-url="' + escapeHtml(u.chronoLink) + '">' + L('Ses chronos officiels ↗', 'Official lap times ↗') + '</button>';
@@ -19000,7 +19041,7 @@
     }
     html += socialCountsHtml(name);
     if (privateProfile) {
-      html += '<div class="card"><div class="empty-state">' + escapeHtml(L('Fiche privée, réservée aux amis de ' + name + '. Ajoute ' + name + ' en ami pour la voir.', 'Private profile, for ' + name + '\'s friends only. Add ' + name + ' as a friend to see it.')) + '</div></div>';
+      html += '<div class="card"><div class="empty-state">' + escapeHtml(L('Fiche privée, réservée aux amis de ' + name + '. Suivez-vous l\'un l\'autre pour la voir.', 'Private profile, for ' + name + '\'s friends only. Follow each other to see it.')) + '</div></div>';
       return html + '</div>';
     }
     // Fiche d'un autre compte (ami ou non, pilote ou accompagnant) : Fil,
@@ -19018,7 +19059,7 @@
       if (pillState.person === 'saisons' && ridesShared) return html + renderRiderSeasons(name, look, false) + '</div>';
       if (!friendship) {
         if (look) html += renderLinksAndSponsors(look) + renderFavourites(name, look);
-        html += '<div class="card"><div class="empty-state">' + escapeHtml(isPilote ? L('Ajoute ' + name + ' en ami pour voir ses roulages, ses records et ses trophées, et vous comparer.', 'Add ' + name + ' as a friend to see their trackdays, records and trophies, and compare.') : L('Ajoute ' + name + ' en ami pour voir ses roulages et ses trophées.', 'Add ' + name + ' as a friend to see their trackdays and trophies.')) + '</div></div>';
+        html += '<div class="card"><div class="empty-state">' + escapeHtml(isPilote ? L('Suivez-vous l\'un l\'autre pour voir ses roulages, ses records et ses trophées, et vous comparer.', 'Follow each other to see their trackdays, records and trophies, and compare.') : L('Suivez-vous l\'un l\'autre pour voir ses roulages et ses trophées.', 'Follow each other to see their trackdays and trophies.')) + '</div></div>';
         return html + '</div>';
       }
     }
@@ -19450,7 +19491,7 @@
         return '<div class="suggestion-profile-card">' + avatarHtml(u, n) +
           '<span class="suggestion-profile-name">' + escapeHtml(n) + '</span>' +
           '<span class="friend-role-badge">' + roleLabel(u.role) + '</span>' +
-          '<button type="button" class="ghost icon-btn" data-action="quick-add-friend" data-name="' + escapeHtml(n) + '" aria-label="' + tr('add_aria') + '" title="' + tr('add_aria') + '">+</button>' +
+          '<button type="button" class="ghost icon-btn" data-action="quick-follow" data-name="' + escapeHtml(n) + '" aria-label="' + L('Suivre', 'Follow') + '" title="' + L('Suivre', 'Follow') + '">+</button>' +
           '</div>';
       }).join('') + '</div>';
   }
@@ -19463,11 +19504,8 @@
   // (sans amitié) sert à suivre quelqu'un sans être ami avec lui.
   function friendNamesOf(n) { return friendsOf(n).map(function (f) { return f.name; }); }
   function uniqNames(a) { return a.filter(function (v, i) { return v && a.indexOf(v) === i; }); }
-  function followersOf(n) { return uniqNames((STATE.allUserFollows || []).filter(function (f) { return f.followee === n; }).map(function (f) { return f.follower; }).concat(friendNamesOf(n))); }
-  function followingOf(n) {
-    if (currentUserProfile && n === currentUserProfile.name && STATE.myFollows) return uniqNames(STATE.myFollows.concat(friendNamesOf(n)));
-    return uniqNames((STATE.allUserFollows || []).filter(function (f) { return f.follower === n; }).map(function (f) { return f.followee; }).concat(friendNamesOf(n)));
-  }
+  function followersOf(n) { return uniqNames(rawFollowersOf(n).concat(friendNamesOf(n))); }
+  function followingOf(n) { return uniqNames(rawFollowingOf(n).concat(friendNamesOf(n))); }
   // Pilotes suivis (accompagnant) : mes abonnements (amis compris), plus
   // l'ancienne liste cochée dans Mon compte si elle existe encore.
   function followedRidersOf(profile) {
@@ -19486,15 +19524,19 @@
       return mine ? '<button type="button" class="social-count" data-action="open-social" data-list="' + list + '">' + inner + '</button>' : '<span class="social-count">' + inner + '</span>';
     };
     // « Ami avec toi » retiré : le bouton Abonné / Ami le dit déjà.
-    return '<div class="social-counts">' + (mine ? item(nf, L('ami', 'friend'), L('amis', 'friends'), 'amis') : '') + (hideLists ? '' : item(nfo, L('abonné', 'follower'), L('abonnés', 'followers'), 'abonnes') + item(nfg, L('abonnement', 'following'), L('abonnements', 'following'), 'abonnements')) + '</div>';
+    return '<div class="social-counts">' + (hideLists ? '' : item(nfo, L('abonné', 'follower'), L('abonnés', 'followers'), 'abonnes') + item(nfg, L('abonnement', 'following'), L('abonnements', 'following'), 'abonnements')) + '</div>';
   }
+  // Bouton unique : Suivre, Suivre en retour (il me suit), Abonné, ou
+  // Ami (on se suit l'un l'autre ; toucher Ami propose de ne plus suivre).
   function followBtnHtml(name, small) {
     if (!currentUserProfile || name === currentUserProfile.name) return '';
-    if (isFriendName(name)) return '<span class="ghost follow-btn following is-friend' + (small ? ' small' : '') + '" title="' + escapeHtml(L('Ami : abonnés l\'un à l\'autre', 'Friend: following each other')) + '">' + L('Ami ✓', 'Friend ✓') + '</span>';
-    return iFollow(name)
-      ? '<button type="button" class="ghost follow-btn following' + (small ? ' small' : '') + '" data-action="unfollow" data-name="' + escapeHtml(name) + '">' + L('Abonné ✓', 'Following ✓') + '</button>'
-      : '<button type="button" class="primary follow-btn' + (small ? ' small' : '') + '" data-action="quick-follow" data-name="' + escapeHtml(name) + '">' + L('Suivre', 'Follow') + '</button>';
+    var sm = small ? ' small' : '', dn = ' data-name="' + escapeHtml(name) + '"';
+    if (isFriendName(name)) return '<button type="button" class="ghost follow-btn following is-friend' + sm + '" data-action="unfollow" data-confirm="1"' + dn + ' title="' + escapeHtml(L('Vous vous suivez l\'un l\'autre', 'You follow each other')) + '">' + L('Ami', 'Friend') + '</button>';
+    if (iFollow(name)) return '<button type="button" class="ghost follow-btn following' + sm + '" data-action="unfollow"' + dn + '>' + L('Abonné', 'Following') + '</button>';
+    var back = rawFollowersOf(currentUserProfile.name).indexOf(name) !== -1;
+    return '<button type="button" class="primary follow-btn' + sm + '" data-action="quick-follow"' + dn + '>' + (back ? L('Suivre en retour', 'Follow back') : L('Suivre', 'Follow')) + '</button>';
   }
+
   // Qui suivre : roulages en commun, amis en commun, personnalités, puis
   // les comptes les plus suivis.
   function followSuggestions(me, max) {
@@ -20217,7 +20259,7 @@
     try { hidden = JSON.parse(localStorage.getItem('cdp-friend-sug-hidden') || '[]'); } catch (e) {}
     var mineEv = eventsList().filter(function (e) { return (e.riders || []).indexOf(me) !== -1; });
     var followers = followersOf(me);
-    return allKnownUserNames().filter(function (n) { return n !== me && friends.indexOf(n) === -1 && pending.indexOf(n) === -1 && hidden.indexOf(n) === -1 && !isPersonality((STATE.usersByName || {})[n]); }).map(function (n) {
+    return allKnownUserNames().filter(function (n) { return n !== me && !iFollow(n) && friends.indexOf(n) === -1 && pending.indexOf(n) === -1 && hidden.indexOf(n) === -1 && !isPersonality((STATE.usersByName || {})[n]); }).map(function (n) {
       var mutual = friendsOf(n).filter(function (f) { return friends.indexOf(f.name) !== -1; }).length;
       var shared = mineEv.filter(function (e) { return (e.riders || []).indexOf(n) !== -1; }).length;
       var fo = followers.indexOf(n) !== -1, fi = (STATE.myFollows || []).indexOf(n) !== -1;
@@ -20235,7 +20277,7 @@
     // Masqué (✕) : plus rien, sauf s'il y a des demandes d'ami à traiter.
     if ((closed || never) && !inc.length) return '';
     if (inc.length) { sug = never ? [] : sug; closed = false; }
-    var head = '<div class="fsug-top"><span class="fsug-head"><strong>' + L('Ajoute des amis', 'Add friends') + '</strong><span class="help-text">' + (inc.length ? '<span class="fsug-req-count">' + plural(inc.length, L('demande reçue', 'request received'), L('demandes reçues', 'requests received')) + '</span>' + (sug.length ? ' · ' : '') : '') + (sug.length ? plural(sug.length, L('suggestion', 'suggestion'), L('suggestions', 'suggestions')) : '') + '</span></span>' +
+    var head = '<div class="fsug-top"><span class="fsug-head"><strong>' + L('Qui suivre', 'Who to follow') + '</strong><span class="help-text">' + (inc.length ? '<span class="fsug-req-count">' + plural(inc.length, L('demande reçue', 'request received'), L('demandes reçues', 'requests received')) + '</span>' + (sug.length ? ' · ' : '') : '') + (sug.length ? plural(sug.length, L('suggestion', 'suggestion'), L('suggestions', 'suggestions')) : '') + '</span></span>' +
       '<button type="button" class="fsug-close" data-action="fsug-close" aria-label="' + escapeHtml(L('Masquer', 'Hide')) + '" title="' + escapeHtml(L('Masquer', 'Hide')) + '">✕</button></div>';
     var cards = inc.map(function (r) {
       var u = (STATE.usersByName || {})[r.from] || {};
@@ -20245,7 +20287,7 @@
       var u = (STATE.usersByName || {})[sg.name] || {};
       return '<div class="fsug-card"><button type="button" class="fsug-x" data-fsug-hide="' + escapeHtml(sg.name) + '" aria-label="' + escapeHtml(L('Masquer', 'Hide')) + '">✕</button>' +
         '<button type="button" class="fsug-who" data-person-link="' + escapeHtml(sg.name) + '">' + avatarHtml(u, sg.name).replace(/ data-person="[^"]*"/, '') + '<strong>' + escapeHtml(sg.name) + '</strong><span class="help-text">' + escapeHtml(sg.reason) + '</span></button>' +
-        '<button type="button" class="primary fsug-add" data-fsug-add="' + escapeHtml(sg.name) + '">' + L('Ajouter', 'Add') + '</button></div>';
+        followBtnHtml(sg.name, true).replace('follow-btn', 'follow-btn fsug-add') + '</div>';
     }).join('');
     // Inviter des amis qui ne sont pas encore sur l'appli.
     cards += '<div class="fsug-card fsug-invite"><span class="fsug-invite-ico" aria-hidden="true"><svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6M22 11h-6"/></svg></span><strong>' + L('Tes amis', 'Your mates') + '</strong><span class="help-text">' + L('+100 pneus par filleul', '+100 tyres per referral') + '</span><button type="button" class="ghost fsug-add" data-action="invite-qr">' + L('Inviter', 'Invite') + '</button></div>';
@@ -21783,7 +21825,7 @@
     var friendsBody = !friends.length
       ? '<div class="empty-state">' + tr('no_friends_yet') + '<div class="empty-actions"><button type="button" class="ghost" data-action="invite-qr">' + tr('invite_qr_btn') + '</button></div></div>'
       : renderPeopleGrid(friends.map(function (f) { return f.name; }).sort(function (a, b) { return a.localeCompare(b); }), true);
-    var amisItems = [['liste', 'Mes amis (' + friends.length + ')', friendsBody]];
+    var amisItems = [['liste', L('Amis', 'Friends') + ' (' + friends.length + ')', friendsBody]];
 
     if (incoming.length) {
       var incomingBody = incoming.map(function (r) {
@@ -21830,7 +21872,7 @@
     if (pillState.social === 'abonnements') {
       // Pas un onglet : on y arrive par les compteurs du profil.
       html += '<button type="button" class="link-btn back-link" data-action="social-back-profile">‹ ' + L('Mon profil', 'My profile') + '</button>';
-      html += renderSuivisTab(me, addFriendCta, amisItems, incoming.length);
+      html += renderSuivisTab(me, '', amisItems, 0); // plus de demande d'ami : on suit
       return html;
     }
     if (pillState.social === 'profil') html += renderSocialProfile(me);
@@ -25546,7 +25588,11 @@
       btn.addEventListener('click', function () { followName(btn.getAttribute('data-name')); });
     });
     document.querySelectorAll('[data-action="unfollow"]').forEach(function (btn) {
-      btn.addEventListener('click', function () { unfollowName(btn.getAttribute('data-name')); });
+      btn.addEventListener('click', function () {
+        var n = btn.getAttribute('data-name');
+        if (btn.hasAttribute('data-confirm') && !confirm(L('Ne plus suivre ' + n + ' ? Vous ne serez plus amis.', 'Unfollow ' + n + '? You will no longer be friends.'))) return;
+        unfollowName(n);
+      });
     });
     document.querySelectorAll('[data-action="follow-team"]').forEach(function (btn) {
       btn.addEventListener('click', function () { followTeam(btn.getAttribute('data-team')); });
@@ -28369,6 +28415,7 @@
       Object.keys(friendReqFrom).forEach(function (id) { byId[id] = friendReqFrom[id]; });
       Object.keys(friendReqTo).forEach(function (id) { byId[id] = friendReqTo[id]; });
       STATE.friendRequests = Object.keys(byId).map(function (id) { return byId[id]; });
+      migrateFriendsToFollows();
       scheduleRender();
     }
     if (currentUserProfile && currentUserProfile.name) {
@@ -28513,6 +28560,7 @@
       unsubscribers.push(db.collection('follows').where('follower', '==', currentUserProfile.name).onSnapshot(function (snap) {
         var docs = snap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); });
         STATE.myFollows = docs.filter(function (f) { return (f.followeeType || 'user') === 'user'; }).map(function (f) { return f.followee; });
+        migrateFriendsToFollows();
         var teamFollows = docs.filter(function (f) { return f.followeeType === 'team'; });
         STATE.myFollowedTeams = teamFollows.map(function (f) { return f.followee; });
         maybeNotifyAdherentDecision(teamFollows);

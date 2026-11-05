@@ -1,0 +1,77 @@
+# Patch notes · Carnet Piste
+
+Les nouveautés, de la plus récente à la plus ancienne. Le détail complet est dans l'historique git.
+
+## 5 novembre 2026
+
+**Amis et abonnés fusionnés**
+- Plus de demande d'ami : on suit quelqu'un, et deux personnes qui se suivent sont amies.
+- Un seul bouton : Suivre, Suivre en retour, Abonné, Ami. Toucher « Ami » propose de ne plus suivre.
+- Les amitiés existantes sont gardées et deviennent des abonnements à la connexion.
+- Compteurs : abonnés et abonnements seulement. La liste complète des amis reste dans Abonnements › Amis.
+
+**Retours Alexis**
+- Recherche avancée : filtres Profils, Teams, Circuits, Roulages, Publications, Photos ; tri par date.
+- Podium « Tous » au même format que « Amis », avec Voir plus jusqu'au top 100.
+- Records de la piste : pastille de catégorie devant chaque record, record de l'appli en bas.
+- Notifications regroupées : « X, Y et Z se sont abonnés », réactions et records du jour.
+- Pastilles de connexion dans Messages.
+- Miniatures de circuit homogènes, tracé blanc en mode sombre.
+- Album photo au milieu de la carte sur téléphone.
+- Story sans aperçu : message d'erreur au lieu d'une story au seul logo.
+- PC : champ de publication pleine largeur sur le profil.
+- Teams : photo et logo modifiables dès la création.
+- Teams : roulages À venir / Passés par année, résumé de saison.
+- Recherche en champ sur PC (Ctrl/Cmd + K), vidéo lisible dans une story liée à un post, une seule bulle « Ta story ».
+- Spots photo, colonne de droite À venir / Passés.
+
+**Interface**
+- Onglets façon classeur (maquette A), sous-onglets fixés au défilement.
+- Vibreurs de circuit en cadre de fiche, coins avec triangles blancs.
+- Navigation simplifiée : Carnet (Roulages, Circuits, Moi) et Communauté (Fil, Messages, Teams).
+- Réglages façon Instagram, cosmétiques à débloquer avec les pneus.
+- Records pros officiels (MotoGP, Moto2, Moto3, WorldSBK, FSBK, F1, WEC, GT3).
+- Groupes de discussion (amis, team) et discussion de roulage.
+
+## 4 novembre 2026
+- Garage, trophées acquis, rôle organisateur, fiche accompagnant, podium vérifié.
+- Parrainage à l'inscription, brouillon gardé, visibilité d'un post.
+- Passés groupés par circuit avec albums et recherche ; spots photo des circuits.
+- Chrono : Accident (chute, sortie, contact, panne) avec l'endroit sur le plan.
+- Repères : partage en post ou story, export image ou PDF, copie de ceux d'un pote.
+- Créer son circuit perso.
+
+## 2 novembre 2026
+- Pneus (monnaie de l'appli) sur 7 jours, popup après publication.
+- Plan & repères dans la page ; lieu sur les posts ; circuits préférés.
+- Messagerie : réactions emoji ; partage vers les réseaux ; commentaires façon TikTok.
+- PC : grille À venir, Teams sur une page.
+
+## 1er novembre 2026
+- Roulages : invitations à accepter, mode voiture, piste sèche / humide / pluie.
+- Import de chronos en colonnes et en plusieurs captures.
+- Carnet+ (simulation) ; stories vidéo de 10 s ; @mentions.
+- PC façon Instagram avec barre latérale complète.
+- Sécurité passe 4 : compteurs non gonflables, tailles plafonnées.
+
+## 31 octobre 2026
+- Communauté façon réseau social : Fil, stories, abonnements, commentaires, republier.
+- Onglet central Chrono pour le jour J ; navigation à 3 onglets.
+- Records de la piste par catégorie ; budget dans Stats.
+- Audience (Carnet+) pour pilotes et motoclubs.
+- Bouton retour (bouton, téléphone, glissé depuis le bord).
+- Sécurité : CSP, plus de JavaScript en ligne, données privées protégées côté serveur.
+
+## 28 au 30 octobre 2026
+- Pneus, budget, journée session par session, ajout à l'agenda.
+- Import de roulages en lot ; chrono estimé sur un circuit jamais roulé.
+- Accompagnants : potes en piste, chrono saisi pour un pote.
+- Albums photos partagés ; onglets en classeur ; banc de test dans le dépôt.
+- Guides PDF en français et en anglais.
+
+## 17 au 25 octobre 2026
+- Trophées à paliers, notifications et fil d'actualité, podium des potes.
+- Fiches pilote et team personnalisables, saisons, stories « On roule à » et « Mon roulage à ».
+- RGPD : effacement et export du compte, pages légales.
+- Tracés de plus de 40 circuits ; fonctionne en mode avion.
+- L'appli s'appelle Carnet Piste (Pitbook en anglais).
