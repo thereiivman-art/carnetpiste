@@ -4904,3 +4904,6 @@ body.budget-masked .budget-season strong, body.budget-masked .budget-row .carnet
 .person-hero[data-cover="nuit"] .ph-cover::after { content: ''; position: absolute; left: 0; right: 0; bottom: 18%; height: 3px; background: repeating-linear-gradient(90deg, #f4f3ef 0 18px, transparent 18px 36px); opacity: 0.7; animation: night-run 2.4s linear infinite; }
 @keyframes night-run { from { background-position: 0 0; } to { background-position: 36px 0; } }
 @media (prefers-reduced-motion: reduce) { .person-hero[data-cover="damier-anim"] .ph-cover, .person-hero[data-cover="nuit"] .ph-cover::after { animation: none; } }
+.unlock-chips button.locked, .look-sw.locked, .look-seg button.locked { opacity: 0.8; cursor: pointer; }
+.pneus-buy-price { display: flex; align-items: center; gap: 0.4rem; margin: 0.4rem 0 0.6rem; font-size: 1.6rem; font-weight: 800; }
+.pneus-buy-price svg { width: 1.6rem; height: 1.6rem; }

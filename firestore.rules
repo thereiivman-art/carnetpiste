@@ -70,7 +70,10 @@ service cloud.firestore {
     // member's vote/reaction.
     function pneusOk(d, before) {
       return !('pneus' in d) || (d.pneus is map && d.pneus.get('bank', 0) is int && d.pneus.get('bank', 0) >= 0
-        && d.pneus.get('bank', 0) - (('pneus' in before) ? before.pneus.get('bank', 0) : 0) <= 1000);
+        && d.pneus.get('bank', 0) - (('pneus' in before) ? before.pneus.get('bank', 0) : 0) <= 1000
+        // Pneus dépensés (cosmétiques achetés) : jamais remboursés.
+        && d.pneus.get('spent', 0) is int
+        && d.pneus.get('spent', 0) >= (('pneus' in before) ? before.pneus.get('spent', 0) : 0));
     }
     function onlyOwnKeyChanged(beforeMap, afterMap) {
       return afterMap.diff(beforeMap).affectedKeys().hasOnly([myName()]);

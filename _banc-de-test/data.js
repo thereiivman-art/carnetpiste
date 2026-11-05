@@ -68,4 +68,6 @@
       s1c: { pFrontHot: '2.3', pRearHot: '1.9', fork: 'C8 R10', shock: 'R10' } },
       tyreSets: [{ id: 't0', label: 'Pirelli SC1', since: d(-120), at: 1, bike: 'Yamaha R6' }] } }
   };
+  // Compte riche en pneus (#riche=1) : pour tester les achats.
+  if (/riche=1/.test(location.hash)) window.__MOCK_DATA.users.u1.pneus = { bank: 2000, cal: { n: 0, last: '' } };
 })();

@@ -7998,10 +7998,61 @@
   // circuit), rangés avec mon record et ceux de mes potes : l'échelle
   // complète, de la MotoGP à moi.
   var TRACK_RECORD_CLASSES = [['motogp', 'MotoGP'], ['moto2', 'Moto2'], ['moto3', 'Moto3'], ['fsbk', 'FSBK'], ['wsbk', 'WorldSBK'], ['f1', 'F1', 1], ['wec', 'WEC Hypercar', 1], ['gt3', 'GT3', 1]];
+  // Records officiels en course, tracé actuel (Wikipedia, novembre 2026).
+  // Une saisie de l'admin dans la fiche circuit passe devant.
+  var BUILTIN_TRACK_RECORDS = {
+    "Aragón": {motogp: { t: 105.704, who: "Marc Márquez, 2024" }, moto2: { t: 110.198, who: "Iván Ortolá, 2026" }, moto3: { t: 116.675, who: "Marco Morelli, 2026" }, wsbk: { t: 107.709, who: "Nicolò Bulega, 2026" }, gt3: { t: 114.691, who: "Jay Mo Härtling, 2026" }},
+    "Assen": {wsbk: { t: 92.357, who: "Nicolò Bulega, 2026" }, gt3: { t: 93.743, who: "Mike Rockenfeller, 2021" }},
+    "Barcelone": {motogp: { t: 99.664, who: "Pedro Acosta, 2024" }, moto2: { t: 101.943, who: "Celestino Vietti, 2026" }, moto3: { t: 106.748, who: "José Antonio Rueda, 2024" }, wsbk: { t: 100.955, who: "Nicolò Bulega, 2024" }, f1: { t: 75.743, who: "Oscar Piastri, 2025" }, wec: { t: 92.379, who: "Kamui Kobayashi, 2026" }, gt3: { t: 100.449, who: "Dominik Baumann, 2025" }},
+    "Brands Hatch": {wsbk: { t: 86.351, who: "James Toseland, 2006" }, gt3: { t: 82.557, who: "Raffaele Marciello, 2022" }},
+    "Brno": {motogp: { t: 113.122, who: "Fabio Di Giannantonio, 2026" }, moto2: { t: 118.59, who: "Filip Salač, 2026" }, moto3: { t: 124.524, who: "Veda Pratama, 2026" }, wsbk: { t: 119.291, who: "Cal Crutchlow, 2010" }, gt3: { t: 116.018, who: "Jesse Krohn, 2025" }},
+    "Buriram": {motogp: { t: 90.487, who: "Marco Bezzecchi, 2026" }, moto2: { t: 95.379, who: "Manuel González, 2026" }, moto3: { t: 101.042, who: "David Muñoz, 2025" }, wsbk: { t: 92.724, who: "Álvaro Bautista, 2019" }, gt3: { t: 93.055, who: "Jesse Krohn, 2018" }},
+    "COTA": {motogp: { t: 122.037, who: "Ai Ogura, 2026" }, moto2: { t: 126.456, who: "David Alonso, 2026" }, moto3: { t: 133.417, who: "Guido Pini, 2026" }, f1: { t: 96.169, who: "Charles Leclerc, 2019" }, wec: { t: 112.564, who: "Kamui Kobayashi, 2024" }, gt3: { t: 123.65, who: "Scott Blind, 2026" }},
+    "Cremona": {wsbk: { t: 87.783, who: "Nicolò Bulega, 2026" }},
+    "Dijon-Prenois": {gt3: { t: 76.672, who: "Emmanuel Collard, 2021" }},
+    "Donington": {motogp: { t: 88.714, who: "Dani Pedrosa, 2006" }, wsbk: { t: 85.124, who: "Sam Lowes, 2026" }, f1: { t: 78.029, who: "Ayrton Senna, 1993" }, gt3: { t: 84.977, who: "Euan Hankey, 2023" }},
+    "Estoril": {motogp: { t: 96.909, who: "Jorge Lorenzo, 2012" }, moto2: { t: 100.921, who: "Pol Espargaró, 2012" }, moto3: { t: 107.354, who: "Sandro Cortese, 2012" }, wsbk: { t: 94.525, who: "Nicolò Bulega, 2026" }, gt3: { t: 95.393, who: "Axcil Jefferies, 2022" }},
+    "Grobnik": {gt3: { t: 81.705, who: "Marcin Jedlinski, 2018" }},
+    "Hockenheim": {f1: { t: 73.78, who: "Kimi Räikkönen, 2004" }, gt3: { t: 97.529, who: "Ayhancan Güven, 2025" }},
+    "Imola": {wsbk: { t: 105.727, who: "Chaz Davies, 2019" }, f1: { t: 75.484, who: "Lewis Hamilton, 2020" }, wec: { t: 91.794, who: "Antonio Fuoco, 2024" }, gt3: { t: 100.375, who: "Nicki Thiim, 2022" }},
+    "Jarama": {wsbk: { t: 96.955, who: "Doug Polen, 1992" }, gt3: { t: 92.018, who: "Jean-Bernard Bouvet, 2017" }},
+    "Jerez": {motogp: { t: 97.081, who: "Álex Márquez, 2026" }, moto2: { t: 99.642, who: "Senna Agius, 2025" }, moto3: { t: 104.352, who: "José Antonio Rueda, 2025" }, wsbk: { t: 97.196, who: "Nicolò Bulega, 2026" }, f1: { t: 83.135, who: "Heinz-Harald Frentzen, 1997" }, gt3: { t: 100.714, who: "Colin Caresani, 2023" }},
+    "Le Mans": {motogp: { t: 91.107, who: "Enea Bastianini, 2024" }, moto2: { t: 94.455, who: "Iván Ortolá, 2026" }, moto3: { t: 100.838, who: "Álvaro Carpe, 2025" }, fsbk: { t: 95.207, who: "Hugo Clere, 2026" }},
+    "Le Vigeant": {fsbk: { t: 98.106, who: "Christophe Ponsson, 2026" }, gt3: { t: 93.095, who: "Grégory Guilvert, 2012" }},
+    "Losail": {motogp: { t: 112.561, who: "Marc Márquez, 2025" }, moto2: { t: 117.366, who: "Sam Lowes, 2023" }, moto3: { t: 123.135, who: "Tatsuki Suzuki, 2024" }, f1: { t: 82.384, who: "Lando Norris, 2024" }, wec: { t: 99.748, who: "Matt Campbell, 2024" }, gt3: { t: 113.529, who: "Alessio Rovera, 2024" }},
+    "Lédenon": {fsbk: { t: 81.574, who: "Grégory Leblanc, 2026" }, gt3: { t: 79.159, who: "Anthony Beltoise, 2014" }},
+    "Magny Cours": {wsbk: { t: 94.75, who: "Nicolò Bulega, 2026" }, f1: { t: 75.377, who: "Michael Schumacher, 2004" }, gt3: { t: 96.215, who: "Emmanuel Collard, 2022" }},
+    "Mandalika": {motogp: { t: 89.96, who: "Marco Bezzecchi, 2026" }, moto2: { t: 92.497, who: "Álex Escrig, 2026" }, moto3: { t: 97.189, who: "Matteo Bertelle, 2026" }, wsbk: { t: 92.163, who: "Toprak Razgatlıoğlu, 2022" }, gt3: { t: 88.486, who: "Deng Yi, 2026" }},
+    "Misano": {motogp: { t: 90.877, who: "Francesco Bagnaia, 2024" }, moto2: { t: 94.666, who: "Filip Salač, 2026" }, moto3: { t: 100.366, who: "Máximo Quiles, 2026" }, wsbk: { t: 91.945, who: "Nicolò Bulega, 2026" }, gt3: { t: 91.939, who: "Raffaele Marciello, 2022" }},
+    "Most": {wsbk: { t: 89.92, who: "Nicolò Bulega, 2026" }, gt3: { t: 90.84, who: "Filip Salaquarda, 2023" }},
+    "Motegi": {motogp: { t: 103.041, who: "Enea Bastianini, 2026" }, moto2: { t: 107.479, who: "Celestino Vietti, 2026" }, moto3: { t: 114.71, who: "Brian Uriarte, 2026" }, gt3: { t: 111.77, who: "James Yu, 2023" }},
+    "Mugello": {motogp: { t: 105.47, who: "Francesco Bagnaia, 2026" }, moto2: { t: 109.497, who: "Iván Ortolá, 2026" }, moto3: { t: 114.738, who: "Collin Veijer, 2024" }, wsbk: { t: 116.305, who: "Scott Russell, 1994" }, f1: { t: 78.833, who: "Lewis Hamilton, 2020" }, gt3: { t: 105.693, who: "Maro Engel, 2026" }},
+    "Navarra": {gt3: { t: 107.971, who: "David Fevre, 2026" }},
+    "Nogaro": {fsbk: { t: 86.041, who: "Kenny Foray, 2026" }, gt3: { t: 86.982, who: "Stéphane Ortelli, 2015" }},
+    "Nürburgring": {f1: { t: 88.139, who: "Max Verstappen, 2020" }},
+    "Pau-Arnos": {fsbk: { t: 75.108, who: "Grégory Leblanc, 2026" }},
+    "Paul Ricard": {f1: { t: 92.74, who: "Sebastian Vettel, 2019" }, gt3: { t: 119.319, who: "Christoph Lenz, 2019" }},
+    "Phillip Island": {motogp: { t: 87.765, who: "Marc Márquez, 2024" }, moto2: { t: 90.253, who: "Albert Arenas, 2025" }, moto3: { t: 95.323, who: "Álvaro Carpe, 2025" }, wsbk: { t: 88.564, who: "Nicolò Bulega, 2024" }},
+    "Portimão": {motogp: { t: 98.237, who: "Pedro Acosta, 2025" }, moto2: { t: 101.225, who: "Collin Veijer, 2025" }, moto3: { t: 106.881, who: "David Almansa, 2025" }, wsbk: { t: 99.107, who: "Nicolò Bulega, 2026" }, f1: { t: 78.75, who: "Lewis Hamilton, 2020" }, wec: { t: 91.006, who: "Kazuki Nakajima, 2021" }, gt3: { t: 100.795, who: "Julien Andlauer, 2020" }},
+    "Red Bull Ring": {motogp: { t: 89.519, who: "Francesco Bagnaia, 2024" }, moto2: { t: 92.879, who: "Izan Guevara, 2026" }, moto3: { t: 99.485, who: "David Almansa, 2026" }, f1: { t: 67.924, who: "Oscar Piastri, 2025" }, gt3: { t: 87.272, who: "Jürgen Alzen, 2025" }},
+    "Sachsenring": {motogp: { t: 80.667, who: "Jorge Martín, 2024" }, moto2: { t: 82.248, who: "Daniel Holgado, 2026" }, moto3: { t: 85.227, who: "Máximo Quiles, 2026" }, gt3: { t: 78.603, who: "Luca Stolz, 2017" }},
+    "Silverstone": {motogp: { t: 118.457, who: "Raúl Fernández, 2026" }, moto2: { t: 122.682, who: "Tony Arbolino, 2026" }, moto3: { t: 129.727, who: "Adrián Fernández, 2024" }, wsbk: { t: 125.083, who: "Sylvain Guintoli, 2013" }, f1: { t: 87.097, who: "Max Verstappen, 2020" }, gt3: { t: 117.73, who: "Ben Barnicoat, 2026" }},
+    "Slovakia Ring": {gt3: { t: 118.889, who: "Krystian Korzeniowski, 2024" }},
+    "Spa-Francorchamps": {f1: { t: 104.701, who: "Sergio Pérez, 2024" }, wec: { t: 122.327, who: "Kamui Kobayashi, 2023" }, gt3: { t: 135.264, who: "Dean MacDonald, 2025" }},
+    "Termas de Río Hondo": {motogp: { t: 98.243, who: "Marc Márquez, 2025" }, moto2: { t: 101.639, who: "Jake Dixon, 2025" }, moto3: { t: 107.249, who: "Ángel Piqueras, 2025" }},
+    "Valence": {motogp: { t: 89.976, who: "Raúl Fernández, 2025" }, moto2: { t: 92.773, who: "Iván Ortolá, 2025" }, moto3: { t: 97.715, who: "Álvaro Carpe, 2025" }, wsbk: { t: 94.618, who: "Noriyuki Haga, 2009" }, gt3: { t: 90.974, who: "Finn Wiebelhaus, 2024" }},
+    "Vallelunga": {wsbk: { t: 97.072, who: "Troy Corser, 2008" }, gt3: { t: 91.605, who: "Matteo Malucelli, 2017" }},
+    "Zolder": {gt3: { t: 87.257, who: "Nico Müller, 2021" }}
+  };
+  function builtinTrackRecords(circuit) {
+    var k = circuitKey(circuit);
+    for (var n in BUILTIN_TRACK_RECORDS) if (circuitKey(n) === k) return BUILTIN_TRACK_RECORDS[n];
+    return {};
+  }
   function renderTrackRecordsCard(circuit) {
     // Moto : MotoGP, Moto2, Moto3, FSBK, WorldSBK ; voiture : F1, WEC, GT3.
     var car = isCarMode();
-    var recs = circuitInfo(circuit).trackRecords || {};
+    var recs = Object.assign({}, builtinTrackRecords(circuit), circuitInfo(circuit).trackRecords || {});
     var rows = TRACK_RECORD_CLASSES.filter(function (c) { return !!c[2] === car; }).filter(function (c) { return recs[c[0]] && recs[c[0]].t; }).map(function (c) {
       return { label: c[1], who: recs[c[0]].who || '', t: recs[c[0]].t, kind: 'pro' };
     });
@@ -8019,7 +8070,7 @@
         return '<div class="tr-row tr-' + r.kind + '"><span class="tr-label"><strong>' + escapeHtml(r.label) + '</strong>' + (r.who ? '<span class="help-text">' + escapeHtml(r.who) + '</span>' : '') + '</span>' +
           '<span class="carnet-time">' + formatTime(r.t) + '</span>' + gap + '</div>';
       }).join('') +
-      (mine !== null ? '<div class="help-text tr-foot">' + L('Écarts mesurés depuis ton record.', 'Gaps measured from your record.') + '</div>' : '') + '</div>';
+      '<div class="help-text tr-foot">' + (mine !== null ? L('Écarts mesurés depuis ton record. ', 'Gaps measured from your record. ') : '') + L('Records officiels en course, tracé actuel.', 'Official race lap records, current layout.') + '</div></div>';
   }
   // Pas encore de chrono sur ce circuit : le chrono estimé, en tête de
   // l'onglet Chronos (même carte que sur la page d'un roulage à venir).
@@ -18108,45 +18159,29 @@
   var PNEUS_UNLOCK_COVERS = function () { return [['carbone', L('Carbone', 'Carbon'), 800], ['damier-anim', L('Damier animé', 'Waving flag'), 1100], ['nuit', L('Piste de nuit', 'Night track'), 1600]]; };
   // Cosmétiques façon Discord : rien d'utile, juste montrer qu'on est actif.
   var PNEUS_FRAMES = function () { return [['carbone', L('Carbone', 'Carbon'), 250], ['or', L('Or', 'Gold'), 500], ['damier', L('Damier', 'Chequered'), 900], ['flamme', L('Flammes', 'Flames'), 1400]]; };
-  var PNEUS_TITLES = function () { return [['dimanche', L('Pistard du dimanche', 'Sunday rider'), 100], ['freinage', L('Roi du freinage', 'Late braker'), 400], ['chrono', L('Chasseur de chronos', 'Lap hunter'), 700], ['pilier', L('Pilier du paddock', 'Paddock regular'), 1200], ['legende', L('Légende du paddock', 'Paddock legend'), 2500]]; };
-  var NAME_ICON_SVG = {
-    casque: '<path d="M4 15a8 8 0 0 1 16-2v4H8a4 4 0 0 1-4-2z"/><path d="M12 13h8"/>',
-    flamme: '<path d="M12 21c-4 0-6-3-6-6 0-4 4-6 4-10 2 2 3 3 3 5 1-1 2-2 2-3 2 2 3 5 3 8 0 3-2 6-6 6z"/>',
-    damier: '<path d="M5 21V4h14v10H5"/><path d="M5 4h4v5H5zM13 4h4v5h-4zM9 9h4v5H9z" fill="currentColor"/>'
-  };
-  var PNEUS_NAME_ICONS = function () { return [['casque', L('Casque', 'Helmet'), 350], ['flamme', L('Flamme', 'Flame'), 650], ['damier', L('Drapeau', 'Flag'), 1500]]; };
-  var PNEUS_BUBBLES = function () { return [['#1f4fb8', L('Bleu', 'Blue'), 450], ['#2f8f3a', L('Vert', 'Green'), 450], ['#14161a', L('Encre', 'Ink'), 450], ['#c9a227', L('Or', 'Gold'), 900]]; };
+  // Couleurs foncées : texte blanc toujours lisible (contraste ≥ 4,5:1).
+  var PNEUS_BUBBLES = function () { return [['#1f4fb8', L('Bleu', 'Blue'), 450], ['#23702d', L('Vert', 'Green'), 450], ['#14161a', L('Encre', 'Ink'), 450], ['#6b3fc4', L('Violet', 'Purple'), 600], ['#8a6a12', L('Or', 'Gold'), 900]]; };
   function cosmeticOk(list, key) { return list.some(function (o) { return o[0] === key; }); }
-  function nameIconHtml(u) {
-    var k = u && u.look && u.look.nameIcon;
-    return k && NAME_ICON_SVG[k] ? '<svg class="name-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + NAME_ICON_SVG[k] + '</svg>' : '';
-  }
-  function userTitle(u) {
-    var k = u && u.look && u.look.title, t = PNEUS_TITLES().filter(function (o) { return o[0] === k; })[0];
-    return t ? t[1] : '';
-  }
   // Bulle de message aux couleurs de son auteur (débloquée).
   function bubbleStyle(name) {
     var u = (STATE.usersByName || {})[name] || (currentUserProfile && currentUserProfile.name === name ? currentUserProfile : null);
     var c = u && u.look && u.look.bubble;
     if (!c || !PNEUS_BUBBLES().some(function (o) { return o[0] === c; })) return '';
-    return ' style="--bub:' + c + ';--bub-ink:' + (c === '#c9a227' ? '#14161a' : '#ffffff') + '"';
+    return ' style="--bub:' + c + ';--bub-ink:#ffffff"';
   }
   // Choix débloqué / verrouillé dans l'éditeur de fiche.
-  function unlockChips(key, list, cur, render) {
-    var t = pneusTotal();
+  function unlockChips(key, list, cur, render, label) {
     return '<div class="look-pins unlock-chips"><button type="button" data-look-set="' + key + '" data-val="" aria-pressed="' + !cur + '">' + L('Aucun', 'None') + '</button>' + list.map(function (o) {
-      var ok = t >= o[2], inner = render ? render(o) : escapeHtml(o[1]);
+      var ok = pneusOwned(key + ':' + o[0]), inner = render ? render(o) : escapeHtml(o[1]);
       return ok ? '<button type="button" data-look-set="' + key + '" data-val="' + o[0] + '" aria-pressed="' + (cur === o[0]) + '">' + inner + '</button>'
-        : '<button type="button" disabled class="locked" title="' + escapeHtml(L('Débloqué à ', 'Unlocked at ') + o[2] + L(' pneus', ' tyres')) + '">' + LOCK_SVG + ' ' + inner + ' · ' + o[2] + '</button>';
+        : '<button type="button" class="locked"' + pneusBuyAttrs(key + ':' + o[0], o[2], (label || '') + ' ' + o[1]) + ' title="' + escapeHtml(L('Débloquer pour ', 'Unlock for ') + o[2] + L(' pneus', ' tyres')) + '">' + LOCK_SVG + ' ' + inner + ' · ' + o[2] + '</button>';
     }).join('') + '</div>';
   }
   var LOCK_SVG = '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>';
   function unlockSwatchesHtml(attr, cur) {
-    var t = pneusTotal();
     return PNEUS_UNLOCK_COLORS.map(function (c) {
-      var ok = t >= c[2];
-      return '<button type="button" class="look-sw' + (ok ? '' : ' locked') + '" style="background:' + c[0] + '"' + (ok ? ' ' + attr + '="color" data-val="' + c[0] + '"' : ' disabled') + ' aria-label="' + escapeHtml(c[1]) + '" aria-pressed="' + (cur === c[0]) + '" title="' + escapeHtml(ok ? c[1] : c[1] + L(' · débloqué à ', ' · unlocked at ') + c[2] + L(' pneus', ' tyres')) + '">' + (ok ? '' : LOCK_SVG) + '</button>';
+      var ok = pneusOwned('color:' + c[0]);
+      return '<button type="button" class="look-sw' + (ok ? '' : ' locked') + '" style="background:' + c[0] + '"' + (ok ? ' ' + attr + '="color" data-val="' + c[0] + '"' : pneusBuyAttrs('color:' + c[0], c[2], L('Couleur ', 'Colour ') + c[1])) + ' aria-label="' + escapeHtml(c[1]) + '" aria-pressed="' + (cur === c[0]) + '" title="' + escapeHtml(ok ? c[1] : c[1] + L(' · débloquer pour ', ' · unlock for ') + c[2] + L(' pneus', ' tyres')) + '">' + (ok ? '' : LOCK_SVG) + '</button>';
     }).join('');
   }
   function lookCovers() { return [['', L('Aucune', 'None')], ['vibreur', L('Vibreur', 'Kerb')], ['damier', L('Damier', 'Chequered')], ['trace', L('Tracé', 'Track')], ['photo', L('Ma photo', 'My photo')]]; }
@@ -18196,8 +18231,8 @@
       outline: f ? outlineImageFor(circuitInfo(f.circuit), f.circuit) : null,
       plateHtml: l.plate && u.bikeNumber ? '<span class="ph-plate">' + escapeHtml(u.bikeNumber) + '</span>' : '',
       avatar: avatarHtml(u, name),
-      nameHtml: escapeHtml(name) + nameIconHtml(u) + badgesHtml(u),
-      subHtml: (userTitle(u) ? '<span class="ph-title">' + escapeHtml(userTitle(u)) + '</span>' : '') + '<span class="friend-role-badge">' + roleLabel(u.role) + '</span>' + (sub.length ? ' ' + sub.join(' · ') : ''),
+      nameHtml: escapeHtml(name) + badgesHtml(u),
+      subHtml: '<span class="friend-role-badge">' + roleLabel(u.role) + '</span>' + (sub.length ? ' ' + sub.join(' · ') : ''),
       bio: l.bio, acts: acts, idExtra: idExtra, ownCover: !!(currentUserProfile && name === currentUserProfile.name)
     });
   }
@@ -18487,13 +18522,11 @@
         '<div class="help-text">' + L('Bannière : touche-la directement sur ta fiche.', 'Banner: tap it right on your profile.') + '</div></div>';
     }
     if (!team) {
-      html += '<div class="look-field look-unlocks"><span class="look-label">' + L('Débloqués avec tes pneus', 'Unlocked with your tyres') + ' <span class="help-text">· ' + pneusTotal() + L(' pneus', ' tyres') + '</span></span>' +
+      html += '<div class="look-field look-unlocks"><span class="look-label">' + L('À débloquer avec tes pneus', 'Unlock with your tyres') + ' <span class="help-text">· ' + L('solde ', 'balance ') + pneusBalance() + '</span></span>' +
         '<div class="help-text">' + L('Juste pour le style : ça montre que tu es actif dans la communauté.', 'Just for style: it shows you\'re active in the community.') + '</div>' +
-        '<span class="look-sub">' + L('Cadre de photo', 'Photo frame') + '</span>' + unlockChips('frame', PNEUS_FRAMES(), d.frame) +
-        '<span class="look-sub">' + L('Titre sous ton nom', 'Title under your name') + '</span>' + unlockChips('title', PNEUS_TITLES(), d.title) +
-        '<span class="look-sub">' + L('Icône à côté du pseudo', 'Icon next to your name') + '</span>' + unlockChips('nameIcon', PNEUS_NAME_ICONS(), d.nameIcon, function (o) { return '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + NAME_ICON_SVG[o[0]] + '</svg> ' + escapeHtml(o[1]); }) +
-        '<span class="look-sub">' + L('Couleur de tes bulles de message', 'Your message bubble colour') + '</span>' + unlockChips('bubble', PNEUS_BUBBLES(), d.bubble, function (o) { return '<span class="bub-dot" style="background:' + o[0] + '"></span>' + escapeHtml(o[1]); }) +
-        '<div class="help-text">' + L('Bannières Damier animé et Piste de nuit : touche ta bannière sur la fiche.', 'Waving flag and Night track banners: tap your banner on your profile.') + '</div></div>';
+        '<span class="look-sub">' + L('Cadre de ta photo de profil', 'Profile photo frame') + '</span>' + unlockChips('frame', PNEUS_FRAMES(), d.frame, null, L('Cadre', 'Frame')) +
+        '<span class="look-sub">' + L('Couleur de tes bulles de message', 'Your message bubble colour') + '</span>' + unlockChips('bubble', PNEUS_BUBBLES(), d.bubble, function (o) { return '<span class="bub-dot" style="background:' + o[0] + '"></span>' + escapeHtml(o[1]); }, L('Bulles', 'Bubbles')) +
+        '<div class="help-text">' + L('Couleurs et bannières (Carbone, Damier animé, Piste de nuit) : touche ta bannière sur la fiche.', 'Colours and banners (Carbon, Waving flag, Night track): tap your banner on your profile.') + '</div></div>';
     }
     // La bio d'abord ; photo de profil et bannière se changent en touchant
     // l'image sur la fiche.
@@ -18576,7 +18609,7 @@
       links: (l.links || []).slice(), sponsors: (l.sponsors || []).slice(),
       show: Object.assign({}, l.show || {}), favCircuits: (l.favCircuits || []).slice(), favTeams: (l.favTeams || []).slice(), favFriends: (l.favFriends || []).slice(),
       // Identité : modifiée ici aussi (la fiche se règle entièrement dans Social).
-      frame: l.frame || '', title: l.title || '', nameIcon: l.nameIcon || '', bubble: l.bubble || '',
+      frame: l.frame || '', bubble: l.bubble || '',
       id: { firstName: me.firstName || '', lastName: me.lastName || '', nationality: me.nationality || '', bike: me.bike || '', bikeNumber: me.bikeNumber || '' } };
     lookMessage = '';
     lookPendingLogo = null;
@@ -18607,8 +18640,7 @@
       featured: lookDraft.featured || '', pinned: (lookDraft.pinned || []).slice(0, 3),
       links: (lookDraft.links || []).slice(0, 6), sponsors: (lookDraft.sponsors || []).slice(0, 6),
       show: lookDraft.show || {}, favCircuits: (lookDraft.favCircuits || []).slice(0, 3), favTeams: (lookDraft.favTeams || []).slice(0, 3), favFriends: (lookDraft.favFriends || []).slice(0, 5), coverPhoto: lookDraft.coverPhoto || null,
-      frame: cosmeticOk(PNEUS_FRAMES(), lookDraft.frame) ? lookDraft.frame : '', title: cosmeticOk(PNEUS_TITLES(), lookDraft.title) ? lookDraft.title : '',
-      nameIcon: cosmeticOk(PNEUS_NAME_ICONS(), lookDraft.nameIcon) ? lookDraft.nameIcon : '', bubble: cosmeticOk(PNEUS_BUBBLES(), lookDraft.bubble) ? lookDraft.bubble : ''
+      frame: cosmeticOk(PNEUS_FRAMES(), lookDraft.frame) ? lookDraft.frame : '', bubble: cosmeticOk(PNEUS_BUBBLES(), lookDraft.bubble) ? lookDraft.bubble : ''
     };
     // Identité saisie dans l'éditeur.
     var idPatch = null;
@@ -18619,26 +18651,21 @@
       if (!meIsNonRider()) { idPatch.bike = String(di.bike || '').trim().slice(0, 60); idPatch.bikeNumber = String(di.bikeNumber || '').trim(); }
       idPatch.nationality = di.nationality || firebase.firestore.FieldValue.delete();
     }
-    // La photo de bannière n'est jamais effacée par l'édition de la fiche :
-    // on repart de la version enregistrée (changer de style la garde).
-    var draftPhoto = lookDraft && lookDraft.coverPhoto;
-    (idPatch ? db.collection('users').doc(uid).update(idPatch).then(function () {
-      Object.keys(idPatch).forEach(function (k) { me[k] = k === 'nationality' ? (lookDraft.id.nationality || null) : idPatch[k]; });
-    }) : Promise.resolve()).then(function () { return db.collection('users').doc(uid).get(); }).then(function (snap) {
-      var saved = (snap.exists && snap.data().look) || {};
-      if (value && !draftPhoto && saved.coverPhoto) value.coverPhoto = saved.coverPhoto;
-      return db.collection('users').doc(uid).update({ look: value });
-    }).then(function () {
-      me.look = value;
-      if (STATE.usersByName && STATE.usersByName[me.name]) STATE.usersByName[me.name].look = value;
-      lookDraft = null;
-      lookMessage = '';
-      if (!reset) countUsageOnce('lookSaved', 'look_saved');
-      showToast(reset ? L('Fiche standard rétablie.', 'Standard profile restored.') : L('Fiche enregistrée.', 'Profile saved.'));
-      renderRoot();
-    }).catch(function (err) {
-      lookMessage = tr('error_prefix') + (err && err.message ? err.message : err);
-      renderRoot();
+    // La photo de bannière n'est jamais effacée par l'édition de la fiche.
+    if (value && !value.coverPhoto && me.look && me.look.coverPhoto) value.coverPhoto = me.look.coverPhoto;
+    // Tout de suite à l'écran, puis une seule écriture en arrière-plan
+    // (avant : trois allers-retours avec le serveur avant de voir le résultat).
+    var patch = { look: value };
+    if (idPatch) Object.keys(idPatch).forEach(function (k) { patch[k] = idPatch[k]; me[k] = k === 'nationality' ? (lookDraft.id.nationality || null) : idPatch[k]; });
+    me.look = value;
+    if (STATE.usersByName && STATE.usersByName[me.name]) { STATE.usersByName[me.name].look = value; if (idPatch) Object.keys(idPatch).forEach(function (k) { STATE.usersByName[me.name][k] = me[k]; }); }
+    lookDraft = null;
+    lookMessage = '';
+    if (!reset) countUsageOnce('lookSaved', 'look_saved');
+    showToast(reset ? L('Fiche standard rétablie.', 'Standard profile restored.') : L('Fiche enregistrée.', 'Profile saved.'));
+    renderRoot();
+    db.collection('users').doc(uid).update(patch).catch(function (err) {
+      showToast(tr('error_prefix') + (err && err.message ? err.message : err));
     });
   }
 
@@ -19444,7 +19471,7 @@
     var me = currentUserProfile; if (!me) return null;
     if (!pneusLocal || pneusLocal.__uid !== myUid()) {
       var p = me.pneus || {};
-      pneusLocal = { __uid: myUid(), bank: p.bank || 0, cal: p.cal || { n: 0, last: '' }, day: p.day || '', capped: p.capped || 0, rx: Object.assign({}, p.rx || {}), fol: p.fol, ses: p.ses, refs: p.refs, since: p.since || 0 };
+      pneusLocal = { __uid: myUid(), bank: p.bank || 0, cal: p.cal || { n: 0, last: '' }, day: p.day || '', capped: p.capped || 0, rx: Object.assign({}, p.rx || {}), fol: p.fol, ses: p.ses, refs: p.refs, since: p.since || 0, spent: p.spent || 0, owned: (p.owned || []).slice() };
     }
     return pneusLocal;
   }
@@ -19472,11 +19499,49 @@
     var me = currentUserProfile, p = pneusState(); if (!me || !p) return 0;
     return p.bank + pneusProfilePoints((STATE.usersByName || {})[me.name] || me) + pneusTrophyPoints(me);
   }
+  // Solde à dépenser : gagnés au total moins dépensés (le classement entre
+  // amis reste sur le total gagné).
+  function pneusBalance() { var p = pneusState(); return p ? Math.max(0, pneusTotal() - (p.spent || 0)) : 0; }
+  // Déjà acheté, ou déjà porté avant le passage à l'achat (gardé).
+  function pneusOwned(key) {
+    var p = pneusState(), me = currentUserProfile, l = (me && me.look) || {};
+    if (p && (p.owned || []).indexOf(key) !== -1) return true;
+    var k = key.split(':'), v = k.slice(1).join(':');
+    return (k[0] === 'color' && l.color === v) || (k[0] === 'cover' && l.cover === v) || (k[0] === 'frame' && l.frame === v) || (k[0] === 'bubble' && l.bubble === v);
+  }
+  // Bouton d'achat d'un cosmétique (prix en pneus).
+  function pneusBuyAttrs(key, price, label) { return ' data-pneus-buy="' + escapeHtml(key) + '" data-price="' + price + '" data-label="' + escapeHtml(label) + '"'; }
+  var pneusBuyReturn = null;
+  document.addEventListener('click', function (e) {
+    var b = e.target.closest && e.target.closest('[data-pneus-buy]');
+    if (!b) return;
+    e.preventDefault(); e.stopPropagation();
+    pneusBuyReturn = b.closest('#mini-sheet') ? 'banner' : null;
+    openPneusBuy(b.getAttribute('data-pneus-buy'), +b.getAttribute('data-price'), b.getAttribute('data-label'));
+  }, true);
+  function openPneusBuy(key, price, label) {
+    var bal = pneusBalance(), ok = bal >= price;
+    var back = pneusBuyReturn;
+    var ov = openMiniSheet('<h2 class="section-title">' + escapeHtml(label) + '</h2>' +
+      '<div class="pneus-buy-price">' + TYRE_SVG + '<b>' + price + '</b></div>' +
+      '<div class="help-text">' + (ok ? L('Ton solde : ', 'Your balance: ') + bal + L(' pneus. Il te restera ', ' tyres. You\'ll have ') + (bal - price) + L(' pneus.', ' left.') : L('Il te manque ', 'You need ') + (price - bal) + L(' pneus (solde : ', ' more tyres (balance: ') + bal + ').') + '</div>' +
+      '<div class="mini-sheet-actions">' + (ok ? '<button type="button" class="primary" id="pneus-buy-ok">' + L('Débloquer', 'Unlock') + '</button>' : '<button type="button" class="ghost" data-action="pneus-open">' + L('Gagner', 'Earn') + '</button>') + '</div>');
+    var b = ov.querySelector('#pneus-buy-ok');
+    if (b) b.addEventListener('click', function () {
+      var p = pneusState(); if (!p || pneusBalance() < price || (p.owned || []).indexOf(key) !== -1) return;
+      p.spent = (p.spent || 0) + price; p.owned = (p.owned || []).concat([key]);
+      pneusSync(true);
+      ov.remove();
+      showToast(label + L(' débloqué.', ' unlocked.'), 'success');
+      document.querySelectorAll('.pneus-chip b').forEach(function (x) { x.textContent = pneusBalance(); });
+      if (back === 'banner') openBannerSheet(); else renderRoot();
+    });
+  }
   function pneusSync(now) {
     clearTimeout(pneusSyncTimer);
     pneusSyncTimer = setTimeout(function () {
       var p = pneusState(); if (!p) return;
-      var doc = { bank: p.bank, cal: p.cal, day: p.day, capped: p.capped, rx: p.rx, since: p.since, total: pneusTotal() };
+      var doc = { bank: p.bank, cal: p.cal, day: p.day, capped: p.capped, rx: p.rx, since: p.since, total: pneusTotal(), spent: p.spent || 0, owned: (p.owned || []).slice(0, 100) };
       if (p.fol != null) doc.fol = p.fol;
       if (p.ses != null) doc.ses = p.ses;
       if (p.refs != null) doc.refs = p.refs;
@@ -19509,7 +19574,7 @@
   function pneusPulse(n) {
     pneusFly(n);
     document.querySelectorAll('.pneus-chip').forEach(function (c) {
-      var b = c.querySelector('b'); if (b) b.textContent = pneusTotal();
+      var b = c.querySelector('b'); if (b) b.textContent = pneusBalance();
       c.classList.remove('gain'); void c.offsetWidth; c.classList.add('gain');
       c.setAttribute('data-gain', '+' + n);
     });
@@ -19579,7 +19644,7 @@
   }
   function pneusChipHtml(cls) {
     if (!currentUserProfile) return '';
-    return '<button type="button" class="pneus-chip ' + (cls || '') + (pneusCanCollect() ? ' can-collect' : '') + '" data-action="pneus-open" title="' + escapeHtml(L('Mes pneus', 'My tyres')) + '" aria-label="' + escapeHtml(L('Mes pneus', 'My tyres')) + '">' + TYRE_SVG + '<b>' + pneusTotal() + '</b></button>';
+    return '<button type="button" class="pneus-chip ' + (cls || '') + (pneusCanCollect() ? ' can-collect' : '') + '" data-action="pneus-open" title="' + escapeHtml(L('Mes pneus', 'My tyres')) + '" aria-label="' + escapeHtml(L('Mes pneus', 'My tyres')) + '">' + TYRE_SVG + '<b>' + pneusBalance() + '</b></button>';
   }
   function openPneusSheet() {
     var me = currentUserProfile, p = pneusState(); if (!me || !p) return;
@@ -19603,7 +19668,7 @@
       var meIdx = board.map(function (r) { return r.n; }).indexOf(me.name);
       var shownBoard = pneusBoardAll ? board.slice(0, 50) : board.slice(0, 3).concat(meIdx > 2 ? [board[meIdx]] : []);
       return '<h2 class="section-title">' + L('Mes pneus', 'My tyres') + '</h2>' +
-        '<div class="pneus-total">' + TYRE_SVG + '<b>' + pneusTotal() + '</b><span class="help-text">' + p.bank + ' ' + L('gagnés', 'earned') + ' · ' + prof + ' ' + L('profil', 'profile') + ' · ' + tro + ' ' + L('trophées', 'trophies') + '</span></div>' +
+        '<div class="pneus-total">' + TYRE_SVG + '<b>' + pneusBalance() + '</b><span class="help-text">' + L('à dépenser · ', 'to spend · ') + pneusTotal() + ' ' + L('gagnés au total', 'earned in total') + ' (' + p.bank + ' ' + L('activité', 'activity') + ', ' + prof + ' ' + L('profil', 'profile') + ', ' + tro + ' ' + L('trophées', 'trophies') + ')' + (p.spent ? ' · ' + p.spent + ' ' + L('dépensés', 'spent') : '') + '</span></div>' +
         '<div class="pneus-why"><strong>' + L('À quoi servent les pneus ?', 'What are tyres for?') + '</strong><p>' + L('C\'est la monnaie de Carnet Piste : elle récompense ton activité (rouler, publier, encourager tes amis). Plus tu en as, plus tu montes dans le classement entre amis. Ils débloquent aussi des couleurs et des styles pour ta fiche (voir plus bas).', 'It\'s Pitbook\'s currency: it rewards your activity (riding, posting, cheering your mates). The more you have, the higher you rank among friends. They also unlock colours and styles for your profile (see below).') + '</p></div>' +
         '<div class="pneus-cal-head"><strong>' + L('Récolte de la semaine', 'Weekly collection') + '</strong><span class="help-text">' + (can ? L('Ta récolte du jour t\'attend.', 'Today\'s tyres are waiting.') : L('Prochaine récolte à minuit.', 'Next collection at midnight.')) + '</span></div>' +
         '<div class="pneus-cal">' + cells + '</div>' +
@@ -19615,7 +19680,7 @@
           '<li>' + L('Parrainage : +100 par ami inscrit avec ton lien, +1000 au 5e filleul.', 'Referrals: +100 per mate who signs up with your link, +1000 at the 5th.') + '</li>' +
           '<li>' + L('Profil : +5 par élément rempli (présentation, sponsors, bannière, photo, moto, numéro, pays, liens).', 'Profile: +5 per filled item (bio, sponsors, banner, photo, bike, number, country, links).') + '</li>' +
           '<li>' + L('Trophées : 10, 25, 50, 100, 200 puis 400 par niveau.', 'Trophies: 10, 25, 50, 100, 200 then 400 per level.') + '</li>' +
-          '<li>' + L('À débloquer (juste pour le style) : titres sous ton nom (dès 100), couleurs de bannière (150 à 1000), cadres de photo (250 à 1400), icône à côté du pseudo (350 à 1500), couleur des bulles de message (450), bannières Carbone (800), Damier animé (1100) et Piste de nuit (1600). Tout se choisit dans « Modifier » sur ta fiche.', 'To unlock (just for style): titles under your name (from 100), banner colours (150 to 1000), photo frames (250 to 1400), name icon (350 to 1500), message bubble colour (450), Carbon (800), Waving flag (1100) and Night track (1600) banners. Pick them all from “Edit” on your profile.') + '</li>' +
+          '<li>' + L('À dépenser (juste pour le style) : couleurs de bannière (150 à 1000), cadres de photo de profil (250 à 1400), couleur des bulles de message (450 à 900), bannières Carbone (800), Damier animé (1100) et Piste de nuit (1600). Un achat est gardé pour toujours. Touche un choix verrouillé sur ta fiche pour l\'acheter.', 'To spend (just for style): banner colours (150 to 1000), profile photo frames (250 to 1400), message bubble colour (450 to 900), Carbon (800), Waving flag (1100) and Night track (1600) banners. A purchase is yours for good. Tap a locked choice on your profile to buy it.') + '</li>' +
         '</ul></details>' +
         (board.length > 1 ? '<div class="pneus-board"><strong>' + L('Classement entre amis', 'Friends leaderboard') + '</strong>' + shownBoard.map(function (r) {
           return '<div class="pneus-row' + (r.n === me.name ? ' me' : '') + '"><span class="pneus-rank">' + (board.indexOf(r) + 1) + '</span>' + avatarHtml((STATE.usersByName || {})[r.n] || {}, r.n).replace(/ data-person="[^"]*"/, '') + '<span class="pneus-name">' + escapeHtml(r.n) + '</span><b>' + r.t + '</b></div>';
@@ -23822,7 +23887,7 @@
       (hasPhoto ? '<div class="banner-sheet-photo"><img src="' + escapeHtml(l.coverPhoto) + '" alt=""></div>' : '') +
       '<div class="banner-sheet-actions">' + (hasPhoto ? '<button type="button" class="ghost" data-banner-act="zoom">' + L('Agrandir', 'Enlarge') + '</button><button type="button" class="ghost" data-banner-act="crop">' + L('Recadrer', 'Crop') + '</button>' : '') +
       '<button type="button" class="primary" data-banner-act="change">' + (hasPhoto ? L('Changer', 'Change') : L('Photo', 'Photo')) + '</button></div>' +
-      '<div class="look-field"><span class="look-label">' + L('Style', 'Style') + '</span>' + chips('cover', lookCovers().filter(function (o) { return o[0] !== 'photo' || hasPhoto; }).concat(PNEUS_UNLOCK_COVERS().filter(function (o) { return pneusTotal() >= o[2]; })), cover).replace(/<\/div>$/, PNEUS_UNLOCK_COVERS().filter(function (o) { return pneusTotal() < o[2]; }).map(function (o) { return '<button type="button" disabled class="locked" title="' + escapeHtml(L('Débloqué à ', 'Unlocked at ') + o[2] + L(' pneus', ' tyres')) + '">' + LOCK_SVG + ' ' + escapeHtml(o[1]) + ' · ' + o[2] + '</button>'; }).join('') + '</div>') + '</div>' +
+      '<div class="look-field"><span class="look-label">' + L('Style', 'Style') + '</span>' + chips('cover', lookCovers().filter(function (o) { return o[0] !== 'photo' || hasPhoto; }).concat(PNEUS_UNLOCK_COVERS().filter(function (o) { return pneusOwned('cover:' + o[0]); })), cover).replace(/<\/div>$/, PNEUS_UNLOCK_COVERS().filter(function (o) { return !pneusOwned('cover:' + o[0]); }).map(function (o) { return '<button type="button" class="locked"' + pneusBuyAttrs('cover:' + o[0], o[2], L('Bannière ', 'Banner ') + o[1]) + ' title="' + escapeHtml(L('Débloquer pour ', 'Unlock for ') + o[2] + L(' pneus', ' tyres')) + '">' + LOCK_SVG + ' ' + escapeHtml(o[1]) + ' · ' + o[2] + '</button>'; }).join('') + '</div>') + '</div>' +
       '<div class="look-field"><span class="look-label">' + L('Couleur', 'Colour') + '</span><div class="look-swatches">' + LOOK_COLORS.map(function (c) {
         return '<button type="button" class="look-sw" style="background:' + c[0] + '" data-banner-set="color" data-val="' + c[0] + '" aria-label="' + c[1] + '" aria-pressed="' + (color === c[0]) + '"></button>';
       }).join('') + unlockSwatchesHtml('data-banner-set', color) + '</div></div>' +
