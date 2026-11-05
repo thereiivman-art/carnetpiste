@@ -11297,7 +11297,7 @@
     var letter = escapeHtml((circuit || '?').charAt(0).toUpperCase());
     var styledAttr = src && !info.mapImage && src.indexOf('data:') !== 0 ? ' data-track-thumb="' + escapeHtml(src) + '"' : '';
     if (styledAttr && styledThumbs[src] && styledThumbs[src] !== 'x') src = styledThumbs[src];
-    return src ? '<img src="' + src + '" alt=""' + styledAttr + ' data-fallback-letter="' + letter + '">' : '<span class="outing-thumb-letter">' + letter + '</span>';
+    return src ? '<img' + (info.mapImage ? '' : ' class="trace-img"') + ' src="' + src + '" alt=""' + styledAttr + ' data-fallback-letter="' + letter + '">' : '<span class="outing-thumb-letter">' + letter + '</span>';
   }
   function myUpcomingEvents() {
     var me = currentUserProfile && currentUserProfile.name;
@@ -18584,6 +18584,11 @@
     // La bio d'abord ; photo de profil et bannière se changent en touchant
     // l'image sur la fiche.
     if (!team) html += '<div class="look-field"><label class="look-label" for="look-bio">' + L('Bio', 'Bio') + '</label><textarea id="look-bio" maxlength="250" rows="3" placeholder="' + L('Ex. Pistard depuis 2019, objectif sous les 2’00” à Misano.', 'E.g. Track rider since 2019, aiming under 2’00” at Misano.') + '">' + escapeHtml(d.bio || '') + '</textarea><span class="help-text look-bio-count" id="look-bio-count">' + (d.bio || '').length + ' / 250</span></div>';
+    // Photo ronde et logo du team, directement ici (avant : seulement dans Réglages).
+    if (team) html += '<div class="look-field"><span class="look-label">' + L('Photo et logo du team', 'Team photo and logo') + '</span><div class="look-team-media">' +
+      '<span class="look-team-av">' + teamAvatarHtml(team) + '</span>' +
+      '<button type="button" class="ghost" data-action="team-photo-btn" data-team="' + escapeHtml(team.id) + '">' + (team.photoURL ? L('Changer la photo', 'Change photo') : L('Ajouter une photo', 'Add a photo')) + '</button>' +
+      '<button type="button" class="ghost" data-action="team-logo-btn" data-team="' + escapeHtml(team.id) + '">' + (team.logoURL ? L('Changer le logo', 'Change logo') : L('Ajouter un logo', 'Add a logo')) + '</button></div></div>';
     if (team) html += '<div class="look-field"><span class="look-label">' + L('Couleur', 'Colour') + '</span><div class="look-swatches">' + LOOK_COLORS.map(function (c) {
       return '<button type="button" class="look-sw" style="background:' + c[0] + '" data-look-set="color" data-val="' + c[0] + '" aria-label="' + c[1] + '" aria-pressed="' + (d.color === c[0]) + '"></button>';
     }).join('') + '</div></div>';
@@ -19412,7 +19417,8 @@
       var inner = '<strong>' + n + '</strong> ' + (n > 1 ? many : one);
       return mine ? '<button type="button" class="social-count" data-action="open-social" data-list="' + list + '">' + inner + '</button>' : '<span class="social-count">' + inner + '</span>';
     };
-    return '<div class="social-counts">' + (mine ? item(nf, L('ami', 'friend'), L('amis', 'friends'), 'amis') : (friendsOf(currentUserProfile ? currentUserProfile.name : '').some(function (f) { return f.name === name; }) ? '<span class="social-count"><strong>' + L('Ami', 'Friend') + '</strong> ' + L('avec toi', 'with you') + '</span>' : '')) + (hideLists ? '' : item(nfo, L('abonné', 'follower'), L('abonnés', 'followers'), 'abonnes') + item(nfg, L('abonnement', 'following'), L('abonnements', 'following'), 'abonnements')) + '</div>';
+    // « Ami avec toi » retiré : le bouton Abonné / Ami le dit déjà.
+    return '<div class="social-counts">' + (mine ? item(nf, L('ami', 'friend'), L('amis', 'friends'), 'amis') : '') + (hideLists ? '' : item(nfo, L('abonné', 'follower'), L('abonnés', 'followers'), 'abonnes') + item(nfg, L('abonnement', 'following'), L('abonnements', 'following'), 'abonnements')) + '</div>';
   }
   function followBtnHtml(name, small) {
     if (!currentUserProfile || name === currentUserProfile.name) return '';
@@ -19890,6 +19896,9 @@
       // Story liée au post : son image, sinon la miniature de la vidéo du lien,
       // et un bouton « Voir le post » dans la story.
       var vthumb = post.linkUrl && videoEmbedOf(post.linkUrl) ? videoEmbedOf(post.linkUrl).thumb : '';
+      // Jamais de story avec juste le logo de l'appli : sans image ni aperçu
+      // de vidéo, on explique au lieu de publier.
+      if (!post.photoURL && !vthumb) { showToast(L('Pas d\'aperçu pour ce post : ajoute une photo (ou un lien YouTube, Vimeo, Dailymotion) pour le mettre en story.', 'No preview for this post: add a photo (or a YouTube, Vimeo, Dailymotion link) to share it as a story.')); return; }
       var st = { id: genId(), author: me.name, authorUid: myUid(), audience: 'all', story: true, photoURL: post.photoURL || vthumb || 'icons/icon-192.png', fromPost: post.id, createdAt: Date.now() };
       if (post.linkUrl) st.linkUrl = post.linkUrl;
       if (post.text) st.text = post.text.slice(0, 120);
@@ -20231,7 +20240,8 @@
     ov.querySelector('.story-publish').addEventListener('click', function () {
       var me = currentUserProfile;
       if (!me) return close();
-      var post = { id: genId(), author: me.name, authorUid: myUid(), audience: 'all', story: true, photoURL: dataUrl || 'icons/icon-192.png', createdAt: Date.now() };
+      if (!dataUrl) { showToast(L('Image illisible : choisis une autre photo pour ta story.', 'Unreadable image: pick another photo for your story.')); return; }
+      var post = { id: genId(), author: me.name, authorUid: myUid(), audience: 'all', story: true, photoURL: dataUrl, createdAt: Date.now() };
       var t = ov.querySelector('.story-text-input').value.trim();
       if (t) post.text = t.slice(0, 120);
       if (video) { post.video = true; post.mediaId = post.id; post.duration = Math.round(video.duration * 10) / 10; }
@@ -21612,7 +21622,7 @@
       var who;
       if (ti && !ti.leader) who = '<button type="button" class="dm-who" data-team-link="' + escapeHtml(ti.teamId) + '">' + teamAvatarHtml(tm) + '<strong>' + escapeHtml(tm.name) + '</strong></button>';
       else if (ti) { var un = teamDmUserName(ti); who = '<button type="button" class="dm-who" data-open-person="' + escapeHtml(un) + '">' + avatarHtml((STATE.usersByName || {})[un] || {}, un) + '<strong>' + escapeHtml(un) + '</strong><small class="dm-via">' + escapeHtml(L('à ', 'to ') + tm.name) + '</small></button>'; }
-      else who = '<button type="button" class="dm-who" data-open-person="' + escapeHtml(name) + '">' + avatarHtml(u, name) + '<strong>' + escapeHtml(name) + badgesHtml(u).replace(/data-badge-[a-z]+="[^"]*"/g, '') + '</strong></button>';
+      else { var pst2 = presenceOf(u); who = '<button type="button" class="dm-who" data-open-person="' + escapeHtml(name) + '"><span class="dm-av-wrap">' + avatarHtml(u, name) + '<span class="presence-dot ' + pst2 + '"></span></span><strong>' + escapeHtml(name) + badgesHtml(u).replace(/data-badge-[a-z]+="[^"]*"/g, '') + '<small class="dm-via">' + escapeHtml(presenceLabel(pst2)) + '</small></strong></button>'; }
       var isMine = function (m) { return ti && ti.leader ? !!m.asTeam : m.from === mineUid; };
       var h = '<div class="card dm-thread"><div class="dm-head"><button type="button" class="dm-back-btn" data-action="dm-back" aria-label="' + L('Retour', 'Back') + '">‹</button>' + who + '</div>' +
         '<div class="dm-list" id="dm-list">' + (thread.length ? thread.map(function (m) {
@@ -21648,6 +21658,8 @@
       var u = (STATE.usersByName || {})[c.other] || {};
       var av = c.group ? groupAvatarHtml(c.group) : c.key === WELCOME_DM ? '<img class="dm-app-av" src="icons/icon-192.png" alt="">' : c.team && c.key.indexOf('team:') === 0 ? teamAvatarHtml(c.team) : avatarHtml(u, c.other).replace(/ data-person="[^"]*"/, '');
       var lbl = escapeHtml(c.other) + (c.team && c.key.indexOf('tu:') === 0 ? ' <small class="dm-via">' + escapeHtml(L('à ', 'to ') + c.team.name) + '</small>' : '');
+      // Pastille de présence sur l'avatar d'une conversation privée.
+      if (!c.group && !c.team && c.key !== WELCOME_DM && u.name) { var pst = presenceOf(u); av = '<span class="dm-av-wrap">' + av + '<span class="presence-dot ' + pst + '" aria-label="' + escapeHtml(presenceLabel(pst)) + '"></span></span>'; }
       return '<button type="button" class="dm-conv' + (c.unread ? ' unread' : '') + '" data-action="dm-open" data-name="' + escapeHtml(c.key || c.other) + '">' + av +
         '<span class="dm-conv-main"><strong>' + lbl + '</strong><span class="help-text">' + (c.last.from === myUid() ? L('Toi : ', 'You: ') : c.group && c.last.fromName ? escapeHtml(c.last.fromName) + ' : ' : c.team && c.last.asTeam && c.key.indexOf('tu:') === 0 ? escapeHtml(c.last.fromName || '') + ' : ' : '') + escapeHtml((c.last.text || '').slice(0, 80)) + '</span></span>' +
         '<span class="dm-conv-side"><span class="dm-time">' + escapeHtml(dmTime(c.last.createdAt)) + '</span>' + (c.unread ? '<span class="dm-unread">' + c.unread + '</span>' : '') + '</span></button>';

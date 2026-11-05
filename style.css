@@ -5097,3 +5097,21 @@ body.budget-masked .budget-season strong, body.budget-masked .budget-row .carnet
 .gsearch-inline { display: flex; align-items: center; gap: 0.7rem; width: 100%; padding: 0.35rem 0.6rem 0.35rem 0.85rem; border: 1.5px solid var(--accent); border-radius: 12px; background: var(--surface); color: var(--text-muted); }
 .gsearch-inline input { flex: 1; min-width: 0; border: 0; background: none; padding: 0.35rem 0; font: inherit; font-size: 0.95rem; color: var(--text); outline: none; box-shadow: none; }
 .gsearch-pop { position: fixed; z-index: 80; width: 380px; max-height: min(70vh, 560px); overflow-y: auto; padding: 0.7rem; background: var(--surface); border: 1px solid var(--border); border-radius: 14px; box-shadow: 0 12px 40px rgba(0,0,0,0.18); display: flex; flex-direction: column; gap: 0.7rem; }
+.dm-av-wrap { position: relative; display: inline-flex; flex: 0 0 auto; }
+.dm-av-wrap .presence-dot { right: -1px; bottom: -1px; width: 12px; height: 12px; border-width: 2px; }
+/* Miniatures de circuit homogènes : même boîte, tracé centré ; en mode
+   sombre, tracé blanc sur fond sombre. */
+.outing-thumb { display: grid; place-items: center; overflow: hidden; background: #fff; border: 1px solid var(--border); border-radius: 10px; }
+.outing-thumb img { width: 86%; height: 86%; object-fit: contain; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .outing-thumb { background: #1b1e24; } :root:not([data-theme="light"]) .outing-thumb img.trace-img { filter: invert(1) hue-rotate(180deg) brightness(1.1); } }
+:root[data-theme="dark"] .outing-thumb { background: #1b1e24; }
+:root[data-theme="dark"] .outing-thumb img.trace-img { filter: invert(1) hue-rotate(180deg) brightness(1.1); }
+/* Téléphone aussi : album photo au milieu de la ligne d'un roulage passé. */
+.outing-row-wrap { position: relative; }
+.outing-row-wrap > .album-chip { position: absolute; left: 55%; top: 50%; transform: translate(-50%, -50%); z-index: 2; }
+.outing-row-wrap .outing-row-main { max-width: 46%; }
+/* Formulaire de publication : le champ prend toute la largeur (PC compris). */
+#wall-post-form .mention-wrap, #wall-post-form textarea, #wall-post-form input[type="url"], #wall-post-form .post-place-row { width: 100%; max-width: none; }
+.ph-body .outing-actions { display: flex; gap: 0.5rem; }
+.ph-body .outing-actions > button { flex: 1 1 0; }
+.look-team-media { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; } .look-team-av .mini-avatar { width: 48px; height: 48px; } .look-team-media button { border-radius: 999px; font-weight: 700; color: var(--text); }
