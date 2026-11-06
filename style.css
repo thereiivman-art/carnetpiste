@@ -5390,3 +5390,6 @@ body { overflow-wrap: break-word; }
 .pin-layer .plan-scale, .track-notes-map .plan-scale { color: #14161a; }
 :root[data-theme="dark"] .plan-scale { color: #fff; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .plan-scale { color: #fff; } }
+.avenir-modes { align-items: center; }
+.avenir-modes .avenir-add { margin-left: auto; flex: 0 0 auto; padding: 0.4rem 0.9rem; border-radius: 999px; font-size: 0.88rem; font-weight: 700; }
+.team-coach-link { margin: 0.4rem 0 0.8rem; }

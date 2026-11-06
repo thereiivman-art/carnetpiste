@@ -5087,17 +5087,13 @@
         '<div class="help-text" style="margin-top:0.3rem;">' + L('Ta liste d\'amis n\'est jamais montrée aux autres.', 'Your friend list is never shown to others.') + '</div>' +
         '<label class="checklist-item" style="margin-top:0.4rem;"><input type="checkbox" id="profile-share-trophees"' + (p.shareTrophees !== false ? ' checked' : '') + '> ' + tr('share_trophies') + '</label>' +
         '<label class="checklist-item" style="margin-top:0.4rem;"><input type="checkbox" id="profile-share-travel-info"' + (p.shareTravelInfo !== false ? ' checked' : '') + '> ' + tr('share_travel_info') + '</label>';
-      var nHidden = Object.keys(hiddenFeedMap()).length;
-      if (nHidden) privacy += '<div class="feed-hidden-reset"><span class="help-text">' + plural(nHidden, L('carte masquée de Social', 'card hidden from the feed'), L('cartes masquées de Social', 'cards hidden from the feed')) + '</span>' +
-        '<button type="button" class="ghost" data-action="feed-unhide-all">' + L('Réafficher', 'Show') + '</button></div>';
       sections.confidentialite = privacy;
     }
     // RGPD: access/portability and the policy, whatever the display mode.
     var myDataHtml = '<div class="my-data-block"><div class="section-title" style="font-size:0.95rem;">' + L('Mes données', 'My data') + '</div>' +
       '<div class="help-text">' + L('Récupère tout ce que l\'appli garde sur toi dans un fichier (profil, chronos, roulages, messages, réglages…). Pour tout effacer : Compte → Supprimer mon compte.', 'Get everything the app keeps about you in one file (profile, lap times, trackdays, posts, settings…). To erase it all: Account → Delete my account.') + '</div>' +
       '<button type="button" class="primary add-chrono-btn" data-action="export-my-data" style="margin-top:0.7rem;">' + L('Télécharger toutes mes données', 'Download all my data') + '</button>' +
-      '<div class="my-data-links"><button type="button" class="link-btn" data-action="open-legal" data-kind="privacy">' + L('Politique de confidentialité', 'Privacy policy') + '</button>' +
-      '<button type="button" class="link-btn" data-action="open-legal" data-kind="notice">' + L('Mentions légales', 'Legal notice') + '</button></div></div>';
+      '</div>';
     // Mes données (venu de Stats) : export des chronos en tableur, puis
     // l'export complet RGPD.
     sections.donnees = (meIsNonRider() ? '' : '<div class="my-data-block"><div class="section-title" style="font-size:0.95rem;">' + L('Mes chronos', 'My lap times') + '</div>' +
@@ -5111,9 +5107,10 @@
     sections.affichage += '<div class="units-row"><label class="look-label" for="tz-select">' + L('Fuseau horaire', 'Time zone') + '</label><select id="tz-select" data-tz-select="1">' +
       tzList.map(function (z) { return '<option value="' + escapeHtml(z) + '"' + (z === tzNow ? ' selected' : '') + '>' + escapeHtml(z ? z.replace(/_/g, ' ') : L('Celui du téléphone', 'Phone\'s time zone')) + '</option>'; }).join('') + '</select></div>';
     {
-      sections.affichage += '<div class="app-version-row"><span class="help-text">' + L('Version de l\'appli : ', 'App version: ') + escapeHtml(currentAppVersion()) + '</span>' +
-        '<button type="button" class="ghost" data-action="open-patchnotes">' + L('Nouveautés', 'What\'s new') + '</button>' +
-        '<button type="button" class="ghost" data-action="check-app-update">' + L('Mettre à jour', 'Update') + '</button></div>';
+      // Version et nouveautés : dans Aide.
+      var nHidden = Object.keys(hiddenFeedMap()).length;
+      if (nHidden) sections.affichage += '<div class="feed-hidden-reset"><span class="help-text">' + plural(nHidden, L('carte masquée de Social', 'card hidden from the feed'), L('cartes masquées de Social', 'cards hidden from the feed')) + '</span>' +
+        '<button type="button" class="ghost" data-action="feed-unhide-all">' + L('Réafficher', 'Show') + '</button></div>';
       // « Voyage par défaut » retiré : les infos de voyage se notent sur chaque roulage.
 
     }
@@ -5204,7 +5201,7 @@
     var group = function (title, rows) { return '<div class="set-group"><div class="set-group-title">' + title + '</div><div class="card set-card">' + rows + '</div></div>'; };
     var email = (auth.currentUser && auth.currentUser.email) || '';
     return '<div class="settings-ig">' +
-      '<div class="set-search"><input type="search" id="settings-search" placeholder="' + escapeHtml(L('Rechercher', 'Search')) + '" autocomplete="off"></div>' +
+
       group(L('Ton compte', 'Your account'),
         row('@compte', 'user', L('Compte', 'Account'), p.name, L('profil fiche photo pseudo email mot de passe supprimer rôle', 'profile photo name email password delete role'))) +
       group(L('Comment tu utilises Pitbook', 'How you use Pitbook'),
@@ -5219,11 +5216,9 @@
         row('@audience', 'chart', L('Audience', 'Audience'), '', L('statistiques vues portée', 'stats views reach')) +
         row('@plus', 'star', 'Pitbook+', '', L('abonnement', 'subscription'))) +
       group(L('Plus d\'infos et assistance', 'More info and support'),
-        row('@aide', 'help', L('Aide', 'Help'), '', L('tutoriel guide faq', 'tutorial guide faq')) +
+        row('@aide', 'help', L('Aide', 'Help'), currentAppVersion(), L('tutoriel guide faq légal confidentialité mentions version mise à jour', 'tutorial guide faq legal privacy notice version update')) +
         row('@suggestion', 'idea', L('Suggestion', 'Suggestion'), '', L('idée bug retour', 'idea bug feedback')) +
-        row('@legal-privacy', 'doc', L('Politique de confidentialité', 'Privacy policy'), '', 'rgpd') +
-        row('@legal-notice', 'doc', L('Mentions légales', 'Legal notice'), '', '') +
-        row('@update', 'refresh', L('Version de l\'appli', 'App version'), currentAppVersion(), L('mise à jour', 'update'))) +
+        '') +
       (isAdmin() ? group('Admin', row('@admin', 'star', L('Admin', 'Admin'), '', L('gestion des comptes outils options statistiques données', 'account management tools options stats data'))) : '') +
       group(L('Connexion', 'Login'),
         row('#compte-switch-btn', 'swap', L('Changer de compte', 'Switch account'), email, L('connexion', 'login')) +
@@ -5235,36 +5230,6 @@
   // parrain -- see pendingReferrer/onSignupSubmit. The count below is a
   // live Firestore query (users/{}.referredBy == p.name), not anything
   // synced, hence the "..." while loadFilleulCount resolves it.
-  function renderProfileParrainageTab(p) {
-    loadFilleulCount(p.name);
-    var filleulCount = filleulCounts[p.name];
-    var referralLink = referralLinkFor(p.name);
-    var html = '<div class="section-title" style="font-size:0.95rem;">' + tr('parrainage_heading') + '</div>';
-    html += '<div class="help-text">' + tr('parrainage_help') + '</div>';
-    html += '<div class="referral-panel">';
-    html += '<img class="referral-qr" src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=' + encodeURIComponent(referralLink) + '" alt="' + tr('qr_alt') + '" width="140" height="140">';
-    html += '<div class="referral-actions">';
-    html += '<div class="referral-link-text">' + escapeHtml(referralLink) + '</div>';
-    html += '<div style="display:flex; gap:0.5rem;">' +
-      '<button type="button" class="primary" id="share-referral-link-btn">' + tr('share_my_link_btn') + '</button>' +
-      '<button type="button" class="ghost icon-btn" id="copy-referral-link-btn" aria-label="' + tr('copy_link_aria') + '" title="' + tr('copy_label') + '">' + '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3"/></svg>' + '</button>' +
-      '</div>';
-    html += '<div class="help-text" style="margin-top:0.5rem;">' + (filleulCount == null ? '…' : filleulCount) + (filleulCount === 1 ? tr('filleul_singular') : tr('filleul_plural')) + '</div>';
-    html += '</div></div>';
-    html += '<div class="referral-milestones">';
-    [[1, tr('parrain_badge')], [5, tr('grand_parrain_badge')]].forEach(function (m) {
-      var reached = filleulCount != null && filleulCount >= m[0];
-      html += '<div class="referral-milestone' + (reached ? ' reached' : '') + '">' +
-        (reached ? '✓' : m[0]) + ' — ' + m[0] + (m[0] > 1 ? tr('filleul_plural') : tr('filleul_singular')) + ' — badge ' + escapeHtml(m[1]) + '</div>';
-    });
-    html += '</div>';
-    return html;
-  }
-  // One legend for every badge/color the app uses -- reuses PROFILE_BADGES
-  // (defined further down) for the account badges themselves rather than
-  // duplicating their icon/label/desc, and adds the Team-side ones
-  // (✓ Team PRO, Team Leader/Coach name colors, Adhérent, Follower) that
-  // have no equivalent entry there.
   function renderBadgesLegend() {
     var rows = profileBadges().map(function (b) {
       return '<div class="legend-row"><span class="legend-swatch ' + b.cssClass + (b.icon.length > 1 ? ' badge-text' : '') + '">' + b.icon + '</span><span>' + escapeHtml(b.desc) + '</span></div>';
@@ -5308,7 +5273,10 @@
       '<div class="guide-links-row">' + (currentLang() === 'en'
         ? guideLink('EN', 'Guide (English)') + guideLink('FR', 'Guide (français)')
         : guideLink('FR', 'Guide (français)') + guideLink('EN', 'Guide (English)')) + '</div></div>';
-    html = renderSubPills('aidesub', [['apropos', 'À propos', html + renderPartnersSection()], ['badges', 'Badges', flatSections(renderBadgesLegend())],
+    html = '<div class="app-version-row card"><span class="help-text">' + L('Version de l\'appli : ', 'App version: ') + escapeHtml(currentAppVersion()) + '</span>' +
+      '<button type="button" class="ghost" data-action="open-patchnotes">' + L('Nouveautés', 'What\'s new') + '</button>' +
+      '<button type="button" class="ghost" data-action="check-app-update">' + L('Mettre à jour', 'Update') + '</button></div>' +
+      renderSubPills('aidesub', [['apropos', 'À propos', html + renderPartnersSection()], ['badges', 'Badges', flatSections(renderBadgesLegend())],
       ['confidentialite', L('Confidentialité', 'Privacy'), renderPrivacyPolicyHtml()], ['mentions', L('Mentions légales', 'Legal'), renderLegalNoticeHtml()]]);
     return html;
   }
@@ -11568,7 +11536,7 @@
       if (asComp) {
         // No chrono of my own: friends on track and the friends' comparison.
         if (ev && status !== 'terminee') html += renderFriendsOnTrack(ev, status === 'avenir' ? ev.dateStart : dateKey(new Date()), false);
-        html += '<button type="button" class="primary add-chrono-btn" data-action="chrono-proposal">' + L('+ Saisir le chrono d\'un ami', '+ Log a friend\'s lap time') + '</button>';
+        // Chrono d'un ami : dans l'onglet Chrono (une seule entrée).
       } else if (status === 'avenir') {
         // The record to beat opens the roulage where it was set; with no
         // record yet there's nothing to open.
@@ -12017,7 +11985,7 @@
   }
   function goAddChronoFor(circuit, day, withImport) {
     closeJourJ();
-    selectedCircuit = circuit; addChronoOpen = true; activeView = 'carnet';
+    selectedCircuit = circuit; addChronoOpen = true; activeView = 'chrono';
     renderRoot();
     var d = document.getElementById('f-date'); if (d) { d.value = isoToFrDate(day); d.dispatchEvent(new Event('input', { bubbles: true })); }
     var c = document.getElementById('f-circuit'); if (c) { c.value = circuit; c.dispatchEvent(new Event('change', { bubbles: true })); }
@@ -12315,39 +12283,7 @@
   }
   // Discussion d'un roulage (eventMessages) : écoutée seulement tant que la
   // fenêtre est ouverte.
-  function openEventChat(id) {
-    var ev = eventsList().filter(function (e) { return e.id === id; })[0], me = currentUserProfile;
-    if (!ev || !me) return;
-    var ov = openMiniSheet('<h2 class="section-title">' + L('Discussion', 'Chat') + ' · ' + escapeHtml(ev.circuit) + '</h2><div class="help-text">' + escapeHtml(formatEventRange(ev, true)) + L(' · pilotes, accompagnants et organisateur', ' · riders, companions and organiser') + '</div>' +
-      '<div class="dm-list ev-chat-list" id="ev-chat-list"><div class="help-text dm-empty">' + L('Chargement…', 'Loading…') + '</div></div>' +
-      '<form class="dm-form ev-chat-form" id="ev-chat-form"><textarea id="ev-chat-text" rows="1" maxlength="1000" placeholder="' + escapeHtml(L('Ton message…', 'Your message…')) + '"></textarea><button type="submit" class="primary">' + L('Envoyer', 'Send') + '</button></form>');
-    ov.querySelector('.mini-sheet').classList.add('ev-chat-sheet');
-    var list = ov.querySelector('#ev-chat-list'), msgs = [];
-    var draw = function () {
-      msgs.sort(function (a, b) { return (a.createdAt || 0) - (b.createdAt || 0); });
-      list.innerHTML = msgs.length ? msgs.map(function (m) {
-        var mine = m.from === myUid();
-        return '<div class="dm-msg' + (mine ? ' mine' : '') + '"' + bubbleStyle(m.fromName) + '>' + (mine ? '' : '<span class="dm-sig">' + escapeHtml(m.fromName || '') + '</span>') + '<div class="dm-bubble">' + mentionsHtml(m.text || '') + '</div><span class="dm-time">' + escapeHtml(dmTime(m.createdAt)) + '</span></div>';
-      }).join('') : '<div class="help-text dm-empty">' + L('Pas encore de message. Lance la discussion : horaires, covoiturage, place au paddock…', 'No message yet. Start the chat: times, car sharing, paddock spot…') + '</div>';
-      list.scrollTop = list.scrollHeight;
-    };
-    var unsub = db.collection('events').doc(id).collection('messages').onSnapshot(function (snap) {
-      if (!document.body.contains(ov)) { unsub(); return; }
-      msgs = snap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); });
-      draw();
-    }, function () { list.innerHTML = '<div class="help-text dm-empty">' + L('Discussion indisponible pour l\'instant.', 'Chat unavailable right now.') + '</div>'; });
-    var watch = setInterval(function () { if (!document.body.contains(ov)) { clearInterval(watch); unsub(); } }, 1500);
-    var ta = ov.querySelector('#ev-chat-text');
-    ta.addEventListener('keydown', function (e) { if (e.key === 'Enter' && !e.shiftKey && !(window.matchMedia && window.matchMedia('(pointer: coarse)').matches)) { e.preventDefault(); ov.querySelector('#ev-chat-form').requestSubmit(); } });
-    ov.querySelector('#ev-chat-form').addEventListener('submit', function (e) {
-      e.preventDefault();
-      var text = ta.value.trim().slice(0, 1000); if (!text) return;
-      var msg = { from: myUid(), fromName: me.name, text: text, createdAt: Date.now() };
-      ta.value = '';
-      msgs.push(Object.assign({ id: 'tmp' }, msg)); draw();
-      db.collection('events').doc(id).collection('messages').doc(genId()).set(msg).catch(function (err) { showToast(tr('error_prefix') + ((err && err.message) || err)); });
-    });
-  }
+  // Ancienne discussion de roulage (fenêtre) retirée : tout passe par Messages (openEventGroup).
   function openAlbumsSheet(id) {
     var ev = eventsList().filter(function (e) { return e.id === id; })[0];
     var al = eventAlbums(ev);
@@ -12415,6 +12351,16 @@
     return html;
   }
 
+  // À venir : Liste (cartes), Mois (calendrier), Découvrir (roulages ouverts des teams).
+  function avenirModeRow() {
+    var me = currentUserProfile, inCal = activeView === 'event', ev = pillState.events;
+    var hasDisc = !!(me && renderProEventDiscovery(me));
+    var b = function (on, attrs, label) { return '<button type="button" class="sub-pill-btn' + (on ? ' active' : '') + '" ' + attrs + '>' + label + '</button>'; };
+    return '<div class="sub-pills avenir-modes">' + b(!inCal, 'data-view="carnet" data-cards-mode="avenir"', L('Liste', 'List')) +
+      b(inCal && ev === 'calendrier', 'data-view="event" data-pill-group="events" data-pill="calendrier"', L('Mois', 'Month')) +
+      (hasDisc ? b(inCal && ev === 'decouvrir', 'data-view="event" data-pill-group="events" data-pill="decouvrir"', L('Découvrir', 'Discover')) : '') +
+      '<button type="button" class="ghost avenir-add" data-action="quick-outing">+ ' + L('Roulage', 'Trackday') + '</button></div>';
+  }
   function carnetPillsHtml(outings) {
     var upcoming = myUpcomingEvents();
     if (!outings.length && !upcoming.length && activeView !== 'event') return '<div class="pill-tabs"><button type="button" class="pill-btn active">' + L('Roulages', 'Trackdays') + '</button><button type="button" class="pill-btn" data-view="event">' + L('Calendrier', 'Calendar') + '</button></div>';
@@ -12422,10 +12368,11 @@
     if (!outings.length) carnetCardsMode = 'avenir';
     var items = [['avenir', L('À venir', 'Upcoming') + (upcoming.length ? ' (' + upcoming.length + ')' : '')], ['passees', L('Passés', 'Past') + (outings.length ? ' (' + outings.length + ')' : '')]];
     var inCal = activeView === 'event';
-    // Ordre chronologique : À venir, Calendrier, Passés.
-    var pillBtn = function (it) { return '<button type="button" class="pill-btn' + (!inCal && carnetCardsMode === it[0] ? ' active' : '') + '" data-cards-mode="' + it[0] + '">' + it[1] + '</button>'; };
-    return '<div class="pill-tabs main-subnav-pills">' + pillBtn(items[0]) +
-      '<button type="button" class="pill-btn' + (inCal ? ' active' : '') + '" data-view="event">' + L('Calendrier', 'Calendar') + '</button>' + pillBtn(items[1]) + '</div>';
+    // À venir (Liste / Mois / Découvrir) et Passés : plus d'onglet Calendrier.
+    var pillBtn = function (it) { var on = it[0] === 'avenir' ? (inCal || carnetCardsMode === 'avenir') : (!inCal && carnetCardsMode === it[0]); return '<button type="button" class="pill-btn' + (on ? ' active' : '') + '" data-view="carnet" data-cards-mode="' + it[0] + '">' + it[1] + '</button>'; };
+    var html = '<div class="pill-tabs main-subnav-pills">' + pillBtn(items[0]) + pillBtn(items[1]) + '</div>';
+    if (inCal || carnetCardsMode === 'avenir') html += avenirModeRow();
+    return html;
   }
 
   // ---- Carnet d'un accompagnant : les roulages de ses potes pilotes ----
@@ -12633,10 +12580,9 @@
     if (meIsNonRider()) {
       var tgt = targetPlanningEvent(), h = '';
       if (tgt && tgt.mode === 'ongoing') h += '<div class="card carnet-today-card"><strong>' + L('Tu es au paddock aujourd\'hui à ', 'You\'re in the paddock today at ') + escapeHtml(tgt.ev.circuit) + '</strong>' +
-        '<button type="button" class="primary" data-action="open-jourj" style="margin-top:0.5rem;">' + L('Mode jour J', 'Race-day mode') + '</button></div>';
+        '<button type="button" class="primary" data-action="open-jourj" style="margin-top:0.5rem;">' + L('Ouvrir Chrono', 'Open Chrono') + '</button></div>';
       if (canLogChronoForOthers()) h += '<button type="button" class="primary add-chrono-btn" id="carnet-add-chrono">' + L('+ Ajouter un chrono pour un pilote du team', '+ Add a lap time for a team rider') + '</button>';
-      else h += '<button type="button" class="primary add-chrono-btn" data-action="chrono-proposal">' + L('+ Saisir le chrono d\'un ami', '+ Log a friend\'s lap time') + '</button>' +
-        '<div class="help-text carnet-add-help">' + L('Ton ami le valide, puis il entre dans son carnet.', 'Your friend confirms it, then it goes into their logbook.') + '</div>';
+      // Chrono d'un ami : dans l'onglet Chrono (une seule entrée).
       return renderCompanionCarnet(h);
     }
     var outings = myOutings();
@@ -12644,8 +12590,7 @@
     var target = targetPlanningEvent();
     if (target && target.mode === 'ongoing') {
       html += '<div class="card carnet-today-card"><strong>' + (meIsNonRider() ? 'Tu es au paddock aujourd\'hui à ' : 'Tu roules aujourd\'hui à ') + escapeHtml(target.ev.circuit) + '</strong>' +
-        '<div class="help-text">Prochaine session, ton groupe, tes repères et ton débrief en plein écran.</div>' +
-        '<button type="button" class="primary" data-action="open-jourj" style="margin-top:0.5rem;">Mode jour J</button></div>';
+        '<button type="button" class="primary" data-action="open-jourj" style="margin-top:0.5rem;">' + L('Ouvrir Chrono', 'Open Chrono') + '</button></div>';
     }
     if (!addChronoOpen) html += renderTimesheetReminder();
     if (addChronoOpen) {
@@ -16224,10 +16169,7 @@
           carnetNav.push([it[1], 'data-view="' + it[0] + '"', on]);
           // 3e niveau sous Roulages : Passés, À venir, Calendrier.
           if (it[0] === 'carnet' && on && !meIsNonRider()) {
-            carnetNav.push([L('À venir', 'Upcoming'), 'data-view="carnet" data-cards-mode="avenir" data-level="3"', activeView === 'carnet' && carnetCardsMode === 'avenir']);
-            carnetNav.push([L('Calendrier', 'Calendar'), 'data-view="event" data-level="3"', activeView === 'event']);
-            // Dans le Calendrier : Liste / Mois / Découvrir en 4e niveau.
-            if (activeView === 'event') carnetNav = carnetNav.concat(navPillEntries('events', 4));
+            carnetNav.push([L('À venir', 'Upcoming'), 'data-view="carnet" data-cards-mode="avenir" data-level="3"', (activeView === 'carnet' && carnetCardsMode === 'avenir') || activeView === 'event']);
             carnetNav.push([L('Passés', 'Past'), 'data-view="carnet" data-cards-mode="passees" data-level="3"', activeView === 'carnet' && carnetCardsMode === 'passees']);
           } else if (it[0] === 'carnet' && on) carnetNav = carnetNav.concat(navPillEntries('compcarnet', 3));
           if (on && it[0] !== 'carnet') carnetNav = carnetNav.concat(navPillEntries(it[0] === 'stats' ? 'moi' : it[0], 3));
@@ -17306,12 +17248,11 @@
     // dans « Passés », d'où de petites pastilles Liste / Mois / Découvrir.
     var pills = [['avenir', L('Liste', 'List') + ((ongoing.length + upcoming.length) ? ' (' + (ongoing.length + upcoming.length) + ')' : '')], ['calendrier', L('Mois', 'Month')]];
     if (discovery) pills.push(['decouvrir', 'Découvrir']);
-    html += renderSubPillRow('events', pills);
+    if (pillState.events === 'avenir' || !pills.some(function (x) { return x[0] === pillState.events; })) pillState.events = 'calendrier';
     if (editingEventId === 'new') {
       html += renderEventForm();
     } else {
-      html += '<button type="button" class="primary add-chrono-btn" data-action="quick-outing">+ Ajouter un roulage</button>';
-      html += '<div class="help-text carnet-add-help">Circuit et date suffisent ; horaires et groupes peuvent venir après (photo de l\'affiche).</div>';
+      // « + Roulage » est dans la rangée Liste / Mois / Découvrir.
     }
     var cur = pillState.events;
     if (cur === 'avenir') {
@@ -17857,7 +17798,7 @@
 
     var jourjHtml = '';
     if (isOngoing && (ev.riders || []).indexOf(currentUserProfile && currentUserProfile.name) !== -1) {
-      jourjHtml = '<button type="button" class="primary jourj-launch" data-action="open-jourj">Mode jour J — prochaine session en grand</button>';
+      jourjHtml = '<button type="button" class="primary jourj-launch" data-action="open-jourj">' + L('Ouvrir Chrono', 'Open Chrono') + '</button>';
     }
     // Ma prépa: this account's own prep, one sub-pill per rubrique.
     var nNotes = myTrackNotes(ev.circuit).length;
@@ -20226,6 +20167,8 @@
       '<button type="button" class="ghost" data-action="open-my-profile">' + L('Mon compte', 'My account') + '</button>';
     if (!isMe) acts += followBtnHtml(name);
     if (!isMe && canMessage(name)) acts += '<button type="button" class="ghost" data-action="dm-open" data-name="' + escapeHtml(name) + '">' + L('Message', 'Message') + '</button>';
+    // Coach : accès direct à l'espace Coaching depuis sa fiche.
+    if (!isMe && isCoachBadge(u) && canAccessCoachSpace()) acts += '<button type="button" class="ghost" data-view="coach">' + L('Coaching', 'Coaching') + '</button>';
     if (isPilote && u.chronoLink && friendship) acts += '<button type="button" class="ghost" data-action="open-external-url" data-url="' + escapeHtml(u.chronoLink) + '">' + L('Ses chronos officiels ↗', 'Official lap times ↗') + '</button>';
     var achList = null;
     var getAch = function () { return achList || (achList = isPilote ? riderAchievements(name, riderStats(name)) : (u.role === 'organisateur' ? organisateurAchievements(u) : accompagnantAchievements(u))); };
@@ -20620,9 +20563,8 @@
       ['@plus', 'Pitbook+', L('abonnement', 'subscription')],
       ['@aide', L('Aide', 'Help'), L('tutoriel guide faq', 'tutorial guide faq')],
       ['@suggestion', L('Suggestion', 'Suggestion'), L('idée bug retour', 'idea bug feedback')],
-      ['@legal-privacy', L('Politique de confidentialité', 'Privacy policy'), 'rgpd gdpr'],
-      ['@legal-notice', L('Mentions légales', 'Legal notice'), ''],
-      ['@update', L('Version de l\'appli', 'App version'), L('mise à jour nouveautés', 'update news')]
+      ['@aide', L('Légal (confidentialité, mentions)', 'Legal (privacy, notice)'), 'rgpd gdpr politique mentions légales'],
+      ['@aide', L('Version et nouveautés', 'Version and what\'s new'), L('version mise à jour nouveautés', 'version update news')]
     ];
   }
   function openSettingsAt(go) {
@@ -24314,6 +24256,8 @@
     teamPills.unshift(tLook ? ['fiche', L('Fiche', 'Page')] : ['saisons', L('Saisons', 'Seasons')]);
     if (isLeader) teamPills.push(['roulages', 'Roulages'], ['audience', L('Audience', 'Audience')]);
     var pillsHtml = renderPills('team', teamPills);
+    // Coachs dans ce team : lien direct vers l'espace Coaching.
+    if (canAccessCoachSpace() && members.some(function (m) { return isCoachBadge((STATE.usersByName || {})[m.name]); })) pillsHtml += '<div class="team-coach-link"><button type="button" class="ghost" data-view="coach">' + L('Coaching avec les coachs du team', 'Coaching with the team\'s coaches') + '</button></div>';
     var body = pillState.team === 'membres' ? bMembres : pillState.team === 'roulages' ? bRoulages : (pillState.team === 'audience' && isLeader) ? renderTeamAudience(team)
       : (pillState.team === 'fiche' && tLook) ? renderTeamShowcase(team, tLook, true) + seasonsHtml
       : pillState.team === 'saisons' ? seasonsHtml : bFil;
@@ -27172,7 +27116,7 @@
         if (fh) {
           e.preventDefault(); e.stopPropagation();
           setHiddenFeed(fh.getAttribute('data-feed-hide'), true); renderRoot();
-          showToast(L('Masqué de Social. Pour le revoir : Réglages › Confidentialité.', 'Hidden from your feed. To see it again: Settings › Privacy.'));
+          showToast(L('Masqué de Social. Pour le revoir : Réglages › Langue et affichage.', 'Hidden from your feed. To see it again: Settings › Language and display.'));
           return;
         }
         var sg = e.target.closest('[data-settings-go]');
@@ -27228,8 +27172,6 @@
         }
         var egr = e.target.closest('[data-action="event-group"]');
         if (egr) { e.preventDefault(); e.stopPropagation(); openEventGroup(egr.getAttribute('data-id')); return; }
-        var ech = e.target.closest('[data-action="event-chat"]');
-        if (ech) { e.preventDefault(); e.stopPropagation(); openEventChat(ech.getAttribute('data-id')); return; }
         var alb = e.target.closest('[data-action="open-albums"]');
         if (alb) { e.preventDefault(); e.stopPropagation(); openAlbumsSheet(alb.getAttribute('data-id')); return; }
         var pl = e.target.closest('[data-person-link]');
@@ -27942,7 +27884,7 @@
       btn.addEventListener('click', function () {
         var c = btn.getAttribute('data-circuit');
         if (c) selectedCircuit = c;
-        addChronoOpen = true; renderRoot(); window.scrollTo(0, 0);
+        addChronoOpen = true; activeView = 'chrono'; outingView = null; renderRoot(); window.scrollTo(0, 0);
         var cs = document.getElementById('f-circuit'); if (c && cs) { cs.value = c; cs.dispatchEvent(new Event('change', { bubbles: true })); }
         if (btn.getAttribute('data-import')) { var inp = document.getElementById('import-photo-input'); if (inp) inp.click(); }
       });
@@ -29010,8 +28952,8 @@
     var addChronoToggle = document.getElementById('add-chrono-toggle');
     if (addChronoToggle) {
       addChronoToggle.addEventListener('click', function () {
-        addChronoOpen = true;
-        renderRoot();
+        addChronoOpen = true; activeView = 'chrono'; outingView = null;
+        renderRoot(); window.scrollTo(0, 0);
       });
     }
     var addEventBtn = document.getElementById('add-event-btn');
@@ -29349,7 +29291,8 @@
     document.querySelectorAll('[data-ts-later]').forEach(function (b) {
       b.addEventListener('click', function () { try { localStorage.setItem('cdp-ts-dismiss-' + b.getAttribute('data-ts-later'), '1'); } catch (e) {} renderRoot(); });
     });
-    document.querySelectorAll('[data-action="open-jourj"]').forEach(function (b) { b.addEventListener('click', function () { openJourJ(); }); });
+    // Plus de fenêtre jour J : tout se fait dans l'onglet Chrono.
+    document.querySelectorAll('[data-action="open-jourj"]').forEach(function (b) { b.addEventListener('click', function () { activeView = 'chrono'; outingView = null; personView = null; renderRoot(); window.scrollTo(0, 0); }); });
     setTimeout(maybeAutoOpenJourJ, 0);
     document.querySelectorAll('[data-action="import-horaires"]').forEach(function (b) {
       b.addEventListener('click', function () { openHorairesImport(b.getAttribute('data-event-id')); });
@@ -29365,7 +29308,7 @@
     });
     var outingAdd = document.getElementById('outing-add-chrono');
     if (outingAdd && outingView) outingAdd.addEventListener('click', function () {
-      selectedCircuit = outingView.circuit; addChronoOpen = true; activeView = 'carnet'; renderRoot();
+      selectedCircuit = outingView.circuit; addChronoOpen = true; activeView = 'chrono'; renderRoot();
       var d = document.getElementById('f-date'); if (d) { d.value = isoToFrDate(outingView.date); d.dispatchEvent(new Event('input', { bubbles: true })); }
       var c = document.getElementById('f-circuit'); if (c) { c.value = outingView.circuit; c.dispatchEvent(new Event('change', { bubbles: true })); }
       window.scrollTo(0, 0);

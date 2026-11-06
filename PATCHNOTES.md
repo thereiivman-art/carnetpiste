@@ -2,6 +2,16 @@
 
 Les nouveautés, de la plus récente à la plus ancienne. Le détail complet est dans l'historique git.
 
+## 6 novembre 2026 · rangement
+
+- Roulages : plus d'onglet Calendrier. « À venir » propose Liste, Mois, Découvrir et « + Roulage ».
+- Saisir un chrono ouvre toujours l'onglet Chrono. Un seul bouton pour le chrono d'un ami.
+- « Mode jour J » devient « Ouvrir Chrono ».
+- Parrainage : tout est dans l'invitation (QR, lien, stats).
+- Ancienne discussion de roulage retirée : la discussion de groupe la remplace.
+- Profil d'un coach et team avec coach : bouton Coaching.
+- Réglages : plus de champ de recherche ; confidentialité, mentions et version regroupées dans Aide ; réafficher les cartes masquées dans Langue et affichage.
+
 ## 6 novembre 2026 · retours Xav et Alexis (nuit)
 
 - Recherche : « Avancée ».

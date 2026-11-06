@@ -1,4 +1,4 @@
-// Réglages façon Instagram (liste, recherche, pages), fiche modifiée
+// Réglages façon Instagram (liste, pages), fiche modifiée
 // entièrement dans Social (identité + cosmétiques débloqués).
 const { chromium, BASE } = require('../lib');
 (async () => { const b = await chromium.launch(); const lang = process.argv[2] || 'fr'; const errs = [];
@@ -6,12 +6,12 @@ const { chromium, BASE } = require('../lib');
   await p.goto(BASE + 'index.html#lang=' + lang); await p.waitForTimeout(1600);
   await p.click('#settings-toggle'); await p.waitForTimeout(400);
   console.log('groupes:', await p.$$eval('.set-group-title', e => e.map(x => x.innerText).join(' / ')));
-  await p.fill('#settings-search', 'écrire'); await p.waitForTimeout(200);
-  console.log('recherche « écrire »:', await p.$$eval('.set-row:not([hidden]) .set-label', e => e.map(x => x.innerText).join(', ')));
-  await p.fill('#settings-search', ''); await p.click('[data-settings-go="notifications"]'); await p.waitForTimeout(300);
+  // Plus de champ de recherche ici : la loupe trouve les réglages (décision D10).
+  console.log('pas de recherche dans Réglages:', !(await p.$('#settings-search')), '| lignes:', await p.$$eval('.set-row .set-label', e => e.map(x => x.innerText).join(', ')));
+  await p.click('[data-settings-go="notifications"]'); await p.waitForTimeout(300);
   console.log('page:', await p.$eval('.settings-page-head .section-title', e => e.innerText), '| retour:', !!(await p.$('.settings-back')));
   await p.click('.settings-back'); await p.waitForTimeout(300);
-  console.log('liste revenue:', !!(await p.$('#settings-search')));
+  console.log('liste revenue:', !!(await p.$('.settings-ig')));
   await p.click('[data-settings-go="@aide"]'); await p.waitForTimeout(300);
   console.log('page Aide:', await p.$eval('.settings-page-head .section-title', e => e.innerText));
   // Fiche : Modifier dans Social.
