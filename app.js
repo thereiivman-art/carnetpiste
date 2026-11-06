@@ -5204,7 +5204,8 @@
     doc: '<path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4"/>',
     refresh: '<path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 5v6h-6"/>',
     swap: '<path d="M7 7h13l-3-3M17 17H4l3 3"/>',
-    logout: '<path d="M15 4h4v16h-4"/><path d="M10 8l-4 4 4 4M6 12h10"/>'
+    logout: '<path d="M15 4h4v16h-4"/><path d="M10 8l-4 4 4 4M6 12h10"/>',
+    qr: '<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3zM20 14v1M14 20h1M18 18h3v3"/>'
   };
   function setIco(k) { return '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + SET_ICO[k] + '</svg>'; }
   function renderSettingsList(p) {
@@ -5219,7 +5220,8 @@
     return '<div class="settings-ig">' +
 
       group(L('Ton compte', 'Your account'),
-        row('@compte', 'user', L('Compte', 'Account'), p.name, L('profil fiche photo pseudo email mot de passe supprimer rôle', 'profile photo name email password delete role'))) +
+        row('@compte', 'user', L('Compte', 'Account'), p.name, L('profil fiche photo pseudo email mot de passe supprimer rôle', 'profile photo name email password delete role')) +
+        row('#invite-qr-row', 'qr', L('Inviter un ami', 'Invite a friend'), '', L('qr code parrainage lien filleul', 'qr code referral link'))) +
       group(L('Comment tu utilises Pitbook', 'How you use Pitbook'),
         row('notifications', 'bell', 'Notifications', '', L('alertes push rappels duel podium amis roulage', 'alerts push reminders duel podium friends trackday')) +
         row('affichage', 'globe', L('Langue et affichage', 'Language and display'), currentLang() === 'en' ? 'English' : 'Français', L('langue thème sombre clair ressenti version mise à jour unités celsius fahrenheit miles', 'language theme dark light feeling version update units celsius fahrenheit miles'))) +
@@ -8362,7 +8364,7 @@
       return html;
     }
     // Records de la piste (MotoGP, F1…) : à la fin d'Infos.
-    if (cp === 'infos') { html += renderCircuitInfoCard('infos') + (selectedCircuit ? renderTodayWeatherCard(selectedCircuit) : '') + renderCircuitLevelGearCard(selectedCircuit) + renderTrackRecordsCard(selectedCircuit) + (selectedCircuit ? circuitAroundHtml(selectedCircuit) : ''); return html; }
+    if (cp === 'infos') { html += renderCircuitInfoCard('infos') + renderInfoBubbles(selectedCircuit); return html; }
     // Objectif pour la prochaine session lives in EN PISTE now (see
     // renderPlanningTab), keyed off the current/next event's own circuit --
     // not repeated here.
@@ -8371,6 +8373,36 @@
     // the circuit's own info.
     html += renderEstimateCard(selectedCircuit);
     html += renderChronosTab();
+    return html;
+  }
+  // Infos du circuit : des bulles (icônes) repliées par défaut ; une touche ouvre la section.
+  // La météo n'est demandée qu'à l'ouverture de sa bulle.
+  var infoBubbleOpen = {};
+  var IB_ICO = {
+    wx: '<path d="M7 18h10a4 4 0 0 0 .5-8 6 6 0 0 0-11.5 1.5A3.3 3.3 0 0 0 7 18z"/>',
+    rules: '<path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="M9 12l2 2 4-4"/>',
+    records: '<path d="M8 4h8v5a4 4 0 0 1-8 0z"/><path d="M8 6H5a3 3 0 0 0 3 4M16 6h3a3 3 0 0 1-3 4M12 13v4M8 20h8"/>',
+    around: '<path d="M12 21s7-6.2 7-12a7 7 0 0 0-14 0c0 5.8 7 12 7 12z"/><circle cx="12" cy="9" r="2.5"/>'
+  };
+  function renderInfoBubbles(circuit) {
+    if (!circuit) return '';
+    var strip = function (h) { return (h || '').replace(/^<div class="card /, '<div class="').replace(/<h2 class="section-title">[\s\S]*?<\/h2>/, ''); };
+    var defs = [
+      ['wx', L('Météo', 'Weather'), circuitCoords(circuit) ? function () { return renderTodayWeatherCard(circuit); } : null],
+      ['rules', L('Règles et matériel', 'Rules and gear'), function () { return renderCircuitLevelGearCard(circuit); }],
+      ['records', L('Records', 'Records'), function () { return renderTrackRecordsCard(circuit); }],
+      ['around', L('Autour', 'Around'), function () { return circuitAroundHtml(circuit); }]
+    ].filter(function (d) { return d[2] && (d[0] === 'wx' || d[2]()); });
+    if (!defs.length) return '';
+    var html = '<div class="info-bubbles">' + defs.map(function (d) {
+      var on = !!infoBubbleOpen[d[0]];
+      return '<button type="button" class="info-bubble' + (on ? ' on' : '') + '" data-info-bubble="' + d[0] + '" aria-expanded="' + on + '"><span class="ib-ico"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + IB_ICO[d[0]] + '</svg></span><span class="ib-lbl">' + d[1] + '</span></button>';
+    }).join('') + '</div>';
+    defs.forEach(function (d) {
+      if (!infoBubbleOpen[d[0]]) return;
+      var inner = strip(d[2]());
+      if (inner) html += '<div class="card info-bubble-body" data-ib-body="' + d[0] + '"><h2 class="section-title">' + d[1] + '</h2>' + inner + '</div>';
+    });
     return html;
   }
   // Records de la piste par catégorie (saisis par l'admin dans la fiche
@@ -23461,7 +23493,7 @@
       (nNotif ? '<span class="notif-count dm-notif-count">' + (nNotif > 9 ? '9+' : nNotif) + '</span>' : '') + '</button>';
     h2 += '<div class="dm-top"><button type="button" class="primary" data-action="dm-new">' + L('Nouveau message', 'New message') + '</button><button type="button" class="ghost" data-action="group-new">' + L('Nouveau groupe', 'New group') + '</button>' +
       '<span class="help-text">' + L('Qui peut t\'écrire : Réglages › Confidentialité.', 'Who can write to you: Settings › Privacy.') + '</span></div>';
-    h2 += '<div class="card dm-convs">' + notifRow + (convs.length ? convs.map(dmConvRow).join('') : '<div class="empty-state">' + L('Aucune conversation pour l\'instant. Écris à un ami depuis « Nouveau message » ou depuis sa fiche.', 'No conversation yet. Write to a friend from “New message” or from their profile.') + '</div>') + '</div>';
+    h2 += '<div class="card dm-convs">' + (convs.length ? convs.map(dmConvRow).join('') : '<div class="empty-state">' + L('Aucune conversation pour l\'instant. Écris à un ami depuis « Nouveau message » ou depuis sa fiche.', 'No conversation yet. Write to a friend from “New message” or from their profile.') + '</div>') + '</div>';
     return h2;
   }
   function dmConvRow(c) {
@@ -25411,11 +25443,12 @@
               (gsearchInline.open && isDesktopNav() ? renderSearchInline() : '<button type="button" class="header-icon-btn" id="search-toggle" aria-label="' + escapeHtml(L('Rechercher', 'Search')) + '" title="' + escapeHtml(L('Rechercher', 'Search')) + '"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg></button>') +
               '<button type="button" class="header-icon-btn' + (profilePanelOpen ? ' is-open' : '') + '" id="settings-toggle" aria-label="Mon compte" title="Mon compte">' +
                 '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>' +
-              '<button type="button" class="header-icon-btn" id="invite-qr-btn" aria-label="Inviter un ami (QR code)" title="Inviter un ami">' +
-                '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3zM20 14v.01M14 20h.01M17 20h4v-3"/></svg></button>' +
               // Messages (et les notifications, rangées dedans) à la place de la cloche.
               '<button type="button" class="header-icon-btn' + (activeView === 'social' && pillState.social === 'messages' && !profilePanelOpen ? ' is-open' : '') + '" id="messages-toggle" aria-label="' + escapeHtml(L('Messages', 'Messages')) + '" title="' + escapeHtml(L('Messages', 'Messages')) + '"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 9 9 0 0 1-4-.9L3 20l1.1-4A8.4 8.4 0 0 1 3 11.5 8.5 8.5 0 0 1 12 3a8.5 8.5 0 0 1 9 8.5z"/></svg>' +
-                ((notifCount + unreadDmCount()) ? '<span class="notif-count">' + ((notifCount + unreadDmCount()) > 9 ? '9+' : (notifCount + unreadDmCount())) + '</span>' : '') +
+                (unreadDmCount() ? '<span class="notif-count">' + (unreadDmCount() > 9 ? '9+' : unreadDmCount()) + '</span>' : '') +
+              '</button>' +
+              '<button type="button" class="header-icon-btn' + (notificationsPanelOpen ? ' is-open' : '') + '" id="notifications-toggle" aria-label="' + tr('notifications_label') + '" title="' + tr('notifications_label') + '"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>' +
+                (notifCount ? '<span class="notif-count">' + (notifCount > 9 ? '9+' : notifCount) + '</span>' : '') +
               '</button>' +
             '</div>' +
           '</div>' +
@@ -26125,7 +26158,7 @@
       accountManagerOpen = false;
       renderRoot();
     });
-    var inviteQrBtn = document.getElementById('invite-qr-btn');
+    var inviteQrBtn = document.getElementById('invite-qr-btn') || document.getElementById('invite-qr-row');
     if (inviteQrBtn) inviteQrBtn.addEventListener('click', openInviteQr);
     document.querySelectorAll('[data-action="open-legal"]').forEach(function (b) {
       b.addEventListener('click', function (e) { e.preventDefault(); openLegal(b.getAttribute('data-kind')); });
@@ -26170,6 +26203,9 @@
     });
     document.querySelectorAll('[data-action="open-notifs"]').forEach(function (b) { b.addEventListener('click', function () {
       notificationsPanelOpen = true; profilePanelOpen = false; markNotificationsSeen(); renderRoot(); window.scrollTo(0, 0);
+    }); });
+    document.querySelectorAll('[data-info-bubble]').forEach(function (b) { b.addEventListener('click', function () {
+      var k = b.getAttribute('data-info-bubble'); infoBubbleOpen[k] = !infoBubbleOpen[k]; renderRoot();
     }); });
     var messagesToggle = document.getElementById('messages-toggle');
     if (messagesToggle) messagesToggle.addEventListener('click', function () {

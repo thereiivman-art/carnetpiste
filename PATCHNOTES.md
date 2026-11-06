@@ -2,6 +2,12 @@
 
 Les nouveautés, de la plus récente à la plus ancienne. Le détail complet est dans l'historique git.
 
+## 6 novembre 2026 · en-tête et infos circuit
+
+- En-tête : plus de QR code ; Notifications revient à droite de Messages.
+- Réglages › Ton compte : « Inviter un ami ».
+- Circuits › Infos : Météo, Règles et matériel, Records et Autour en bulles repliées ; la météo n'est demandée qu'à l'ouverture.
+
 ## 6 novembre 2026 · navigation simplifiée
 
 - Communauté : un seul onglet (Social).

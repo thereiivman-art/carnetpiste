@@ -17,6 +17,8 @@ const { chromium, BASE } = require('../lib');
   await p.click('.bottom-nav-btn:nth-child(1)'); await p.waitForTimeout(300);
   await p.click('.subnav-btn[data-view="circuit"]'); await p.waitForTimeout(400);
   await p.locator('[data-pill-group="circuit"][data-pill="infos"]:visible').first().click(); await p.waitForTimeout(800);
+  // Bulles repliées : on ouvre Météo et Autour.
+  await p.click('[data-info-bubble="wx"]'); await p.waitForTimeout(800); await p.click('[data-info-bubble="around"]').catch(() => {}); await p.waitForTimeout(400);
   console.log('météo:', await p.$eval('.today-wx .wx-now', e => e.innerText.replace(/\n/g, ' ')), '| distance:', await p.$$eval('.info-row, .circuit-info-card', e => (e.map(x => x.innerText).join(' ').match(/[\d.,]+ (mi|km)\b/) || ['?'])[0]));
   const gaps = await p.$$eval('.around-links a', a => a.length > 1 ? Math.round(a[1].getBoundingClientRect().left - a[0].getBoundingClientRect().right) : -1);
   console.log('espace entre liens:', gaps, 'px');

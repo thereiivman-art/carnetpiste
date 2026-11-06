@@ -5428,3 +5428,9 @@ body { overflow-wrap: break-word; }
 .dm-notif-ico { width: 2.6rem; height: 2.6rem; border-radius: 50%; display: grid; place-items: center; background: var(--surface-alt); color: var(--accent); flex: 0 0 auto; }
 .dm-notif-main { display: flex; flex-direction: column; flex: 1 1 auto; min-width: 0; }
 .dm-notif-row .dm-notif-count { position: static; margin-left: auto; }
+.info-bubbles { display: flex; flex-wrap: wrap; gap: 0.6rem; margin: 0.9rem 0; }
+.info-bubble { display: flex; flex-direction: column; align-items: center; gap: 0.3rem; background: none; border: 0; padding: 0; width: 4.6rem; color: var(--text); font: inherit; cursor: pointer; }
+.info-bubble .ib-ico { width: 3.1rem; height: 3.1rem; border-radius: 50%; display: grid; place-items: center; background: var(--surface); border: 1.5px solid var(--border); color: var(--accent); }
+.info-bubble.on .ib-ico { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.info-bubble .ib-lbl { font-size: 0.74rem; font-weight: 700; text-align: center; line-height: 1.15; }
+.info-bubble-body { margin-top: 0.6rem; }

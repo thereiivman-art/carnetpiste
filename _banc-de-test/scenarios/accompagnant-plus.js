@@ -22,7 +22,7 @@ const { chromium, BASE } = require('../lib');
   // Côté pilote : Alex reçoit le chrono saisi par Tom
   await p.goto('about:blank'); await p.goto(BASE + 'index.html#lang=' + lang); await p.waitForTimeout(1600);
   if (await p.$('#jourj-overlay')) { await p.click('[data-jj="close"]'); await p.waitForTimeout(300); }
-  await p.click('#messages-toggle'); await p.waitForTimeout(300); await p.click('[data-action="open-notifs"]'); await p.waitForTimeout(500);
+  await p.click('#notifications-toggle'); await p.waitForTimeout(500);
   console.log('notif:', await p.$eval('[data-action="accept-chrono-proposal"]', e => e.closest('.notifications-panel').innerText.split('\n').slice(0, 6).join(' | ')).catch(() => 'absente'));
   const before = await p.evaluate(() => Object.values(window.__MOCK_DATA.sessions).filter(s => s.rider === 'Alex').length);
   await p.click('[data-action="accept-chrono-proposal"]'); await p.waitForTimeout(800);

@@ -33,7 +33,7 @@ const { chromium, BASE } = require('../lib');
   await p.evaluate(() => firebase.firestore().collection('eventInvites').doc('e3_Alex').set({ eventId: 'e3', teamId: null, circuit: 'Le Mans', dateStart: '', from: 'Sam', to: 'Alex', status: 'pending', createdAt: Date.now() }));
   await p.evaluate(() => firebase.firestore().collection('events').doc('e3').update({ riders: ['Sam'] }));
   await p.waitForTimeout(500);
-  await p.click('#messages-toggle'); await p.waitForTimeout(300); await p.click('[data-action="open-notifs"]'); await p.waitForTimeout(500);
+  await p.click('#notifications-toggle'); await p.waitForTimeout(500);
   console.log('notification:', await p.$eval('[data-action="event-invite-accept"]', e => e.closest('.friend-row').innerText.replace(/\n/g, ' | ')).catch(() => 'absente'));
   await p.click('[data-action="event-invite-accept"]').catch(() => {}); await p.waitForTimeout(900);
   const st2 = await p.evaluate(() => new Promise(res => {
