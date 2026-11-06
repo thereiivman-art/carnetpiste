@@ -5031,7 +5031,10 @@ body.budget-masked .budget-season strong, body.budget-masked .budget-row .carnet
 /* Les sous-onglets restent collés sous leur onglet pendant le défilement :
    le bloc onglet + sous-onglets ne se sépare plus. */
 @media (max-width: 959px) {
-  .subnav.main-subnav + .pill-tabs { position: sticky; top: calc(var(--header-h, 64px) - 1px + var(--subnav-h, 44px) - 1px); z-index: 7; box-shadow: 0 0 0 1rem var(--bg); clip-path: inset(0 -1rem -1rem -1rem); }
+  .subnav.main-subnav + .pill-tabs { position: sticky; top: calc(var(--header-h, 64px) - 1px + var(--subnav-h, 44px) - 1px); z-index: 7; box-shadow: 0 0 0 1rem var(--bg); clip-path: inset(0 -1rem calc(-1 * var(--subnav-gap, 0.5rem)) -1rem); }
+  /* Le masque sous les sous-onglets ne mord plus sur la suite (pastilles
+     Liste / Mois, cartes) : la suite commence sous lui. */
+  .subnav.main-subnav + .pill-tabs + * { margin-top: calc(var(--subnav-gap, 0.5rem) + 0.45rem) !important; }
 }
 .subnav + .pill-tabs .pill-btn, .subnav + .pill-tabs .pill-btn.active { flex: 1 1 auto; min-width: 0; }
 /* Icône et couleur selon le type de notification */
@@ -5263,9 +5266,12 @@ html.simple-mode { font-size: 112%; }
 .feed-entry-foot.social-row .post-inc-date + .post-trash { margin-left: 0 !important; }
 /* Masquer une carte du fil : petite croix discrète en haut à droite. */
 .card.can-hide { position: relative; }
-.card.can-hide > :nth-child(2) { padding-right: 1.9rem; }
 .feed-hide { position: absolute; top: 0.45rem; right: 0.45rem; z-index: 2; width: 1.8rem; height: 1.8rem; min-width: 0; padding: 0; border: 0; border-radius: 50%; background: none; color: var(--text-muted); opacity: 0.7; display: grid; place-items: center; cursor: pointer; }
 .feed-hide:hover { opacity: 1; background: color-mix(in srgb, var(--text) 8%, transparent); }
 .feed-hidden-reset { display: flex; align-items: center; justify-content: space-between; gap: 0.6rem; margin-top: 0.9rem; padding-top: 0.7rem; border-top: 1px solid var(--border); }
 .story-prep-err { color: #fff; max-width: 30rem; margin: 1.2rem auto 0; padding: 0 1rem; text-align: center; line-height: 1.4; }
 .story-prep-actions { display: flex; gap: 0.5rem; justify-content: center; margin-top: 1rem; }
+/* Place pour la croix : la miniature ou l'heure du haut se décalent. */
+.card.can-hide .feed-entry-time, .card.can-hide .feed-ride-thumb, .card.can-hide .feed-recap-head > .outing-thumb, .card.feed-moment.can-hide > .outing-thumb { margin-right: 1.9rem !important; }
+.card.can-hide .wall-post-head { padding-right: 1.9rem; }
+.card.can-hide .wall-post-head .feed-entry-time { margin-right: 0 !important; }

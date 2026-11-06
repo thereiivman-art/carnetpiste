@@ -51,6 +51,7 @@ const { chromium, BASE } = require('../lib');
   await p.click('.bottom-nav-btn:nth-child(3)'); await p.waitForTimeout(500);
   const db2 = await p.$('[data-action="incident-date"]');
   console.log('bouton Date:', !!db2);
+  console.log('lieu précis:', await p.$eval('.post-place', e => e.innerText + ' → ' + decodeURIComponent(e.href)).catch(() => 'absent'));
   if (db2) { await db2.click(); await p.waitForTimeout(300); await p.fill('#inc-date-edit', '2026-09-20'); await p.click('[data-inc-date="ok"]'); await p.waitForTimeout(500);
     console.log('modifié:', await p.evaluate((id) => window.__MOCK_DATA.wallPosts[id].text + ' | ' + window.__MOCK_DATA.wallPosts[id].incident.date, post.id)); }
   console.log('errs', JSON.stringify(errs)); await b.close(); })();

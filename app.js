@@ -8517,7 +8517,35 @@
     var k = Object.keys(CIRCUIT_COORDS).filter(function (n) { return circuitKey(n) === circuitKey(circuit); })[0];
     return k ? CIRCUIT_COORDS[k] : null;
   }
-  function circuitMapsUrl(circuit) { return 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent('Circuit ' + circuit); }
+  // Nom complet du circuit : la carte tombe sur la piste, pas sur la ville.
+  var CIRCUIT_FULLNAMES = {
+    'Albi': 'Circuit d\'Albi', 'Alès': 'Pôle Mécanique Alès Cévennes', 'Bresse': 'Circuit de Bresse', 'Carole': 'Circuit Carole', 'Charade': 'Circuit de Charade',
+    'Croix-en-Ternois': 'Circuit de Croix-en-Ternois', 'Dijon-Prenois': 'Circuit Dijon-Prenois', 'Haute Saintonge': 'Circuit de Haute Saintonge', 'Lédenon': 'Circuit de Lédenon',
+    'Le Mans': 'Circuit Bugatti, Le Mans', 'Le Vigeant': 'Circuit du Val de Vienne', 'Magny Cours': 'Circuit de Nevers Magny-Cours', 'Nogaro': 'Circuit Paul Armagnac, Nogaro',
+    'Pau-Arnos': 'Circuit Pau-Arnos', 'Paul Ricard': 'Circuit Paul Ricard', 'Mas du Clos': 'Circuit du Mas du Clos', 'Vaison Piste': 'Vaison Piste', 'Clastres': 'Circuit de Clastres',
+    'Barcelone': 'Circuit de Barcelona-Catalunya', 'Jerez': 'Circuito de Jerez Ángel Nieto', 'Valence': 'Circuit Ricardo Tormo', 'Aragón': 'MotorLand Aragón',
+    'Navarra': 'Circuito de Navarra', 'Jarama': 'Circuito del Jarama', 'Almería': 'Circuito de Almería', 'Cartagena': 'Circuito de Cartagena', 'Calafat': 'Circuit de Calafat',
+    'Alcarràs': 'Circuit d\'Alcarràs', 'Portimão': 'Autódromo Internacional do Algarve', 'Estoril': 'Circuito do Estoril', 'Mugello': 'Autodromo Internazionale del Mugello',
+    'Misano': 'Misano World Circuit Marco Simoncelli', 'Imola': 'Autodromo Enzo e Dino Ferrari, Imola', 'Vallelunga': 'Autodromo di Vallelunga', 'Cremona': 'Cremona Circuit',
+    'Varano': 'Autodromo Riccardo Paletti, Varano', 'Spa-Francorchamps': 'Circuit de Spa-Francorchamps', 'Zolder': 'Circuit Zolder', 'Mettet': 'Circuit Jules Tacheny, Mettet',
+    'Assen': 'TT Circuit Assen', 'Sachsenring': 'Sachsenring', 'Hockenheim': 'Hockenheimring', 'Nürburgring': 'Nürburgring', 'Red Bull Ring': 'Red Bull Ring', 'Brno': 'Automotodrom Brno',
+    'Most': 'Autodrom Most', 'Slovakia Ring': 'Slovakia Ring', 'Grobnik': 'Automotodrom Grobnik', 'Pannonia-Ring': 'Pannonia-Ring', 'Silverstone': 'Silverstone Circuit',
+    'Donington': 'Donington Park', 'Brands Hatch': 'Brands Hatch', 'Losail': 'Lusail International Circuit', 'COTA': 'Circuit of the Americas', 'Termas de Río Hondo': 'Autódromo Termas de Río Hondo',
+    'Buriram': 'Chang International Circuit', 'Mandalika': 'Pertamina Mandalika Circuit', 'Motegi': 'Mobility Resort Motegi', 'Phillip Island': 'Phillip Island Grand Prix Circuit', 'Sepang': 'Sepang International Circuit'
+  };
+  function circuitFullName(circuit) {
+    var k = Object.keys(CIRCUIT_FULLNAMES).filter(function (n) { return sameCircuit(n, circuit); })[0];
+    return k ? CIRCUIT_FULLNAMES[k] : 'Circuit ' + circuit;
+  }
+  function circuitCoordsOf(circuit) {
+    var k = Object.keys(CIRCUIT_COORDS).filter(function (n) { return sameCircuit(n, circuit); })[0];
+    return k ? CIRCUIT_COORDS[k] : null;
+  }
+  function circuitMapsUrl(circuit) {
+    var name = circuitFullName(circuit), g = circuitCoordsOf(circuit);
+    if (/iPhone|iPad|iPod|Macintosh/.test(navigator.userAgent || '')) return 'https://maps.apple.com/?q=' + encodeURIComponent(name) + (g ? '&ll=' + g[0] + ',' + g[1] : '');
+    return 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(name);
+  }
   // Liens du circuit (site officiel, localisation) : Infos du circuit et du roulage.
   function circuitLinksHtml(circuit) {
     var site = circuitWebsite(circuit);
@@ -21939,6 +21967,12 @@
   }
   // « à Barcelone » sous le texte : un appui ouvre Plans (Apple) ou Google Maps.
   function postPlaceHtml(p) {
+    // Le lieu est un circuit connu : la carte tombe sur la piste (Misano →
+    // Misano World Circuit), pas sur la ville.
+    var pc = p.place && allCircuits().filter(function (c) { return sameCircuit(c, p.place); })[0];
+    if (pc && (CIRCUIT_COORDS[pc] || circuitCoordsOf(pc))) {
+      return '<a class="post-place" href="' + escapeHtml(circuitMapsUrl(pc)) + '" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-6-5.6-6-11a6 6 0 0 1 12 0c0 5.4-6 11-6 11z"/><circle cx="12" cy="10" r="2.3"/></svg>' + escapeHtml(circuitFullName(pc)) + '</a>';
+    }
     var apple = /iPhone|iPad|iPod|Macintosh/.test(navigator.userAgent || '');
     // Position approximative (~1 km) : jamais l'adresse exacte ; avec un nom
     // de lieu, la carte cherche le nom, pas les coordonnées.
