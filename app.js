@@ -5069,6 +5069,9 @@
         '<div class="help-text" style="margin-top:0.3rem;">' + L('Ta liste d\'amis n\'est jamais montrée aux autres.', 'Your friend list is never shown to others.') + '</div>' +
         '<label class="checklist-item" style="margin-top:0.4rem;"><input type="checkbox" id="profile-share-trophees"' + (p.shareTrophees !== false ? ' checked' : '') + '> ' + tr('share_trophies') + '</label>' +
         '<label class="checklist-item" style="margin-top:0.4rem;"><input type="checkbox" id="profile-share-travel-info"' + (p.shareTravelInfo !== false ? ' checked' : '') + '> ' + tr('share_travel_info') + '</label>';
+      var nHidden = Object.keys(hiddenFeedMap()).length;
+      if (nHidden) privacy += '<div class="feed-hidden-reset"><span class="help-text">' + plural(nHidden, L('carte masquée du fil', 'card hidden from the feed'), L('cartes masquées du fil', 'cards hidden from the feed')) + '</span>' +
+        '<button type="button" class="ghost" data-action="feed-unhide-all">' + L('Réafficher', 'Show') + '</button></div>';
       sections.confidentialite = privacy;
     }
     // RGPD: access/portability and the policy, whatever the display mode.
@@ -9938,6 +9941,7 @@
       myBudgetExtras = (doc.exists && doc.data().budgetExtras) || {};
       myPressures = (doc.exists && doc.data().pressures) || [];
       mergeDmReadFromAccount(doc.exists && doc.data().dmRead);
+      mergeHiddenFeedFromAccount(doc.exists && doc.data().hiddenFeed);
       renderRoot();
     }).catch(function () {});
   }
@@ -12597,26 +12601,28 @@
           return '<button type="button" data-inc-who="' + escapeHtml(n) + '" aria-pressed="' + (st.who === n) + '">' + escapeHtml(n === meName ? L('Moi', 'Me') : n) + '</button>'; }).join('') + '</div>' : '') +
         '<div class="look-seg incident-types">' + INCIDENT_TYPES().map(function (o) { return '<button type="button" data-inc-type="' + o[0] + '" aria-pressed="' + (st.type === o[0]) + '">' + escapeHtml(o[1]) + '</button>'; }).join('') + '</div>' +
         (base ? '<p class="help-text">' + L('Touche le plan à l\'endroit de l\'incident.', 'Tap the map where it happened.') + '</p><div class="incident-map"><img src="' + escapeHtml(base) + '" alt="">' + (st.x != null ? '<span class="incident-x" style="left:' + (st.x * 100) + '%;top:' + (st.y * 100) + '%"></span>' : '') + '</div>' : '<p class="help-text">' + L('Choisis d\'abord le circuit dans le formulaire pour placer l\'endroit.', 'Pick the circuit in the form first to mark the spot.') + '</p>') +
+        (st.who !== meName || !pastDate ? '<label for="inc-date" style="margin-top:0.6rem;">' + L('Date', 'Date') + '</label><input type="date" id="inc-date" value="' + escapeHtml(st.date || pastDate || todayKey()) + '" max="' + todayKey() + '">' : '') +
         '<label for="inc-note" style="margin-top:0.6rem;">' + L('Un mot (facultatif)', 'A word (optional)') + '</label><input type="text" id="inc-note" maxlength="140" value="' + escapeHtml(st.note || '') + '" placeholder="' + escapeHtml(L('Ex. Tout va bien, juste la moto à réparer', 'E.g. All good, just the bike to fix')) + '">' +
         '<label class="checklist-item" style="margin-top:0.5rem;"><input type="checkbox" id="inc-publish"' + (st.publish ? ' checked' : '') + '> ' + L('Publier sur mon Social (mes amis)', 'Post on my Social (my friends)') + '</label>' +
         '<div class="after-publish"><button type="button" class="primary" data-inc="ok">' + L('Valider', 'Confirm') + '</button>' + (pendingIncident ? '<button type="button" class="ghost" data-inc="clear">' + L('Retirer', 'Remove') + '</button>' : '') + '<button type="button" class="link-btn" data-mini-close>' + L('Annuler', 'Cancel') + '</button></div>';
     };
     var ov = openMiniSheet(draw());
     var bind = function () {
-      ov.querySelectorAll('[data-inc-who]').forEach(function (b) { b.addEventListener('click', function () { st.note = ov.querySelector('#inc-note').value; st.who = b.getAttribute('data-inc-who'); ov.querySelector('.mini-sheet').innerHTML = miniSheetX() + draw(); bind(); }); });
-      ov.querySelectorAll('[data-inc-type]').forEach(function (b) { b.addEventListener('click', function () { st.note = ov.querySelector('#inc-note').value; st.type = b.getAttribute('data-inc-type'); ov.querySelector('.mini-sheet').innerHTML = miniSheetX() + draw(); bind(); }); });
+      ov.querySelectorAll('[data-inc-who]').forEach(function (b) { b.addEventListener('click', function () { st.note = ov.querySelector('#inc-note').value; var dEl = ov.querySelector('#inc-date'); if (dEl && dEl.value) st.date = dEl.value; st.who = b.getAttribute('data-inc-who'); ov.querySelector('.mini-sheet').innerHTML = miniSheetX() + draw(); bind(); }); });
+      ov.querySelectorAll('[data-inc-type]').forEach(function (b) { b.addEventListener('click', function () { st.note = ov.querySelector('#inc-note').value; var dEl = ov.querySelector('#inc-date'); if (dEl && dEl.value) st.date = dEl.value; st.type = b.getAttribute('data-inc-type'); ov.querySelector('.mini-sheet').innerHTML = miniSheetX() + draw(); bind(); }); });
       var map = ov.querySelector('.incident-map');
       if (map) map.addEventListener('click', function (e) {
         var r = map.querySelector('img').getBoundingClientRect();
         st.x = Math.round(Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)) * 1000) / 1000;
         st.y = Math.round(Math.max(0, Math.min(1, (e.clientY - r.top) / r.height)) * 1000) / 1000;
-        st.note = ov.querySelector('#inc-note').value; st.publish = ov.querySelector('#inc-publish').checked;
+        st.note = ov.querySelector('#inc-note').value; var dEl = ov.querySelector('#inc-date'); if (dEl && dEl.value) st.date = dEl.value; st.publish = ov.querySelector('#inc-publish').checked;
         ov.querySelector('.mini-sheet').innerHTML = miniSheetX() + draw(); bind();
       });
       var clr = ov.querySelector('[data-inc="clear"]');
       if (clr) clr.addEventListener('click', function () { pendingIncident = null; ov.remove(); renderRoot(); });
       ov.querySelector('[data-inc="ok"]').addEventListener('click', function () {
         st.note = ov.querySelector('#inc-note').value.trim().slice(0, 140); st.publish = ov.querySelector('#inc-publish').checked;
+        var dIn = ov.querySelector('#inc-date'); st.date = dIn && /^\d{4}-\d{2}-\d{2}$/.test(dIn.value) ? dIn.value : (pastDate || '');
         var lapsEl = document.getElementById('f-laps');
         ov.remove();
         // Incident d'un ami : publié pour mes amis en le citant (il est prévenu),
@@ -12676,14 +12682,42 @@
     im.onerror = function () { cb(null); };
     im.src = base;
   }
+  // « Chute de @Marc à Misano le 12 oct. 2026. Tout va bien »
+  function incidentText(inc) {
+    return incidentLabel(inc.type) + (inc.subject ? L(' de @', ' for @') + inc.subject : '') + (inc.circuit ? L(' à ', ' at ') + inc.circuit : '') +
+      (inc.date && inc.date !== todayKey() ? L(' le ', ' on ') + formatDate(inc.date) : '') + (inc.note ? '. ' + inc.note : '.');
+  }
+  // Changer la date d'un incident déjà publié (le mien, ou celui d'un ami que j'ai déclaré).
+  function openIncidentDateSheet(postId) {
+    var post = (STATE.wallPosts || []).filter(function (w) { return w.id === postId; })[0];
+    if (!post || !post.incident) return;
+    var ov = openMiniSheet('<h2 class="section-title">' + L('Date de l\'incident', 'Incident date') + '</h2>' +
+      '<input type="date" id="inc-date-edit" value="' + escapeHtml(post.incident.date || dateKey(new Date(post.createdAt || Date.now()))) + '" max="' + todayKey() + '">' +
+      '<div class="after-publish"><button type="button" class="primary" data-inc-date="ok">' + L('Valider', 'Confirm') + '</button></div>');
+    ov.querySelector('[data-inc-date="ok"]').addEventListener('click', function () {
+      var v = ov.querySelector('#inc-date-edit').value; ov.remove();
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(v)) return;
+      var inc = Object.assign({}, post.incident, { date: v });
+      // Ancienne publication sans le mot gardé à part : on le retrouve dans le texte.
+      if (inc.note == null) { var m = String(post.text || '').match(/\.\s(.+)$/); if (m) inc.note = m[1]; }
+      post.incident = inc; post.text = incidentText(inc); post.editedAt = Date.now();
+      renderRoot();
+      db.collection('wallPosts').doc(post.id).update({ incident: inc, text: post.text, editedAt: post.editedAt })
+        .then(function () { showToast(L('Date modifiée.', 'Date changed.'), 'success'); })
+        .catch(function (err) { showToast(tr('error_prefix') + ((err && err.message) || err), 'sticky'); });
+    });
+  }
   function publishIncident(inc) {
     var me = currentUserProfile; if (!me) return;
     incidentImage(inc.circuit, inc.x, inc.y, function (img) {
       var vis = friendUidsOf(me.name), su = inc.subject ? uidOf(inc.subject) : null;
       if (su && vis.indexOf(su) === -1) vis = vis.concat([su]);
       var post = { id: genId(), author: me.name, authorUid: myUid(), audience: 'friends', visibleTo: vis, createdAt: Date.now(),
-        text: incidentLabel(inc.type) + (inc.subject ? L(' de @', ' for @') + inc.subject : '') + (inc.circuit ? L(' à ', ' at ') + inc.circuit : '') + (inc.note ? '. ' + inc.note : '.'), incident: { type: inc.type, circuit: inc.circuit || '' } };
+        incident: { type: inc.type, circuit: inc.circuit || '' } };
       if (inc.subject) post.incident.subject = inc.subject;
+      if (inc.note) post.incident.note = inc.note;
+      if (inc.date) post.incident.date = inc.date;
+      post.text = incidentText(post.incident);
       if (img) post.photoURL = img;
       if (inc.circuit) post.place = inc.circuit.slice(0, 80);
       STATE.wallPosts = [post].concat(STATE.wallPosts || []);
@@ -15468,6 +15502,7 @@
     return tr('weekday_names')[parseLocalDate(iso).getDay()];
   }
 
+  function todayKey() { return dateKey(new Date()); }
   function dateKey(date) {
     return date.getFullYear() + '-' + pad2(date.getMonth() + 1) + '-' + pad2(date.getDate());
   }
@@ -20095,7 +20130,7 @@
   // whichever one I had left.
   // Réactions : un emoji au choix (un par personne, retoucher le même
   // l'enlève). Le bouton « Réagir » ouvre la palette.
-  var REACTION_EMOJIS = ['👍', '🔥', '🏁', '👏', '😂', '😮'];
+  var REACTION_EMOJIS = ['👍', '🔥', '🏁', '👏', '😂', '😮', '😢'];
   function renderReactionBar(reactions, dataAction, id) {
     reactions = reactions || {};
     var mine = currentUserProfile ? reactions[currentUserProfile.name] : null;
@@ -20196,7 +20231,7 @@
     var t = norm(String(qText || '').trim());
     var bar = '<div class="gsearch-filters">' + [['all', L('Tout', 'All')], ['person', L('Profils', 'Profiles')], ['team', 'Teams'], ['circuit', 'Circuits'], ['event', L('Roulages', 'Trackdays')], ['post', L('Publications', 'Posts')], ['photo', L('Photos', 'Photos')]].map(function (f) {
       return '<button type="button" class="' + (ty === f[0] ? 'on' : '') + '" data-gs-type="' + f[0] + '">' + f[1] + '</button>'; }).join('') +
-      '<button type="button" class="gsearch-sort" data-gs-sort="1" title="' + escapeHtml(L('Ordre des dates', 'Date order')) + '">' + (asc ? L('Plus anciens', 'Oldest') : L('Plus récents', 'Newest')) + ' ⇅</button></div>';
+      '</div><div class="gsearch-sortrow">' + '<button type="button" class="gsearch-sort" data-gs-sort="1" title="' + escapeHtml(L('Ordre des dates', 'Date order')) + '">' + (asc ? L('Plus anciens', 'Oldest') : L('Plus récents', 'Newest')) + ' ⇅</button></div>';
     if (t.length < 2 && ty === 'all') return { html: bar + '<div class="help-text gsearch-hint">' + L('Choisis une catégorie ou tape au moins 2 lettres.', 'Pick a category or type at least 2 letters.') + '</div>', acts: acts };
     var hit = function (x) { return t.length < 2 || norm(x).indexOf(t) !== -1; };
     var want = function (k) { return ty === 'all' || ty === k; };
@@ -21043,6 +21078,32 @@
       return Promise.all(jobs).then(function (ds) { return ds.every(function (p) { return p.exists; }) ? ds.map(function (p) { return p.data().data; }).join('') : null; });
     });
   }
+  function storyFileInput() {
+    var inp = document.getElementById('story-input');
+    if (!inp) {
+      inp = document.createElement('input'); inp.type = 'file'; inp.id = 'story-input'; inp.hidden = true;
+      document.body.appendChild(inp);
+      inp.addEventListener('change', function () {
+        var file = inp.files && inp.files[0];
+        inp.value = '';
+        if (!file) return;
+        // Certaines vidéos arrivent sans type (iPhone, fichiers partagés) : l'extension suffit.
+        var isVideo = /^video\//.test(file.type) || (!file.type && /\.(mov|mp4|m4v|webm|3gp)$/i.test(file.name || ''));
+        if (isVideo) {
+          if (!canPostVideoStory()) return showToast(L('Les stories vidéo sont réservées à Pitbook+.', 'Video stories are for Pitbook+ members.'));
+          return prepareStoryVideo(file);
+        }
+        if (!/^image\//.test(file.type)) return showToast(L('Ce fichier n\'est ni une photo ni une vidéo.', 'This file is neither a photo nor a video.'), 'sticky');
+        resizeImageToDataUrl(file, 1080, 0.6, function (dataUrl) {
+          if (!dataUrl) return showToast(tr('cannot_read_image'));
+          if (dataUrl.length > 700000) return showToast(tr('photo_too_large_after_compression'));
+          openStoryComposer(dataUrl);
+        });
+      });
+    }
+    inp.accept = canPostVideoStory() ? 'image/*,video/*' : 'image/*';
+    return inp;
+  }
   function prepareStoryVideo(file) {
     var Rec = window.MediaRecorder, probe = document.createElement('canvas');
     if (!Rec || !probe.captureStream) return showToast(L('Ton navigateur ne permet pas encore les stories vidéo.', 'Your browser does not support video stories yet.'));
@@ -21055,8 +21116,19 @@
     wait.querySelector('.story-close').addEventListener('click', function () { cancelled = true; done(); });
     var finish = function (err, res) {
       if (cancelled) return;
+      if (err) {
+        // L'échec reste à l'écran avec la vidéo gardée : Réessayer ne
+        // repasse pas par l'album.
+        wait.innerHTML = '<div class="story-head"><strong>' + L('Vidéo non préparée', 'Video not prepared') + '</strong><button type="button" class="story-close" aria-label="' + escapeHtml(L('Fermer', 'Close')) + '">✕</button></div>' +
+          '<p class="story-prep story-prep-err">' + escapeHtml(err) + '</p><div class="story-prep-actions"><button type="button" class="primary" data-prep="retry">' + L('Réessayer', 'Retry') + '</button>' +
+          '<button type="button" class="ghost" data-prep="other">' + L('Autre', 'Other') + '</button><button type="button" class="ghost" data-prep="close">' + L('Fermer', 'Close') + '</button></div>';
+        wait.querySelector('.story-close').addEventListener('click', done);
+        wait.querySelector('[data-prep="close"]').addEventListener('click', done);
+        wait.querySelector('[data-prep="retry"]').addEventListener('click', function () { done(); prepareStoryVideo(file); });
+        wait.querySelector('[data-prep="other"]').addEventListener('click', function () { done(); storyFileInput().click(); });
+        return;
+      }
       done();
-      if (err) return showToast(err, 'sticky');
       openStoryComposer(res.poster, { dataUrl: res.dataUrl, mime: res.mime, duration: res.duration });
     };
     // 1er essai avec le son ; si l'enregistreur du téléphone n'y arrive
@@ -21298,7 +21370,7 @@
         '<span class="story-ring' + (myIdx === -1 ? ' story-ring-add' : '') + '">' + avatarHtml(meU, me.name).replace(/ data-person="[^"]*"/, '') + (myLeft ? '<span class="story-left">' + myLeft + '</span>' : '') + '</span>' +
         '<span class="story-name">' + (myIdx !== -1 ? L('Ma story', 'My story') : L('Ta story', 'Your story')) + '</span></button>' +
       '<button type="button" class="story-plus-btn" data-action="story-new" aria-label="' + escapeHtml(L('Ajouter à ma story', 'Add to my story')) + '">+</button></div>' +
-      '<input type="file" id="story-input" accept="' + (canPostVideoStory() ? 'image/*,video/*' : 'image/*') + '" hidden>';
+      '';
     return '<div class="stories-row">' + add + list.map(function (st, i) {
       if (i === myIdx) return '';
       if (st.teamId) {
@@ -22009,6 +22081,7 @@
       : '<button type="button" class="ghost repost-btn" data-action="repost" data-id="' + escapeHtml(p.id) + '"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 2l4 4-4 4"/><path d="M3 11V9a3 3 0 0 1 3-3h15"/><path d="M7 22l-4-4 4-4"/><path d="M21 13v2a3 3 0 0 1-3 3H3"/></svg> ' + (nRep ? nRep : L('Republier', 'Repost')) + '</button>';
     html += '<div class="feed-entry-foot social-row">' + renderReactionBar(p.reactions, 'react-wall-post', p.id) + commentToggleHtml(p.id) + repostBtn +
       // Pas de modification : seulement supprimer (corbeille).
+      (canEdit && p.incident ? '<button type="button" class="ghost post-inc-date" data-action="incident-date" data-id="' + escapeHtml(p.id) + '">' + L('Date', 'Date') + '</button>' : '') +
       (canEdit ? '<button type="button" class="post-trash" data-action="delete-wall-post" data-id="' + escapeHtml(p.id) + '" aria-label="' + escapeHtml(L('Supprimer', 'Delete')) + '" title="' + escapeHtml(L('Supprimer', 'Delete')) + '"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg></button>' : '') + '</div>';
     html += renderPostComments(p);
     html += '</div>';
@@ -22089,6 +22162,9 @@
     items = items.filter(function (it) {
       return !(it.kind === 'activity' && it.data.type === 'record' && it.data.createdAt && inRecap[it.data.actor + '|' + it.data.circuit + '|' + dateKey(new Date(it.data.createdAt))]);
     });
+    var feedKeyOf = function (it) { var d = it.data; return it.kind === 'wall' ? d.id : it.kind === 'ride' || it.kind === 'photos' ? d.key : it.kind === 'recap' ? 'recap:' + circuitKey(d.circuit) + '|' + d.dates.join(',') : d.id; };
+    var hiddenFeed = hiddenFeedMap();
+    items = items.filter(function (it) { return !hiddenFeed[feedKeyOf(it)]; });
     items.sort(function (a, b) { return (b.createdAt || 0) - (a.createdAt || 0); });
     // 5 at a time -- a scroll sentinel (see attachHandlers) loads 5 more
     // once it comes into view, rather than the whole history rendering
@@ -22124,8 +22200,11 @@
         if (h !== lastHeader) { head = h === 'Plus tôt' ? '' : '<div class="feed-day">' + h + '</div>'; lastHeader = h; }
         // A new friendship is a quiet line between cards, not a card.
         if (it.kind === 'activity' && it.data.type === 'friend') return head + '<div class="feed-line">' + inner + '</div>';
-        return head + '<div class="card feed-card"' + viewAttrs(vk, vo, it.kind === 'team' ? it.teamId : null) + '>' + inner + '</div>';
+        var canHide = !(it.kind === 'wall' && d.author === me.name);
+        return head + '<div class="card feed-card' + (canHide ? ' can-hide' : '') + '"' + viewAttrs(vk, vo, it.kind === 'team' ? it.teamId : null) + '>' +
+          (canHide ? '<button type="button" class="feed-hide" data-feed-hide="' + escapeHtml(vk) + '" aria-label="' + escapeHtml(L('Masquer', 'Hide')) + '" title="' + escapeHtml(L('Masquer', 'Hide')) + '"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>' : '') + inner + '</div>';
       }).join('') + (items.length > visible.length ? '<div id="wall-feed-sentinel" class="empty-inline">' + tr('loading') + '</div>' : '');
+    if (hiddenFeed['moment:' + ((circuitOfTheMoment() || {}).circuit || '')]) return body;
     return withRepost(renderCircuitMoment(), 'moment:' + (circuitOfTheMoment() || {}).circuit, function () {
       var c = circuitOfTheMoment();
       return { kind: 'moment', author: c.bestBy, createdAt: Date.now(), data: JSON.parse(JSON.stringify(c)) };
@@ -22180,7 +22259,7 @@
   function renderCircuitMoment(snapC) {
     var c = snapC || circuitOfTheMoment();
     if (!c) return '';
-    return '<div class="card feed-moment"><span class="outing-thumb feed-ride-thumb" data-open-circuit="' + escapeHtml(c.circuit) + '">' + circuitThumbHtml(c.circuit) + '</span>' +
+    return '<div class="card feed-moment' + (snapC ? '' : ' can-hide') + '">' + (snapC ? '' : '<button type="button" class="feed-hide" data-feed-hide="moment:' + escapeHtml(c.circuit) + '" aria-label="' + escapeHtml(L('Masquer', 'Hide')) + '" title="' + escapeHtml(L('Masquer', 'Hide')) + '"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>') + '<span class="outing-thumb feed-ride-thumb" data-open-circuit="' + escapeHtml(c.circuit) + '">' + circuitThumbHtml(c.circuit) + '</span>' +
       '<span class="feed-ride-main"><span class="feed-record-label">' + L('Le circuit du moment', 'Circuit of the moment') + '</span><strong class="feed-ride-circuit" data-open-circuit="' + escapeHtml(c.circuit) + '">' + escapeHtml(c.circuit) + '</strong>' +
       '<span class="help-text">' + c.n + L(' amis y ont roulé ce mois-ci · record des amis ', ' friends rode it this month · friends\' record ') + '<strong>' + formatTime(c.best) + '</strong> (' + pName(c.bestBy) + ')</span></span></div>';
   }
@@ -22484,6 +22563,27 @@
   // Messages lus : gardés sur le compte (userPrivate.dmRead), plus seulement
   // sur l'appareil -- un autre navigateur ne remontre plus tout comme nouveau.
   var dmReadSyncTimer = null, dmReadPending = {};
+  // Cartes du fil que je ne veux plus voir (récap, roulage, publication d'un ami…),
+  // gardées sur le compte pour suivre sur tous les appareils.
+  function hiddenFeedMap() { try { return JSON.parse(localStorage.getItem('cdp-feed-hidden-' + myUid()) || '{}') || {}; } catch (e) { return {}; } }
+  function setHiddenFeed(key, on) {
+    var m = hiddenFeedMap(), uid = auth.currentUser && auth.currentUser.uid, patch = {};
+    if (on) m[key] = Date.now(); else delete m[key];
+    try { localStorage.setItem('cdp-feed-hidden-' + myUid(), JSON.stringify(m)); } catch (e) {}
+    patch[key] = on ? m[key] : firebase.firestore.FieldValue.delete();
+    if (uid) db.collection('userPrivate').doc(uid).set({ hiddenFeed: patch }, { merge: true }).catch(function () {});
+  }
+  function clearHiddenFeed() {
+    var uid = auth.currentUser && auth.currentUser.uid;
+    try { localStorage.removeItem('cdp-feed-hidden-' + myUid()); } catch (e) {}
+    if (uid) db.collection('userPrivate').doc(uid).update({ hiddenFeed: firebase.firestore.FieldValue.delete() }).catch(function () {});
+  }
+  function mergeHiddenFeedFromAccount(remote) {
+    if (!remote || typeof remote !== 'object') return;
+    var m = hiddenFeedMap();
+    Object.keys(remote).forEach(function (k) { if (typeof remote[k] === 'number') m[k] = remote[k]; });
+    try { localStorage.setItem('cdp-feed-hidden-' + myUid(), JSON.stringify(m)); } catch (e) {}
+  }
   function markDmRead(cid) {
     var m = dmReadMap(), t = Date.now(); m[cid] = t;
     try { localStorage.setItem('cdp-dm-read-' + myUid(), JSON.stringify(m)); } catch (e) {}
@@ -26140,6 +26240,9 @@
       if (pc) { pendingPostId = null; pc.scrollIntoView({ block: 'center' }); pc.classList.add('post-flash'); }
       else if (activeView !== 'social' || pillState.social !== 'fil') { activeView = 'social'; pillState.social = 'fil'; personView = null; setTimeout(renderRoot, 0); }
     }
+    document.querySelectorAll('[data-action="incident-date"]').forEach(function (btn) {
+      btn.addEventListener('click', function () { openIncidentDateSheet(btn.getAttribute('data-id')); });
+    });
     document.querySelectorAll('[data-action="delete-wall-post"]').forEach(function (btn) {
       btn.addEventListener('click', function () {
         var id = btn.getAttribute('data-id');
@@ -26472,6 +26575,14 @@
     if (rootEl && !rootEl.__socialLinks) {
       rootEl.__socialLinks = true;
       rootEl.addEventListener('click', function (e) {
+        if (e.target.closest('[data-action="feed-unhide-all"]')) { e.preventDefault(); e.stopPropagation(); clearHiddenFeed(); renderRoot(); showToast(L('Tout est réaffiché.', 'Everything is shown again.'), 'success'); return; }
+        var fh = e.target.closest('[data-feed-hide]');
+        if (fh) {
+          e.preventDefault(); e.stopPropagation();
+          setHiddenFeed(fh.getAttribute('data-feed-hide'), true); renderRoot();
+          showToast(L('Masqué du fil. Pour le revoir : Réglages › Confidentialité.', 'Hidden from your feed. To see it again: Settings › Privacy.'));
+          return;
+        }
         var sg = e.target.closest('[data-settings-go]');
         if (sg) {
           e.preventDefault(); e.stopPropagation();
@@ -26587,7 +26698,10 @@
     document.querySelectorAll('[data-action="repost"]').forEach(function (btn) {
       btn.addEventListener('click', function () { repostWallPost(btn.getAttribute('data-id')); });
     });
-    var storyBtn = document.querySelector('[data-action="story-new"]'), storyInput = document.getElementById('story-input');
+    // Le champ fichier vit hors de la page redessinée : si l'appli se
+    // redessine pendant qu'on cherche dans l'album (message, présence…),
+    // la vidéo choisie arrive quand même.
+    var storyBtn = document.querySelector('[data-action="story-new"]'), storyInput = storyFileInput();
     if (storyBtn && storyInput) {
       storyBtn.addEventListener('click', function () { storyInput.click(); });
       var meBubble = document.querySelector('.story-me-btn');
@@ -26600,20 +26714,6 @@
         meBubble.addEventListener('click', function (e) { if (lpFired) { e.stopImmediatePropagation(); e.preventDefault(); lpFired = false; } }, true);
         meBubble.addEventListener('contextmenu', function (e) { e.preventDefault(); });
       }
-      storyInput.addEventListener('change', function () {
-        var file = storyInput.files && storyInput.files[0];
-        storyInput.value = '';
-        if (file && /^video\//.test(file.type)) {
-          if (!canPostVideoStory()) return showToast(L('Les stories vidéo sont réservées à Pitbook+.', 'Video stories are for Pitbook+ members.'));
-          return prepareStoryVideo(file);
-        }
-        if (!file || !/^image\//.test(file.type)) return;
-        resizeImageToDataUrl(file, 1080, 0.6, function (dataUrl) {
-          if (!dataUrl) return showToast(tr('cannot_read_image'));
-          if (dataUrl.length > 700000) return showToast(tr('photo_too_large_after_compression'));
-          openStoryComposer(dataUrl);
-        });
-      });
     }
     document.querySelectorAll('[data-action="open-story"]').forEach(function (btn) {
       btn.addEventListener('click', function () { openStory(parseInt(btn.getAttribute('data-index'), 10) || 0); });

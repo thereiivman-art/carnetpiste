@@ -5122,7 +5122,8 @@ body.budget-masked .budget-season strong, body.budget-masked .budget-row .carnet
 .gsearch-filters { display: flex; flex-wrap: wrap; gap: 0.35rem; }
 .gsearch-filters button { border: 1px solid var(--border); background: var(--surface); color: var(--text-muted); border-radius: 999px; padding: 0.3rem 0.75rem; font-size: 0.82rem; font-weight: 700; cursor: pointer; }
 .gsearch-filters button.on { background: var(--text); color: var(--bg); border-color: var(--text); }
-.gsearch-filters .gsearch-sort { margin-left: auto; border-style: dashed; }
+.gsearch-sortrow { display: flex; justify-content: flex-start; margin-top: 0.4rem; }
+.gsearch-sortrow .gsearch-sort { border: 1px dashed var(--border); background: var(--surface); color: var(--text-muted); border-radius: 999px; padding: 0.3rem 0.75rem; font-size: 0.82rem; font-weight: 700; cursor: pointer; }
 .gsearch-hint { padding: 0.4rem 0.2rem; }
 .gsearch-photos { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.3rem; }
 .gsearch-photo { padding: 0; border: 0; border-radius: 8px; overflow: hidden; aspect-ratio: 1; cursor: pointer; background: var(--surface-alt); }
@@ -5258,3 +5259,13 @@ html.simple-mode { font-size: 112%; }
 /* Message qui reste jusqu'à ce qu'on le ferme */
 .toast.sticky { pointer-events: auto; padding-right: 2.6rem; position: relative; border-left: 4px solid var(--accent, #c8261f); max-width: min(92vw, 520px); }
 .toast.sticky .toast-close { position: absolute; top: 0.35rem; right: 0.4rem; width: 1.8rem; height: 1.8rem; border: 0; border-radius: 50%; background: rgba(255,255,255,0.15); color: inherit; font-size: 0.9rem; cursor: pointer; }
+.feed-entry-foot.social-row .post-inc-date { order: 8; margin-left: auto; min-width: 0; padding: 0.3rem 0.7rem; font-size: 0.85rem; }
+.feed-entry-foot.social-row .post-inc-date + .post-trash { margin-left: 0 !important; }
+/* Masquer une carte du fil : petite croix discrète en haut à droite. */
+.card.can-hide { position: relative; }
+.card.can-hide > :nth-child(2) { padding-right: 1.9rem; }
+.feed-hide { position: absolute; top: 0.45rem; right: 0.45rem; z-index: 2; width: 1.8rem; height: 1.8rem; min-width: 0; padding: 0; border: 0; border-radius: 50%; background: none; color: var(--text-muted); opacity: 0.7; display: grid; place-items: center; cursor: pointer; }
+.feed-hide:hover { opacity: 1; background: color-mix(in srgb, var(--text) 8%, transparent); }
+.feed-hidden-reset { display: flex; align-items: center; justify-content: space-between; gap: 0.6rem; margin-top: 0.9rem; padding-top: 0.7rem; border-top: 1px solid var(--border); }
+.story-prep-err { color: #fff; max-width: 30rem; margin: 1.2rem auto 0; padding: 0 1rem; text-align: center; line-height: 1.4; }
+.story-prep-actions { display: flex; gap: 0.5rem; justify-content: center; margin-top: 1rem; }

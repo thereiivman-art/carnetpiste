@@ -2,6 +2,14 @@
 
 Les nouveautés, de la plus récente à la plus ancienne. Le détail complet est dans l'historique git.
 
+## 9 novembre 2026
+
+- Réactions : emoji triste.
+- Incident d'un ami : on choisit la date (ex. sa chute à Misano le mois dernier). Bouton Date sur l'incident publié pour la corriger.
+- Fil : petite croix pour masquer une carte (récap de roulage, chrono, publication d'un ami…). Tout se réaffiche dans Réglages › Confidentialité.
+- Story vidéo : la vidéo choisie arrive même si l'appli se rafraîchit pendant qu'on cherche dans l'album. En cas d'échec, Réessayer relance sans repasser par l'album.
+- Recherche : le tri par date passe sur sa propre ligne.
+
 ## 8 novembre 2026
 
 - Incident : on peut le déclarer pour un ami qui a roulé ce jour-là (« Pour qui ? »). Il est cité dans la publication.
