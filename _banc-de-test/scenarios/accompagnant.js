@@ -23,7 +23,7 @@ const { chromium, BASE } = require('../lib');
   await p.click('.bottom-nav-btn[data-view^="carnet"]'); await p.waitForTimeout(300);
   await p.click('.subnav-btn[data-view="stats"]'); await p.waitForTimeout(400);
   console.log('stats pills:', await p.$$eval('[data-pill-group="stats"]', e => e.map(x => x.textContent).join(' / ')));
-  await p.click('[data-moi-jump="podium"]'); await p.waitForTimeout(400);
+  await p.click('[data-moi-jump="podium"]', { timeout: 1500 }).catch(() => {}); await p.waitForTimeout(400); await p.click('[data-podium-scope="potes"]', { timeout: 1500 }).catch(() => {}); await p.waitForTimeout(300);
   console.log('podiums:', await p.$$eval('.podium-circuit', e => e.map(x => x.innerText).join(', ')));
   console.log('errs', JSON.stringify(errs)); await b.close();
 })();
