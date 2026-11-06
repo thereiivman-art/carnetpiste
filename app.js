@@ -20732,7 +20732,7 @@
         if (!err2) return finish(null, res2);
         if (err2 === 'too-big') return finish(L('Vidéo trop lourde même compressée : essaie un passage plus court ou moins animé.', 'Video too large even compressed: try a shorter or calmer clip.'));
         // Dernier recours : la vidéo d'origine si elle est déjà assez légère.
-        if (file.size < 700000 && /^video\/(mp4|webm|quicktime)/.test(file.type)) {
+        if (file.size < 730000 && /^video\/(mp4|webm|quicktime)/.test(file.type)) {
           var fr = new FileReader();
           fr.onload = function () {
             var du = String(fr.result).replace(/^data:video\/quicktime/, 'data:video/mp4');
@@ -20741,9 +20741,18 @@
           fr.onerror = function () { finish(L('Cette vidéo n\'a pas pu être lue.', 'This video could not be read.')); };
           return fr.readAsDataURL(file);
         }
-        finish(L('Ton téléphone n\'a pas réussi à compresser cette vidéo (code : ', 'Your phone could not compress this video (code: ') + err + ' / ' + err2 + L('). Envoie-moi ce code via Suggestion.', '). Send me this code via Suggestion.'));
+        finish(storyVideoErrorText(err, err2));
       });
     });
+  }
+  // Pourquoi une vidéo n'a pas pu être préparée, en clair, avec quoi faire.
+  // Rappel : la vidéo est réenregistrée sur le téléphone (480 px, ~0,4 Mb/s,
+  // 10 s max) pour tenir sous ~730 Ko, la limite d'un document Firestore.
+  function storyVideoErrorText(err, err2) {
+    var c = err2 || err, code = ' (' + L('code', 'code') + ' : ' + err + ' / ' + err2 + ')';
+    if (c === 'read' || c === 'format') return L('Le navigateur n\'arrive pas à lire ce format de vidéo (souvent HEVC / HDR d\'iPhone, ou 4K). Filme en 1080p ; sur iPhone : Réglages › Appareil photo › Formats › « Le plus compatible », et HDR désactivé.', 'The browser cannot read this video format (often iPhone HEVC / HDR, or 4K). Record in 1080p; on iPhone: Settings › Camera › Formats › “Most Compatible”, and HDR off.') + code;
+    if (c === 'stall' || c === 'play') return L('La vidéo ne s\'est pas lue jusqu\'au bout pendant la compression : trop lourde à décoder (4K, 60 images/s) ou téléphone en économie d\'énergie. Filme en 1080p 30 images/s et garde l\'écran allumé.', 'The video did not play through during compression: too heavy to decode (4K, 60 fps) or the phone is in low-power mode. Record in 1080p 30 fps and keep the screen on.') + code;
+    return L('Ton navigateur ne sait pas réenregistrer cette vidéo. Essaie avec Chrome (Android) ou Safari à jour (iPhone).', 'Your browser cannot re-encode this video. Try Chrome (Android) or an up-to-date Safari (iPhone).') + code;
   }
   // Rejoue la vidéo dans un canevas réduit (480 px) et l'enregistre à
   // faible débit. cb(erreur, { dataUrl, mime, poster, duration }).

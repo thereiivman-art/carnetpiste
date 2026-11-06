@@ -19,6 +19,7 @@ Les nouveautés, de la plus récente à la plus ancienne. Le détail complet est
 - Mon compte : le rôle choisi ne se réinitialise plus en touchant Moto / Voiture ; option « Je roule en moto et en voiture ».
 
 **Retours Xavier**
+- Story vidéo : quand la préparation échoue, le message explique pourquoi (format, vidéo trop lourde à décoder, navigateur) et quoi faire.
 - Chrono : « Un roulage déjà passé ? » explique la marche à suivre et propose tes roulages sans chrono en un geste.
 - Messages : l'état lu / non lu suit le compte sur tous les appareils.
 - Nouveau tracé de Barcelone (sans la chicane).
