@@ -3492,7 +3492,7 @@
       return a.c.localeCompare(b.c);
     });
     return list.map(function (x) {
-      var extra = sort === 'niveau' ? (x.lv ? levelLabel(x.lv) : '') : sort === 'distance' ? (x.km != null ? String(x.km).replace('.', currentLang() === 'en' ? '.' : ',') + ' km' : '') : sort === 'temps' ? (x.best != null ? formatTime(x.best) : '') : '';
+      var extra = sort === 'niveau' ? (x.lv ? levelLabel(x.lv) : '') : sort === 'distance' ? (x.km != null ? fmtDist(Number(x.km), 2) : '') : sort === 'temps' ? (x.best != null ? formatTime(x.best) : '') : '';
       return '<option value="' + escapeHtml(x.c) + '"' + (x.c === selected ? ' selected' : '') + '>' + escapeHtml(x.c + (extra ? ' · ' + extra : '')) + '</option>';
     }).join('');
   }
@@ -5088,7 +5088,7 @@
         '<label class="checklist-item" style="margin-top:0.4rem;"><input type="checkbox" id="profile-share-trophees"' + (p.shareTrophees !== false ? ' checked' : '') + '> ' + tr('share_trophies') + '</label>' +
         '<label class="checklist-item" style="margin-top:0.4rem;"><input type="checkbox" id="profile-share-travel-info"' + (p.shareTravelInfo !== false ? ' checked' : '') + '> ' + tr('share_travel_info') + '</label>';
       var nHidden = Object.keys(hiddenFeedMap()).length;
-      if (nHidden) privacy += '<div class="feed-hidden-reset"><span class="help-text">' + plural(nHidden, L('carte masquée du fil', 'card hidden from the feed'), L('cartes masquées du fil', 'cards hidden from the feed')) + '</span>' +
+      if (nHidden) privacy += '<div class="feed-hidden-reset"><span class="help-text">' + plural(nHidden, L('carte masquée de Social', 'card hidden from the feed'), L('cartes masquées de Social', 'cards hidden from the feed')) + '</span>' +
         '<button type="button" class="ghost" data-action="feed-unhide-all">' + L('Réafficher', 'Show') + '</button></div>';
       sections.confidentialite = privacy;
     }
@@ -5103,6 +5103,9 @@
     sections.donnees = (meIsNonRider() ? '' : '<div class="my-data-block"><div class="section-title" style="font-size:0.95rem;">' + L('Mes chronos', 'My lap times') + '</div>' +
       '<div class="help-text">' + L('Tous tes chronos dans un tableur (CSV), pour Excel ou Numbers.', 'All your lap times in a spreadsheet (CSV), for Excel or Numbers.') + '</div>' +
       '<button type="button" class="primary add-chrono-btn" data-action="export-chronos-csv" style="margin-top:0.7rem;">' + L('Exporter mes chronos (tableur CSV)', 'Export my lap times (CSV spreadsheet)') + '</button></div>') + myDataHtml;
+    sections.affichage += '<div class="units-row"><span class="look-label">' + L('Unités', 'Units') + '</span>' +
+      '<div class="look-seg"><button type="button" data-unit="temp" data-val="C" aria-pressed="' + (unitPrefs().temp !== 'F') + '">°C</button><button type="button" data-unit="temp" data-val="F" aria-pressed="' + (unitPrefs().temp === 'F') + '">°F</button></div>' +
+      '<div class="look-seg"><button type="button" data-unit="dist" data-val="km" aria-pressed="' + (unitPrefs().dist !== 'mi') + '">km</button><button type="button" data-unit="dist" data-val="mi" aria-pressed="' + (unitPrefs().dist === 'mi') + '">' + L('miles', 'miles') + '</button></div></div>';
     {
       sections.affichage += '<div class="app-version-row"><span class="help-text">' + L('Version de l\'appli : ', 'App version: ') + escapeHtml(currentAppVersion()) + '</span>' +
         '<button type="button" class="ghost" data-action="open-patchnotes">' + L('Nouveautés', 'What\'s new') + '</button>' +
@@ -5202,7 +5205,7 @@
         row('@compte', 'user', L('Compte', 'Account'), p.name, L('profil fiche photo pseudo email mot de passe supprimer rôle', 'profile photo name email password delete role'))) +
       group(L('Comment tu utilises Pitbook', 'How you use Pitbook'),
         row('notifications', 'bell', 'Notifications', '', L('alertes push rappels duel podium amis roulage', 'alerts push reminders duel podium friends trackday')) +
-        row('affichage', 'globe', L('Langue et affichage', 'Language and display'), currentLang() === 'en' ? 'English' : 'Français', L('langue thème sombre clair ressenti version mise à jour', 'language theme dark light feeling version update'))) +
+        row('affichage', 'globe', L('Langue et affichage', 'Language and display'), currentLang() === 'en' ? 'English' : 'Français', L('langue thème sombre clair ressenti version mise à jour unités celsius fahrenheit miles', 'language theme dark light feeling version update units celsius fahrenheit miles'))) +
       group(L('Qui peut voir ton contenu', 'Who can see your content'),
         row('confidentialite', 'lock', L('Confidentialité', 'Privacy'), p.profileVisibility === 'friends' ? L('Amis', 'Friends') : L('Public', 'Public'), L('fiche visible chronos roulages trophées voyage abonnés', 'profile visible lap times trackdays trophies travel followers')) +
         row('confidentialite', 'chat', L('Messages', 'Messages'), dmLbl[p.dmPolicy || 'friends'] || '', L('qui peut m\'écrire messages privés', 'who can message me private messages')) +
@@ -5764,6 +5767,19 @@
     if (n.length === 2) return n[0] + L(' et ', ' and ') + n[1];
     return n[0] + ', ' + n[1] + L(' et ', ' and ') + (n.length - 2) + L(' autre' + (n.length > 3 ? 's' : ''), ' other' + (n.length > 3 ? 's' : ''));
   }
+  // Date fixe d'une notification sans date propre (« X vient à … ») : la
+  // première fois que cet appareil l'a vue. Avant, elle prenait « maintenant »
+  // à chaque chargement et remontait en tête comme une nouvelle.
+  var firstSeenMap = null;
+  function firstSeenAt(key) {
+    if (!firstSeenMap) { try { firstSeenMap = JSON.parse(localStorage.getItem('cdp-first-seen-' + myUid()) || '{}') || {}; } catch (e) { firstSeenMap = {}; } }
+    if (!firstSeenMap[key]) {
+      firstSeenMap[key] = Date.now();
+      var ks = Object.keys(firstSeenMap); if (ks.length > 300) ks.sort(function (a, b) { return firstSeenMap[a] - firstSeenMap[b]; }).slice(0, ks.length - 300).forEach(function (k) { delete firstSeenMap[k]; });
+      try { localStorage.setItem('cdp-first-seen-' + myUid(), JSON.stringify(firstSeenMap)); } catch (e) {}
+    }
+    return firstSeenMap[key];
+  }
   function activityItems() {
     var me = currentUserProfile;
     if (!me) return [];
@@ -5848,7 +5864,8 @@
       var ev = x.ev;
       // Pilotes et accompagnants ensemble : « X, Y et Z viennent à … ».
       var who = x.friends.concat(x.companions);
-      items.push({ key: 'going:' + ev.id + ':' + who.slice().sort().join(','), kind: 'calendar', time: Date.now() - 1,
+      var gk = 'going:' + ev.id + ':' + who.slice().sort().join(',');
+      items.push({ key: gk, kind: 'calendar', time: firstSeenAt(gk),
         timeLabel: formatEventRange(ev, true),
         html: namesList(who) + L((who.length > 1 ? ' viennent' : ' vient') + (x.mine ? ' aussi' : '') + ' à ', (who.length > 1 ? ' are' : ' is') + (x.mine ? ' also' : '') + ' coming to ') + escapeHtml(ev.circuit),
         go: { to: 'event', id: ev.id, join: !x.mine } });
@@ -8618,6 +8635,17 @@
   }
   // ---- Météo prévue au circuit (Open-Meteo, modèle Météo-France en France) ----
   var forecastCache = {};
+  // Unités (Réglages › Langue et affichage) : °C ou °F, km ou miles.
+  // Gardées sur l'appareil ; « FREEDOM UNITS » pour les Américains.
+  function unitPrefs() { try { return JSON.parse(localStorage.getItem('cdp-units') || 'null') || { temp: 'C', dist: 'km' }; } catch (e) { return { temp: 'C', dist: 'km' }; } }
+  function setUnitPref(k, v) { var u = unitPrefs(); u[k] = v; try { localStorage.setItem('cdp-units', JSON.stringify(u)); } catch (e) {} }
+  function fmtTemp(c) { if (c == null || isNaN(c)) return '—'; return unitPrefs().temp === 'F' ? Math.round(c * 9 / 5 + 32) + '°F' : Math.round(c) + '°C'; }
+  function fmtSpeed(kmh) { return unitPrefs().dist === 'mi' ? Math.round(kmh * 0.621371) + ' mph' : Math.round(kmh) + ' km/h'; }
+  function fmtDist(km, digits) {
+    var mi = unitPrefs().dist === 'mi', v = mi ? km * 0.621371 : km;
+    var str = digits ? (Math.round(v * Math.pow(10, digits)) / Math.pow(10, digits)).toString() : String(Math.round(v));
+    return (currentLang() === 'en' ? str : str.replace('.', ',')) + (mi ? ' mi' : ' km');
+  }
   var WMO = function (c) {
     if (c === 0) return L('Ensoleillé', 'Sunny'); if (c <= 2) return L('Éclaircies', 'Partly cloudy'); if (c === 3) return L('Couvert', 'Overcast');
     if (c === 45 || c === 48) return L('Brouillard', 'Fog'); if (c >= 51 && c <= 57) return L('Bruine', 'Drizzle'); if (c >= 61 && c <= 67) return L('Pluie', 'Rain');
@@ -8632,11 +8660,12 @@
     if (ev.dateStart > limit) return head + '<div class="help-text">' + L('Les prévisions arrivent 15 jours avant le roulage.', 'The forecast shows up 15 days before the trackday.') + '</div></div>';
     var from = ev.dateStart < today ? today : ev.dateStart, to = end > limit ? limit : end, key = ev.circuit + '|' + from + '|' + to, fc = forecastCache[key];
     var fr = (builtinCircuit(ev.circuit) || {}).country === 'FR';
+    if (!fc && wxStored('fc|' + key)) fc = forecastCache[key] = { daily: wxStored('fc|' + key) };
     if (!fc) {
       forecastCache[key] = { loading: true };
       fetch('https://api.open-meteo.com/v1/forecast?latitude=' + co[0] + '&longitude=' + co[1] + '&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,wind_speed_10m_max&timezone=auto&start_date=' + from + '&end_date=' + to + (fr ? '&models=meteofrance_seamless' : ''))
         .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
-        .then(function (j) { forecastCache[key] = { daily: j.daily || {} }; renderRoot(); })
+        .then(function (j) { forecastCache[key] = { daily: j.daily || {} }; wxStore('fc|' + key, j.daily || {}); renderRoot(); })
         .catch(function () { forecastCache[key] = { error: true }; renderRoot(); });
       fc = forecastCache[key];
     }
@@ -8646,25 +8675,30 @@
     return head + '<div class="forecast-days">' + d.time.map(function (t, i) {
       var pr = d.precipitation_probability_max ? d.precipitation_probability_max[i] : null;
       return '<div class="forecast-day"><strong>' + escapeHtml(formatDate(t)) + '</strong><span>' + escapeHtml(WMO(d.weather_code[i])) + '</span>' +
-        '<span class="forecast-temp">' + Math.round(d.temperature_2m_min[i]) + '° / ' + Math.round(d.temperature_2m_max[i]) + '°</span>' +
-        '<span class="help-text">' + (pr != null ? L('Pluie ', 'Rain ') + pr + ' %' : '') + (d.wind_speed_10m_max ? ' · ' + L('vent ', 'wind ') + Math.round(d.wind_speed_10m_max[i]) + ' km/h' : '') + '</span></div>';
+        '<span class="forecast-temp">' + fmtTemp(d.temperature_2m_min[i]) + ' / ' + fmtTemp(d.temperature_2m_max[i]) + '</span>' +
+        '<span class="help-text">' + (pr != null ? L('Pluie ', 'Rain ') + pr + ' %' : '') + (d.wind_speed_10m_max ? ' · ' + L('vent ', 'wind ') + fmtSpeed(d.wind_speed_10m_max[i]) : '') + '</span></div>';
     }).join('') + '</div><div class="help-text">' + (fr ? L('Prévisions du modèle Météo-France (via Open-Meteo).', 'Météo-France model forecast (via Open-Meteo).') : L('Prévisions Open-Meteo.', 'Open-Meteo forecast.')) + '</div></div>';
   }
   // Météo du jour au circuit : ville, icône, températures, et la pluie des
   // 6 dernières heures (piste peut-être encore mouillée). Lien vers une
   // météo détaillée pour les vérifications sérieuses.
   var todayWxCache = {};
+  // Météo gardée 1 h sur l'appareil : une seule requête par circuit et par
+  // heure, jamais de rechargement automatique (aucun minuteur).
+  function wxStored(key) { try { var o = JSON.parse(localStorage.getItem('cdp-wx-' + key) || 'null'); return o && Date.now() - o.t < 3600000 ? o.d : null; } catch (e) { return null; } }
+  function wxStore(key, d) { try { localStorage.setItem('cdp-wx-' + key, JSON.stringify({ t: Date.now(), d: d })); } catch (e) {} }
   function renderTodayWeatherCard(circuit) {
     var co = circuitCoords(circuit); if (!co) return '';
     var key = circuit + '|' + todayKey(), wx = todayWxCache[key], fr = (builtinCircuit(circuit) || {}).country === 'FR';
     var town = circuitTown(circuit);
     var head = '<div class="card forecast today-wx"><h2 class="section-title">' + L('Météo du jour', 'Today\'s weather') + (town ? '<span class="wx-town"> · ' + escapeHtml(town) + '</span>' : '') + '</h2>';
     var more = '<a class="link-btn wx-more" href="https://www.meteoblue.com/' + (currentLang() === 'en' ? 'en/weather/week/' : 'fr/meteo/semaine/') + co[0].toFixed(3) + 'N' + co[1].toFixed(3) + 'E" target="_blank" rel="noopener">' + L('Météo détaillée', 'Detailed forecast') + ' ↗</a>';
+    if (!wx && wxStored('now|' + key)) wx = todayWxCache[key] = { j: wxStored('now|' + key) };
     if (!wx) {
       todayWxCache[key] = { loading: true };
       fetch('https://api.open-meteo.com/v1/forecast?latitude=' + co[0] + '&longitude=' + co[1] + '&current=temperature_2m,weather_code,wind_speed_10m&hourly=precipitation&past_hours=6&forecast_hours=1&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max&forecast_days=1&timezone=auto' + (fr ? '&models=meteofrance_seamless' : ''))
         .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
-        .then(function (j) { todayWxCache[key] = { j: j }; renderRoot(); })
+        .then(function (j) { todayWxCache[key] = { j: j }; wxStore('now|' + key, j); renderRoot(); })
         .catch(function () { todayWxCache[key] = { error: true }; renderRoot(); });
       wx = todayWxCache[key];
     }
@@ -8673,10 +8707,10 @@
     var c = wx.j.current, d = wx.j.daily || {}, h = wx.j.hourly || {};
     var rain = (h.precipitation || []).slice(0, 6).reduce(function (a, b) { return a + (b || 0); }, 0);
     var code = c.weather_code != null ? c.weather_code : (d.weather_code || [])[0];
-    var html = head + '<div class="wx-now">' + weatherIcon(code) + '<strong class="wx-temp">' + Math.round(c.temperature_2m) + '°</strong><span>' + escapeHtml(WMO(code)) +
-      (d.temperature_2m_min ? ' · ' + Math.round(d.temperature_2m_min[0]) + '° / ' + Math.round(d.temperature_2m_max[0]) + '°' : '') +
+    var html = head + '<div class="wx-now">' + weatherIcon(code) + '<strong class="wx-temp">' + fmtTemp(c.temperature_2m) + '</strong><span>' + escapeHtml(WMO(code)) +
+      (d.temperature_2m_min ? ' · ' + fmtTemp(d.temperature_2m_min[0]) + ' / ' + fmtTemp(d.temperature_2m_max[0]) : '') +
       (d.precipitation_probability_max && d.precipitation_probability_max[0] != null ? ' · ' + L('pluie ', 'rain ') + d.precipitation_probability_max[0] + ' %' : '') +
-      (c.wind_speed_10m != null ? ' · ' + L('vent ', 'wind ') + Math.round(c.wind_speed_10m) + ' km/h' : '') + '</span></div>';
+      (c.wind_speed_10m != null ? ' · ' + L('vent ', 'wind ') + fmtSpeed(c.wind_speed_10m) : '') + '</span></div>';
     if (rain >= 0.2) html += '<div class="wx-wet"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l10 18H2z"/><path d="M12 10v5M12 18h.01"/></svg>' +
       L('Piste peut-être mouillée : ', 'Track may be wet: ') + (Math.round(rain * 10) / 10).toString().replace('.', currentLang() === 'en' ? '.' : ',') + L(' mm de pluie ces 6 dernières heures.', ' mm of rain in the last 6 hours.') + '</div>';
     return html + '<div class="help-text">' + (fr ? L('Modèle Météo-France (via Open-Meteo).', 'Météo-France model (via Open-Meteo).') : L('Open-Meteo.', 'Open-Meteo.')) + ' ' + more + '</div></div>';
@@ -8883,7 +8917,7 @@
 
       html += infoRow('Mes roulages ici', String(Object.keys(myDays).length));
     }
-    html += infoRow(tr('distance_label'), info.km != null ? (escapeHtml(numFr(info.km)) + ' km') : '—');
+    html += infoRow(tr('distance_label'), info.km != null ? escapeHtml(fmtDist(Number(info.km), 2)) : '—');
     if (info.country) html += infoRow(L('Pays', 'Country'), countryBallHtml(info.country, 'inline') + ' ' + escapeHtml(countryName(info.country)));
     if (selectedCircuit) html += infoRow(L('Localisation', 'Location'), '<a href="' + escapeHtml(circuitMapsUrl(selectedCircuit)) + '" target="_blank" rel="noopener">' + L('Ouvrir dans Google Maps', 'Open in Google Maps') + ' ↗</a>');
     html += infoRow(tr('turns_label'), turnsHtml);
@@ -10336,7 +10370,7 @@
     // Pluriel : dès 2 en français, sauf 1 en anglais (« 0 laps »).
     function many(n) { return currentLang() === 'en' ? n !== 1 : n > 1; }
     var parts = [u.sessions + (many(u.sessions) ? ' sessions' : ' session'), (u.estimated ? '≈ ' : '') + u.laps + (many(u.laps) ? L(' tours', ' laps') : L(' tour', ' lap'))];
-    if (u.km) parts.push((u.kmMissing ? '≥ ' : '≈ ') + Math.round(u.km) + ' km' + (u.priorKm ? L(' (dont ~', ' (incl. ~') + Math.round(u.priorKm) + L(' avant)', ' before)') : ''));
+    if (u.km) parts.push((u.kmMissing ? '≥ ' : '≈ ') + fmtDist(u.km) + (u.priorKm ? L(' (dont ~', ' (incl. ~') + Math.round(u.priorKm) + L(' avant)', ' before)') : ''));
     return parts.join(' · ');
   }
   // « 8e session sur ce train » dans la fiche réglages d'une session.
@@ -10349,7 +10383,7 @@
     var laps = 0, km = Number(set.priorKm) || 0;
     list.slice(0, i + 1).forEach(function (s) { var n = sessionLapCount(s, set).laps; laps += n; km += (circuitInfo(s.circuit).km || 0) * n; });
     return '<br>' + L('Pneus : ', 'Tyres: ') + (set.label ? escapeHtml(set.label) + ', ' : '') +
-      L((i + 1) + (i === 0 ? 're' : 'e') + ' session sur ce train', 'session ' + (i + 1) + ' on this set') + (km ? ' (≈ ' + Math.round(km) + ' km)' : '') + '.';
+      L((i + 1) + (i === 0 ? 're' : 'e') + ' session sur ce train', 'session ' + (i + 1) + ' on this set') + (km ? ' (≈ ' + fmtDist(km) + ')' : '') + '.';
   }
   function renderTyreCard() {
     if (meIsNonRider() || !currentUserProfile) return '';
@@ -10530,7 +10564,9 @@
     var spots = ((u.look || {}).favSpots || []).slice(0, 6);
     var h = '<div class="person-kpis"><div><strong>' + evs.length + '</strong><span>' + L('roulages accompagnés', 'trackdays supported') + '</span></div><div><strong>' + Object.keys(riders).length + '</strong><span>' + L('pilotes accompagnés', 'riders supported') + '</span></div><div><strong>' + visited.length + '</strong><span>' + L('circuits visités', 'circuits visited') + '</span></div></div>';
     if (visited.length) h += '<div class="card"><h2 class="section-title">' + L('Circuits visités', 'Circuits visited') + '</h2><div class="visited-grid">' + visited.slice(0, 8).map(function (v) {
-      return '<div class="visited-tile"><button type="button" class="visited-tile-head" data-open-circuit="' + escapeHtml(v.circuit) + '"><span class="outing-thumb">' + circuitThumbHtml(v.circuit) + '</span><strong>' + escapeHtml(v.circuit) + '</strong><span class="help-text">' + (v.n ? plural(v.n, L('roulage', 'trackday'), L('roulages', 'trackdays')) : L('Sans rouler', 'Without riding')) + '</span></button>' +
+      // Le tracé ouvre Plan & repères, le nom ouvre Infos.
+      return '<div class="visited-tile"><div class="visited-tile-head"><button type="button" class="visited-thumb-btn" data-open-circuit="' + escapeHtml(v.circuit) + '" data-circuit-pill="plan" aria-label="' + escapeHtml(L('Plan & repères', 'Map & marks') + ' · ' + v.circuit) + '"><span class="outing-thumb">' + circuitThumbHtml(v.circuit) + '</span></button>' +
+        '<button type="button" class="visited-name-btn" data-open-circuit="' + escapeHtml(v.circuit) + '" data-circuit-pill="infos"><strong>' + escapeHtml(v.circuit) + '</strong><span class="help-text">' + (v.n ? plural(v.n, L('roulage', 'trackday'), L('roulages', 'trackdays')) : L('Sans rouler', 'Without riding')) + '</span></button></div>' +
         // Chaque roulage ouvre sa propre page (le bon roulage passé).
         '<span class="visited-evs">' + (v.events || []).slice().sort(function (a, b) { return (b.dateStart || '').localeCompare(a.dateStart || ''); }).map(function (ev) {
           return '<button type="button" class="visited-ev" data-open-outing="' + escapeHtml(ev.circuit) + '" data-outing-date="' + escapeHtml(ev.dateStart || '') + '" data-outing-event="' + escapeHtml(ev.id) + '">' + escapeHtml(formatDate(ev.dateStart)) + '</button>';
@@ -12500,13 +12536,13 @@
     if (pillState.moi === 'garage') return html + renderGarage();
     if (pillState.moi === 'budget') return html + renderBudgetTab();
     var jump = function (k, lbl) { return '<button type="button" class="moi-jump" data-moi-jump="' + k + '">' + lbl + '</button>'; };
-    html += '<div class="moi-jumps">' + (rider ? jump('records', 'Records') : '') + jump('podium', L('Podium', 'Podium')) + jump('trophees', L('Trophées', 'Trophies')) + '</div>';
+    html += '<div class="moi-jumps">' + (rider ? jump('records', 'Records') : '') + jump('podium', L('Podium', 'Podium')) + '</div>';
     var keep = pillState.stats, out = '';
     if (rider) { pillState.stats = 'records'; out += '<section class="moi-sec" id="moi-records"><h2 class="moi-sec-title">Records</h2>' + renderStatsTab() + '</section>'; }
     out += '<section class="moi-sec" id="moi-podium"><h2 class="moi-sec-title">' + L('Podium', 'Podium') + '</h2>' + withRepost(renderMonthRanking(), 'month:' + dateKey(new Date()).slice(0, 7), function () {
       return { kind: 'month', author: currentUserProfile.name, createdAt: Date.now(), data: { rows: JSON.parse(JSON.stringify(monthProgressRanking().slice(0, 5))), month: new Date().toLocaleDateString(currentLang() === 'en' ? 'en-GB' : 'fr-FR', { month: 'long' }) } };
     }) + renderStatsPodiums() + '</section>';
-    pillState.stats = 'trophees'; out += '<section class="moi-sec" id="moi-trophees"><h2 class="moi-sec-title">' + L('Trophées', 'Trophies') + '</h2>' + renderStatsTab() + '</section>';
+    // Trophées : déjà sur le profil, plus en double dans Bilan.
     pillState.stats = keep;
     return html + out;
   }
@@ -15845,7 +15881,9 @@
     var addBtn = extraVisitOpen ? extraVisitFormHtml() : '<button type="button" class="ghost add-visit-btn" data-action="extra-visit-open">+ ' + L('Circuit visité sans y rouler', 'Circuit visited without riding') + '</button>';
     if (!list.length) return addBtn + '<div class="card"><div class="empty-state">' + L('Aucun circuit visité pour l\'instant. Sur un roulage passé, touche « J\'y étais ».', 'No circuit visited yet. On a past trackday, tap “I was there”.') + '</div></div>';
     return addBtn + '<div class="card"><h2 class="section-title">' + plural(list.length, L('circuit visité', 'circuit visited'), L('circuits visités', 'circuits visited')) + '</h2><div class="visited-grid">' + list.map(function (v) {
-      return '<div class="visited-tile"><button type="button" class="visited-tile-head" data-open-circuit="' + escapeHtml(v.circuit) + '"><span class="outing-thumb">' + circuitThumbHtml(v.circuit) + '</span><strong>' + escapeHtml(v.circuit) + '</strong><span class="help-text">' + (v.n ? plural(v.n, L('roulage', 'trackday'), L('roulages', 'trackdays')) : L('Sans rouler', 'Without riding')) + '</span></button>' +
+      // Le tracé ouvre Plan & repères, le nom ouvre Infos.
+      return '<div class="visited-tile"><div class="visited-tile-head"><button type="button" class="visited-thumb-btn" data-open-circuit="' + escapeHtml(v.circuit) + '" data-circuit-pill="plan" aria-label="' + escapeHtml(L('Plan & repères', 'Map & marks') + ' · ' + v.circuit) + '"><span class="outing-thumb">' + circuitThumbHtml(v.circuit) + '</span></button>' +
+        '<button type="button" class="visited-name-btn" data-open-circuit="' + escapeHtml(v.circuit) + '" data-circuit-pill="infos"><strong>' + escapeHtml(v.circuit) + '</strong><span class="help-text">' + (v.n ? plural(v.n, L('roulage', 'trackday'), L('roulages', 'trackdays')) : L('Sans rouler', 'Without riding')) + '</span></button></div>' +
         // Chaque roulage ouvre sa propre page (le bon roulage passé).
         '<span class="visited-evs">' + (v.events || []).slice().sort(function (a, b) { return (b.dateStart || '').localeCompare(a.dateStart || ''); }).map(function (ev) {
           return '<button type="button" class="visited-ev" data-open-outing="' + escapeHtml(ev.circuit) + '" data-outing-date="' + escapeHtml(ev.dateStart || '') + '" data-outing-event="' + escapeHtml(ev.id) + '">' + escapeHtml(formatDate(ev.dateStart)) + '</button>';
@@ -15928,7 +15966,7 @@
     var me = currentUserProfile, nIn = me ? incomingFriendRequests(me.name).length : 0;
     var nDm = unreadDmCount();
     // 3 onglets : Fil, Messages, Teams. Ma fiche s'ouvre par mon avatar en haut.
-    var items = [['fil', L('Fil', 'Feed') + (nIn ? ' (' + nIn + ')' : '')], ['messages', L('Messages', 'Messages') + (nDm ? ' (' + nDm + ')' : '')]];
+    var items = [['fil', L('Social', 'Social') + (nIn ? ' (' + nIn + ')' : '')], ['messages', L('Messages', 'Messages') + (nDm ? ' (' + nDm + ')' : '')]];
     var html = '<div class="subnav main-subnav" role="tablist">' + items.map(function (it) {
       var on = activeView === 'social' && pillState.social === it[0];
       return '<button type="button" role="tab" class="subnav-btn' + (on ? ' active' : '') + '" data-view="social" data-pill-group="social" data-pill="' + it[0] + '">' + it[1] + '</button>';
@@ -16071,7 +16109,7 @@
       }
       if (current === 'communaute') {
         var me = currentUserProfile, nIn = incomingFriendRequests(me.name).length;
-        var comm = [[L('Fil', 'Feed') + (nIn ? ' (' + nIn + ')' : ''), 'data-view="social" data-pill-group="social" data-pill="fil"', !onPanel && activeView === 'social' && pillState.social === 'fil']];
+        var comm = [[L('Social', 'Social') + (nIn ? ' (' + nIn + ')' : ''), 'data-view="social" data-pill-group="social" data-pill="fil"', !onPanel && activeView === 'social' && pillState.social === 'fil']];
         var nDmPc = unreadDmCount();
         comm.push([L('Messages', 'Messages') + (nDmPc ? ' (' + nDmPc + ')' : ''), 'data-view="social" data-pill-group="social" data-pill="messages"', !onPanel && activeView === 'social' && pillState.social === 'messages']);
         if (communauteSubItems().some(function (it) { return it[0] === 'team'; })) {
@@ -18115,6 +18153,7 @@
       if (s.rider !== me.name) return;
       next[s.id] = s.certifiedBy || null;
       if (isFirstEver) return;
+      if (!(s.id in myChronoCertifiedState)) return; // chrono qui arrive au chargement : pas une nouvelle validation
       var prev = myChronoCertifiedState[s.id];
       if (s.certifiedBy && !prev && notifCategoryAllowed('notifyChronoCertified')) {
         sendAppNotification(L('Ton chrono' + (s.circuit ? ' à ' + s.circuit : '') + ' a été validé par ' + s.certifiedBy + ' (team) !', 'Your lap time' + (s.circuit ? ' at ' + s.circuit : '') + ' was validated by ' + s.certifiedBy + ' (team)!'));
@@ -18141,6 +18180,9 @@
       (posts || []).forEach(function (p) {
         var prevReactions = (seen && seen[p.id]) || {};
         next[p.id] = p.reactions || {};
+        // Un post qui arrive (2e vague de chargement, « Voir plus »…) n'est
+        // pas une nouvelle réaction : seulement les posts déjà connus.
+        if (!seen || !seen[p.id]) return;
         if (isFirstEver || !me || p[authorField] !== me.name || !notifCategoryAllowed('notifyReactions')) return;
         Object.keys(p.reactions || {}).forEach(function (name) {
           if (name === me.name || prevReactions[name]) return;
@@ -19010,7 +19052,7 @@
     add(L('Profils', 'Profiles'), STATE.usersByName); add(L('Chronos', 'Lap times'), STATE.sessions); add(L('Publications', 'Posts'), STATE.wallPosts);
     add(L('Réactions', 'Reactions'), STATE.postReactions); add(L('Commentaires', 'Comments'), STATE.postComments); add(L('Abonnements', 'Follows'), STATE.allUserFollows);
     add(L('Roulages', 'Trackdays'), STATE.events); add(L('Circuits (dont dessins)', 'Circuits (incl. drawings)'), STATE.circuits); add('Teams', STATE.teams);
-    add(L('Fil des teams', 'Team feed'), STATE.teamFeed); add(L('Fil d\'activité', 'Activity feed'), STATE.feedEvents);
+    add(L('Social des teams', 'Team feed'), STATE.teamFeed); add(L('Activité', 'Activity feed'), STATE.feedEvents);
     rows.sort(function (a, b) { return b[2] - a[2]; });
     var fmt = function (kb) { return kb >= 1024 ? (kb / 1024).toFixed(1).replace('.', ',') + ' Mo' : Math.round(kb) + ' Ko'; };
     return '<div class="card"><h2 class="section-title">' + L('Données chargées à l\'ouverture', 'Data loaded at startup') + '</h2>' +
@@ -20324,6 +20366,11 @@
     if (!/^https:\/\/[^\s"'<>]+$/i.test(String(url || ''))) return null; // https seulement (jamais javascript:)
     var m = String(url || '').match(/(?:youtube\.com\/(?:watch\?(?:.*&)?v=|shorts\/|live\/|embed\/)|youtu\.be\/)([\w-]{11})/);
     if (m) return { src: 'https://www.youtube-nocookie.com/embed/' + m[1] + '?autoplay=1&playsinline=1&rel=0', thumb: 'https://img.youtube.com/vi/' + m[1] + '/hqdefault.jpg', name: 'YouTube', tall: /shorts\//.test(url) };
+    // Instagram (post ou reel) et TikTok : lecteurs officiels dans l'appli.
+    m = String(url || '').match(/^https:\/\/(?:www\.)?instagram\.com\/(?:[A-Za-z0-9_.]+\/)?(p|reel|reels|tv)\/([A-Za-z0-9_-]{5,40})/);
+    if (m) return { src: 'https://www.instagram.com/' + (m[1] === 'p' ? 'p' : 'reel') + '/' + m[2] + '/embed/captioned/', thumb: '', name: 'Instagram', tall: true, social: 'insta' };
+    m = String(url || '').match(/^https:\/\/(?:www\.|m\.)?tiktok\.com\/@[A-Za-z0-9_.]+\/video\/(\d{8,25})/);
+    if (m) return { src: 'https://www.tiktok.com/player/v1/' + m[1] + '?music_info=1&description=1&autoplay=1&muted=1', thumb: '', name: 'TikTok', tall: true, social: 'tiktok' };
     // Post X (Twitter) : lu dans l'appli (lecteur officiel), plus seulement un lien.
     m = String(url || '').match(/^https:\/\/(?:www\.|mobile\.)?(?:x|twitter)\.com\/(?:[A-Za-z0-9_]{1,15}|i(?:\/web)?)\/status(?:es)?\/(\d{5,25})/);
     if (m) return { src: 'https://platform.twitter.com/embed/Tweet.html?id=' + m[1] + '&dnt=true&lang=' + (currentLang() === 'en' ? 'en' : 'fr') + '&theme=' + (typeof isDarkUi === 'function' && isDarkUi() ? 'dark' : 'light'), thumb: '', name: 'X', tall: true, x: true };
@@ -20375,8 +20422,9 @@
       '<button type="button" class="inline-player-x" aria-label="' + escapeHtml(L('Fermer la vidéo', 'Close video')) + '">✕</button>';
     document.body.appendChild(el);
     el.querySelector('.inline-player-x').addEventListener('click', stopInlinePlayer);
-    inlinePlayer = { el: el, url: url, x: !!emb.x, timer: setInterval(positionInlinePlayer, 400) };
+    inlinePlayer = { el: el, url: url, x: !!emb.x, auto: !!(emb.x || emb.social), timer: setInterval(positionInlinePlayer, 400) };
     if (emb.x) el.classList.add('is-x');
+    if (emb.x || emb.social) el.classList.add('is-auto');
     positionInlinePlayer();
   }
   window.addEventListener('resize', positionInlinePlayer);
@@ -20395,10 +20443,12 @@
     // besoin de taper : la catégorie s'affiche en entier.
     var o = gsearchOpts, ty = o.type, asc = o.sort === 'asc';
     var t = norm(String(qText || '').trim());
-    var bar = '<div class="gsearch-filters">' + [['all', L('Tout', 'All')], ['person', L('Profils', 'Profiles')], ['team', 'Teams'], ['circuit', 'Circuits'], ['event', L('Roulages', 'Trackdays')], ['post', L('Publications', 'Posts')], ['photo', L('Photos', 'Photos')]].map(function (f) {
+    var advBar = '<div class="gsearch-filters">' + [['all', L('Tout', 'All')], ['person', L('Profils', 'Profiles')], ['team', 'Teams'], ['circuit', 'Circuits'], ['event', L('Roulages', 'Trackdays')], ['post', L('Publications', 'Posts')], ['photo', L('Photos', 'Photos')]].map(function (f) {
       return '<button type="button" class="' + (ty === f[0] ? 'on' : '') + '" data-gs-type="' + f[0] + '">' + f[1] + '</button>'; }).join('') +
       '</div><div class="gsearch-sortrow">' + '<button type="button" class="gsearch-sort" data-gs-sort="1" title="' + escapeHtml(L('Ordre des dates', 'Date order')) + '">' + (asc ? L('Plus anciens', 'Oldest') : L('Plus récents', 'Newest')) + ' ⇅</button></div>';
-    if (t.length < 2 && ty === 'all') return { html: bar + '<div class="help-text gsearch-hint">' + L('Choisis une catégorie ou tape au moins 2 lettres.', 'Pick a category or type at least 2 letters.') + '</div>', acts: acts };
+    // Recherche avancée (catégories, tri) rangée derrière l'engrenage, fermée au départ.
+    var bar = '<div class="gsearch-adv-row"><button type="button" class="gsearch-adv-btn' + (o.adv ? ' on' : '') + (ty !== 'all' || asc ? ' active' : '') + '" data-gs-adv="1" aria-expanded="' + !!o.adv + '" title="' + escapeHtml(L('Recherche avancée', 'Advanced search')) + '"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/></svg>' + L('Recherche avancée', 'Advanced search') + (ty !== 'all' ? ' · ' + escapeHtml((advBar.match(new RegExp('data-gs-type="' + ty + '">([^<]*)<')) || [])[1] || '') : '') + '</button></div>' + (o.adv ? advBar : '');
+    if (t.length < 2 && ty === 'all') return { html: bar + '<div class="help-text gsearch-hint">' + L('Tape au moins 2 lettres, ou ouvre la recherche avancée.', 'Type at least 2 letters, or open advanced search.') + '</div>', acts: acts };
     var hit = function (x) { return t.length < 2 || norm(x).indexOf(t) !== -1; };
     var want = function (k) { return ty === 'all' || ty === k; };
     var lim = ty === 'all' ? 6 : 60;
@@ -20435,7 +20485,7 @@
     return [
       ['@compte', L('Compte', 'Account'), L('profil photo pseudo email mot de passe supprimer rôle moto voiture', 'profile photo name email password delete role bike car')],
       ['notifications', 'Notifications', L('alertes push rappels', 'alerts push reminders')],
-      ['affichage', L('Langue et affichage', 'Language and display'), L('langue anglais français thème mode sombre clair nuit jour mode simple', 'language english french theme dark light night day simple mode')],
+      ['affichage', L('Langue et affichage', 'Language and display'), L('langue anglais français thème mode sombre clair nuit jour mode simple unités celsius fahrenheit miles kilomètres', 'language english french theme dark light night day simple mode units celsius fahrenheit miles kilometres')],
       ['confidentialite', L('Confidentialité', 'Privacy'), L('vie privée fiche visible public amis messages statut en ligne présence', 'private profile visible public friends messages online status presence')],
       ['donnees', L('Mes données', 'My data'), L('exporter télécharger csv rgpd', 'export download csv gdpr')],
       ['@audience', L('Audience', 'Audience'), L('statistiques vues portée', 'stats views reach')],
@@ -20455,11 +20505,12 @@
     else { profileSubTab = 'reglages'; settingsSection = go; }
     renderRoot(); window.scrollTo(0, 0);
   }
-  var gsearchOpts = { type: 'all', sort: 'desc' };
+  var gsearchOpts = { type: 'all', sort: 'desc', adv: false };
   function gsearchFill(box, qText, onPick) {
     var r = gsearchBuild(qText);
     box.innerHTML = r.html;
     box.querySelectorAll('[data-gs-type]').forEach(function (b) { b.addEventListener('mousedown', function (e) { e.preventDefault(); }); b.addEventListener('click', function () { gsearchOpts.type = b.getAttribute('data-gs-type'); gsearchFill(box, qText, onPick); }); });
+    box.querySelectorAll('[data-gs-adv]').forEach(function (b) { b.addEventListener('mousedown', function (e) { e.preventDefault(); }); b.addEventListener('click', function () { gsearchOpts.adv = !gsearchOpts.adv; gsearchFill(box, qText, onPick); }); });
     box.querySelectorAll('[data-gs-sort]').forEach(function (b) { b.addEventListener('mousedown', function (e) { e.preventDefault(); }); b.addEventListener('click', function () { gsearchOpts.sort = gsearchOpts.sort === 'asc' ? 'desc' : 'asc'; gsearchFill(box, qText, onPick); }); });
     box.querySelectorAll('[data-gs]').forEach(function (b) { b.addEventListener('mousedown', function (e) { e.preventDefault(); }); b.addEventListener('click', function () { var fn = r.acts[+b.getAttribute('data-gs')]; onPick(); profilePanelOpen = false; notificationsPanelOpen = false; fn(); }); });
   }
@@ -20517,8 +20568,9 @@
   function postLinkHtml(url) {
     var emb = videoEmbedOf(url);
     if (emb) {
-      return '<div class="link-player' + (emb.tall ? ' tall' : '') + (emb.x ? ' is-x' : '') + '"' + (emb.x && xEmbedHeights[url] ? ' style="aspect-ratio:auto;height:' + xEmbedHeights[url] + 'px"' : '') + '><button type="button" class="link-player-face" data-url="' + escapeHtml(url) + '" data-embed="' + escapeHtml(emb.src) + '" aria-label="' + escapeHtml(L('Lire la vidéo', 'Play video')) + '">' +
+      return '<div class="link-player' + (emb.tall ? ' tall' : '') + (emb.x ? ' is-x' : '') + (emb.x || emb.social ? ' is-auto' : '') + (emb.social ? ' is-' + emb.social : '') + '"' + (emb.x && xEmbedHeights[url] ? ' style="aspect-ratio:auto;height:' + xEmbedHeights[url] + 'px"' : '') + '><button type="button" class="link-player-face" data-url="' + escapeHtml(url) + '" data-embed="' + escapeHtml(emb.src) + '" aria-label="' + escapeHtml(L('Lire la vidéo', 'Play video')) + '">' +
         (emb.thumb ? '<img src="' + escapeHtml(emb.thumb) + '" alt="" loading="lazy">' : '') +
+        (emb.social ? '<span class="x-face"><strong class="social-face-name">' + emb.name + '</strong><span>' + L('Affichage du post…', 'Loading the post…') + '</span></span>' : '') +
         (emb.x ? '<span class="x-face"><svg viewBox="0 0 24 24" width="44" height="44" fill="currentColor" aria-hidden="true"><path d="M17.8 3h3.1l-6.8 7.7L22 21h-6.2l-4.9-6.4L5.3 21H2.2l7.2-8.3L2 3h6.4l4.4 5.8zm-1.1 16.2h1.7L7.4 4.7H5.6z"/></svg><span>' + L('Toucher pour afficher le post', 'Tap to show the post') + '</span></span>' : '') +
         '<span class="link-player-play"><svg viewBox="0 0 24 24" width="30" height="30" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg></span><span class="link-player-host">' + emb.name + '</span></button>' +
         '<a class="link-player-out" href="' + escapeHtml(url) + '" target="_blank" rel="noopener">' + L('Ouvrir', 'Open') + ' ↗</a></div>';
@@ -22072,7 +22124,9 @@
     db.collection('postComments').doc(id).set(doc).catch(function (err) { showToast(tr('error_prefix') + ((err && err.message) || err)); });
   }
   function renderPersonalitiesSection(me) {
-    var followed = (STATE.myFollows || []).slice().sort(function (a, b) { return a.localeCompare(b); });
+    // Seulement les comptes qui ont le badge, chacun une seule fois (les
+    // abonnements à des amis ne sont pas des personnalités).
+    var followed = (STATE.myFollows || []).filter(function (n, i, a) { return a.indexOf(n) === i && isPersonality((STATE.usersByName || {})[n]); }).sort(function (a, b) { return a.localeCompare(b); });
     var suggestions = allKnownUserNames().filter(function (n) {
       return n !== me.name && isPersonality(STATE.usersByName[n]) && followed.indexOf(n) === -1;
     }).slice(0, 5);
@@ -26349,13 +26403,13 @@
       if (!window.__xAutoObs) window.__xAutoObs = new IntersectionObserver(function (entries) {
         entries.forEach(function (en) {
           if (!en.isIntersecting || en.intersectionRatio < 0.5) return;
-          if (inlinePlayer && !inlinePlayer.x) return;
+          if (inlinePlayer && !inlinePlayer.auto) return;
           if (inlinePlayer && inlinePlayer.url === en.target.getAttribute('data-url')) return;
           startInlinePlayer(en.target);
         });
       }, { threshold: [0.5] });
       window.__xAutoObs.disconnect();
-      document.querySelectorAll('#root .link-player.is-x .link-player-face[data-url]').forEach(function (f) { window.__xAutoObs.observe(f); });
+      document.querySelectorAll('#root .link-player.is-auto .link-player-face[data-url]').forEach(function (f) { window.__xAutoObs.observe(f); });
     }
     var photoLightboxOverlay = document.querySelector('.photo-lightbox-overlay');
     if (photoLightboxOverlay) {
@@ -26921,11 +26975,13 @@
       rootEl.__socialLinks = true;
       rootEl.addEventListener('click', function (e) {
         if (e.target.closest('[data-action="feed-unhide-all"]')) { e.preventDefault(); e.stopPropagation(); clearHiddenFeed(); renderRoot(); showToast(L('Tout est réaffiché.', 'Everything is shown again.'), 'success'); return; }
+        var un = e.target.closest('[data-unit]');
+        if (un) { e.preventDefault(); e.stopPropagation(); setUnitPref(un.getAttribute('data-unit'), un.getAttribute('data-val')); renderRoot(); return; }
         var fh = e.target.closest('[data-feed-hide]');
         if (fh) {
           e.preventDefault(); e.stopPropagation();
           setHiddenFeed(fh.getAttribute('data-feed-hide'), true); renderRoot();
-          showToast(L('Masqué du fil. Pour le revoir : Réglages › Confidentialité.', 'Hidden from your feed. To see it again: Settings › Privacy.'));
+          showToast(L('Masqué de Social. Pour le revoir : Réglages › Confidentialité.', 'Hidden from your feed. To see it again: Settings › Privacy.'));
           return;
         }
         var sg = e.target.closest('[data-settings-go]');
@@ -26981,6 +27037,7 @@
         if (c) {
           e.preventDefault(); e.stopPropagation();
           selectedCircuit = c.getAttribute('data-open-circuit'); userPickedCircuit = true; activeView = 'circuit'; outingView = null; personView = null;
+          if (c.getAttribute('data-circuit-pill')) pillState.circuit = c.getAttribute('data-circuit-pill');
           renderRoot(); window.scrollTo(0, 0);
           return;
         }

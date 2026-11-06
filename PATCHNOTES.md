@@ -2,6 +2,20 @@
 
 Les nouveautés, de la plus récente à la plus ancienne. Le détail complet est dans l'historique git.
 
+## 6 novembre 2026 · retours Xav et Alexis (soir)
+
+- « Fil » redevient « Social » partout (il était revenu par erreur lors de la refonte de la navigation).
+- Personnalités : seulement les comptes qui ont le badge, chacun une fois.
+- Notifications : la dernière ne revient plus à chaque rafraîchissement (« X vient à … » ne remonte plus en tête, les réactions et validations déjà là au chargement ne notifient plus).
+- Météo : demandée seulement quand la carte s'affiche, gardée 1 h sur l'appareil, jamais rechargée automatiquement.
+- Unités : °C ou °F, km ou miles (Réglages › Langue et affichage).
+- Autour du circuit : boutons espacés.
+- Posts X : même fond que la carte. Instagram et TikTok s'affichent aussi dans l'appli.
+- Mode sombre : Repères sur PC sans bandes blanches autour du plan.
+- Circuits visités : le nom ouvre Infos, le tracé ouvre Plan & repères.
+- Bilan : plus de Trophées (déjà sur le profil).
+- Recherche : catégories et tri rangés dans « Recherche avancée » (engrenage), fermée au départ.
+
 ## 6 novembre 2026 · page d'un roulage allégée
 
 - Roulage : les actions passent en icônes sur une ligne (Gérer en engrenage, Discussion en bulle, Inviter en partage, Agenda en calendrier, Modifier en crayon) ; « Je n'y vais plus » reste en texte, au bout.

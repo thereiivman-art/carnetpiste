@@ -5341,3 +5341,26 @@ body { overflow-wrap: break-word; }
 .outing-org-round .mini-avatar { width: 34px; height: 34px; flex: 0 0 auto; }
 .outing-org-name { font-weight: 700; font-size: 0.9rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .outing-actions-icons [data-action="leave-roulage"] { order: 9; margin-left: auto; }
+/* Autour du circuit : boutons espacés, sur plusieurs lignes. */
+.around-links { display: flex; flex-wrap: wrap; gap: 0.5rem; margin: 0.4rem 0 0.6rem; }
+.around-links a { flex: 0 0 auto; padding: 0.4rem 0.85rem; font-size: 0.9rem; text-decoration: none; }
+/* Posts X, Instagram, TikTok : même fond que la carte (plus de bande noire). */
+.link-player.is-auto, .link-player.is-auto .link-player-face { background: transparent; }
+.inline-player.is-x, .inline-player.is-auto { background: transparent; }
+.link-player.is-insta { aspect-ratio: 9 / 14; max-height: none; }
+.link-player.is-tiktok { aspect-ratio: 9 / 16; max-height: 80vh; }
+.link-player.is-auto .x-face { color: var(--text-muted); }
+.social-face-name { font-size: 1.1rem; color: var(--text); }
+.units-row { display: flex; flex-wrap: wrap; align-items: center; gap: 0.6rem; margin-top: 0.9rem; }
+/* Repères en mode sombre : le cadre autour du plan inversé est noir aussi
+   (plus de bandes blanches quand on agrandit sur PC). */
+:root[data-theme="dark"] .track-notes-scroll:has(img[data-track-plan]) { background: #000 !important; border-color: #000; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .track-notes-scroll:has(img[data-track-plan]) { background: #000 !important; border-color: #000; } }
+.visited-thumb-btn, .visited-name-btn { padding: 0; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.visited-name-btn { display: flex; flex-direction: column; gap: 0.15rem; }
+.visited-name-btn strong { text-decoration: underline; text-decoration-color: transparent; }
+.visited-name-btn:hover strong { text-decoration-color: currentColor; }
+.gsearch-adv-row { display: flex; margin-bottom: 0.4rem; }
+.gsearch-adv-btn { display: inline-flex; align-items: center; gap: 0.4rem; border: 1px solid var(--border); background: var(--surface); color: var(--text-muted); border-radius: 999px; padding: 0.3rem 0.8rem; font: inherit; font-size: 0.82rem; font-weight: 700; cursor: pointer; }
+.gsearch-adv-btn.on, .gsearch-adv-btn.active { color: var(--text); border-color: var(--text); }
+.gsearch-adv-row + .gsearch-filters { margin-top: 0.2rem; }

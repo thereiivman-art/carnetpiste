@@ -19,6 +19,8 @@ const { chromium, BASE } = require('../lib');
   // Recherche : tri sur sa ligne
   await p.locator('#search-toggle:visible').first().click(); await p.waitForTimeout(300);
   await p.fill('#gsearch-q', 'mu'); await p.waitForTimeout(300);
+  console.log('filtres fermés au départ:', !(await p.$('.gsearch-filters')), '| engrenage:', !!(await p.$('[data-gs-adv]')));
+  await p.click('[data-gs-adv]'); await p.waitForTimeout(200);
   const lay = await p.evaluate(() => { const f = document.querySelector('.gsearch-filters').getBoundingClientRect(), s = document.querySelector('.gsearch-sort').getBoundingClientRect(); return { sousLesFiltres: s.top >= f.bottom - 1, gauche: Math.round(s.left - f.left) }; });
   console.log('tri:', JSON.stringify(lay));
   await p.screenshot({ path: __dirname + '/../.sortie/lot9-recherche.png' });
