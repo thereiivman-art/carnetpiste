@@ -2,6 +2,10 @@
 
 Les nouveautés, de la plus récente à la plus ancienne. Le détail complet est dans l'historique git.
 
+## 8 novembre 2026
+
+- Le bouton « Accident » quitte l'écran de saisie du chrono : on n'y pense pas avant de rouler. Il devient « Incident », un petit bouton sur la page d'un roulage passé (rangé sur ma session de ce jour-là, publié sur mon Social si je le coche).
+
 ## 7 novembre 2026 (soir) · optimisation
 
 - Images plus légères à l'enregistrement : photo ronde 256 px (WebP quand possible), logo 640 px, bannière 1200 px.

@@ -7282,8 +7282,8 @@
       '<input type="file" id="import-photo-input" accept="image/*,application/pdf" multiple hidden></div>';
     html += '<div class="field-error" id="form-error"></div>';
     html += '<button type="submit" class="primary cf-submit" id="submit-btn">' + L('Enregistrer', 'Save') + '</button>';
-    // Accident (chute, sortie, contact, panne) : l'endroit sur le plan.
-    html += '<button type="button" class="ghost cf-incident' + (pendingIncident ? ' on' : '') + '" id="cf-incident" title="' + escapeHtml(L('Chute, sortie de piste, contact ou panne : note l\'endroit sur le plan', 'Crash, off, contact or breakdown: mark the spot on the map')) + '">' + (pendingIncident ? L('Accident ✓', 'Incident ✓') : L('Accident', 'Incident')) + '</button>';
+    // Incident : plus sur l'écran de saisie (on n'y pense pas avant de rouler) ;
+    // il se note après coup, sur la page d'un roulage passé.
     html += '<details class="cf-more"' + (formCircuitsKnown ? '' : ' open') + '><summary>⋯ ' + L('Piste, note, vidéo, autres réglages', 'Track, note, video, other details') + '</summary>';
     var trackIco = {
       sec: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
@@ -11272,6 +11272,8 @@
       // horaires…) straight from here, not only from the team's page.
       if (leaderHere) acts += '<button type="button" class="primary" data-action="manage-from-outing" data-id="' + escapeHtml(ev.id) + '" data-team="' + escapeHtml(ev.teamId) + '">' + L('Gérer', 'Manage') + '</button>';
       if (!isRiderHere && (status !== 'terminee' || (currentUserProfile && currentUserProfile.role === 'accompagnant'))) acts += joinEventButtonHtml(ev, leaderHere);
+      // Roulage passé : noter un incident après coup (petit bouton discret).
+      if ((isRiderHere || sessions.length) && (ev.dateEnd || ev.dateStart) < dateKey(new Date()) && !meIsNonRider()) acts += '<button type="button" class="ghost" data-action="incident-past" data-circuit="' + escapeHtml(ev.circuit) + '" data-date="' + escapeHtml(date) + '">' + L('Incident', 'Incident') + '</button>';
       // Inscrit à un roulage à venir : on peut se retirer.
       if (isRiderHere && status !== 'terminee' && (ev.dateEnd || ev.dateStart) >= dateKey(new Date())) acts += '<button type="button" class="ghost" data-action="leave-roulage" data-id="' + escapeHtml(ev.id) + '">' + L('Je n\'y vais plus', 'Not going anymore') + '</button>';
       if (ev.bookingUrl && !isRiderHere) acts += '<button type="button" class="primary" data-action="open-external-url" data-url="' + escapeHtml(ev.bookingUrl) + '">' + tr('book_register') + '</button>';
@@ -11285,6 +11287,9 @@
       if (status !== 'terminee') html += addToCalendarLink(ev);
       if (status !== 'terminee') html += eventPriceLine(ev); // les dépenses d'un roulage passé : onglet Budget
       if (ev.bookingUrl && !isRiderHere) html += '<div class="help-text outing-actions-help">Inscription et paiement chez l\'organisateur.</div>';
+    } else if (sessions.length && date < dateKey(new Date()) && !meIsNonRider()) {
+      // Journée passée sans roulage du calendrier : l'incident se note aussi.
+      html += '<div class="outing-actions"><button type="button" class="ghost" data-action="incident-past" data-circuit="' + escapeHtml(circuit) + '" data-date="' + escapeHtml(date) + '">' + L('Incident', 'Incident') + '</button></div>';
     }
     if (sessions.length && !outingIsLinked(circuit, date, sessions.filter(function (x) { return x.eventId; }).map(function (x) { return x.eventId; })[0])) {
       // Mes chronos de ce jour ne sont rattachés à aucun de MES roulages :
@@ -11996,7 +12001,7 @@
     return L('Saisi le ', 'Logged ') + formatDate(dateKey(d)) + L(' à ' + hh + 'h' + mm, ' at ' + hh + ':' + mm);
   }
   function sessionVideoHtml(s) {
-    var inc = s.incident ? '<span class="incident-chip" title="' + escapeHtml(L('Accident pendant cette session', 'Incident during this session')) + '">' + escapeHtml(incidentLabel(s.incident.type)) + '</span>' : '';
+    var inc = s.incident ? '<span class="incident-chip" title="' + escapeHtml(L('Incident pendant cette session', 'Incident during this session')) + '">' + escapeHtml(incidentLabel(s.incident.type)) + '</span>' : '';
     return inc + (s.videoUrl ? '<a class="session-video-link" href="' + escapeHtml(s.videoUrl) + '" target="_blank" rel="noopener">▶ ' + L('Vidéo', 'Video') + '</a>' : '');
   }
   // Une journée de chronos est « rattachée » si un de mes roulages couvre
@@ -12573,17 +12578,17 @@
     };
     bind();
   }
-  // ---- Accident (chute, sortie de piste, contact, panne) ----
+  // ---- Incident (chute, sortie de piste, contact, panne), noté après coup ----
   var pendingIncident = null;
   var INCIDENT_TYPES = function () { return [['chute', isCarMode() ? L('Tête-à-queue', 'Spin') : L('Chute', 'Crash')], ['sortie', L('Sortie', 'Off')], ['contact', L('Contact', 'Contact')], ['panne', L('Panne', 'Breakdown')]]; };
-  function incidentLabel(t) { var x = INCIDENT_TYPES().filter(function (o) { return o[0] === t; })[0]; return x ? x[1] : L('Accident', 'Incident'); }
-  function openIncidentSheet(circuit) {
+  function incidentLabel(t) { var x = INCIDENT_TYPES().filter(function (o) { return o[0] === t; })[0]; return x ? x[1] : L('Incident', 'Incident'); }
+  function openIncidentSheet(circuit, pastDate) {
     var info = circuitInfo(circuit || ''), base = circuit ? (info.mapImage || outlineImageFor(info, circuit)) : null;
     var st = pendingIncident ? Object.assign({}, pendingIncident) : { type: 'chute', publish: true };
     var draw = function () {
-      return '<h2 class="section-title">' + L('Accident', 'Incident') + (circuit ? ' · ' + escapeHtml(circuit) : '') + '</h2>' +
+      return '<h2 class="section-title">' + L('Incident', 'Incident') + (circuit ? ' · ' + escapeHtml(circuit) : '') + '</h2>' +
         '<div class="look-seg incident-types">' + INCIDENT_TYPES().map(function (o) { return '<button type="button" data-inc-type="' + o[0] + '" aria-pressed="' + (st.type === o[0]) + '">' + escapeHtml(o[1]) + '</button>'; }).join('') + '</div>' +
-        (base ? '<p class="help-text">' + L('Touche le plan à l\'endroit de l\'accident.', 'Tap the map where it happened.') + '</p><div class="incident-map"><img src="' + escapeHtml(base) + '" alt="">' + (st.x != null ? '<span class="incident-x" style="left:' + (st.x * 100) + '%;top:' + (st.y * 100) + '%"></span>' : '') + '</div>' : '<p class="help-text">' + L('Choisis d\'abord le circuit dans le formulaire pour placer l\'endroit.', 'Pick the circuit in the form first to mark the spot.') + '</p>') +
+        (base ? '<p class="help-text">' + L('Touche le plan à l\'endroit de l\'incident.', 'Tap the map where it happened.') + '</p><div class="incident-map"><img src="' + escapeHtml(base) + '" alt="">' + (st.x != null ? '<span class="incident-x" style="left:' + (st.x * 100) + '%;top:' + (st.y * 100) + '%"></span>' : '') + '</div>' : '<p class="help-text">' + L('Choisis d\'abord le circuit dans le formulaire pour placer l\'endroit.', 'Pick the circuit in the form first to mark the spot.') + '</p>') +
         '<label for="inc-note" style="margin-top:0.6rem;">' + L('Un mot (facultatif)', 'A word (optional)') + '</label><input type="text" id="inc-note" maxlength="140" value="' + escapeHtml(st.note || '') + '" placeholder="' + escapeHtml(L('Ex. Tout va bien, juste la moto à réparer', 'E.g. All good, just the bike to fix')) + '">' +
         '<label class="checklist-item" style="margin-top:0.5rem;"><input type="checkbox" id="inc-publish"' + (st.publish ? ' checked' : '') + '> ' + L('Publier sur mon Social (mes amis)', 'Post on my Social (my friends)') + '</label>' +
         '<div class="after-publish"><button type="button" class="primary" data-inc="ok">' + L('Valider', 'Confirm') + '</button>' + (pendingIncident ? '<button type="button" class="ghost" data-inc="clear">' + L('Retirer', 'Remove') + '</button>' : '') + '<button type="button" class="link-btn" data-mini-close>' + L('Annuler', 'Cancel') + '</button></div>';
@@ -12605,16 +12610,32 @@
         st.note = ov.querySelector('#inc-note').value.trim().slice(0, 140); st.publish = ov.querySelector('#inc-publish').checked;
         var lapsEl = document.getElementById('f-laps');
         ov.remove();
+        // Roulage passé : l'incident va sur ma dernière session de ce jour-là.
+        if (pastDate) {
+          var me = currentUserProfile && currentUserProfile.name;
+          var mineDay = (STATE.sessions || []).filter(function (x) { return x.rider === me && x.date === pastDate && sameCircuit(x.circuit, circuit); })
+            .sort(function (a, b) { return (sessionCreatedAt(b) || 0) - (sessionCreatedAt(a) || 0); })[0];
+          if (mineDay && st.x != null) {
+            var prevState = JSON.parse(JSON.stringify(STATE));
+            mineDay.incident = { type: st.type, x: st.x, y: st.y };
+            persist(prevState);
+          }
+          pendingIncident = null;
+          if (st.publish) publishIncident(Object.assign({ circuit: circuit }, st));
+          showToast(L('Incident noté. Prends soin de toi !', 'Incident noted. Take care!'), 'success');
+          renderRoot();
+          return;
+        }
         // Sans chrono saisi : l'accident est publié tout de suite (DNF).
         if (!lapsEl || !lapsEl.value.trim()) {
           pendingIncident = null;
           if (st.publish) publishIncident(Object.assign({ circuit: circuit }, st));
-          showToast(L('Accident noté. Prends soin de toi !', 'Incident noted. Take care!'), 'success');
+          showToast(L('Incident noté. Prends soin de toi !', 'Incident noted. Take care!'), 'success');
           return;
         }
         pendingIncident = st;
-        var btn = document.getElementById('cf-incident'); if (btn) { btn.textContent = L('Accident ✓', 'Incident ✓'); btn.classList.add('on'); }
-        showToast(L('Accident ajouté au chrono : enregistre pour le garder.', 'Incident added to the lap time: save to keep it.'));
+        var btn = document.getElementById('cf-incident'); if (btn) { btn.textContent = L('Incident ✓', 'Incident ✓'); btn.classList.add('on'); }
+        showToast(L('Incident ajouté au chrono : enregistre pour le garder.', 'Incident added to the lap time: save to keep it.'));
       });
     };
     bind();
@@ -26003,6 +26024,7 @@
       if (!videoEmbedOf(a.href)) return;
       e.preventDefault(); openYoutube(a.href);
     }); });
+    document.querySelectorAll('[data-action="incident-past"]').forEach(function (b) { b.addEventListener('click', function () { openIncidentSheet(b.getAttribute('data-circuit'), b.getAttribute('data-date')); }); });
     var incBtn = document.getElementById('cf-incident');
     if (incBtn) incBtn.addEventListener('click', function () {
       var cs = document.getElementById('f-circuit'), c = cs ? cs.value : '';
