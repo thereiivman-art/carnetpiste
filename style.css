@@ -5288,3 +5288,23 @@ body { overflow-wrap: break-word; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .wall-post-media.is-incident img, :root:not([data-theme="light"]) .incident-map img { filter: invert(1) hue-rotate(180deg); } }
 .chrono-friend-row { display: flex; gap: 0.5rem; justify-content: center; margin: 0.6rem 0; }
 .chrono-friend-row .ghost { flex: 0 1 auto; padding: 0.4rem 0.9rem; font-size: 0.88rem; }
+/* Story : publier reste atteignable clavier ouvert ; recadrage 9:16 ;
+   circuit épinglé (!Jerez). */
+.story-overlay.story-compose { overflow-y: auto; -webkit-overflow-scrolling: touch; }
+.story-compose .story-compose-media { flex: 1 1 auto; min-height: 0; display: flex; align-items: center; justify-content: center; }
+.story-compose .story-compose-media img, .story-compose .story-compose-media video { max-height: 58vh; }
+.story-compose.typing .story-compose-media img, .story-compose.typing .story-compose-media video { max-height: 20vh; }
+.story-compose.typing .story-compose-media.cropping { height: 20vh; }
+.story-compose-media.cropping { position: relative; overflow: hidden; flex: 0 0 auto; height: 52vh; aspect-ratio: 9 / 16; margin: 0 auto; border-radius: 12px; background: #000; touch-action: none; cursor: grab; outline: 2px solid rgba(255,255,255,0.6); outline-offset: -2px; }
+.story-crop-bar { display: flex; align-items: center; justify-content: center; gap: 0.7rem; margin-top: 0.5rem; }
+.story-crop-btn { background: rgba(255,255,255,0.12); color: #fff; border: 1px solid rgba(255,255,255,0.35); border-radius: 999px; padding: 0.35rem 0.9rem; font: inherit; font-size: 0.88rem; font-weight: 700; cursor: pointer; }
+.story-crop-btn.on { background: #fff; color: #14161a; }
+.story-crop-zoom { width: 9rem; accent-color: #c8261f; }
+.story-mention-wrap { position: relative; }
+.story-mention-wrap .story-text-input { width: 100%; }
+.story-mention-wrap .mention-suggest { top: auto; bottom: 100%; margin: 0 0 0.3rem; max-height: 40vh; overflow-y: auto; }
+.mention-circuit .mention-thumb { width: 28px; height: 28px; flex: 0 0 auto; }
+.mention-circuit small { margin-left: auto; color: var(--text-muted); }
+.story-photo.story-framed { position: relative; overflow: hidden; aspect-ratio: 9 / 16; height: min(70vh, 140vw); margin: 0 auto; border-radius: 12px; background: #000; padding: 0; }
+.story-place { position: absolute !important; top: 0.7rem; left: 0.7rem; display: inline-flex; align-items: center; gap: 0.35rem; background: rgba(20,22,26,0.72); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); color: #fff; border: 0; border-radius: 999px; padding: 0.35rem 0.85rem; font: inherit; font-weight: 700; cursor: pointer; position: relative; z-index: 3; }
+.story-caption .mention-link { color: inherit; text-decoration: underline; background: none; border: 0; padding: 0; font: inherit; cursor: pointer; position: relative; z-index: 3; }

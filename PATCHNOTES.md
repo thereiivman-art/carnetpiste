@@ -2,6 +2,13 @@
 
 Les nouveautés, de la plus récente à la plus ancienne. Le détail complet est dans l'historique git.
 
+## 10 novembre 2026 · stories
+
+- Story : le bouton Publier reste accessible quand le clavier est ouvert (l'aperçu rétrécit, Entrée ferme le clavier).
+- Story : épingle un circuit en tapant !Jerez (ou @Jerez) ; des suggestions de circuits s'affichent. Le circuit apparaît sur la story, un appui ouvre sa page.
+- Story : bouton Recadrer (cadre 9:16, glisser pour déplacer, pincer ou curseur pour zoomer), pour les photos comme pour les vidéos.
+- Publications : !Circuit devient aussi un lien vers le circuit.
+
 ## 10 novembre 2026 · retours Alexis
 
 - Infos du circuit : la météo du jour en premier, avant Niveau et matériel.

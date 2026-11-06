@@ -21467,14 +21467,69 @@
     var ov = document.createElement('div');
     ov.className = 'story-overlay story-compose';
     ov.innerHTML = '<div class="story-head"><strong>' + L('Ta story', 'Your story') + '</strong><span>' + L('visible 24 h', 'visible 24 h') + '</span><button type="button" class="story-close" aria-label="' + escapeHtml(L('Fermer', 'Close')) + '">✕</button></div>' +
-      '<div class="story-card story-photo">' + (video ? '<video src="' + escapeHtml(video.dataUrl) + '" autoplay loop playsinline muted></video>' : '<img src="' + escapeHtml(dataUrl) + '" alt="">') + '</div>' +
-      '<input type="text" class="story-text-input" maxlength="120" placeholder="' + escapeHtml(L('Ajoute un mot (facultatif)', 'Add a caption (optional)')) + '">' +
+      '<div class="story-card story-photo story-compose-media">' + (video ? '<video src="' + escapeHtml(video.dataUrl) + '" autoplay loop playsinline muted></video>' : '<img src="' + escapeHtml(dataUrl) + '" alt="">') + '</div>' +
+      '<div class="story-crop-bar"><button type="button" class="story-crop-btn">' + L('Recadrer', 'Crop') + '</button><input type="range" class="story-crop-zoom" min="100" max="300" step="5" value="100" hidden aria-label="Zoom"></div>' +
+      '<div class="mention-wrap story-mention-wrap"><input type="text" class="story-text-input" maxlength="120" data-mentions="1" placeholder="' + escapeHtml(L('Un mot, @ami, !circuit (facultatif)', 'A word, @friend, !circuit (optional)')) + '"><div class="mention-suggest" hidden></div></div>' +
       storyAsTeamHtml() +
       '<label class="story-feed-opt"><input type="checkbox" class="story-also-feed"> ' + L('Publier aussi dans mon Box', 'Also post to my Box') + '</label>' +
       '<button type="button" class="primary story-publish">' + L('Publier ma story', 'Post my story') + '</button>';
     document.body.appendChild(ov);
-    var close = function () { if (ov.parentNode) ov.parentNode.removeChild(ov); };
+    // Clavier ouvert : la fenêtre suit la partie visible de l'écran, l'aperçu
+    // rétrécit, et Publier reste atteignable (on peut aussi faire défiler).
+    var vv = window.visualViewport;
+    var fit = function () { if (!vv || !ov.parentNode) return; ov.style.height = vv.height + 'px'; ov.style.top = vv.offsetTop + 'px'; ov.style.bottom = 'auto'; };
+    if (vv) { vv.addEventListener('resize', fit); vv.addEventListener('scroll', fit); fit(); }
+    var close = function () { if (vv) { vv.removeEventListener('resize', fit); vv.removeEventListener('scroll', fit); } if (ov.parentNode) ov.parentNode.removeChild(ov); };
     ov.querySelector('.story-close').addEventListener('click', close);
+    var tin = ov.querySelector('.story-text-input');
+    attachMentionInput(tin);
+    tin.addEventListener('focus', function () { ov.classList.add('typing'); });
+    tin.addEventListener('blur', function () { setTimeout(function () { if (document.activeElement !== tin) ov.classList.remove('typing'); }, 200); });
+    tin.addEventListener('keydown', function (e) { if (e.key === 'Enter' && ov.querySelector('.mention-suggest').hidden) { e.preventDefault(); tin.blur(); } });
+    // Recadrer : cadre 9:16, glisser pour déplacer, pincer / curseur pour zoomer.
+    var crop = null, media = ov.querySelector('.story-compose-media'), mel = media.querySelector('img, video');
+    var natW = function () { return mel.naturalWidth || mel.videoWidth || 0; }, natH = function () { return mel.naturalHeight || mel.videoHeight || 0; };
+    var applyCrop = function () {
+      if (!crop) return;
+      var W = media.clientWidth, H = media.clientHeight, iw = natW(), ih = natH(); if (!iw || !ih || !W) return;
+      var s0 = Math.max(W / iw, H / ih) * crop.z, dw = iw * s0, dh = ih * s0;
+      var mx = Math.max(0, (dw - W) / 2), my = Math.max(0, (dh - H) / 2);
+      crop.x = Math.max(-mx, Math.min(mx, crop.x)); crop.y = Math.max(-my, Math.min(my, crop.y));
+      var l = (W - dw) / 2 + crop.x, t = (H - dh) / 2 + crop.y;
+      mel.style.cssText = 'position:absolute;max-width:none;max-height:none;border-radius:0;width:' + dw + 'px;height:' + dh + 'px;left:' + l + 'px;top:' + t + 'px;';
+      crop.pct = { w: dw / W * 100, h: dh / H * 100, l: l / W * 100, t: t / H * 100 };
+    };
+    var zr = ov.querySelector('.story-crop-zoom');
+    ov.querySelector('.story-crop-btn').addEventListener('click', function () {
+      if (crop) { crop = null; media.classList.remove('cropping'); mel.style.cssText = ''; zr.hidden = true; zr.value = 100; this.classList.remove('on'); return; }
+      crop = { x: 0, y: 0, z: 1 }; media.classList.add('cropping'); zr.hidden = false; this.classList.add('on'); applyCrop();
+    });
+    zr.addEventListener('input', function () { if (crop) { crop.z = zr.value / 100; applyCrop(); } });
+    var pts = {}, last = null, pinch0 = null;
+    media.addEventListener('pointerdown', function (e) { if (!crop) return; pts[e.pointerId] = { x: e.clientX, y: e.clientY }; media.setPointerCapture(e.pointerId); last = { x: e.clientX, y: e.clientY }; e.preventDefault(); });
+    media.addEventListener('pointermove', function (e) {
+      if (!crop || !pts[e.pointerId]) return;
+      pts[e.pointerId] = { x: e.clientX, y: e.clientY };
+      var ids = Object.keys(pts);
+      if (ids.length >= 2) {
+        var a = pts[ids[0]], b = pts[ids[1]], d = Math.hypot(a.x - b.x, a.y - b.y);
+        if (!pinch0) pinch0 = { d: d, z: crop.z };
+        crop.z = Math.max(1, Math.min(3, pinch0.z * d / pinch0.d)); zr.value = Math.round(crop.z * 100);
+      } else if (last) { crop.x += e.clientX - last.x; crop.y += e.clientY - last.y; }
+      last = { x: e.clientX, y: e.clientY }; applyCrop();
+    });
+    ['pointerup', 'pointercancel'].forEach(function (t) { media.addEventListener(t, function (e) { delete pts[e.pointerId]; pinch0 = null; last = null; }); });
+    media.addEventListener('wheel', function (e) { if (!crop) return; e.preventDefault(); crop.z = Math.max(1, Math.min(3, crop.z - e.deltaY / 500)); zr.value = Math.round(crop.z * 100); applyCrop(); }, { passive: false });
+    // Photo recadrée : cuite en 1080 × 1920.
+    var bakeCrop = function () {
+      if (!crop || !crop.pct || video) return dataUrl;
+      var W = 1080, H = 1920, c = document.createElement('canvas'); c.width = W; c.height = H;
+      var x = c.getContext('2d'); x.fillStyle = '#000'; x.fillRect(0, 0, W, H);
+      x.drawImage(mel, crop.pct.l / 100 * W, crop.pct.t / 100 * H, crop.pct.w / 100 * W, crop.pct.h / 100 * H);
+      var out = c.toDataURL('image/jpeg', 0.8);
+      for (var q = 0.72; out.length > 650000 && q >= 0.5; q -= 0.08) out = c.toDataURL('image/jpeg', q);
+      return out.length > 690000 ? dataUrl : out;
+    };
     var asSel = ov.querySelector('.story-as-team');
     // Au nom d'un team : pas de « dans mon fil » (la story est celle du club).
     if (asSel) asSel.addEventListener('change', function () { var f = ov.querySelector('.story-also-feed'); if (f) { f.checked = false; f.closest('label').hidden = !!asSel.value; } });
@@ -21482,10 +21537,13 @@
       var me = currentUserProfile;
       if (!me) return close();
       if (!dataUrl) { showToast(L('Image illisible : choisis une autre photo pour ta story.', 'Unreadable image: pick another photo for your story.')); return; }
-      var post = { id: genId(), author: me.name, authorUid: myUid(), audience: 'all', story: true, photoURL: dataUrl, createdAt: Date.now() };
+      var post = { id: genId(), author: me.name, authorUid: myUid(), audience: 'all', story: true, photoURL: bakeCrop(), createdAt: Date.now() };
       var t = ov.querySelector('.story-text-input').value.trim();
       if (t) post.text = t.slice(0, 120);
+      // !Jerez ou @Jerez : le circuit est épinglé sur la story.
+      var tagC = circuitTagIn(t); if (tagC) post.place = tagC.slice(0, 80);
       if (video) { post.video = true; post.mediaId = post.id; post.duration = Math.round(video.duration * 10) / 10; }
+      if (video && crop && crop.pct) post.frame = { w: Math.round(crop.pct.w * 10) / 10, h: Math.round(crop.pct.h * 10) / 10, l: Math.round(crop.pct.l * 10) / 10, t: Math.round(crop.pct.t * 10) / 10 };
       var asTeam = asSel && asSel.value && isLeaderOfTeam(asSel.value) ? asSel.value : '';
       if (asTeam) { post.asTeam = true; post.teamId = asTeam; }
       var af = ov.querySelector('.story-also-feed'); if (af && af.checked && !asTeam) post.alsoInFeed = true;
@@ -21558,7 +21616,9 @@
           (prev !== null && r.best < prev ? '<span class="story-rec">' + L('Nouveau record −', 'New record −') + formatGap(prev - r.best) + '</span>' : '') +
           '<span class="story-date">' + escapeHtml(formatDate(r.date)) + ' · ' + plural(r.laps, L('tour', 'lap'), L('tours', 'laps')) + '</span></div>';
       } else {
-        body = '<div class="story-card story-photo"' + (st.post.video ? ' data-story-video="' + escapeHtml(st.post.mediaId || st.post.id) + '"' : '') + '><img src="' + escapeHtml(st.post.photoURL) + '" alt="">' + (st.post.text ? '<span class="story-caption">' + escapeHtml(st.post.text) + '</span>' : '') + '</div>';
+        var fr = st.post.frame, frSt = fr ? ' style="position:absolute;max-width:none;max-height:none;border-radius:0;width:' + fr.w + '%;height:' + fr.h + '%;left:' + fr.l + '%;top:' + fr.t + '%"' : '';
+        body = '<div class="story-card story-photo' + (fr ? ' story-framed' : '') + '"' + (st.post.video ? ' data-story-video="' + escapeHtml(st.post.mediaId || st.post.id) + '"' : '') + (fr ? ' data-frame="' + escapeHtml(JSON.stringify(fr)) + '"' : '') + '><img src="' + escapeHtml(st.post.photoURL) + '" alt=""' + frSt + '>' + (st.post.text ? '<span class="story-caption">' + mentionsHtml(st.post.text) + '</span>' : '') +
+          (st.post.place ? '<button type="button" class="story-place" data-open-circuit="' + escapeHtml(st.post.place) + '"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-6-5.6-6-11a6 6 0 0 1 12 0c0 5.4-6 11-6 11z"/><circle cx="12" cy="10" r="2.3"/></svg>' + escapeHtml(st.post.place) + '</button>' : '') + '</div>';
       }
       // J'aime : rangé sur le message de la story (le même qu'une fois
       // publiée dans le fil : J'aime, réactions et commentaires liés).
@@ -21581,6 +21641,12 @@
         (tm ? '<button type="button" class="story-profile" data-who="' + escapeHtml(st.who) + '">' + L('Voir le team', 'See team') + '</button>'
           : st.who !== me.name ? '<button type="button" class="story-profile" data-who="' + escapeHtml(st.who) + '">' + L('Voir son profil', 'See profile') + '</button>' : '');
       ov.querySelector('.story-close').addEventListener('click', close);
+      // Circuit épinglé ou cité, ami cité : la story se ferme et ouvre la page.
+      ov.querySelectorAll('[data-open-circuit]').forEach(function (b) { b.addEventListener('click', function (e) {
+        e.stopPropagation(); var c = b.getAttribute('data-open-circuit'); close();
+        selectedCircuit = allCircuits().filter(function (x) { return sameCircuit(x, c); })[0] || c; userPickedCircuit = true; activeView = 'circuit'; outingView = null; personView = null; renderRoot(); window.scrollTo(0, 0);
+      }); });
+      ov.querySelectorAll('.story-caption [data-open-person]').forEach(function (b) { b.addEventListener('click', function (e) { e.stopPropagation(); var n = b.getAttribute('data-open-person'); close(); openPerson(n); }); });
       var gp = ov.querySelector('.story-goto-post');
       if (gp) gp.addEventListener('click', function () { var pid = st.post.fromPost, au = st.post.author; close(); goToOriginal(pid, au, 'wall'); });
       ov.querySelector('.story-nav.prev').addEventListener('click', function () { if (i > 0) { i--; show(); } });
@@ -21619,7 +21685,7 @@
           var vid = document.createElement('video');
           vid.src = vsrc; vid.autoplay = true; vid.playsInline = true; vid.setAttribute('playsinline', '');
           vid.addEventListener('ended', function () { if (shownAt === i) { i++; show(); } });
-          var im = vbox.querySelector('img'); if (im) im.replaceWith(vid);
+          var im = vbox.querySelector('img'); if (im) { if (im.getAttribute('style')) vid.setAttribute('style', im.getAttribute('style')); im.replaceWith(vid); }
           var pl = vid.play(); if (pl && pl.catch) pl.catch(function () { vid.muted = true; vid.play().catch(function () {}); });
           clearTimeout(timer); timer = setTimeout(function () { if (shownAt === i) { i++; show(); } }, (STORY_VIDEO_MAX_S + 3) * 1000);
         }).catch(function () {});
@@ -22070,14 +22136,39 @@
 
   var editingWallPostId = null; // id of the one wallPost currently shown as an inline edit form, or null -- same pattern as editingTeamPostId
   // @pseudo dans un texte : lien vers le profil (pseudos connus seulement).
+  // Circuit épinglé dans un texte : « !Jerez » ou « @Jerez » (un pilote du
+  // même nom passe avant). Renvoie le circuit trouvé (le premier) ou null.
+  function normTag(x) { return String(x || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, ''); }
+  function circuitTagIn(text) {
+    var t = String(text || ''), circuits = allCircuits().slice().sort(function (a, b) { return b.length - a.length; });
+    var users = Object.keys(STATE.usersByName || {});
+    var re = /(^|\s)([!@])/g, m;
+    while ((m = re.exec(t))) {
+      var at = m.index + m[0].length, rest = normTag(t.slice(at));
+      var c = circuits.filter(function (n) { var k = normTag(n); return rest.indexOf(k) === 0 && !/[a-z0-9]/.test(rest.charAt(k.length)); })[0];
+      if (!c) continue;
+      if (m[2] === '@' && users.some(function (u) { return normTag(t.slice(at)).indexOf(normTag(u)) === 0 && normTag(u).length >= normTag(c).length; })) continue;
+      return c;
+    }
+    return null;
+  }
+  function circuitTagsHtml(html) {
+    if (html.indexOf('!') === -1 && html.indexOf('@') === -1) return html;
+    var esc = function (x) { return x.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); };
+    var names = allCircuits().slice().sort(function (a, b) { return b.length - a.length; });
+    if (!names.length) return html;
+    var byLow = {}; names.forEach(function (n) { byLow[escapeHtml(n).toLowerCase()] = n; });
+    var re = new RegExp('(^|[\\s>])([!@])(' + names.map(function (n) { return esc(escapeHtml(n)); }).join('|') + ')(?![\\wÀ-ÿ])', 'gi');
+    return html.replace(re, function (m0, pre, mk, n) { var c = byLow[n.toLowerCase()] || n; return pre + '<button type="button" class="mention-link circuit-tag" data-open-circuit="' + escapeHtml(c) + '">' + mk + n + '</button>'; });
+  }
   function mentionsHtml(text) {
     var names = Object.keys(STATE.usersByName || {}).sort(function (a, b) { return b.length - a.length; });
     var out = escapeHtml(text);
-    if (!names.length || out.indexOf('@') === -1) return out;
+    if (!names.length || out.indexOf('@') === -1) return circuitTagsHtml(out);
     var esc = function (x) { return x.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); };
     var re = new RegExp('@(' + names.map(function (n) { return esc(escapeHtml(n)); }).join('|') + ')(?![\\wÀ-ÿ])', 'g');
     var byEsc = {}; names.forEach(function (n) { byEsc[escapeHtml(n)] = n; });
-    return out.replace(re, function (m, n) { return '<button type="button" class="mention-link" data-open-person="' + escapeHtml(byEsc[n] || n) + '">@' + n + '</button>'; });
+    return circuitTagsHtml(out.replace(re, function (m, n) { return '<button type="button" class="mention-link" data-open-person="' + escapeHtml(byEsc[n] || n) + '">@' + n + '</button>'; }));
   }
   // Suggestions @ : amis d'abord, puis abonnements / abonnés, puis les autres.
   // Une story vit dans la rangée du haut ; publiée aussi dans le fil, c'est
@@ -22102,18 +22193,32 @@
     if (!box) return;
     var hide = function () { box.hidden = true; box.innerHTML = ''; };
     var at = function () {
-      var before = ta.value.slice(0, ta.selectionStart || 0), m = before.match(/(^|\s)@([^\s@]{0,30})$/);
-      return m ? { q: m[2], start: before.length - m[2].length - 1 } : null;
+      var before = ta.value.slice(0, ta.selectionStart || 0), m = before.match(/(^|\s)([@!])([^\s@!]{0,30})$/);
+      return m ? { q: m[3], mk: m[2], start: before.length - m[3].length - 1 } : null;
     };
+    var circuitsFor = function (q) { var k = normTag(q); return allCircuits().filter(function (c) { return normTag(c).indexOf(k) === 0; }).sort(function (a, b) { return a.localeCompare(b); }).slice(0, 5); };
     var refresh = function () {
       var a = at();
       if (!a) return hide();
-      var list = mentionCandidates(a.q);
-      if (!list.length) return hide();
+      var list = a.mk === '!' ? [] : mentionCandidates(a.q);
+      var clist = a.mk === '!' || list.length < 6 ? circuitsFor(a.q).slice(0, a.mk === '!' ? 6 : 6 - list.length) : [];
+      if (!list.length && !clist.length) return hide();
       var me = currentUserProfile ? currentUserProfile.name : '', friends = friendsOf(me).map(function (f) { return f.name; });
       box.innerHTML = list.map(function (n) { var u = (STATE.usersByName || {})[n] || {}; return '<button type="button" class="mention-opt" data-name="' + escapeHtml(n) + '">' + avatarHtml(u, n) + '<span>' + escapeHtml(n) + '</span>' + (friends.indexOf(n) !== -1 ? '<span class="help-text">' + L('ami', 'friend') + '</span>' : isPersonality(u) ? '<span class="help-text">' + L('personnalité', 'personality') + '</span>' : '') + '</button>'; }).join('');
+      box.innerHTML += clist.map(function (c) { return '<button type="button" class="mention-opt mention-circuit" data-circuit="' + escapeHtml(c) + '"><span class="outing-thumb mention-thumb">' + circuitThumbHtml(c) + '</span><span>' + escapeHtml(c) + '</span><small>' + L('circuit', 'circuit') + '</small></button>'; }).join('');
       box.hidden = false;
-      box.querySelectorAll('.mention-opt').forEach(function (b) {
+      if (typeof styleTrackThumbs === 'function') styleTrackThumbs();
+      box.querySelectorAll('.mention-circuit').forEach(function (b) {
+        b.addEventListener('mousedown', function (e) { e.preventDefault(); });
+        b.addEventListener('click', function () {
+          var a2 = at(); if (!a2) return hide();
+          var c = b.getAttribute('data-circuit'), pos = ta.selectionStart || 0;
+          ta.value = ta.value.slice(0, a2.start) + a2.mk + c + ' ' + ta.value.slice(pos);
+          var k = a2.start + c.length + 2; ta.focus(); ta.setSelectionRange(k, k); hide();
+          ta.dispatchEvent(new Event('input'));
+        });
+      });
+      box.querySelectorAll('.mention-opt:not(.mention-circuit)').forEach(function (b) {
         b.addEventListener('mousedown', function (e) { e.preventDefault(); });
         b.addEventListener('click', function () {
           var a2 = at(); if (!a2) return hide();
