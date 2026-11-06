@@ -1119,6 +1119,25 @@ service cloud.firestore {
     // Messages : « Public » (audience all / followers) lisibles par tout
     // compte vérifié ; « Mes amis » seulement par l'auteur et les uids de
     // visibleTo, que l'auteur (ou l'admin) tient à jour.
+    // Photo d'une publication, rangée à part (téléchargée une fois par
+    // appareil, puis relue depuis le cache). Mêmes droits de lecture que la
+    // publication : publique, partagée avec moi, ou la mienne.
+    match /postMedia/{id} {
+      allow read: if isAdmin() || (verified() && (resource.data.get('audience', 'friends') in ['all', 'followers']
+        || resource.data.authorUid == request.auth.uid || request.auth.uid in resource.data.get('visibleTo', [])));
+      allow create: if verified() && request.resource.data.authorUid == request.auth.uid
+        && request.resource.data.keys().hasOnly(['authorUid', 'audience', 'visibleTo', 'data', 'createdAt'])
+        && request.resource.data.data is string && request.resource.data.data.size() < 900000
+        && request.resource.data.data.matches('^data:image/.*')
+        && request.resource.data.audience in ['all', 'friends', 'followers']
+        && request.resource.data.visibleTo is list && request.resource.data.visibleTo.size() <= 500;
+      // L'auteur peut seulement changer qui la voit (pas l'image).
+      allow update: if verified() && resource.data.authorUid == request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['audience', 'visibleTo'])
+        && request.resource.data.audience in ['all', 'friends', 'followers']
+        && request.resource.data.visibleTo is list && request.resource.data.visibleTo.size() <= 500;
+      allow delete: if verified() && (resource.data.authorUid == request.auth.uid || isAdmin());
+    }
     match /wallPosts/{id} {
       allow read: if isAdmin() || (verified() && (
         resource.data.get('audience', 'friends') in ['all', 'followers']
@@ -1145,7 +1164,7 @@ service cloud.firestore {
         (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reactions'])
           && onlyOwnKeyChanged(resource.data.get('reactions', {}), request.resource.data.reactions))
         || (resource.data.author == myName()
-            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['text', 'linkUrl', 'editedAt', 'alsoInFeed', 'photoURL', 'notesShare', 'audience', 'visibleTo'])
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['text', 'linkUrl', 'editedAt', 'alsoInFeed', 'photoURL', 'photoMedia', 'notesShare', 'audience', 'visibleTo'])
             && request.resource.data.get('audience', 'all') in ['all', 'friends', 'followers']
             && (!('photoURL' in request.resource.data) || (request.resource.data.photoURL is string && request.resource.data.photoURL.size() < 900000))
             && (!('visibleTo' in request.resource.data) || (request.resource.data.visibleTo is list && request.resource.data.visibleTo.size() <= 500))

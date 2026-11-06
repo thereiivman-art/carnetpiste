@@ -11,6 +11,7 @@ Les nouveautés, de la plus récente à la plus ancienne. Le détail complet est
 - Dessins des plans rangés à part : chargés seulement quand on ouvre le plan d'un circuit (avant, tout le monde téléchargeait les dessins de tout le monde à chaque ouverture). Les anciens dessins migrent tout seuls.
 - Dessin : choix de qui le voit (Public, Amis, Moi seul).
 - Fiche : « Voir plus » charge les publications plus anciennes.
+- Photos des publications rangées à part : téléchargées une seule fois par appareil, puis relues depuis le cache (avant, chaque ouverture retéléchargeait toutes les photos du fil). Les anciennes publications migrent toutes seules.
 
 ## 7 novembre 2026
 

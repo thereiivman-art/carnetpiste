@@ -12647,7 +12647,7 @@
       if (inc.circuit) post.place = inc.circuit.slice(0, 80);
       STATE.wallPosts = [post].concat(STATE.wallPosts || []);
       renderRoot();
-      db.collection('wallPosts').doc(post.id).set(post).catch(function (err) { showToast(tr('error_prefix') + ((err && err.message) || err)); });
+      writePost(post).catch(function (err) { showToast(tr('error_prefix') + ((err && err.message) || err)); });
     });
   }
   // ---- Repères : image (plan + repères numérotés + liste), PDF, post /
@@ -12749,7 +12749,7 @@
         if (act === 'story') post.story = true;
         STATE.wallPosts = [post].concat(STATE.wallPosts || []);
         renderRoot();
-        db.collection('wallPosts').doc(post.id).set(post).then(function () { awardPneus(10, true); showToast(act === 'story' ? L('Story publiée : visible 24 h.', 'Story posted: visible for 24 h.') : L('Repères publiés.', 'Marks posted.'), 'success'); }).catch(function (err) { showToast(tr('error_prefix') + ((err && err.message) || err)); });
+        writePost(post).then(function () { awardPneus(10, true); showToast(act === 'story' ? L('Story publiée : visible 24 h.', 'Story posted: visible for 24 h.') : L('Repères publiés.', 'Marks posted.'), 'success'); }).catch(function (err) { showToast(tr('error_prefix') + ((err && err.message) || err)); });
       });
     }); });
   }
@@ -18777,7 +18777,8 @@
     var add = function (label, v) {
       if (!v) return;
       var list = Array.isArray(v) ? v : (typeof v === 'object' ? Object.keys(v).map(function (k) { return v[k]; }) : []);
-      var kb = 0; try { kb = JSON.stringify(v).length / 1024; } catch (e) {}
+      // Les photos rangées à part (relues depuis le cache) ne comptent pas.
+      var kb = 0; try { kb = JSON.stringify(v, function (k, val) { return k === 'photoURL' && this && this.photoMedia ? undefined : val; }).length / 1024; } catch (e) {}
       rows.push([label, list.length, kb]); total += kb; docs += list.length;
     };
     add(L('Profils', 'Profiles'), STATE.usersByName); add(L('Chronos', 'Lap times'), STATE.sessions); add(L('Publications', 'Posts'), STATE.wallPosts);
@@ -20446,6 +20447,56 @@
         (mine ? '' : mineToo ? '<span class="feed-upcoming-tag">' + L('Tu y vas aussi', 'You\'re going too') + '</span>' : '<button type="button" class="ghost" data-notif-go="event" data-id="' + escapeHtml(ev.id) + '" data-join="1">' + L('J\'y vais aussi', 'I\'m going too') + '</button>') + '</div>';
     }).join('') + '</div>';
   }
+  // ---- Photos des publications : rangées à part (postMedia/{id}) ----
+  // La publication ne garde qu'une référence (photoMedia) ; la photo est
+  // téléchargée une seule fois par appareil, puis relue depuis le cache
+  // (elle ne change jamais). Avant, chaque ouverture retéléchargeait toutes
+  // les photos du fil.
+  var MEDIA_MIN_CHARS = 40000, postMediaCache = {}, postMediaLoading = {};
+  function mediaAccessOf(post) { return { authorUid: post.authorUid || myUid(), audience: post.audience || 'all', visibleTo: (post.visibleTo || []).slice(0, 500) }; }
+  function writePost(post) {
+    var jobs = [], doc = Object.assign({}, post);
+    if (typeof doc.photoURL === 'string' && doc.photoURL.length > MEDIA_MIN_CHARS) {
+      postMediaCache[doc.id] = doc.photoURL;
+      jobs.push(db.collection('postMedia').doc(doc.id).set(Object.assign({ data: doc.photoURL, createdAt: Date.now() }, mediaAccessOf(doc))));
+      doc.photoMedia = doc.id; delete doc.photoURL;
+    }
+    if (doc.repostOf && typeof doc.repostOf.photoURL === 'string' && doc.repostOf.photoURL.length > MEDIA_MIN_CHARS) {
+      var mid = doc.id + '-r';
+      postMediaCache[mid] = doc.repostOf.photoURL;
+      jobs.push(db.collection('postMedia').doc(mid).set(Object.assign({ data: doc.repostOf.photoURL, createdAt: Date.now() }, mediaAccessOf(doc))));
+      doc.repostOf = Object.assign({}, doc.repostOf, { photoMedia: mid }); delete doc.repostOf.photoURL;
+    }
+    return Promise.all(jobs).then(function () { return db.collection('wallPosts').doc(doc.id).set(doc); });
+  }
+  function loadPostMedia(id) {
+    if (postMediaCache[id] || postMediaLoading[id]) return;
+    postMediaLoading[id] = true;
+    var ref = db.collection('postMedia').doc(id);
+    // Le cache de l'appareil d'abord (gratuit), le serveur sinon.
+    ref.get({ source: 'cache' }).then(function (d) { return d.exists ? d : ref.get(); }, function () { return ref.get(); }).then(function (d) {
+      postMediaLoading[id] = false;
+      if (d && d.exists && d.data().data) { postMediaCache[id] = d.data().data; hydratePostPhotos(STATE.wallPosts); scheduleRender(); }
+    }).catch(function () { postMediaLoading[id] = false; });
+  }
+  function hydratePostPhotos(list) {
+    (list || []).forEach(function (p) {
+      if (p.photoMedia && !p.photoURL) { if (postMediaCache[p.photoMedia]) p.photoURL = postMediaCache[p.photoMedia]; else loadPostMedia(p.photoMedia); }
+      if (p.repostOf && p.repostOf.photoMedia && !p.repostOf.photoURL) { if (postMediaCache[p.repostOf.photoMedia]) p.repostOf.photoURL = postMediaCache[p.repostOf.photoMedia]; else loadPostMedia(p.repostOf.photoMedia); }
+    });
+  }
+  // Migration : mes publications dont la photo est encore dedans.
+  var postPhotosMigrated = false;
+  function migrateMyPostPhotos() {
+    if (postPhotosMigrated || !currentUserProfile) return;
+    postPhotosMigrated = true;
+    (STATE.wallPosts || []).filter(function (p) { return p.authorUid === myUid() && typeof p.photoURL === 'string' && p.photoURL.length > MEDIA_MIN_CHARS && !p.photoMedia; }).slice(0, 40).forEach(function (p) {
+      db.collection('postMedia').doc(p.id).set(Object.assign({ data: p.photoURL, createdAt: p.createdAt || Date.now() }, mediaAccessOf(p))).then(function () {
+        postMediaCache[p.id] = p.photoURL;
+        return db.collection('wallPosts').doc(p.id).update({ photoMedia: p.id, photoURL: firebase.firestore.FieldValue.delete() });
+      }).catch(function () {});
+    });
+  }
   // Publications plus anciennes que les dernières chargées à l'ouverture :
   // « Voir plus » sur une fiche les charge (seulement celles que j'ai le
   // droit de voir : publiques, partagées avec moi, ou les miennes).
@@ -20840,7 +20891,7 @@
       if (post.linkUrl) st.linkUrl = post.linkUrl;
       if (post.text) st.text = post.text.slice(0, 120);
       STATE.wallPosts = [st].concat(STATE.wallPosts || []);
-      db.collection('wallPosts').doc(st.id).set(st).then(function () { awardPneus(10, true); showToast(L('Aussi en story : visible 24 h.', 'Also in your story: visible for 24 h.'), 'success'); }).catch(function (err) { showToast(tr('error_prefix') + ((err && err.message) || err)); });
+      writePost(st).then(function () { awardPneus(10, true); showToast(L('Aussi en story : visible 24 h.', 'Also in your story: visible for 24 h.'), 'success'); }).catch(function (err) { showToast(tr('error_prefix') + ((err && err.message) || err)); });
       sb.disabled = true; sb.textContent = L('En story', 'In story');
       renderRoot();
     });
@@ -21232,7 +21283,7 @@
         STATE.wallPosts = [post].concat(STATE.wallPosts || []);
         renderRoot();
         showToast(L('Story publiée : visible 24 h.', 'Story posted: visible for 24 h.'), 'success');
-        return db.collection('wallPosts').doc(post.id).set(post).then(function () { awardPneus(10, true); if (navigator.share) openAfterPublish(post, true, video ? video.dataUrl : dataUrl); });
+        return writePost(post).then(function () { awardPneus(10, true); if (navigator.share) openAfterPublish(post, true, video ? video.dataUrl : dataUrl); });
       };
       var fail = function (err) { showToast(tr('error_prefix') + ((err && err.message) || err)); };
       // Vidéo : rangée à part (lue seulement à l'ouverture de la story).
@@ -22132,7 +22183,7 @@
     if (linkUrl) post.linkUrl = linkUrl;
     if (photoURL) post.photoURL = photoURL;
     if (wallPostPlace.label || wallPostPlace.geo) { post.place = (wallPostPlace.label || L('Ma position', 'My location')).slice(0, 80); if (wallPostPlace.geo) post.geo = wallPostPlace.geo; }
-    db.collection('wallPosts').doc(post.id).set(post).then(function () {
+    writePost(post).then(function () {
       wallPostPlace = {};
       wallPostMessage = '';
       wallPostDraftPhotoURL = null;
@@ -22153,7 +22204,8 @@
   function repostWallPost(id) {
     var me = currentUserProfile, src = (STATE.wallPosts || []).filter(function (p) { return p.id === id; })[0];
     if (!me || !src) return;
-    var orig = src.repostOf ? src.repostOf : { id: src.id, author: src.author, text: src.text || '', linkUrl: src.linkUrl || '', photoURL: src.photoURL || '', createdAt: src.createdAt || 0 };
+    var orig = src.repostOf ? src.repostOf : { id: src.id, author: src.author, text: src.text || '', linkUrl: src.linkUrl || '', photoURL: src.photoMedia ? '' : (src.photoURL || ''), createdAt: src.createdAt || 0 };
+    if (!src.repostOf && src.photoMedia) orig.photoMedia = src.photoMedia; // la photo reste rangée à part
     // Vidéo : la republication la lit aussi (même média).
     if (!src.repostOf && src.video) { orig.video = true; orig.mediaId = src.mediaId || src.id; }
     if (orig.author === me.name) { showToast(L('C\'est déjà ton message.', 'That\'s already your post.')); return; }
@@ -22162,7 +22214,7 @@
     STATE.wallPosts = [post].concat(STATE.wallPosts || []);
     renderRoot();
     showToast(L('Republié sur ton profil.', 'Reposted to your profile.'), 'success');
-    db.collection('wallPosts').doc(post.id).set(post).catch(function (err) { showToast(tr('error_prefix') + ((err && err.message) || err)); });
+    writePost(post).catch(function (err) { showToast(tr('error_prefix') + ((err && err.message) || err)); });
   }
   function repostCount(id) { return (STATE.wallPosts || []).filter(function (p) { return p.repostOf && p.repostOf.id === id; }).length; }
   // Republier un roulage, un récap, un message de team ou une activité :
@@ -22176,7 +22228,7 @@
     STATE.wallPosts = [post].concat(STATE.wallPosts || []);
     renderRoot();
     showToast(L('Republié sur ton profil.', 'Reposted to your profile.'), 'success');
-    db.collection('wallPosts').doc(post.id).set(post).catch(function (err) { showToast(tr('error_prefix') + ((err && err.message) || err)); });
+    writePost(post).catch(function (err) { showToast(tr('error_prefix') + ((err && err.message) || err)); });
   }
   function repostButtonHtml(key, ownerName, action) {
     var n = repostCount(key);
@@ -22281,6 +22333,9 @@
   }
 
   function deleteWallPost(id) {
+    // Sa photo rangée à part part avec elle.
+    var wp = (STATE.wallPosts || []).filter(function (x) { return x.id === id; })[0];
+    [wp && wp.photoMedia, wp && wp.repostOf && wp.repostOf.photoMedia && wp.repostOf.photoMedia === id + '-r' ? wp.repostOf.photoMedia : null].forEach(function (m) { if (m) db.collection('postMedia').doc(m).delete().catch(function () {}); });
     db.collection('wallPosts').doc(id).delete().catch(function (err) {
       showToast(tr('error_prefix') + (err && err.message ? err.message : err));
     });
@@ -25995,6 +26050,7 @@
       var next = p.audience === 'friends' ? 'all' : 'friends', upd = { audience: next };
       if (next === 'friends') upd.visibleTo = friendUidsOf(currentUserProfile.name);
       Object.assign(p, upd); renderRoot();
+      if (p.photoMedia) db.collection('postMedia').doc(p.photoMedia).update({ audience: next, visibleTo: upd.visibleTo || [] }).catch(function () {});
       db.collection('wallPosts').doc(p.id).update(upd).then(function () { showToast(next === 'friends' ? L('Visible par tes amis seulement.', 'Visible to your friends only.') : L('Visible par tout le monde.', 'Visible to everyone.'), 'success'); }).catch(function (err) { showToast(tr('error_prefix') + ((err && err.message) || err)); });
     }); });
     document.querySelectorAll('[data-action="share-post"]').forEach(function (btn) { btn.addEventListener('click', function (e) { e.stopPropagation(); openPostShareSheet(btn.getAttribute('data-id')); }); });
@@ -29524,8 +29580,10 @@
       var seenIds = {}; list.forEach(function (x) { seenIds[x.id] = 1; });
       Object.keys(extraWallPosts).forEach(function (id) { if (!seenIds[id]) list.push(extraWallPosts[id]); });
       list.sort(function (a, b) { return (b.createdAt || 0) - (a.createdAt || 0); });
+      hydratePostPhotos(list);
       STATE.wallPosts = list;
       cleanOldStoryMedia();
+      if (!postPhotosMigrated) setTimeout(migrateMyPostPhotos, 6000);
       maybeNotifyWallPostReaction(STATE.wallPosts);
       markCoreSynced('wallPosts');
       backfillPrivacy();
