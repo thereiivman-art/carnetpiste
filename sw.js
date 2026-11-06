@@ -12,17 +12,17 @@
 // - LIBS: third-party scripts and fonts (Firebase SDK, Google Fonts, the
 //   timesheet reader). Their URLs carry a fixed version, so a cached copy
 //   never goes stale; kept across app versions too.
-var CACHE_VERSION = 'cdp-2026110198';
+var CACHE_VERSION = 'cdp-2026110199';
 var ASSETS_VERSION = 'cdp-assets-traces-55';
 var LIBS_CACHE = 'cdp-libs-1';
 var SHELL_URLS = [
   './',
   './index.html',
-  './style.css?v=2026110198',
-  './chrono-import.js?v=2026110198',
-  './app.js?v=2026110198',
-  './theme-boot.js?v=2026110198',
-  './sw-register.js?v=2026110198',
+  './style.css?v=2026110199',
+  './chrono-import.js?v=2026110199',
+  './app.js?v=2026110199',
+  './theme-boot.js?v=2026110199',
+  './sw-register.js?v=2026110199',
   './manifest.json',
   './firebase-config.js',
   './icons/favicon-32.png',
@@ -58,6 +58,8 @@ var TRACK_URLS = [
   './circuit-outlines/Jarama.png',
   './circuit-outlines/Jerez.png',
   './circuit-outlines/Le%20Mans.png',
+  './circuit-outlines/Mas%20du%20Clos.png',
+  './circuit-outlines/Clastres.png',
   './circuit-outlines/Le%20Vigeant.png',
   './circuit-outlines/Ledenon.png',
   './circuit-outlines/Losail.png',

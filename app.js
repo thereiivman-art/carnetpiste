@@ -3472,9 +3472,11 @@
   // Tri du sélecteur de circuits (onglet Circuits) : par pays (défaut),
   // alphabétique, niveau, distance ou mon meilleur temps.
   var circuitSort = 'pays';
-  try { circuitSort = localStorage.getItem('cdp-circuit-sort') || 'pays'; } catch (e) {}
+  try { circuitSort = localStorage.getItem('cdp-circuit-sort') || 'pays'; if (circuitSort === 'temps') circuitSort = 'mes'; } catch (e) {}
   function sortedCircuitOptionsHtml(circuits, selected, sort) {
+    if (sort === 'temps') sort = 'mes'; // ancien choix « Mon temps »
     if (!sort || sort === 'pays') return circuitOptionsHtml(circuits, selected);
+    if (sort === 'mes') return myCircuitsOptionsHtml(circuits, selected);
     var me = currentUserProfile && currentUserProfile.name, bests = me ? riderBestsByCircuit(me) : {};
     var car = isCarMode();
     var info = function (c) {
@@ -3493,6 +3495,22 @@
       var extra = sort === 'niveau' ? (x.lv ? levelLabel(x.lv) : '') : sort === 'distance' ? (x.km != null ? String(x.km).replace('.', currentLang() === 'en' ? '.' : ',') + ' km' : '') : sort === 'temps' ? (x.best != null ? formatTime(x.best) : '') : '';
       return '<option value="' + escapeHtml(x.c) + '"' + (x.c === selected ? ' selected' : '') + '>' + escapeHtml(x.c + (extra ? ' · ' + extra : '')) + '</option>';
     }).join('');
+  }
+  // « Mes circuits » : mes créations, dessins et repères d'abord, puis les
+  // circuits où j'ai roulé, puis les autres (A → Z dans chaque groupe).
+  function myCircuitsOptionsHtml(circuits, selected) {
+    var me = currentUserProfile && currentUserProfile.name, rode = {}, drawn = myDrawnCircuits(), notes = (currentUserProfile && currentUserProfile.trackNotes) || {};
+    (STATE.sessions || []).forEach(function (x) { if (x.rider === me) rode[circuitKey(x.circuit)] = 1; });
+    eventsList().forEach(function (e) { if ((e.riders || []).indexOf(me) !== -1) rode[circuitKey(e.circuit)] = 1; });
+    var made = function (c) {
+      var e = (STATE.circuits || {})[c] || {};
+      return !!(me && ((e.outlineDrawings || {})[me] || drawn[circuitKey(c)] || (notes[c] && notes[c].length)));
+    };
+    var g = [[], [], []];
+    circuits.slice().sort(function (a, b) { return a.localeCompare(b); }).forEach(function (c) { g[made(c) ? 0 : rode[circuitKey(c)] ? 1 : 2].push(c); });
+    var opt = function (c) { return '<option value="' + escapeHtml(c) + '"' + (c === selected ? ' selected' : '') + '>' + escapeHtml(c) + '</option>'; };
+    var grp = function (label, list) { return list.length ? '<optgroup label="' + escapeHtml(label) + '">' + list.map(opt).join('') + '</optgroup>' : ''; };
+    return grp(L('Mes créations, dessins et repères', 'My creations, drawings and marks'), g[0]) + grp(L('Où j\'ai roulé', 'Where I rode'), g[1]) + grp(L('Autres circuits', 'Other circuits'), g[2]);
   }
   function circuitOptionsHtml(circuits, selected) {
     var me = currentUserProfile && currentUserProfile.name, mine = {};
@@ -8104,7 +8122,14 @@
     return info;
   }
   function drawingDocId(circuit, level) { return myUid() + '__' + circuitKey(circuit).replace(/[^a-z0-9-]/gi, '-').slice(0, 60) + '__' + level; }
+  // Circuits où j'ai un dessin (gardé sur l'appareil pour le tri « Mes circuits »).
+  function myDrawnCircuits() { try { return JSON.parse(localStorage.getItem('cdp-my-drawn-' + myUid()) || '{}') || {}; } catch (e) { return {}; } }
+  function noteMyDrawnCircuit(circuit) {
+    var m = myDrawnCircuits(), k = circuitKey(circuit); if (m[k]) return; m[k] = 1;
+    try { localStorage.setItem('cdp-my-drawn-' + myUid(), JSON.stringify(m)); } catch (e) {}
+  }
   function putDrawingInCache(circuit, d) {
+    if (d && d.uid && d.uid === myUid() && (d.drawing || (d.objects || []).length)) noteMyDrawnCircuit(circuit);
     var c = drawingCache[circuit] || (drawingCache[circuit] = { vis: {} });
     var f = DRAW_FIELDS[d.level === 'outline' ? 'outline' : 'plan'];
     c[f[0]] = c[f[0]] || {}; c[f[1]] = c[f[1]] || {}; c[f[2]] = c[f[2]] || {};
@@ -8300,7 +8325,7 @@
     html += '<div class="circuit-picker"><select id="f-filter-circuit" aria-label="' + tr('circuit_label') + '">';
     html += sortedCircuitOptionsHtml(circuits, selectedCircuit, circuitSort);
     html += '</select><select id="circuit-sort" class="circuit-sort" aria-label="' + escapeHtml(L('Trier les circuits', 'Sort circuits')) + '">' +
-      [['pays', L('Par pays', 'By country')], ['alpha', L('A → Z', 'A → Z')], ['niveau', L('Niveau', 'Level')], ['distance', L('Distance', 'Length')], ['temps', L('Mon temps', 'My time')]].map(function (o) {
+      [['pays', L('Par pays', 'By country')], ['alpha', L('A → Z', 'A → Z')], ['niveau', L('Niveau', 'Level')], ['distance', L('Distance', 'Length')], ['mes', L('Mes circuits', 'My circuits')]].map(function (o) {
         return '<option value="' + o[0] + '"' + (circuitSort === o[0] ? ' selected' : '') + '>' + escapeHtml(o[1]) + '</option>';
       }).join('') + '</select><button type="button" class="ghost circuit-create-btn" data-action="circuit-create" title="' + escapeHtml(L('Créer mon circuit perso (dessin ou image)', 'Create my own circuit (drawing or image)')) + '">+ ' + L('Créer', 'Create') + '</button></div>';
     var cp = pillState.circuit;
@@ -8318,7 +8343,7 @@
       return html;
     }
     // Records de la piste (MotoGP, F1…) : à la fin d'Infos.
-    if (cp === 'infos') { html += renderCircuitInfoCard('infos') + renderCircuitLevelGearCard(selectedCircuit) + renderTrackRecordsCard(selectedCircuit); return html; }
+    if (cp === 'infos') { html += renderCircuitInfoCard('infos') + (selectedCircuit ? renderForecastCard({ circuit: selectedCircuit, dateStart: todayKey(), dateEnd: todayKey() }, L('Météo du jour', 'Today\'s weather')) : '') + renderCircuitLevelGearCard(selectedCircuit) + renderTrackRecordsCard(selectedCircuit); return html; }
     // Objectif pour la prochaine session lives in EN PISTE now (see
     // renderPlanningTab), keyed off the current/next event's own circuit --
     // not repeated here.
@@ -8560,11 +8585,11 @@
     if (c >= 71 && c <= 77) return L('Neige', 'Snow'); if (c >= 80 && c <= 82) return L('Averses', 'Showers'); if (c >= 85 && c <= 86) return L('Averses de neige', 'Snow showers');
     if (c >= 95) return L('Orage', 'Thunderstorm'); return '';
   };
-  function renderForecastCard(ev) {
+  function renderForecastCard(ev, title) {
     var co = circuitCoords(ev.circuit), today = dateKey(new Date()), end = ev.dateEnd || ev.dateStart;
     if (!co || end < today) return '';
     var limit = dateKey(new Date(Date.now() + 15 * 86400000));
-    var head = '<div class="card forecast"><h2 class="section-title">' + L('Météo prévue', 'Weather forecast') + '</h2>';
+    var head = '<div class="card forecast"><h2 class="section-title">' + (title || L('Météo prévue', 'Weather forecast')) + '</h2>';
     if (ev.dateStart > limit) return head + '<div class="help-text">' + L('Les prévisions arrivent 15 jours avant le roulage.', 'The forecast shows up 15 days before the trackday.') + '</div></div>';
     var from = ev.dateStart < today ? today : ev.dateStart, to = end > limit ? limit : end, key = ev.circuit + '|' + from + '|' + to, fc = forecastCache[key];
     var fr = (builtinCircuit(ev.circuit) || {}).country === 'FR';
@@ -8595,7 +8620,7 @@
   function renderCircuitLevelGearCard(circuit) {
     if (!circuit) return '';
     loadLevelVotes(circuit);
-    var lv = circuitLevel(circuit), car = typeof isCarMode === 'function' && isCarMode();
+    var lv = circuitLevel(circuit), car = typeof isCarMode === 'function' && isCarMode(), both = !!(currentUserProfile && currentUserProfile.rideBoth);
     var site = circuitWebsite(circuit);
     var html = '<div class="card circuit-lg"><h2 class="section-title">' + L('Niveau et matériel', 'Level and gear') + '</h2>' +
       '<div class="circuit-site">' + (site ? '<a class="ghost" href="' + escapeHtml(site) + '" target="_blank" rel="noopener">' + L('Site officiel du circuit', 'Official circuit website') + ' ↗</a>'
@@ -8603,9 +8628,10 @@
     if (lv) {
       var pill = function (who, n) { return '<span class="lvl lvl-' + n + '"><span class="lvl-who">' + who + '</span><strong>' + levelLabel(n) + '</strong><span class="lvl-bars">' + [1, 2, 3].map(function (i) { return '<i' + (i <= n ? ' class="on"' : '') + '></i>'; }).join('') + '</span></span>'; };
       // L'explication n'apparaît qu'au survol (ou au toucher) des pastilles.
-      html += '<div class="lvl-wrap" tabindex="0"><div class="lvl-row">' + (car ? pill(L('Voiture', 'Car'), lv[1]) + pill(L('Moto', 'Bike'), lv[0]) : pill(L('Moto', 'Bike'), lv[0]) + pill(L('Voiture', 'Car'), lv[1])) + '</div>' +
+      // Selon mon choix (Mon compte) : moto, voiture, ou les deux.
+      html += '<div class="lvl-wrap" tabindex="0"><div class="lvl-row">' + (!both ? (car ? pill(L('Voiture', 'Car'), lv[1]) : pill(L('Moto', 'Bike'), lv[0])) : car ? pill(L('Voiture', 'Car'), lv[1]) + pill(L('Moto', 'Bike'), lv[0]) : pill(L('Moto', 'Bike'), lv[0]) + pill(L('Voiture', 'Car'), lv[1])) + '</div>' +
         '<div class="help-text lvl-hint">' + (function () {
-          var stM = levelVoteStats(circuit, 'moto'), stC = levelVoteStats(circuit, 'car'), n = Math.max(stM.n, stC.n);
+          var stM = levelVoteStats(circuit, 'moto'), stC = levelVoteStats(circuit, 'car'), n = both ? Math.max(stM.n, stC.n) : (car ? stC.n : stM.n);
           return n >= LEVEL_MIN_VOTES ? L('Moyenne des avis des Pitbookers', 'Average of Pitbookers\' opinions') + ' (' + plural(n, L('avis', 'opinion'), L('avis', 'opinions')) + ').'
             : L('Niveau indicatif, remplacé par la moyenne des Pitbookers à partir de 10 avis', 'Indicative level, replaced by the Pitbookers\' average from 10 opinions') + (n ? ' (' + n + '/10)' : '') + '.';
         })() + '</div></div>';
@@ -8622,7 +8648,7 @@
       }).join('') + '</span></span>';
     };
     html += '<div class="lvl-vote"><span class="look-label">' + L('Ton avis sur la difficulté', 'Your opinion on difficulty') + '</span><div class="lvl-row">' +
-      (car ? voteRow('car', L('Voiture', 'Car')) + voteRow('moto', L('Moto', 'Bike')) : voteRow('moto', L('Moto', 'Bike')) + voteRow('car', L('Voiture', 'Car'))) + '</div></div>';
+      (!both ? (car ? voteRow('car', L('Voiture', 'Car')) : voteRow('moto', L('Moto', 'Bike'))) : car ? voteRow('car', L('Voiture', 'Car')) + voteRow('moto', L('Moto', 'Bike')) : voteRow('moto', L('Moto', 'Bike')) + voteRow('car', L('Voiture', 'Car'))) + '</div></div>';
     var g = gearLists(car), li = function (a) { return '<ul>' + a.map(function (x) { return '<li>' + escapeHtml(x) + '</li>'; }).join('') + '</ul>'; };
     html += '<div class="gear-cols"><div class="gear-col gear-req"><span class="look-label">' + L('Obligatoire', 'Required') + '</span>' + li(g.req) + '</div>' +
       '<div class="gear-col gear-no"><span class="look-label">' + L('Interdit', 'Not allowed') + '</span>' + li(g.no) + '</div></div>' +
@@ -11706,6 +11732,10 @@
     } else {
       html += renderForm({ inline: true });
       html += renderChronoProgress(ev, circuit, today);
+      // Pendant le roulage : le chrono ou l'incident d'un ami, tout de suite.
+      var evFriends = (ev.riders || []).filter(function (n) { return n !== currentUserProfile.name && isFriendName(n); });
+      html += '<div class="chrono-friend-row"><button type="button" class="ghost" data-action="chrono-proposal">' + L('Chrono d\'un ami', 'Friend\'s time') + '</button>' +
+        '<button type="button" class="ghost" data-action="incident-live" data-circuit="' + escapeHtml(circuit) + '" data-others="' + escapeHtml(evFriends.join('|')) + '">' + L('Incident', 'Incident') + '</button></div>';
     }
     var nNotes = myTrackNotes(circuit).length, info = circuitInfo(circuit), img = info.mapImage || outlineImageFor(info, circuit);
     html += '<button type="button" class="card chrono-plan" data-action="open-track-notes" data-circuit="' + escapeHtml(circuit) + '">' +
@@ -12278,8 +12308,14 @@
       '<label class="setup-field"><span>' + L('Temps au tour', 'Lap times') + '</span><textarea id="cp-laps" rows="3" placeholder="' + escapeHtml(L('Un temps par ligne, ou seulement le meilleur : 1\'53.6', 'One time per line, or just the best: 1\'53.6')) + '"></textarea></label>' +
       '</div><div class="help-text pressure-error" hidden></div>' +
       '<div style="margin-top:0.8rem; display:flex; gap:0.5rem; flex-wrap:wrap;"><button type="button" class="primary" data-cp="send">' + L('Envoyer à mon ami', 'Send to my friend') + '</button>' +
+      '<button type="button" class="ghost" data-cp="incident">' + L('Incident', 'Incident') + '</button>' +
       '<button type="button" class="ghost" data-cp="cancel">' + tr('cancel') + '</button></div></div>';
     document.body.appendChild(sheet);
+    // Signaler tout de suite l'incident de cet ami (roulage en cours compris).
+    sheet.querySelector('[data-cp="incident"]').addEventListener('click', function () {
+      var c = canonicalCircuitName(val('cp-circuit')), d = val('cp-date'), to = val('cp-to');
+      openIncidentSheet(c || '', d && d < dateKey(new Date()) ? d : null, [to], to);
+    });
     function close() { if (sheet.parentNode) sheet.parentNode.removeChild(sheet); }
     function val(id) { return (sheet.querySelector('#' + id).value || '').trim(); }
     sheet.addEventListener('click', function (e) { if (e.target === sheet) close(); });
@@ -12617,11 +12653,12 @@
   function incidentLabel(t) { var x = INCIDENT_TYPES().filter(function (o) { return o[0] === t; })[0]; return x ? x[1] : L('Incident', 'Incident'); }
   // others : les amis qui roulaient ce jour-là (on peut déclarer l'incident
   // d'un ami : il est cité dans la publication, pas sur sa session).
-  function openIncidentSheet(circuit, pastDate, others) {
+  function openIncidentSheet(circuit, pastDate, others, forWho) {
     var info = circuitInfo(circuit || ''), base = circuit ? (info.mapImage || outlineImageFor(info, circuit)) : null;
     var meName = currentUserProfile && currentUserProfile.name, canMe = !meIsNonRider();
     others = (others || []).filter(function (n) { return n && n !== meName; });
     var st = pendingIncident ? Object.assign({}, pendingIncident) : { type: 'chute', publish: true };
+    if (forWho && others.indexOf(forWho) !== -1) st.who = forWho;
     if (!st.who) st.who = canMe || !others.length ? meName : others[0];
     var draw = function () {
       return '<h2 class="section-title">' + L('Incident', 'Incident') + (circuit ? ' · ' + escapeHtml(circuit) : '') + '</h2>' +
@@ -13140,6 +13177,8 @@
     // never loads", which reads as "can't zoom it" since there's nothing
     // to see move).
     'le mans': 'circuit-outlines/Le%20Mans.png',
+    'mas du clos': 'circuit-outlines/Mas%20du%20Clos.png',
+    'clastres': 'circuit-outlines/Clastres.png',
     'magny cours': 'circuit-outlines/Magny%20Cours.png',
     'misano': 'circuit-outlines/Misano.png',
     'mugello': 'circuit-outlines/Mugello.png',
@@ -22113,7 +22152,7 @@
     if (p.place) html += postPlaceHtml(p);
     if (p.notesShare && p.notesShare.circuit && currentUserProfile && p.author !== currentUserProfile.name) html += '<button type="button" class="ghost notes-copy-btn" data-action="copy-notes" data-id="' + escapeHtml(p.id) + '" title="' + escapeHtml(L('Ajouter ces repères aux miens', 'Add these marks to mine')) + '">' + L('Copier', 'Copy') + ' · ' + plural((p.notesShare.notes || []).length, L('repère', 'mark'), L('repères', 'marks')) + '</button>';
     if (p.linkUrl) html += postLinkHtml(p.linkUrl);
-    if (p.photoURL) html += '<div class="wall-post-media' + (p.video ? ' is-video' : '') + '"' + (p.video ? ' data-feed-video="' + escapeHtml(p.mediaId || p.id) + '"' : '') + '><img class="wall-post-photo" src="' + escapeHtml(p.photoURL) + '" alt="">' +
+    if (p.photoURL) html += '<div class="wall-post-media' + (p.video ? ' is-video' : '') + (p.incident ? ' is-incident' : '') + '"' + (p.video ? ' data-feed-video="' + escapeHtml(p.mediaId || p.id) + '"' : '') + '><img class="wall-post-photo" src="' + escapeHtml(p.photoURL) + '" alt="">' +
       (p.video ? '<span class="wall-post-play" aria-hidden="true"><svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></span>' : '') + '</div>';
     if (p.repostOf) html += renderRepostBox(p.repostOf);
     var nRep = repostCount(p.repostOf ? p.repostOf.id : p.id), mine = currentUserProfile && (p.repostOf ? p.repostOf.author : p.author) === currentUserProfile.name;
@@ -26217,6 +26256,10 @@
       e.preventDefault(); openYoutube(a.href);
     }); });
     document.querySelectorAll('[data-action="incident-past"]').forEach(function (b) { b.addEventListener('click', function () { openIncidentSheet(b.getAttribute('data-circuit'), b.getAttribute('data-date'), (b.getAttribute('data-others') || '').split('|').filter(Boolean)); }); });
+    document.querySelectorAll('[data-action="incident-live"]').forEach(function (b) { b.addEventListener('click', function () {
+      var others = (b.getAttribute('data-others') || '').split('|').filter(Boolean);
+      openIncidentSheet(b.getAttribute('data-circuit'), null, others);
+    }); });
     var incBtn = document.getElementById('cf-incident');
     if (incBtn) incBtn.addEventListener('click', function () {
       var cs = document.getElementById('f-circuit'), c = cs ? cs.value : '';

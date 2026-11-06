@@ -5282,3 +5282,9 @@ html, body { overflow-x: clip; max-width: 100%; }
 html { touch-action: manipulation; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 body { overflow-wrap: break-word; }
 @media (max-width: 959px) { input:not([type=checkbox]):not([type=radio]):not([type=range]), select, textarea { font-size: max(16px, 1em); } }
+/* Carte d'un incident : plan clair en mode jour, plan sombre en mode nuit
+   (même image inversée : fond noir, tracé blanc, croix rouge gardée). */
+:root[data-theme="dark"] .wall-post-media.is-incident img, :root[data-theme="dark"] .incident-map img { filter: invert(1) hue-rotate(180deg); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .wall-post-media.is-incident img, :root:not([data-theme="light"]) .incident-map img { filter: invert(1) hue-rotate(180deg); } }
+.chrono-friend-row { display: flex; gap: 0.5rem; justify-content: center; margin: 0.6rem 0; }
+.chrono-friend-row .ghost { flex: 0 1 auto; padding: 0.4rem 0.9rem; font-size: 0.88rem; }

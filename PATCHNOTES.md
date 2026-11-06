@@ -2,6 +2,15 @@
 
 Les nouveautés, de la plus récente à la plus ancienne. Le détail complet est dans l'historique git.
 
+## 10 novembre 2026 · retours Alexis
+
+- Infos du circuit : la météo du jour en premier, avant Niveau et matériel.
+- Niveau et avis sur la difficulté : seulement en moto, seulement en voiture, ou les deux, selon ton choix dans Mon compte.
+- Tri des circuits : « Mes circuits » remplace « Mon temps » (mes créations, dessins et repères d'abord, puis où j'ai roulé).
+- Incident d'un ami pendant le roulage : bouton Incident dans « Chrono d'un ami », et petits boutons Chrono d'un ami / Incident dans l'onglet Chrono des pilotes.
+- Carte d'un incident : plan clair en mode jour, sombre en mode nuit.
+- Tracés de Mas du Clos et de Clastres.
+
 ## 9 novembre 2026
 
 - Réactions : emoji triste.
