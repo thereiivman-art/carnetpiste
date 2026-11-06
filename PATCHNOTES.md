@@ -4,6 +4,9 @@ Les nouveautés, de la plus récente à la plus ancienne. Le détail complet est
 
 ## 8 novembre 2026
 
+- Incident : on peut le déclarer pour un ami qui a roulé ce jour-là (« Pour qui ? »). Il est cité dans la publication.
+- Échec d'envoi (publication, story, vidéo) : le message reste affiché jusqu'à ce qu'on le ferme.
+- Recherche : trouve aussi les réglages (« Aide », « mode sombre », « clair », « audience »…) et ouvre directement le bon menu.
 - Le bouton « Accident » quitte l'écran de saisie du chrono : on n'y pense pas avant de rouler. Il devient « Incident », un petit bouton sur la page d'un roulage passé (rangé sur ma session de ce jour-là, publié sur mon Social si je le coche).
 
 ## 7 novembre 2026 (soir) · optimisation

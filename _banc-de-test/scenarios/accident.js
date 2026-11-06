@@ -26,4 +26,17 @@ const { chromium, BASE } = require('../lib');
     console.log('publié:', JSON.stringify(await p.evaluate(() => Object.values(window.__MOCK_DATA.wallPosts).filter(w => w.incident).map(w => [w.text, w.audience]))));
     console.log('sur la session:', await p.evaluate(() => firebase.firestore().collection('sessions').get().then(s => JSON.stringify(s.docs.map(d => d.data()).filter(x => x.incident).map(x => [x.circuit, x.incident.type])))));
   }
+  // Pour un ami : « Pour qui ? » s'affiche quand des amis ont roulé ce jour-là.
+  const b2 = await p.$('[data-action="incident-past"]');
+  if (b2) {
+    await b2.click(); await p.waitForTimeout(400);
+    const who = await p.$$eval('[data-inc-who]', e => e.map(x => x.getAttribute('data-inc-who')));
+    console.log('pour qui:', JSON.stringify(who));
+    if (who.length > 1) {
+      await p.click('[data-inc-who="' + who[1] + '"]'); await p.waitForTimeout(200);
+      await p.click('[data-inc-type="chute"]'); await p.waitForTimeout(200);
+      await p.click('[data-inc="ok"]'); await p.waitForTimeout(600);
+      console.log('ami publié:', JSON.stringify(await p.evaluate(() => Object.values(window.__MOCK_DATA.wallPosts).filter(w => w.incident && w.incident.subject).map(w => [w.text, w.incident.subject, (w.visibleTo || []).length]))));
+    } else await p.keyboard.press('Escape');
+  }
   console.log('errs', JSON.stringify(errs)); await b.close(); })();

@@ -5255,3 +5255,6 @@ html.simple-mode { font-size: 112%; }
 .annot-pins.with-notes .annot-pin-note { display: block; }
 .footprint { width: 100%; border-collapse: collapse; margin-top: 0.5rem; font-size: 0.9rem; } .footprint td { padding: 0.3rem 0.2rem; border-bottom: 1px solid var(--border); } .footprint td:nth-child(n+2) { text-align: right; white-space: nowrap; }
 .more-posts-btn { display: block; margin: 0.4rem auto 1rem; }
+/* Message qui reste jusqu'à ce qu'on le ferme */
+.toast.sticky { pointer-events: auto; padding-right: 2.6rem; position: relative; border-left: 4px solid var(--accent, #c8261f); max-width: min(92vw, 520px); }
+.toast.sticky .toast-close { position: absolute; top: 0.35rem; right: 0.4rem; width: 1.8rem; height: 1.8rem; border: 0; border-radius: 50%; background: rgba(255,255,255,0.15); color: inherit; font-size: 0.9rem; cursor: pointer; }

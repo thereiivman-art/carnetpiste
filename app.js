@@ -11273,7 +11273,8 @@
       if (leaderHere) acts += '<button type="button" class="primary" data-action="manage-from-outing" data-id="' + escapeHtml(ev.id) + '" data-team="' + escapeHtml(ev.teamId) + '">' + L('Gérer', 'Manage') + '</button>';
       if (!isRiderHere && (status !== 'terminee' || (currentUserProfile && currentUserProfile.role === 'accompagnant'))) acts += joinEventButtonHtml(ev, leaderHere);
       // Roulage passé : noter un incident après coup (petit bouton discret).
-      if ((isRiderHere || sessions.length) && (ev.dateEnd || ev.dateStart) < dateKey(new Date()) && !meIsNonRider()) acts += '<button type="button" class="ghost" data-action="incident-past" data-circuit="' + escapeHtml(ev.circuit) + '" data-date="' + escapeHtml(date) + '">' + L('Incident', 'Incident') + '</button>';
+      var incFriends = (ev.riders || []).filter(function (n) { return n !== meName && isFriendName(n) && !isNonRiderName(n); });
+      if (((isRiderHere || sessions.length) && !meIsNonRider() || incFriends.length) && (ev.dateEnd || ev.dateStart) < dateKey(new Date())) acts += '<button type="button" class="ghost" data-action="incident-past" data-circuit="' + escapeHtml(ev.circuit) + '" data-date="' + escapeHtml(date) + '" data-others="' + escapeHtml(incFriends.join('|')) + '">' + L('Incident', 'Incident') + '</button>';
       // Inscrit à un roulage à venir : on peut se retirer.
       if (isRiderHere && status !== 'terminee' && (ev.dateEnd || ev.dateStart) >= dateKey(new Date())) acts += '<button type="button" class="ghost" data-action="leave-roulage" data-id="' + escapeHtml(ev.id) + '">' + L('Je n\'y vais plus', 'Not going anymore') + '</button>';
       if (ev.bookingUrl && !isRiderHere) acts += '<button type="button" class="primary" data-action="open-external-url" data-url="' + escapeHtml(ev.bookingUrl) + '">' + tr('book_register') + '</button>';
@@ -12289,7 +12290,7 @@
     showToast(L('Chrono ajouté à ton carnet. Merci ' + r.from + ' !', 'Lap time added to your logbook. Thanks ' + r.from + '!'), 'success');
   }
   function refuseChronoProposal(id) {
-    db.collection('chronoProposals').doc(id).set({ status: 'refused' }, { merge: true }).catch(function (err) { showToast(tr('error_prefix') + ((err && err.message) || err)); });
+    db.collection('chronoProposals').doc(id).set({ status: 'refused' }, { merge: true }).catch(function (err) { showToast(tr('error_prefix') + ((err && err.message) || err), 'sticky'); });
   }
   function renderCompanionCarnet(extraTop) {
     var me = currentUserProfile && currentUserProfile.name, friends = friendRiderNames(), today = dateKey(new Date());
@@ -12504,7 +12505,7 @@
     var list = (l.favSpots || []).filter(function (f) { return !(f.circuit === circuit && f.x === sp.x && f.y === sp.y); });
     if (list.length === (l.favSpots || []).length) list.push({ circuit: circuit, x: sp.x, y: sp.y, label: sp.label || '', access: sp.access || 'public' });
     l.favSpots = list.slice(-12);
-    db.collection('users').doc(myUid()).update({ 'look.favSpots': l.favSpots }).catch(function (err) { showToast(tr('error_prefix') + ((err && err.message) || err)); });
+    db.collection('users').doc(myUid()).update({ 'look.favSpots': l.favSpots }).catch(function (err) { showToast(tr('error_prefix') + ((err && err.message) || err), 'sticky'); });
   }
   // Accès des photographes et du public pendant les roulages : vérifié sur
   // internet (sources affichées), circuit par circuit. Par défaut, un
@@ -12582,11 +12583,18 @@
   var pendingIncident = null;
   var INCIDENT_TYPES = function () { return [['chute', isCarMode() ? L('Tête-à-queue', 'Spin') : L('Chute', 'Crash')], ['sortie', L('Sortie', 'Off')], ['contact', L('Contact', 'Contact')], ['panne', L('Panne', 'Breakdown')]]; };
   function incidentLabel(t) { var x = INCIDENT_TYPES().filter(function (o) { return o[0] === t; })[0]; return x ? x[1] : L('Incident', 'Incident'); }
-  function openIncidentSheet(circuit, pastDate) {
+  // others : les amis qui roulaient ce jour-là (on peut déclarer l'incident
+  // d'un ami : il est cité dans la publication, pas sur sa session).
+  function openIncidentSheet(circuit, pastDate, others) {
     var info = circuitInfo(circuit || ''), base = circuit ? (info.mapImage || outlineImageFor(info, circuit)) : null;
+    var meName = currentUserProfile && currentUserProfile.name, canMe = !meIsNonRider();
+    others = (others || []).filter(function (n) { return n && n !== meName; });
     var st = pendingIncident ? Object.assign({}, pendingIncident) : { type: 'chute', publish: true };
+    if (!st.who) st.who = canMe || !others.length ? meName : others[0];
     var draw = function () {
       return '<h2 class="section-title">' + L('Incident', 'Incident') + (circuit ? ' · ' + escapeHtml(circuit) : '') + '</h2>' +
+        (others.length ? '<span class="look-label">' + L('Pour qui ?', 'Who?') + '</span><div class="look-seg incident-who">' + (canMe ? [meName] : []).concat(others).map(function (n) {
+          return '<button type="button" data-inc-who="' + escapeHtml(n) + '" aria-pressed="' + (st.who === n) + '">' + escapeHtml(n === meName ? L('Moi', 'Me') : n) + '</button>'; }).join('') + '</div>' : '') +
         '<div class="look-seg incident-types">' + INCIDENT_TYPES().map(function (o) { return '<button type="button" data-inc-type="' + o[0] + '" aria-pressed="' + (st.type === o[0]) + '">' + escapeHtml(o[1]) + '</button>'; }).join('') + '</div>' +
         (base ? '<p class="help-text">' + L('Touche le plan à l\'endroit de l\'incident.', 'Tap the map where it happened.') + '</p><div class="incident-map"><img src="' + escapeHtml(base) + '" alt="">' + (st.x != null ? '<span class="incident-x" style="left:' + (st.x * 100) + '%;top:' + (st.y * 100) + '%"></span>' : '') + '</div>' : '<p class="help-text">' + L('Choisis d\'abord le circuit dans le formulaire pour placer l\'endroit.', 'Pick the circuit in the form first to mark the spot.') + '</p>') +
         '<label for="inc-note" style="margin-top:0.6rem;">' + L('Un mot (facultatif)', 'A word (optional)') + '</label><input type="text" id="inc-note" maxlength="140" value="' + escapeHtml(st.note || '') + '" placeholder="' + escapeHtml(L('Ex. Tout va bien, juste la moto à réparer', 'E.g. All good, just the bike to fix')) + '">' +
@@ -12595,6 +12603,7 @@
     };
     var ov = openMiniSheet(draw());
     var bind = function () {
+      ov.querySelectorAll('[data-inc-who]').forEach(function (b) { b.addEventListener('click', function () { st.note = ov.querySelector('#inc-note').value; st.who = b.getAttribute('data-inc-who'); ov.querySelector('.mini-sheet').innerHTML = miniSheetX() + draw(); bind(); }); });
       ov.querySelectorAll('[data-inc-type]').forEach(function (b) { b.addEventListener('click', function () { st.note = ov.querySelector('#inc-note').value; st.type = b.getAttribute('data-inc-type'); ov.querySelector('.mini-sheet').innerHTML = miniSheetX() + draw(); bind(); }); });
       var map = ov.querySelector('.incident-map');
       if (map) map.addEventListener('click', function (e) {
@@ -12610,6 +12619,14 @@
         st.note = ov.querySelector('#inc-note').value.trim().slice(0, 140); st.publish = ov.querySelector('#inc-publish').checked;
         var lapsEl = document.getElementById('f-laps');
         ov.remove();
+        // Incident d'un ami : publié pour mes amis en le citant (il est prévenu),
+        // jamais écrit sur sa session à lui.
+        if (st.who && st.who !== meName) {
+          pendingIncident = null;
+          publishIncident(Object.assign({ circuit: circuit, subject: st.who }, st));
+          showToast(L('Incident de ' + st.who + ' noté : il est prévenu.', st.who + '\'s incident noted: they have been notified.'), 'success');
+          return;
+        }
         // Roulage passé : l'incident va sur ma dernière session de ce jour-là.
         if (pastDate) {
           var me = currentUserProfile && currentUserProfile.name;
@@ -12662,13 +12679,16 @@
   function publishIncident(inc) {
     var me = currentUserProfile; if (!me) return;
     incidentImage(inc.circuit, inc.x, inc.y, function (img) {
-      var post = { id: genId(), author: me.name, authorUid: myUid(), audience: 'friends', visibleTo: friendUidsOf(me.name), createdAt: Date.now(),
-        text: incidentLabel(inc.type) + (inc.circuit ? L(' à ', ' at ') + inc.circuit : '') + (inc.note ? '. ' + inc.note : '.'), incident: { type: inc.type, circuit: inc.circuit || '' } };
+      var vis = friendUidsOf(me.name), su = inc.subject ? uidOf(inc.subject) : null;
+      if (su && vis.indexOf(su) === -1) vis = vis.concat([su]);
+      var post = { id: genId(), author: me.name, authorUid: myUid(), audience: 'friends', visibleTo: vis, createdAt: Date.now(),
+        text: incidentLabel(inc.type) + (inc.subject ? L(' de @', ' for @') + inc.subject : '') + (inc.circuit ? L(' à ', ' at ') + inc.circuit : '') + (inc.note ? '. ' + inc.note : '.'), incident: { type: inc.type, circuit: inc.circuit || '' } };
+      if (inc.subject) post.incident.subject = inc.subject;
       if (img) post.photoURL = img;
       if (inc.circuit) post.place = inc.circuit.slice(0, 80);
       STATE.wallPosts = [post].concat(STATE.wallPosts || []);
       renderRoot();
-      writePost(post).catch(function (err) { showToast(tr('error_prefix') + ((err && err.message) || err)); });
+      writePost(post).catch(function (err) { showToast(tr('error_prefix') + ((err && err.message) || err), 'sticky'); });
     });
   }
   // ---- Repères : image (plan + repères numérotés + liste), PDF, post /
@@ -12764,13 +12784,13 @@
         if (act === 'update' && existing) {
           existing.photoURL = img; existing.notesShare = share; existing.editedAt = Date.now();
           renderRoot();
-          return db.collection('wallPosts').doc(existing.id).update({ photoURL: img, notesShare: share, editedAt: existing.editedAt }).then(function () { showToast(L('Repères mis à jour.', 'Marks updated.'), 'success'); }).catch(function (err) { showToast(tr('error_prefix') + ((err && err.message) || err)); });
+          return db.collection('wallPosts').doc(existing.id).update({ photoURL: img, notesShare: share, editedAt: existing.editedAt }).then(function () { showToast(L('Repères mis à jour.', 'Marks updated.'), 'success'); }).catch(function (err) { showToast(tr('error_prefix') + ((err && err.message) || err), 'sticky'); });
         }
         var post = { id: genId(), author: me.name, authorUid: myUid(), audience: 'all', createdAt: Date.now(), photoURL: img, text: text, notesShare: share };
         if (act === 'story') post.story = true;
         STATE.wallPosts = [post].concat(STATE.wallPosts || []);
         renderRoot();
-        writePost(post).then(function () { awardPneus(10, true); showToast(act === 'story' ? L('Story publiée : visible 24 h.', 'Story posted: visible for 24 h.') : L('Repères publiés.', 'Marks posted.'), 'success'); }).catch(function (err) { showToast(tr('error_prefix') + ((err && err.message) || err)); });
+        writePost(post).then(function () { awardPneus(10, true); showToast(act === 'story' ? L('Story publiée : visible 24 h.', 'Story posted: visible for 24 h.') : L('Repères publiés.', 'Marks posted.'), 'success'); }).catch(function (err) { showToast(tr('error_prefix') + ((err && err.message) || err), 'sticky'); });
       });
     }); });
   }
@@ -14250,7 +14270,7 @@
       var visSel = document.getElementById('annot-visibility');
       saveDrawingDoc(annot.circuit, lvl, dataUrl, baseNow, objectsSnapshot, visSel ? visSel.value : null).then(function () {
         showToast(tr('annotation_saved'), 'success');
-      }).catch(function (err) { showToast(tr('error_prefix') + ((err && err.message) || err)); });
+      }).catch(function (err) { showToast(tr('error_prefix') + ((err && err.message) || err), 'sticky'); });
       renderAnnotationOverlay();
       return;
     }
@@ -15623,7 +15643,7 @@
     var me = currentUserProfile; if (!me) return;
     me.extraVisits = list.slice(0, 40);
     if (STATE.usersByName && STATE.usersByName[me.name]) STATE.usersByName[me.name].extraVisits = me.extraVisits;
-    db.collection('users').doc(myUid()).update({ extraVisits: me.extraVisits }).catch(function (err) { showToast(tr('error_prefix') + ((err && err.message) || err)); });
+    db.collection('users').doc(myUid()).update({ extraVisits: me.extraVisits }).catch(function (err) { showToast(tr('error_prefix') + ((err && err.message) || err), 'sticky'); });
     renderRoot();
   }
   function extraVisitFormHtml() {
@@ -20164,7 +20184,7 @@
   // barre de gauche sur PC). Renvoie le HTML et les actions de chaque ligne.
   function gsearchBuild(qText) {
     var norm = function (x) { return String(x || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, ''); };
-    var ICO = { person: '<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/>', team: '<circle cx="8" cy="9" r="3"/><circle cx="16" cy="9" r="3"/><path d="M2 20c0-3 2.7-5 6-5s6 2 6 5M14 15c3.3 0 6 2 6 5"/>',
+    var ICO = { settings: '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/>', person: '<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/>', team: '<circle cx="8" cy="9" r="3"/><circle cx="16" cy="9" r="3"/><path d="M2 20c0-3 2.7-5 6-5s6 2 6 5M14 15c3.3 0 6 2 6 5"/>',
       circuit: '<path d="M4 15c0-5 4-9 8-9 3 0 5 2 5 4s-2 3-4 3-3 2-1 4 6 1 8-2"/>', event: '<rect x="4" y="5" width="16" height="15" rx="2"/><path d="M8 3v4M16 3v4M4 10h16"/>', post: '<path d="M4 5h16v11H9l-5 4z"/>' };
     var ico = function (k) { return '<span class="gsearch-ico"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + ICO[k] + '</svg></span>'; };
     var acts = [];
@@ -20203,8 +20223,36 @@
       acts.push(function () { goToOriginal(w.id, w.author, 'wall'); });
       return '<button type="button" class="gsearch-photo" data-gs="' + (acts.length - 1) + '" title="' + escapeHtml(w.author) + '"><img src="' + escapeHtml(w.photoURL) + '" alt="" loading="lazy"></button>';
     }).join('') + '</div></div>';
-    var html = group(L('Pilotes et membres', 'Riders and members'), people) + group('Teams', teams) + group('Circuits', circuits) + group(L('Roulages', 'Trackdays'), events) + group(L('Publications', 'Posts'), posts) + photoHtml;
+    var setRows = ty !== 'all' || t.length < 2 ? [] : settingsSearchIndex().filter(function (it) { return norm(it[1] + ' ' + it[2]).indexOf(t) !== -1; }).slice(0, 5).map(function (it) {
+      return row('settings', it[1], L('Réglages', 'Settings'), function () { openSettingsAt(it[0]); });
+    });
+    var html = group(L('Réglages', 'Settings'), setRows) + group(L('Pilotes et membres', 'Riders and members'), people) + group('Teams', teams) + group('Circuits', circuits) + group(L('Roulages', 'Trackdays'), events) + group(L('Publications', 'Posts'), posts) + photoHtml;
     return { html: bar + (html || '<div class="help-text gsearch-hint">' + L('Aucun résultat.', 'No result.') + '</div>'), acts: acts };
+  }
+  // Réglages trouvables depuis la recherche : [destination, nom, mots-clés].
+  function settingsSearchIndex() {
+    return [
+      ['@compte', L('Compte', 'Account'), L('profil photo pseudo email mot de passe supprimer rôle moto voiture', 'profile photo name email password delete role bike car')],
+      ['notifications', 'Notifications', L('alertes push rappels', 'alerts push reminders')],
+      ['affichage', L('Langue et affichage', 'Language and display'), L('langue anglais français thème mode sombre clair nuit jour mode simple', 'language english french theme dark light night day simple mode')],
+      ['confidentialite', L('Confidentialité', 'Privacy'), L('vie privée fiche visible public amis messages statut en ligne présence', 'private profile visible public friends messages online status presence')],
+      ['donnees', L('Mes données', 'My data'), L('exporter télécharger csv rgpd', 'export download csv gdpr')],
+      ['@audience', L('Audience', 'Audience'), L('statistiques vues portée', 'stats views reach')],
+      ['@plus', 'Pitbook+', L('abonnement', 'subscription')],
+      ['@aide', L('Aide', 'Help'), L('tutoriel guide faq', 'tutorial guide faq')],
+      ['@suggestion', L('Suggestion', 'Suggestion'), L('idée bug retour', 'idea bug feedback')],
+      ['@legal-privacy', L('Politique de confidentialité', 'Privacy policy'), 'rgpd gdpr'],
+      ['@legal-notice', L('Mentions légales', 'Legal notice'), ''],
+      ['@update', L('Version de l\'appli', 'App version'), L('mise à jour nouveautés', 'update news')]
+    ];
+  }
+  function openSettingsAt(go) {
+    if (go === '@legal-privacy' || go === '@legal-notice') { openLegal(go === '@legal-privacy' ? 'privacy' : 'notice'); return; }
+    if (go === '@update') { openPatchNotes(); return; }
+    profilePanelOpen = true; notificationsPanelOpen = false; accountManagerOpen = false;
+    if (go.charAt(0) === '@') { profileSubTab = go.slice(1); settingsSection = null; }
+    else { profileSubTab = 'reglages'; settingsSection = go; }
+    renderRoot(); window.scrollTo(0, 0);
   }
   var gsearchOpts = { type: 'all', sort: 'desc' };
   function gsearchFill(box, qText, onPick) {
@@ -20915,7 +20963,7 @@
       if (post.linkUrl) st.linkUrl = post.linkUrl;
       if (post.text) st.text = post.text.slice(0, 120);
       STATE.wallPosts = [st].concat(STATE.wallPosts || []);
-      writePost(st).then(function () { awardPneus(10, true); showToast(L('Aussi en story : visible 24 h.', 'Also in your story: visible for 24 h.'), 'success'); }).catch(function (err) { showToast(tr('error_prefix') + ((err && err.message) || err)); });
+      writePost(st).then(function () { awardPneus(10, true); showToast(L('Aussi en story : visible 24 h.', 'Also in your story: visible for 24 h.'), 'success'); }).catch(function (err) { showToast(tr('error_prefix') + ((err && err.message) || err), 'sticky'); });
       sb.disabled = true; sb.textContent = L('En story', 'In story');
       renderRoot();
     });
@@ -21008,7 +21056,7 @@
     var finish = function (err, res) {
       if (cancelled) return;
       done();
-      if (err) return showToast(err);
+      if (err) return showToast(err, 'sticky');
       openStoryComposer(res.poster, { dataUrl: res.dataUrl, mime: res.mime, duration: res.duration });
     };
     // 1er essai avec le son ; si l'enregistreur du téléphone n'y arrive
@@ -21309,7 +21357,7 @@
         showToast(L('Story publiée : visible 24 h.', 'Story posted: visible for 24 h.'), 'success');
         return writePost(post).then(function () { awardPneus(10, true); if (navigator.share) openAfterPublish(post, true, video ? video.dataUrl : dataUrl); });
       };
-      var fail = function (err) { showToast(tr('error_prefix') + ((err && err.message) || err)); };
+      var fail = function (err) { showToast(tr('error_prefix') + ((err && err.message) || err), 'sticky'); };
       // Vidéo : rangée à part (lue seulement à l'ouverture de la story).
       if (video) saveStoryVideo(post.id, video.dataUrl, video.mime).then(publish).catch(fail);
       else publish().catch(fail);
@@ -22220,6 +22268,7 @@
     }).catch(function (err) {
       wallPostMessage = tr('error_prefix') + (err && err.message ? err.message : err);
       renderRoot();
+      showToast(wallPostMessage, 'sticky');
     });
   }
 
@@ -22238,7 +22287,7 @@
     STATE.wallPosts = [post].concat(STATE.wallPosts || []);
     renderRoot();
     showToast(L('Republié sur ton profil.', 'Reposted to your profile.'), 'success');
-    writePost(post).catch(function (err) { showToast(tr('error_prefix') + ((err && err.message) || err)); });
+    writePost(post).catch(function (err) { showToast(tr('error_prefix') + ((err && err.message) || err), 'sticky'); });
   }
   function repostCount(id) { return (STATE.wallPosts || []).filter(function (p) { return p.repostOf && p.repostOf.id === id; }).length; }
   // Republier un roulage, un récap, un message de team ou une activité :
@@ -22252,7 +22301,7 @@
     STATE.wallPosts = [post].concat(STATE.wallPosts || []);
     renderRoot();
     showToast(L('Republié sur ton profil.', 'Reposted to your profile.'), 'success');
-    writePost(post).catch(function (err) { showToast(tr('error_prefix') + ((err && err.message) || err)); });
+    writePost(post).catch(function (err) { showToast(tr('error_prefix') + ((err && err.message) || err), 'sticky'); });
   }
   function repostButtonHtml(key, ownerName, action) {
     var n = repostCount(key);
@@ -22540,7 +22589,7 @@
     var ref = db.collection('groupChats').doc(id);
     ref.collection('messages').doc(mid).set(msg).then(function () {
       return ref.update({ lastText: g.lastText, lastAt: g.lastAt, lastFrom: me.name });
-    }).catch(function (err) { showToast(tr('error_prefix') + ((err && err.message) || err)); });
+    }).catch(function (err) { showToast(tr('error_prefix') + ((err && err.message) || err), 'sticky'); });
   }
   function renderGroupThread(id) {
     var g = groupById(id), mine = myUid();
@@ -22599,7 +22648,7 @@
       if (!names.length) return showToast(L('Ajoute au moins une personne.', 'Add at least one person.'));
       var memberNames = [me.name].concat(names), members = memberNames.map(uidOf);
       if (g) {
-        db.collection('groupChats').doc(g.id).update({ name: name, members: members, memberNames: memberNames }).catch(function (err) { showToast(tr('error_prefix') + ((err && err.message) || err)); });
+        db.collection('groupChats').doc(g.id).update({ name: name, members: members, memberNames: memberNames }).catch(function (err) { showToast(tr('error_prefix') + ((err && err.message) || err), 'sticky'); });
         Object.assign(g, { name: name, members: members, memberNames: memberNames });
         ov.remove(); renderRoot(); return;
       }
@@ -22625,7 +22674,7 @@
     var lv = ov.querySelector('#grp-leave'); if (lv) lv.addEventListener('click', function () {
       var i = (g.members || []).indexOf(myUid()); if (i === -1) return;
       var members = g.members.filter(function (u) { return u !== myUid(); }), memberNames = (g.memberNames || []).filter(function (n) { return n !== me.name; });
-      db.collection('groupChats').doc(id).update({ members: members, memberNames: memberNames }).catch(function (err) { showToast(tr('error_prefix') + ((err && err.message) || err)); });
+      db.collection('groupChats').doc(id).update({ members: members, memberNames: memberNames }).catch(function (err) { showToast(tr('error_prefix') + ((err && err.message) || err), 'sticky'); });
       STATE.groupChats = (STATE.groupChats || []).filter(function (x) { return x.id !== id; });
       ov.remove(); dmOpenWith = null; stopGroupWatch(); renderRoot();
     });
@@ -26024,7 +26073,7 @@
       if (!videoEmbedOf(a.href)) return;
       e.preventDefault(); openYoutube(a.href);
     }); });
-    document.querySelectorAll('[data-action="incident-past"]').forEach(function (b) { b.addEventListener('click', function () { openIncidentSheet(b.getAttribute('data-circuit'), b.getAttribute('data-date')); }); });
+    document.querySelectorAll('[data-action="incident-past"]').forEach(function (b) { b.addEventListener('click', function () { openIncidentSheet(b.getAttribute('data-circuit'), b.getAttribute('data-date'), (b.getAttribute('data-others') || '').split('|').filter(Boolean)); }); });
     var incBtn = document.getElementById('cf-incident');
     if (incBtn) incBtn.addEventListener('click', function () {
       var cs = document.getElementById('f-circuit'), c = cs ? cs.value : '';
@@ -26076,7 +26125,7 @@
       if (next === 'friends') upd.visibleTo = friendUidsOf(currentUserProfile.name);
       Object.assign(p, upd); renderRoot();
       if (p.photoMedia) db.collection('postMedia').doc(p.photoMedia).update({ audience: next, visibleTo: upd.visibleTo || [] }).catch(function () {});
-      db.collection('wallPosts').doc(p.id).update(upd).then(function () { showToast(next === 'friends' ? L('Visible par tes amis seulement.', 'Visible to your friends only.') : L('Visible par tout le monde.', 'Visible to everyone.'), 'success'); }).catch(function (err) { showToast(tr('error_prefix') + ((err && err.message) || err)); });
+      db.collection('wallPosts').doc(p.id).update(upd).then(function () { showToast(next === 'friends' ? L('Visible par tes amis seulement.', 'Visible to your friends only.') : L('Visible par tout le monde.', 'Visible to everyone.'), 'success'); }).catch(function (err) { showToast(tr('error_prefix') + ((err && err.message) || err), 'sticky'); });
     }); });
     document.querySelectorAll('[data-action="share-post"]').forEach(function (btn) { btn.addEventListener('click', function (e) { e.stopPropagation(); openPostShareSheet(btn.getAttribute('data-id')); }); });
     if (pendingShareIn && currentUserProfile) { pendingShareIn = false; consumeSharedIn(); }
@@ -29368,6 +29417,13 @@
     var toast = document.createElement('div');
     toast.className = variant ? 'toast ' + variant : 'toast';
     toast.textContent = message;
+    // Message important (échec d'envoi…) : il reste jusqu'à ce qu'on le ferme.
+    if (variant === 'sticky') {
+      var x = document.createElement('button'); x.type = 'button'; x.className = 'toast-close'; x.setAttribute('aria-label', L('Fermer', 'Close')); x.textContent = '✕';
+      x.addEventListener('click', function () { if (toast.parentNode) toast.parentNode.removeChild(toast); });
+      toast.appendChild(x); stack.appendChild(toast);
+      return;
+    }
     stack.appendChild(toast);
     setTimeout(function () {
       if (toast.parentNode) toast.parentNode.removeChild(toast);
