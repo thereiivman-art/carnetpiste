@@ -2,6 +2,13 @@
 
 Les nouveautés, de la plus récente à la plus ancienne. Le détail complet est dans l'historique git.
 
+## 7 novembre 2026 (soir) · optimisation
+
+- Images plus légères à l'enregistrement : photo ronde 256 px (WebP quand possible), logo 640 px, bannière 1200 px.
+- Les photos déjà enregistrées (la mienne, ma bannière, celles de mes teams) s'allègent toutes seules à la connexion.
+- Moins de données rechargées à chaque ouverture : 90 dernières publications par flux, 600 réactions, 300 commentaires, 1 500 abonnements.
+- Admin : carte « Données chargées à l'ouverture » (documents lus et poids, par collection).
+
 ## 7 novembre 2026
 
 **Retours Alexis**

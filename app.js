@@ -3066,8 +3066,10 @@
       // through when zoomed out.
       var isLogo = kind === 'logo' || kind === 'cover';
       // Bannière : 1500 × 500 (nette sur grand écran), qualité ajustée plus bas.
-      var OUT_W = kind === 'cover' ? 1500 : isLogo ? 1000 : 400;
-      var OUT_H = isLogo ? Math.round(OUT_W * vp.h / vp.w) : 400;
+      // Images légères (chargées à chaque ouverture de l'appli par tout le
+      // monde) : bannière 1200 px, logo 640 px, photo ronde 256 px.
+      var OUT_W = kind === 'cover' ? 1200 : isLogo ? 640 : 256;
+      var OUT_H = isLogo ? Math.round(OUT_W * vp.h / vp.w) : 256;
       var k = OUT_W / vp.w;
       var size = cropDisplaySize();
       var outW = size.w * k, outH = size.h * k;
@@ -3082,11 +3084,11 @@
         ctx.fillRect(0, 0, OUT_W, OUT_H);
       }
       ctx.drawImage(img, 0, 0, img.naturalWidth, img.naturalHeight, outX, outY, outW, outH);
-      var dataUrl = isLogo ? canvas.toDataURL('image/jpeg', kind === 'cover' ? 0.82 : 0.85) : canvas.toDataURL('image/png');
+      var dataUrl = isLogo ? canvas.toDataURL('image/jpeg', kind === 'cover' ? 0.74 : 0.82) : lightAvatarDataUrl(canvas);
       // Bannière : sous la limite d'un document (450 000) en baissant la
       // qualité, puis la taille si besoin.
       if (kind === 'cover') {
-        for (var qq = 0.74; dataUrl.length > 440000 && qq >= 0.5; qq -= 0.08) dataUrl = canvas.toDataURL('image/jpeg', qq);
+        for (var qq = 0.68; dataUrl.length > 220000 && qq >= 0.5; qq -= 0.06) dataUrl = canvas.toDataURL('image/jpeg', qq);
         if (dataUrl.length > 440000) {
           var small = document.createElement('canvas'); small.width = 1200; small.height = 400;
           small.getContext('2d').drawImage(canvas, 0, 0, 1200, 400);
@@ -3111,6 +3113,56 @@
     img.src = cropModalSrc;
   }
 
+  // Photo ronde : WebP (transparence gardée, ~10 fois plus léger que PNG)
+  // quand le navigateur sait l'écrire, sinon PNG.
+  function lightAvatarDataUrl(canvas) {
+    var w = '';
+    try { w = canvas.toDataURL('image/webp', 0.86); } catch (e) {}
+    return /^data:image\/webp/.test(w) ? w : canvas.toDataURL('image/png');
+  }
+  // Allègement des images déjà enregistrées (photo, bannière, et celles de
+  // mes teams) : une fois par session, sur mes propres documents.
+  var imagesSlimmed = false;
+  function reencodeImage(src, maxW, maxH, kind) {
+    return new Promise(function (resolve) {
+      var im = new Image();
+      im.onload = function () {
+        var k = Math.min(1, maxW / im.naturalWidth, maxH / im.naturalHeight);
+        var c = document.createElement('canvas'); c.width = Math.max(1, Math.round(im.naturalWidth * k)); c.height = Math.max(1, Math.round(im.naturalHeight * k));
+        var x = c.getContext('2d');
+        if (kind !== 'avatar') { x.fillStyle = '#f2f2f2'; x.fillRect(0, 0, c.width, c.height); }
+        x.drawImage(im, 0, 0, c.width, c.height);
+        resolve(kind === 'avatar' ? lightAvatarDataUrl(c) : c.toDataURL('image/jpeg', kind === 'cover' ? 0.7 : 0.8));
+      };
+      im.onerror = function () { resolve(null); };
+      im.src = src;
+    });
+  }
+  function slimMyImages() {
+    var me = currentUserProfile, uid = myUid();
+    if (imagesSlimmed || !me || !uid) return;
+    imagesSlimmed = true;
+    var big = function (v, n) { return typeof v === 'string' && /^data:image\/(png|jpeg|webp)/.test(v) && v.length > n; };
+    var upd = {}, jobs = [];
+    if (big(me.photoURL, 70000)) jobs.push(reencodeImage(me.photoURL, 256, 256, 'avatar').then(function (u) { if (u && u.length < me.photoURL.length) upd.photoURL = u; }));
+    var cov = me.look && me.look.coverPhoto;
+    if (big(cov, 240000)) jobs.push(reencodeImage(cov, 1200, 400, 'cover').then(function (u) { if (u && u.length < cov.length) upd['look.coverPhoto'] = u; }));
+    Promise.all(jobs).then(function () {
+      if (!Object.keys(upd).length) return;
+      if (upd.photoURL) me.photoURL = upd.photoURL;
+      if (upd['look.coverPhoto']) me.look.coverPhoto = upd['look.coverPhoto'];
+      db.collection('users').doc(uid).update(upd).catch(function () {});
+    });
+    (STATE.teams || []).forEach(function (t) {
+      if (!isLeaderOfTeam(t.id)) return;
+      var tu = {}, tj = [];
+      if (big(t.photoURL, 70000)) tj.push(reencodeImage(t.photoURL, 256, 256, 'avatar').then(function (u) { if (u && u.length < t.photoURL.length) tu.photoURL = u; }));
+      if (big(t.logoURL, 120000)) tj.push(reencodeImage(t.logoURL, 640, 640, 'logo').then(function (u) { if (u && u.length < t.logoURL.length) tu.logoURL = u; }));
+      var tc = t.look && t.look.coverPhoto;
+      if (big(tc, 240000)) tj.push(reencodeImage(tc, 1200, 400, 'cover').then(function (u) { if (u && u.length < tc.length) tu['look.coverPhoto'] = u; }));
+      Promise.all(tj).then(function () { if (Object.keys(tu).length) db.collection('teams').doc(t.id).update(tu).catch(function () {}); });
+    });
+  }
   // Deleting a Team (amateur or PRO) requires the same fresh
   // reauthentication as deleting one's own account -- a leader typing
   // their password again is the one confirmation step that can't be
@@ -5235,7 +5287,7 @@
     var pills = renderPills('aide', [['aide', 'Aide'], ['admin', 'Admin']]);
     // Une carte par outil d'admin.
     var asCard = function (h) { return h ? '<div class="card">' + h.replace('margin-top:1.2rem; border-top:1px solid var(--border); padding-top:0.9rem;', '') + '</div>' : ''; };
-    if (pillState.aide === 'admin') return pills + renderUsageStatsCard() + renderLangStatsCard() + renderNationalityStatsCard() + asCard(renderPartnersSection(true)) + asCard(renderOptionalFeaturesSection()) + asCard(renderEventImportCard()) + asCard(renderPasswordResetSection());
+    if (pillState.aide === 'admin') return pills + renderDataFootprintCard() + renderUsageStatsCard() + renderLangStatsCard() + renderNationalityStatsCard() + asCard(renderPartnersSection(true)) + asCard(renderOptionalFeaturesSection()) + asCard(renderEventImportCard()) + asCard(renderPasswordResetSection());
     return pills + html;
   }
 
@@ -18621,6 +18673,27 @@
     countUsageOnce('active_' + mk, 'active');
   }
   var usageStats = null;
+  // Admin : ce que l'appli a chargé à cette ouverture (nombre de documents
+  // et poids approximatif), collection par collection. Les lectures
+  // Firestore comptent environ un document lu par document chargé.
+  function renderDataFootprintCard() {
+    var rows = [], total = 0, docs = 0;
+    var add = function (label, v) {
+      if (!v) return;
+      var list = Array.isArray(v) ? v : (typeof v === 'object' ? Object.keys(v).map(function (k) { return v[k]; }) : []);
+      var kb = 0; try { kb = JSON.stringify(v).length / 1024; } catch (e) {}
+      rows.push([label, list.length, kb]); total += kb; docs += list.length;
+    };
+    add(L('Profils', 'Profiles'), STATE.usersByName); add(L('Chronos', 'Lap times'), STATE.sessions); add(L('Publications', 'Posts'), STATE.wallPosts);
+    add(L('Réactions', 'Reactions'), STATE.postReactions); add(L('Commentaires', 'Comments'), STATE.postComments); add(L('Abonnements', 'Follows'), STATE.allUserFollows);
+    add(L('Roulages', 'Trackdays'), STATE.events); add(L('Circuits (dont dessins)', 'Circuits (incl. drawings)'), STATE.circuits); add('Teams', STATE.teams);
+    add(L('Fil des teams', 'Team feed'), STATE.teamFeed); add(L('Fil d\'activité', 'Activity feed'), STATE.feedEvents);
+    rows.sort(function (a, b) { return b[2] - a[2]; });
+    var fmt = function (kb) { return kb >= 1024 ? (kb / 1024).toFixed(1).replace('.', ',') + ' Mo' : Math.round(kb) + ' Ko'; };
+    return '<div class="card"><h2 class="section-title">' + L('Données chargées à l\'ouverture', 'Data loaded at startup') + '</h2>' +
+      '<div class="help-text">' + L('Environ ', 'About ') + docs + L(' documents lus et ', ' documents read and ') + fmt(total) + L(' téléchargés par ouverture de l\'appli (hors vidéos).', ' downloaded per app start (videos excluded).') + '</div>' +
+      '<table class="footprint"><tbody>' + rows.map(function (r) { return '<tr><td>' + escapeHtml(r[0]) + '</td><td>' + r[1] + '</td><td>' + fmt(r[2]) + '</td></tr>'; }).join('') + '</tbody></table></div>';
+  }
   function renderUsageStatsCard() {
     if (usageStats === null) {
       usageStats = [];
@@ -26957,6 +27030,7 @@
     var rb = document.getElementById('ride-both');
     if (rb) rb.addEventListener('change', function () { if (currentUserProfile) currentUserProfile.rideBoth = rb.checked; saveOwnBooleanField('rideBoth', rb.checked); renderRoot(); });
     fitPinLayers();
+    if (!imagesSlimmed && currentUserProfile && STATE.teams) setTimeout(slimMyImages, 4000);
     document.querySelectorAll('[data-heat-toggle]').forEach(function (b) { b.addEventListener('click', function () {
       var c = b.getAttribute('data-heat-toggle'); heatOn[c] = !heatOn[c];
       if (heatOn[c]) { delete heatCache[c]; loadTrackHeat(c); }
@@ -29320,7 +29394,7 @@
       });
     };
     listenLedTeamDms();
-    subscribeMerged('wallPosts', 200, [
+    subscribeMerged('wallPosts', 90, [
       function (c) { return c.where('audience', 'in', ['all', 'followers']); },
       function (c) { return c.where('visibleTo', 'array-contains', myUid()); },
       function (c) { return c.where('authorUid', '==', myUid()); }
@@ -29334,16 +29408,16 @@
     });
     // Tous les abonnements entre comptes (compteurs abonnés / abonnements,
     // suggestions) et les commentaires récents des messages.
-    unsubscribers.push(db.collection('follows').limit(3000).onSnapshot(function (snap) {
+    unsubscribers.push(db.collection('follows').limit(1500).onSnapshot(function (snap) {
       STATE.allUserFollows = snap.docs.map(function (d) { return d.data(); }).filter(function (f) { return (f.followeeType || 'user') === 'user'; });
       scheduleRender();
     }, handleSyncError));
     audienceSynced = false; // l'audience ne se charge qu'à son ouverture (voir ensureAudienceSync)
-    unsubscribers.push(db.collection('postReactions').orderBy('createdAt', 'desc').limit(2000).onSnapshot(function (snap) {
+    unsubscribers.push(db.collection('postReactions').orderBy('createdAt', 'desc').limit(600).onSnapshot(function (snap) {
       STATE.postReactions = snap.docs.map(function (d) { return d.data(); });
       scheduleRender();
     }, handleSyncError));
-    subscribeMerged('postComments', 500, [
+    subscribeMerged('postComments', 300, [
       function (c) { return c.where('public', '==', true); },
       function (c) { return c.where('visibleTo', 'array-contains', myUid()); },
       function (c) { return c.where('authorUid', '==', myUid()); }
