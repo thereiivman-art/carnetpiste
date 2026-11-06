@@ -8320,7 +8320,8 @@
     // Mon profil ; le podium entre potes est dans Stats.
     // Accompagnant : ses circuits visités, dans Circuits.
     var visitPill = meIsNonRider() && !(currentUserProfile && currentUserProfile.role === 'organisateur');
-    var html = renderPills('circuit', [['plan', 'Plan & repères'], ['chronos', 'Chronos'], ['infos', 'Infos']].concat(visitPill ? [['visites', L('Visités', 'Visited')]] : []));
+    // Accompagnant : pas de chronos à lui, l'onglet disparaît.
+    var html = renderPills('circuit', [['plan', 'Plan & repères']].concat(meIsNonRider() ? [] : [['chronos', 'Chronos']]).concat([['infos', 'Infos']]).concat(visitPill ? [['visites', L('Visités', 'Visited')]] : []));
     if (visitPill && pillState.circuit === 'visites') return html + renderVisitedCircuits();
     html += '<div class="circuit-picker"><select id="f-filter-circuit" aria-label="' + tr('circuit_label') + '">';
     html += sortedCircuitOptionsHtml(circuits, selectedCircuit, circuitSort);
@@ -8343,7 +8344,7 @@
       return html;
     }
     // Records de la piste (MotoGP, F1…) : à la fin d'Infos.
-    if (cp === 'infos') { html += renderCircuitInfoCard('infos') + (selectedCircuit ? renderForecastCard({ circuit: selectedCircuit, dateStart: todayKey(), dateEnd: todayKey() }, L('Météo du jour', 'Today\'s weather')) : '') + renderCircuitLevelGearCard(selectedCircuit) + renderTrackRecordsCard(selectedCircuit); return html; }
+    if (cp === 'infos') { html += renderCircuitInfoCard('infos') + (selectedCircuit ? renderTodayWeatherCard(selectedCircuit) : '') + renderCircuitLevelGearCard(selectedCircuit) + renderTrackRecordsCard(selectedCircuit) + (selectedCircuit ? circuitAroundHtml(selectedCircuit) : ''); return html; }
     // Objectif pour la prochaine session lives in EN PISTE now (see
     // renderPlanningTab), keyed off the current/next event's own circuit --
     // not repeated here.
@@ -8558,6 +8559,43 @@
     'Donington': 'Donington Park', 'Brands Hatch': 'Brands Hatch', 'Losail': 'Lusail International Circuit', 'COTA': 'Circuit of the Americas', 'Termas de Río Hondo': 'Autódromo Termas de Río Hondo',
     'Buriram': 'Chang International Circuit', 'Mandalika': 'Pertamina Mandalika Circuit', 'Motegi': 'Mobility Resort Motegi', 'Phillip Island': 'Phillip Island Grand Prix Circuit', 'Sepang': 'Sepang International Circuit'
   };
+  // Ville la plus proche (météo du jour).
+  var CIRCUIT_TOWNS = {
+    'Albi': 'Albi', 'Alès': 'Alès', 'Bresse': 'Frontenaud', 'Carole': 'Tremblay-en-France', 'Charade': 'Saint-Genès-Champanelle', 'Croix-en-Ternois': 'Croix-en-Ternois',
+    'Dijon-Prenois': 'Prenois', 'Haute Saintonge': 'La Genétouze', 'Lédenon': 'Lédenon', 'Le Mans': 'Le Mans', 'Le Vigeant': 'Le Vigeant', 'Magny Cours': 'Magny-Cours',
+    'Nogaro': 'Nogaro', 'Pau-Arnos': 'Arnos', 'Paul Ricard': 'Le Castellet', 'Mas du Clos': 'Saint-Avit-de-Tardes', 'Vaison Piste': 'Vaison-la-Romaine', 'Clastres': 'Clastres',
+    'Barcelone': 'Montmeló', 'Jerez': 'Jerez de la Frontera', 'Valence': 'Cheste', 'Aragón': 'Alcañiz', 'Navarra': 'Los Arcos', 'Jarama': 'San Sebastián de los Reyes',
+    'Almería': 'Tabernas', 'Cartagena': 'Cartagena', 'Calafat': 'L\'Ametlla de Mar', 'Alcarràs': 'Alcarràs', 'Portimão': 'Portimão', 'Estoril': 'Alcabideche',
+    'Mugello': 'Scarperia', 'Misano': 'Misano Adriatico', 'Imola': 'Imola', 'Vallelunga': 'Campagnano di Roma', 'Cremona': 'San Martino del Lago', 'Varano': 'Varano de\' Melegari',
+    'Spa-Francorchamps': 'Francorchamps', 'Zolder': 'Heusden-Zolder', 'Mettet': 'Mettet', 'Assen': 'Assen', 'Sachsenring': 'Hohenstein-Ernstthal', 'Hockenheim': 'Hockenheim',
+    'Nürburgring': 'Nürburg', 'Red Bull Ring': 'Spielberg', 'Brno': 'Brno', 'Most': 'Most', 'Slovakia Ring': 'Orechová Potôň', 'Grobnik': 'Čavle', 'Pannonia-Ring': 'Ostffyasszonyfa',
+    'Silverstone': 'Silverstone', 'Donington': 'Castle Donington', 'Brands Hatch': 'West Kingsdown', 'Losail': 'Lusail', 'COTA': 'Austin', 'Termas de Río Hondo': 'Termas de Río Hondo',
+    'Buriram': 'Buriram', 'Mandalika': 'Kuta (Lombok)', 'Motegi': 'Motegi', 'Phillip Island': 'Cowes', 'Sepang': 'Sepang'
+  };
+  function circuitTown(circuit) { var k = Object.keys(CIRCUIT_TOWNS).filter(function (n) { return sameCircuit(n, circuit); })[0]; return k ? CIRCUIT_TOWNS[k] : ''; }
+  // Petite icône météo (soleil, nuage, pluie, neige, orage, brouillard).
+  function weatherIcon(c) {
+    var P = { sun: '<circle cx="12" cy="12" r="4.5"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M4.9 19.1l1.8-1.8M17.3 6.7l1.8-1.8"/>',
+      part: '<path d="M8 3v1.5M3.5 7.5H5M4.6 4.1l1 1M12 4.6l-1 1"/><circle cx="8.5" cy="8" r="3"/><path d="M7 20h10a4 4 0 0 0 0-8 5.5 5.5 0 0 0-10.4 1.6A3.2 3.2 0 0 0 7 20z"/>',
+      cloud: '<path d="M6.5 19h11a4.5 4.5 0 0 0 0-9 6 6 0 0 0-11.4 1.8A3.6 3.6 0 0 0 6.5 19z"/>',
+      rain: '<path d="M6.5 14h11a4.5 4.5 0 0 0 0-9 6 6 0 0 0-11.4 1.8A3.6 3.6 0 0 0 6.5 14z"/><path d="M8 17l-1 3M12 17l-1 3M16 17l-1 3"/>',
+      snow: '<path d="M6.5 14h11a4.5 4.5 0 0 0 0-9 6 6 0 0 0-11.4 1.8A3.6 3.6 0 0 0 6.5 14z"/><path d="M8 18h.01M12 20h.01M16 18h.01"/>',
+      storm: '<path d="M6.5 14h11a4.5 4.5 0 0 0 0-9 6 6 0 0 0-11.4 1.8A3.6 3.6 0 0 0 6.5 14z"/><path d="M12 14l-2 4h3l-2 4"/>',
+      fog: '<path d="M4 9h16M3 13h18M5 17h14"/>' };
+    var k = c === 0 ? 'sun' : c <= 2 ? 'part' : c === 3 ? 'cloud' : (c === 45 || c === 48) ? 'fog' : (c >= 71 && c <= 77) || c === 85 || c === 86 ? 'snow' : c >= 95 ? 'storm' : c >= 51 ? 'rain' : 'cloud';
+    return '<svg class="wx-ico wx-' + k + '" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + P[k] + '</svg>';
+  }
+  // Autour du circuit : recherches Google Maps centrées sur la piste.
+  function circuitAroundHtml(circuit) {
+    var g = circuitCoordsOf(circuit) || circuitCoords(circuit);
+    var near = function (q) { return g ? 'https://www.google.com/maps/search/' + encodeURIComponent(q) + '/@' + g[0] + ',' + g[1] + ',12z' : 'https://www.google.com/maps/search/' + encodeURIComponent(q + ' ' + circuitFullName(circuit)); };
+    var items = [[L('Hôtels', 'Hotels'), L('hôtel', 'hotel')], [L('Campings', 'Campsites'), 'camping'], [L('Restos', 'Restaurants'), L('restaurant', 'restaurant')],
+      [L('Location moto', 'Bike rental'), L('location moto piste', 'track bike rental')], [L('Transport moto', 'Bike transport'), L('transport moto', 'motorcycle transport')],
+      [L('Équipement', 'Gear shop'), L('magasin équipement moto', 'motorcycle gear shop')], [L('Pneus', 'Tyres'), L('pneus moto', 'motorcycle tyres')], [L('Essence', 'Fuel'), L('station essence', 'petrol station')]];
+    return '<div class="card circuit-around"><h2 class="section-title">' + L('Autour du circuit', 'Around the circuit') + '</h2><div class="around-links">' +
+      items.map(function (it) { return '<a class="ghost" href="' + escapeHtml(near(it[1])) + '" target="_blank" rel="noopener">' + escapeHtml(it[0]) + '</a>'; }).join('') +
+      '</div><div class="help-text">' + L('Recherches Google Maps autour de la piste. Pas de partenariat : à toi de comparer.', 'Google Maps searches around the track. No partnership: compare for yourself.') + '</div></div>';
+  }
   function circuitFullName(circuit) {
     var k = Object.keys(CIRCUIT_FULLNAMES).filter(function (n) { return sameCircuit(n, circuit); })[0];
     return k ? CIRCUIT_FULLNAMES[k] : 'Circuit ' + circuit;
@@ -8575,7 +8613,8 @@
   function circuitLinksHtml(circuit) {
     var site = circuitWebsite(circuit);
     return '<div class="circuit-links">' + (site ? '<a class="ghost" href="' + escapeHtml(site) + '" target="_blank" rel="noopener">' + L('Site officiel', 'Official site') + ' ↗</a>' : '') +
-      '<a class="ghost" href="' + escapeHtml(circuitMapsUrl(circuit)) + '" target="_blank" rel="noopener">' + L('Localisation', 'Location') + ' ↗</a></div>';
+      '<a class="ghost" href="' + escapeHtml(circuitMapsUrl(circuit)) + '" target="_blank" rel="noopener">' + L('Localisation', 'Location') + ' ↗</a>' +
+      (lapVideoUrl(circuit) ? '<a class="ghost" data-yt="1" href="' + escapeHtml(lapVideoUrl(circuit)) + '" target="_blank" rel="noopener">' + L('Tour de piste', 'Track lap') + ' ↗</a>' : '') + '</div>';
   }
   // ---- Météo prévue au circuit (Open-Meteo, modèle Météo-France en France) ----
   var forecastCache = {};
@@ -8610,6 +8649,37 @@
         '<span class="forecast-temp">' + Math.round(d.temperature_2m_min[i]) + '° / ' + Math.round(d.temperature_2m_max[i]) + '°</span>' +
         '<span class="help-text">' + (pr != null ? L('Pluie ', 'Rain ') + pr + ' %' : '') + (d.wind_speed_10m_max ? ' · ' + L('vent ', 'wind ') + Math.round(d.wind_speed_10m_max[i]) + ' km/h' : '') + '</span></div>';
     }).join('') + '</div><div class="help-text">' + (fr ? L('Prévisions du modèle Météo-France (via Open-Meteo).', 'Météo-France model forecast (via Open-Meteo).') : L('Prévisions Open-Meteo.', 'Open-Meteo forecast.')) + '</div></div>';
+  }
+  // Météo du jour au circuit : ville, icône, températures, et la pluie des
+  // 6 dernières heures (piste peut-être encore mouillée). Lien vers une
+  // météo détaillée pour les vérifications sérieuses.
+  var todayWxCache = {};
+  function renderTodayWeatherCard(circuit) {
+    var co = circuitCoords(circuit); if (!co) return '';
+    var key = circuit + '|' + todayKey(), wx = todayWxCache[key], fr = (builtinCircuit(circuit) || {}).country === 'FR';
+    var town = circuitTown(circuit);
+    var head = '<div class="card forecast today-wx"><h2 class="section-title">' + L('Météo du jour', 'Today\'s weather') + (town ? '<span class="wx-town"> · ' + escapeHtml(town) + '</span>' : '') + '</h2>';
+    var more = '<a class="link-btn wx-more" href="https://www.meteoblue.com/' + (currentLang() === 'en' ? 'en/weather/week/' : 'fr/meteo/semaine/') + co[0].toFixed(3) + 'N' + co[1].toFixed(3) + 'E" target="_blank" rel="noopener">' + L('Météo détaillée', 'Detailed forecast') + ' ↗</a>';
+    if (!wx) {
+      todayWxCache[key] = { loading: true };
+      fetch('https://api.open-meteo.com/v1/forecast?latitude=' + co[0] + '&longitude=' + co[1] + '&current=temperature_2m,weather_code,wind_speed_10m&hourly=precipitation&past_hours=6&forecast_hours=1&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max&forecast_days=1&timezone=auto' + (fr ? '&models=meteofrance_seamless' : ''))
+        .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
+        .then(function (j) { todayWxCache[key] = { j: j }; renderRoot(); })
+        .catch(function () { todayWxCache[key] = { error: true }; renderRoot(); });
+      wx = todayWxCache[key];
+    }
+    if (wx.loading) return head + '<div class="help-text">' + L('Chargement…', 'Loading…') + '</div></div>';
+    if (wx.error || !wx.j || !wx.j.current) return head + '<div class="help-text">' + L('Météo indisponible pour l\'instant.', 'Weather unavailable for now.') + '</div>' + more + '</div>';
+    var c = wx.j.current, d = wx.j.daily || {}, h = wx.j.hourly || {};
+    var rain = (h.precipitation || []).slice(0, 6).reduce(function (a, b) { return a + (b || 0); }, 0);
+    var code = c.weather_code != null ? c.weather_code : (d.weather_code || [])[0];
+    var html = head + '<div class="wx-now">' + weatherIcon(code) + '<strong class="wx-temp">' + Math.round(c.temperature_2m) + '°</strong><span>' + escapeHtml(WMO(code)) +
+      (d.temperature_2m_min ? ' · ' + Math.round(d.temperature_2m_min[0]) + '° / ' + Math.round(d.temperature_2m_max[0]) + '°' : '') +
+      (d.precipitation_probability_max && d.precipitation_probability_max[0] != null ? ' · ' + L('pluie ', 'rain ') + d.precipitation_probability_max[0] + ' %' : '') +
+      (c.wind_speed_10m != null ? ' · ' + L('vent ', 'wind ') + Math.round(c.wind_speed_10m) + ' km/h' : '') + '</span></div>';
+    if (rain >= 0.2) html += '<div class="wx-wet"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l10 18H2z"/><path d="M12 10v5M12 18h.01"/></svg>' +
+      L('Piste peut-être mouillée : ', 'Track may be wet: ') + (Math.round(rain * 10) / 10).toString().replace('.', currentLang() === 'en' ? '.' : ',') + L(' mm de pluie ces 6 dernières heures.', ' mm of rain in the last 6 hours.') + '</div>';
+    return html + '<div class="help-text">' + (fr ? L('Modèle Météo-France (via Open-Meteo).', 'Météo-France model (via Open-Meteo).') : L('Open-Meteo.', 'Open-Meteo.')) + ' ' + more + '</div></div>';
   }
   function circuitWebsite(circuit) {
     var own = circuitInfo(circuit).website;
@@ -11184,7 +11254,7 @@
     return lines.join('\r\n') + '\r\n';
   }
   function addToCalendarLink(ev) {
-    return '<div class="add-cal-row"><button type="button" class="link-btn inline-link" data-action="add-to-calendar" data-id="' + escapeHtml(ev.id) + '">+ ' +
+    return '<div class="add-cal-row"><button type="button" class="link-btn inline-link" data-action="add-to-calendar" data-id="' + escapeHtml(ev.id) + '"><svg class="cal-ico" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M8 3v4M16 3v4M4 10h16M12 13v4M10 15h4"/></svg>' +
       L('Ajouter à mon agenda', 'Add to my calendar') + '</button></div>';
   }
   // « Ajouter à mon agenda » : un choix d'agenda. Google Agenda et Outlook
@@ -11464,6 +11534,12 @@
         var items = [['horaires', 'Horaires', hor]];
         var fcHtml = ev ? renderForecastCard(ev) : '';
         if (fcHtml) items.push(['meteo', L('Météo', 'Weather'), fcHtml]);
+        // Toutes les infos du circuit, comme sur sa page (Infos).
+        if (circuit) {
+          var keepC = selectedCircuit; selectedCircuit = circuit;
+          var ciHtml = renderCircuitInfoCard('infos'); selectedCircuit = keepC;
+          items.push(['circuit', 'Circuit', ciHtml + renderCircuitLevelGearCard(circuit) + renderTrackRecordsCard(circuit) + circuitAroundHtml(circuit)]);
+        }
         if (ev) {
           var isPast = eventTemporalStatus(ev, dateKey(new Date())) === 'past';
           var mine = currentUserProfile && (ev.riders || []).indexOf(currentUserProfile.name) !== -1;
@@ -11717,6 +11793,9 @@
     var circuit = ev.circuit, asComp = meCompanionOn(ev), html = '';
     html += '<div class="chrono-hero"><span class="chrono-clock chrono-clock-corner" data-live-clock>' + liveClockText() + '</span><span class="chrono-hero-label">' + L('Aujourd\'hui', 'Today') + '</span>' +
       '<span class="chrono-hero-circuit">' + escapeHtml(circuit) + '</span>';
+    // Le team qui organise : son logo et son nom, un appui ouvre sa page.
+    var orgTeam = ev.teamId ? teamById(ev.teamId) : (circuitInfo(circuit).organizerTeamId ? teamById(circuitInfo(circuit).organizerTeamId) : null);
+    if (orgTeam) html += '<button type="button" class="chrono-org" data-team-link="' + escapeHtml(orgTeam.id) + '">' + (orgTeam.logoURL ? '<img class="chrono-org-logo" src="' + escapeHtml(orgTeam.logoURL) + '" alt="">' : teamAvatarHtml(orgTeam)) + '<span>' + L('Organisé par ', 'Organised by ') + '<strong>' + escapeHtml(orgTeam.name) + '</strong></span></button>';
     if (!asComp) {
       var data = myDaySlots(ev, today), now = new Date(), nowMin = now.getHours() * 60 + now.getMinutes();
       var cur = data.slots.filter(function (sl) { return nowMin >= sl.start && nowMin < sl.end; })[0];
@@ -12665,7 +12744,7 @@
         (others.length ? '<span class="look-label">' + L('Pour qui ?', 'Who?') + '</span><div class="look-seg incident-who">' + (canMe ? [meName] : []).concat(others).map(function (n) {
           return '<button type="button" data-inc-who="' + escapeHtml(n) + '" aria-pressed="' + (st.who === n) + '">' + escapeHtml(n === meName ? L('Moi', 'Me') : n) + '</button>'; }).join('') + '</div>' : '') +
         '<div class="look-seg incident-types">' + INCIDENT_TYPES().map(function (o) { return '<button type="button" data-inc-type="' + o[0] + '" aria-pressed="' + (st.type === o[0]) + '">' + escapeHtml(o[1]) + '</button>'; }).join('') + '</div>' +
-        (base ? '<p class="help-text">' + L('Touche le plan à l\'endroit de l\'incident.', 'Tap the map where it happened.') + '</p><div class="incident-map"><img src="' + escapeHtml(base) + '" alt="">' + (st.x != null ? '<span class="incident-x" style="left:' + (st.x * 100) + '%;top:' + (st.y * 100) + '%"></span>' : '') + '</div>' : '<p class="help-text">' + L('Choisis d\'abord le circuit dans le formulaire pour placer l\'endroit.', 'Pick the circuit in the form first to mark the spot.') + '</p>') +
+        (base ? '<p class="help-text">' + L('Touche le plan à l\'endroit de l\'incident.', 'Tap the map where it happened.') + '</p><div class="incident-map"><img src="' + escapeHtml(base) + '" alt="">' + (st.x != null ? '<span class="incident-x" style="left:' + (st.x * 100) + '%;top:' + (st.y * 100) + '%"></span>' : '') + '</div>' : '<p class="help-text">' + (circuit ? L('Pas encore de tracé pour ' + circuit + ' : l\'endroit ne peut pas être placé. Dis-le dans « Un mot » (ex. virage 3).', 'No track outline for ' + circuit + ' yet: the spot can\'t be marked. Say it in « A word » (e.g. turn 3).') : L('Choisis d\'abord le circuit pour placer l\'endroit.', 'Pick the circuit first to mark the spot.')) + '</p>') +
         (st.who !== meName || !pastDate ? '<label for="inc-date" style="margin-top:0.6rem;">' + L('Date', 'Date') + '</label><input type="date" id="inc-date" value="' + escapeHtml(st.date || pastDate || todayKey()) + '" max="' + todayKey() + '">' : '') +
         '<label for="inc-note" style="margin-top:0.6rem;">' + L('Un mot (facultatif)', 'A word (optional)') + '</label><input type="text" id="inc-note" maxlength="140" value="' + escapeHtml(st.note || '') + '" placeholder="' + escapeHtml(L('Ex. Tout va bien, juste la moto à réparer', 'E.g. All good, just the bike to fix')) + '">' +
         '<label class="checklist-item" style="margin-top:0.5rem;"><input type="checkbox" id="inc-publish"' + (st.publish ? ' checked' : '') + '> ' + L('Publier sur mon Social (mes amis)', 'Post on my Social (my friends)') + '</label>' +
@@ -13565,7 +13644,8 @@
     }
     html += '</div>';
     var basemapSrc = isOutlineLevelId(annot.sessionId) ? outlineImageFor(info, annot.circuit) : (info.mapImage || outlineImageFor(info, annot.circuit));
-    html += '<div class="annot-canvas-wrap' + (basemapSrc ? ' has-basemap' : '') + '" id="annot-canvas-wrap">';
+    var outlineBase = basemapSrc && (isOutlineLevelId(annot.sessionId) || !info.mapImage);
+    html += '<div class="annot-canvas-wrap' + (basemapSrc ? ' has-basemap' : '') + (outlineBase ? ' outline-base' : '') + '" id="annot-canvas-wrap">';
     html += '<div class="annot-canvas-inner" id="annot-canvas-inner">';
     if (basemapSrc) html += '<img class="annot-basemap" src="' + basemapSrc + '" alt="">';
     html += '<canvas class="annot-canvas" id="annot-canvas"></canvas>';
@@ -20241,6 +20321,9 @@
     if (!/^https:\/\/[^\s"'<>]+$/i.test(String(url || ''))) return null; // https seulement (jamais javascript:)
     var m = String(url || '').match(/(?:youtube\.com\/(?:watch\?(?:.*&)?v=|shorts\/|live\/|embed\/)|youtu\.be\/)([\w-]{11})/);
     if (m) return { src: 'https://www.youtube-nocookie.com/embed/' + m[1] + '?autoplay=1&playsinline=1&rel=0', thumb: 'https://img.youtube.com/vi/' + m[1] + '/hqdefault.jpg', name: 'YouTube', tall: /shorts\//.test(url) };
+    // Post X (Twitter) : lu dans l'appli (lecteur officiel), plus seulement un lien.
+    m = String(url || '').match(/^https:\/\/(?:www\.|mobile\.)?(?:x|twitter)\.com\/(?:[A-Za-z0-9_]{1,15}|i(?:\/web)?)\/status(?:es)?\/(\d{5,25})/);
+    if (m) return { src: 'https://platform.twitter.com/embed/Tweet.html?id=' + m[1] + '&dnt=true&lang=' + (currentLang() === 'en' ? 'en' : 'fr') + '&theme=' + (typeof isDarkUi === 'function' && isDarkUi() ? 'dark' : 'light'), thumb: '', name: 'X', tall: true, x: true };
     m = String(url || '').match(/vimeo\.com\/(?:video\/)?(\d{5,})/);
     if (m) return { src: 'https://player.vimeo.com/video/' + m[1] + '?autoplay=1', thumb: '', name: 'Vimeo' };
     m = String(url || '').match(/(?:dailymotion\.com\/video\/|dai\.ly\/)([a-z0-9]{5,})/i);
@@ -20420,6 +20503,7 @@
     if (emb) {
       return '<div class="link-player' + (emb.tall ? ' tall' : '') + '"><button type="button" class="link-player-face" data-url="' + escapeHtml(url) + '" data-embed="' + escapeHtml(emb.src) + '" aria-label="' + escapeHtml(L('Lire la vidéo', 'Play video')) + '">' +
         (emb.thumb ? '<img src="' + escapeHtml(emb.thumb) + '" alt="" loading="lazy">' : '') +
+        (emb.x ? '<span class="x-face"><svg viewBox="0 0 24 24" width="44" height="44" fill="currentColor" aria-hidden="true"><path d="M17.8 3h3.1l-6.8 7.7L22 21h-6.2l-4.9-6.4L5.3 21H2.2l7.2-8.3L2 3h6.4l4.4 5.8zm-1.1 16.2h1.7L7.4 4.7H5.6z"/></svg><span>' + L('Toucher pour afficher le post', 'Tap to show the post') + '</span></span>' : '') +
         '<span class="link-player-play"><svg viewBox="0 0 24 24" width="30" height="30" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg></span><span class="link-player-host">' + emb.name + '</span></button>' +
         '<a class="link-player-out" href="' + escapeHtml(url) + '" target="_blank" rel="noopener">' + L('Ouvrir', 'Open') + ' ↗</a></div>';
     }
@@ -21749,6 +21833,7 @@
     // Souris / ordinateur : molette pour zoomer, double-clic pour basculer.
     img.addEventListener('wheel', function (e) { e.preventDefault(); scale = Math.min(5, Math.max(1, scale * (e.deltaY < 0 ? 1.15 : 0.87))); if (scale === 1) tx = ty = 0; apply(); }, { passive: false });
     img.addEventListener('dblclick', function () { scale = scale > 1 ? 1 : 2.5; tx = ty = 0; apply(); });
+    return ov;
   }
   // ---- Audience : vues des publications et visites du profil ----
   // Une vue = un lecteur (pas l'auteur) qui a eu la publication à l'écran
@@ -25213,7 +25298,7 @@
     if (!confirm(L('Te retirer de ' + ev.circuit + ' ? Pense à prévenir l\'organisateur si tu étais inscrit chez lui.', 'Remove yourself from ' + ev.circuit + '? Remember to tell the organiser if you booked with them.'))) return;
     var prevState = JSON.parse(JSON.stringify(STATE));
     ev.riders = (ev.riders || []).filter(function (n) { return n !== me; });
-    if (ev.riderGroups && ev.riderGroups[me]) { ev.riderGroups = Object.assign({}, ev.riderGroups); delete ev.riderGroups[me]; }
+    ['riderGroups', 'riderBikeNumbers', 'riderRoles'].forEach(function (k) { if (ev[k] && ev[k][me] !== undefined) { ev[k] = Object.assign({}, ev[k]); delete ev[k][me]; } });
     persist(prevState);
     showToast(L('Tu n\'es plus sur la liste de ', 'You\'re no longer on the list for ') + ev.circuit + '.', 'success');
     renderRoot();
@@ -26871,8 +26956,8 @@
           e.preventDefault(); e.stopPropagation();
           // Un appui : plein écran ; deux appuis rapprochés : J'aime (voir likeOnDoubleTap).
           clearTimeout(zoomTapTimer);
-          var src0 = wp.getAttribute('src');
-          zoomTapTimer = setTimeout(function () { if (Date.now() - lastDoubleTapAt > 400) openPhotoZoom(src0); }, 280);
+          var src0 = wp.getAttribute('src'), incZoom = !!wp.closest('.is-incident');
+          zoomTapTimer = setTimeout(function () { if (Date.now() - lastDoubleTapAt > 400) { var z = openPhotoZoom(src0); if (incZoom && z) z.classList.add('is-incident'); } }, 280);
           return;
         }
         var cov = e.target.closest('.ph-cover[data-own-cover]');

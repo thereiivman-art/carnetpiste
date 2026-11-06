@@ -2,6 +2,20 @@
 
 Les nouveautés, de la plus récente à la plus ancienne. Le détail complet est dans l'historique git.
 
+## 11 novembre 2026 · retours Alexis
+
+- Infos du circuit : « Autour du circuit » (hôtels, campings, restos, location et transport de moto, équipement, pneus, essence), en recherches Google Maps autour de la piste.
+- Météo du jour : nom de la ville, petite icône (soleil, nuages, pluie…), et alerte « piste peut-être mouillée » s'il a plu ces 6 dernières heures. Lien vers une météo détaillée.
+- Liens du circuit : « Tour de piste » (la même vidéo que dans Plan & repères).
+- Roulage à venir ou passé : nouvel onglet Circuit dans Infos, avec toutes les infos de la page du circuit.
+- Chrono : le team qui organise le roulage (logo et nom), un appui ouvre sa page.
+- « Ajouter à mon agenda » avec une icône de calendrier.
+- « Je n'y vais plus » marche aussi sur un roulage organisé par un team (avant, l'inscription revenait toute seule).
+- Mode sombre : carte d'un incident sombre aussi en grand, mode Dessin sur fond noir, plan du circuit sur fond noir uni (plus de cadre clair sur PC).
+- Incident d'un ami sur un circuit sans tracé : message clair (dire l'endroit dans « Un mot »).
+- Carnet › Circuits : plus d'onglet Chronos pour les accompagnants.
+- Liens X (Twitter) : le post s'affiche dans l'appli, comme une vidéo YouTube.
+
 ## 10 novembre 2026 · stories
 
 - Story : le bouton Publier reste accessible quand le clavier est ouvert (l'aperçu rétrécit, Entrée ferme le clavier).

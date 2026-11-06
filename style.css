@@ -5308,3 +5308,25 @@ body { overflow-wrap: break-word; }
 .story-photo.story-framed { position: relative; overflow: hidden; aspect-ratio: 9 / 16; height: min(70vh, 140vw); margin: 0 auto; border-radius: 12px; background: #000; padding: 0; }
 .story-place { position: absolute !important; top: 0.7rem; left: 0.7rem; display: inline-flex; align-items: center; gap: 0.35rem; background: rgba(20,22,26,0.72); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); color: #fff; border: 0; border-radius: 999px; padding: 0.35rem 0.85rem; font: inherit; font-weight: 700; cursor: pointer; position: relative; z-index: 3; }
 .story-caption .mention-link { color: inherit; text-decoration: underline; background: none; border: 0; padding: 0; font: inherit; cursor: pointer; position: relative; z-index: 3; }
+.chrono-org { display: inline-flex; align-items: center; gap: 0.45rem; margin: 0.35rem 0 0.1rem; padding: 0.2rem 0.7rem 0.2rem 0.25rem; border: 1px solid var(--border); border-radius: 999px; background: var(--surface); color: var(--text); font: inherit; font-size: 0.88rem; cursor: pointer; max-width: 100%; }
+.chrono-org .mini-avatar { width: 26px; height: 26px; font-size: 0.75rem; }
+.chrono-org span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.chrono-org-logo { height: 26px; max-width: 70px; object-fit: contain; border-radius: 6px; background: #fff; }
+.add-cal-row [data-action="add-to-calendar"] { display: inline-flex; align-items: center; gap: 0.35rem; }
+:root[data-theme="dark"] .photo-zoom.is-incident img { filter: invert(1) hue-rotate(180deg); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .photo-zoom.is-incident img { filter: invert(1) hue-rotate(180deg); } }
+/* Mode sombre : le plan du circuit sur un fond noir uni (plus de cadre gris
+   ni de bordure claire autour du tracé inversé). Dessin : fond noir, tracé
+   blanc (les photos de plan officiel restent telles quelles). */
+:root[data-theme="dark"] .circuit-info-card:has(img[data-track-plan]), :root[data-theme="dark"] .circuit-info-card:has(img[data-track-plan]) .circuit-visual-btn { background: #000; border-color: #000; }
+:root[data-theme="dark"] .circuit-visual-btn:has(img[data-track-plan]) { padding: 0; border: 0; }
+:root[data-theme="dark"] .annot-canvas-wrap.has-basemap.outline-base { background: #000; }
+:root[data-theme="dark"] .annot-canvas-wrap.outline-base .annot-basemap { filter: invert(1) hue-rotate(180deg) brightness(1.1); }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .circuit-info-card:has(img[data-track-plan]), :root:not([data-theme="light"]) .circuit-info-card:has(img[data-track-plan]) .circuit-visual-btn { background: #000; border-color: #000; }
+  :root:not([data-theme="light"]) .circuit-visual-btn:has(img[data-track-plan]) { padding: 0; border: 0; }
+  :root:not([data-theme="light"]) .annot-canvas-wrap.has-basemap.outline-base { background: #000; }
+  :root:not([data-theme="light"]) .annot-canvas-wrap.outline-base .annot-basemap { filter: invert(1) hue-rotate(180deg) brightness(1.1); }
+}
+.link-player.tall:has(.x-face) { aspect-ratio: 4 / 5; }
+.x-face { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.6rem; color: #fff; font-weight: 700; font-size: 0.9rem; padding-bottom: 5rem; }

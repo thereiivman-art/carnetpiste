@@ -324,6 +324,17 @@ service cloud.firestore {
       return exists(/databases/$(database)/documents/eventInvites/$(eventId + '_' + myName()))
         && get(/databases/$(database)/documents/eventInvites/$(eventId + '_' + myName())).data.status == 'accepted';
     }
+    // « Je n'y vais plus » : je retire seulement mon nom (et mon groupe,
+    // mon numéro, mon rôle), sur n'importe quel roulage, team compris.
+    function selfRemoveOnly() {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['riders', 'riderGroups', 'riderBikeNumbers', 'riderRoles'])
+        && myName() in resource.data.get('riders', [])
+        && ridersBefore().difference(ridersAfter()).hasOnly([myName()])
+        && ridersAfter().difference(ridersBefore()).size() == 0
+        && request.resource.data.get('riderGroups', {}).diff(resource.data.get('riderGroups', {})).affectedKeys().hasOnly([myName()])
+        && request.resource.data.get('riderBikeNumbers', {}).diff(resource.data.get('riderBikeNumbers', {})).affectedKeys().hasOnly([myName()])
+        && request.resource.data.get('riderRoles', {}).diff(resource.data.get('riderRoles', {})).affectedKeys().hasOnly([myName()]);
+    }
     function selfAppendOnly() {
       return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['riders'])
         && request.resource.data.riders == resource.data.get('riders', []).concat([myName()]);
@@ -360,6 +371,7 @@ service cloud.firestore {
         || (resource.data.get('teamId', null) == null && request.resource.data.get('teamId', null) == null
             && myName() in resource.data.get('riders', []) && ridersOnlySelf())
         || (resource.data.get('teamId', null) == null && selfAppendOnly())
+        || selfRemoveOnly()
         || (resource.data.get('teamId', null) != null && isTeamLeader(resource.data.teamId) && leaderRidersOk(id))
         || (resource.data.get('eventVisibility', null) == 'ouvert' && selfAppendOnly())
         // Accompagnant : se met sur un roulage (à venir ou passé) sans être
