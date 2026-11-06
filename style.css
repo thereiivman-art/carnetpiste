@@ -5275,3 +5275,10 @@ html.simple-mode { font-size: 112%; }
 .card.can-hide .feed-entry-time, .card.can-hide .feed-ride-thumb, .card.can-hide .feed-recap-head > .outing-thumb, .card.feed-moment.can-hide > .outing-thumb { margin-right: 1.9rem !important; }
 .card.can-hide .wall-post-head { padding-right: 1.9rem; }
 .card.can-hide .wall-post-head .feed-entry-time { margin-right: 0 !important; }
+/* Téléphone : l'appli tient toujours dans la largeur de l'écran (pas de
+   zoom ni de défilement de côté). Un lien ou un mot très long passe à la
+   ligne au lieu d'élargir la page ; pas de zoom au double-toucher. */
+html, body { overflow-x: clip; max-width: 100%; }
+html { touch-action: manipulation; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+body { overflow-wrap: break-word; }
+@media (max-width: 959px) { input:not([type=checkbox]):not([type=radio]):not([type=range]), select, textarea { font-size: max(16px, 1em); } }

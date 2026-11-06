@@ -1164,7 +1164,7 @@ service cloud.firestore {
         (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reactions'])
           && onlyOwnKeyChanged(resource.data.get('reactions', {}), request.resource.data.reactions))
         || (resource.data.author == myName()
-            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['text', 'linkUrl', 'editedAt', 'alsoInFeed', 'photoURL', 'photoMedia', 'notesShare', 'audience', 'visibleTo', 'incident'])
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['text', 'linkUrl', 'editedAt', 'alsoInFeed', 'photoURL', 'photoMedia', 'notesShare', 'audience', 'visibleTo', 'incident', 'private'])
             && (!('incident' in request.resource.data) || (request.resource.data.incident is map && request.resource.data.incident.keys().hasOnly(['type', 'circuit', 'subject', 'note', 'date'])))
             && request.resource.data.get('audience', 'all') in ['all', 'friends', 'followers']
             && (!('photoURL' in request.resource.data) || (request.resource.data.photoURL is string && request.resource.data.photoURL.size() < 900000))

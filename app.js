@@ -19957,7 +19957,7 @@
     // Fiche, Teams, puis Bientôt en piste et Saisons quand c'est visible.
     if (!isMe) {
       var ridesShared = !!friendship && isPilote && u.shareSorties !== false;
-      var visiblePosts = (STATE.wallPosts || []).filter(function (p) { return inFeed(p) && p.author === name && (friendship || p.audience === 'all' || (p.audience === 'followers' && iFollow(name))); });
+      var visiblePosts = (STATE.wallPosts || []).filter(function (p) { return inFeed(p) && p.author === name && (p.author === (currentUserProfile && currentUserProfile.name) || !p.private) && (friendship || p.audience === 'all' || (p.audience === 'followers' && iFollow(name))); });
       var oPills = [['fil', L('Social', 'Social')], ['fiche', L('Fiche', 'Profile')], ['teams', 'Teams']];
       if (upcomingVisible(u, name)) oPills.push(['bientot', L('Bientôt en piste', 'Coming up')]);
       if (ridesShared) oPills.push(['saisons', L('Saisons', 'Seasons')]);
@@ -21914,12 +21914,17 @@
   // team doc on selection (see saveTeamPhoto), no preview/draft step.
   var teamPhotoUploadTeamId = null;
 
+  // Qui voit une publication : Public, Amis ou Moi seul (« privé » =
+  // réservé aux amis sans aucun ami dans la liste : seul l'auteur la lit).
+  function postAudienceKey(p) { return p.private ? 'private' : p.audience === 'friends' ? 'friends' : 'all'; }
+  function postAudienceName(k) { return k === 'private' ? L('Moi seul', 'Only me') : k === 'friends' ? L('Amis', 'Friends') : L('Public', 'Public'); }
   function visibleWallPosts(me) {
     var friendNames = friendsOf(me.name).map(function (f) { return f.name; });
     var followedNames = followingOf(me.name);
     return (STATE.wallPosts || []).filter(function (p) {
       if (!inFeed(p)) return false; // une story ne vit que dans la rangée du haut, sauf publiée aussi dans le fil
       if (p.author === me.name) return true;
+      if (p.private) return false;
       if (friendNames.indexOf(p.author) !== -1 && (p.audience === 'friends' || p.audience === 'all')) return true;
       if (followedNames.indexOf(p.author) !== -1 && (p.audience === 'followers' || p.audience === 'all')) return true;
       return false;
@@ -22011,11 +22016,12 @@
     html += '<input type="file" id="wall-post-photo-input" accept="image/*" style="display:none;">';
     html += '</div>';
     var lastAud = 'all';
-    try { lastAud = localStorage.getItem('cdp-post-audience') === 'friends' ? 'friends' : 'all'; } catch (e) {}
-    html += '<details class="cf-more audience-more"><summary>' + L('Visible par : ', 'Visible to: ') + '<strong>' + (lastAud === 'friends' ? L('Mes amis', 'My friends') : L('Public', 'Public')) + '</strong></summary>' +
+    try { var la = localStorage.getItem('cdp-post-audience'); lastAud = la === 'friends' || la === 'private' ? la : 'all'; } catch (e) {}
+    html += '<details class="cf-more audience-more"><summary>' + L('Visible par : ', 'Visible to: ') + '<strong>' + postAudienceName(lastAud) + '</strong></summary>' +
       '<select id="wall-post-audience" style="margin-top:0.4rem;">' +
       '<option value="all"' + (lastAud === 'all' ? ' selected' : '') + '>' + L('Public', 'Public') + '</option>' +
       '<option value="friends"' + (lastAud === 'friends' ? ' selected' : '') + '>' + L('Mes amis', 'My friends') + '</option>' +
+      '<option value="private"' + (lastAud === 'private' ? ' selected' : '') + '>' + L('Moi seul', 'Only me') + '</option>' +
       '</select></details>';
     html += '<div style="display:flex; gap:0.5rem; margin-top:0.7rem;"><button type="submit" class="primary">' + tr('publish') + '</button><button type="button" class="ghost" data-action="wall-composer-close">' + tr('cancel') + '</button></div>';
     if (wallPostMessage) html += '<div class="help-text" style="margin-top:0.6rem;">' + escapeHtml(wallPostMessage) + '</div>';
@@ -22098,7 +22104,7 @@
       personLinkHtml(p.author) + badgesHtml(u) + (showFollow ? followBtnHtml(p.author, true) : '') +
       // Friends-only is the default: only flag the wider audiences.
       // Mon post : un appui change qui le voit (Public / Amis).
-      (canEdit && !p.story ? '<button type="button" class="post-aud-btn" data-action="post-audience" data-id="' + escapeHtml(p.id) + '" title="' + escapeHtml(L('Changer qui voit ce post', 'Change who sees this post')) + '">' + escapeHtml(p.audience === 'friends' ? L('Amis', 'Friends') : L('Public', 'Public')) + ' ▾</button>'
+      (canEdit && !p.story ? '<button type="button" class="post-aud-btn" data-action="post-audience" data-id="' + escapeHtml(p.id) + '" title="' + escapeHtml(L('Changer qui voit ce post', 'Change who sees this post')) + '">' + escapeHtml(postAudienceName(postAudienceKey(p))) + ' ▾</button>'
         : (p.audience === 'friends' ? '<span class="friend-role-badge">' + escapeHtml(L('Amis', 'Friends')) + '</span>' : '')) +
       '<span class="feed-entry-time">' + escapeHtml(relativeTime(p.editedAt || p.createdAt)) + (p.editedAt ? tr('edited_suffix') : '') + '</span>' +
       '<button type="button" class="post-share" data-action="share-post" data-id="' + escapeHtml(p.id) + '" aria-label="' + escapeHtml(L('Partager', 'Share')) + '" title="' + escapeHtml(L('Partager', 'Share')) + '"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7"/><path d="M16 6l-4-4-4 4"/><path d="M12 2v13"/></svg></button></div>';
@@ -22362,8 +22368,11 @@
       renderRoot();
       return;
     }
+    var priv = audience === 'private';
+    if (priv) audience = 'friends';
     var post = { id: genId(), author: me.name, authorUid: myUid(), audience: audience, createdAt: Date.now() };
-    if (audience === 'friends') post.visibleTo = friendUidsOf(me.name);
+    if (audience === 'friends') post.visibleTo = priv ? [] : friendUidsOf(me.name);
+    if (priv) post.private = true;
     if (text) post.text = text;
     if (linkUrl) post.linkUrl = linkUrl;
     if (photoURL) post.photoURL = photoURL;
@@ -26255,11 +26264,20 @@
       e.stopPropagation();
       var p = (STATE.wallPosts || []).filter(function (x) { return x.id === b.getAttribute('data-id'); })[0];
       if (!p || !currentUserProfile || p.author !== currentUserProfile.name) return;
-      var next = p.audience === 'friends' ? 'all' : 'friends', upd = { audience: next };
-      if (next === 'friends') upd.visibleTo = friendUidsOf(currentUserProfile.name);
-      Object.assign(p, upd); renderRoot();
-      if (p.photoMedia) db.collection('postMedia').doc(p.photoMedia).update({ audience: next, visibleTo: upd.visibleTo || [] }).catch(function () {});
-      db.collection('wallPosts').doc(p.id).update(upd).then(function () { showToast(next === 'friends' ? L('Visible par tes amis seulement.', 'Visible to your friends only.') : L('Visible par tout le monde.', 'Visible to everyone.'), 'success'); }).catch(function (err) { showToast(tr('error_prefix') + ((err && err.message) || err), 'sticky'); });
+      var cur = postAudienceKey(p);
+      var ov = openMiniSheet('<h2 class="section-title">' + L('Qui voit ce post ?', 'Who sees this post?') + '</h2><div class="look-seg post-aud-seg">' +
+        ['all', 'friends', 'private'].map(function (k) { return '<button type="button" data-aud="' + k + '" aria-pressed="' + (k === cur) + '">' + postAudienceName(k) + '</button>'; }).join('') + '</div>');
+      ov.querySelectorAll('[data-aud]').forEach(function (btn) { btn.addEventListener('click', function () {
+        var k = btn.getAttribute('data-aud'); ov.remove();
+        if (k === cur) return;
+        var upd = { audience: k === 'all' ? 'all' : 'friends', private: k === 'private' };
+        if (k !== 'all') upd.visibleTo = k === 'private' ? [] : friendUidsOf(currentUserProfile.name);
+        Object.assign(p, upd); if (!upd.private) delete p.private; renderRoot();
+        if (p.photoMedia) db.collection('postMedia').doc(p.photoMedia).update({ audience: upd.audience, visibleTo: upd.visibleTo || [] }).catch(function () {});
+        db.collection('wallPosts').doc(p.id).update(upd)
+          .then(function () { showToast(k === 'private' ? L('Visible par toi seul.', 'Visible to you only.') : k === 'friends' ? L('Visible par tes amis seulement.', 'Visible to your friends only.') : L('Visible par tout le monde.', 'Visible to everyone.'), 'success'); })
+          .catch(function (err) { showToast(tr('error_prefix') + ((err && err.message) || err), 'sticky'); });
+      }); });
     }); });
     document.querySelectorAll('[data-action="share-post"]').forEach(function (btn) { btn.addEventListener('click', function (e) { e.stopPropagation(); openPostShareSheet(btn.getAttribute('data-id')); }); });
     if (pendingShareIn && currentUserProfile) { pendingShareIn = false; consumeSharedIn(); }
@@ -30244,7 +30262,7 @@
     (STATE.wallPosts || []).forEach(function (p) {
       // Seul l'auteur connaît sa liste d'amis (elle est privée) : l'admin ne
       // touche pas aux messages des autres.
-      if (p.audience !== 'friends' || !p.id || p.authorUid !== uid) return;
+      if (p.audience !== 'friends' || p.private || !p.id || p.authorUid !== uid) return;
       var want = friendUidsOf(p.author);
       if (!want.length && !p.visibleTo) return;
       if (JSON.stringify((p.visibleTo || []).slice().sort()) === JSON.stringify(want)) return;

@@ -1,0 +1,20 @@
+// Publications : Public, Amis ou Moi seul ; changeable après coup.
+const { chromium, BASE } = require('../lib');
+(async () => { const b = await chromium.launch(); const errs = [];
+  const p = await b.newPage({ viewport: { width: 390, height: 900 } }); p.on('pageerror', e => errs.push(e.message));
+  await p.goto(BASE + 'index.html#lang=' + (process.argv[2] || 'fr')); await p.waitForTimeout(1600);
+  await p.click('.bottom-nav-btn:nth-child(3)'); await p.waitForTimeout(400);
+  await p.click('#wall-composer-toggle'); await p.waitForTimeout(300);
+  console.log('choix:', await p.$$eval('#wall-post-audience option', o => o.map(x => x.textContent).join(' / ')));
+  await p.fill('#wall-post-text', 'Note perso'); await p.click('.audience-more summary'); await p.selectOption('#wall-post-audience', 'private');
+  await p.click('#wall-post-form button[type="submit"]'); await p.waitForTimeout(800);
+  await p.click('[data-mini-close]').catch(() => {}); await p.waitForTimeout(300);
+  const doc = await p.evaluate(() => Object.values(window.__MOCK_DATA.wallPosts).filter(w => w.text === 'Note perso').map(w => ({ audience: w.audience, private: w.private, visibleTo: w.visibleTo }))[0]);
+  console.log('enregistré:', JSON.stringify(doc));
+  const btn = p.locator('.post-aud-btn').first();
+  console.log('pastille:', await btn.innerText());
+  await btn.click(); await p.waitForTimeout(300);
+  console.log('fenêtre:', await p.$$eval('[data-aud]', e => e.map(x => x.innerText + (x.getAttribute('aria-pressed') === 'true' ? '*' : '')).join(' / ')));
+  await p.click('[data-aud="friends"]'); await p.waitForTimeout(500);
+  console.log('après Amis:', JSON.stringify(await p.evaluate(() => Object.values(window.__MOCK_DATA.wallPosts).filter(w => w.text === 'Note perso').map(w => ({ audience: w.audience, private: w.private, amis: (w.visibleTo || []).length }))[0])));
+  console.log('errs', JSON.stringify(errs)); await b.close(); })();

@@ -12,6 +12,8 @@ Les nouveautés, de la plus récente à la plus ancienne. Le détail complet est
 - Miniature du circuit du moment : plus rétrécie par la croix Masquer ; la croix ne recouvre plus rien sur les cartes.
 - Lieu d'un circuit : la carte tombe sur la piste, avec son nom complet (Misano → Misano World Circuit Marco Simoncelli), plus sur la ville. Pareil pour Localisation dans les infos du circuit.
 - Téléphone : les pastilles (Liste, Mois…) et les cartes sous les onglets ne sont plus rognées par la barre fixée.
+- Publications : visibles par Public, Amis ou Moi seul, au moment de publier ou après coup (pastille sur le post).
+- Téléphone : l'appli ne zoome plus (double-toucher, champ de saisie) et tient toujours dans la largeur de l'écran ; un lien très long passe à la ligne.
 
 ## 8 novembre 2026
 
