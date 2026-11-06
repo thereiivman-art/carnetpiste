@@ -13,8 +13,8 @@ const { chromium, BASE } = require('../lib');
   console.log('potes en piste:', await p.$$eval('.friends-on-track .fot-row', e => e.map(x => x.innerText.replace(/\n/g, ' ')).join(' | ')).catch(() => 'aucune carte'));
   await p.screenshot({ path: 'acc-potes-piste-' + lang + '.png' });
   // Saisir le chrono d'un pote
-  await p.click('.bottom-nav-btn[data-view^="carnet"]'); await p.waitForTimeout(300);
-  await p.click('.subnav-btn[data-view="carnet"]'); await p.waitForTimeout(300);
+  // Une seule entrée : l'onglet Chrono.
+  await p.click('.bottom-nav-btn.bottom-nav-main'); await p.waitForTimeout(400);
   await p.click('[data-action="chrono-proposal"]'); await p.waitForTimeout(300);
   await p.selectOption('#cp-to', 'Sam'); await p.fill('#cp-circuit', 'Carole'); await p.fill('#cp-laps', "1'12.4\n1'11.8");
   await p.click('[data-cp="send"]'); await p.waitForTimeout(700);
@@ -22,7 +22,7 @@ const { chromium, BASE } = require('../lib');
   // Côté pilote : Alex reçoit le chrono saisi par Tom
   await p.goto('about:blank'); await p.goto(BASE + 'index.html#lang=' + lang); await p.waitForTimeout(1600);
   if (await p.$('#jourj-overlay')) { await p.click('[data-jj="close"]'); await p.waitForTimeout(300); }
-  await p.click('#notifications-toggle'); await p.waitForTimeout(500);
+  await p.click('#messages-toggle'); await p.waitForTimeout(300); await p.click('[data-action="open-notifs"]'); await p.waitForTimeout(500);
   console.log('notif:', await p.$eval('[data-action="accept-chrono-proposal"]', e => e.closest('.notifications-panel').innerText.split('\n').slice(0, 6).join(' | ')).catch(() => 'absente'));
   const before = await p.evaluate(() => Object.values(window.__MOCK_DATA.sessions).filter(s => s.rider === 'Alex').length);
   await p.click('[data-action="accept-chrono-proposal"]'); await p.waitForTimeout(800);

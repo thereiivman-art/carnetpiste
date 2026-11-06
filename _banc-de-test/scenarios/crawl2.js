@@ -33,7 +33,7 @@ const FR = /[éèêàùçôîâœ]|\b(le|la|les|des|du|et|pour|avec|ton|ta|tes|v
     ['team', async () => { await clickSel('[data-tab="communaute"], .bottom-nav button:nth-child(3)'); await clickText('Team'); await clickText('Team Piste'); }],
     ['settings', async () => { await clickSel('#settings-toggle'); }],
     ['profile', async () => { await clickSel('#profile-toggle'); }],
-    ['notifications', async () => { await clickSel('#notifications-toggle'); }],
+    ['notifications', async () => { await clickSel('#messages-toggle'); await clickSel('[data-action="open-notifs"]'); }],
     ['calendar', async () => { await clickSel('.subnav-btn[data-view="carnet"]'); await clickSel('.pill-btn[data-view="event"]'); await clickSel('[data-pill-group="events"][data-pill="calendrier"]'); }],
     ['budget', async () => { await clickSel('.bottom-nav-btn[data-view^="carnet"]'); await clickSel('.subnav-btn[data-view="stats"]'); await clickSel('[data-pill-group="moi"][data-pill="budget"]'); const ys = await p.$$('[data-budget-season]'); for (const y of ys) { try { await y.click(); await p.waitForTimeout(300); await harvest('budget season'); await p.$$eval('details', d => d.forEach(x => x.open = true)); await p.$$eval('[data-budget-act="add-line"]', b => b.slice(0, 2).forEach(x => x.click())); await p.waitForTimeout(300); await harvest('budget details'); } catch (e) {} } }],
     ['budget past outing', async () => { await clickSel('.bottom-nav-btn[data-view^="carnet"]'); await clickSel('.subnav-btn[data-view="carnet"]'); await clickText('Mugello'); }],
