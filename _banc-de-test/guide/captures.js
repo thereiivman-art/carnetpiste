@@ -23,23 +23,19 @@ async function captures(base, dir, lang) {
   }
   // Ma journée, session par session (roulage passé)
   await go();
-  await p.getByText('Mugello').first().click(); await p.waitForTimeout(900);
+  await p.click('.pill-btn[data-cards-mode="passees"]').catch(() => {}); await p.waitForTimeout(400);
+  await p.locator('[data-open-outing="Mugello"]').first().click(); await p.waitForTimeout(900);
   await shot('journee', '.day-prog-chart', 150);
   // Le jour J : l'onglet Chrono (Alex roule aujourd'hui)
   await go('&jourj=1');
   await p.click('.bottom-nav-btn.bottom-nav-main'); await p.waitForTimeout(800);
   await shot('prochain');
-  // Podium entre potes (Carnet › Stats › Podium)
+  // Podium Amis (Carnet › Bilan)
   await go();
   await p.click('.subnav-btn[data-view="stats"]'); await p.waitForTimeout(500);
-  await p.click('[data-pill-group="stats"][data-pill="podium"]'); await p.waitForTimeout(600);
-  await shot('potes', '.podium-head', 140);
-  // Trophées
-  await go();
-  await p.click('.subnav-btn[data-view="stats"]'); await p.waitForTimeout(500);
-  await p.click('[data-pill-group="stats"][data-pill="trophees"]'); await p.waitForTimeout(500);
-  await shot('records');
-  await p.click('[data-pill-group="stats"][data-pill="records"]'); await p.waitForTimeout(300);
+  await shot('potes', '#moi-podium .podium-head', 140);
+  // Records (Carnet › Bilan)
+  await shot('records', '#moi-records', 90);
   // Mes pressions (deux relevés notés par le pilote)
   await p.click('.bottom-nav-btn.bottom-nav-main'); await p.waitForTimeout(400); await p.click('#root [data-view="planning"]'); await p.waitForTimeout(500); await p.click('[data-cpill-group="planning"][data-cpill="prepa"]'); await p.waitForTimeout(300); await p.click('[data-cpill-group="prepsub"][data-cpill="moto"]'); await p.waitForTimeout(300);
   for (const [c, fc, rc, cond] of [['Barcelone', '2,1', '1,8', lang === 'fr' ? 'Soleil' : 'Sunny'], ['Mugello', '2,2', '1,9', lang === 'fr' ? 'Couvert' : 'Overcast']]) {
@@ -52,12 +48,11 @@ async function captures(base, dir, lang) {
   // Budget : calendrier d'un Team importé, quelques roulages gardés
   await go('&admin=1');
   await p.click('#settings-toggle'); await p.waitForTimeout(300);
-  await p.getByText(lang === 'fr' ? 'Aide' : 'Help', { exact: true }).first().click(); await p.waitForTimeout(300);
-  await p.click('[data-pill-group="aide"][data-pill="admin"]'); await p.waitForTimeout(500);
+  await p.click('[data-settings-go="@admin"]'); await p.waitForTimeout(500);
   await p.click('[data-action="evimp-check"]'); await p.waitForTimeout(300);
   await p.click('[data-action="evimp-go"]'); await p.waitForTimeout(800);
   await p.click('.bottom-nav-btn[data-view^="carnet"]'); await p.waitForTimeout(500);
-  await p.click('.subnav-btn[data-view="stats"]'); await p.waitForTimeout(400); await p.click('[data-pill-group="stats"][data-pill="budget"]'); await p.waitForTimeout(500);
+  await p.click('.subnav-btn[data-view="stats"]'); await p.waitForTimeout(400); await p.click('[data-pill-group="moi"][data-pill="budget"]'); await p.waitForTimeout(500);
   await p.click('[data-budget-season="2027"]'); await p.waitForTimeout(400);
   await p.click('[data-pill-group="budget"][data-pill="others"]'); await p.waitForTimeout(300);
   const ids = await p.$$eval('.budget-row', rs => rs.map(r => [r.getAttribute('data-row'), r.querySelector('strong').textContent]));

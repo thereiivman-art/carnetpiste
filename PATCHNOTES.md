@@ -2,6 +2,13 @@
 
 Les nouveautés, de la plus récente à la plus ancienne. Le détail complet est dans l'historique git.
 
+## 6 novembre 2026 · retours Xav (nuit)
+
+- Posts : réaction cœur, comme en story (le J'aime d'une story s'affiche bien sur le post).
+- Team suivie : un seul bouton « Abonné » (plus de « Ne plus suivre » ni d'étiquette en double) ; posts à découvrir sans bouton « Abonné » si tu suis déjà.
+- Roulages à venir : le prix quand il est connu, à la place de l'orga.
+- Guides FR et EN à jour (nom Pitbook, podium Amis / Tous les membres, teams).
+
 ## 6 novembre 2026 · retours Xav (fin de soirée)
 
 - À venir › Autres roulages : l'organisateur est indiqué.

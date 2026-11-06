@@ -10977,6 +10977,11 @@
     return '<div class="help-text event-price-line">' + txt +
       ' · <button type="button" class="link-btn inline-link" data-action="outing-budget" data-id="' + escapeHtml(ev.id) + '">' + L('Détail des dépenses', 'Spending details') + '</button></div>';
   }
+  // Prix court pour une ligne de liste (« ~419 € », « 119 €/jour »), vide si inconnu.
+  function eventPriceShort(ev) {
+    var info = eventPriceInfo(ev);
+    return info ? formatEuros(info.amount, info.approx) + (info.perDay ? L('/jour', '/day') : '') : '';
+  }
   function eventPriceLine(ev) {
     var info = eventPriceInfo(ev);
     if (!info) return '';
@@ -12374,7 +12379,7 @@
         var grp = riderGroupFor(ev, currentUserProfile.name, ev.dateStart, 'matin') || riderGroupFor(ev, currentUserProfile.name, ev.dateStart, 'apres-midi') || '';
         html += '<button type="button" class="outing-row" data-open-outing="' + escapeHtml(ev.circuit) + '" data-outing-date="' + escapeHtml(ev.dateStart) + '" data-outing-event="' + escapeHtml(ev.id) + '">' +
           '<span class="outing-thumb">' + circuitThumbHtml(ev.circuit) + '</span>' +
-          '<span class="outing-row-main"><strong>' + escapeHtml(ev.circuit) + '</strong><span class="help-text">' + escapeHtml(formatEventRange(ev, true)) + (grp ? ' · ' + groupChip(grp) : '') + '</span></span>' +
+          '<span class="outing-row-main"><strong>' + escapeHtml(ev.circuit) + '</strong><span class="help-text">' + escapeHtml(formatEventRange(ev, true) + (eventPriceShort(ev) ? ' · ' + eventPriceShort(ev) : '')) + (grp ? ' · ' + groupChip(grp) : '') + '</span></span>' +
           // À venir : juste le décompte (J-x), comme partout ailleurs.
           '<span class="outing-row-right"><span class="carnet-time">' + countdownLabel(Math.max(0, Math.round((parseLocalDate(ev.dateStart) - parseLocalDate(dateKey(new Date()))) / 86400000))) + '</span></span></button>';
       });
@@ -12383,7 +12388,7 @@
       var others = eventsList().filter(function (ev) {
         return (ev.riders || []).indexOf(meN) === -1 && (ev.dateEnd || ev.dateStart) >= todayK && isMyEventForList(ev);
       }).sort(function (a, b) { return a.dateStart < b.dateStart ? -1 : 1; });
-      if (others.length) html += '<h3 class="carnet-others-title">' + L('Autres roulages', 'Other trackdays') + '</h3>' + others.map(function (ev) { var o = eventOrgName(ev); return renderEventRow(ev, o ? { extraMeta: L('Orga : ', 'Organiser: ') + o } : {}); }).join('');
+      if (others.length) html += '<h3 class="carnet-others-title">' + L('Autres roulages', 'Other trackdays') + '</h3>' + others.map(function (ev) { var pr = eventPriceShort(ev); return renderEventRow(ev, pr ? { extraMeta: pr } : {}); }).join('');
     } else if (outings.length) {
       html += renderPastByCircuit(outings);
     } else {
@@ -12579,7 +12584,7 @@
     var html = renderPills('compcarnet', [['avenir', L('À venir', 'Upcoming') + (upcoming.length ? ' (' + upcoming.length + ')' : '')], ['passes', L('Passés', 'Past') + (past.length ? ' (' + past.length + ')' : '')]]) + (extraTop || '') + '<h2 class="section-title comp-carnet-title">' + L('Roulages de mes amis', 'My friends\' trackdays') + '</h2>';
     var othersHtml = others.length ? '<h2 class="section-title feed-section-title">' + L('Autres roulages à venir', 'Other upcoming trackdays') + '</h2><div class="card outings-card">' + others.map(function (ev) {
       return '<div class="outing-row comp-other-row"><button type="button" class="comp-other-open" data-open-outing="' + escapeHtml(ev.circuit) + '" data-outing-date="' + escapeHtml(ev.dateStart) + '" data-outing-event="' + escapeHtml(ev.id) + '"><span class="outing-thumb">' + circuitThumbHtml(ev.circuit) + '</span>' +
-        '<span class="outing-row-main"><strong>' + escapeHtml(ev.circuit) + '</strong><span class="help-text">' + escapeHtml(formatEventRange(ev, true) + (eventOrgName(ev) ? ' · ' + L('Orga : ', 'Organiser: ') + eventOrgName(ev) : '')) + '</span></span></button>' +
+        '<span class="outing-row-main"><strong>' + escapeHtml(ev.circuit) + '</strong><span class="help-text">' + escapeHtml(formatEventRange(ev, true) + (eventPriceShort(ev) ? ' · ' + eventPriceShort(ev) : '')) + '</span></span></button>' +
         '<button type="button" class="ghost" data-notif-go="event" data-id="' + escapeHtml(ev.id) + '" data-join="1">' + L('J\'y vais', 'I\'m going') + '</button></div>';
     }).join('') + '</div><div class="help-text carnet-add-help">' + L('« J\'y vais » te montre à tes amis sur ce roulage, sans t\'inscrire chez l\'organisateur.', '“I\'m going” shows your friends you\'ll be there, without registering with the organiser.') + '</div>' : '';
     if (pillState.compcarnet === 'avenir') html += avenirModeRow();
@@ -20465,7 +20470,7 @@
   // whichever one I had left.
   // Réactions : un emoji au choix (un par personne, retoucher le même
   // l'enlève). Le bouton « Réagir » ouvre la palette.
-  var REACTION_EMOJIS = ['👍', '🔥', '🏁', '👏', '😂', '😮', '😢'];
+  var REACTION_EMOJIS = ['❤️', '👍', '🔥', '🏁', '👏', '😂', '😮', '😢'];
   function renderReactionBar(reactions, dataAction, id) {
     reactions = reactions || {};
     var mine = currentUserProfile ? reactions[currentUserProfile.name] : null;
@@ -22549,7 +22554,7 @@
     }
     var html = '<div class="wall-post">';
     html += '<div class="wall-post-head">' + avatarHtml(u, p.author) +
-      personLinkHtml(p.author) + badgesHtml(u) + (showFollow ? followBtnHtml(p.author, true) : '') +
+      personLinkHtml(p.author) + badgesHtml(u) + (showFollow && !iFollow(p.author) ? followBtnHtml(p.author, true) : '') +
       // Friends-only is the default: only flag the wider audiences.
       // Mon post : un appui change qui le voit (Public / Amis).
       (canEdit && !p.story ? '<button type="button" class="post-aud-btn" data-action="post-audience" data-id="' + escapeHtml(p.id) + '" title="' + escapeHtml(L('Changer qui voit ce post', 'Change who sees this post')) + '">' + escapeHtml(postAudienceName(postAudienceKey(p))) + ' ▾</button>'
@@ -23951,7 +23956,10 @@
       // Same row as in Roulages; it opens the roulage's page, where the
       // Team Leader finds « Gérer le roulage ».
       var extra = [];
-      if (!isOwn) { var orgN = eventOrgName(ev); extra.push((orgN ? L('Orga : ', 'Organiser: ') + orgN + ' · ' : '') + meta.join(', ')); }
+      var upcomingRow = eventTemporalStatus(ev, todayKey) !== 'past';
+      // À venir : le prix s'il est connu ; passé : l'orga.
+      if (!isOwn) { var orgN = upcomingRow ? '' : eventOrgName(ev); extra.push((orgN ? L('Orga : ', 'Organiser: ') + orgN + ' · ' : '') + meta.join(', ')); }
+      if (upcomingRow && eventPriceShort(ev)) extra.push(eventPriceShort(ev));
       else if (reqs.length) extra.push(meta[1]);
       if (likesHtml) extra.push(tr('bravo_btn') + ' · ' + Object.keys(ev.reactions || {}).length);
       return renderEventRow(ev, { extraMeta: extra.join(' · ') });
@@ -24206,13 +24214,13 @@
       : !isMember && !isLeader && (STATE.myFollowedTeams || []).indexOf(team.id) !== -1
       ? '<button type="button" class="ghost" data-action="unfollow-team" data-team="' + escapeHtml(team.id) + '">' + tr('unfollow') + '</button>' : '';
     // Un seul bouton pour modifier le team : l'engrenage (leaders seulement).
+    // « Abonné » est déjà dans les actions du team (le toucher = ne plus suivre).
     var lookBtn = '';
-    lookBtn += unfollowBtn;
 
     headHtml = headHtml.replace('%%TEAM_GEAR%%', gearBtn.replace('class="team-gear', 'class="team-gear team-gear-inline'));
     headHtml = headHtml.replace('%%TEAM_ACTIONS%%', teamActionsHtml(team, me, isMember || !!myRoleInTeam(team.id)).replace(/<\/div>$/, lookBtn + '</div>'));
     if (tLook) {
-      var roleLabelTxt = isLeader ? tr('team_leader_label') : (isMember ? tr('member_label') : tr('follower_label'));
+      var roleLabelTxt = isLeader ? tr('team_leader_label') : (isMember ? tr('member_label') : '');
       var actsInner = teamActionsHtml(team, me, isMember || !!myRoleInTeam(team.id)).replace(/^<div class="outing-actions team-actions">|<\/div>$/g, '');
       headHtml = renderTeamHero(team, tLook, me, gearBtn + lookBtn + actsInner, roleLabelTxt) + (editing ? renderLookEditor(me, [], team) : '');
       headClosed = true;

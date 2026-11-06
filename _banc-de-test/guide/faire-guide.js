@@ -33,35 +33,35 @@ const svg = (k, cls) => '<svg class="' + (cls || 'ico') + '" viewBox="0 0 24 24"
 const Y = { y: true }, N = { n: true };
 const TXT = {
   fr: {
-    appName: 'Carnet Piste',
+    appName: 'Pitbook',
     kicker: 'Le carnet de bord du pilote amateur',
-    lead: 'Tes chronos, ta progression, tes potes, ta moto (ou ta voiture) et ton budget, au même endroit. Même au paddock, sans réseau.',
+    lead: 'Tes chronos, ta progression, tes amis, ta moto (ou ta voiture) et ton budget, au même endroit. Même au paddock, sans réseau.',
     kpis: [['1 photo', 'de ta feuille de temps, et tes tours sont lus'], ['0 boîtier', 'à acheter : les chronos de l\'orga suffisent'], ['Hors ligne', 'tout marche au paddock, même sans réseau']],
     gainsH: 'Ce que tu y gagnes',
     gains: [
       ['trend', 'Tu vois tes progrès', 'Ton record sur chaque circuit, et ce que tu gagnes session après session.'],
-      ['podium', 'Tu te mesures à tes potes', 'Le podium entre potes sur chaque circuit, après chaque roulage.'],
+      ['podium', 'Tu te mesures à tes amis', 'Le podium entre amis sur chaque circuit, après chaque roulage.'],
       ['clock', 'Tu es prêt le jour J', 'Ton groupe et tes horaires en grand, le compte à rebours, ta checklist.'],
       ['wrench', 'Tu connais ta machine', 'Moto ou voiture : tes réglages, tes pressions et tes pneus, notés par toi, liés à chaque session.'],
       ['euro', 'Tu tiens ton budget', 'Le prix des roulages, tes frais, et le total de ta saison.'],
       ['star', 'Tu gardes tes souvenirs', 'Tes saisons, tes trophées, et des stories à partager.']
     ],
-    whyH: 'Pourquoi Carnet Piste plutôt qu\'une autre appli ?',
-    whyLead: 'Un pistard amateur jongle souvent entre un tableur, un groupe de discussion et une appli de chrono. Carnet Piste réunit ce qui compte pour progresser d\'un roulage à l\'autre.',
-    cols: ['Tableur ou carnet', 'Groupe de discussion', 'Appli de chrono GPS', 'Carnet Piste'],
+    whyH: 'Pourquoi Pitbook plutôt qu\'une autre appli ?',
+    whyLead: 'Un pistard amateur jongle souvent entre un tableur, un groupe de discussion et une appli de chrono. Pitbook réunit ce qui compte pour progresser d\'un roulage à l\'autre.',
+    cols: ['Tableur ou carnet', 'Groupe de discussion', 'Appli de chrono GPS', 'Pitbook'],
     rows: [
       ['Tes chronos, sans matériel', 'à recopier', 'photos en vrac', 'téléphone ou boîtier sur la moto', { y: true, t: 'une photo de la feuille de temps' }],
       ['Ta progression par circuit', 'si tu fais les formules', N, Y, Y],
-      ['Le classement entre potes', N, 'à faire à la main', 'selon l\'appli', Y],
+      ['Le classement entre amis', N, 'à faire à la main', 'selon l\'appli', Y],
       ['Ton groupe et tes horaires du jour', N, 'messages à retrouver', N, Y],
       ['Réglages, pressions, pneus', 'à la main', N, 'selon l\'appli', { y: true, t: 'liés à chaque session' }],
       ['Le budget de ta saison', 'à la main', N, N, Y]
     ],
-    tableNote: 'Une appli de chrono GPS donne tes trajectoires et tes secteurs : Carnet Piste ne la remplace pas, il garde tout le reste au même endroit.',
-    notH: 'Ce que Carnet Piste ne fait pas',
-    not: ['Pas d\'inscription ni de paiement : ça reste chez l\'organisateur.', 'Pas de chrono officiel : Carnet Piste lit celui de l\'orga.', 'Aucun conseil de réglage ni de pression : tu notes tes valeurs, c\'est tout.', 'Tes réglages, tes pressions et ton budget restent privés : visibles par toi seul.'],
+    tableNote: 'Une appli de chrono GPS donne tes trajectoires et tes secteurs : Pitbook ne la remplace pas, il garde tout le reste au même endroit.',
+    notH: 'Ce que Pitbook ne fait pas',
+    not: ['Pas d\'inscription ni de paiement : ça reste chez l\'organisateur.', 'Pas de chrono officiel : Pitbook lit celui de l\'orga.', 'Aucun conseil de réglage ni de pression : tu notes tes valeurs, c\'est tout.', 'Tes réglages, tes pressions et ton budget : ces données sont privées.'],
     pcK: 'Aussi sur ordinateur',
-    pcLead: 'Le même lien, le même compte : sur un PC ou un Mac, Carnet Piste s\'ouvre en grand, comme un réseau social de bureau.',
+    pcLead: 'Le même lien, le même compte : sur un PC ou un Mac, Pitbook s\'ouvre en grand, comme un réseau social de bureau.',
     pcList: ['Tout le menu à gauche : Carnet, Chrono, Communauté, Mon compte, Notifications.', 'Une colonne de lecture au centre, sans boutons étirés sur tout l\'écran.', 'À droite : ta fiche, ton prochain roulage avec le décompte, des pilotes à suivre.', 'Pratique pour importer les captures de la saison, faire ton budget ou préparer un roulage.'],
     tryH: 'Essaie-le',
     tryP: 'Ouvre ce lien sur ton téléphone ou ton ordinateur :',
@@ -69,16 +69,16 @@ const TXT = {
     proto: 'C\'est un prototype : dis-moi ce qui t\'aide et ce qui manque.',
     detailK: 'En détail',
     detail: [
-      ['journee', 'Ta journée, session par session', 'Après le roulage, prends en photo la feuille de temps : Carnet Piste lit tes tours.', ['Ton meilleur temps et ce que tu as gagné d\'une session à l\'autre.', 'Ce que tu avais changé sur la moto entre deux sessions.', 'Une capture d\'écran, le PDF de l\'orga, ou plusieurs captures d\'un coup, même en colonnes par jour.']],
+      ['journee', 'Ta journée, session par session', 'Après le roulage, prends en photo la feuille de temps : Pitbook lit tes tours.', ['Ton meilleur temps et ce que tu as gagné d\'une session à l\'autre.', 'Ce que tu avais changé sur la moto entre deux sessions.', 'Une capture d\'écran, le PDF de l\'orga, ou plusieurs captures d\'un coup, même en colonnes par jour.']],
       ['prochain', 'Le jour J', 'Le matin du roulage, l\'appli s\'ouvre sur l\'essentiel.', ['Ton groupe, tes horaires et un compte à rebours.', 'Horaires manquants ? Une photo du planning du paddock suffit.', 'Le roulage dans ton agenda, en un geste.']],
-      ['potes', 'Entre potes', 'Chaque roulage se termine par un récap partagé avec tes amis.', ['Le podium entre potes sur chaque circuit, prêt à partager.', 'Tes accompagnants suivent tes roulages et peuvent saisir tes chronos.', 'Les albums photos de chacun, réunis sur le roulage.']],
-      ['pressions', 'Ta moto', 'Tout ce que tu notes sur ta moto, retrouvé au bon moment.', ['Tes réglages après chaque session, et ceux de ton record.', 'Tes pressions AV et AR, circuit par circuit.', 'Les sessions et les km faits sur chaque train de pneus.', 'Carnet Piste ne propose aucune valeur : ce sont les tiennes.']],
+      ['potes', 'Entre amis', 'Chaque roulage se termine par un récap partagé avec tes amis.', ['Le podium Amis sur chaque circuit, et Tous les membres avec les chronos validés par l\'orga.', 'Ta team : ses roulages rangés par circuit, l\'orga indiqué, et l\'invitation par message.', 'Tes accompagnants suivent tes roulages ; les albums photos de chacun, réunis sur le roulage.']],
+      ['pressions', 'Ta moto', 'Tout ce que tu notes sur ta moto, retrouvé au bon moment.', ['Tes réglages après chaque session, et ceux de ton record.', 'Tes pressions AV et AR, circuit par circuit.', 'Les sessions et les km faits sur chaque train de pneus.', 'Pitbook ne propose aucune valeur : ce sont les tiennes.']],
       ['budget', 'Ton budget', 'Ce que te coûte ta saison, sans tableur.', ['Le prix annoncé par l\'orga est repris tout seul.', 'Tes frais (déplacement, hôtel, pneus) et tes propres lignes.', 'Le total de la saison, ce qui est payé et ce qui reste.']],
-      ['records', 'Tes records et ta saison', 'Ta progression, chiffrée, roulage après roulage.', ['Ton record sur chaque circuit, et l\'écart avec tes potes.', 'Ton chrono estimé sur un circuit où tu n\'as jamais roulé.', 'Des trophées qui se débloquent au fil des roulages.']]
+      ['records', 'Tes records et ta saison', 'Ta progression, chiffrée, roulage après roulage.', ['Ton record sur chaque circuit, et l\'écart avec tes amis.', 'Ton chrono estimé sur un circuit où tu n\'as jamais roulé.', 'Des trophées qui se débloquent au fil des roulages.']]
     ],
-    startH: 'Ton premier roulage avec Carnet Piste',
-    start: [['Avant', 'Installe l\'appli, ouvre-la une minute avec du réseau et ajoute ton prochain roulage.'], ['Le matin', 'L\'écran du jour J affiche ton groupe et tes horaires.'], ['Après tes sessions', 'Prends en photo la feuille de temps, et note tes réglages.'], ['Le soir', 'Ta journée session par session, puis le podium des potes.']],
-    foot: 'Carnet Piste · prototype'
+    startH: 'Ton premier roulage avec Pitbook',
+    start: [['Avant', 'Installe l\'appli, ouvre-la une minute avec du réseau et ajoute ton prochain roulage.'], ['Le matin', 'L\'écran du jour J affiche ton groupe et tes horaires.'], ['Après tes sessions', 'Prends en photo la feuille de temps, et note tes réglages.'], ['Le soir', 'Ta journée session par session, puis le podium des amis.']],
+    foot: 'Pitbook · prototype'
   },
   en: {
     appName: 'Pitbook',
@@ -107,7 +107,7 @@ const TXT = {
     ],
     tableNote: 'A GPS lap-timer gives you your lines and sectors: Pitbook doesn\'t replace it, it keeps everything else in one place.',
     notH: 'What Pitbook doesn\'t do',
-    not: ['No booking or payment: that stays with the organiser.', 'No official timing: Pitbook reads the organiser\'s.', 'No setup or pressure advice: you log your values, that\'s all.', 'Your setup, pressures and budget stay private: visible to you only.'],
+    not: ['No booking or payment: that stays with the organiser.', 'No official timing: Pitbook reads the organiser\'s.', 'No setup or pressure advice: you log your values, that\'s all.', 'Your setup, pressures and budget: this data is private.'],
     pcK: 'Also on your computer',
     pcLead: 'Same link, same account: on a PC or a Mac, Pitbook opens full size, like a desktop social network.',
     pcList: ['The whole menu on the left: Pitbook, Lap times, Community, My account, Notifications.', 'A reading column in the middle, no buttons stretched across the screen.', 'On the right: your profile, your next trackday with its countdown, riders to follow.', 'Handy to import a season of screenshots, do your budget or prepare a trackday.'],
@@ -119,7 +119,7 @@ const TXT = {
     detail: [
       ['journee', 'Your day, session by session', 'After the trackday, take a photo of the timesheet: Pitbook reads your laps.', ['Your best time and what you gained from one session to the next.', 'What you changed on the bike between two sessions.', 'A screenshot, the organiser\'s PDF, or several screenshots at once, even with one column per day.']],
       ['prochain', 'Race day', 'On the morning of the trackday, the app opens on what matters.', ['Your group, your schedule and a countdown.', 'Schedule missing? A photo of the paddock board is enough.', 'The trackday in your calendar, in one tap.']],
-      ['potes', 'With your friends', 'Every trackday ends with a recap shared with your friends.', ['The friends\' podium on every circuit, ready to share.', 'Your companions follow your trackdays and can log your lap times.', 'Everyone\'s photo albums, gathered on the trackday.']],
+      ['potes', 'With your friends', 'Every trackday ends with a recap shared with your friends.', ['The Friends podium on every circuit, and All members with laps verified by the organiser.', 'Your team: its trackdays sorted by circuit, the organiser shown, and invitations by message.', 'Your companions follow your trackdays; everyone\'s photo albums, gathered on the trackday.']],
       ['pressions', 'Your bike', 'Everything you note about your bike, found at the right time.', ['Your setup after each session, and the one from your record.', 'Your front and rear pressures, circuit by circuit.', 'Sessions and km done on each set of tyres.', 'Pitbook suggests no value: they are yours.']],
       ['budget', 'Your budget', 'What your season costs, without a spreadsheet.', ['The organiser\'s announced price is picked up for you.', 'Your costs (travel, hotel, tyres) and your own lines.', 'The season total, what\'s paid and what\'s left.']],
       ['records', 'Your records and your season', 'Your progress, in numbers, trackday after trackday.', ['Your record on every circuit, and the gap to your friends.', 'Your estimated lap time on a circuit you\'ve never ridden.', 'Trophies that unlock as you ride.']]
