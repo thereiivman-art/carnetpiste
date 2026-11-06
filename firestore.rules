@@ -474,6 +474,21 @@ service cloud.firestore {
       ));
       allow delete: if isAdmin();
     }
+    // Dessins des plans, un document par compte, circuit et niveau (id :
+    // uid__circuit__niveau). Visibles par tous, par la liste d'amis choisie
+    // (visibleTo) ou par leur auteur seul.
+    match /circuitDrawings/{id} {
+      allow read: if verified() && (resource.data.uid == request.auth.uid || resource.data.visibility == 'public'
+        || (resource.data.visibility == 'friends' && request.auth.uid in resource.data.get('visibleTo', [])));
+      allow create, update: if verified() && id.matches(request.auth.uid + '__.+')
+        && request.resource.data.keys().hasOnly(['circuit', 'name', 'uid', 'level', 'drawing', 'base', 'objects', 'visibility', 'visibleTo', 'updatedAt'])
+        && request.resource.data.uid == request.auth.uid && request.resource.data.name == myName()
+        && request.resource.data.level in ['plan', 'outline']
+        && request.resource.data.visibility in ['public', 'friends', 'private']
+        && request.resource.data.visibleTo is list && request.resource.data.visibleTo.size() <= 300
+        && request.resource.data.circuit is string && request.resource.data.circuit.size() <= 100;
+      allow delete: if verified() && resource.data.uid == request.auth.uid;
+    }
     // A shared roster, not privately owned data -- create/update were
     // already open to any verified account (so a new account can rebuild
     // years of history under whatever name it actually rode under).

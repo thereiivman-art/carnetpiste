@@ -126,6 +126,10 @@ Depuis novembre 2026, il n'y a plus de demande d'ami. On **suit** quelqu'un, et 
 
 Les repères restent privés (`userPrivate`). Pour la carte de chaleur, chaque compte publie seulement les cases occupées par ses repères (grille 24 × 24, sans texte) dans `trackHeat/{uid}__{circuit}` (`publishTrackHeat`). La carte s'affiche à partir de 3 pilotes et une case s'allume si 2 pilotes y ont un repère (`heatLayerHtml`). Partage désactivable sur l'appareil.
 
+## Dessins des plans
+
+Chaque dessin est un document `circuitDrawings/{uid}__{circuit}__{niveau}` (niveau `plan` ou `outline`), avec sa visibilité (`public`, `friends` + `visibleTo`, `private`). Ils ne se chargent qu'à l'ouverture du plan d'un circuit (`ensureDrawings`) et sont fusionnés en mémoire dans `circuitInfo`. Les anciens dessins restés dans les fiches `circuits` migrent à la connexion de leur auteur (`migrateMyDrawings`). Exception : le contour d'un circuit perso reste dans sa fiche, car c'est son tracé.
+
 ## Tester
 
 ```

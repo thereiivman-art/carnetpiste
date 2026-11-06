@@ -8,6 +8,9 @@ Les nouveautés, de la plus récente à la plus ancienne. Le détail complet est
 - Les photos déjà enregistrées (la mienne, ma bannière, celles de mes teams) s'allègent toutes seules à la connexion.
 - Moins de données rechargées à chaque ouverture : 90 dernières publications par flux, 600 réactions, 300 commentaires, 1 500 abonnements.
 - Admin : carte « Données chargées à l'ouverture » (documents lus et poids, par collection).
+- Dessins des plans rangés à part : chargés seulement quand on ouvre le plan d'un circuit (avant, tout le monde téléchargeait les dessins de tout le monde à chaque ouverture). Les anciens dessins migrent tout seuls.
+- Dessin : choix de qui le voit (Public, Amis, Moi seul).
+- Fiche : « Voir plus » charge les publications plus anciennes.
 
 ## 7 novembre 2026
 

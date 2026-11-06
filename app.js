@@ -8088,11 +8088,86 @@
 
   // ---- Circuit info (km, virages, prochaine sortie) + visuel annotable ----
 
+  // ---- Dessins des plans : rangés à part (circuitDrawings), plus dans la
+  // fiche du circuit que tout le monde charge à chaque ouverture. Chargés
+  // seulement quand on ouvre le plan d'un circuit ; visibles par tous, par
+  // mes amis ou par moi seul. Les anciens dessins migrent tout seuls.
+  var DRAW_FIELDS = { plan: ['drawings', 'drawingsBase', 'drawingObjects'], outline: ['outlineDrawings', 'outlineDrawingsBase', 'outlineDrawingObjects'] };
+  var drawingCache = {}; // circuit -> { loaded, fields..., vis: { level: visibility } }
+  function mergeDrawingCache(name, info) {
+    var c = drawingCache[name];
+    if (!c) return info;
+    DRAW_FIELDS.plan.concat(DRAW_FIELDS.outline).forEach(function (f) { if (c[f]) info[f] = Object.assign({}, info[f] || {}, c[f]); });
+    return info;
+  }
+  function drawingDocId(circuit, level) { return myUid() + '__' + circuitKey(circuit).replace(/[^a-z0-9-]/gi, '-').slice(0, 60) + '__' + level; }
+  function putDrawingInCache(circuit, d) {
+    var c = drawingCache[circuit] || (drawingCache[circuit] = { vis: {} });
+    var f = DRAW_FIELDS[d.level === 'outline' ? 'outline' : 'plan'];
+    c[f[0]] = c[f[0]] || {}; c[f[1]] = c[f[1]] || {}; c[f[2]] = c[f[2]] || {};
+    c[f[0]][d.name] = d.drawing || null; c[f[1]][d.name] = d.base || null; c[f[2]][d.name] = d.objects || [];
+    if (d.uid === myUid()) c.vis[d.level] = d.visibility || 'public';
+  }
+  function ensureDrawings(circuit, onDone) {
+    if (!circuit || !auth.currentUser) return;
+    var c = drawingCache[circuit] || (drawingCache[circuit] = { vis: {} });
+    if (c.loaded || c.loading) { if (c.loaded && onDone) onDone(); return; }
+    c.loading = true;
+    var col = db.collection('circuitDrawings');
+    // Trois requêtes (les règles ne laissent lire que ce qui m'est permis).
+    Promise.all([
+      col.where('circuit', '==', circuit).where('visibility', '==', 'public').get(),
+      col.where('circuit', '==', circuit).where('uid', '==', myUid()).get(),
+      col.where('circuit', '==', circuit).where('visibleTo', 'array-contains', myUid()).get()
+    ].map(function (q) { return q.catch(function () { return { forEach: function () {} }; }); })).then(function (snaps) {
+      snaps.forEach(function (snap) { snap.forEach(function (d) { putDrawingInCache(circuit, d.data()); }); });
+      c.loaded = true; c.loading = false;
+      if (onDone) onDone();
+    });
+  }
+  function myDrawingVisibility(circuit, level) { var c = drawingCache[circuit]; return (c && c.vis && c.vis[level]) || 'public'; }
+  function saveDrawingDoc(circuit, level, drawing, base, objects, visibility) {
+    var me = currentUserProfile; if (!me) return Promise.resolve();
+    var vis = visibility || myDrawingVisibility(circuit, level);
+    var friendsUids = vis === 'friends' ? friendsOf(me.name).map(function (f) { return uidOf(f.name); }).filter(Boolean) : [];
+    var doc = { circuit: circuit, name: me.name, uid: myUid(), level: level, drawing: drawing || null, base: base || null, objects: objects || [], visibility: vis, visibleTo: friendsUids.slice(0, 300), updatedAt: Date.now() };
+    putDrawingInCache(circuit, doc);
+    return db.collection('circuitDrawings').doc(drawingDocId(circuit, level)).set(doc).then(function () {
+      // L'ancienne copie dans la fiche du circuit est retirée.
+      var stored = (STATE.circuits || {})[circuit] || {}, f = DRAW_FIELDS[level], upd = {}, any = false;
+      f.forEach(function (k) { if (stored[k] && stored[k][me.name] !== undefined) { any = true; delete stored[k][me.name]; } });
+      if (!any) return;
+      var FP = firebase.firestore.FieldPath, FV = firebase.firestore.FieldValue, ref = db.collection('circuits').doc(safeDocId(circuit));
+      if (typeof FP === 'function') {
+        var args = []; f.forEach(function (k) { args.push(new FP(k, me.name), FV.delete()); });
+        return ref.update.apply(ref, args).catch(function () {});
+      }
+      var obj = {}; f.forEach(function (k) { obj[k + '.' + me.name] = FV.delete(); });
+      return ref.update(obj).catch(function () {});
+    });
+  }
+  // Migration : mes anciens dessins (dans les fiches des circuits du
+  // référentiel) passent dans circuitDrawings, visibles par tous comme avant.
+  var drawingsMigrated = false;
+  function migrateMyDrawings() {
+    var me = currentUserProfile;
+    if (drawingsMigrated || !me || !STATE.circuits) return;
+    drawingsMigrated = true;
+    Object.keys(STATE.circuits).forEach(function (c) {
+      if (!builtinCircuit(c)) return; // circuit perso : son contour reste dans sa fiche (c'est son tracé)
+      var e = STATE.circuits[c] || {};
+      ['plan', 'outline'].forEach(function (level) {
+        var f = DRAW_FIELDS[level];
+        if (!(e[f[0]] && e[f[0]][me.name]) && !(e[f[2]] && e[f[2]][me.name])) return;
+        saveDrawingDoc(c, level, (e[f[0]] || {})[me.name], (e[f[1]] || {})[me.name], (e[f[2]] || {})[me.name], 'public');
+      });
+    });
+  }
   function circuitInfo(name) {
     STATE.circuits = STATE.circuits || {};
     var stored = STATE.circuits[name], b = builtinCircuit(name);
-    if (!b) { var st = Object.assign({}, stored || {}); if (st.mapImage && outlineImageFor(st, name)) delete st.mapImage; return st; }
-    var info = Object.assign({}, stored || {});
+    if (!b) { var st = mergeDrawingCache(name, Object.assign({}, stored || {})); if (st.mapImage && outlineImageFor(st, name)) delete st.mapImage; return st; }
+    var info = mergeDrawingCache(name, Object.assign({}, stored || {}));
     // Seulement les tracés : un plan général importé n'est plus utilisé
     // quand le circuit a son tracé (simplification).
     if (info.mapImage && outlineImageFor(info, name)) delete info.mapImage;
@@ -8943,6 +9018,7 @@
   window.addEventListener('resize', function () { fitPinLayers(); });
   function renderCircuitVisual(info, circuitName) {
     circuitName = circuitName || selectedCircuit;
+    if (circuitName && !(drawingCache[circuitName] && (drawingCache[circuitName].loaded || drawingCache[circuitName].loading))) ensureDrawings(circuitName);
     var base = info.mapImage || outlineImageFor(info, circuitName);
     var notes = myTrackNotes(circuitName);
     if (base) {
@@ -13154,6 +13230,8 @@
     annot.viewOnly = false;
     annot.viewOnlyName = null;
     renderAnnotationOverlay();
+    // Dessins (les miens et ceux qu'on me montre) chargés à la demande.
+    ensureDrawings(circuit, function () { if (annot.open && annot.circuit === circuit) renderAnnotationOverlay(); });
   }
 
   function closeDockedMaps() {
@@ -13336,10 +13414,15 @@
       html += '<button type="button" class="ghost icon-btn" id="annot-undo" aria-label="Annuler" title="Annuler la dernière action (Ctrl+Z)">' + svgUndo + '</button>';
       html += '<button type="button" class="ghost icon-btn" id="annot-redo" aria-label="Rétablir" title="Rétablir l\'action annulée (Ctrl+Maj+Z)">' + svgRedo + '</button>';
       html += '<button type="button" class="ghost icon-btn" id="annot-clear" aria-label="Tout effacer" title="Tout effacer">' + svgClear + '</button>';
+      if (builtinCircuit(annot.circuit)) {
+        var vNow = myDrawingVisibility(annot.circuit, annot.sessionId === ANNOT_OUTLINE_LEVEL ? 'outline' : 'plan');
+        html += '<select id="annot-visibility" class="annot-visibility" aria-label="' + escapeHtml(L('Qui voit ce dessin', 'Who sees this drawing')) + '" title="' + escapeHtml(L('Qui voit ce dessin', 'Who sees this drawing')) + '">' +
+          [['public', L('Public', 'Public')], ['friends', L('Amis', 'Friends')], ['private', L('Moi seul', 'Only me')]].map(function (o) { return '<option value="' + o[0] + '"' + (vNow === o[0] ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('') + '</select>';
+      }
       html += '<button type="button" class="primary annot-save-btn" id="annot-save">Enregistrer</button>';
     }
     html += '</div>';
-    var basemapSrc = isOutlineLevelId(annot.sessionId) ? outlineImageFor(info, annot.circuit) : info.mapImage;
+    var basemapSrc = isOutlineLevelId(annot.sessionId) ? outlineImageFor(info, annot.circuit) : (info.mapImage || outlineImageFor(info, annot.circuit));
     html += '<div class="annot-canvas-wrap' + (basemapSrc ? ' has-basemap' : '') + '" id="annot-canvas-wrap">';
     html += '<div class="annot-canvas-inner" id="annot-canvas-inner">';
     if (basemapSrc) html += '<img class="annot-basemap" src="' + basemapSrc + '" alt="">';
@@ -14137,6 +14220,19 @@
     // only ever holds *this* level's own strokes/text, never the frozen
     // legacy backdrop (that stays purely in drawingsBase, untouched).
     var objectsSnapshot = cloneAnnotObjects(annotObjects);
+    // Circuit du référentiel : le dessin va dans circuitDrawings (avec sa
+    // visibilité), plus dans la fiche du circuit.
+    if (currentUserProfile && builtinCircuit(annot.circuit) && (annot.sessionId === ANNOT_CIRCUIT_LEVEL || annot.sessionId === ANNOT_OUTLINE_LEVEL)) {
+      var lvl = annot.sessionId === ANNOT_OUTLINE_LEVEL ? 'outline' : 'plan', inf = circuitInfo(annot.circuit), ff = DRAW_FIELDS[lvl];
+      var baseNow = (inf[ff[1]] || {})[currentUserProfile.name];
+      if (baseNow === undefined) baseNow = (inf[ff[0]] || {})[currentUserProfile.name] || null;
+      var visSel = document.getElementById('annot-visibility');
+      saveDrawingDoc(annot.circuit, lvl, dataUrl, baseNow, objectsSnapshot, visSel ? visSel.value : null).then(function () {
+        showToast(tr('annotation_saved'), 'success');
+      }).catch(function (err) { showToast(tr('error_prefix') + ((err && err.message) || err)); });
+      renderAnnotationOverlay();
+      return;
+    }
     var prevState = JSON.parse(JSON.stringify(STATE));
     if (annot.sessionId === ANNOT_CIRCUIT_LEVEL) {
       if (!currentUserProfile) return;
@@ -20350,6 +20446,28 @@
         (mine ? '' : mineToo ? '<span class="feed-upcoming-tag">' + L('Tu y vas aussi', 'You\'re going too') + '</span>' : '<button type="button" class="ghost" data-notif-go="event" data-id="' + escapeHtml(ev.id) + '" data-join="1">' + L('J\'y vais aussi', 'I\'m going too') + '</button>') + '</div>';
     }).join('') + '</div>';
   }
+  // Publications plus anciennes que les dernières chargées à l'ouverture :
+  // « Voir plus » sur une fiche les charge (seulement celles que j'ai le
+  // droit de voir : publiques, partagées avec moi, ou les miennes).
+  var extraWallPosts = {}, morePostsDone = {};
+  function loadMorePosts(name) {
+    var uid = uidOf(name); if (!uid) return;
+    var col = db.collection('wallPosts'), qs = [];
+    if (uid === myUid()) qs.push(col.where('authorUid', '==', uid).limit(300));
+    else {
+      qs.push(col.where('authorUid', '==', uid).where('audience', 'in', ['all', 'followers']).limit(300));
+      qs.push(col.where('authorUid', '==', uid).where('visibleTo', 'array-contains', myUid()).limit(300));
+    }
+    Promise.all(qs.map(function (q) { return q.get().catch(function () { return { docs: [] }; }); })).then(function (snaps) {
+      var n0 = (STATE.wallPosts || []).length, have = {};
+      (STATE.wallPosts || []).forEach(function (x) { have[x.id] = 1; });
+      snaps.forEach(function (sn) { sn.docs.forEach(function (d) { if (!have[d.id]) { var x = Object.assign({ id: d.id }, d.data()); extraWallPosts[d.id] = x; STATE.wallPosts.push(x); have[d.id] = 1; } }); });
+      STATE.wallPosts.sort(function (a, b) { return (b.createdAt || 0) - (a.createdAt || 0); });
+      morePostsDone[name] = true;
+      if (STATE.wallPosts.length === n0) showToast(L('Pas d\'autre publication.', 'No other post.'));
+      renderRoot();
+    });
+  }
   // Profil › Mon fil : publier, puis mes publications et republications.
   var socialProfileCtx = false;
   function renderMyFeedTab(me) {
@@ -20357,7 +20475,8 @@
     var mine = (STATE.wallPosts || []).filter(function (p) { return p.author === me.name && inFeed(p); });
     var own = mine.filter(function (p) { return !p.repostOf; }).length, rep = mine.length - own;
     html += '<h2 class="section-title feed-section-title">' + L('Mes publications', 'My posts') + (own ? ' (' + own + ')' : '') + (rep ? ' · ' + plural(rep, L('republication', 'repost'), L('republications', 'reposts')) : '') + '</h2>';
-    html += mine.length ? mine.map(function (p) { return '<div class="card feed-card">' + renderWallPost(p) + '</div>'; }).join('')
+    var moreBtn = mine.length >= 5 && !morePostsDone[me.name] ? '<button type="button" class="ghost more-posts-btn" data-more-posts="' + escapeHtml(me.name) + '">' + L('Voir plus', 'See more') + '</button>' : '';
+    html += mine.length ? mine.map(function (p) { return '<div class="card feed-card">' + renderWallPost(p) + '</div>'; }).join('') + moreBtn
       : '<div class="card help-text">' + L('Partage ton dernier roulage, une photo de la moto, une question : tes abonnés le verront dans leur Social.', 'Share your last trackday, a bike photo, a question: your followers will see it in their feed.') + '</div>';
     return html;
   }
@@ -27031,6 +27150,8 @@
     if (rb) rb.addEventListener('change', function () { if (currentUserProfile) currentUserProfile.rideBoth = rb.checked; saveOwnBooleanField('rideBoth', rb.checked); renderRoot(); });
     fitPinLayers();
     if (!imagesSlimmed && currentUserProfile && STATE.teams) setTimeout(slimMyImages, 4000);
+    if (!drawingsMigrated && currentUserProfile && STATE.circuits && Object.keys(STATE.circuits).length) setTimeout(migrateMyDrawings, 5000);
+    document.querySelectorAll('[data-more-posts]').forEach(function (b) { b.addEventListener('click', function () { b.disabled = true; loadMorePosts(b.getAttribute('data-more-posts')); }); });
     document.querySelectorAll('[data-heat-toggle]').forEach(function (b) { b.addEventListener('click', function () {
       var c = b.getAttribute('data-heat-toggle'); heatOn[c] = !heatOn[c];
       if (heatOn[c]) { delete heatCache[c]; loadTrackHeat(c); }
@@ -29399,6 +29520,10 @@
       function (c) { return c.where('visibleTo', 'array-contains', myUid()); },
       function (c) { return c.where('authorUid', '==', myUid()); }
     ], function (list) {
+      // + les publications plus anciennes chargées à la demande (« Voir plus »).
+      var seenIds = {}; list.forEach(function (x) { seenIds[x.id] = 1; });
+      Object.keys(extraWallPosts).forEach(function (id) { if (!seenIds[id]) list.push(extraWallPosts[id]); });
+      list.sort(function (a, b) { return (b.createdAt || 0) - (a.createdAt || 0); });
       STATE.wallPosts = list;
       cleanOldStoryMedia();
       maybeNotifyWallPostReaction(STATE.wallPosts);
