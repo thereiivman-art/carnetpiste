@@ -5106,6 +5106,10 @@
     sections.affichage += '<div class="units-row"><span class="look-label">' + L('Unités', 'Units') + '</span>' +
       '<div class="look-seg"><button type="button" data-unit="temp" data-val="C" aria-pressed="' + (unitPrefs().temp !== 'F') + '">°C</button><button type="button" data-unit="temp" data-val="F" aria-pressed="' + (unitPrefs().temp === 'F') + '">°F</button></div>' +
       '<div class="look-seg"><button type="button" data-unit="dist" data-val="km" aria-pressed="' + (unitPrefs().dist !== 'mi') + '">km</button><button type="button" data-unit="dist" data-val="mi" aria-pressed="' + (unitPrefs().dist === 'mi') + '">' + L('miles', 'miles') + '</button></div></div>';
+    var tzList = ['', 'Europe/Paris', 'Europe/London', 'Europe/Lisbon', 'Europe/Madrid', 'Europe/Rome', 'Europe/Berlin', 'Europe/Brussels', 'Europe/Amsterdam', 'Europe/Zurich', 'Europe/Prague', 'Europe/Budapest', 'Atlantic/Canary', 'America/New_York', 'America/Chicago', 'America/Denver', 'America/Los_Angeles', 'America/Argentina/Buenos_Aires', 'Asia/Qatar', 'Asia/Bangkok', 'Asia/Kuala_Lumpur', 'Asia/Makassar', 'Asia/Tokyo', 'Australia/Melbourne'];
+    var tzNow = appTz(); if (tzNow && tzList.indexOf(tzNow) === -1) tzList.push(tzNow);
+    sections.affichage += '<div class="units-row"><label class="look-label" for="tz-select">' + L('Fuseau horaire', 'Time zone') + '</label><select id="tz-select" data-tz-select="1">' +
+      tzList.map(function (z) { return '<option value="' + escapeHtml(z) + '"' + (z === tzNow ? ' selected' : '') + '>' + escapeHtml(z ? z.replace(/_/g, ' ') : L('Celui du téléphone', 'Phone\'s time zone')) + '</option>'; }).join('') + '</select></div>';
     {
       sections.affichage += '<div class="app-version-row"><span class="help-text">' + L('Version de l\'appli : ', 'App version: ') + escapeHtml(currentAppVersion()) + '</span>' +
         '<button type="button" class="ghost" data-action="open-patchnotes">' + L('Nouveautés', 'What\'s new') + '</button>' +
@@ -5220,6 +5224,7 @@
         row('@legal-privacy', 'doc', L('Politique de confidentialité', 'Privacy policy'), '', 'rgpd') +
         row('@legal-notice', 'doc', L('Mentions légales', 'Legal notice'), '', '') +
         row('@update', 'refresh', L('Version de l\'appli', 'App version'), currentAppVersion(), L('mise à jour', 'update'))) +
+      (isAdmin() ? group('Admin', row('@admin', 'star', L('Admin', 'Admin'), '', L('gestion des comptes outils options statistiques données', 'account management tools options stats data'))) : '') +
       group(L('Connexion', 'Login'),
         row('#compte-switch-btn', 'swap', L('Changer de compte', 'Switch account'), email, L('connexion', 'login')) +
         row('#logout-btn', 'logout', L('Se déconnecter', 'Log out'), '', L('déconnexion', 'logout'), ' set-danger')) +
@@ -5305,14 +5310,14 @@
         : guideLink('FR', 'Guide (français)') + guideLink('EN', 'Guide (English)')) + '</div></div>';
     html = renderSubPills('aidesub', [['apropos', 'À propos', html + renderPartnersSection()], ['badges', 'Badges', flatSections(renderBadgesLegend())],
       ['confidentialite', L('Confidentialité', 'Privacy'), renderPrivacyPolicyHtml()], ['mentions', L('Mentions légales', 'Legal'), renderLegalNoticeHtml()]]);
-    if (!isAdmin()) return html;
-    // Admin tools get their own pill instead of trailing under the help.
-    if (!pillState.aide) pillState.aide = 'aide';
-    var pills = renderPills('aide', [['aide', 'Aide'], ['admin', 'Admin']]);
-    // Une carte par outil d'admin.
+    return html;
+  }
+  // Réglages › Admin (compte admin seulement) : gestion des comptes et tous
+  // les outils d'admin (données, statistiques, options à activer…).
+  function renderAdminTab() {
     var asCard = function (h) { return h ? '<div class="card">' + h.replace('margin-top:1.2rem; border-top:1px solid var(--border); padding-top:0.9rem;', '') + '</div>' : ''; };
-    if (pillState.aide === 'admin') return pills + renderDataFootprintCard() + renderUsageStatsCard() + renderLangStatsCard() + renderNationalityStatsCard() + asCard(renderPartnersSection(true)) + asCard(renderOptionalFeaturesSection()) + asCard(renderEventImportCard()) + asCard(renderPasswordResetSection());
-    return pills + html;
+    return '<div class="card admin-accounts"><h2 class="section-title">' + tr('account_management_label') + '</h2><button type="button" class="primary" id="account-manager-toggle">' + L('Ouvrir la gestion des comptes', 'Open account management') + '</button></div>' +
+      renderDataFootprintCard() + renderUsageStatsCard() + renderLangStatsCard() + renderNationalityStatsCard() + asCard(renderPartnersSection(true)) + asCard(renderOptionalFeaturesSection()) + asCard(renderEventImportCard()) + asCard(renderPasswordResetSection());
   }
 
   // Retour d'expérience libre vers l'équipe de dev -- pas de backend/mail
@@ -5430,7 +5435,7 @@
     return '<div class="account-bar" style="border-bottom:none; padding-bottom:0;">' +
       '<span class="account-bar-identity">' + escapeHtml(p.name) + badgesHtml(p) + ' · ' + roleLabel(p.role) + '</span>' +
       '<span class="account-bar-actions">' +
-        (isAdmin() ? '<button type="button" class="ghost account-bar-btn" id="account-manager-toggle">' + tr('account_management_label') + '</button>' : '') +
+
         '<button type="button" class="ghost account-bar-btn" id="logout-btn">' + tr('logout_label') + '</button>' +
       '</span>' +
     '</div>';
@@ -5446,7 +5451,7 @@
     html += '<div class="section-heading"><span class="section-heading-kerb" aria-hidden="true"></span><h1 class="section-heading-title">' + tr('my_profile_label') + '</h1></div>';
     // Plus de barre d'onglets : tout part de la liste des Réglages ; les
     // autres pages ont une flèche de retour vers cette liste.
-    var subTitles = { compte: L('Compte', 'Account'), plus: 'Pitbook+', audience: L('Audience', 'Audience'), aide: tr('tab_aide'), suggestion: tr('tab_suggestion') };
+    var subTitles = { compte: L('Compte', 'Account'), plus: 'Pitbook+', audience: L('Audience', 'Audience'), aide: tr('tab_aide'), suggestion: tr('tab_suggestion'), admin: 'Admin' };
     if (profileSubTab === 'parrainage' || profileSubTab === 'moto' || profileSubTab === 'profil') profileSubTab = 'compte';
     if (profileSubTab !== 'reglages' && subTitles[profileSubTab]) html += '<div class="settings-page-head"><button type="button" class="back-chevron settings-back" data-settings-go="@reglages" aria-label="' + escapeHtml(L('Retour', 'Back')) + '">‹</button><h2 class="section-title">' + subTitles[profileSubTab] + '</h2></div>';
     html += '<div class="profile-tab-body">';
@@ -5457,6 +5462,7 @@
     else if (profileSubTab === 'reglages') html += renderProfileReglagesTab(p);
     else if (profileSubTab === 'compte') html += renderProfileProfilTab(p) + renderProfileReglagesTab(p, 'compte');
     else if (profileSubTab === 'aide') html += renderProfileAideTab(p);
+    else if (profileSubTab === 'admin' && isAdmin()) html += renderAdminTab();
     else if (profileSubTab === 'suggestion') html += '<div class="card">' + renderProfileSuggestionTab(p) + '</div>';
     else html += renderProfileProfilTab(p) + renderProfileReglagesTab(p, 'compte');
     html += '</div>';
@@ -8496,8 +8502,33 @@
   }
   // Règles propres à un circuit, trouvées en ligne (règlement intérieur,
   // fiches d'organisateurs). Vérifiées le 5 novembre 2026 ; sources affichées.
-  var CIRCUIT_RULES_CHECKED = '2026-11-05';
+  var CIRCUIT_RULES_CHECKED = '2026-11-06';
   var CIRCUIT_RULES = {
+    'Paul Ricard': { fr: ['Bruit : 99 dB à l\'entrée de piste et 109 dB en roulant selon un organisateur ; 102 dB sur une fiche plus ancienne.'],
+      en: ['Noise: 99 dB at track entry and 109 dB on the move per an organiser; 102 dB on an older listing.'],
+      src: ['https://www.sport-decouverte.com/journee-de-roulage-moto-personelle-circuit-paul-ricard-castellet-piste-gp.html', 'https://www.lerepairedesmotards.com/chronos/circuit-paul-ricard-18.php'] },
+    'Dijon-Prenois': { fr: ['Bruit : 100 dB en roulant selon les organisateurs de roulages. Le circuit demande de limiter le bruit (riverains).'],
+      en: ['Noise: 100 dB on the move per trackday organisers. The circuit asks riders to keep noise down (neighbours).'],
+      src: ['https://www.sport-decouverte.com/journee-roulage-moto-circuit-dijon-prenois.html', 'https://www.circuit-dijon-prenois.com/?p=5669'] },
+    'Haute Saintonge': { fr: ['Bruit : 102 dB cité (fiche non datée).'], en: ['Noise: 102 dB quoted (undated listing).'],
+      src: ['https://www.lerepairedesmotards.com/chronos/circuit-haute-saintonge-26.php'] },
+    'Le Vigeant': { fr: ['Bruit : 95 dB selon un organisateur de stages ; 102 dB sur une fiche plus ancienne.'], en: ['Noise: 95 dB per a course organiser; 102 dB on an older listing.'],
+      src: ['https://www.sport-decouverte.com/journee-roulage-moto-circuit-val-de-vienne.html', 'https://www.lerepairedesmotards.com/chronos/circuit-val-vienne-14.php'] },
+    'Pau-Arnos': { fr: ['Bruit : 102 dB maximum en roulage, contrôle à l\'arrêt (109 dB en roulant pour les épreuves officielles).', 'Règlement des journées moto publié par le circuit.'],
+      en: ['Noise: 102 dB max on track days, static test (109 dB on the move for official races).', 'Moto day rules published by the circuit.'],
+      src: ['https://circuit-pau-arnos.fr/wp-content/uploads/2026/04/Feuille-de-route-WERC-2026.pdf', 'https://circuit-pau-arnos.fr/wp-content/uploads/2025/11/Reglement-journees-MOTO-le-28-10-25.pdf'] },
+    'Bresse': { fr: ['Bruit : 95 dB à l\'arrêt, à 75 % du régime maximum (parmi les limites les plus basses de France).'], en: ['Noise: 95 dB static, at 75 % of max revs (among the lowest limits in France).'],
+      src: ['https://www.lerepairedesmotards.com/chronos/circuit-bresse-4.php', 'https://www.motoplanete.com/actualite-moto/articles/10486/Gros-week-end-de-competition-au-circuit-de-Bresse-les-5-et-6-avril/page.html'] },
+    'Croix-en-Ternois': { fr: ['Bruit : 100 dB maximum (engagement moto signé avant de rouler).'], en: ['Noise: 100 dB max (moto commitment form signed before riding).'],
+      src: ['https://circuitdecroix.com/wp-content/uploads/2024/12/2025-Engagt-Resp-MOTO.pdf'] },
+    'Albi': { fr: ['Bruit : 92 dB cité (fiche non datée). Roulages moto suspendus certaines années : se renseigner.'], en: ['Noise: 92 dB quoted (undated listing). Moto track days suspended some years: check first.'],
+      src: ['https://www.lerepairedesmotards.com/chronos/circuit-albi-25.php', 'https://www.lerepairedesmotards.com/actualites/2021/menace-fermeture-circuit-albi.php'] },
+    'Alès': { fr: ['Bruit : 95 dB à l\'échappement (week-ends et jours fériés), 100 dB en semaine selon l\'arrêté. Contrôle au sonomètre avant la piste.'], en: ['Noise: 95 dB at the exhaust (weekends and holidays), 100 dB on weekdays per the order. Sound meter check before going out.'],
+      src: ['https://www.sport-decouverte.com/journee-roulage-avec-votre-moto-circuit-ales.html', 'https://www.conseil-etat.fr/fr/arianeweb/CE/decision/2019-11-29/423847'] },
+    'Spa-Francorchamps': { fr: ['Bruit : 103 dB(A) annoncé par un organisateur (2026) ; 100 dB cité pour les motos par le passé.'], en: ['Noise: 103 dB(A) stated by an organiser (2026); 100 dB quoted for bikes in the past.'],
+      src: ['https://www.pistenclub.de/en/events/2026-04-30-spa'] },
+    'Mugello': { fr: ['Bruit : 105 dB maximum ; échappement d\'origine ou silencieux avec chicane (db killer) selon un organisateur.'], en: ['Noise: 105 dB max; stock exhaust or aftermarket with db killer per an organiser.'],
+      src: ['https://crmoto.eu/en/event/mugello'] },
     'Carole': { fr: ['Caméras personnelles (GoPro) interdites selon un organisateur de roulages.', 'Équipement contrôlé à l\'entrée : casque intégral, combinaison ou blouson et pantalon cuir, gants, bottes.'],
       en: ['Personal cameras (GoPro) banned according to a trackday organiser.', 'Gear checked at the gate: full-face helmet, leather suit or jacket and trousers, gloves, boots.'],
       src: ['https://www.adrenactive.com/journee-roulage-moto-circuit-carole-9420.htm', 'https://www.lerepairedesmotards.com/actualites/2010/actu_100916-journees-securisees-roulage-circuit-carole.php'] },
@@ -8606,11 +8637,15 @@
   function circuitAroundHtml(circuit) {
     var g = circuitCoordsOf(circuit) || circuitCoords(circuit);
     var near = function (q) { return g ? 'https://www.google.com/maps/search/' + encodeURIComponent(q) + '/@' + g[0] + ',' + g[1] + ',12z' : 'https://www.google.com/maps/search/' + encodeURIComponent(q + ' ' + circuitFullName(circuit)); };
-    var items = [[L('Hôtels', 'Hotels'), L('hôtel', 'hotel')], [L('Campings', 'Campsites'), 'camping'], [L('Restos', 'Restaurants'), L('restaurant', 'restaurant')],
-      [L('Location moto', 'Bike rental'), L('location moto piste', 'track bike rental')], [L('Transport moto', 'Bike transport'), L('transport moto', 'motorcycle transport')],
-      [L('Équipement', 'Gear shop'), L('magasin équipement moto', 'motorcycle gear shop')], [L('Pneus', 'Tyres'), L('pneus moto', 'motorcycle tyres')], [L('Essence', 'Fuel'), L('station essence', 'petrol station')]];
+    var I = { bed: '<path d="M3 18V7M3 14h18v4M21 14v-3a3 3 0 0 0-3-3h-7v6"/><circle cx="7" cy="11" r="2"/>', tent: '<path d="M12 4L3 20h18z"/><path d="M12 4v16M9 20l3-6 3 6"/>',
+      food: '<path d="M7 3v8a2 2 0 0 0 4 0V3M9 3v18M17 3c-2 2-2 6 0 8v10"/>', key: '<circle cx="8" cy="15" r="4"/><path d="M11 12l9-9M17 6l3 3M15 8l2 2"/>',
+      truck: '<path d="M2 7h12v9H2zM14 10h4l3 3v3h-7z"/><circle cx="6" cy="18" r="2"/><circle cx="17" cy="18" r="2"/>', helmet: '<path d="M4 15a8 8 0 0 1 16 0v3H4z"/><path d="M12 7v4h8"/>',
+      tyre: '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/><path d="M12 3v5M12 16v5M3 12h5M16 12h5"/>', fuel: '<path d="M4 21V5a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v16M3 21h12M4 10h10"/><path d="M14 8l4 3v7a1.5 1.5 0 0 0 3 0V9l-3-3"/>' };
+    var items = [[L('Hôtels', 'Hotels'), L('hôtel', 'hotel'), 'bed'], [L('Campings', 'Campsites'), 'camping', 'tent'], [L('Restos', 'Restaurants'), L('restaurant', 'restaurant'), 'food'],
+      [L('Location', 'Rental'), L('location moto piste', 'track bike rental'), 'key'], [L('Transport', 'Transport'), L('transport moto', 'motorcycle transport'), 'truck'],
+      [L('Équipement', 'Gear'), L('magasin équipement moto', 'motorcycle gear shop'), 'helmet'], [L('Pneus', 'Tyres'), L('pneus moto', 'motorcycle tyres'), 'tyre'], [L('Essence', 'Fuel'), L('station essence', 'petrol station'), 'fuel']];
     return '<div class="card circuit-around"><h2 class="section-title">' + L('Autour du circuit', 'Around the circuit') + '</h2><div class="around-links">' +
-      items.map(function (it) { return '<a class="ghost" href="' + escapeHtml(near(it[1])) + '" target="_blank" rel="noopener">' + escapeHtml(it[0]) + '</a>'; }).join('') +
+      items.map(function (it) { return '<a class="ghost around-link" href="' + escapeHtml(near(it[1])) + '" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + I[it[2]] + '</svg><span>' + escapeHtml(it[0]) + '</span></a>'; }).join('') +
       '</div><div class="help-text">' + L('Recherches Google Maps autour de la piste. Pas de partenariat : à toi de comparer.', 'Google Maps searches around the track. No partnership: compare for yourself.') + '</div></div>';
   }
   function circuitFullName(circuit) {
@@ -8761,9 +8796,11 @@
       (canVote.length ? '<div class="lvl-row">' + canVote.map(function (k) { return voteRow(k, k === 'car' ? L('Voiture', 'Car') : L('Moto', 'Bike')); }).join('') + '</div>'
         : '<div class="help-text">' + L('Tu pourras donner ton avis après un roulage enregistré ici' + (wanted.length === 1 ? (wanted[0] === 'car' ? ' en voiture' : ' en moto') : '') + '.', 'You can rate it once you have a recorded ride here' + (wanted.length === 1 ? (wanted[0] === 'car' ? ' by car' : ' by bike') : '') + '.') + '</div>') + '</div>';
     var g = gearLists(car), li = function (a) { return '<ul>' + a.map(function (x) { return '<li>' + escapeHtml(x) + '</li>'; }).join('') + '</ul>'; };
+    // Infos particulières du circuit (bruit, caméras…) avant Obligatoire / Interdit.
+    html += circuitRulesHtml(circuit);
     html += '<div class="gear-cols"><div class="gear-col gear-req"><span class="look-label">' + L('Obligatoire', 'Required') + '</span>' + li(g.req) + '</div>' +
       '<div class="gear-col gear-no"><span class="look-label">' + L('Interdit', 'Not allowed') + '</span>' + li(g.no) + '</div></div>' +
-      '<div class="help-text">' + L('Le plus souvent demandé en roulage. Le règlement de l\'organisateur fait foi.', 'What most trackday organisers ask. The organiser\'s rules always prevail.') + '</div>' + circuitRulesHtml(circuit) + '</div>';
+      '<div class="help-text">' + L('Le plus souvent demandé en roulage. Le règlement de l\'organisateur fait foi.', 'What most trackday organisers ask. The organiser\'s rules always prevail.') + '</div></div>';
     return html;
   }
   function renderTrackRecordsCard(circuit) {
@@ -9184,6 +9221,52 @@
     });
   }
   window.addEventListener('resize', function () { fitPinLayers(); });
+  // Échelle relative sur les tracés (semi-transparente) : la longueur
+  // officielle de la piste divisée par la longueur du trait dessiné
+  // (pixels du trait / épaisseur du trait). Approximative (±10 %), d'où « ≈ ».
+  var planScaleCache = {};
+  function measurePlanScale(src, km, cb) {
+    var k = src + '|' + km; if (planScaleCache[k]) return cb(planScaleCache[k]);
+    var im = new Image();
+    im.onload = function () {
+      var W = im.naturalWidth, H = im.naturalHeight, sc = Math.min(1, 900 / Math.max(W, H)), w = Math.round(W * sc), h = Math.round(H * sc);
+      var c = document.createElement('canvas'); c.width = w; c.height = h; var x = c.getContext('2d');
+      x.fillStyle = '#fff'; x.fillRect(0, 0, w, h); x.drawImage(im, 0, 0, w, h);
+      var d; try { d = x.getImageData(0, 0, w, h).data; } catch (e) { return; }
+      var dark = function (i, j) { var o = (j * w + i) * 4; return d[o] + d[o + 1] + d[o + 2] < 330 && !(d[o] > d[o + 2] + 60); };
+      var n = 0, runs = [];
+      for (var j = 0; j < h; j++) for (var i = 0; i < w; i++) {
+        if (!dark(i, j)) continue; n++;
+        if ((i * 7 + j * 13) % 23) continue; // échantillon
+        var a = i, b = i, t = j, u = j;
+        while (a > 0 && dark(a - 1, j)) a--; while (b < w - 1 && dark(b + 1, j)) b++;
+        while (t > 0 && dark(i, t - 1)) t--; while (u < h - 1 && dark(i, u + 1)) u++;
+        runs.push(Math.min(b - a + 1, u - t + 1));
+      }
+      if (n < 50 || !runs.length) return;
+      runs.sort(function (p, q) { return p - q; });
+      var stroke = runs[Math.floor(runs.length / 2)] || 1, lengthPx = n / stroke;
+      var res = { mPerPct: km * 1000 / lengthPx * w / 100, ok: true };
+      planScaleCache[k] = res; cb(res);
+    };
+    im.src = src;
+  }
+  function applyPlanScales(root) {
+    (root || document).querySelectorAll('[data-scale-circuit]').forEach(function (el) {
+      if (el.querySelector(':scope > .plan-scale')) return;
+      var c = el.getAttribute('data-scale-circuit'), b = builtinCircuit(c) || {}, km = b.km != null ? b.km : circuitInfo(c).km;
+      if (!km) return;
+      measurePlanScale(el.getAttribute('data-scale-src'), Number(km), function (r) {
+        if (!r || el.querySelector(':scope > .plan-scale')) return;
+        var mi = unitPrefs().dist === 'mi', unit = mi ? 0.3048 : 1; // pieds ou mètres
+        var target = r.mPerPct * 18 / unit, nice = [50, 100, 200, 250, 300, 500, 1000, 2000].filter(function (v) { return v <= target; }).pop() || 50;
+        var pct = nice * unit / r.mPerPct;
+        var bar = document.createElement('span'); bar.className = 'plan-scale'; bar.setAttribute('aria-hidden', 'true');
+        bar.innerHTML = '<span class="plan-scale-bar" style="width:' + pct.toFixed(2) + '%"></span><span class="plan-scale-lbl">≈ ' + nice + (mi ? ' ft' : ' m') + '</span>';
+        el.appendChild(bar);
+      });
+    });
+  }
   function renderCircuitVisual(info, circuitName) {
     circuitName = circuitName || selectedCircuit;
     if (circuitName && !(drawingCache[circuitName] && (drawingCache[circuitName].loaded || drawingCache[circuitName].loading))) ensureDrawings(circuitName);
@@ -9199,7 +9282,7 @@
             // Repères et chaleur dans un calque calé sur la zone réelle de l'image
             // (le plan est réduit pour tenir dans un carré) : mêmes positions
             // qu'en mode édition.
-            '<span class="track-mini-wrap"><img src="' + styledPlanSrc(base) + '"' + styledPlanAttr(base, info) + ' alt="Tracé de ' + escapeHtml(circuitName) + '"><span class="pin-layer">' + heatLayerHtml(circuitName) + pins + '</span></span>' +
+            '<span class="track-mini-wrap"><img src="' + styledPlanSrc(base) + '"' + styledPlanAttr(base, info) + ' alt="Tracé de ' + escapeHtml(circuitName) + '"><span class="pin-layer"' + (info.mapImage ? '' : ' data-scale-circuit="' + escapeHtml(circuitName) + '" data-scale-src="' + escapeHtml(base) + '"') + '>' + heatLayerHtml(circuitName) + pins + '</span></span>' +
           '</button>' +
           '<div class="circuit-visual-caption">' + (notes.length ? notes.length + ' repère' + (notes.length > 1 ? 's' : '') + ' · toucher pour voir' : 'Toucher pour noter tes repères') + '</div>' +
           heatControlsHtml(circuitName) +
@@ -9448,7 +9531,7 @@
   }
   function renderStatsPodiums() {
     var sc = podiumScopeNow();
-    var scope = '<div class="podium-scope">' + [['potes', L('Amis', 'Friends')], ['tous', L('Tous', 'All')]].map(function (o) { return '<button type="button" class="' + (sc === o[0] ? 'primary' : 'ghost') + '" data-podium-scope="' + o[0] + '">' + o[1] + '</button>'; }).join('') + '</div>';
+    var scope = '<div class="podium-scope">' + [['potes', L('Amis · déclarés', 'Friends · declared')], ['tous', L('Tous · vérifiés', 'All · verified')]].map(function (o) { return '<button type="button" class="' + (sc === o[0] ? 'primary' : 'ghost') + '" data-podium-scope="' + o[0] + '">' + o[1] + '</button>'; }).join('') + '</div>';
     if (sc === 'tous') return scope + renderGlobalPodiums();
     return scope + renderStatsPodiumsFriends();
   }
@@ -10444,7 +10527,7 @@
     // Onglet Moto d'un roulage : seulement ce circuit.
     if (opts.only) order = hereKey ? [hereKey] : [];
     var html = '<div class="card pressures-card"><div class="budget-card-head"><h2 class="section-title">' + L('Mes pressions', 'My pressures') + '</h2></div>' +
-      '<div class="help-text">' + L('Tes relevés à toi, AV et AR, circuit par circuit. Pitbook ne conseille aucune pression : suis les préconisations du manufacturier de tes pneus ou du technicien pneus du circuit.', 'Your own readings, front and rear, circuit by circuit. Pitbook never recommends a pressure: follow your tyre manufacturer\'s guidance or the trackside tyre technician\'s.') + '</div>' +
+      '<div class="help-text">' + L('Pitbook ne conseille aucune pression : suis les préconisations du manufacturier de tes pneus ou du technicien pneus du circuit.', 'Pitbook gives no pressure advice: follow your tyre manufacturer\'s recommendations or the circuit\'s tyre technician.') + '</div>' +
       '<button type="button" class="primary pressures-add" data-action="pressure-new"' + (circuit ? ' data-circuit="' + escapeHtml(circuit) + '"' : '') + (opts.date ? ' data-date="' + escapeHtml(opts.date) + '"' : '') + '>' + L('+ Noter mes pressions', '+ Log my pressures') + '</button>' +
       (circuit && !hereKey ? '<div class="help-text pressures-none-here">' + L('Pas encore de relevé à ', 'No reading yet at ') + escapeHtml(circuit) + '.</div>' : '');
     if (!order.length) return html + '</div>';
@@ -12536,7 +12619,7 @@
     if (pillState.moi === 'garage') return html + renderGarage();
     if (pillState.moi === 'budget') return html + renderBudgetTab();
     var jump = function (k, lbl) { return '<button type="button" class="moi-jump" data-moi-jump="' + k + '">' + lbl + '</button>'; };
-    html += '<div class="moi-jumps">' + (rider ? jump('records', 'Records') : '') + jump('podium', L('Podium', 'Podium')) + '</div>';
+
     var keep = pillState.stats, out = '';
     if (rider) { pillState.stats = 'records'; out += '<section class="moi-sec" id="moi-records"><h2 class="moi-sec-title">Records</h2>' + renderStatsTab() + '</section>'; }
     out += '<section class="moi-sec" id="moi-podium"><h2 class="moi-sec-title">' + L('Podium', 'Podium') + '</h2>' + withRepost(renderMonthRanking(), 'month:' + dateKey(new Date()).slice(0, 7), function () {
@@ -13041,7 +13124,7 @@
         (base ? mapModeSwitchHtml('pins') : '');
       h += '<div class="help-text track-notes-help">' + (movingId ? 'Touche le nouvel emplacement du repère.' : (base ? 'Touche le tracé pour poser un repère, touche un repère pour le modifier.' : 'Pas de plan pour ce circuit : ajoute tes repères en liste.')) + '</div>';
       if (base) {
-        h += '<div class="track-notes-scroll"><div class="track-notes-map' + (zoomed ? ' zoomed' : '') + '"><img src="' + styledPlanSrc(base) + '"' + styledPlanAttr(base, info) + ' alt="" draggable="false">';
+        h += '<div class="track-notes-scroll"><div class="track-notes-map' + (zoomed ? ' zoomed' : '') + '"' + (info.mapImage ? '' : ' data-scale-circuit="' + escapeHtml(circuit) + '" data-scale-src="' + escapeHtml(base) + '"') + '"><img src="' + styledPlanSrc(base) + '"' + styledPlanAttr(base, info) + ' alt="" draggable="false">';
         notes.forEach(function (n, i) {
           h += '<button type="button" class="track-pin" data-pin="' + escapeHtml(n.id) + '" style="left:' + (n.x * 100) + '%; top:' + (n.y * 100) + '%;">' + (i + 1) + '</button>';
         });
@@ -13059,6 +13142,7 @@
       h += '</div>';
       overlay.innerHTML = h;
       styleTrackPlans();
+      applyPlanScales(overlay);
       bind();
     }
 
@@ -13093,9 +13177,39 @@
       overlay.querySelectorAll('[data-pin]').forEach(function (b) {
         b.addEventListener('click', function (e) {
           e.stopPropagation();
+          if (b.__dragged) { b.__dragged = false; return; }
           var n = notes.filter(function (x) { return x.id === b.getAttribute('data-pin'); })[0];
           if (n) editNote(n, false);
         });
+      });
+      // Appui long sur un repère du plan : on le fait glisser au bon endroit.
+      overlay.querySelectorAll('.track-pin[data-pin]').forEach(function (b) {
+        var timer = null, dragging = false, sx = 0, sy = 0;
+        var img = map && map.querySelector('img');
+        b.addEventListener('pointerdown', function (e) {
+          sx = e.clientX; sy = e.clientY; dragging = false;
+          clearTimeout(timer);
+          timer = setTimeout(function () { dragging = true; b.classList.add('dragging'); try { b.setPointerCapture(e.pointerId); } catch (er) {} if (navigator.vibrate) navigator.vibrate(15); }, 450);
+        });
+        b.addEventListener('pointermove', function (e) {
+          if (!dragging) { if (Math.hypot(e.clientX - sx, e.clientY - sy) > 10) clearTimeout(timer); return; }
+          e.preventDefault();
+          var r = img.getBoundingClientRect();
+          var x = Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)), y = Math.max(0, Math.min(1, (e.clientY - r.top) / r.height));
+          b.style.left = (x * 100) + '%'; b.style.top = (y * 100) + '%'; b.__pos = { x: x, y: y };
+        });
+        var end = function () {
+          clearTimeout(timer);
+          if (!dragging) return;
+          dragging = false; b.classList.remove('dragging'); b.__dragged = true;
+          if (b.__pos) {
+            var id = b.getAttribute('data-pin'), p = b.__pos;
+            notes.forEach(function (n) { if (n.id === id) { n.x = Math.round(p.x * 1000) / 1000; n.y = Math.round(p.y * 1000) / 1000; } });
+            persistNotes(); showToast(L('Repère déplacé.', 'Mark moved.'));
+          }
+        };
+        b.addEventListener('pointerup', end); b.addEventListener('pointercancel', end);
+        b.addEventListener('contextmenu', function (e) { e.preventDefault(); });
       });
     }
 
@@ -15689,7 +15803,20 @@
   }
 
   function todayKey() { return dateKey(new Date()); }
+  // Fuseau horaire choisi (Réglages › Langue et affichage) ; vide = celui
+  // du téléphone. Sert pour « aujourd'hui » et l'heure affichée.
+  function appTz() { try { return localStorage.getItem('cdp-tz') || ''; } catch (e) { return ''; } }
+  function tzParts(d) {
+    var tz = appTz(); if (!tz) return null;
+    try {
+      var p = {}; new Intl.DateTimeFormat('en-GB', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false }).formatToParts(d).forEach(function (x) { p[x.type] = x.value; });
+      return { y: p.year, m: p.month, d: p.day, h: String(Number(p.hour) % 24), mi: p.minute };
+    } catch (e) { return null; }
+  }
   function dateKey(date) {
+    // « Maintenant » (à quelques secondes près) suit le fuseau choisi ; les
+    // dates enregistrées restent telles quelles.
+    if (Math.abs(date - Date.now()) < 5000) { var tp = tzParts(date); if (tp) return tp.y + '-' + tp.m + '-' + tp.d; }
     return date.getFullYear() + '-' + pad2(date.getMonth() + 1) + '-' + pad2(date.getDate());
   }
 
@@ -18252,7 +18379,7 @@
     return labels;
   }
 
-  function liveClockText() { var n = new Date(); return n.getHours() + L('h', ':') + pad2(n.getMinutes()); }
+  function liveClockText() { var n = new Date(), tp = tzParts(n); return (tp ? tp.h : n.getHours()) + L('h', ':') + (tp ? tp.mi : pad2(n.getMinutes())); }
   function updateLiveClock() {
     document.querySelectorAll('[data-live-clock]').forEach(function (el) { el.textContent = liveClockText(); });
     var clockEl = document.getElementById('live-clock');
@@ -18499,7 +18626,8 @@
     // the renderHoraireGroups call sites), so this is purely an
     // exception for a specific sortie's unusual schedule.
     var evHorairesVal = ev.horairesOverride || {};
-    html += renderHorairesGridWithGenerator('ev', evHorairesVal, ev.circuit, 'horaires_this_event_label');
+    // Roulage de team : les horaires se gèrent dans leur propre onglet (Gérer › Horaires).
+    if (!ev.teamId) html += renderHorairesGridWithGenerator('ev', evHorairesVal, ev.circuit, 'horaires_this_event_label');
     // Pilotes/groupes for a Team event now live entirely in the Team's own
     // "Gestion des événements" (search-to-add, chronos vérifiés as
     // reference for group moves) -- this form only still carries the
@@ -18675,7 +18803,7 @@
         existing.autoCreated = false; // a manual edit means it's no longer just a byproduct of a chrono
         // checklist isn't touched here -- it's checked off in Planning, not the sortie form.
         existing.riderGroups = riderGroups || null; // never `undefined` -- Firestore rejects that as a field value
-        existing.horairesOverride = anyHoraireFromForm ? horairesFromForm : null;
+        if (HORAIRES_GROUPS.some(function (g) { return document.getElementById('ev-horaires-' + g.key); })) existing.horairesOverride = anyHoraireFromForm ? horairesFromForm : null;
         selectedEventId = existing.id;
       }
     }
@@ -20447,7 +20575,7 @@
       return '<button type="button" class="' + (ty === f[0] ? 'on' : '') + '" data-gs-type="' + f[0] + '">' + f[1] + '</button>'; }).join('') +
       '</div><div class="gsearch-sortrow">' + '<button type="button" class="gsearch-sort" data-gs-sort="1" title="' + escapeHtml(L('Ordre des dates', 'Date order')) + '">' + (asc ? L('Plus anciens', 'Oldest') : L('Plus récents', 'Newest')) + ' ⇅</button></div>';
     // Recherche avancée (catégories, tri) rangée derrière l'engrenage, fermée au départ.
-    var bar = '<div class="gsearch-adv-row"><button type="button" class="gsearch-adv-btn' + (o.adv ? ' on' : '') + (ty !== 'all' || asc ? ' active' : '') + '" data-gs-adv="1" aria-expanded="' + !!o.adv + '" title="' + escapeHtml(L('Recherche avancée', 'Advanced search')) + '"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/></svg>' + L('Recherche avancée', 'Advanced search') + (ty !== 'all' ? ' · ' + escapeHtml((advBar.match(new RegExp('data-gs-type="' + ty + '">([^<]*)<')) || [])[1] || '') : '') + '</button></div>' + (o.adv ? advBar : '');
+    var bar = '<div class="gsearch-adv-row"><button type="button" class="gsearch-adv-btn' + (o.adv ? ' on' : '') + (ty !== 'all' || asc ? ' active' : '') + '" data-gs-adv="1" aria-expanded="' + !!o.adv + '" title="' + escapeHtml(L('Avancée', 'Advanced')) + '"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/></svg>' + L('Avancée', 'Advanced') + (ty !== 'all' ? ' · ' + escapeHtml((advBar.match(new RegExp('data-gs-type="' + ty + '">([^<]*)<')) || [])[1] || '') : '') + '</button></div>' + (o.adv ? advBar : '');
     if (t.length < 2 && ty === 'all') return { html: bar + '<div class="help-text gsearch-hint">' + L('Tape au moins 2 lettres, ou ouvre la recherche avancée.', 'Type at least 2 letters, or open advanced search.') + '</div>', acts: acts };
     var hit = function (x) { return t.length < 2 || norm(x).indexOf(t) !== -1; };
     var want = function (k) { return ty === 'all' || ty === k; };
@@ -21776,7 +21904,8 @@
       // publiée dans le fil : J'aime, réactions et commentaires liés).
       var likeKey = st.post ? st.post.id : null;
       if (likeKey) {
-        var likes = st.post.reactions || {}, nLikes = Object.keys(likes).length, iLike = !!likes[me.name];
+        var srcP = st.post.fromPost ? (STATE.wallPosts || []).filter(function (w) { return w.id === st.post.fromPost; })[0] : null;
+        var likes = Object.assign({}, (srcP && srcP.reactions) || {}, st.post.reactions || {}), nLikes = Object.keys(likes).length, iLike = !!likes[me.name];
         var heart = '<svg viewBox="0 0 24 24" width="22" height="22" fill="' + (iLike ? 'currentColor' : 'none') + '" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/></svg>';
         body += !mine
           ? '<button type="button" class="story-like' + (iLike ? ' on' : '') + '" data-like-key="' + escapeHtml(likeKey) + '" aria-pressed="' + iLike + '" aria-label="' + escapeHtml(L('J\'aime', 'Like')) + '">' + heart + '</button>'
@@ -21786,11 +21915,13 @@
         // Une vue par compte et par jour (l'auteur voit le total).
         if (!mine) recordView('postViews', st.post.id, owner);
       }
-      ov.innerHTML = '<div class="story-bars">' + list.map(function (_, k) { return '<span class="' + (k < i ? 'done' : k === i ? 'now' : '') + '"></span>'; }).join('') + '</div>' +
+      // Barres : seulement les stories de cette personne (pas toutes celles de l'appli).
+      var b0 = i, b1 = i; while (b0 > 0 && list[b0 - 1].who === st.who) b0--; while (b1 < list.length - 1 && list[b1 + 1].who === st.who) b1++;
+      ov.innerHTML = '<div class="story-bars">' + list.slice(b0, b1 + 1).map(function (_, k) { k += b0; return '<span class="' + (k < i ? 'done' : k === i ? 'now' : '') + '"></span>'; }).join('') + '</div>' +
         '<div class="story-head"><button type="button" class="story-author" data-who="' + escapeHtml(st.who) + '">' + (tm ? teamAvatarHtml(tm) : avatarHtml(u, st.who)) + '<strong>' + escapeHtml(whoName) + '</strong>' + (tm && mine ? '<small class="story-as">' + L('par toi', 'by you') + '</small>' : '') + '</button><span>' + escapeHtml(relativeTime(st.at)) + (st.posted && storyTimeLeft(st.at) ? ' · ' + L('encore ', '') + storyTimeLeft(st.at) + L('', ' left') : '') + '</span><button type="button" class="story-close" aria-label="' + escapeHtml(L('Fermer', 'Close')) + '">✕</button></div>' + body +
         '<button type="button" class="story-nav prev" aria-label="' + escapeHtml(L('Précédente', 'Previous')) + '"></button><button type="button" class="story-nav next" aria-label="' + escapeHtml(L('Suivante', 'Next')) + '"></button>' +
-        (st.post && st.post.fromPost ? '<button type="button" class="story-goto-post">' + L('Voir le post', 'See post') + '</button>' : '') +
-        (tm ? '<button type="button" class="story-profile" data-who="' + escapeHtml(st.who) + '">' + L('Voir le team', 'See team') + '</button>'
+        (st.post && (st.post.fromPost || st.post.alsoInFeed) ? '<button type="button" class="story-goto-post">' + L('Voir le post', 'See post') + '</button>' : '') +
+        (st.post && (st.post.fromPost || st.post.alsoInFeed) ? '' : tm ? '<button type="button" class="story-profile" data-who="' + escapeHtml(st.who) + '">' + L('Voir le team', 'See team') + '</button>'
           : st.who !== me.name ? '<button type="button" class="story-profile" data-who="' + escapeHtml(st.who) + '">' + L('Voir son profil', 'See profile') + '</button>' : '');
       ov.querySelector('.story-close').addEventListener('click', close);
       // Circuit épinglé ou cité, ami cité : la story se ferme et ouvre la page.
@@ -21800,7 +21931,7 @@
       }); });
       ov.querySelectorAll('.story-caption [data-open-person]').forEach(function (b) { b.addEventListener('click', function (e) { e.stopPropagation(); var n = b.getAttribute('data-open-person'); close(); openPerson(n); }); });
       var gp = ov.querySelector('.story-goto-post');
-      if (gp) gp.addEventListener('click', function () { var pid = st.post.fromPost, au = st.post.author; close(); goToOriginal(pid, au, 'wall'); });
+      if (gp) gp.addEventListener('click', function () { var pid = st.post.fromPost || st.post.id, au = st.post.author; close(); goToOriginal(pid, au, 'wall'); });
       ov.querySelector('.story-nav.prev').addEventListener('click', function () { if (i > 0) { i--; show(); } });
       ov.querySelector('.story-nav.next').addEventListener('click', function () { i++; show(); });
       var pb = ov.querySelector('.story-profile');
@@ -21818,11 +21949,15 @@
       if (lb) lb.addEventListener('click', function (e) {
         e.stopPropagation();
         var on = !lb.classList.contains('on'), post = list[i] && list[i].post;
-        if (post) {
-          toggleReaction('wallPosts', post.id, '❤️', post.reactions);
-          post.reactions = Object.assign({}, post.reactions || {});
-          if (on) post.reactions[me.name] = '❤️'; else delete post.reactions[me.name];
-        }
+        // Story tirée d'un post : J'aime vaut pour les deux (et inversement).
+        var src = post && post.fromPost ? (STATE.wallPosts || []).filter(function (w) { return w.id === post.fromPost; })[0] : null;
+        [post, src].forEach(function (pp) {
+          if (!pp) return;
+          var has = !!(pp.reactions || {})[me.name];
+          if (has !== on) toggleReaction('wallPosts', pp.id, '❤️', pp.reactions);
+          pp.reactions = Object.assign({}, pp.reactions || {});
+          if (on) pp.reactions[me.name] = '❤️'; else delete pp.reactions[me.name];
+        });
         lb.classList.toggle('on', on); lb.setAttribute('aria-pressed', String(on));
         var path = lb.querySelector('svg'); if (path) path.setAttribute('fill', on ? 'currentColor' : 'none');
       });
@@ -22970,7 +23105,8 @@
     });
     var wd = welcomeDm();
     if (wd) by.welcome = { convId: 'welcome', last: wd, unread: (read.welcome || 0) < wd.createdAt ? 1 : 0, other: 'Pitbook', key: WELCOME_DM };
-    return Object.keys(by).map(function (k) { return by[k]; }).filter(function (c) { return c.other; }).sort(function (a, b) { return (b.last.createdAt || 0) - (a.last.createdAt || 0); });
+    var hid = hiddenConvMap();
+    return Object.keys(by).map(function (k) { return by[k]; }).filter(function (c) { return c.other && !(hid[c.convId] && (c.last.createdAt || 0) <= hid[c.convId]); }).sort(function (a, b) { return (b.last.createdAt || 0) - (a.last.createdAt || 0); });
   }
   function unreadDmCount() { return dmConversations().reduce(function (n, c) { return n + (c.unread ? 1 : 0); }, 0); }
   function sendTeamDm(ti, text) {
@@ -23151,6 +23287,33 @@
       ov.remove(); dmOpenWith = null; stopGroupWatch(); renderRoot();
     });
   }
+  // Messages : balayer une conversation vers la droite → Quitter / Supprimer.
+  // Groupe : quitter (ou supprimer s'il est à moi). Conversation privée :
+  // masquée chez moi jusqu'au prochain message.
+  var dmSwipeOpenKey = null; // conversation balayée (reste ouverte malgré les redessins)
+  function hiddenConvMap() { try { return JSON.parse(localStorage.getItem('cdp-hidden-conv-' + myUid()) || '{}') || {}; } catch (e) { return {}; } }
+  function convSwipeAction(key) {
+    var me = currentUserProfile; if (!me) return;
+    if (key.indexOf('grp:') === 0) {
+      var id = key.slice(4), g = groupById(id); if (!g) return;
+      if (g.createdBy === myUid()) {
+        if (!confirm(L('Supprimer ce groupe pour tout le monde ?', 'Delete this group for everyone?'))) return;
+        db.collection('groupChats').doc(id).delete().catch(function () {});
+      } else {
+        if (!confirm(L('Quitter ce groupe ?', 'Leave this group?'))) return;
+        db.collection('groupChats').doc(id).update({ members: (g.members || []).filter(function (u) { return u !== myUid(); }), memberNames: (g.memberNames || []).filter(function (n) { return n !== me.name; }) })
+          .catch(function (err) { showToast(tr('error_prefix') + ((err && err.message) || err), 'sticky'); });
+      }
+      STATE.groupChats = (STATE.groupChats || []).filter(function (x) { return x.id !== id; });
+      if (dmOpenWith === key) { dmOpenWith = null; stopGroupWatch(); }
+      renderRoot(); return;
+    }
+    var c = dmConversations().filter(function (x) { return (x.key || x.other) === key; })[0]; if (!c) return;
+    var m = hiddenConvMap(); m[c.convId] = (c.last && c.last.createdAt) || Date.now();
+    try { localStorage.setItem('cdp-hidden-conv-' + myUid(), JSON.stringify(m)); } catch (e) {}
+    showToast(L('Conversation supprimée chez toi. Elle revient si un nouveau message arrive.', 'Conversation removed on your side. It comes back if a new message arrives.'));
+    renderRoot();
+  }
   function openDm(name) {
     dmOpenWith = name; activeView = 'social'; pillState.social = 'messages'; personView = null;
     var tdi = teamDmInfo(name); pillState.dmbox = tdi && tdi.leader ? 'team' : 'perso';
@@ -23256,9 +23419,12 @@
       var lbl = escapeHtml(c.other) + (c.team && c.key.indexOf('tu:') === 0 ? ' <small class="dm-via">' + escapeHtml(L('à ', 'to ') + c.team.name) + '</small>' : '');
       // Pastille de présence sur l'avatar d'une conversation privée.
       if (!c.group && !c.team && c.key !== WELCOME_DM && u.name) { var pst = presenceOf(u); av = '<span class="dm-av-wrap">' + av + '<span class="presence-dot ' + pst + '" aria-label="' + escapeHtml(presenceLabel(pst)) + '"></span></span>'; }
-      return '<button type="button" class="dm-conv' + (c.unread ? ' unread' : '') + '" data-action="dm-open" data-name="' + escapeHtml(c.key || c.other) + '">' + av +
+      var swKey = c.key || c.other, isOwnGroup = c.group && c.group.createdBy === myUid();
+      var swLbl = c.group ? (isOwnGroup ? L('Supprimer', 'Delete') : L('Quitter', 'Leave')) : L('Supprimer', 'Delete');
+      return '<div class="dm-swipe' + (dmSwipeOpenKey === swKey ? ' open' : '') + '" data-swipe-key="' + escapeHtml(swKey) + '"><button type="button" class="dm-swipe-act" data-conv-act="' + escapeHtml(swKey) + '">' + swLbl + '</button>' +
+        '<button type="button" class="dm-conv' + (c.unread ? ' unread' : '') + '" data-action="dm-open" data-name="' + escapeHtml(c.key || c.other) + '">' + av +
         '<span class="dm-conv-main"><strong>' + lbl + '</strong><span class="help-text">' + (c.last.from === myUid() ? L('Toi : ', 'You: ') : c.group && c.last.fromName ? escapeHtml(c.last.fromName) + ' : ' : c.team && c.last.asTeam && c.key.indexOf('tu:') === 0 ? escapeHtml(c.last.fromName || '') + ' : ' : '') + escapeHtml((c.last.text || '').slice(0, 80)) + '</span></span>' +
-        '<span class="dm-conv-side"><span class="dm-time">' + escapeHtml(dmTime(c.last.createdAt)) + '</span>' + (c.unread ? '<span class="dm-unread">' + c.unread + '</span>' : '') + '</span></button>';
+        '<span class="dm-conv-side"><span class="dm-time">' + escapeHtml(dmTime(c.last.createdAt)) + '</span>' + (c.unread ? '<span class="dm-unread">' + c.unread + '</span>' : '') + '</span></button></div>';
   }
   function openDmPicker() {
     var me = currentUserProfile; if (!me) return;
@@ -23941,9 +24107,13 @@
     var pills = [['participants', tr('participants_heading') + ' (' + riders.length + (reqs.length && canEdit ? ' +' + reqs.length : '') + ')'], ['groupes', tr('groups_heading').replace(/\s*\(.*$/, '')]];
     if (announcementsHtml) pills.push(['annonces', tr('announcements_heading')]);
     if (chronosHtml) pills.push(['chronos', 'Chronos']);
+    if (canEdit) pills.push(['horaires', L('Horaires', 'Schedule')]);
     html += renderPills('evmanage', pills);
     var cur = pillState.evmanage;
-    if (cur === 'groupes') html += renderGroupsSection(ev, canEdit);
+    if (cur === 'horaires') html += '<div class="card">' + renderHorairesGridWithGenerator('evm', ev.horairesOverride || {}, ev.circuit, 'horaires_this_event_label') +
+      '<div class="help-text" style="margin-top:0.4rem;">' + L('Vide : les horaires habituels du circuit.', 'Empty: the circuit\'s usual schedule.') + '</div>' +
+      '<div style="margin-top:0.7rem; display:flex; gap:0.5rem; flex-wrap:wrap;"><button type="button" class="primary" data-action="evm-horaires-save" data-id="' + escapeHtml(ev.id) + '">' + tr('save') + '</button>' + renderHorairesImportButton(ev, !!ev.horairesOverride) + '</div></div>';
+    else if (cur === 'groupes') html += renderGroupsSection(ev, canEdit);
     else if (cur === 'annonces') html += '<div class="card">' + announcementsHtml + '</div>';
     else if (cur === 'chronos') html += '<div class="card">' + chronosHtml + '</div>';
     else html += participantsHtml;
@@ -24910,11 +25080,11 @@
     return {
       view: activeView, outing: outingView ? JSON.parse(JSON.stringify(outingView)) : null, person: personView ? JSON.parse(JSON.stringify(personView)) : null,
       circuit: selectedCircuit, social: pillState.social, circuitPill: pillState.circuit, cards: carnetCardsMode,
-      profile: !!profilePanelOpen, notifs: !!notificationsPanelOpen, team: expandedTeamId || null, teamSettings: teamSettingsOpenId || null, y: window.scrollY || 0
+      profile: !!profilePanelOpen, notifs: !!notificationsPanelOpen, team: expandedTeamId || null, teamSettings: teamSettingsOpenId || null, chronoForm: !!addChronoOpen, y: window.scrollY || 0
     };
   }
   function navSig(n) {
-    return [n.view, n.outing ? n.outing.circuit + n.outing.date : '', n.person ? n.person.name : '', n.view === 'circuit' ? n.circuit : '', n.view === 'social' ? n.social : '', n.profile ? 'P' : '', n.notifs ? 'N' : '', n.view === 'team' ? (n.team || '') + '/' + (n.teamSettings || '') : ''].join('|');
+    return [n.chronoForm ? 'CF' : '', n.view, n.outing ? n.outing.circuit + n.outing.date : '', n.person ? n.person.name : '', n.view === 'circuit' ? n.circuit : '', n.view === 'social' ? n.social : '', n.profile ? 'P' : '', n.notifs ? 'N' : '', n.view === 'team' ? (n.team || '') + '/' + (n.teamSettings || '') : ''].join('|');
   }
   function navTrack() {
     if (!window.history || !history.pushState) return;
@@ -24928,13 +25098,34 @@
     navCurrent = snap;
   }
   function navBack() { if (navStack.length) history.back(); }
+  // Brouillon de la saisie d'un chrono : gardé à chaque frappe, remis en
+  // place à la réouverture, effacé une fois le chrono enregistré.
+  var CHRONO_DRAFT_FIELDS = ['f-laps', 'f-note', 'f-video', 'f-date', 'f-circuit', 'f-circuit-other', 'f-slot', 'f-group', 'f-bike', 'f-track'];
+  function chronoFormHasData() { var l = document.getElementById('f-laps'), n = document.getElementById('f-note'); return !!((l && l.value.trim()) || (n && n.value.trim())); }
+  function saveChronoDraft() {
+    var d = {}; CHRONO_DRAFT_FIELDS.forEach(function (id) { var el = document.getElementById(id); if (el && el.value) d[id] = el.value; });
+    try { if (d['f-laps'] || d['f-note']) sessionStorage.setItem('cdp-chrono-draft', JSON.stringify(d)); else sessionStorage.removeItem('cdp-chrono-draft'); } catch (e) {}
+  }
+  function restoreChronoDraft() {
+    var d = null; try { d = JSON.parse(sessionStorage.getItem('cdp-chrono-draft') || 'null'); } catch (e) {}
+    if (!d) return;
+    var lp = document.getElementById('f-laps'); if (!lp || lp.value.trim()) return;
+    CHRONO_DRAFT_FIELDS.forEach(function (id) { var el = document.getElementById(id); if (el && d[id] != null) el.value = d[id]; });
+    showToast(L('Ta saisie en cours a été remise.', 'Your entry in progress was restored.'));
+  }
+  function clearChronoDraft() { try { sessionStorage.removeItem('cdp-chrono-draft'); } catch (e) {} }
   window.addEventListener('popstate', function () {
     var prev = navStack.pop();
     if (!prev) return;
+    // Retour pendant la saisie d'un chrono déjà commencée : on demande.
+    if (addChronoOpen && !prev.chronoForm && chronoFormHasData() && !confirm(L('Quitter la saisie du chrono ? Ce que tu as tapé est gardé : tu le retrouveras en revenant.', 'Leave the lap time entry? What you typed is kept: it\'ll be there when you come back.'))) {
+      navStack.push(prev); try { history.pushState({ pitbookNav: navStack.length }, '', location.href); } catch (e) {}
+      return;
+    }
     navRestoring = true;
     activeView = prev.view; outingView = prev.outing; personView = prev.person; selectedCircuit = prev.circuit;
     pillState.social = prev.social; pillState.circuit = prev.circuitPill; carnetCardsMode = prev.cards;
-    profilePanelOpen = prev.profile; notificationsPanelOpen = prev.notifs; addChronoOpen = false;
+    profilePanelOpen = prev.profile; notificationsPanelOpen = prev.notifs; addChronoOpen = !!prev.chronoForm;
     expandedTeamId = prev.team || null; teamSettingsOpenId = prev.teamSettings || null;
     renderRoot();
     navRestoring = false;
@@ -27025,6 +27216,16 @@
         if (gn) { e.preventDefault(); e.stopPropagation(); openGroupEditor(null); return; }
         var gi = e.target.closest('[data-action="group-info"]');
         if (gi) { e.preventDefault(); e.stopPropagation(); openGroupInfo(gi.getAttribute('data-id')); return; }
+        var ehs = e.target.closest('[data-action="evm-horaires-save"]');
+        if (ehs) {
+          e.preventDefault(); e.stopPropagation();
+          var hev = eventsList().filter(function (x) { return x.id === ehs.getAttribute('data-id'); })[0]; if (!hev) return;
+          var hz = {}, anyH = false;
+          HORAIRES_GROUPS.forEach(function (g) { var el = document.getElementById('evm-horaires-' + g.key), v = el ? el.value.trim() : ''; if (v) { hz[g.key] = v; anyH = true; } });
+          var prevH = JSON.parse(JSON.stringify(STATE));
+          hev.horairesOverride = anyH ? hz : null; hev.horairesBy = currentUserProfile.name;
+          persist(prevH); showToast(L('Horaires enregistrés.', 'Schedule saved.'), 'success'); renderRoot(); return;
+        }
         var egr = e.target.closest('[data-action="event-group"]');
         if (egr) { e.preventDefault(); e.stopPropagation(); openEventGroup(egr.getAttribute('data-id')); return; }
         var ech = e.target.closest('[data-action="event-chat"]');
@@ -27772,6 +27973,8 @@
       var parts = b.getAttribute('data-extra-visit-del').split('|');
       saveExtraVisits(((currentUserProfile && currentUserProfile.extraVisits) || []).filter(function (x) { return !(x.circuit === parts[0] && String(x.year || '') === parts[1]); }));
     }); });
+    var tzSel = document.getElementById('tz-select');
+    if (tzSel) tzSel.addEventListener('change', function () { try { if (tzSel.value) localStorage.setItem('cdp-tz', tzSel.value); else localStorage.removeItem('cdp-tz'); } catch (e) {} updateLiveClock(); renderRoot(); });
     var csort = document.getElementById('circuit-sort');
     if (csort) csort.addEventListener('change', function () { circuitSort = csort.value; try { localStorage.setItem('cdp-circuit-sort', circuitSort); } catch (e) {} renderRoot(); });
     document.querySelectorAll('[data-lvl-vote]').forEach(function (b) { b.addEventListener('click', function () {
@@ -27782,7 +27985,7 @@
     }); });
     var rb = document.getElementById('ride-both');
     if (rb) rb.addEventListener('change', function () { if (currentUserProfile) currentUserProfile.rideBoth = rb.checked; saveOwnBooleanField('rideBoth', rb.checked); renderRoot(); });
-    fitPinLayers();
+    fitPinLayers(); applyPlanScales();
     if (!imagesSlimmed && currentUserProfile && STATE.teams) setTimeout(slimMyImages, 4000);
     if (!drawingsMigrated && currentUserProfile && STATE.circuits && Object.keys(STATE.circuits).length) setTimeout(migrateMyDrawings, 5000);
     document.querySelectorAll('[data-more-posts]').forEach(function (b) { b.addEventListener('click', function () { b.disabled = true; loadMorePosts(b.getAttribute('data-more-posts')); }); });
@@ -28376,7 +28579,7 @@
       });
     });
     var form = document.getElementById('session-form');
-    if (form) form.addEventListener('submit', onSubmit);
+    if (form) { form.addEventListener('submit', onSubmit); form.addEventListener('input', saveChronoDraft); form.addEventListener('change', saveChronoDraft); if (!form.__draftRestored) { form.__draftRestored = true; restoreChronoDraft(); } }
     var cfConfirm = document.getElementById('cf-confirm');
     if (cfConfirm) {
       cfConfirm.querySelector('[data-action="cf-confirm-yes"]').addEventListener('click', function () {
@@ -28567,7 +28770,28 @@
       });
     });
     document.querySelectorAll('textarea[data-mentions]').forEach(attachMentionInput);
-    document.querySelectorAll('[data-action="dm-open"]').forEach(function (b) { b.addEventListener('click', function () { openDm(b.getAttribute('data-name')); }); });
+    document.querySelectorAll('[data-action="dm-open"]').forEach(function (b) { b.addEventListener('click', function (e) {
+      var sw = b.closest('.dm-swipe');
+      if (sw && sw.__swiped) { e.preventDefault(); sw.__swiped = false; return; }
+      if (sw && sw.classList.contains('open')) { e.preventDefault(); sw.classList.remove('open'); dmSwipeOpenKey = null; return; }
+      openDm(b.getAttribute('data-name'));
+    }); });
+    document.querySelectorAll('.dm-swipe').forEach(function (sw) {
+      var row = sw.querySelector('.dm-conv'), x0 = null, y0 = 0, dx = 0;
+      sw.addEventListener('pointerdown', function (e) { if (e.target.closest('.dm-swipe-act')) return; x0 = e.clientX; y0 = e.clientY; dx = 0; });
+      sw.addEventListener('pointermove', function (e) {
+        if (x0 === null) return; dx = e.clientX - x0;
+        if (Math.abs(e.clientY - y0) > 30 && Math.abs(dx) < 30) { x0 = null; row.style.transform = ''; return; }
+        if (dx > 8) { row.style.transition = 'none'; row.style.transform = 'translateX(' + Math.min(dx, 110) + 'px)'; }
+      });
+      var end = function () {
+        if (x0 === null) return; x0 = null; row.style.transition = ''; row.style.transform = '';
+        if (dx > 60) { document.querySelectorAll('.dm-swipe.open').forEach(function (o) { if (o !== sw) o.classList.remove('open'); }); sw.classList.add('open'); sw.__swiped = true; dmSwipeOpenKey = sw.getAttribute('data-swipe-key'); }
+        else if (dx < -30) { sw.classList.remove('open'); dmSwipeOpenKey = null; }
+      };
+      sw.addEventListener('pointerup', end); sw.addEventListener('pointercancel', end); sw.addEventListener('pointerleave', end);
+    });
+    document.querySelectorAll('[data-conv-act]').forEach(function (b) { b.addEventListener('click', function (e) { e.stopPropagation(); convSwipeAction(b.getAttribute('data-conv-act')); }); });
     document.querySelectorAll('[data-action="dm-new"]').forEach(function (b) { b.addEventListener('click', openDmPicker); });
     document.querySelectorAll('[data-dm-react]').forEach(function (b) { b.addEventListener('click', function (e) { if (e.target.closest('a, .mention-link, [data-person-link]')) return; e.stopPropagation(); openDmReactPicker(b); }); });
     document.querySelectorAll('[data-dm-react-chip]').forEach(function (b) { b.addEventListener('click', function (e) {
@@ -29728,6 +29952,12 @@
       errEl.classList.add('visible');
       return;
     }
+    // Un chrono ne peut pas être dans le futur : aujourd'hui au plus tard.
+    if (date && date > todayKey()) {
+      errEl.textContent = L('Date dans le futur : un chrono se note le jour même ou après.', 'Date in the future: log a lap time on the day or after.');
+      errEl.classList.add('visible');
+      return;
+    }
     // A chrono is necessarily logged after the fact -- a future date can
     // only ever be a typo (day/month swapped, wrong year...), and one
     // slipping through used to actively break things: normalizeSelection's
@@ -29830,7 +30060,7 @@
     selectedRiders = new Set([rider]);
     selectedCircuit = circuit;
     userPickedCircuit = true;
-    addChronoOpen = false;
+    addChronoOpen = false; clearChronoDraft();
     renderRoot();
     var saved = persist(prevState);
     if (incidentForPost && incidentForPost.publish) saved.then(function (ok) { if (ok !== false) publishIncident(incidentForPost); });

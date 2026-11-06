@@ -2,6 +2,25 @@
 
 Les nouveautés, de la plus récente à la plus ancienne. Le détail complet est dans l'historique git.
 
+## 6 novembre 2026 · retours Xav et Alexis (nuit)
+
+- Recherche : « Avancée ».
+- Lecteurs intégrés (YouTube, X, Instagram, TikTok) : même cadre, fond selon le thème, plus de blanc derrière X en mode sombre.
+- Messages : balayer une conversation vers la droite pour quitter / supprimer un groupe ou supprimer une conversation.
+- Autour du circuit : petites icônes (hôtel, camping, resto, location, transport, équipement, pneus, essence).
+- Infos du circuit : règles particulières (bruit en dB…) avant Obligatoire / Interdit, avec sources, pour 16 circuits.
+- Stories : barres de progression par personne ; « Voir le post » quand la story vient d'un post ; J'aime partagé entre la story et le post.
+- Saisie d'un chrono : le retour du téléphone demande confirmation si tu as commencé, ta saisie est gardée et remise à la réouverture ; date dans le futur refusée.
+- Réglages › Langue et affichage : fuseau horaire.
+- Bilan : plus de liens en haut.
+- Repères : appui long sur un repère pour le déplacer.
+- Plans : échelle approximative semi-transparente (≈ m ou ft).
+- Pneus : texte simplifié.
+- Podium : « Amis · déclarés » et « Tous · vérifiés ».
+- Gestion d'un roulage de team : nouvel onglet Horaires (sorti de « Modifier le roulage »).
+- Photo en grand : croix blanche sur rond rouge.
+- Réglages › Admin (compte admin) : gestion des comptes et tous les outils d'admin.
+
 ## 6 novembre 2026 · retours Xav et Alexis (soir)
 
 - « Fil » redevient « Social » partout (il était revenu par erreur lors de la refonte de la navigation).
