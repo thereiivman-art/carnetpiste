@@ -32,4 +32,6 @@ const { chromium, BASE } = require('../lib');
   await p.evaluate(() => firebase.firestore().collection('wallPosts').doc('xpost').set({ id: 'xpost', author: 'Sam', authorUid: 'u-sam', audience: 'all', text: 'Regarde', linkUrl: 'https://x.com/i/status/2118717665342619697', createdAt: Date.now() }));
   await p.click('.bottom-nav-btn:nth-child(3)'); await p.waitForTimeout(800);
   console.log('X:', await p.$eval('.link-player-face[data-url*="x.com"]', f => f.getAttribute('data-embed')).catch(() => 'pas de lecteur'));
+  await p.locator('.link-player.is-x').first().scrollIntoViewIfNeeded().catch(() => {}); await p.waitForTimeout(900);
+  console.log('X affiché tout seul:', !!(await p.$('.inline-player.is-x iframe[src*="platform.twitter.com"]')));
   console.log('errs', JSON.stringify(errs)); await b.close(); })();

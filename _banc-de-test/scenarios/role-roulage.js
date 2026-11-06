@@ -1,6 +1,5 @@
-// Rôle par roulage : Alex (pilote) vient en accompagnant à Barcelone sans
-// changer son compte ; puis l'avertissement en passant le compte en
-// accompagnant (rien d'effacé, confirmation demandée).
+// Rôle : plus de choix par roulage (retiré) ; l'avertissement en passant le
+// compte en accompagnant (rien d'effacé, confirmation demandée).
 const { chromium, BASE } = require('../lib');
 (async () => {
   const lang = process.argv[2] || 'fr';
@@ -14,15 +13,9 @@ const { chromium, BASE } = require('../lib');
   await p.click('[data-cards-mode="avenir"]'); await p.waitForTimeout(300);
   await p.click('[data-outing-event="e1"]'); await p.waitForTimeout(700);
   const tabs = () => p.$$eval('[data-pill-group="outing"]', e => e.map(x => x.innerText).join(' / '));
-  console.log('pilote, onglets:', await tabs(), '| rôle:', await p.$$eval('.ride-role-btn.active', e => e.map(x => x.innerText).join()));
-  await p.click('[data-action="ride-role"][data-role="accompagnant"]'); await p.waitForTimeout(600);
-  console.log('stocké:', JSON.stringify(await p.evaluate(() => window.__MOCK_DATA.events.e1.riderRoles)));
-  console.log('acc, onglets:', await tabs(), '| carte:', (await p.$eval('.outing-group-main', e => e.innerText.replace(/\n/g, ' '))));
-  await p.click('[data-pill-group="outing"][data-pill="chronos"]'); await p.waitForTimeout(300);
-  console.log('bouton pote:', !!(await p.$('[data-action="chrono-proposal"]')), '| potes en piste:', await p.$$eval('.friends-on-track .fot-row', e => e.map(x => x.innerText.split('\n')[0]).join(', ')).catch(() => ''));
-  await p.screenshot({ path: 'role-roulage-' + lang + '.png' });
-  await p.click('[data-action="ride-role"][data-role="pilote"]'); await p.waitForTimeout(600);
-  console.log('retour pilote:', JSON.stringify(await p.evaluate(() => window.__MOCK_DATA.events.e1.riderRoles)), '|', await tabs());
+  // La ligne « Sur ce roulage : Pilote / Accompagnant » a été retirée
+  // (retour Alexis) : le rôle vient du compte, un rôle déjà posé reste lu.
+  console.log('pilote, onglets:', await tabs(), '| plus de choix par roulage:', !(await p.$('[data-action="ride-role"]')));
   // Avertissement au changement de rôle du compte
   await p.click('#settings-toggle'); await p.waitForTimeout(300);
   await p.click('[data-settings-go="@compte"]'); await p.waitForTimeout(300);

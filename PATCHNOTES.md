@@ -2,7 +2,19 @@
 
 Les nouveautés, de la plus récente à la plus ancienne. Le détail complet est dans l'historique git.
 
-## 11 novembre 2026 · retours Alexis
+## 6 novembre 2026 · page d'un roulage allégée
+
+- Roulage : les actions passent en icônes sur une ligne (Gérer en engrenage, Discussion en bulle, Inviter en partage, Agenda en calendrier, Modifier en crayon) ; « Je n'y vais plus » reste en texte, au bout.
+- Roulage : plus de ligne « Sur ce roulage : Pilote / Accompagnant ».
+- Roulage : le team organisateur en rond (sa photo), un appui ouvre sa page.
+- Discussion d'un roulage : un groupe dans Messages. Pas encore de groupe : il est créé avec les inscrits ; déjà un groupe : tu y es ajouté.
+- Avis sur la difficulté : seulement après un roulage enregistré sur ce circuit (en moto pour l'avis moto, en voiture pour l'avis voiture).
+- Spots photo : réservés aux accompagnants.
+- Fiche › Circuits préférés : les noms ne s'affichent plus une lettre par ligne.
+- Liens X : le post s'affiche tout seul en arrivant à l'écran, à sa vraie hauteur.
+- Nouveautés : les dates sont celles du jour (elles avançaient d'un jour à chaque mise à jour).
+
+## 6 novembre 2026 · retours Alexis (circuit, mode sombre, X)
 
 - Infos du circuit : « Autour du circuit » (hôtels, campings, restos, location et transport de moto, équipement, pneus, essence), en recherches Google Maps autour de la piste.
 - Météo du jour : nom de la ville, petite icône (soleil, nuages, pluie…), et alerte « piste peut-être mouillée » s'il a plu ces 6 dernières heures. Lien vers une météo détaillée.
@@ -16,14 +28,14 @@ Les nouveautés, de la plus récente à la plus ancienne. Le détail complet est
 - Carnet › Circuits : plus d'onglet Chronos pour les accompagnants.
 - Liens X (Twitter) : le post s'affiche dans l'appli, comme une vidéo YouTube.
 
-## 10 novembre 2026 · stories
+## 6 novembre 2026 · stories
 
 - Story : le bouton Publier reste accessible quand le clavier est ouvert (l'aperçu rétrécit, Entrée ferme le clavier).
 - Story : épingle un circuit en tapant !Jerez (ou @Jerez) ; des suggestions de circuits s'affichent. Le circuit apparaît sur la story, un appui ouvre sa page.
 - Story : bouton Recadrer (cadre 9:16, glisser pour déplacer, pincer ou curseur pour zoomer), pour les photos comme pour les vidéos.
 - Publications : !Circuit devient aussi un lien vers le circuit.
 
-## 10 novembre 2026 · retours Alexis
+## 6 novembre 2026 · retours Alexis (météo, niveau, incident)
 
 - Infos du circuit : la météo du jour en premier, avant Niveau et matériel.
 - Niveau et avis sur la difficulté : seulement en moto, seulement en voiture, ou les deux, selon ton choix dans Mon compte.
@@ -32,7 +44,7 @@ Les nouveautés, de la plus récente à la plus ancienne. Le détail complet est
 - Carte d'un incident : plan clair en mode jour, sombre en mode nuit.
 - Tracés de Mas du Clos et de Clastres.
 
-## 9 novembre 2026
+## 6 novembre 2026 · réactions, fil, story vidéo
 
 - Réactions : emoji triste.
 - Incident d'un ami : on choisit la date (ex. sa chute à Misano le mois dernier). Bouton Date sur l'incident publié pour la corriger.
@@ -45,14 +57,14 @@ Les nouveautés, de la plus récente à la plus ancienne. Le détail complet est
 - Publications : visibles par Public, Amis ou Moi seul, au moment de publier ou après coup (pastille sur le post).
 - Téléphone : l'appli ne zoome plus (double-toucher, champ de saisie) et tient toujours dans la largeur de l'écran ; un lien très long passe à la ligne.
 
-## 8 novembre 2026
+## 6 novembre 2026 · incident
 
 - Incident : on peut le déclarer pour un ami qui a roulé ce jour-là (« Pour qui ? »). Il est cité dans la publication.
 - Échec d'envoi (publication, story, vidéo) : le message reste affiché jusqu'à ce qu'on le ferme.
 - Recherche : trouve aussi les réglages (« Aide », « mode sombre », « clair », « audience »…) et ouvre directement le bon menu.
 - Le bouton « Accident » quitte l'écran de saisie du chrono : on n'y pense pas avant de rouler. Il devient « Incident », un petit bouton sur la page d'un roulage passé (rangé sur ma session de ce jour-là, publié sur mon Social si je le coche).
 
-## 7 novembre 2026 (soir) · optimisation
+## 6 novembre 2026 · optimisation
 
 - Images plus légères à l'enregistrement : photo ronde 256 px (WebP quand possible), logo 640 px, bannière 1200 px.
 - Les photos déjà enregistrées (la mienne, ma bannière, celles de mes teams) s'allègent toutes seules à la connexion.
@@ -63,7 +75,7 @@ Les nouveautés, de la plus récente à la plus ancienne. Le détail complet est
 - Fiche : « Voir plus » charge les publications plus anciennes.
 - Photos des publications rangées à part : téléchargées une seule fois par appareil, puis relues depuis le cache (avant, chaque ouverture retéléchargeait toutes les photos du fil). Les anciennes publications migrent toutes seules.
 
-## 7 novembre 2026
+## 6 novembre 2026 · retours Alexis et Xavier
 
 **Retours Alexis**
 - Plan & repères : les repères restent exactement à leur place entre l'édition et l'affichage.

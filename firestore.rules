@@ -959,9 +959,14 @@ service cloud.firestore {
     // membres. Le créateur gère le nom et les membres ; chacun peut partir ;
     // tout membre met à jour l'aperçu du dernier message (le sien).
     match /groupChats/{gid} {
-      allow read: if request.auth != null && request.auth.uid in resource.data.members;
+      // Groupe d'un roulage (id « ev_<roulage> ») : ses inscrits le voient
+      // et peuvent s'y ajouter eux-mêmes (bulle Discussion du roulage).
+      function evRider(eid) { return myName() in get(/databases/$(database)/documents/events/$(eid)).data.get('riders', []); }
+      allow read: if request.auth != null && (resource == null || request.auth.uid in resource.data.members
+        || (resource.data.get('eventId', null) is string && evRider(resource.data.eventId)));
       allow create: if verified() && realAccount()
-        && request.resource.data.keys().hasOnly(['name', 'members', 'memberNames', 'createdBy', 'createdByName', 'createdAt'])
+        && request.resource.data.keys().hasOnly(['name', 'members', 'memberNames', 'createdBy', 'createdByName', 'createdAt', 'eventId'])
+        && (!('eventId' in request.resource.data) || (request.resource.data.eventId is string && gid == 'ev_' + request.resource.data.eventId && evRider(request.resource.data.eventId)))
         && request.resource.data.createdBy == request.auth.uid
         && request.resource.data.createdByName == myName()
         && request.resource.data.name is string && request.resource.data.name.size() > 0 && request.resource.data.name.size() <= 60
@@ -969,6 +974,12 @@ service cloud.firestore {
         && request.auth.uid in request.resource.data.members
         && request.resource.data.memberNames is list && request.resource.data.memberNames.size() == request.resource.data.members.size()
         && request.resource.data.createdAt is number;
+      allow update: if verified() && resource.data.get('eventId', null) is string && !(request.auth.uid in resource.data.members)
+          && evRider(resource.data.eventId)
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['members', 'memberNames'])
+          && request.resource.data.members == resource.data.members.concat([request.auth.uid])
+          && request.resource.data.memberNames == resource.data.memberNames.concat([myName()])
+          && request.resource.data.members.size() <= 50;
       allow update: if verified() && request.auth.uid in resource.data.members && (
         (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lastText', 'lastAt', 'lastFrom'])
           && request.resource.data.lastFrom == myName()

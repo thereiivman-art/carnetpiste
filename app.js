@@ -8336,7 +8336,7 @@
         '<button type="button" class="ghost" data-action="map-open" data-mode="draw" title="' + escapeHtml(L('Dessin à main levée', 'Freehand drawing')) + '"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M14 6l4 4"/></svg>' + L('Dessin', 'Draw') + '</button>' +
         '<button type="button" class="ghost" data-action="map-open" data-mode="pins" title="' + escapeHtml(L('Repères pro', 'Pro marks')) + '"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-6-5.6-6-11a6 6 0 0 1 12 0c0 5.4-6 11-6 11z"/><circle cx="12" cy="10" r="2.3"/></svg>' + L('Repères', 'Marks') + '</button>' +
         // Spots photo (accompagnants, photographes) : tout public ou accès pro.
-        (meIsNonRider() || isAdmin() || (circuitInfo(selectedCircuit).photoSpots || []).length ? '<button type="button" class="ghost" data-action="photo-spots" title="' + escapeHtml(L('Spots photo du circuit', 'Circuit photo spots')) + '"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>' + L('Spots photo', 'Photo spots') + '</button>' : '') + lapVideoLinkHtml(selectedCircuit) + '</div>';
+        (meIsNonRider() || isAdmin() ? '<button type="button" class="ghost" data-action="photo-spots" title="' + escapeHtml(L('Spots photo du circuit', 'Circuit photo spots')) + '"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>' + L('Spots photo', 'Photo spots') + '</button>' : '') + lapVideoLinkHtml(selectedCircuit) + '</div>';
       var nNotes = myTrackNotes(selectedCircuit).length;
       // PC large : les repères à droite de la carte (voir style.css).
       html += '<div class="circuit-plan-wrap"><div class="circuit-plan-map">' + renderCircuitInfoCard('plan') + '</div>' +
@@ -8717,8 +8717,15 @@
         return '<button type="button" data-lvl-vote="' + n + '" data-lvl-field="' + vf + '" data-lvl-circuit="' + escapeHtml(circuit) + '" class="' + (n <= cur ? 'on' : '') + '" aria-label="' + escapeHtml(levelLabel(n)) + '" title="' + escapeHtml(levelLabel(n)) + '"></button>';
       }).join('') + '</span></span>';
     };
-    html += '<div class="lvl-vote"><span class="look-label">' + L('Ton avis sur la difficulté', 'Your opinion on difficulty') + '</span><div class="lvl-row">' +
-      (!both ? (car ? voteRow('car', L('Voiture', 'Car')) : voteRow('moto', L('Moto', 'Bike'))) : car ? voteRow('car', L('Voiture', 'Car')) + voteRow('moto', L('Moto', 'Bike')) : voteRow('moto', L('Moto', 'Bike')) + voteRow('car', L('Voiture', 'Car'))) + '</div></div>';
+    // On ne note que ce qu'on a roulé : un chrono en moto sur ce circuit
+    // pour l'avis moto, en voiture pour l'avis voiture.
+    var meN = currentUserProfile && currentUserProfile.name, rodeIn = { moto: false, car: false };
+    (STATE.sessions || []).forEach(function (x) { if (x.rider === meN && sameCircuit(x.circuit, circuit)) rodeIn[x.discipline === 'auto' ? 'car' : 'moto'] = true; });
+    var wanted = !both ? [car ? 'car' : 'moto'] : car ? ['car', 'moto'] : ['moto', 'car'];
+    var canVote = wanted.filter(function (k) { return rodeIn[k]; });
+    html += '<div class="lvl-vote"><span class="look-label">' + L('Ton avis sur la difficulté', 'Your opinion on difficulty') + '</span>' +
+      (canVote.length ? '<div class="lvl-row">' + canVote.map(function (k) { return voteRow(k, k === 'car' ? L('Voiture', 'Car') : L('Moto', 'Bike')); }).join('') + '</div>'
+        : '<div class="help-text">' + L('Tu pourras donner ton avis après un roulage enregistré ici' + (wanted.length === 1 ? (wanted[0] === 'car' ? ' en voiture' : ' en moto') : '') + '.', 'You can rate it once you have a recorded ride here' + (wanted.length === 1 ? (wanted[0] === 'car' ? ' by car' : ' by bike') : '') + '.') + '</div>') + '</div>';
     var g = gearLists(car), li = function (a) { return '<ul>' + a.map(function (x) { return '<li>' + escapeHtml(x) + '</li>'; }).join('') + '</ul>'; };
     html += '<div class="gear-cols"><div class="gear-col gear-req"><span class="look-label">' + L('Obligatoire', 'Required') + '</span>' + li(g.req) + '</div>' +
       '<div class="gear-col gear-no"><span class="look-label">' + L('Interdit', 'Not allowed') + '</span>' + li(g.no) + '</div></div>' +
@@ -11343,9 +11350,8 @@
       '<div class="outing-hero-row"><span class="outing-date-chip">' + escapeHtml(ev ? formatEventRange(ev, true) : formatDate(date)) + '</span>' +
       // Organiser up here, on the date's line: the logo alone when there is
       // one (its name as the label), else the name.
-      (team ? '<span class="outing-org" title="' + escapeHtml(L('Organisé par ', 'Organised by ') + (team.name || '')) + '">' +
-        (team.logoURL ? '<img class="outing-org-logo" data-autotrim src="' + escapeHtml(team.logoURL) + '" alt="' + escapeHtml(L('Organisé par ', 'Organised by ') + (team.name || '')) + '">'
-          : '<span><span class="outing-label">' + L('Organisé par', 'Organised by') + '</span><br><strong>' + escapeHtml(team.name || '') + '</strong></span>') + '</span>' : '') +
+      // Le team : son rond (photo légère), un appui ouvre sa page.
+      (team ? '<button type="button" class="outing-org outing-org-round" data-team-link="' + escapeHtml(team.id) + '" title="' + escapeHtml(L('Organisé par ', 'Organised by ') + (team.name || '')) + '" aria-label="' + escapeHtml(L('Organisé par ', 'Organised by ') + (team.name || '')) + '">' + teamAvatarHtml(team) + '<span class="outing-org-name">' + escapeHtml(team.name || '') + '</span></button>' : '') +
       '</div></div>';
 
     // Groupe + statut
@@ -11378,12 +11384,6 @@
           : (slotsAll.length ? plural(slotsAll.length, 'session', 'sessions') : (group ? L('Horaires non communiqués', 'Times not announced') : L('Groupe pas encore attribué', 'Group not assigned yet')))) + '</span>';
     html += '<div class="outing-group-card"><div class="outing-group-main">' + groupMain + '</div>' +
       '<div class="outing-group-status">' + statusHtml + '</div></div>';
-    // Un pilote inscrit choisit comment il vient sur CE roulage.
-    if (ev && !meIsNonRider() && me && (ev.riders || []).indexOf(me) !== -1) {
-      html += '<div class="ride-role-row" role="group" aria-label="' + escapeHtml(L('Sur ce roulage, je viens en', 'On this trackday, I\'m coming as')) + '"><span class="help-text">' + L('Sur ce roulage :', 'On this trackday:') + '</span>' +
-        '<button type="button" class="ride-role-btn' + (asComp ? '' : ' active') + '" data-action="ride-role" data-id="' + escapeHtml(ev.id) + '" data-role="pilote" aria-pressed="' + !asComp + '">' + L('Pilote', 'Rider') + '</button>' +
-        '<button type="button" class="ride-role-btn' + (asComp ? ' active' : '') + '" data-action="ride-role" data-id="' + escapeHtml(ev.id) + '" data-role="accompagnant" aria-pressed="' + asComp + '">' + L('Accompagnant', 'Companion') + '</button></div>';
-    }
 
     var meName = currentUserProfile && currentUserProfile.name;
     if (ev && joinBannerEventId === ev.id && (ev.riders || []).indexOf(meName) === -1) {
@@ -11395,10 +11395,13 @@
     // (avant, Modifier et Exporter le récap étaient tout en bas d'Infos).
     if (ev) {
       var isRiderHere = (ev.riders || []).indexOf(meName) !== -1, leaderHere = !!(ev.teamId && isLeaderOfTeam(ev.teamId));
-      var acts = '';
+      var acts = '', icoBtn = function (cls, attrs, label, path) { return '<button type="button" class="icon-act ' + cls + '" ' + attrs + ' aria-label="' + escapeHtml(label) + '" title="' + escapeHtml(label) + '"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + path + '</svg></button>'; };
+      var IC = { gear: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>',
+        chat: '<path d="M21 12a8 8 0 0 1-11.8 7L4 20.5l1.5-4.8A8 8 0 1 1 21 12z"/>', share: '<path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7"/><path d="M16 6l-4-4-4 4"/><path d="M12 2v13"/>',
+        cal: '<rect x="4" y="5" width="16" height="15" rx="2"/><path d="M8 3v4M16 3v4M4 10h16M12 13v4M10 15h4"/>', edit: '<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M14 6l4 4"/>' };
       // The team leader manages the roulage (participants, groups,
       // horaires…) straight from here, not only from the team's page.
-      if (leaderHere) acts += '<button type="button" class="primary" data-action="manage-from-outing" data-id="' + escapeHtml(ev.id) + '" data-team="' + escapeHtml(ev.teamId) + '">' + L('Gérer', 'Manage') + '</button>';
+      if (leaderHere) acts += icoBtn('primary', 'data-action="manage-from-outing" data-id="' + escapeHtml(ev.id) + '" data-team="' + escapeHtml(ev.teamId) + '"', L('Gérer', 'Manage'), IC.gear);
       if (!isRiderHere && (status !== 'terminee' || (currentUserProfile && currentUserProfile.role === 'accompagnant'))) acts += joinEventButtonHtml(ev, leaderHere);
       // Roulage passé : noter un incident après coup (petit bouton discret).
       var incFriends = (ev.riders || []).filter(function (n) { return n !== meName && isFriendName(n) && !isNonRiderName(n); });
@@ -11407,13 +11410,13 @@
       if (isRiderHere && status !== 'terminee' && (ev.dateEnd || ev.dateStart) >= dateKey(new Date())) acts += '<button type="button" class="ghost" data-action="leave-roulage" data-id="' + escapeHtml(ev.id) + '">' + L('Je n\'y vais plus', 'Not going anymore') + '</button>';
       if (ev.bookingUrl && !isRiderHere) acts += '<button type="button" class="primary" data-action="open-external-url" data-url="' + escapeHtml(ev.bookingUrl) + '">' + tr('book_register') + '</button>';
       // Discussion du roulage : ses participants et son organisateur.
-      if (isRiderHere || leaderHere || isAdmin()) acts += '<button type="button" class="ghost" data-action="event-chat" data-id="' + escapeHtml(ev.id) + '">' + L('Discussion', 'Chat') + '</button>';
-      if ((isRiderHere || leaderHere) && status !== 'terminee') acts += '<button type="button" class="ghost" data-action="share-roulage" data-id="' + escapeHtml(ev.id) + '">' + L('Inviter', 'Invite') + '</button>';
+      if (isRiderHere || leaderHere || isAdmin()) acts += icoBtn('ghost', 'data-action="event-group" data-id="' + escapeHtml(ev.id) + '"', L('Discussion du roulage', 'Trackday chat'), IC.chat);
+      if ((isRiderHere || leaderHere) && status !== 'terminee') acts += icoBtn('ghost', 'data-action="share-roulage" data-id="' + escapeHtml(ev.id) + '"', L('Inviter', 'Invite'), IC.share);
+      if (status !== 'terminee') acts += icoBtn('ghost', 'data-action="add-to-calendar" data-id="' + escapeHtml(ev.id) + '"', L('Ajouter à mon agenda', 'Add to my calendar'), IC.cal);
       // QR paddock : à afficher au paddock, on scanne et on rejoint (avec son groupe).
       // QR paddock retiré : « Inviter » fait la même chose.
-      if (!ev.teamId && (isRiderHere || isAdmin())) acts += '<button type="button" class="ghost" id="edit-event-btn" data-id="' + escapeHtml(ev.id) + '">' + tr('modify') + '</button>';
-      html += '<div class="outing-actions">' + acts + '</div>';
-      if (status !== 'terminee') html += addToCalendarLink(ev);
+      if (!ev.teamId && (isRiderHere || isAdmin())) acts += icoBtn('ghost', 'id="edit-event-btn" data-id="' + escapeHtml(ev.id) + '"', tr('modify'), IC.edit);
+      html += '<div class="outing-actions outing-actions-icons">' + acts + '</div>';
       if (status !== 'terminee') html += eventPriceLine(ev); // les dépenses d'un roulage passé : onglet Budget
       if (ev.bookingUrl && !isRiderHere) html += '<div class="help-text outing-actions-help">Inscription et paiement chez l\'organisateur.</div>';
     } else if (sessions.length && date < dateKey(new Date()) && !meIsNonRider()) {
@@ -20350,6 +20353,18 @@
     st.top = (box.top + window.scrollY) + 'px'; st.left = (box.left + window.scrollX) + 'px';
     st.width = box.width + 'px'; st.height = box.height + 'px';
   }
+  // Post X : le lecteur officiel annonce sa hauteur (postMessage) ; le cadre
+  // du post prend cette hauteur (gardée pour les redessins).
+  var xEmbedHeights = {};
+  window.addEventListener('message', function (e) {
+    if (e.origin !== 'https://platform.twitter.com' || !inlinePlayer || !inlinePlayer.x) return;
+    var d = e.data; if (typeof d === 'string') { try { d = JSON.parse(d); } catch (er) { return; } }
+    var m = d && d['twttr.embed']; if (!m || m.method !== 'twttr.private.resize' || !m.params || !m.params[0]) return;
+    var h = Math.round(Number(m.params[0].height) || 0); if (h < 80 || h > 2000) return;
+    xEmbedHeights[inlinePlayer.url] = h;
+    document.querySelectorAll('#root .link-player-face[data-url]').forEach(function (f) { if (f.getAttribute('data-url') === inlinePlayer.url) { f.parentNode.style.aspectRatio = 'auto'; f.parentNode.style.height = h + 'px'; } });
+    positionInlinePlayer();
+  });
   function startInlinePlayer(face) {
     var url = face.getAttribute('data-url'), emb = videoEmbedOf(url);
     if (!emb) return;
@@ -20360,7 +20375,8 @@
       '<button type="button" class="inline-player-x" aria-label="' + escapeHtml(L('Fermer la vidéo', 'Close video')) + '">✕</button>';
     document.body.appendChild(el);
     el.querySelector('.inline-player-x').addEventListener('click', stopInlinePlayer);
-    inlinePlayer = { el: el, url: url, timer: setInterval(positionInlinePlayer, 400) };
+    inlinePlayer = { el: el, url: url, x: !!emb.x, timer: setInterval(positionInlinePlayer, 400) };
+    if (emb.x) el.classList.add('is-x');
     positionInlinePlayer();
   }
   window.addEventListener('resize', positionInlinePlayer);
@@ -20501,7 +20517,7 @@
   function postLinkHtml(url) {
     var emb = videoEmbedOf(url);
     if (emb) {
-      return '<div class="link-player' + (emb.tall ? ' tall' : '') + '"><button type="button" class="link-player-face" data-url="' + escapeHtml(url) + '" data-embed="' + escapeHtml(emb.src) + '" aria-label="' + escapeHtml(L('Lire la vidéo', 'Play video')) + '">' +
+      return '<div class="link-player' + (emb.tall ? ' tall' : '') + (emb.x ? ' is-x' : '') + '"' + (emb.x && xEmbedHeights[url] ? ' style="aspect-ratio:auto;height:' + xEmbedHeights[url] + 'px"' : '') + '><button type="button" class="link-player-face" data-url="' + escapeHtml(url) + '" data-embed="' + escapeHtml(emb.src) + '" aria-label="' + escapeHtml(L('Lire la vidéo', 'Play video')) + '">' +
         (emb.thumb ? '<img src="' + escapeHtml(emb.thumb) + '" alt="" loading="lazy">' : '') +
         (emb.x ? '<span class="x-face"><svg viewBox="0 0 24 24" width="44" height="44" fill="currentColor" aria-hidden="true"><path d="M17.8 3h3.1l-6.8 7.7L22 21h-6.2l-4.9-6.4L5.3 21H2.2l7.2-8.3L2 3h6.4l4.4 5.8zm-1.1 16.2h1.7L7.4 4.7H5.6z"/></svg><span>' + L('Toucher pour afficher le post', 'Tap to show the post') + '</span></span>' : '') +
         '<span class="link-player-play"><svg viewBox="0 0 24 24" width="30" height="30" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg></span><span class="link-player-host">' + emb.name + '</span></button>' +
@@ -23029,6 +23045,36 @@
       db.collection('groupChats').doc(gid).set(doc).catch(function (err) { showToast(tr('error_prefix') + ((err && err.message) || err)); });
       ov.remove(); openDm('grp:' + gid);
     });
+  }
+  // Discussion d'un roulage : un groupe dans Messages (« ev_<roulage> »).
+  // Pas encore de groupe : il est créé avec les inscrits ; déjà un groupe :
+  // je m'y ajoute, puis il s'ouvre.
+  function openEventGroup(eventId) {
+    var ev = eventsList().filter(function (e) { return e.id === eventId; })[0], me = currentUserProfile;
+    if (!ev || !me) return;
+    var gid = 'ev_' + ev.id, ref = db.collection('groupChats').doc(gid);
+    var name = (ev.circuit + ' · ' + formatEventRange(ev, true)).slice(0, 60);
+    var go = function () { openDm('grp:' + gid); };
+    var local = groupById(gid);
+    if (local && (local.members || []).indexOf(myUid()) !== -1) return go();
+    ref.get().then(function (d) {
+      if (d.exists) {
+        var g = d.data();
+        if ((g.members || []).indexOf(myUid()) !== -1) { if (!groupById(gid)) STATE.groupChats = (STATE.groupChats || []).concat([Object.assign({ id: gid }, g)]); return go(); }
+        var upd = { members: (g.members || []).concat([myUid()]), memberNames: (g.memberNames || []).concat([me.name]) };
+        return ref.update(upd).then(function () {
+          STATE.groupChats = (STATE.groupChats || []).filter(function (x) { return x.id !== gid; }).concat([Object.assign({ id: gid }, g, upd)]);
+          showToast(L('Tu as rejoint la discussion du roulage.', 'You joined the trackday chat.'), 'success'); go();
+        });
+      }
+      var names = [me.name].concat((ev.riders || []).filter(function (n) { return n !== me.name && !!uidOf(n); })).slice(0, 50);
+      if (names.length < 2) { showToast(L('Personne d\'autre n\'est inscrit pour l\'instant : la discussion s\'ouvrira dès qu\'un autre pilote ou accompagnant arrive.', 'Nobody else has joined yet: the chat opens as soon as another rider or companion joins.')); return; }
+      var doc = { name: name, members: names.map(uidOf), memberNames: names, createdBy: myUid(), createdByName: me.name, createdAt: Date.now(), eventId: ev.id };
+      return ref.set(doc).then(function () {
+        STATE.groupChats = (STATE.groupChats || []).filter(function (x) { return x.id !== gid; }).concat([Object.assign({ id: gid }, doc)]);
+        go();
+      });
+    }).catch(function (err) { showToast(tr('error_prefix') + ((err && err.message) || err), 'sticky'); });
   }
   function openGroupInfo(id) {
     var g = groupById(id), me = currentUserProfile; if (!g || !me) return;
@@ -26297,6 +26343,20 @@
         renderRoot();
       });
     });
+    // Post X : s'affiche tout seul quand il arrive à l'écran (un à la fois,
+    // sans couper une vidéo en cours).
+    if (window.IntersectionObserver) {
+      if (!window.__xAutoObs) window.__xAutoObs = new IntersectionObserver(function (entries) {
+        entries.forEach(function (en) {
+          if (!en.isIntersecting || en.intersectionRatio < 0.5) return;
+          if (inlinePlayer && !inlinePlayer.x) return;
+          if (inlinePlayer && inlinePlayer.url === en.target.getAttribute('data-url')) return;
+          startInlinePlayer(en.target);
+        });
+      }, { threshold: [0.5] });
+      window.__xAutoObs.disconnect();
+      document.querySelectorAll('#root .link-player.is-x .link-player-face[data-url]').forEach(function (f) { window.__xAutoObs.observe(f); });
+    }
     var photoLightboxOverlay = document.querySelector('.photo-lightbox-overlay');
     if (photoLightboxOverlay) {
       photoLightboxOverlay.addEventListener('click', function (evt) {
@@ -26909,6 +26969,8 @@
         if (gn) { e.preventDefault(); e.stopPropagation(); openGroupEditor(null); return; }
         var gi = e.target.closest('[data-action="group-info"]');
         if (gi) { e.preventDefault(); e.stopPropagation(); openGroupInfo(gi.getAttribute('data-id')); return; }
+        var egr = e.target.closest('[data-action="event-group"]');
+        if (egr) { e.preventDefault(); e.stopPropagation(); openEventGroup(egr.getAttribute('data-id')); return; }
         var ech = e.target.closest('[data-action="event-chat"]');
         if (ech) { e.preventDefault(); e.stopPropagation(); openEventChat(ech.getAttribute('data-id')); return; }
         var alb = e.target.closest('[data-action="open-albums"]');
