@@ -20467,7 +20467,10 @@
       jobs.push(db.collection('postMedia').doc(mid).set(Object.assign({ data: doc.repostOf.photoURL, createdAt: Date.now() }, mediaAccessOf(doc))));
       doc.repostOf = Object.assign({}, doc.repostOf, { photoMedia: mid }); delete doc.repostOf.photoURL;
     }
-    return Promise.all(jobs).then(function () { return db.collection('wallPosts').doc(doc.id).set(doc); });
+    // Si la photo n'a pas pu être rangée à part (règles pas encore à jour),
+    // la publication part quand même avec la photo dedans, comme avant.
+    return Promise.all(jobs).then(function () { return db.collection('wallPosts').doc(doc.id).set(doc); },
+      function () { return db.collection('wallPosts').doc(post.id).set(post); });
   }
   function loadPostMedia(id) {
     if (postMediaCache[id] || postMediaLoading[id]) return;
