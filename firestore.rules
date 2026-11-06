@@ -162,7 +162,8 @@ service cloud.firestore {
         && request.resource.data.get('organizer', false) == false
         && request.resource.data.get('coach', false) == false
         && request.resource.data.get('photographer', false) == false
-        && request.resource.data.get('plus', false) == false;
+        && request.resource.data.get('plus', false) == false
+        && request.resource.data.get('unlockAll', false) == false;
       // A pseudo change is capped to once every 30 days server-side (not
       // just a client-side warning) -- lastNameChangeAt is stamped with
       // request.time on every actual rename (see saveProfile), never
@@ -179,6 +180,8 @@ service cloud.firestore {
           && request.resource.data.get('photographer', false) == resource.data.get('photographer', false)
           // Carnet+ : attribué par l'admin seulement (simulation de l'abonnement).
           && request.resource.data.get('plus', false) == resource.data.get('plus', false)
+          // Personnalisation tout débloquée : posée par l'admin seulement.
+          && request.resource.data.get('unlockAll', false) == resource.data.get('unlockAll', false)
           // Repères, débriefs et email ne reviennent jamais sur le profil public.
           && keptOrRemoved('trackNotes') && keptOrRemoved('debriefs') && keptOrRemoved('email')
           // Photo de profil lue par tous les comptes : taille plafonnée.

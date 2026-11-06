@@ -5394,3 +5394,13 @@ body { overflow-wrap: break-word; }
 .avenir-modes .avenir-add { margin-left: auto; flex: 0 0 auto; padding: 0.4rem 0.9rem; border-radius: 999px; font-size: 0.88rem; font-weight: 700; }
 .team-coach-link { margin: 0.4rem 0 0.8rem; }
 .carnet-others-title { font-family: 'Barlow Condensed', sans-serif; font-weight: 800; font-size: 1rem; text-transform: uppercase; letter-spacing: 0.02em; margin: 1rem 0 0.4rem; opacity: 0.75; }
+.outing-group-head .outing-row-right { display: flex; flex-direction: column; align-items: flex-end; gap: 0.3rem; }
+.outing-group-toggle { display: inline-block; border: 1.5px solid var(--accent); color: var(--accent); border-radius: 999px; padding: 0.15rem 0.6rem; font-size: 0.82rem; font-weight: 700; white-space: nowrap; }
+.outing-group.open .outing-group-toggle { background: var(--accent); color: var(--accent-ink); }
+.team-seasons { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-bottom: 0.6rem; }
+.verif-badge { display: inline-flex; align-items: center; justify-content: center; width: 1.05em; height: 1.05em; border-radius: 50%; font-size: 0.75em; font-weight: 800; line-height: 1; color: #fff; vertical-align: middle; }
+.verif-badge.ok { background: #1f9d55; }
+.verif-badge.wait { background: #2f6fd6; }
+.podium-kicker.is-all { color: var(--accent); }
+.verif-legend { margin: 0.2rem 0 0.6rem; }
+.circuit-find { flex: 1 1 8rem; min-width: 7rem; width: auto; }

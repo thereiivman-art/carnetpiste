@@ -2,6 +2,22 @@
 
 Les nouveautés, de la plus récente à la plus ancienne. Le détail complet est dans l'historique git.
 
+## 6 novembre 2026 · retours Xav (fin de soirée)
+
+- À venir › Autres roulages : l'organisateur est indiqué.
+- Accompagnant : Liste / Mois dans À venir, passés rangés par circuit, Infos du circuit avec le record de tes amis.
+- Passés (Carnet et Teams) : rangés par circuit puis par date pour tout le monde, avec un bouton « Voir les N dates » bien visible.
+- Teams : les roulages de la team sont visibles par les membres ; tous les roulages d'un membre y apparaissent (team PRO, perso), avec l'orga.
+- Inviter dans sa team envoie aussi un message privé.
+- Incident : la date se choisit à la création, plus de bouton Date ensuite.
+- Podium : « Amis » et « Tous les membres » ; pastille verte = chrono validé, bleue = validation en attente.
+- Admin : « Tout débloquer » (étoile) par compte dans la gestion des comptes.
+- Admin : chaque suggestion reçue arrive dans les notifications.
+- Textes : « Ces données sont privées » au lieu de « Visible par toi seul ».
+- Roulage passé : « Je n'y étais pas » pour annuler « J'y étais ».
+- Circuits : champ Rechercher à côté de « + Créer ».
+- Saisie des chronos : mise au format (: et .) aussi sur Android et PC.
+
 ## 6 novembre 2026 · rangement
 
 - Roulages : plus d'onglet Calendrier. « À venir » propose Liste, Mois, Découvrir et « + Roulage ».

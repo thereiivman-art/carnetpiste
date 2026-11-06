@@ -995,7 +995,7 @@
 "Générer les horaires": "Generate the schedule",
 "Calcule un tour de piste par groupe, à tour de rôle, et remplit les champs ci-dessous – à ajuster ensuite si besoin.": "Works out one track session per group, in turn, and fills in the fields below – adjust afterwards if needed.",
 "Pré-rempli avec tes derniers réglages : modifie ce qui a changé.": "Pre-filled with your latest setup: change what's different.",
-"Visible par toi seul.": "Visible to you only.",
+"Ces données sont privées.": "This data is private.",
 "1er roulage ici": "1st trackday here",
 "Pas encore de chrono pour ce jour": "No lap time yet for this day",
 "Les chronos de tes amis pilotes sur ce roulage apparaîtront ici.": "Your rider friends' lap times for this trackday will show up here.",
@@ -1329,7 +1329,7 @@
 "Autocollant": "Sticker",
 "Application téléphone": "Phone app",
 "Plan circuit": "Circuit map",
-"Visible par toi et par les comptes Accompagnant qui te suivent.": "Visible to you and to the Companion accounts that follow you.",
+"Données privées, partagées avec les accompagnants qui te suivent.": "Visible to you and to the Companion accounts that follow you.",
 "Hôtel — nom": "Hotel — name",
 "Hôtel — adresse": "Hotel — address",
 "Hôtel — lien": "Hotel — link",
@@ -1514,7 +1514,7 @@
     [/^Tu es devant tout le monde, de (.+) sur (.+)\.$/, 'You\'re ahead of everyone, by $1 over $2.'],
     [/^Tu es à (.+) de (.+)\.$/, 'You\'re $1 behind $2.'],
     [/^Réglages de ton record ici · (.+) le (.+)$/, 'Setup of your record here · $1 on $2'],
-    [/^(.+) · meilleur tour (.+)Visible par toi seul\.$/, '$1 · best lap $2Visible to you only.'],
+    [/^(.+) · meilleur tour (.+)Ces données sont privées\.$/, '$1 · best lap $2This data is private.'],
     [/^indique venir à (.+)$/, 'says they\'re going to $1'],
     [/^souhaite rejoindre (.+)$/, 'wants to join $1'],
     [/^(.*) · (\d+) pilotes?$/, '$1 · $2 rider(s)'], [/^(\d+) pilotes?$/, '$1 rider(s)'],
@@ -2127,6 +2127,8 @@
       fromUid: myUid(), toUid: uidOf(toName)
     }).then(function () {
       showToast(tr('invitation_sent_to_prefix') + toName + '.', 'success');
+      // Et un message privé, pour qu'il le voie tout de suite.
+      if (uidOf(toName) && canMessage(toName)) sendDm(toName, L('Je t\'invite à rejoindre la team ' + team.name + ' sur Pitbook. Tu peux accepter dans tes notifications.', 'I\'m inviting you to join the team ' + team.name + ' on Pitbook. You can accept it in your notifications.'));
     }).catch(function (err) {
       showToast(tr('error_prefix') + (err && err.message ? err.message : err));
     });
@@ -3340,7 +3342,7 @@
     var rest = digits.slice(0, -3);
     var sec = rest.slice(-2);
     var min = rest.slice(0, -2);
-    return (min || '0') + ':' + sec.padStart(2, '0') + '.' + ms;
+    return String(parseInt(min || '0', 10)) + ':' + sec.padStart(2, '0') + '.' + ms;
   }
 
   // Wires that masking onto the Chronos textarea, live as the rider types
@@ -3349,9 +3351,8 @@
   // (a comma-separated multi-time line is left as typed).
   var lastLapsInputType = null;
   function attachLapsAutoFormat(textarea) {
-    textarea.addEventListener('beforeinput', function (e) { lastLapsInputType = e.inputType; });
-    textarea.addEventListener('input', function () {
-      if (lastLapsInputType !== 'insertText') return;
+    var composing = false;
+    var maskCaretLine = function () {
       var pos = textarea.selectionStart;
       var value = textarea.value;
       var lineStart = value.lastIndexOf('\n', pos - 1) + 1;
@@ -3364,6 +3365,21 @@
       textarea.value = value.slice(0, lineStart) + masked + value.slice(lineEnd);
       var newPos = lineStart + masked.length;
       textarea.setSelectionRange(newPos, newPos);
+    };
+    textarea.addEventListener('beforeinput', function (e) { lastLapsInputType = e.inputType; });
+    // Android (clavier en composition) : on formate quand la saisie est validée.
+    textarea.addEventListener('compositionstart', function () { composing = true; });
+    textarea.addEventListener('compositionend', function () { composing = false; setTimeout(maskCaretLine, 0); });
+    textarea.addEventListener('input', function (e) {
+      var t = (e && e.inputType) || lastLapsInputType;
+      if (composing || (e && e.isComposing)) return;
+      if (t !== 'insertText' && t !== 'insertCompositionText') return;
+      maskCaretLine();
+    });
+    // Filet de sécurité (navigateurs sans inputType) : lignes de chiffres seuls mises au format en quittant le champ.
+    textarea.addEventListener('blur', function () {
+      var v = textarea.value, nv = v.split('\n').map(function (l) { return /^\s*\d{4,7}\s*$/.test(l) ? maskChronoLine(l) : l; }).join('\n');
+      if (nv !== v) textarea.value = nv;
     });
   }
 
@@ -5820,6 +5836,12 @@
         html: '<strong>' + escapeHtml(r.rider) + '</strong>' + L(' a roulé à ', ' rode at ') + escapeHtml(r.circuit) + ' · <span class="notif-chrono">' + formatTime(r.best) + '</span>',
         go: { to: 'outing', circuit: r.circuit, date: r.date, event: r.eventId || '' } });
     });
+    // Admin : chaque suggestion reçue arrive dans les notifications.
+    if (isAdmin()) (STATE.feedback || []).slice(0, 30).forEach(function (fb) {
+      if (!fb.createdAt) return;
+      items.push({ key: 'fb:' + fb.id, kind: 'comment', time: fb.createdAt,
+        html: L('Suggestion de ', 'Suggestion from ') + '<strong>' + escapeHtml(fb.author || '?') + '</strong> : ' + escapeHtml(String(fb.text || '').slice(0, 90)), go: { to: 'suggestion' } });
+    });
     // Podium des amis: my own climbs (friends' climbs show in their ride line).
     ridesFor([name], 21).forEach(function (r) {
       var pc = podiumClimb(r);
@@ -6000,6 +6022,7 @@
       if (el.getAttribute('data-join')) joinBannerEventId = el.getAttribute('data-id');
       return openEventPage(el.getAttribute('data-id'));
     }
+    if (to === 'suggestion') { profilePanelOpen = true; profileSubTab = 'suggestion'; renderRoot(); window.scrollTo(0, 0); return; }
     if (to === 'fil') { activeView = 'social'; pillState.social = 'fil'; }
     else if (to === 'suivis') { activeView = 'social'; pillState.social = 'abonnements'; pillState.suivislist = 'abonnes'; }
     else if (to === 'trophees') { activeView = 'stats'; pillState.stats = 'trophees'; }
@@ -6194,6 +6217,7 @@
             var title = (on ? tr('remove_generic') + ' ' : tr('mark_as_prefix')) + b.label;
             return '<button type="button" class="ghost icon-btn' + (on ? ' confirm' : '') + '" data-action="toggle-account-badge" data-uid="' + escapeHtml(a.uid) + '" data-field="' + b.field + '" aria-label="' + escapeHtml(title) + '" title="' + escapeHtml(title) + '">' + b.icon + '</button>';
           }).join('') +
+          '<button type="button" class="ghost icon-btn' + (a.unlockAll ? ' confirm' : '') + '" data-action="toggle-unlock-all" data-uid="' + escapeHtml(a.uid) + '" title="' + escapeHtml(L('Personnalisation tout débloquée', 'All customisation unlocked')) + '" aria-label="' + escapeHtml(L('Tout débloquer', 'Unlock all')) + '">' + (a.unlockAll ? '★' : '☆') + '</button>' +
           '<button type="button" class="ghost icon-btn' + (isPendingDelete ? ' confirm' : ' danger') + '" data-action="delete-account-request" data-uid="' + escapeHtml(a.uid) + '" aria-label="' + tr('delete_account_aria') + '" title="' + tr('revoke_access_title') + '">' + (isPendingDelete ? '✓' : '×') + '</button>' +
           '</div>' +
           '</li>';
@@ -8319,7 +8343,9 @@
     html += '</select><select id="circuit-sort" class="circuit-sort" aria-label="' + escapeHtml(L('Trier les circuits', 'Sort circuits')) + '">' +
       [['pays', L('Par pays', 'By country')], ['alpha', L('A → Z', 'A → Z')], ['niveau', L('Niveau', 'Level')], ['distance', L('Distance', 'Length')], ['mes', L('Mes circuits', 'My circuits')]].map(function (o) {
         return '<option value="' + o[0] + '"' + (circuitSort === o[0] ? ' selected' : '') + '>' + escapeHtml(o[1]) + '</option>';
-      }).join('') + '</select><button type="button" class="ghost circuit-create-btn" data-action="circuit-create" title="' + escapeHtml(L('Créer mon circuit perso (dessin ou image)', 'Create my own circuit (drawing or image)')) + '">+ ' + L('Créer', 'Create') + '</button></div>';
+      }).join('') + '</select><input type="search" id="circuit-find" class="circuit-find" list="circuit-find-list" placeholder="' + escapeHtml(L('Rechercher', 'Search')) + '" aria-label="' + escapeHtml(L('Rechercher un circuit', 'Search a circuit')) + '" autocomplete="off">' +
+      '<datalist id="circuit-find-list">' + circuits.map(function (c) { return '<option value="' + escapeHtml(c) + '">'; }).join('') + '</datalist>' +
+      '<button type="button" class="ghost circuit-create-btn" data-action="circuit-create" title="' + escapeHtml(L('Créer mon circuit perso (dessin ou image)', 'Create my own circuit (drawing or image)')) + '">+ ' + L('Créer', 'Create') + '</button></div>';
     var cp = pillState.circuit;
     if (cp === 'plan') {
       // Les deux façons d'annoter, visibles dès l'arrivée sur la page.
@@ -8913,7 +8939,11 @@
     html += '<div class="circuit-info-list">';
     // Mes données d'abord : mon record et mes sorties sur ce circuit.
     var meName = currentUserProfile && currentUserProfile.name;
-    if (meName) {
+    if (meName && meIsNonRider()) {
+      // Accompagnant : le record de ses amis d'abord.
+      var fr = friendsPodium(selectedCircuit).filter(function (r) { return r.rider !== meName; });
+      html += infoRow(L('Record de mes amis', 'My friends\' record'), fr.length ? '<strong>' + formatTime(fr[0].best) + '</strong> · ' + personLinkHtml(fr[0].rider) + ' (' + escapeHtml(formatDate(fr[0].date)) + ')' : L('Pas encore de chrono', 'No lap time yet'));
+    } else if (meName) {
       var mine = (STATE.sessions || []).filter(function (s) { return s.rider === meName && s.circuit === selectedCircuit && s.laps && s.laps.length; });
       var myBestS = null;
       mine.forEach(function (s) { if (!myBestS || sessionBest(s) < sessionBest(myBestS)) myBestS = s; });
@@ -9441,7 +9471,7 @@
       if (group.indexOf(x.rider) === -1 || !x.laps || !x.laps.length || !sameCircuit(x.circuit, circuit) || (keep && !keep(x))) return;
       if (x.rider !== me && ((STATE.usersByName || {})[x.rider] || {}).shareSorties === false) return;
       var b = sessionBest(x);
-      if (!best[x.rider] || b < best[x.rider].best) best[x.rider] = { rider: x.rider, best: b, date: x.date };
+      if (!best[x.rider] || b < best[x.rider].best) best[x.rider] = { rider: x.rider, best: b, date: x.date, certified: !!x.certifiedBy };
     });
     return Object.keys(best).map(function (k) { return best[k]; }).sort(function (a, b) { return a.best - b.best; });
   }
@@ -9486,9 +9516,13 @@
       if (!x.certifiedBy || !x.laps || !x.laps.length || !sameCircuit(x.circuit, circuit)) return;
       if (((x.discipline || 'moto') === 'auto') !== car) return;
       var b = sessionBest(x);
-      if (!best[x.rider] || b < best[x.rider].best) best[x.rider] = { rider: x.rider, best: b, date: x.date };
+      if (!best[x.rider] || b < best[x.rider].best) best[x.rider] = { rider: x.rider, best: b, date: x.date, certified: true };
     });
     return Object.keys(best).map(function (k) { return best[k]; }).sort(function (a, b) { return a.best - b.best; });
+  }
+  // Pastille de validation d'un chrono : vert = validé par l'orga, bleu = en attente.
+  function verifBadgeHtml(ok) {
+    return ok ? '<span class="verif-badge ok" title="' + escapeHtml(L('Validé', 'Verified')) + '">✓</span>' : '<span class="verif-badge wait" title="' + escapeHtml(L('Validation en attente', 'Awaiting verification')) + '">…</span>';
   }
   function renderGlobalPodiums() {
     var by = {};
@@ -9499,9 +9533,9 @@
   }
   function renderStatsPodiums() {
     var sc = podiumScopeNow();
-    var scope = '<div class="podium-scope">' + [['potes', L('Amis · déclarés', 'Friends · declared')], ['tous', L('Tous · vérifiés', 'All · verified')]].map(function (o) { return '<button type="button" class="' + (sc === o[0] ? 'primary' : 'ghost') + '" data-podium-scope="' + o[0] + '">' + o[1] + '</button>'; }).join('') + '</div>';
+    var scope = '<div class="podium-scope">' + [['potes', L('Amis', 'Friends')], ['tous', L('Tous les membres', 'All members')]].map(function (o) { return '<button type="button" class="' + (sc === o[0] ? 'primary' : 'ghost') + '" data-podium-scope="' + o[0] + '">' + o[1] + (o[0] === 'tous' ? ' ' + verifBadgeHtml(true) : '') + '</button>'; }).join('') + '</div>';
     if (sc === 'tous') return scope + renderGlobalPodiums();
-    return scope + renderStatsPodiumsFriends();
+    return scope + '<div class="help-text verif-legend">' + verifBadgeHtml(true) + ' ' + L('validé', 'verified') + ' · ' + verifBadgeHtml(false) + ' ' + L('en attente', 'pending') + '</div>' + renderStatsPodiumsFriends();
   }
   function renderStatsPodiumsFriends() {
     var me = currentUserProfile && currentUserProfile.name;
@@ -9532,7 +9566,7 @@
     var info = circuitInfo(circuit), outline = outlineImageFor(info, circuit);
     var html = '<div class="card podium-card"><div class="podium-head">' +
       (outline ? '<img class="podium-trace" src="' + escapeHtml(outline) + '" alt="">' : '') +
-      '<div class="podium-head-text"><span class="podium-kicker">' + (globalMode ? L('Tous les membres · chronos vérifiés', 'All members · verified laps') : L('Podium des amis', 'Friends\' podium')) + '</span>' +
+      '<div class="podium-head-text"><span class="podium-kicker' + (globalMode ? ' is-all' : '') + '">' + (globalMode ? L('Tous les membres', 'All members') + ' ' + verifBadgeHtml(true) : L('Amis', 'Friends')) + '</span>' +
       '<strong class="podium-circuit">' + (info.country ? countryBallHtml(info.country, 'inline') + ' ' : '') + cName(circuit) + '</strong>' +
       '<span class="podium-sub">' + L('Meilleur tour de chacun', 'Everyone\'s best lap') + (rows.length > 1 ? ' · ' + rows.length + L(' pilotes', ' riders') : '') + '</span></div>' +
       (rows.length > 1 && !globalMode ? '<button type="button" class="ghost podium-share" data-action="share-podium" data-circuit="' + escapeHtml(circuit) + '">' + L('Partager', 'Share') + '</button>' : '') + '</div>';
@@ -9545,7 +9579,7 @@
       if (!r) return '<div class="podium-col empty p' + place + '"><div class="podium-step"><span>' + place + '</span></div></div>';
       var u = (STATE.usersByName || {})[r.rider] || {};
       return '<div class="podium-col p' + place + (r.rider === me ? ' me' : '') + '">' +
-        '<button type="button" class="podium-who"' + (r.rider === me ? '' : ' data-action="open-person" data-name="' + escapeHtml(r.rider) + '"') + '>' + avatarHtml(u, r.rider) + '<strong>' + escapeHtml(r.rider === me ? L('Toi', 'You') : r.rider) + '</strong></button>' +
+        '<button type="button" class="podium-who"' + (r.rider === me ? '' : ' data-action="open-person" data-name="' + escapeHtml(r.rider) + '"') + '>' + avatarHtml(u, r.rider) + '<strong>' + escapeHtml(r.rider === me ? L('Toi', 'You') : r.rider) + (globalMode ? '' : ' ' + verifBadgeHtml(r.certified)) + '</strong></button>' +
         '<span class="podium-time">' + formatTime(r.best) + '</span>' + (place > 1 ? '<span class="podium-gap">+' + formatGap(r.best - leader) + '</span>' : '<span class="podium-gap">' + escapeHtml(formatDate(r.date)) + '</span>') +
         '<div class="podium-step"><span>' + place + '</span></div></div>';
     };
@@ -9553,7 +9587,7 @@
     if (rows.length > 3) html += '<div class="podium-rest">' + rows.slice(3).map(function (r, i) {
       var u = (STATE.usersByName || {})[r.rider] || {};
       return '<div class="feed-recap-row' + (r.rider === me ? ' me' : '') + '"><span class="feed-recap-pos">' + (i + 4) + '</span>' + avatarHtml(u, r.rider) +
-        '<span class="feed-recap-name">' + (r.rider === me ? escapeHtml(L('Toi', 'You')) : personLinkHtml(r.rider)) + '</span><span class="feed-recap-time">' + formatTime(r.best) + '</span><span class="feed-recap-gap">+' + formatGap(r.best - leader) + '</span></div>';
+        '<span class="feed-recap-name">' + (r.rider === me ? escapeHtml(L('Toi', 'You')) : personLinkHtml(r.rider)) + (globalMode ? '' : ' ' + verifBadgeHtml(r.certified)) + '</span><span class="feed-recap-time">' + formatTime(r.best) + '</span><span class="feed-recap-gap">+' + formatGap(r.best - leader) + '</span></div>';
     }).join('') + '</div>';
     if (globalMode) {
       if (nAll > rows.length || globalPodiumOpen[circuit]) html += '<button type="button" class="link-btn podium-more" data-podium-more="' + escapeHtml(circuit) + '">' + (globalPodiumOpen[circuit] ? L('Voir moins', 'Show less') : L('Voir plus (top ' + nAll + ')', 'Show more (top ' + nAll + ')')) + '</button>';
@@ -10249,7 +10283,7 @@
       '<div class="help-text">' + escapeHtml(x.circuit + ' · ' + formatDate(x.date) + (x.slotLabel ? ' · ' + x.slotLabel : '') + ' · meilleur tour ' + formatTime(sessionBest(x))) +
       (current ? '' : (prefill && Object.keys(prefill).length ? '<br>Pré-rempli avec tes derniers réglages : modifie ce qui a changé.' : '')) +
       tyreLineForSession(x) +
-      '<br>Visible par toi seul.</div>' +
+      '<br>Ces données sont privées.</div>' +
       '<div class="setup-grid">' + fields + '</div>' +
       '<div style="margin-top:0.8rem; display:flex; gap:0.5rem; flex-wrap:wrap;"><button type="button" class="primary" data-s="save">Enregistrer</button>' +
       '<button type="button" class="ghost" data-s="cancel">Annuler</button>' +
@@ -10538,7 +10572,7 @@
     var sheet = document.createElement('div');
     sheet.className = 'crop-modal-overlay setup-sheet pressure-sheet';
     sheet.innerHTML = '<div class="crop-modal setup-modal"><h2 class="section-title">' + L('Mes pressions', 'My pressures') + '</h2>' +
-      '<div class="help-text">' + L('Note ce que tu as mis. Aucune valeur n\'est proposée par Pitbook. Visible par toi seul.', 'Log what you used. Pitbook suggests no value. Visible to you only.') + '</div>' +
+      '<div class="help-text">' + L('Note ce que tu as mis. Aucune valeur n\'est proposée par Pitbook. Ces données sont privées.', 'Log what you used. Pitbook suggests no value. This data is private.') + '</div>' +
       '<div class="setup-grid">' +
       '<label class="setup-field"><span>Circuit</span><input type="text" id="pr-circuit" list="pr-circuits" maxlength="60" value="' + escapeHtml(v.circuit || '') + '"><datalist id="pr-circuits">' + circuitDatalist() + '</datalist></label>' +
       '<label class="setup-field setup-half"><span>' + L('Date', 'Date') + '</span><input type="date" id="pr-date" value="' + escapeHtml(v.date || dateKey(new Date())) + '"></label>' +
@@ -10750,7 +10784,7 @@
     var sheet = document.createElement('div');
     sheet.className = 'crop-modal-overlay setup-sheet tyre-sheet';
     sheet.innerHTML = '<div class="crop-modal setup-modal"><h2 class="section-title">' + L('Mes pneus', 'My tyres') + '</h2>' +
-      '<div class="help-text">' + L('À partir de cette date, Pitbook compte les sessions, les tours et les km sur ce train. Visible par toi seul.', 'From this date, Pitbook counts the sessions, laps and km on this set. Visible to you only.') + '</div>' +
+      '<div class="help-text">' + L('À partir de cette date, Pitbook compte les sessions, les tours et les km sur ce train. Ces données sont privées.', 'From this date, Pitbook counts the sessions, laps and km on this set. This data is private.') + '</div>' +
       '<div class="tyre-state" role="radiogroup" aria-label="' + escapeHtml(L('État des pneus', 'Tyre condition')) + '">' +
       '<label><input type="radio" name="tyre-state" value="new" checked> ' + L('Neufs', 'New') + '</label>' +
       '<label><input type="radio" name="tyre-state" value="used"> ' + L('Déjà roulés', 'Already used') + '</label></div>' +
@@ -11135,7 +11169,7 @@
       html += '<div class="card budget-list" data-budget-list>' + (rows.length ? rows.map(budgetRowHtml).join('')
         : '<div class="help-text">' + L('Aucun roulage gardé. Coche-les dans « À ajouter ».', 'No trackday kept yet. Tick them under “To add”.') + '</div>') + '</div>';
     }
-    html += '<div class="help-text budget-intro">' + L('Une estimation à partir des prix annoncés par l\'orga et de tes frais. L\'inscription et le paiement se font chez l\'orga. Visible par toi seul.', 'An estimate based on the organiser\'s announced prices and your own costs. Booking and payment happen with the organiser. Visible to you only.') + '</div>';
+    html += '<div class="help-text budget-intro">' + L('Une estimation à partir des prix annoncés par l\'orga et de tes frais. L\'inscription et le paiement se font chez l\'orga. Ces données sont privées.', 'An estimate based on the organiser\'s announced prices and your own costs. Booking and payment happen with the organiser. This data is private.') + '</div>';
     return html + '</div>';
   }
   var budgetSaveTimer = null;
@@ -11495,6 +11529,8 @@
       if (((isRiderHere || sessions.length) && !meIsNonRider() || incFriends.length) && (ev.dateEnd || ev.dateStart) < dateKey(new Date())) acts += '<button type="button" class="ghost" data-action="incident-past" data-circuit="' + escapeHtml(ev.circuit) + '" data-date="' + escapeHtml(date) + '" data-others="' + escapeHtml(incFriends.join('|')) + '">' + L('Incident', 'Incident') + '</button>';
       // Inscrit à un roulage à venir : on peut se retirer.
       if (isRiderHere && status !== 'terminee' && (ev.dateEnd || ev.dateStart) >= dateKey(new Date())) acts += '<button type="button" class="ghost" data-action="leave-roulage" data-id="' + escapeHtml(ev.id) + '">' + L('Je n\'y vais plus', 'Not going anymore') + '</button>';
+      // Roulage passé : annuler « J'y étais » (touché par erreur).
+      else if (isRiderHere && (ev.dateEnd || ev.dateStart) < dateKey(new Date())) acts += '<button type="button" class="ghost" data-action="leave-roulage" data-id="' + escapeHtml(ev.id) + '">' + L('Je n\'y étais pas', 'I wasn\'t there') + '</button>';
       if (ev.bookingUrl && !isRiderHere) acts += '<button type="button" class="primary" data-action="open-external-url" data-url="' + escapeHtml(ev.bookingUrl) + '">' + tr('book_register') + '</button>';
       // Discussion du roulage : ses participants et son organisateur.
       if (isRiderHere || leaderHere || isAdmin()) acts += icoBtn('ghost', 'data-action="event-group" data-id="' + escapeHtml(ev.id) + '"', L('Discussion du roulage', 'Trackday chat'), IC.chat);
@@ -12301,6 +12337,14 @@
       .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
     return q.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').split(/\s+/).filter(Boolean).every(function (t) { return hay.indexOf(t) !== -1; });
   }
+  // Tête d'un groupe de roulages par circuit : bouton « Voir les N dates » bien visible.
+  function outingGroupHtml(key, open, circuit, sub, rightTime, n, bodyHtml) {
+    var tog = open ? L('Réduire', 'Collapse') + ' ▴' : (n > 1 ? L('Voir les ' + n + ' dates', 'See ' + n + ' dates') : L('Voir', 'See')) + ' ▾';
+    return '<div class="outing-group' + (open ? ' open' : '') + '"><button type="button" class="outing-group-head" data-outing-group="' + escapeHtml(key) + '" aria-expanded="' + open + '">' +
+      '<span class="outing-thumb">' + circuitThumbHtml(circuit) + '</span><span class="outing-row-main"><strong>' + escapeHtml(circuit) + '</strong><span class="help-text">' + sub + '</span></span>' +
+      '<span class="outing-row-right">' + (rightTime ? '<span class="carnet-time">' + rightTime + '</span>' : '') + '<span class="outing-group-toggle">' + tog + '</span></span></button>' +
+      (open ? '<div class="outing-group-body">' + bodyHtml + '</div>' : '') + '</div>';
+  }
   function renderPastByCircuit(outings) {
     var list = outings.filter(function (o) { return outingMatches(o, outingSearch); });
     var html = '<div class="outing-search"><input type="search" id="outing-search" value="' + escapeHtml(outingSearch) + '" placeholder="' + escapeHtml(L('Circuit, date, mois, « album »…', 'Circuit, date, month, “album”…')) + '" autocomplete="off">' +
@@ -12313,11 +12357,8 @@
       var open = outingSearch ? true : (outingGroupOpen[k] != null ? outingGroupOpen[k] : gi === 0);
       var best = Math.min.apply(null, g.map(function (o) { return o.best; }));
       var albums = g.filter(function (o) { return outingAlbum(o); }).length;
-      return '<div class="outing-group' + (open ? ' open' : '') + '"><button type="button" class="outing-group-head" data-outing-group="' + escapeHtml(k) + '" aria-expanded="' + open + '">' +
-        '<span class="outing-thumb">' + circuitThumbHtml(g[0].circuit) + '</span><span class="outing-row-main"><strong>' + escapeHtml(g[0].circuit) + '</strong><span class="help-text">' +
-        plural(g.length, L('roulage', 'trackday'), L('roulages', 'trackdays')) + ' · ' + escapeHtml(formatDate(g[0].date)) + (albums ? ' · ' + plural(albums, 'album', 'albums') : '') + '</span></span>' +
-        '<span class="outing-row-right"><span class="carnet-time">' + formatTime(best) + '</span><span class="outing-group-chev" aria-hidden="true">' + (open ? '▴' : '▾') + '</span></span></button>' +
-        (open ? '<div class="outing-group-body">' + g.map(outingRowWithAlbum).join('') + '</div>' : '') + '</div>';
+      return outingGroupHtml(k, open, g[0].circuit, plural(g.length, L('roulage', 'trackday'), L('roulages', 'trackdays')) + ' · ' + escapeHtml(formatDate(g[0].date)) + (albums ? ' · ' + plural(albums, 'album', 'albums') : ''),
+        isFinite(best) ? formatTime(best) : '', g.length, g.map(outingRowWithAlbum).join(''));
     }).join('');
     return html;
   }
@@ -12342,8 +12383,8 @@
       var others = eventsList().filter(function (ev) {
         return (ev.riders || []).indexOf(meN) === -1 && (ev.dateEnd || ev.dateStart) >= todayK && isMyEventForList(ev);
       }).sort(function (a, b) { return a.dateStart < b.dateStart ? -1 : 1; });
-      if (others.length) html += '<h3 class="carnet-others-title">' + L('Autres roulages', 'Other trackdays') + '</h3>' + others.map(function (ev) { return renderEventRow(ev, {}); }).join('');
-    } else if (outings.length > 3 || outingSearch) {
+      if (others.length) html += '<h3 class="carnet-others-title">' + L('Autres roulages', 'Other trackdays') + '</h3>' + others.map(function (ev) { var o = eventOrgName(ev); return renderEventRow(ev, o ? { extraMeta: L('Orga : ', 'Organiser: ') + o } : {}); }).join('');
+    } else if (outings.length) {
       html += renderPastByCircuit(outings);
     } else {
       // Les 3 derniers seulement ; le reste se déplie.
@@ -12362,12 +12403,18 @@
     var me = currentUserProfile, inCal = activeView === 'event', ev = pillState.events;
     var hasDisc = !!(me && renderProEventDiscovery(me));
     var b = function (on, attrs, label) { return '<button type="button" class="sub-pill-btn' + (on ? ' active' : '') + '" ' + attrs + '>' + label + '</button>'; };
-    return '<div class="sub-pills avenir-modes">' + b(!inCal, 'data-view="carnet" data-cards-mode="avenir"', L('Liste', 'List')) +
+    var comp = meIsNonRider();
+    return '<div class="sub-pills avenir-modes">' + b(!inCal, comp ? 'data-view="carnet" data-pill-group="compcarnet" data-pill="avenir"' : 'data-view="carnet" data-cards-mode="avenir"', L('Liste', 'List')) +
       b(inCal && ev === 'calendrier', 'data-view="event" data-pill-group="events" data-pill="calendrier"', L('Mois', 'Month')) +
       (hasDisc ? b(inCal && ev === 'decouvrir', 'data-view="event" data-pill-group="events" data-pill="decouvrir"', L('Découvrir', 'Discover')) : '') +
-      '<button type="button" class="ghost avenir-add" data-action="quick-outing">+ ' + L('Roulage', 'Trackday') + '</button></div>';
+      (comp ? '' : '<button type="button" class="ghost avenir-add" data-action="quick-outing">+ ' + L('Roulage', 'Trackday') + '</button>') + '</div>';
   }
   function carnetPillsHtml(outings) {
+    if (meIsNonRider()) {
+      // Accompagnant dans « Mois » : mêmes onglets que son carnet.
+      return '<div class="pill-tabs main-subnav-pills"><button type="button" class="pill-btn active" data-view="carnet" data-pill-group="compcarnet" data-pill="avenir">' + L('À venir', 'Upcoming') + '</button>' +
+        '<button type="button" class="pill-btn" data-view="carnet" data-pill-group="compcarnet" data-pill="passes">' + L('Passés', 'Past') + '</button></div>' + avenirModeRow();
+    }
     var upcoming = myUpcomingEvents();
     if (!outings.length && !upcoming.length && activeView !== 'event') return '<div class="pill-tabs"><button type="button" class="pill-btn active">' + L('Roulages', 'Trackdays') + '</button><button type="button" class="pill-btn" data-view="event">' + L('Calendrier', 'Calendar') + '</button></div>';
     if (!carnetCardsMode) carnetCardsMode = upcoming.length || !outings.length ? 'avenir' : 'passees';
@@ -12532,9 +12579,10 @@
     var html = renderPills('compcarnet', [['avenir', L('À venir', 'Upcoming') + (upcoming.length ? ' (' + upcoming.length + ')' : '')], ['passes', L('Passés', 'Past') + (past.length ? ' (' + past.length + ')' : '')]]) + (extraTop || '') + '<h2 class="section-title comp-carnet-title">' + L('Roulages de mes amis', 'My friends\' trackdays') + '</h2>';
     var othersHtml = others.length ? '<h2 class="section-title feed-section-title">' + L('Autres roulages à venir', 'Other upcoming trackdays') + '</h2><div class="card outings-card">' + others.map(function (ev) {
       return '<div class="outing-row comp-other-row"><button type="button" class="comp-other-open" data-open-outing="' + escapeHtml(ev.circuit) + '" data-outing-date="' + escapeHtml(ev.dateStart) + '" data-outing-event="' + escapeHtml(ev.id) + '"><span class="outing-thumb">' + circuitThumbHtml(ev.circuit) + '</span>' +
-        '<span class="outing-row-main"><strong>' + escapeHtml(ev.circuit) + '</strong><span class="help-text">' + escapeHtml(formatEventRange(ev, true)) + '</span></span></button>' +
+        '<span class="outing-row-main"><strong>' + escapeHtml(ev.circuit) + '</strong><span class="help-text">' + escapeHtml(formatEventRange(ev, true) + (eventOrgName(ev) ? ' · ' + L('Orga : ', 'Organiser: ') + eventOrgName(ev) : '')) + '</span></span></button>' +
         '<button type="button" class="ghost" data-notif-go="event" data-id="' + escapeHtml(ev.id) + '" data-join="1">' + L('J\'y vais', 'I\'m going') + '</button></div>';
     }).join('') + '</div><div class="help-text carnet-add-help">' + L('« J\'y vais » te montre à tes amis sur ce roulage, sans t\'inscrire chez l\'organisateur.', '“I\'m going” shows your friends you\'ll be there, without registering with the organiser.') + '</div>' : '';
+    if (pillState.compcarnet === 'avenir') html += avenirModeRow();
     if (pillState.compcarnet === 'avenir' && !friends.length) return html + (upcoming.length ? '' : '<div class="card help-text">' + L('Aucun roulage à venir pour toi ou tes amis.', 'No upcoming trackday for you or your friends.') + '</div>') + othersHtml;
     if (!friends.length) return html + '<div class="card help-text">' + L('Ajoute tes amis pilotes (Communauté › Amis) : leurs roulages, leurs chronos et leurs podiums apparaîtront ici.', 'Add your rider friends (Community › Friends): their trackdays, lap times and podiums will show up here.') + '</div>';
     if (pillState.compcarnet === 'avenir') {
@@ -12549,7 +12597,7 @@
       }).join('') + '</div>' + othersHtml;
     }
     if (!past.length) return html + '<div class="card help-text">' + L('Tes amis n\'ont pas encore de chrono. Dès qu\'ils en ajoutent, leurs roulages s\'affichent ici.', 'Your friends have no lap times yet. As soon as they add some, their trackdays show up here.') + '</div>';
-    return html + '<div class="card outings-card">' + past.map(function (o) {
+    var compRow = function (o) {
       var rs = Object.keys(o.riders).sort(function (a, b) { return o.riders[a] - o.riders[b]; });
       var oev = o.eventId ? eventsList().filter(function (e) { return e.id === o.eventId; })[0] : null;
       return '<div class="outing-row-wrap"><button type="button" class="outing-row" data-open-outing="' + escapeHtml(o.circuit) + '" data-outing-date="' + escapeHtml(o.date) + '" data-outing-event="' + escapeHtml(o.eventId || '') + '">' +
@@ -12557,6 +12605,14 @@
         '<span class="outing-row-main"><strong>' + escapeHtml(o.circuit) + '</strong><span class="help-text">' + escapeHtml(formatDate(o.date)) + ' · ' +
         escapeHtml(rs.slice(0, 3).join(', ') + (rs.length > 3 ? ' +' + (rs.length - 3) : '')) + '</span></span>' +
         '<span class="outing-row-right"><span class="carnet-time">' + formatTime(o.riders[rs[0]]) + '</span><span class="help-text">' + escapeHtml(rs[0]) + '</span></span></button>' + albumChipHtml(oev) + '</div>';
+    };
+    // Rangés par circuit puis par date, comme pour les pilotes.
+    var cGroups = {}, cOrder = [];
+    past.forEach(function (o) { var k = circuitKey(o.circuit); if (!cGroups[k]) { cGroups[k] = []; cOrder.push(k); } cGroups[k].push(o); });
+    return html + '<div class="card outings-card">' + cOrder.map(function (k, gi) {
+      var g = cGroups[k].slice().sort(function (a, b) { return b.date.localeCompare(a.date); }), gk = 'comp:' + k;
+      var open = outingGroupOpen[gk] != null ? outingGroupOpen[gk] : gi === 0;
+      return outingGroupHtml(gk, open, g[0].circuit, plural(g.length, L('roulage', 'trackday'), L('roulages', 'trackdays')) + ' · ' + escapeHtml(formatDate(g[0].date)), '', g.length, g.map(compRow).join(''));
     }).join('') + '</div>';
   }
   // « Moi » : Stats (une page qui défile : records, podium, trophées),
@@ -12818,7 +12874,7 @@
           return '<button type="button" data-inc-who="' + escapeHtml(n) + '" aria-pressed="' + (st.who === n) + '">' + escapeHtml(n === meName ? L('Moi', 'Me') : n) + '</button>'; }).join('') + '</div>' : '') +
         '<div class="look-seg incident-types">' + INCIDENT_TYPES().map(function (o) { return '<button type="button" data-inc-type="' + o[0] + '" aria-pressed="' + (st.type === o[0]) + '">' + escapeHtml(o[1]) + '</button>'; }).join('') + '</div>' +
         (base ? '<p class="help-text">' + L('Touche le plan à l\'endroit de l\'incident.', 'Tap the map where it happened.') + '</p><div class="incident-map"><img src="' + escapeHtml(base) + '" alt="">' + (st.x != null ? '<span class="incident-x" style="left:' + (st.x * 100) + '%;top:' + (st.y * 100) + '%"></span>' : '') + '</div>' : '<p class="help-text">' + (circuit ? L('Pas encore de tracé pour ' + circuit + ' : l\'endroit ne peut pas être placé. Dis-le dans « Un mot » (ex. virage 3).', 'No track outline for ' + circuit + ' yet: the spot can\'t be marked. Say it in « A word » (e.g. turn 3).') : L('Choisis d\'abord le circuit pour placer l\'endroit.', 'Pick the circuit first to mark the spot.')) + '</p>') +
-        (st.who !== meName || !pastDate ? '<label for="inc-date" style="margin-top:0.6rem;">' + L('Date', 'Date') + '</label><input type="date" id="inc-date" value="' + escapeHtml(st.date || pastDate || todayKey()) + '" max="' + todayKey() + '">' : '') +
+        (true ? '<label for="inc-date" style="margin-top:0.6rem;">' + L('Date', 'Date') + '</label><input type="date" id="inc-date" value="' + escapeHtml(st.date || pastDate || todayKey()) + '" max="' + todayKey() + '">' : '') +
         '<label for="inc-note" style="margin-top:0.6rem;">' + L('Un mot (facultatif)', 'A word (optional)') + '</label><input type="text" id="inc-note" maxlength="140" value="' + escapeHtml(st.note || '') + '" placeholder="' + escapeHtml(L('Ex. Tout va bien, juste la moto à réparer', 'E.g. All good, just the bike to fix')) + '">' +
         '<label class="checklist-item" style="margin-top:0.5rem;"><input type="checkbox" id="inc-publish"' + (st.publish ? ' checked' : '') + '> ' + L('Publier sur mon Social (mes amis)', 'Post on my Social (my friends)') + '</label>' +
         '<div class="after-publish"><button type="button" class="primary" data-inc="ok">' + L('Valider', 'Confirm') + '</button>' + (pendingIncident ? '<button type="button" class="ghost" data-inc="clear">' + L('Retirer', 'Remove') + '</button>' : '') + '<button type="button" class="link-btn" data-mini-close>' + L('Annuler', 'Cancel') + '</button></div>';
@@ -15176,6 +15232,16 @@
   // too, no per-event registration for a casual club ride) since that's
   // never had a request flow to begin with. Personal (no teamId) events
   // stay exactly as visible as canSeeEvent already makes them.
+  // Nom de l'organisateur d'un roulage : son team, sinon le nom saisi, sinon l'orga habituel du circuit.
+  function eventOrgName(ev) {
+    if (!ev) return '';
+    var t = ev.teamId ? teamById(ev.teamId) : null;
+    if (t && t.name) return t.name;
+    if (ev.organizerNote) return String(ev.organizerNote);
+    if (ev.organizer) return String(ev.organizer);
+    var ci = ev.circuit ? circuitInfo(ev.circuit) : null, ot = ci && ci.organizerTeamId ? teamById(ci.organizerTeamId) : null;
+    return ot && ot.name ? ot.name : '';
+  }
   function isMyEventForList(ev) {
     if (!ev.teamId) return true;
     var me = currentUserProfile;
@@ -16987,7 +17053,7 @@
     var hasOwnInfo = Object.keys(info).length > 0;
     var hasDefaults = myTravelDefaults && Object.keys(myTravelDefaults).length > 0;
     var effective = hasOwnInfo ? info : (hasDefaults ? myTravelDefaults : {});
-    var body = '<div class="help-text">Visible par toi et par les comptes Accompagnant qui te suivent.</div>';
+    var body = '<div class="help-text">Données privées, partagées avec les accompagnants qui te suivent.</div>';
     if (!hasOwnInfo && hasDefaults) body += '<div class="help-text">' + tr('travel_prefilled_from_defaults') + '</div>';
     body += renderTravelInfoFieldsHtml('travel', effective);
     body += '<div style="margin-top:0.6rem;"><button type="button" class="ghost" data-action="save-travel-info" data-event-id="' + escapeHtml(ev.id) + '">Enregistrer</button></div>';
@@ -21068,7 +21134,7 @@
   // Déjà acheté, ou déjà porté avant le passage à l'achat (gardé).
   function pneusOwned(key) {
     var p = pneusState(), me = currentUserProfile, l = (me && me.look) || {};
-    if (isAdmin()) return true; // l'admin a tout débloqué
+    if (isAdmin() || (me && me.unlockAll)) return true; // l'admin a tout débloqué, ou l'a offert à ce compte
     if (p && (p.owned || []).indexOf(key) !== -1) return true;
     var k = key.split(':'), v = k.slice(1).join(':');
     return (k[0] === 'color' && l.color === v) || (k[0] === 'cover' && l.cover === v) || (k[0] === 'frame' && l.frame === v) || (k[0] === 'bubble' && l.bubble === v) || (k[0] === 'bannerFrame' && l.bannerFrame === v);
@@ -22503,7 +22569,8 @@
       : '<button type="button" class="ghost repost-btn" data-action="repost" data-id="' + escapeHtml(p.id) + '"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 2l4 4-4 4"/><path d="M3 11V9a3 3 0 0 1 3-3h15"/><path d="M7 22l-4-4 4-4"/><path d="M21 13v2a3 3 0 0 1-3 3H3"/></svg> ' + (nRep ? nRep : L('Republier', 'Repost')) + '</button>';
     html += '<div class="feed-entry-foot social-row">' + renderReactionBar(p.reactions, 'react-wall-post', p.id) + commentToggleHtml(p.id) + repostBtn +
       // Pas de modification : seulement supprimer (corbeille).
-      (canEdit && p.incident ? '<button type="button" class="ghost post-inc-date" data-action="incident-date" data-id="' + escapeHtml(p.id) + '">' + L('Date', 'Date') + '</button>' : '') +
+      // Date choisie à la création seulement : plus de bouton Date sur le post.
+
       (canEdit ? '<button type="button" class="post-trash" data-action="delete-wall-post" data-id="' + escapeHtml(p.id) + '" aria-label="' + escapeHtml(L('Supprimer', 'Delete')) + '" title="' + escapeHtml(L('Supprimer', 'Delete')) + '"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg></button>' : '') + '</div>';
     html += renderPostComments(p);
     html += '</div>';
@@ -23852,7 +23919,8 @@
     // bouton Voir (au lieu de Gérer) distinguent une ligne cross-team.
     var roster = membersOfTeam(team.id).map(function (m) { return m.name; });
     var cross = (STATE.events || []).filter(function (ev) {
-      return ev.teamId && ev.teamId !== team.id && (ev.riders || []).some(function (r) { return roster.indexOf(r) !== -1; });
+      // Tous les roulages d'un membre (team PRO, perso…) : l'orga est précisé sur la ligne.
+      return ev.teamId !== team.id && (ev.riders || []).some(function (r) { return roster.indexOf(r) !== -1; });
     });
     var all = own.concat(cross);
     var pendingByEvent = {};
@@ -23883,7 +23951,7 @@
       // Same row as in Roulages; it opens the roulage's page, where the
       // Team Leader finds « Gérer le roulage ».
       var extra = [];
-      if (orgTeam) extra.push(L('Organisé par ', 'Organised by ') + orgTeam.name + ' · ' + meta.join(', '));
+      if (!isOwn) { var orgN = eventOrgName(ev); extra.push((orgN ? L('Orga : ', 'Organiser: ') + orgN + ' · ' : '') + meta.join(', ')); }
       else if (reqs.length) extra.push(meta[1]);
       if (likesHtml) extra.push(tr('bravo_btn') + ' · ' + Object.keys(ev.reactions || {}).length);
       return renderEventRow(ev, { extraMeta: extra.join(' · ') });
@@ -23903,7 +23971,7 @@
     // period -- only the ones that have something in them.
     var body = (editingEventId === 'new' && prefillEventTeamId === team.id)
       ? teamCard('', renderEventForm())
-      : '<button type="button" class="primary add-chrono-btn" data-action="team-event-add" data-team="' + escapeHtml(team.id) + '">+ ' + tr('add_event_heading') + '</button>';
+      : (isLeaderOfTeam(team.id) ? '<button type="button" class="primary add-chrono-btn" data-action="team-event-add" data-team="' + escapeHtml(team.id) + '">+ ' + tr('add_event_heading') + '</button>' : '');
     if (!all.length) {
       body += evCard('', '<div class="empty-state">' + tr('no_events_team') + '</div>');
       return body;
@@ -23914,13 +23982,21 @@
     body += renderSubPillRow('teamev', [['avenir', L('À venir', 'Upcoming') + ' (' + nUp + ')'], ['passes', L('Passés', 'Past') + ' (' + past.length + ')']]);
     if (pillState.teamev === 'passes') {
       if (!past.length) body += evCard('', '<div class="help-text">' + L('Pas encore de roulage passé.', 'No past trackday yet.') + '</div>');
-      var byYear = {}, years = [];
-      past.forEach(function (ev) { var y = ev.dateStart.slice(0, 4); if (!byYear[y]) { byYear[y] = []; years.push(y); } byYear[y].push(ev); });
-      years.forEach(function (y) {
-        body += '<div class="card team-card events-list-card"><div class="team-year-head"><h2 class="section-title">' + y + ' <span class="help-text">(' + byYear[y].length + ')</span></h2>' +
-          '<button type="button" class="ghost team-season-btn" data-action="team-season-recap" data-team="' + escapeHtml(team.id) + '" data-year="' + y + '">' + L('Résumé de la saison', 'Season recap') + '</button></div>' +
-          byYear[y].map(eventRow).join('') + '</div>';
+      // Rangés par circuit puis par date, comme Carnet › Passés ; résumés de saison en haut.
+      var years = [], groups = {}, order = [];
+      past.forEach(function (ev) {
+        var y = ev.dateStart.slice(0, 4); if (years.indexOf(y) === -1) years.push(y);
+        var k = circuitKey(ev.circuit); if (!groups[k]) { groups[k] = []; order.push(k); } groups[k].push(ev);
       });
+      if (past.length) {
+        body += '<div class="card team-card events-list-card"><div class="team-seasons">' + years.map(function (y) {
+          return '<button type="button" class="ghost team-season-btn" data-action="team-season-recap" data-team="' + escapeHtml(team.id) + '" data-year="' + y + '">' + L('Saison ', 'Season ') + y + '</button>';
+        }).join('') + '</div>' + order.map(function (k, gi) {
+          var g = groups[k], gk = 'team:' + team.id + ':' + k;
+          var open = outingGroupOpen[gk] != null ? outingGroupOpen[gk] : gi === 0;
+          return outingGroupHtml(gk, open, g[0].circuit, plural(g.length, L('roulage', 'trackday'), L('roulages', 'trackdays')) + ' · ' + escapeHtml(formatDate(g[0].dateStart)), '', g.length, g.map(eventRow).join(''));
+        }).join('') + '</div>';
+      }
     } else {
       body += evCard('', nUp ? ongoing.concat(upcoming).map(eventRow).join('') : '<div class="help-text">' + tr('nothing_planned') + '</div>');
     }
@@ -24142,7 +24218,7 @@
       headClosed = true;
     }
     var bRoulages = '';
-    if (isLeader) bRoulages += renderTeamEventsManagement(team);
+    if (isLeader || isMember || myRoleInTeam(team.id)) bRoulages += renderTeamEventsManagement(team);
 
     var feedBody = !feed.length
       ? '<div class="empty-state">' + (teamFeedSynced ? tr('nothing_yet') : tr('loading')) + '</div>'
@@ -24226,6 +24302,7 @@
             var roleSuffix = cu.role === 'accompagnant' ? ' (Accompagnant)' : (cu.role === 'organisateur' ? ' (Organisateur)' : '');
             return '<option value="' + escapeHtml(n) + '">' + escapeHtml(n) + escapeHtml(roleSuffix) + '</option>';
           }).join('') + '</select>' +
+          '<div class="help-text" style="margin-top:0.4rem;">' + L('Il reçoit l\'invitation et un message.', 'They get the invitation and a message.') + '</div>' +
           '<button type="submit" class="primary" style="margin-top:0.6rem;">' + tr('invite_btn') + '</button></form>';
       if (outgoingInvites.length) {
         var outgoingBody = outgoingInvites.map(function (r) {
@@ -25536,12 +25613,15 @@
     var ev = eventsList().filter(function (e) { return e.id === eventId; })[0];
     var me = currentUserProfile && currentUserProfile.name;
     if (!ev || !me || (ev.riders || []).indexOf(me) === -1) return;
-    if (!confirm(L('Te retirer de ' + ev.circuit + ' ? Pense à prévenir l\'organisateur si tu étais inscrit chez lui.', 'Remove yourself from ' + ev.circuit + '? Remember to tell the organiser if you booked with them.'))) return;
+    var wasPast = (ev.dateEnd || ev.dateStart) < dateKey(new Date());
+    if (wasPast) {
+      if (!confirm(L('Annuler « J\'y étais » pour ' + ev.circuit + ' ?', 'Undo “I was there” for ' + ev.circuit + '?'))) return;
+    } else if (!confirm(L('Te retirer de ' + ev.circuit + ' ? Pense à prévenir l\'organisateur si tu étais inscrit chez lui.', 'Remove yourself from ' + ev.circuit + '? Remember to tell the organiser if you booked with them.'))) return;
     var prevState = JSON.parse(JSON.stringify(STATE));
     ev.riders = (ev.riders || []).filter(function (n) { return n !== me; });
     ['riderGroups', 'riderBikeNumbers', 'riderRoles'].forEach(function (k) { if (ev[k] && ev[k][me] !== undefined) { ev[k] = Object.assign({}, ev[k]); delete ev[k][me]; } });
     persist(prevState);
-    showToast(L('Tu n\'es plus sur la liste de ', 'You\'re no longer on the list for ') + ev.circuit + '.', 'success');
+    showToast(wasPast ? L('« J\'y étais » annulé.', '“I was there” undone.') : L('Tu n\'es plus sur la liste de ', 'You\'re no longer on the list for ') + ev.circuit + '.', 'success');
     renderRoot();
   }
   function joinRoulageFromLink(eventId) {
@@ -26237,6 +26317,19 @@
         });
       });
     });
+    document.querySelectorAll('[data-action="toggle-unlock-all"]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var uid = btn.getAttribute('data-uid');
+        var account = (manageableAccounts || []).filter(function (a) { return a.uid === uid; })[0];
+        if (!account || !isAdmin()) return;
+        var next = !account.unlockAll;
+        db.collection('users').doc(uid).set({ unlockAll: next }, { merge: true }).then(function () {
+          account.unlockAll = next;
+          showToast(account.name + (next ? L(' : personnalisation tout débloquée.', ': all customisation unlocked.') : L(' : déblocages retirés.', ': unlocks removed.')), 'success');
+          renderRoot();
+        }).catch(function (err) { accountManagerError = tr('error_prefix') + (err && err.message ? err.message : err); renderRoot(); });
+      });
+    });
     document.querySelectorAll('[data-action="toggle-account-badge"]').forEach(function (btn) {
       btn.addEventListener('click', function () {
         var uid = btn.getAttribute('data-uid');
@@ -26763,7 +26856,7 @@
         Object.assign(p, upd); if (!upd.private) delete p.private; renderRoot();
         if (p.photoMedia) db.collection('postMedia').doc(p.photoMedia).update({ audience: upd.audience, visibleTo: upd.visibleTo || [] }).catch(function () {});
         db.collection('wallPosts').doc(p.id).update(upd)
-          .then(function () { showToast(k === 'private' ? L('Visible par toi seul.', 'Visible to you only.') : k === 'friends' ? L('Visible par tes amis seulement.', 'Visible to your friends only.') : L('Visible par tout le monde.', 'Visible to everyone.'), 'success'); })
+          .then(function () { showToast(k === 'private' ? L('Post privé.', 'Private post.') : k === 'friends' ? L('Post réservé à tes amis.', 'Post for your friends.') : L('Post public.', 'Public post.'), 'success'); })
           .catch(function (err) { showToast(tr('error_prefix') + ((err && err.message) || err), 'sticky'); });
       }); });
     }); });
@@ -29249,6 +29342,23 @@
       });
     });
 
+    var circuitFind = document.getElementById('circuit-find');
+    if (circuitFind) {
+      // Taper le nom d'un circuit : on l'ouvre dès qu'un seul correspond.
+      var foldC = function (t) { return String(t || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim(); };
+      var pickFound = function (exactOnly) {
+        var q = foldC(circuitFind.value); if (!q) return;
+        var all = allCircuits();
+        var hit = all.filter(function (c) { return foldC(c) === q; });
+        if (!hit.length && !exactOnly) hit = all.filter(function (c) { return foldC(c).indexOf(q) !== -1; });
+        if (hit.length !== 1 && !(hit.length && !exactOnly)) return;
+        selectedCircuit = hit[0]; userPickedCircuit = true; editingCircuitInfo = false; editingSessionId = null;
+        renderRoot();
+      };
+      circuitFind.addEventListener('change', function () { pickFound(false); });
+      circuitFind.addEventListener('input', function () { pickFound(true); });
+      circuitFind.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); pickFound(false); } });
+    }
     var circuitSelect = document.getElementById('f-filter-circuit');
     if (circuitSelect) {
       circuitSelect.addEventListener('change', function () {
