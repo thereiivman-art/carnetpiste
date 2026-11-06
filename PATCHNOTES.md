@@ -5,6 +5,7 @@ Les nouveautés, de la plus récente à la plus ancienne. Le détail complet est
 ## 6 novembre 2026 · rangement
 
 - Roulages : plus d'onglet Calendrier. « À venir » propose Liste, Mois, Découvrir et « + Roulage ».
+- À venir › Liste : les roulages de tes amis et de ta team suivent les tiens (« Autres roulages »).
 - Saisir un chrono ouvre toujours l'onglet Chrono. Un seul bouton pour le chrono d'un ami.
 - « Mode jour J » devient « Ouvrir Chrono ».
 - Parrainage : tout est dans l'invitation (QR, lien, stats).

@@ -12337,6 +12337,12 @@
           // À venir : juste le décompte (J-x), comme partout ailleurs.
           '<span class="outing-row-right"><span class="carnet-time">' + countdownLabel(Math.max(0, Math.round((parseLocalDate(ev.dateStart) - parseLocalDate(dateKey(new Date()))) / 86400000))) + '</span></span></button>';
       });
+      // Roulages visibles où je ne suis pas (amis, team) : l'ancien Calendrier les listait.
+      var meN = currentUserProfile && currentUserProfile.name, todayK = dateKey(new Date());
+      var others = eventsList().filter(function (ev) {
+        return (ev.riders || []).indexOf(meN) === -1 && (ev.dateEnd || ev.dateStart) >= todayK && isMyEventForList(ev);
+      }).sort(function (a, b) { return a.dateStart < b.dateStart ? -1 : 1; });
+      if (others.length) html += '<h3 class="carnet-others-title">' + L('Autres roulages', 'Other trackdays') + '</h3>' + others.map(function (ev) { return renderEventRow(ev, {}); }).join('');
     } else if (outings.length > 3 || outingSearch) {
       html += renderPastByCircuit(outings);
     } else {

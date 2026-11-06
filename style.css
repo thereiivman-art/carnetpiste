@@ -5393,3 +5393,4 @@ body { overflow-wrap: break-word; }
 .avenir-modes { align-items: center; }
 .avenir-modes .avenir-add { margin-left: auto; flex: 0 0 auto; padding: 0.4rem 0.9rem; border-radius: 999px; font-size: 0.88rem; font-weight: 700; }
 .team-coach-link { margin: 0.4rem 0 0.8rem; }
+.carnet-others-title { font-family: 'Barlow Condensed', sans-serif; font-weight: 800; font-size: 1rem; text-transform: uppercase; letter-spacing: 0.02em; margin: 1rem 0 0.4rem; opacity: 0.75; }
