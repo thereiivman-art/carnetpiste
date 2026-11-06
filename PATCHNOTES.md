@@ -2,6 +2,17 @@
 
 Les nouveautés, de la plus récente à la plus ancienne. Le détail complet est dans l'historique git.
 
+## 6 novembre 2026 · retours Xav (fin de nuit)
+
+- Circuits : un seul champ pour chercher ou dérouler la liste des circuits.
+- Roulages à venir : une seule liste, avec le team PRO qui organise et le prix quand ils sont connus ; « + Roulage » en bas.
+- Roulages passés : regroupés par événement (les jours d'un même roulage ensemble), du plus récent au plus ancien, avec « Voir plus ».
+- Teams › Passés : un roulage par ligne, du plus récent au plus ancien.
+- Messages : une seule liste, les messages reçus par tes teams y sont mêlés.
+- Posts : le bouton Partager reste en haut à droite, même avec « modifié ».
+- Chrono : « Préparer ce roulage » à sa taille sur PC.
+- Je n'y vais plus : le roulage sort aussi de ton budget.
+
 ## 6 novembre 2026 · retours Xav (nuit)
 
 - Posts : réaction cœur, comme en story (le J'aime d'une story s'affiche bien sur le post).

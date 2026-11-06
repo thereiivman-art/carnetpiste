@@ -5403,4 +5403,21 @@ body { overflow-wrap: break-word; }
 .verif-badge.wait { background: #2f6fd6; }
 .podium-kicker.is-all { color: var(--accent); }
 .verif-legend { margin: 0.2rem 0 0.6rem; }
-.circuit-find { flex: 1 1 8rem; min-width: 7rem; width: auto; }
+.circuit-combo { position: relative; flex: 1 1 12rem; min-width: 10rem; }
+.circuit-combo .circuit-find { width: 100%; font-weight: 700; padding-right: 2rem; }
+.circuit-combo-chev { position: absolute; right: 0.7rem; top: 50%; transform: translateY(-50%); color: var(--text-muted); cursor: pointer; font-size: 0.9rem; }
+.circuit-combo-list { position: absolute; z-index: 40; left: 0; right: 0; top: calc(100% + 4px); max-height: 18rem; overflow-y: auto; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; box-shadow: 0 6px 20px rgba(0,0,0,0.18); padding: 0.25rem 0; }
+.circuit-combo-group { padding: 0.45rem 0.8rem 0.2rem; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-muted); }
+.circuit-combo-opt { display: block; width: 100%; text-align: left; background: none; border: 0; padding: 0.5rem 0.8rem; font: inherit; color: var(--text); cursor: pointer; border-radius: 0; }
+.circuit-combo-opt:hover, .circuit-combo-opt.on { background: rgba(127,127,127,0.12); }
+.circuit-combo-opt.on { font-weight: 700; color: var(--accent); }
+.circuit-combo-empty { padding: 0.6rem 0.8rem; color: var(--text-muted); }
+.outings-card > .avenir-add { display: block; margin: 0.9rem auto 0.2rem; padding: 0.45rem 1.1rem; border-radius: 999px; font-weight: 700; }
+/* Partage d'un post : toujours en haut à droite, même si l'en-tête passe à la ligne (« modifié »). */
+.wall-post-head { position: relative; padding-right: 2.4rem; }
+.wall-post-head > .post-share { position: absolute; top: -0.2rem; right: 0; }
+.card.can-hide .wall-post-head { padding-right: 4.3rem; }
+.card.can-hide .wall-post-head > .post-share { right: 1.9rem; }
+/* « Préparer ce roulage » : un bouton à sa taille, pas sur toute la largeur. */
+.chrono-next > button { align-self: flex-start; width: auto; margin-top: 0.5rem; padding: 0.5rem 1.1rem; }
+.circuit-combo .circuit-find::-webkit-search-cancel-button { display: none; }

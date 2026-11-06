@@ -25,12 +25,9 @@ const { chromium, BASE } = require('../lib');
   // Accompagnant : Liste / Mois
   p = await mk('&role=acc');
   await p.click('.bottom-nav-btn:nth-child(1)'); await p.waitForTimeout(400);
-  console.log('acc modes:', await p.$$eval('.avenir-modes button', e => e.map(x => x.innerText).join(' / ')));
-  await p.click('.avenir-modes [data-pill="calendrier"]'); await p.waitForTimeout(400);
-  console.log('acc mois pills:', await p.$$eval('.main-subnav-pills .pill-btn', e => e.map(x => x.innerText + (x.classList.contains('active') ? '*' : '')).join(' / ')));
-  await p.click('.avenir-modes [data-pill="avenir"]'); await p.waitForTimeout(400);
+  console.log('acc sans sous-onglets:', !(await p.$('.avenir-modes')));
   await p.click('[data-pill-group="compcarnet"][data-pill="passes"]').catch(() => {}); await p.waitForTimeout(400);
-  console.log('acc passés groupés:', await p.$$eval('.outing-group-toggle', e => e.length));
+  console.log('acc passés:', await p.$$eval('#root .outing-row, #root .outing-group', e => e.length));
   await p.click('.subnav-btn[data-view="circuits"], .subnav-btn[data-view="circuit"]').catch(() => {}); await p.waitForTimeout(400);
   await p.click('[data-pill-group="circuit"][data-pill="infos"]').catch(() => {}); await p.waitForTimeout(400);
   console.log('acc infos:', await p.$$eval('.circuit-info-list', e => e.map(x => x.innerText.split('\n').slice(0, 2).join(' ')).join('')));

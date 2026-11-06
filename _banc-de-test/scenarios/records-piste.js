@@ -11,7 +11,7 @@ const { chromium, BASE } = require('../lib');
   if (await p.$('#jourj-overlay')) { await p.click('[data-jj="close"]'); await p.waitForTimeout(300); }
   await p.click('.bottom-nav-btn[data-view^="carnet"]'); await p.waitForTimeout(300);
   await p.click('.subnav-btn[data-view="circuit"]'); await p.waitForTimeout(400);
-  await p.selectOption('#f-filter-circuit', 'Mugello'); await p.waitForTimeout(500);
+  await p.fill('#circuit-find', 'Mugello').then(() => p.press('#circuit-find', 'Enter')); await p.waitForTimeout(500);
   await p.click('[data-pill-group="circuit"][data-pill="infos"]'); await p.waitForTimeout(300);
   await p.click('#edit-circuit-info-btn'); await p.waitForTimeout(300);
   await p.fill('#ci-rec-motogp', '1:45.000'); await p.fill('#ci-rec-motogp-who', 'Pilote A, 2025');

@@ -8338,13 +8338,14 @@
     // Accompagnant : pas de chronos à lui, l'onglet disparaît.
     var html = renderPills('circuit', [['plan', 'Plan & repères']].concat(meIsNonRider() ? [] : [['chronos', 'Chronos']]).concat([['infos', 'Infos']]).concat(visitPill ? [['visites', L('Visités', 'Visited')]] : []));
     if (visitPill && pillState.circuit === 'visites') return html + renderVisitedCircuits();
-    html += '<div class="circuit-picker"><select id="f-filter-circuit" aria-label="' + tr('circuit_label') + '">';
-    html += sortedCircuitOptionsHtml(circuits, selectedCircuit, circuitSort);
-    html += '</select><select id="circuit-sort" class="circuit-sort" aria-label="' + escapeHtml(L('Trier les circuits', 'Sort circuits')) + '">' +
+    // Un seul champ : le circuit choisi, qu'on touche pour chercher ou dérouler la liste.
+    html += '<div class="circuit-picker"><div class="circuit-combo"><input type="search" id="circuit-find" class="circuit-find" value="' + escapeHtml(selectedCircuit || '') + '" placeholder="' + escapeHtml(L('Rechercher un circuit', 'Search a circuit')) + '" aria-label="' + escapeHtml(tr('circuit_label')) + '" autocomplete="off" role="combobox" aria-expanded="false">' +
+      '<span class="circuit-combo-chev" aria-hidden="true">▾</span><div class="circuit-combo-list" role="listbox" hidden></div>' +
+      '<select id="f-filter-circuit" class="circuit-combo-src" hidden aria-hidden="true" tabindex="-1">' + sortedCircuitOptionsHtml(circuits, selectedCircuit, circuitSort) + '</select></div>';
+    html += '<select id="circuit-sort" class="circuit-sort" aria-label="' + escapeHtml(L('Trier les circuits', 'Sort circuits')) + '">' +
       [['pays', L('Par pays', 'By country')], ['alpha', L('A → Z', 'A → Z')], ['niveau', L('Niveau', 'Level')], ['distance', L('Distance', 'Length')], ['mes', L('Mes circuits', 'My circuits')]].map(function (o) {
         return '<option value="' + o[0] + '"' + (circuitSort === o[0] ? ' selected' : '') + '>' + escapeHtml(o[1]) + '</option>';
-      }).join('') + '</select><input type="search" id="circuit-find" class="circuit-find" list="circuit-find-list" placeholder="' + escapeHtml(L('Rechercher', 'Search')) + '" aria-label="' + escapeHtml(L('Rechercher un circuit', 'Search a circuit')) + '" autocomplete="off">' +
-      '<datalist id="circuit-find-list">' + circuits.map(function (c) { return '<option value="' + escapeHtml(c) + '">'; }).join('') + '</datalist>' +
+      }).join('') + '</select>' +
       '<button type="button" class="ghost circuit-create-btn" data-action="circuit-create" title="' + escapeHtml(L('Créer mon circuit perso (dessin ou image)', 'Create my own circuit (drawing or image)')) + '">+ ' + L('Créer', 'Create') + '</button></div>';
     var cp = pillState.circuit;
     if (cp === 'plan') {
@@ -10982,6 +10983,14 @@
     var info = eventPriceInfo(ev);
     return info ? formatEuros(info.amount, info.approx) + (info.perDay ? L('/jour', '/day') : '') : '';
   }
+  // Ligne d'un roulage à venir : le team PRO qui l'organise et le prix, si connus.
+  function upcomingMetaExtra(ev) {
+    var t = ev && ev.teamId ? teamById(ev.teamId) : null, bits = [];
+    if (t && t.name && (t.teamPro || t.pro)) bits.push(t.name);
+    else if (ev && ev.organizerNote) bits.push(String(ev.organizerNote));
+    if (eventPriceShort(ev)) bits.push(eventPriceShort(ev));
+    return bits.join(' · ');
+  }
   function eventPriceLine(ev) {
     var info = eventPriceInfo(ev);
     if (!info) return '';
@@ -12344,26 +12353,46 @@
   }
   // Tête d'un groupe de roulages par circuit : bouton « Voir les N dates » bien visible.
   function outingGroupHtml(key, open, circuit, sub, rightTime, n, bodyHtml) {
-    var tog = open ? L('Réduire', 'Collapse') + ' ▴' : (n > 1 ? L('Voir les ' + n + ' dates', 'See ' + n + ' dates') : L('Voir', 'See')) + ' ▾';
+    var tog = open ? L('Réduire', 'Collapse') + ' ▴' : L('Voir plus', 'See more') + ' ▾';
     return '<div class="outing-group' + (open ? ' open' : '') + '"><button type="button" class="outing-group-head" data-outing-group="' + escapeHtml(key) + '" aria-expanded="' + open + '">' +
       '<span class="outing-thumb">' + circuitThumbHtml(circuit) + '</span><span class="outing-row-main"><strong>' + escapeHtml(circuit) + '</strong><span class="help-text">' + sub + '</span></span>' +
       '<span class="outing-row-right">' + (rightTime ? '<span class="carnet-time">' + rightTime + '</span>' : '') + '<span class="outing-group-toggle">' + tog + '</span></span></button>' +
       (open ? '<div class="outing-group-body">' + bodyHtml + '</div>' : '') + '</div>';
+  }
+  // Regroupe des roulages par événement : même circuit, même roulage du calendrier
+  // ou jours rapprochés (≤ 3 jours). Les plus récents d'abord.
+  function groupOutingsByEvent(items) {
+    var sorted = items.slice().sort(function (a, b) { return b.date.localeCompare(a.date); }), groups = [];
+    sorted.forEach(function (o) {
+      var k = circuitKey(o.circuit), t = parseLocalDate(o.date);
+      var g = groups.filter(function (x) {
+        return x.k === k && (!(x.eventId && o.eventId) || x.eventId === o.eventId) && (x.minT - t) / 86400000 <= 3;
+      })[0];
+      if (!g) { g = { k: k, eventId: o.eventId || null, minT: t, items: [] }; groups.push(g); }
+      g.items.push(o); if (t < g.minT) g.minT = t; if (o.eventId && !g.eventId) g.eventId = o.eventId;
+    });
+    return groups.map(function (g) {
+      var last = g.items[0].date, first = g.items[g.items.length - 1].date;
+      return { key: 'ev:' + g.k + ':' + last, circuit: g.items[0].circuit, items: g.items, first: first, last: last };
+    });
+  }
+  function eventDatesLabel(first, last) {
+    if (first === last) return formatDate(first);
+    var a = first.split('-'), b = last.split('-');
+    return a[0] === b[0] && a[1] === b[1] ? a[2] + '–' + b[2] + '/' + b[1] + '/' + b[0] : formatDate(first) + ' – ' + formatDate(last);
   }
   function renderPastByCircuit(outings) {
     var list = outings.filter(function (o) { return outingMatches(o, outingSearch); });
     var html = '<div class="outing-search"><input type="search" id="outing-search" value="' + escapeHtml(outingSearch) + '" placeholder="' + escapeHtml(L('Circuit, date, mois, « album »…', 'Circuit, date, month, “album”…')) + '" autocomplete="off">' +
       '<button type="button" class="ghost' + (/\balbum\b/i.test(outingSearch) ? ' on' : '') + '" data-action="outing-album-filter" title="' + escapeHtml(L('Seulement les roulages avec un album photo', 'Only trackdays with a photo album')) + '">' + L('Albums', 'Albums') + '</button></div>';
     if (!list.length) return html + '<div class="help-text" style="padding:0.5rem 0;">' + L('Aucun roulage ne correspond.', 'No trackday matches.') + '</div>';
-    var groups = {}, order = [];
-    list.forEach(function (o) { var k = circuitKey(o.circuit); if (!groups[k]) { groups[k] = []; order.push(k); } groups[k].push(o); });
-    html += order.map(function (k, gi) {
-      var g = groups[k].slice().sort(function (a, b) { return b.date.localeCompare(a.date); });
-      var open = outingSearch ? true : (outingGroupOpen[k] != null ? outingGroupOpen[k] : gi === 0);
-      var best = Math.min.apply(null, g.map(function (o) { return o.best; }));
-      var albums = g.filter(function (o) { return outingAlbum(o); }).length;
-      return outingGroupHtml(k, open, g[0].circuit, plural(g.length, L('roulage', 'trackday'), L('roulages', 'trackdays')) + ' · ' + escapeHtml(formatDate(g[0].date)) + (albums ? ' · ' + plural(albums, 'album', 'albums') : ''),
-        isFinite(best) ? formatTime(best) : '', g.length, g.map(outingRowWithAlbum).join(''));
+    html += groupOutingsByEvent(list).map(function (g) {
+      if (g.items.length === 1) return outingRowWithAlbum(g.items[0]);
+      var open = outingSearch ? true : !!outingGroupOpen[g.key];
+      var best = Math.min.apply(null, g.items.map(function (o) { return o.best; }));
+      var albums = g.items.filter(function (o) { return outingAlbum(o); }).length;
+      return outingGroupHtml(g.key, open, g.circuit, escapeHtml(eventDatesLabel(g.first, g.last)) + ' · ' + plural(g.items.length, L('jour', 'day'), L('jours', 'days')) + (albums ? ' · ' + plural(albums, 'album', 'albums') : ''),
+        isFinite(best) ? formatTime(best) : '', g.items.length, g.items.map(outingRowWithAlbum).join(''));
     }).join('');
     return html;
   }
@@ -12379,7 +12408,7 @@
         var grp = riderGroupFor(ev, currentUserProfile.name, ev.dateStart, 'matin') || riderGroupFor(ev, currentUserProfile.name, ev.dateStart, 'apres-midi') || '';
         html += '<button type="button" class="outing-row" data-open-outing="' + escapeHtml(ev.circuit) + '" data-outing-date="' + escapeHtml(ev.dateStart) + '" data-outing-event="' + escapeHtml(ev.id) + '">' +
           '<span class="outing-thumb">' + circuitThumbHtml(ev.circuit) + '</span>' +
-          '<span class="outing-row-main"><strong>' + escapeHtml(ev.circuit) + '</strong><span class="help-text">' + escapeHtml(formatEventRange(ev, true) + (eventPriceShort(ev) ? ' · ' + eventPriceShort(ev) : '')) + (grp ? ' · ' + groupChip(grp) : '') + '</span></span>' +
+          '<span class="outing-row-main"><strong>' + escapeHtml(ev.circuit) + '</strong><span class="help-text">' + escapeHtml(formatEventRange(ev, true) + (upcomingMetaExtra(ev) ? ' · ' + upcomingMetaExtra(ev) : '')) + (grp ? ' · ' + groupChip(grp) : '') + '</span></span>' +
           // À venir : juste le décompte (J-x), comme partout ailleurs.
           '<span class="outing-row-right"><span class="carnet-time">' + countdownLabel(Math.max(0, Math.round((parseLocalDate(ev.dateStart) - parseLocalDate(dateKey(new Date()))) / 86400000))) + '</span></span></button>';
       });
@@ -12388,7 +12417,8 @@
       var others = eventsList().filter(function (ev) {
         return (ev.riders || []).indexOf(meN) === -1 && (ev.dateEnd || ev.dateStart) >= todayK && isMyEventForList(ev);
       }).sort(function (a, b) { return a.dateStart < b.dateStart ? -1 : 1; });
-      if (others.length) html += '<h3 class="carnet-others-title">' + L('Autres roulages', 'Other trackdays') + '</h3>' + others.map(function (ev) { var pr = eventPriceShort(ev); return renderEventRow(ev, pr ? { extraMeta: pr } : {}); }).join('');
+      if (others.length) html += '<h3 class="carnet-others-title">' + L('Autres roulages', 'Other trackdays') + '</h3>' + others.map(function (ev) { var ex = upcomingMetaExtra(ev); return renderEventRow(ev, ex ? { extraMeta: ex } : {}); }).join('');
+      if (upcoming.length) html += '<button type="button" class="ghost avenir-add" data-action="quick-outing">+ ' + L('Roulage', 'Trackday') + '</button>';
     } else if (outings.length) {
       html += renderPastByCircuit(outings);
     } else {
@@ -12418,7 +12448,7 @@
     if (meIsNonRider()) {
       // Accompagnant dans « Mois » : mêmes onglets que son carnet.
       return '<div class="pill-tabs main-subnav-pills"><button type="button" class="pill-btn active" data-view="carnet" data-pill-group="compcarnet" data-pill="avenir">' + L('À venir', 'Upcoming') + '</button>' +
-        '<button type="button" class="pill-btn" data-view="carnet" data-pill-group="compcarnet" data-pill="passes">' + L('Passés', 'Past') + '</button></div>' + avenirModeRow();
+        '<button type="button" class="pill-btn" data-view="carnet" data-pill-group="compcarnet" data-pill="passes">' + L('Passés', 'Past') + '</button></div>';
     }
     var upcoming = myUpcomingEvents();
     if (!outings.length && !upcoming.length && activeView !== 'event') return '<div class="pill-tabs"><button type="button" class="pill-btn active">' + L('Roulages', 'Trackdays') + '</button><button type="button" class="pill-btn" data-view="event">' + L('Calendrier', 'Calendar') + '</button></div>';
@@ -12429,7 +12459,6 @@
     // À venir (Liste / Mois / Découvrir) et Passés : plus d'onglet Calendrier.
     var pillBtn = function (it) { var on = it[0] === 'avenir' ? (inCal || carnetCardsMode === 'avenir') : (!inCal && carnetCardsMode === it[0]); return '<button type="button" class="pill-btn' + (on ? ' active' : '') + '" data-view="carnet" data-cards-mode="' + it[0] + '">' + it[1] + '</button>'; };
     var html = '<div class="pill-tabs main-subnav-pills">' + pillBtn(items[0]) + pillBtn(items[1]) + '</div>';
-    if (inCal || carnetCardsMode === 'avenir') html += avenirModeRow();
     return html;
   }
 
@@ -12584,10 +12613,9 @@
     var html = renderPills('compcarnet', [['avenir', L('À venir', 'Upcoming') + (upcoming.length ? ' (' + upcoming.length + ')' : '')], ['passes', L('Passés', 'Past') + (past.length ? ' (' + past.length + ')' : '')]]) + (extraTop || '') + '<h2 class="section-title comp-carnet-title">' + L('Roulages de mes amis', 'My friends\' trackdays') + '</h2>';
     var othersHtml = others.length ? '<h2 class="section-title feed-section-title">' + L('Autres roulages à venir', 'Other upcoming trackdays') + '</h2><div class="card outings-card">' + others.map(function (ev) {
       return '<div class="outing-row comp-other-row"><button type="button" class="comp-other-open" data-open-outing="' + escapeHtml(ev.circuit) + '" data-outing-date="' + escapeHtml(ev.dateStart) + '" data-outing-event="' + escapeHtml(ev.id) + '"><span class="outing-thumb">' + circuitThumbHtml(ev.circuit) + '</span>' +
-        '<span class="outing-row-main"><strong>' + escapeHtml(ev.circuit) + '</strong><span class="help-text">' + escapeHtml(formatEventRange(ev, true) + (eventPriceShort(ev) ? ' · ' + eventPriceShort(ev) : '')) + '</span></span></button>' +
+        '<span class="outing-row-main"><strong>' + escapeHtml(ev.circuit) + '</strong><span class="help-text">' + escapeHtml(formatEventRange(ev, true) + (upcomingMetaExtra(ev) ? ' · ' + upcomingMetaExtra(ev) : '')) + '</span></span></button>' +
         '<button type="button" class="ghost" data-notif-go="event" data-id="' + escapeHtml(ev.id) + '" data-join="1">' + L('J\'y vais', 'I\'m going') + '</button></div>';
     }).join('') + '</div><div class="help-text carnet-add-help">' + L('« J\'y vais » te montre à tes amis sur ce roulage, sans t\'inscrire chez l\'organisateur.', '“I\'m going” shows your friends you\'ll be there, without registering with the organiser.') + '</div>' : '';
-    if (pillState.compcarnet === 'avenir') html += avenirModeRow();
     if (pillState.compcarnet === 'avenir' && !friends.length) return html + (upcoming.length ? '' : '<div class="card help-text">' + L('Aucun roulage à venir pour toi ou tes amis.', 'No upcoming trackday for you or your friends.') + '</div>') + othersHtml;
     if (!friends.length) return html + '<div class="card help-text">' + L('Ajoute tes amis pilotes (Communauté › Amis) : leurs roulages, leurs chronos et leurs podiums apparaîtront ici.', 'Add your rider friends (Community › Friends): their trackdays, lap times and podiums will show up here.') + '</div>';
     if (pillState.compcarnet === 'avenir') {
@@ -12612,12 +12640,10 @@
         '<span class="outing-row-right"><span class="carnet-time">' + formatTime(o.riders[rs[0]]) + '</span><span class="help-text">' + escapeHtml(rs[0]) + '</span></span></button>' + albumChipHtml(oev) + '</div>';
     };
     // Rangés par circuit puis par date, comme pour les pilotes.
-    var cGroups = {}, cOrder = [];
-    past.forEach(function (o) { var k = circuitKey(o.circuit); if (!cGroups[k]) { cGroups[k] = []; cOrder.push(k); } cGroups[k].push(o); });
-    return html + '<div class="card outings-card">' + cOrder.map(function (k, gi) {
-      var g = cGroups[k].slice().sort(function (a, b) { return b.date.localeCompare(a.date); }), gk = 'comp:' + k;
-      var open = outingGroupOpen[gk] != null ? outingGroupOpen[gk] : gi === 0;
-      return outingGroupHtml(gk, open, g[0].circuit, plural(g.length, L('roulage', 'trackday'), L('roulages', 'trackdays')) + ' · ' + escapeHtml(formatDate(g[0].date)), '', g.length, g.map(compRow).join(''));
+    return html + '<div class="card outings-card">' + groupOutingsByEvent(past).map(function (g) {
+      if (g.items.length === 1) return compRow(g.items[0]);
+      var gk = 'comp:' + g.key, open = !!outingGroupOpen[gk];
+      return outingGroupHtml(gk, open, g.circuit, escapeHtml(eventDatesLabel(g.first, g.last)) + ' · ' + plural(g.items.length, L('jour', 'day'), L('jours', 'days')), '', g.items.length, g.items.map(compRow).join(''));
     }).join('') + '</div>';
   }
   // « Moi » : Stats (une page qui défile : records, podium, trophées),
@@ -23415,19 +23441,7 @@
       return h + '</div>';
     }
     var convs = dmConversations(), h2 = '';
-    // Team Leader : les messages reçus par ses teams dans un onglet à part.
-    var leads = (STATE.myTeamMemberships || []).some(function (m) { return m.role === 'leader'; });
-    var isTeamConv = function (c) { return !!c.key && c.key.indexOf('tu:') === 0; };
-    if (leads) {
-      var unr = function (team) { return convs.filter(function (c) { return isTeamConv(c) === team && c.unread; }).length; };
-      var nP = unr(false), nT = unr(true);
-      h2 += renderSubPillRow('dmbox', [['perso', L('Perso', 'Personal') + (nP ? ' (' + nP + ')' : '')], ['team', 'Team' + (nT ? ' (' + nT + ')' : '')]]);
-      convs = convs.filter(function (c) { return isTeamConv(c) === (pillState.dmbox === 'team'); });
-    }
-    if (leads && pillState.dmbox === 'team') {
-      h2 += '<div class="dm-top"><span class="help-text">' + L('Messages reçus par tes teams. Tu réponds au nom du team.', 'Messages received by your teams. You reply as the team.') + '</span></div>';
-      return h2 + '<div class="card dm-convs">' + (convs.length ? convs.map(dmConvRow).join('') : '<div class="empty-state">' + L('Aucun message reçu par tes teams pour l\'instant.', 'No message received by your teams yet.') + '</div>') + '</div>';
-    }
+    // Une seule liste : les messages reçus par mes teams (Team Leader) sont mêlés aux autres, marqués « à <team> ».
     h2 += '<div class="dm-top"><button type="button" class="primary" data-action="dm-new">' + L('Nouveau message', 'New message') + '</button><button type="button" class="ghost" data-action="group-new">' + L('Nouveau groupe', 'New group') + '</button>' +
       '<span class="help-text">' + L('Qui peut t\'écrire : Réglages › Confidentialité.', 'Who can write to you: Settings › Privacy.') + '</span></div>';
     h2 += '<div class="card dm-convs">' + (convs.length ? convs.map(dmConvRow).join('') : '<div class="empty-state">' + L('Aucune conversation pour l\'instant. Écris à un ami depuis « Nouveau message » ou depuis sa fiche.', 'No conversation yet. Write to a friend from “New message” or from their profile.') + '</div>') + '</div>';
@@ -23991,19 +24005,12 @@
     if (pillState.teamev === 'passes') {
       if (!past.length) body += evCard('', '<div class="help-text">' + L('Pas encore de roulage passé.', 'No past trackday yet.') + '</div>');
       // Rangés par circuit puis par date, comme Carnet › Passés ; résumés de saison en haut.
-      var years = [], groups = {}, order = [];
-      past.forEach(function (ev) {
-        var y = ev.dateStart.slice(0, 4); if (years.indexOf(y) === -1) years.push(y);
-        var k = circuitKey(ev.circuit); if (!groups[k]) { groups[k] = []; order.push(k); } groups[k].push(ev);
-      });
+      var years = [];
+      past.forEach(function (ev) { var y = ev.dateStart.slice(0, 4); if (years.indexOf(y) === -1) years.push(y); });
       if (past.length) {
         body += '<div class="card team-card events-list-card"><div class="team-seasons">' + years.map(function (y) {
           return '<button type="button" class="ghost team-season-btn" data-action="team-season-recap" data-team="' + escapeHtml(team.id) + '" data-year="' + y + '">' + L('Saison ', 'Season ') + y + '</button>';
-        }).join('') + '</div>' + order.map(function (k, gi) {
-          var g = groups[k], gk = 'team:' + team.id + ':' + k;
-          var open = outingGroupOpen[gk] != null ? outingGroupOpen[gk] : gi === 0;
-          return outingGroupHtml(gk, open, g[0].circuit, plural(g.length, L('roulage', 'trackday'), L('roulages', 'trackdays')) + ' · ' + escapeHtml(formatDate(g[0].dateStart)), '', g.length, g.map(eventRow).join(''));
-        }).join('') + '</div>';
+        }).join('') + '</div>' + past.map(eventRow).join('') + '</div>';
       }
     } else {
       body += evCard('', nUp ? ongoing.concat(upcoming).map(eventRow).join('') : '<div class="help-text">' + tr('nothing_planned') + '</div>');
@@ -25628,6 +25635,8 @@
     var prevState = JSON.parse(JSON.stringify(STATE));
     ev.riders = (ev.riders || []).filter(function (n) { return n !== me; });
     ['riderGroups', 'riderBikeNumbers', 'riderRoles'].forEach(function (k) { if (ev[k] && ev[k][me] !== undefined) { ev[k] = Object.assign({}, ev[k]); delete ev[k][me]; } });
+    // Plus inscrit : le roulage sort aussi du budget.
+    if (myBudget && myBudget[ev.id] && myBudget[ev.id].on) { myBudget[ev.id].on = false; saveBudgetSoon(); }
     persist(prevState);
     showToast(wasPast ? L('« J\'y étais » annulé.', '“I was there” undone.') : L('Tu n\'es plus sur la liste de ', 'You\'re no longer on the list for ') + ev.circuit + '.', 'success');
     renderRoot();
@@ -29352,20 +29361,39 @@
 
     var circuitFind = document.getElementById('circuit-find');
     if (circuitFind) {
-      // Taper le nom d'un circuit : on l'ouvre dès qu'un seul correspond.
+      var comboSrc = document.getElementById('f-filter-circuit');
+      var comboList = circuitFind.parentNode.querySelector('.circuit-combo-list');
       var foldC = function (t) { return String(t || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim(); };
-      var pickFound = function (exactOnly) {
-        var q = foldC(circuitFind.value); if (!q) return;
-        var all = allCircuits();
-        var hit = all.filter(function (c) { return foldC(c) === q; });
-        if (!hit.length && !exactOnly) hit = all.filter(function (c) { return foldC(c).indexOf(q) !== -1; });
-        if (hit.length !== 1 && !(hit.length && !exactOnly)) return;
-        selectedCircuit = hit[0]; userPickedCircuit = true; editingCircuitInfo = false; editingSessionId = null;
+      var pickCircuit = function (c) {
+        if (!c) return;
+        selectedCircuit = c; userPickedCircuit = true; editingCircuitInfo = false; editingSessionId = null;
         renderRoot();
       };
-      circuitFind.addEventListener('change', function () { pickFound(false); });
-      circuitFind.addEventListener('input', function () { pickFound(true); });
-      circuitFind.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); pickFound(false); } });
+      // La liste suit le tri choisi (groupes par pays compris) et filtre ce qu'on tape.
+      var fillCombo = function (q) {
+        var fq = foldC(q), h = '', n = 0;
+        Array.prototype.forEach.call(comboSrc.children, function (node) {
+          var opts = node.tagName === 'OPTGROUP' ? Array.prototype.slice.call(node.children) : [node];
+          var rows = opts.filter(function (o) { return o.value && (!fq || foldC(o.value).indexOf(fq) !== -1 || foldC(o.textContent).indexOf(fq) !== -1); });
+          if (!rows.length) return;
+          if (node.tagName === 'OPTGROUP') h += '<div class="circuit-combo-group">' + escapeHtml(node.label) + '</div>';
+          rows.forEach(function (o) { n++; h += '<button type="button" class="circuit-combo-opt' + (o.value === selectedCircuit ? ' on' : '') + '" role="option" data-combo-val="' + escapeHtml(o.value) + '">' + escapeHtml(o.textContent) + '</button>'; });
+        });
+        comboList.innerHTML = n ? h : '<div class="circuit-combo-empty">' + escapeHtml(L('Aucun circuit', 'No circuit')) + '</div>';
+        comboList.hidden = false; circuitFind.setAttribute('aria-expanded', 'true');
+      };
+      var closeCombo = function () { comboList.hidden = true; circuitFind.setAttribute('aria-expanded', 'false'); };
+      circuitFind.addEventListener('focus', function () { circuitFind.select(); fillCombo(''); });
+      circuitFind.addEventListener('input', function () { fillCombo(circuitFind.value === selectedCircuit ? '' : circuitFind.value); });
+      circuitFind.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter') { e.preventDefault(); var first = comboList.querySelector('[data-combo-val]'); if (!comboList.hidden && first) pickCircuit(first.getAttribute('data-combo-val')); else fillCombo(circuitFind.value); }
+        else if (e.key === 'Escape') { circuitFind.value = selectedCircuit || ''; closeCombo(); circuitFind.blur(); }
+      });
+      // mousedown : choisir avant que le champ perde le focus.
+      comboList.addEventListener('mousedown', function (e) { var b = e.target.closest('[data-combo-val]'); if (b) { e.preventDefault(); pickCircuit(b.getAttribute('data-combo-val')); } });
+      circuitFind.addEventListener('blur', function () { setTimeout(function () { if (document.activeElement !== circuitFind) { circuitFind.value = selectedCircuit || ''; closeCombo(); } }, 150); });
+      var chev = circuitFind.parentNode.querySelector('.circuit-combo-chev');
+      if (chev) chev.addEventListener('click', function () { circuitFind.focus(); });
     }
     var circuitSelect = document.getElementById('f-filter-circuit');
     if (circuitSelect) {
