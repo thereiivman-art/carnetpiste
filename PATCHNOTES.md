@@ -2,6 +2,16 @@
 
 Les nouveautés, de la plus récente à la plus ancienne. Le détail complet est dans l'historique git.
 
+## 6 novembre 2026 · navigation simplifiée
+
+- Communauté : un seul onglet (Social).
+- En haut à droite : Messages remplace la cloche ; les notifications sont en tête des messages.
+- Carnet : Roulages, Circuits, Teams, Bilan.
+- PC : « Inviter un ami » sous « Mon compte ».
+- Bilan › Podium : l'onglet Amis n'affiche plus que les amis.
+- Republication : en-tête aligné, photo centrée sous le texte.
+- Circuits › Infos : accessibilité PMR, quand elle est renseignée.
+
 ## 6 novembre 2026 · retours Xav (fin de nuit)
 
 - Circuits : un seul champ pour chercher ou dérouler la liste des circuits.

@@ -8957,6 +8957,7 @@
     if (info.country) html += infoRow(L('Pays', 'Country'), countryBallHtml(info.country, 'inline') + ' ' + escapeHtml(countryName(info.country)));
     if (selectedCircuit) html += infoRow(L('Localisation', 'Location'), '<a href="' + escapeHtml(circuitMapsUrl(selectedCircuit)) + '" target="_blank" rel="noopener">' + L('Ouvrir dans Google Maps', 'Open in Google Maps') + ' ↗</a>');
     html += infoRow(tr('turns_label'), turnsHtml);
+    if (info.pmr === 'oui' || info.pmr === 'partielle') html += infoRow(L('Accessibilité PMR', 'Wheelchair access'), escapeHtml((info.pmr === 'oui' ? L('Oui', 'Yes') : L('Partielle', 'Partial')) + (info.pmrNote ? ' · ' + info.pmrNote : '')));
     var lastOutingText = lastSession ? (escapeHtml(formatDate(lastSession.date)) + ' — ' + formatTime(sessionBest(lastSession))) : '—';
     // Used to jump to this session's own event (Événements) -- now jumps to
     // the progression chart just below instead (see the click handler in
@@ -9132,6 +9133,9 @@
     html += '<div><label for="ci-km">' + tr('ci_distance_km') + '</label><input type="text" inputmode="decimal" id="ci-km" value="' + (info.km != null ? escapeHtml(String(info.km)) : '') + '" placeholder="Ex. 4.2"></div>';
     html += '<div><label for="ci-right">' + tr('ci_turns_right') + '</label><input type="text" inputmode="numeric" id="ci-right" value="' + (info.turnsRight != null ? escapeHtml(String(info.turnsRight)) : '') + '" placeholder="Ex. 9"></div>';
     html += '<div><label for="ci-left">' + tr('ci_turns_left') + '</label><input type="text" inputmode="numeric" id="ci-left" value="' + (info.turnsLeft != null ? escapeHtml(String(info.turnsLeft)) : '') + '" placeholder="Ex. 5"></div>';
+    // Accessibilité PMR (personnes à mobilité réduite) : affichée dans Infos si renseignée.
+    html += '<div><label for="ci-pmr">' + L('Accessibilité PMR', 'Wheelchair access') + '</label><select id="ci-pmr">' + [['', L('Non renseigné', 'Unknown')], ['oui', L('Oui', 'Yes')], ['partielle', L('Partielle', 'Partial')], ['non', L('Non', 'No')]].map(function (o) { return '<option value="' + o[0] + '"' + ((info.pmr || '') === o[0] ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('') + '</select>' +
+      '<input type="text" id="ci-pmr-note" maxlength="140" placeholder="' + escapeHtml(L('Précision (parking, tribune, sanitaires…)', 'Details (parking, stand, toilets…)')) + '" value="' + escapeHtml(info.pmrNote || '') + '" style="margin-top:0.35rem;"></div>';
     var allTeamsForOrganizer = (STATE.teams || []).slice().sort(function (a, b) { return a.name.localeCompare(b.name); });
     html += '<div><label for="ci-organizer">' + tr('ci_organizer') + '</label><select id="ci-organizer"><option value="">—</option>' +
       allTeamsForOrganizer.map(function (t) {
@@ -9554,7 +9558,7 @@
     if (!list.length) return '<div class="card help-text">' + (meIsNonRider()
       ? L('Les podiums apparaissent dès que tes amis pilotes ajoutent leurs chronos.', 'Podiums show up as soon as your rider friends add their lap times.')
       : L('Ajoute tes chronos : le podium entre amis apparaît pour chaque circuit où tu as roulé.', 'Add your lap times: the friends\' podium shows for every circuit you\'ve ridden.')) + '</div>';
-    return list.map(renderFriendsPodium).join('');
+    return list.map(function (c) { return renderFriendsPodium(c); }).join('');
   }
   // Podium « Tous » : même affichage que celui des amis (chronos vérifiés),
   // 10 lignes puis « Voir plus » jusqu'au top 100.
@@ -13373,6 +13377,9 @@
     entry.turnsRight = (right != null && !isNaN(right)) ? right : null;
     entry.turnsLeft = (left != null && !isNaN(left)) ? left : null;
     entry.organizerTeamId = organizerTeamId || null;
+    var pmrEl = document.getElementById('ci-pmr'), pmrNoteEl = document.getElementById('ci-pmr-note');
+    if (pmrEl) entry.pmr = pmrEl.value || null;
+    if (pmrNoteEl) entry.pmrNote = pmrNoteEl.value.trim().slice(0, 140) || null;
     entry.briefing = briefing || null;
     entry.liveTimingUrl = liveTimingUrl || null;
     var lapVidEl = document.getElementById('ci-lap-video'), lapVid = lapVidEl ? lapVidEl.value.trim() : '';
@@ -15998,7 +16005,8 @@
     // calendrier vit dans Carnet › Roulages.
     if (view === 'chrono' || view === 'planning') return 'chrono';
     if (view === 'event') return 'carnet';
-    if (view === 'social' || view === 'team' || view === 'coach') return 'communaute';
+    if (view === 'team' || view === 'coach') return 'carnet';
+    if (view === 'social') return 'communaute';
     return 'carnet';
   }
   var lastSubView = { carnet: 'carnet', chrono: 'chrono', communaute: 'social' };
@@ -16070,7 +16078,9 @@
   function isDesktopNav() { return !!(window.matchMedia && window.matchMedia('(min-width: 960px)').matches); }
   function carnetSubItems() {
     // 3 onglets : Roulages, Circuits, Bilan (perfs, garage, budget).
-    var items = [['carnet', L('Roulages', 'Trackdays')], ['circuit', 'Circuits'], ['stats', L('Bilan', 'Progress')]];
+    var items = [['carnet', L('Roulages', 'Trackdays')], ['circuit', 'Circuits']];
+    if (communauteSubItems().some(function (it) { return it[0] === 'team'; })) items.push(['team', 'Teams']);
+    items.push(['stats', L('Bilan', 'Progress')]);
     if (currentUserProfile && currentUserProfile.role === 'organisateur') items.unshift(['orgaev', L('Événements', 'Events')]);
     return items;
     // Organisateur : ses événements en premier.
@@ -16085,7 +16095,7 @@
   function renderSubNav(items) {
     if (items.length < 2) return '';
     return '<div class="subnav main-subnav" role="tablist">' + items.map(function (it) {
-      var on = activeView === it[0] || (it[0] === 'carnet' && activeView === 'event');
+      var on = activeView === it[0] || (it[0] === 'carnet' && activeView === 'event') || (it[0] === 'team' && activeView === 'coach');
       return '<button type="button" role="tab" class="subnav-btn' + (on ? ' active' : '') + '" data-view="' + it[0] + '">' + it[1] + '</button>';
     }).join('') + '</div>';
   }
@@ -16138,6 +16148,7 @@
   }
   // Communauté : Profil · Fil · Teams, sur une seule rangée d'onglets.
   function renderCommunauteNav() {
+    return ''; // Communauté : un seul onglet (Messages en haut à droite, Teams dans Carnet).
     var me = currentUserProfile, nIn = me ? incomingFriendRequests(me.name).length : 0;
     var nDm = unreadDmCount();
     // 3 onglets : Fil, Messages, Teams. Ma fiche s'ouvre par mon avatar en haut.
@@ -16248,7 +16259,7 @@
     var html = '<button type="button" class="nav-brand keep-words" data-action="brand-home" aria-label="' + escapeHtml(L('Accueil : Social', 'Home: Social')) + '"><img src="icons/favicon-32.png" alt="" width="26" height="26"><span>' + L('Pitbook', 'Pitbook') + '</span></button><nav class="bottom-nav">';
     var visibleTabs = MAIN_TABS;
     // Profile and notifications aren't one of the 3 tabs: none lit up then.
-    var current = (profilePanelOpen || notificationsPanelOpen) ? null : navTabFor(activeView);
+    var current = (profilePanelOpen || notificationsPanelOpen || (activeView === 'social' && pillState.social === 'messages')) ? null : navTabFor(activeView);
     // PC : Communauté ouvre le Fil ; les sous-menus (Roulages, Circuits…,
     // Profil, Fil, Teams) sont rangés sous leur menu dans la barre de
     // gauche. Ajoutés après les 3 boutons (ordre visuel par « order »)
@@ -16256,8 +16267,8 @@
     var desk = window.matchMedia && window.matchMedia('(min-width: 960px)').matches;
     visibleTabs.forEach(function (tab, i) {
       var toFil = desk && tab[0] === 'communaute';
-      html += '<button type="button" class="bottom-nav-btn' + (tab[0] === 'chrono' ? ' bottom-nav-main' : '') + (current === tab[0] ? ' active' : '') + '" style="order:' + (i * 2) + '" data-view="' + (toFil ? 'social' : (lastSubView[tab[0]] || tab[0])) + '"' + (toFil ? ' data-pill-group="social" data-pill="fil"' : '') + '>' +
-        '<span class="bottom-nav-icon">' + tab[2] + (tab[0] === 'communaute' && currentUserProfile && unreadDmCount() ? '<span class="nav-dm-badge">' + unreadDmCount() + '</span>' : '') + '</span><span class="bottom-nav-label">' + (tab[0] === 'chrono' && currentUserProfile && meIsNonRider() ? L('Chrono d\'ami', 'Friend lap') : tr(tab[1])) + '</span></button>';
+      html += '<button type="button" class="bottom-nav-btn' + (tab[0] === 'chrono' ? ' bottom-nav-main' : '') + (current === tab[0] ? ' active' : '') + '" style="order:' + (i * 2) + '" data-view="' + (toFil || tab[0] === 'communaute' ? 'social' : (lastSubView[tab[0]] || tab[0])) + '"' + (tab[0] === 'communaute' ? ' data-pill-group="social" data-pill="fil"' : '') + (toFil ? ' data-pill-group="social" data-pill="fil"' : '') + '>' +
+        '<span class="bottom-nav-icon">' + tab[2] + '' + '</span><span class="bottom-nav-label">' + (tab[0] === 'chrono' && currentUserProfile && meIsNonRider() ? L('Chrono d\'ami', 'Friend lap') : tr(tab[1])) + '</span></button>';
     });
     if (desk && currentUserProfile) {
       var sub = function (order, items) {
@@ -16279,7 +16290,7 @@
         });
         html += sub(1, carnetNav);
       }
-      if (current === 'communaute') {
+      if (current === 'communaute' && false) {
         var me = currentUserProfile, nIn = incomingFriendRequests(me.name).length;
         var comm = [[L('Social', 'Social') + (nIn ? ' (' + nIn + ')' : ''), 'data-view="social" data-pill-group="social" data-pill="fil"', !onPanel && activeView === 'social' && pillState.social === 'fil']];
         var nDmPc = unreadDmCount();
@@ -22981,7 +22992,8 @@
       var vidId = o.video ? (o.mediaId || o.id) : (origPost && origPost.video ? (origPost.mediaId || origPost.id) : '');
       inner = '<div class="wall-post-head">' + avatarHtml(ou, who) + personLinkHtml(who) + badgesHtml(ou) + '<span class="feed-entry-time">' + escapeHtml(relativeTime(o.createdAt)) + '</span></div>' +
         (vidId ? (o.text ? '<div class="wall-post-text">' + escapeHtml(o.text) + '</div>' : '') + '<div class="wall-post-media is-video" data-feed-video="' + escapeHtml(vidId) + '"><img class="wall-post-photo" src="' + escapeHtml(o.photoURL || 'icons/icon-192.png') + '" alt=""><span class="wall-post-play" aria-hidden="true"><svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></span></div>' : '') +
-        (vidId ? '' : (o.photoURL ? '<img class="wall-post-photo' + (oText ? ' side' : '') + '" src="' + escapeHtml(o.photoURL) + '" alt="">' : '') + (o.text ? '<div class="wall-post-text">' + escapeHtml(o.text) + '</div>' : '')) +
+        // Comme un post : le texte, puis la photo entière, centrée.
+        (vidId ? '' : (o.text ? '<div class="wall-post-text">' + escapeHtml(o.text) + '</div>' : '') + (o.photoURL ? '<img class="wall-post-photo repost-photo" src="' + escapeHtml(o.photoURL) + '" alt="">' : '')) +
         (o.linkUrl ? postLinkHtml(o.linkUrl) : '') + (o.photoURL && oText && !vidId ? '<div class="clear"></div>' : '');
     }
     return '<div class="repost-label">' + L('a republié', 'reposted') + '</div><div class="repost-box" data-orig-key="' + escapeHtml(o.id || '') + '" data-orig-author="' + escapeHtml(who) + '" data-orig-kind="' + escapeHtml(o.kind || '') + '">' + inner +
@@ -23442,9 +23454,14 @@
     }
     var convs = dmConversations(), h2 = '';
     // Une seule liste : les messages reçus par mes teams (Team Leader) sont mêlés aux autres, marqués « à <team> ».
+    // Les notifications sont rangées ici, en tête de liste.
+    var nNotif = pendingNotificationCount() + unreadActivityCount();
+    var notifRow = '<button type="button" class="dm-conv dm-notif-row" data-action="open-notifs"><span class="dm-notif-ico" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg></span>' +
+      '<span class="dm-notif-main"><strong>' + L('Notifications', 'Notifications') + '</strong><span class="help-text">' + escapeHtml(nNotif ? plural(nNotif, L('nouvelle', 'new'), L('nouvelles', 'new')) : L('Tout est lu', 'All caught up')) + '</span></span>' +
+      (nNotif ? '<span class="notif-count dm-notif-count">' + (nNotif > 9 ? '9+' : nNotif) + '</span>' : '') + '</button>';
     h2 += '<div class="dm-top"><button type="button" class="primary" data-action="dm-new">' + L('Nouveau message', 'New message') + '</button><button type="button" class="ghost" data-action="group-new">' + L('Nouveau groupe', 'New group') + '</button>' +
       '<span class="help-text">' + L('Qui peut t\'écrire : Réglages › Confidentialité.', 'Who can write to you: Settings › Privacy.') + '</span></div>';
-    h2 += '<div class="card dm-convs">' + (convs.length ? convs.map(dmConvRow).join('') : '<div class="empty-state">' + L('Aucune conversation pour l\'instant. Écris à un ami depuis « Nouveau message » ou depuis sa fiche.', 'No conversation yet. Write to a friend from “New message” or from their profile.') + '</div>') + '</div>';
+    h2 += '<div class="card dm-convs">' + notifRow + (convs.length ? convs.map(dmConvRow).join('') : '<div class="empty-state">' + L('Aucune conversation pour l\'instant. Écris à un ami depuis « Nouveau message » ou depuis sa fiche.', 'No conversation yet. Write to a friend from “New message” or from their profile.') + '</div>') + '</div>';
     return h2;
   }
   function dmConvRow(c) {
@@ -25376,8 +25393,8 @@
       else if (activeView === 'chrono') body = renderChronoTab();
       else if (activeView === 'planning') body = '<button type="button" class="link-btn back-link" data-view="chrono">‹ ' + L('Chrono', 'Lap times') + '</button>' + renderTimesheetReminder() + renderPlanningTab();
       else if (activeView === 'social') body = renderCommunauteNav() + renderSocialTab();
-      else if (activeView === 'team') body = renderCommunauteNav() + renderTeamTab();
-      else if (activeView === 'coach') body = renderCommunauteNav() + '<button type="button" class="link-btn back-link" data-view="team">‹ Teams</button>' + renderCoachTab();
+      else if (activeView === 'team') body = carnetSub + renderTeamTab();
+      else if (activeView === 'coach') body = carnetSub + '<button type="button" class="link-btn back-link" data-view="team">‹ Teams</button>' + renderCoachTab();
       else if (activeView === 'visites') { activeView = 'circuit'; pillState.circuit = 'visites'; body = carnetSub + renderCircuitTab(); }
       else if (activeView === 'orgaev') body = carnetSub + renderOrgaEvents();
       else body = carnetSub + carnetPillsHtml(myOutings()) + renderEventTab(); // 'event' (Carnet › Roulages › Calendrier) and safety fallback
@@ -25392,12 +25409,13 @@
               '<span class="hello-text"><span class="hello-small">Bonjour</span><span class="hello-name">' + escapeHtml(currentUserProfile.firstName || currentUserProfile.name || '') + '</span></span></button>' +
             '<div class="header-controls">' + pneusChipHtml('header-pneus') +
               (gsearchInline.open && isDesktopNav() ? renderSearchInline() : '<button type="button" class="header-icon-btn" id="search-toggle" aria-label="' + escapeHtml(L('Rechercher', 'Search')) + '" title="' + escapeHtml(L('Rechercher', 'Search')) + '"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg></button>') +
-              '<button type="button" class="header-icon-btn" id="invite-qr-btn" aria-label="Inviter un ami (QR code)" title="Inviter un ami">' +
-                '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3zM20 14v.01M14 20h.01M17 20h4v-3"/></svg></button>' +
               '<button type="button" class="header-icon-btn' + (profilePanelOpen ? ' is-open' : '') + '" id="settings-toggle" aria-label="Mon compte" title="Mon compte">' +
                 '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>' +
-              '<button type="button" class="header-icon-btn" id="notifications-toggle" aria-label="' + tr('notifications_label') + '" title="' + tr('notifications_label') + '"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 16V11a6 6 0 0112 0v5l1.5 2h-15L6 16z"/><path d="M10 20.5a2 2 0 004 0"/></svg>' +
-                (notifCount ? '<span class="notif-count">' + (notifCount > 9 ? '9+' : notifCount) + '</span>' : '') +
+              '<button type="button" class="header-icon-btn" id="invite-qr-btn" aria-label="Inviter un ami (QR code)" title="Inviter un ami">' +
+                '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3zM20 14v.01M14 20h.01M17 20h4v-3"/></svg></button>' +
+              // Messages (et les notifications, rangées dedans) à la place de la cloche.
+              '<button type="button" class="header-icon-btn' + (activeView === 'social' && pillState.social === 'messages' && !profilePanelOpen ? ' is-open' : '') + '" id="messages-toggle" aria-label="' + escapeHtml(L('Messages', 'Messages')) + '" title="' + escapeHtml(L('Messages', 'Messages')) + '"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 9 9 0 0 1-4-.9L3 20l1.1-4A8.4 8.4 0 0 1 3 11.5 8.5 8.5 0 0 1 12 3a8.5 8.5 0 0 1 9 8.5z"/></svg>' +
+                ((notifCount + unreadDmCount()) ? '<span class="notif-count">' + ((notifCount + unreadDmCount()) > 9 ? '9+' : (notifCount + unreadDmCount())) + '</span>' : '') +
               '</button>' +
             '</div>' +
           '</div>' +
@@ -26149,6 +26167,15 @@
     });
     document.querySelectorAll('[data-notif-go]').forEach(function (el) {
       el.addEventListener('click', function () { followNotifGo(el); });
+    });
+    document.querySelectorAll('[data-action="open-notifs"]').forEach(function (b) { b.addEventListener('click', function () {
+      notificationsPanelOpen = true; profilePanelOpen = false; markNotificationsSeen(); renderRoot(); window.scrollTo(0, 0);
+    }); });
+    var messagesToggle = document.getElementById('messages-toggle');
+    if (messagesToggle) messagesToggle.addEventListener('click', function () {
+      notificationsPanelOpen = false; profilePanelOpen = false; personView = null; outingView = null;
+      activeView = 'social'; pillState.social = 'messages';
+      renderRoot(); window.scrollTo(0, 0);
     });
     var notificationsToggle = document.getElementById('notifications-toggle');
     if (notificationsToggle) {
