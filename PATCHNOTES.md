@@ -2,6 +2,27 @@
 
 Les nouveautés, de la plus récente à la plus ancienne. Le détail complet est dans l'historique git.
 
+## 7 novembre 2026
+
+**Retours Alexis**
+- Plan & repères : les repères restent exactement à leur place entre l'édition et l'affichage.
+- Dessin : afficher ses repères, et leurs commentaires, par-dessus le dessin (boutons Repères et Commentaires).
+- Niveau des circuits : l'explication n'apparaît qu'au survol ; le vote se fait sur la même pastille à barres que l'affichage.
+- Sites officiels ajoutés (Bresse, Carole, Clastres, Croix, Mas du Clos, Pau-Arnos, Vaison, Termas, Alcarràs, Almería, Calafat, Cartagena, Mandalika, Varano).
+- Infos du circuit : localisation (ouvre Google Maps).
+- Roulage : liens Site officiel et Localisation, et onglet Météo (prévisions Météo-France en France, 15 jours avant).
+- Miniatures : foncées sur blanc en mode jour, blanches sur noir en mode nuit.
+- Publier : « Tape @ pour citer un ami » dans la boîte ; Lien, Lieu et Photo sur une seule ligne.
+- Trophées affichés aussi sur la fiche des accompagnants.
+- « Je n'y vais plus » sur un roulage à venir.
+- Mes circuits perso en tête de « Mes circuits ».
+- Mon compte : le rôle choisi ne se réinitialise plus en touchant Moto / Voiture ; option « Je roule en moto et en voiture ».
+
+**Retours Xavier**
+- Chrono : « Un roulage déjà passé ? » explique la marche à suivre et propose tes roulages sans chrono en un geste.
+- Messages : l'état lu / non lu suit le compte sur tous les appareils.
+- Nouveau tracé de Barcelone (sans la chicane).
+
 ## 6 novembre 2026 (suite)
 
 - Tracés du Mans et de Magny-Cours remis à la bonne place.

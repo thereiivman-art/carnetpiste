@@ -3448,7 +3448,10 @@
     eventsList().forEach(function (e) { if ((e.riders || []).indexOf(me) !== -1) mine[e.circuit] = 1; });
     var opt = function (c) { return '<option value="' + escapeHtml(c) + '"' + (c === selected ? ' selected' : '') + '>' + escapeHtml(c) + '</option>'; };
     var groups = {}, order = [];
-    var my = circuits.filter(function (c) { return mine[c]; });
+    // Mes circuits perso (créés et dessinés par moi) : tout en haut.
+    var isMyCustom = function (c) { var e = (STATE.circuits || {})[c]; return !!(me && e && !builtinCircuit(c) && (e.outlineDrawings || {})[me]); };
+    circuits.forEach(function (c) { if (isMyCustom(c)) mine[c] = 1; });
+    var my = circuits.filter(function (c) { return mine[c]; }).sort(function (a, b) { return isMyCustom(b) - isMyCustom(a); });
     circuits.forEach(function (c) {
       if (mine[c]) return;
       var b = builtinCircuit(c) || {}, g = b.country ? countryName(b.country) : L('Autres', 'Others');
@@ -4889,16 +4892,19 @@
     html += '</div>' + cpillSection('profil', 'role');
     html += '<label style="margin-top:0.2rem;">' + tr('i_am_label') + '</label>';
     html += '<div class="auth-role-choice">' +
-      '<label><input type="radio" name="profile-role" value="pilote"' + (p.role !== 'accompagnant' && p.role !== 'organisateur' ? ' checked' : '') + '> ' + tr('pilote_option') + '</label>' +
-      '<label><input type="radio" name="profile-role" value="accompagnant"' + (p.role === 'accompagnant' ? ' checked' : '') + '> ' + tr('accompagnant_option') + '</label>' +
-      '<label><input type="radio" name="profile-role" value="organisateur"' + (p.role === 'organisateur' ? ' checked' : '') + '> ' + tr('organisateur_option') + '</label>' +
+      '<label><input type="radio" name="profile-role" value="pilote"' + ((pendingProfileRole || p.role) !== 'accompagnant' && (pendingProfileRole || p.role) !== 'organisateur' ? ' checked' : '') + '> ' + tr('pilote_option') + '</label>' +
+      '<label><input type="radio" name="profile-role" value="accompagnant"' + ((pendingProfileRole || p.role) === 'accompagnant' ? ' checked' : '') + '> ' + tr('accompagnant_option') + '</label>' +
+      '<label><input type="radio" name="profile-role" value="organisateur"' + ((pendingProfileRole || p.role) === 'organisateur' ? ' checked' : '') + '> ' + tr('organisateur_option') + '</label>' +
       '</div>';
     // Trophées unifiés dans Stats désormais, quel que soit le rôle (voir
     // renderStatsTab) -- Profil n'en montre plus une copie séparée. Les
     // trois cartes sont toutes rendues (une seule visible à la fois) pour
     // que changer le radio "Je suis" bascule instantanément vers la bonne,
     // avant même Enregistrer -- voir le listener de profile-role.
-    var currentRole = (p.role === 'accompagnant' || p.role === 'organisateur') ? p.role : 'pilote';
+    // Choix « Je suis » pas encore enregistré : gardé si la page se redessine
+    // (avant, toucher Moto / Voiture remettait l'ancien rôle).
+    var roleNow = pendingProfileRole || p.role;
+    var currentRole = (roleNow === 'accompagnant' || roleNow === 'organisateur') ? roleNow : 'pilote';
     html += renderRoleInfoCard('pilote', currentRole);
     html += renderRoleInfoCard('accompagnant', currentRole);
     html += renderRoleInfoCard('organisateur', currentRole);
@@ -4906,6 +4912,7 @@
     html += '<div class="discipline-choice" style="margin-top:0.9rem;"><span class="help-text">' + L('Je roule en', 'I ride in') + '</span><div class="ride-role-row">' +
       '<button type="button" class="ride-role-btn keep-words' + (isCarMode() ? '' : ' active') + '" data-action="set-discipline" data-discipline="moto" aria-pressed="' + !isCarMode() + '">' + L('Moto', 'Bike') + '</button>' +
       '<button type="button" class="ride-role-btn keep-words' + (isCarMode() ? ' active' : '') + '" data-action="set-discipline" data-discipline="auto" aria-pressed="' + isCarMode() + '">' + L('Voiture', 'Car') + '</button></div>' +
+      '<label class="checklist-item" style="margin-top:0.4rem;"><input type="checkbox" id="ride-both"' + (p.rideBoth ? ' checked' : '') + '> ' + L('Je roule en moto et en voiture (la vue choisie ci-dessus s\'applique)', 'I ride both bike and car (the view chosen above applies)') + '</label>' +
       '<div class="help-text">' + L('Les classements et records ne comparent que les pilotes de ta discipline.', 'Rankings and records only compare drivers/riders of your discipline.') + '</div></div>';
     html += '<div id="profile-bike-wrap" style="display:' + (isNonRider ? 'none' : 'block') + '; margin-top:0.9rem;">' +
       '<label for="profile-bike">' + tr('my_bike_label') + '</label><input type="text" id="profile-bike" placeholder="' + (isCarMode() ? 'Ex. Porsche 911 GT3' : 'Ex. ST 765 RS') + '" value="' + escapeHtml(p.bike || '') + '">' +
@@ -4981,6 +4988,7 @@
     try { localStorage.setItem('cdp-simple', on ? '1' : '0'); } catch (e) {}
     document.documentElement.classList.toggle('simple-mode', !!on);
   }
+  var pendingProfileRole = null;
   function renderProfileReglagesTab(p, only) {
     var html = '<div class="settings-block">';
     html += '<div class="settings-inline"><div><label style="margin-bottom:0.4rem; display:block;">' + tr('profile_lang') + '</label>' + renderLangToggle() + '</div>' +
@@ -8353,8 +8361,73 @@
     'Red Bull Ring': 'https://www.redbullring.com', 'Brno': 'https://www.automotodrombrno.cz', 'Most': 'https://www.autodrom-most.cz', 'Slovakia Ring': 'https://www.slovakiaring.sk', 'Grobnik': 'https://grobnik.hr', 'Pannonia-Ring': 'https://www.pannonia-ring.com',
     'Silverstone': 'https://www.silverstone.co.uk', 'Donington': 'https://www.donington-park.co.uk', 'Brands Hatch': 'https://www.brandshatch.co.uk',
     'Losail': 'https://www.lcsc.qa', 'COTA': 'https://circuitoftheamericas.com', 'Buriram': 'https://www.changinternationalcircuit.com', 'Motegi': 'https://www.mr-motegi.jp',
-    'Phillip Island': 'https://www.phillipislandcircuit.com.au', 'Sepang': 'https://www.sepangcircuit.com'
+    'Phillip Island': 'https://www.phillipislandcircuit.com.au', 'Sepang': 'https://www.sepangcircuit.com',
+    // Donnés par Alexis (6 novembre 2026).
+    'Bresse': 'https://circuitdebresse.com/', 'Carole': 'https://www.circuit-carole.com/', 'Clastres': 'https://laclefdeschamps.agglo-saintquentinois.fr/',
+    'Croix-en-Ternois': 'https://www.circuitdecroix.com/', 'Mas du Clos': 'https://www.masduclos.com/', 'Pau-Arnos': 'https://circuit-pau-arnos.fr/',
+    'Vaison Piste': 'https://vaisonpiste.com/fr/', 'Termas de Río Hondo': 'https://autodromotermas.com/', 'Alcarràs': 'https://www.circuitalcarras.cat/fr/',
+    'Almería': 'https://almeriacircuit.com/en/home-english/', 'Calafat': 'https://circuitcalafat.com/en/', 'Cartagena': 'https://www.circuitocartagena.es/',
+    'Mandalika': 'https://www.themandalikagp.com/', 'Varano': 'https://www.autodromovarano.it/'
   };
+  // Position approximative des circuits (pour la météo du roulage). La
+  // localisation exacte, elle, s'ouvre par une recherche Google Maps.
+  var CIRCUIT_COORDS = {
+    'Albi': [43.915, 2.115], 'Alès': [44.149, 4.115], 'Bresse': [46.553, 5.288], 'Carole': [48.979, 2.521], 'Charade': [45.744, 3.022], 'Croix-en-Ternois': [50.379, 2.296],
+    'Dijon-Prenois': [47.363, 4.899], 'Haute Saintonge': [45.243, -0.048], 'Lédenon': [43.923, 4.505], 'Le Mans': [47.950, 0.208], 'Le Vigeant': [46.200, 0.633], 'Magny Cours': [46.864, 3.163],
+    'Nogaro': [43.770, -0.035], 'Pau-Arnos': [43.448, -0.533], 'Paul Ricard': [43.251, 5.792], 'Mas du Clos': [45.930, 2.260], 'Vaison Piste': [46.770, 4.450], 'Clastres': [49.745, 3.230],
+    'Barcelone': [41.570, 2.261], 'Jerez': [36.709, -6.034], 'Valence': [39.486, -0.629], 'Aragón': [41.077, -0.205], 'Navarra': [42.560, -2.168], 'Jarama': [40.617, -3.585],
+    'Almería': [37.070, -2.330], 'Cartagena': [37.630, -1.010], 'Calafat': [40.930, 0.840], 'Alcarràs': [41.555, 0.508], 'Portimão': [37.232, -8.632], 'Estoril': [38.751, -9.394],
+    'Mugello': [43.998, 11.372], 'Misano': [43.962, 12.684], 'Imola': [44.344, 11.716], 'Vallelunga': [42.157, 12.369], 'Cremona': [45.070, 10.310], 'Varano': [44.680, 10.022],
+    'Spa-Francorchamps': [50.437, 5.971], 'Zolder': [50.990, 5.257], 'Mettet': [50.300, 4.650], 'Assen': [52.962, 6.524], 'Sachsenring': [50.792, 12.688], 'Hockenheim': [49.327, 8.566],
+    'Nürburgring': [50.335, 6.947], 'Red Bull Ring': [47.220, 14.765], 'Brno': [49.203, 16.445], 'Most': [50.519, 13.608], 'Slovakia Ring': [48.054, 17.565], 'Grobnik': [45.381, 14.508],
+    'Pannonia-Ring': [47.320, 17.060], 'Silverstone': [52.072, -1.016], 'Donington': [52.830, -1.375], 'Brands Hatch': [51.357, 0.263], 'Losail': [25.490, 51.454], 'COTA': [30.133, -97.641],
+    'Termas de Río Hondo': [-27.506, -64.914], 'Buriram': [14.958, 103.085], 'Mandalika': [-8.896, 116.299], 'Motegi': [36.533, 140.227], 'Phillip Island': [-38.502, 145.231], 'Sepang': [2.761, 101.738]
+  };
+  function circuitCoords(circuit) {
+    var k = Object.keys(CIRCUIT_COORDS).filter(function (n) { return circuitKey(n) === circuitKey(circuit); })[0];
+    return k ? CIRCUIT_COORDS[k] : null;
+  }
+  function circuitMapsUrl(circuit) { return 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent('Circuit ' + circuit); }
+  // Liens du circuit (site officiel, localisation) : Infos du circuit et du roulage.
+  function circuitLinksHtml(circuit) {
+    var site = circuitWebsite(circuit);
+    return '<div class="circuit-links">' + (site ? '<a class="ghost" href="' + escapeHtml(site) + '" target="_blank" rel="noopener">' + L('Site officiel', 'Official site') + ' ↗</a>' : '') +
+      '<a class="ghost" href="' + escapeHtml(circuitMapsUrl(circuit)) + '" target="_blank" rel="noopener">' + L('Localisation', 'Location') + ' ↗</a></div>';
+  }
+  // ---- Météo prévue au circuit (Open-Meteo, modèle Météo-France en France) ----
+  var forecastCache = {};
+  var WMO = function (c) {
+    if (c === 0) return L('Ensoleillé', 'Sunny'); if (c <= 2) return L('Éclaircies', 'Partly cloudy'); if (c === 3) return L('Couvert', 'Overcast');
+    if (c === 45 || c === 48) return L('Brouillard', 'Fog'); if (c >= 51 && c <= 57) return L('Bruine', 'Drizzle'); if (c >= 61 && c <= 67) return L('Pluie', 'Rain');
+    if (c >= 71 && c <= 77) return L('Neige', 'Snow'); if (c >= 80 && c <= 82) return L('Averses', 'Showers'); if (c >= 85 && c <= 86) return L('Averses de neige', 'Snow showers');
+    if (c >= 95) return L('Orage', 'Thunderstorm'); return '';
+  };
+  function renderForecastCard(ev) {
+    var co = circuitCoords(ev.circuit), today = dateKey(new Date()), end = ev.dateEnd || ev.dateStart;
+    if (!co || end < today) return '';
+    var limit = dateKey(new Date(Date.now() + 15 * 86400000));
+    var head = '<div class="card forecast"><h2 class="section-title">' + L('Météo prévue', 'Weather forecast') + '</h2>';
+    if (ev.dateStart > limit) return head + '<div class="help-text">' + L('Les prévisions arrivent 15 jours avant le roulage.', 'The forecast shows up 15 days before the trackday.') + '</div></div>';
+    var from = ev.dateStart < today ? today : ev.dateStart, to = end > limit ? limit : end, key = ev.circuit + '|' + from + '|' + to, fc = forecastCache[key];
+    var fr = (builtinCircuit(ev.circuit) || {}).country === 'FR';
+    if (!fc) {
+      forecastCache[key] = { loading: true };
+      fetch('https://api.open-meteo.com/v1/forecast?latitude=' + co[0] + '&longitude=' + co[1] + '&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,wind_speed_10m_max&timezone=auto&start_date=' + from + '&end_date=' + to + (fr ? '&models=meteofrance_seamless' : ''))
+        .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
+        .then(function (j) { forecastCache[key] = { daily: j.daily || {} }; renderRoot(); })
+        .catch(function () { forecastCache[key] = { error: true }; renderRoot(); });
+      fc = forecastCache[key];
+    }
+    if (fc.loading) return head + '<div class="help-text">' + L('Chargement…', 'Loading…') + '</div></div>';
+    if (fc.error || !fc.daily.time) return head + '<div class="help-text">' + L('Prévisions indisponibles pour l\'instant.', 'Forecast unavailable for now.') + '</div></div>';
+    var d = fc.daily;
+    return head + '<div class="forecast-days">' + d.time.map(function (t, i) {
+      var pr = d.precipitation_probability_max ? d.precipitation_probability_max[i] : null;
+      return '<div class="forecast-day"><strong>' + escapeHtml(formatDate(t)) + '</strong><span>' + escapeHtml(WMO(d.weather_code[i])) + '</span>' +
+        '<span class="forecast-temp">' + Math.round(d.temperature_2m_min[i]) + '° / ' + Math.round(d.temperature_2m_max[i]) + '°</span>' +
+        '<span class="help-text">' + (pr != null ? L('Pluie ', 'Rain ') + pr + ' %' : '') + (d.wind_speed_10m_max ? ' · ' + L('vent ', 'wind ') + Math.round(d.wind_speed_10m_max[i]) + ' km/h' : '') + '</span></div>';
+    }).join('') + '</div><div class="help-text">' + (fr ? L('Prévisions du modèle Météo-France (via Open-Meteo).', 'Météo-France model forecast (via Open-Meteo).') : L('Prévisions Open-Meteo.', 'Open-Meteo forecast.')) + '</div></div>';
+  }
   function circuitWebsite(circuit) {
     var own = circuitInfo(circuit).website;
     if (own) return own;
@@ -8371,23 +8444,27 @@
         : '<a class="link-btn" href="https://www.google.com/search?q=' + encodeURIComponent('circuit ' + circuit + ' site officiel') + '" target="_blank" rel="noopener">' + L('Chercher le site officiel', 'Search the official website') + ' ↗</a>') + '</div>';
     if (lv) {
       var pill = function (who, n) { return '<span class="lvl lvl-' + n + '"><span class="lvl-who">' + who + '</span><strong>' + levelLabel(n) + '</strong><span class="lvl-bars">' + [1, 2, 3].map(function (i) { return '<i' + (i <= n ? ' class="on"' : '') + '></i>'; }).join('') + '</span></span>'; };
-      html += '<div class="lvl-row">' + (car ? pill(L('Voiture', 'Car'), lv[1]) + pill(L('Moto', 'Bike'), lv[0]) : pill(L('Moto', 'Bike'), lv[0]) + pill(L('Voiture', 'Car'), lv[1])) + '</div>' +
-        '<div class="help-text">' + (function () {
+      // L'explication n'apparaît qu'au survol (ou au toucher) des pastilles.
+      html += '<div class="lvl-wrap" tabindex="0"><div class="lvl-row">' + (car ? pill(L('Voiture', 'Car'), lv[1]) + pill(L('Moto', 'Bike'), lv[0]) : pill(L('Moto', 'Bike'), lv[0]) + pill(L('Voiture', 'Car'), lv[1])) + '</div>' +
+        '<div class="help-text lvl-hint">' + (function () {
           var stM = levelVoteStats(circuit, 'moto'), stC = levelVoteStats(circuit, 'car'), n = Math.max(stM.n, stC.n);
           return n >= LEVEL_MIN_VOTES ? L('Moyenne des avis des Pitbookers', 'Average of Pitbookers\' opinions') + ' (' + plural(n, L('avis', 'opinion'), L('avis', 'opinions')) + ').'
             : L('Niveau indicatif, remplacé par la moyenne des Pitbookers à partir de 10 avis', 'Indicative level, replaced by the Pitbookers\' average from 10 opinions') + (n ? ' (' + n + '/10)' : '') + '.';
-        })() + '</div>';
+        })() + '</div></div>';
     }
     // Mon avis sur le niveau (moto ou voiture, selon mon véhicule).
     // Mon avis sur la difficulté, en moto et en voiture (l'un, l'autre ou les deux).
     var mv = myLevelVote(circuit);
+    // Même style que l'affichage : une pastille avec trois barres ; toucher
+    // une barre donne ce niveau (1 Débutant, 2 Normal, 3 Difficile).
     var voteRow = function (vf, label) {
-      return '<div class="lvl-vote-row"><span class="lvl-who">' + label + '</span><div class="look-seg">' + [1, 2, 3].map(function (n) {
-        return '<button type="button" data-lvl-vote="' + n + '" data-lvl-field="' + vf + '" data-lvl-circuit="' + escapeHtml(circuit) + '" aria-pressed="' + !!(mv && mv[vf] === n) + '">' + levelLabel(n) + '</button>';
-      }).join('') + '</div></div>';
+      var cur = mv && mv[vf] ? mv[vf] : 0;
+      return '<span class="lvl lvl-vote-pill' + (cur ? ' lvl-' + cur : '') + '"><span class="lvl-who">' + label + '</span><strong>' + (cur ? levelLabel(cur) : L('À noter', 'Rate it')) + '</strong><span class="lvl-bars lvl-bars-vote">' + [1, 2, 3].map(function (n) {
+        return '<button type="button" data-lvl-vote="' + n + '" data-lvl-field="' + vf + '" data-lvl-circuit="' + escapeHtml(circuit) + '" class="' + (n <= cur ? 'on' : '') + '" aria-label="' + escapeHtml(levelLabel(n)) + '" title="' + escapeHtml(levelLabel(n)) + '"></button>';
+      }).join('') + '</span></span>';
     };
-    html += '<div class="lvl-vote"><span class="look-label">' + L('Ton avis sur la difficulté', 'Your opinion on difficulty') + '</span>' +
-      (car ? voteRow('car', L('Voiture', 'Car')) + voteRow('moto', L('Moto', 'Bike')) : voteRow('moto', L('Moto', 'Bike')) + voteRow('car', L('Voiture', 'Car'))) + '</div>';
+    html += '<div class="lvl-vote"><span class="look-label">' + L('Ton avis sur la difficulté', 'Your opinion on difficulty') + '</span><div class="lvl-row">' +
+      (car ? voteRow('car', L('Voiture', 'Car')) + voteRow('moto', L('Moto', 'Bike')) : voteRow('moto', L('Moto', 'Bike')) + voteRow('car', L('Voiture', 'Car'))) + '</div></div>';
     var g = gearLists(car), li = function (a) { return '<ul>' + a.map(function (x) { return '<li>' + escapeHtml(x) + '</li>'; }).join('') + '</ul>'; };
     html += '<div class="gear-cols"><div class="gear-col gear-req"><span class="look-label">' + L('Obligatoire', 'Required') + '</span>' + li(g.req) + '</div>' +
       '<div class="gear-col gear-no"><span class="look-label">' + L('Interdit', 'Not allowed') + '</span>' + li(g.no) + '</div></div>' +
@@ -8547,6 +8624,7 @@
     }
     html += infoRow(tr('distance_label'), info.km != null ? (escapeHtml(numFr(info.km)) + ' km') : '—');
     if (info.country) html += infoRow(L('Pays', 'Country'), countryBallHtml(info.country, 'inline') + ' ' + escapeHtml(countryName(info.country)));
+    if (selectedCircuit) html += infoRow(L('Localisation', 'Location'), '<a href="' + escapeHtml(circuitMapsUrl(selectedCircuit)) + '" target="_blank" rel="noopener">' + L('Ouvrir dans Google Maps', 'Open in Google Maps') + ' ↗</a>');
     html += infoRow(tr('turns_label'), turnsHtml);
     var lastOutingText = lastSession ? (escapeHtml(formatDate(lastSession.date)) + ' — ' + formatTime(sessionBest(lastSession))) : '—';
     // Used to jump to this session's own event (Événements) -- now jumps to
@@ -8794,6 +8872,23 @@
     persist(prevState);
   }
 
+  // Calque des repères : même rectangle que l'image affichée (object-fit: contain).
+  function fitPinLayers(root) {
+    (root || document).querySelectorAll('.track-mini-wrap, .annot-canvas-inner').forEach(function (wrap) {
+      var img = wrap.querySelector('img'), layer = wrap.querySelector('.pin-layer');
+      if (!img || !layer) return;
+      var place = function () {
+        var W = wrap.clientWidth, H = wrap.clientHeight, nw = img.naturalWidth, nh = img.naturalHeight;
+        if (!W || !H || !nw || !nh) return;
+        var k = Math.min(W / nw, H / nh), w = nw * k, h = nh * k;
+        layer.style.left = ((W - w) / 2) + 'px'; layer.style.top = ((H - h) / 2) + 'px';
+        layer.style.width = w + 'px'; layer.style.height = h + 'px';
+      };
+      if (img.complete) place();
+      img.addEventListener('load', place);
+    });
+  }
+  window.addEventListener('resize', function () { fitPinLayers(); });
   function renderCircuitVisual(info, circuitName) {
     circuitName = circuitName || selectedCircuit;
     var base = info.mapImage || outlineImageFor(info, circuitName);
@@ -8805,7 +8900,10 @@
       return (
         '<div class="circuit-visual-frame">' +
           '<button type="button" class="circuit-visual-btn" data-action="open-track-notes" data-circuit="' + escapeHtml(circuitName) + '" aria-label="Mes repères sur ' + escapeHtml(circuitName) + '">' +
-            '<span class="track-mini-wrap"><img src="' + styledPlanSrc(base) + '"' + styledPlanAttr(base, info) + ' alt="Tracé de ' + escapeHtml(circuitName) + '">' + heatLayerHtml(circuitName) + pins + '</span>' +
+            // Repères et chaleur dans un calque calé sur la zone réelle de l'image
+            // (le plan est réduit pour tenir dans un carré) : mêmes positions
+            // qu'en mode édition.
+            '<span class="track-mini-wrap"><img src="' + styledPlanSrc(base) + '"' + styledPlanAttr(base, info) + ' alt="Tracé de ' + escapeHtml(circuitName) + '"><span class="pin-layer">' + heatLayerHtml(circuitName) + pins + '</span></span>' +
           '</button>' +
           '<div class="circuit-visual-caption">' + (notes.length ? notes.length + ' repère' + (notes.length > 1 ? 's' : '') + ' · toucher pour voir' : 'Toucher pour noter tes repères') + '</div>' +
           heatControlsHtml(circuitName) +
@@ -9198,6 +9296,21 @@
   // Miniatures : toujours un tracé blanc sur fond noir, cuit dans l'image
   // (gris inversés, couleurs gardées : la ligne de départ reste rouge).
   // Ainsi aucun mode sombre du navigateur ne peut les repasser en blanc.
+  // Mode jour : tracé foncé sur fond blanc ; mode nuit : blanc sur noir.
+  var styledThumbsLight = {};
+  function isDarkUi() {
+    var t = document.documentElement.dataset.theme;
+    if (t === 'dark') return true;
+    if (t === 'light') return false;
+    return !!(window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+  }
+  function thumbFor(src) { return isDarkUi() ? styledThumbs[src] : (styledThumbsLight[src] || styledThumbs[src]); }
+  function bakeLightThumb(src) {
+    var c = document.createElement('canvas'); c.width = src.width; c.height = src.height;
+    var ctx = c.getContext('2d'); ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, c.width, c.height); ctx.drawImage(src, 0, 0);
+    return c;
+  }
+  if (window.matchMedia) { try { window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function () { if (typeof renderRoot === 'function') renderRoot(); }); } catch (e) {} }
   function bakeDarkThumb(src) {
     var c = document.createElement('canvas'); c.width = src.width; c.height = src.height;
     var ctx = c.getContext('2d');
@@ -9218,7 +9331,7 @@
     styleTrackPlans();
     document.querySelectorAll('img[data-track-thumb]').forEach(function (img) {
       var src = img.getAttribute('data-track-thumb');
-      if (styledThumbs[src]) { if (styledThumbs[src] !== 'x' && img.getAttribute('src') !== styledThumbs[src]) img.src = styledThumbs[src]; return; }
+      if (styledThumbs[src]) { if (styledThumbs[src] !== 'x' && img.getAttribute('src') !== thumbFor(src)) { img.src = thumbFor(src); img.classList.add('baked'); } return; }
       styledThumbs[src] = 'x';
       loadImageEl(src).then(function (probe) {
         if (!probe || !probe.width) return;
@@ -9226,7 +9339,9 @@
         var out = styledTrack(probe, Math.round(probe.width * k), Math.round(probe.height * k), SHARE_COLORS, { radii: [2, 4, 6], shadow: 7, pad: 20 });
         if (!out) return;
         styledThumbs[src] = bakeDarkThumb(out).toDataURL('image/png');
-        document.querySelectorAll('img[data-track-thumb]').forEach(function (el) { if (el.getAttribute('data-track-thumb') === src) { el.src = styledThumbs[src]; el.classList.add('baked'); } });
+        styledThumbsLight[src] = bakeLightThumb(out).toDataURL('image/png');
+        var useSrc = thumbFor(src);
+        document.querySelectorAll('img[data-track-thumb]').forEach(function (el) { if (el.getAttribute('data-track-thumb') === src) { el.src = useSrc; el.classList.add('baked'); } });
       });
     });
   }
@@ -9601,6 +9716,7 @@
   function sessionsForMyDiscipline(list) {
     var me = currentUserProfile && currentUserProfile.name, d = myDiscipline();
     return (list || []).filter(function (s) { return s.rider === me || disciplineOf(s) === d; });
+    // (Moto et voiture : mes chronos des deux restent visibles ; ceux des autres suivent la vue choisie.)
   }
   function setMyDiscipline(d) {
     if (!currentUserProfile) return;
@@ -9693,6 +9809,7 @@
       myBudget = (doc.exists && doc.data().budget) || {};
       myBudgetExtras = (doc.exists && doc.data().budgetExtras) || {};
       myPressures = (doc.exists && doc.data().pressures) || [];
+      mergeDmReadFromAccount(doc.exists && doc.data().dmRead);
       renderRoot();
     }).catch(function () {});
   }
@@ -11027,6 +11144,8 @@
       // horaires…) straight from here, not only from the team's page.
       if (leaderHere) acts += '<button type="button" class="primary" data-action="manage-from-outing" data-id="' + escapeHtml(ev.id) + '" data-team="' + escapeHtml(ev.teamId) + '">' + L('Gérer', 'Manage') + '</button>';
       if (!isRiderHere && (status !== 'terminee' || (currentUserProfile && currentUserProfile.role === 'accompagnant'))) acts += joinEventButtonHtml(ev, leaderHere);
+      // Inscrit à un roulage à venir : on peut se retirer.
+      if (isRiderHere && status !== 'terminee' && (ev.dateEnd || ev.dateStart) >= dateKey(new Date())) acts += '<button type="button" class="ghost" data-action="leave-roulage" data-id="' + escapeHtml(ev.id) + '">' + L('Je n\'y vais plus', 'Not going anymore') + '</button>';
       if (ev.bookingUrl && !isRiderHere) acts += '<button type="button" class="primary" data-action="open-external-url" data-url="' + escapeHtml(ev.bookingUrl) + '">' + tr('book_register') + '</button>';
       // Discussion du roulage : ses participants et son organisateur.
       if (isRiderHere || leaderHere || isAdmin()) acts += '<button type="button" class="ghost" data-action="event-chat" data-id="' + escapeHtml(ev.id) + '">' + L('Discussion', 'Chat') + '</button>';
@@ -11149,8 +11268,10 @@
           if (evWeather) horCard += infoRow(tr('weather_label'), escapeHtml(evWeather));
           horCard += renderHorairesPhotoSection(ev);
         }
-        hor += '<div class="card">' + horCard + '</div>';
+        hor = circuitLinksHtml(circuit) + hor + '<div class="card">' + horCard + '</div>';
         var items = [['horaires', 'Horaires', hor]];
+        var fcHtml = ev ? renderForecastCard(ev) : '';
+        if (fcHtml) items.push(['meteo', L('Météo', 'Weather'), fcHtml]);
         if (ev) {
           var isPast = eventTemporalStatus(ev, dateKey(new Date())) === 'past';
           var mine = currentUserProfile && (ev.riders || []).indexOf(currentUserProfile.name) !== -1;
@@ -11384,12 +11505,19 @@
   // progression du jour (ou du roulage), le plan avec mes repères. Rien
   // d'autre : tout le reste est dans Carnet.
   var chronoProgEvent = false;
+  // Moto et voiture : choisir pour quel véhicule on saisit le chrono.
+  function disciplineSwitchHtml() {
+    if (!currentUserProfile || !currentUserProfile.rideBoth) return '';
+    return '<div class="ride-role-row discipline-switch">' +
+      '<button type="button" class="ride-role-btn keep-words' + (isCarMode() ? '' : ' active') + '" data-action="set-discipline" data-discipline="moto" aria-pressed="' + !isCarMode() + '">' + L('Moto', 'Bike') + '</button>' +
+      '<button type="button" class="ride-role-btn keep-words' + (isCarMode() ? ' active' : '') + '" data-action="set-discipline" data-discipline="auto" aria-pressed="' + isCarMode() + '">' + L('Voiture', 'Car') + '</button></div>';
+  }
   function renderChronoTab() {
     var me = currentUserProfile && currentUserProfile.name;
     if (!me) return '';
     var today = dateKey(new Date()), ev = todaysOutingForMe();
     if (addChronoOpen) {
-      return '<button type="button" class="link-btn back-link" data-action="chrono-cancel-add">‹ ' + L('Retour', 'Back') + '</button>' + renderForm();
+      return '<button type="button" class="link-btn back-link" data-action="chrono-cancel-add">‹ ' + L('Retour', 'Back') + '</button>' + disciplineSwitchHtml() + renderForm();
     }
     // L'heure dans le coin de la première carte (rien ne se décale).
     if (!ev) return renderChronoNoRide(today).replace(/<div class="card([^"]*)">/, '<div class="card$1 has-clock"><span class="chrono-clock chrono-clock-corner" data-live-clock>' + liveClockText() + '</span>');
@@ -11467,6 +11595,18 @@
       .sort(function (a, b) { return b.date.localeCompare(a.date); });
     var circuit = next ? next.circuit : (mine[0] && mine[0].circuit);
     if (circuit) selectedCircuit = circuit;
+    // Un roulage déjà passé ? Mes derniers roulages sans chrono, en un geste,
+    // et la marche à suivre écrite en clair.
+    var noLap = eventsList().filter(function (e) {
+      if ((e.riders || []).indexOf(me) === -1 || !e.circuit || e.dateStart > today) return false;
+      var end = e.dateEnd || e.dateStart;
+      return !mine.some(function (x) { return sameCircuit(x.circuit, e.circuit) && x.date >= e.dateStart && x.date <= end; });
+    }).sort(function (a, b) { return b.dateStart.localeCompare(a.dateStart); }).slice(0, 4);
+    html += disciplineSwitchHtml() + '<div class="card chrono-past"><strong>' + L('Un roulage déjà passé ?', 'A past trackday?') + '</strong><div class="help-text">' +
+      L('Choisis le circuit et la date du roulage dans le formulaire ci-dessous, puis entre ton meilleur tour.', 'Pick the circuit and date of the trackday in the form below, then enter your best lap.') + '</div>' +
+      (noLap.length ? '<div class="chrono-past-list">' + noLap.map(function (e) {
+        return '<button type="button" class="ghost" data-chrono-past="' + escapeHtml(e.circuit) + '|' + escapeHtml(e.dateStart) + '">' + escapeHtml(e.circuit) + ' · ' + escapeHtml(formatDate(e.dateStart)) + '</button>';
+      }).join('') + '</div><div class="help-text">' + L('Tes roulages sans chrono : touche-en un pour le remplir.', 'Your trackdays without a lap time: tap one to fill it in.') + '</div>' : '') + '</div>';
     html += renderForm({ inline: true });
     if (!circuit) return html;
     var last = mine.filter(function (x) { return sameCircuit(x.circuit, circuit); })[0];
@@ -11708,7 +11848,7 @@
     var letter = escapeHtml((circuit || '?').charAt(0).toUpperCase());
     var styledAttr = src && !info.mapImage && src.indexOf('data:') !== 0 ? ' data-track-thumb="' + escapeHtml(src) + '"' : '';
     var baked = false;
-    if (styledAttr && styledThumbs[src] && styledThumbs[src] !== 'x') { src = styledThumbs[src]; baked = true; }
+    if (styledAttr && styledThumbs[src] && styledThumbs[src] !== 'x') { src = thumbFor(src); baked = true; }
     return src ? '<img' + (info.mapImage ? '' : ' class="trace-img' + (baked ? ' baked' : '') + '"') + ' src="' + src + '" alt=""' + styledAttr + ' data-fallback-letter="' + letter + '">' : '<span class="outing-thumb-letter">' + letter + '</span>';
   }
   function myUpcomingEvents() {
@@ -13052,6 +13192,8 @@
     resizeAnnotCanvasPreserving();
   }
 
+  var annotShowPins = false, annotShowNotes = false;
+  try { annotShowPins = localStorage.getItem('cdp-annot-pins') === '1'; annotShowNotes = localStorage.getItem('cdp-annot-notes') === '1'; } catch (e) {}
   function renderAnnotationOverlay() {
     var overlay = document.getElementById('annot-overlay');
     if (!overlay) return;
@@ -13128,6 +13270,9 @@
       });
       html += '</div>';
     }
+    // Repères (et leurs commentaires) par-dessus le dessin, au choix.
+    html += '<button type="button" class="ghost annot-layer-btn' + (annotShowPins ? ' on' : '') + '" id="annot-pins-toggle" aria-pressed="' + annotShowPins + '">' + L('Repères', 'Marks') + '</button>';
+    html += '<button type="button" class="ghost annot-layer-btn' + (annotShowNotes ? ' on' : '') + '" id="annot-notes-toggle" aria-pressed="' + annotShowNotes + '">' + L('Commentaires', 'Comments') + '</button>';
     html += '<div class="annot-zoom-group" role="group" aria-label="Zoom">';
     html += '<span class="annot-zoom-label">Zoom</span>';
     html += '<button type="button" class="annot-zoom-btn" id="annot-zoom-out" aria-label="Zoom arrière" title="Zoom arrière">−</button>';
@@ -13147,6 +13292,10 @@
     html += '<div class="annot-canvas-inner" id="annot-canvas-inner">';
     if (basemapSrc) html += '<img class="annot-basemap" src="' + basemapSrc + '" alt="">';
     html += '<canvas class="annot-canvas" id="annot-canvas"></canvas>';
+    if (basemapSrc) html += '<div class="pin-layer annot-pins' + (annotShowPins ? '' : ' off') + (annotShowNotes ? ' with-notes' : '') + '">' + myTrackNotes(annot.circuit).map(function (n, i) {
+      var sum = trackNoteSummary(n), title = n.turn ? L('Virage ', 'Turn ') + n.turn : '';
+      return '<span class="annot-pin" style="left:' + (n.x * 100) + '%;top:' + (n.y * 100) + '%"><b>' + (i + 1) + '</b>' + (title || sum ? '<span class="annot-pin-note">' + escapeHtml([title, sum].filter(Boolean).join(' · ')) + '</span>' : '') + '</span>';
+    }).join('') + '</div>';
     html += '</div>';
     html += '</div>';
     html += '</div>';
@@ -13154,6 +13303,18 @@
     overlay.innerHTML = html;
     overlay.classList.add('open');
     setupAnnotCanvas();
+    fitPinLayers(overlay);
+    var layerOf = function () { return overlay.querySelector('.annot-pins'); };
+    var pt = document.getElementById('annot-pins-toggle'), nt = document.getElementById('annot-notes-toggle');
+    if (pt) pt.addEventListener('click', function () {
+      annotShowPins = !annotShowPins; try { localStorage.setItem('cdp-annot-pins', annotShowPins ? '1' : '0'); } catch (e) {}
+      pt.classList.toggle('on', annotShowPins); pt.setAttribute('aria-pressed', annotShowPins); var l = layerOf(); if (l) l.classList.toggle('off', !annotShowPins);
+    });
+    if (nt) nt.addEventListener('click', function () {
+      annotShowNotes = !annotShowNotes; try { localStorage.setItem('cdp-annot-notes', annotShowNotes ? '1' : '0'); } catch (e) {}
+      if (annotShowNotes && !annotShowPins && pt) pt.click();
+      nt.classList.toggle('on', annotShowNotes); nt.setAttribute('aria-pressed', annotShowNotes); var l = layerOf(); if (l) l.classList.toggle('with-notes', annotShowNotes);
+    });
     attachAnnotHandlers();
     window.addEventListener('resize', onAnnotResize);
     window.addEventListener('orientationchange', onAnnotOrientationChange);
@@ -19502,7 +19663,7 @@
     if (isPilote && u.chronoLink && friendship) acts += '<button type="button" class="ghost" data-action="open-external-url" data-url="' + escapeHtml(u.chronoLink) + '">' + L('Ses chronos officiels ↗', 'Official lap times ↗') + '</button>';
     var achList = null;
     var getAch = function () { return achList || (achList = isPilote ? riderAchievements(name, riderStats(name)) : (u.role === 'organisateur' ? organisateurAchievements(u) : accompagnantAchievements(u))); };
-    var miniVit = isPilote && u.shareTrophees !== false && (isMe || friendship) && !privateProfile && (!look || lookShows(look, 'vitrine')) ? miniVitrineHtml(getAch(), look, name) : '';
+    var miniVit = u.shareTrophees !== false && (isMe || friendship) && !privateProfile && (!look || lookShows(look, 'vitrine')) ? miniVitrineHtml(getAch(), look, name) : '';
     if (look) {
       html += renderPersonHero(u, name, look, sub, acts, personView.from, miniVit);
       if (isMe && myDraft) html += renderLookEditor(u, getAch());
@@ -21366,13 +21527,14 @@
     }
     var html = '<div class="card has-close"><button type="button" class="card-close" data-action="wall-composer-close" aria-label="' + escapeHtml(L('Fermer', 'Close')) + '"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button><h2 class="section-title">' + tr('post_to_journal_btn') + '</h2>';
     html += '<form id="wall-post-form">';
-    html += '<label for="wall-post-text">' + tr('wall_post_placeholder') + '</label><div class="mention-wrap"><textarea id="wall-post-text" rows="2" data-mentions="1">' + escapeHtml(wallPostDraft.text || '') + '</textarea><div class="mention-suggest" hidden></div></div>' +
-      '<div class="help-text">' + L('Tape @ pour citer un ami.', 'Type @ to mention a friend.') + '</div>';
-    // Lien et Lieu repliés par défaut (ouverts s'ils sont remplis).
+    html += '<label for="wall-post-text">' + tr('wall_post_placeholder') + '</label><div class="mention-wrap"><textarea id="wall-post-text" rows="2" data-mentions="1" placeholder="' + escapeHtml(L('Tape @ pour citer un ami.', 'Type @ to mention a friend.')) + '">' + escapeHtml(wallPostDraft.text || '') + '</textarea><div class="mention-suggest" hidden></div></div>' +
+      '';
+    // Lien, Lieu et Photo sur une seule ligne ; Lien et Lieu repliés par défaut (ouverts s'ils sont remplis).
     var openLink = wallPostOpen.link || !!wallPostDraft.link, openPlace = wallPostOpen.place || !!wallPostPlace.label || !!wallPostPlace.geo;
     html += '<div class="post-extra-chips">' +
       '<button type="button" class="ghost post-extra-chip' + (openLink ? ' on' : '') + '" data-post-extra="link"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 14a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1"/><path d="M14 10a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1"/></svg>' + L('Lien', 'Link') + '</button>' +
-      '<button type="button" class="ghost post-extra-chip' + (openPlace ? ' on' : '') + '" data-post-extra="place"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-6-5.6-6-11a6 6 0 0 1 12 0c0 5.4-6 11-6 11z"/><circle cx="12" cy="10" r="2.3"/></svg>' + L('Lieu', 'Place') + '</button></div>';
+      '<button type="button" class="ghost post-extra-chip' + (openPlace ? ' on' : '') + '" data-post-extra="place"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-6-5.6-6-11a6 6 0 0 1 12 0c0 5.4-6 11-6 11z"/><circle cx="12" cy="10" r="2.3"/></svg>' + L('Lieu', 'Place') + '</button>' +
+      (wallPostDraftPhotoURL ? '' : '<button type="button" class="ghost post-extra-chip" id="wall-post-photo-btn"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>' + L('Photo', 'Photo') + '</button>') + '</div>';
     html += '<div class="post-extra" data-extra="link"' + (openLink ? '' : ' hidden') + '><label for="wall-post-link" style="margin-top:0.6rem;">' + tr('link_optional_placeholder') + '</label><input type="url" id="wall-post-link" placeholder="https://..." value="' + escapeHtml(wallPostDraft.link || '') + '"></div>';
     // Lieu (facultatif) : un circuit, une ville… ou ma position.
     html += '<div class="post-extra" data-extra="place"' + (openPlace ? '' : ' hidden') + '><label for="wall-post-place" style="margin-top:0.6rem;">' + L('Lieu (facultatif)', 'Place (optional)') + '</label><div class="post-place-row"><input type="text" id="wall-post-place" list="wall-post-place-list" maxlength="80" autocomplete="off" placeholder="' + escapeHtml(L('Ex. Circuit de Barcelone', 'E.g. Barcelona circuit')) + '" value="' + escapeHtml(wallPostPlace.label || '') + '">' +
@@ -21382,8 +21544,6 @@
     if (wallPostDraftPhotoURL) {
       html += '<img class="wall-post-photo-preview" src="' + escapeHtml(wallPostDraftPhotoURL) + '" alt="">' +
         '<button type="button" class="ghost" id="wall-post-photo-remove-btn">' + tr('remove_photo') + '</button>';
-    } else {
-      html += '<button type="button" class="ghost" id="wall-post-photo-btn">' + tr('add_photo_btn') + '</button>';
     }
     html += '<input type="file" id="wall-post-photo-input" accept="image/*" style="display:none;">';
     html += '</div>';
@@ -21959,7 +22119,25 @@
     return isFriendName(name);
   }
   function dmReadMap() { try { return JSON.parse(localStorage.getItem('cdp-dm-read-' + myUid()) || '{}'); } catch (e) { return {}; } }
-  function markDmRead(cid) { var m = dmReadMap(); m[cid] = Date.now(); try { localStorage.setItem('cdp-dm-read-' + myUid(), JSON.stringify(m)); } catch (e) {} }
+  // Messages lus : gardés sur le compte (userPrivate.dmRead), plus seulement
+  // sur l'appareil -- un autre navigateur ne remontre plus tout comme nouveau.
+  var dmReadSyncTimer = null, dmReadPending = {};
+  function markDmRead(cid) {
+    var m = dmReadMap(), t = Date.now(); m[cid] = t;
+    try { localStorage.setItem('cdp-dm-read-' + myUid(), JSON.stringify(m)); } catch (e) {}
+    dmReadPending[cid] = t;
+    clearTimeout(dmReadSyncTimer);
+    dmReadSyncTimer = setTimeout(function () {
+      var uid = auth.currentUser && auth.currentUser.uid, part = dmReadPending; dmReadPending = {};
+      if (uid && Object.keys(part).length) db.collection('userPrivate').doc(uid).set({ dmRead: part }, { merge: true }).catch(function () {});
+    }, 1500);
+  }
+  function mergeDmReadFromAccount(remote) {
+    if (!remote) return;
+    var m = dmReadMap(), changed = false;
+    Object.keys(remote).forEach(function (k) { if (typeof remote[k] === 'number' && (!m[k] || remote[k] > m[k])) { m[k] = remote[k]; changed = true; } });
+    if (changed) { try { localStorage.setItem('cdp-dm-read-' + myUid(), JSON.stringify(m)); } catch (e) {} }
+  }
   function dmConversations() {
     var me = myUid(), by = {}, read = dmReadMap();
     (STATE.dms || []).forEach(function (m) {
@@ -24377,6 +24555,20 @@
     }
     ev.riderGroups[name] = days;
   }
+  // « Je n'y vais plus » : me retire de la liste du roulage (et de ses groupes).
+  // L'inscription chez l'organisateur, elle, se gère chez lui.
+  function leaveRoulage(eventId) {
+    var ev = eventsList().filter(function (e) { return e.id === eventId; })[0];
+    var me = currentUserProfile && currentUserProfile.name;
+    if (!ev || !me || (ev.riders || []).indexOf(me) === -1) return;
+    if (!confirm(L('Te retirer de ' + ev.circuit + ' ? Pense à prévenir l\'organisateur si tu étais inscrit chez lui.', 'Remove yourself from ' + ev.circuit + '? Remember to tell the organiser if you booked with them.'))) return;
+    var prevState = JSON.parse(JSON.stringify(STATE));
+    ev.riders = (ev.riders || []).filter(function (n) { return n !== me; });
+    if (ev.riderGroups && ev.riderGroups[me]) { ev.riderGroups = Object.assign({}, ev.riderGroups); delete ev.riderGroups[me]; }
+    persist(prevState);
+    showToast(L('Tu n\'es plus sur la liste de ', 'You\'re no longer on the list for ') + ev.circuit + '.', 'success');
+    renderRoot();
+  }
   function joinRoulageFromLink(eventId) {
     var ev = eventsList().filter(function (e) { return e.id === eventId; })[0];
     var me = currentUserProfile && currentUserProfile.name;
@@ -25120,6 +25312,7 @@
       profileForm.addEventListener('submit', function (evt) {
         evt.preventDefault();
         var role = profileForm.querySelector('input[name="profile-role"]:checked').value;
+        pendingProfileRole = null;
         // The notify checkbox lives in the Réglages tab (saved instantly on
         // change, see profile-notify's own handler below), not in this form
         // -- fall back to the already-saved value when it's not in the DOM.
@@ -25170,6 +25363,7 @@
       var notifyLabel = document.getElementById('profile-notify-label');
       profileForm.querySelectorAll('input[name="profile-role"]').forEach(function (radio) {
         radio.addEventListener('change', function () {
+          if (radio.checked) pendingProfileRole = radio.value;
           var isNonRider = (radio.value === 'accompagnant' || radio.value === 'organisateur') && radio.checked;
           if (radio.checked && radio.value !== roleChangePendingValue) { roleChangeConfirmPending = false; roleChangePendingValue = null; }
           if (radio.checked) {
@@ -26715,6 +26909,12 @@
     document.querySelectorAll('[data-lvl-vote]').forEach(function (b) { b.addEventListener('click', function () {
       saveLevelVote(b.getAttribute('data-lvl-circuit'), b.getAttribute('data-lvl-field'), Number(b.getAttribute('data-lvl-vote')));
     }); });
+    document.querySelectorAll('[data-chrono-past]').forEach(function (b) { b.addEventListener('click', function () {
+      var parts = b.getAttribute('data-chrono-past').split('|'); goAddChronoFor(parts[0], parts[1]);
+    }); });
+    var rb = document.getElementById('ride-both');
+    if (rb) rb.addEventListener('change', function () { if (currentUserProfile) currentUserProfile.rideBoth = rb.checked; saveOwnBooleanField('rideBoth', rb.checked); renderRoot(); });
+    fitPinLayers();
     document.querySelectorAll('[data-heat-toggle]').forEach(function (b) { b.addEventListener('click', function () {
       var c = b.getAttribute('data-heat-toggle'); heatOn[c] = !heatOn[c];
       if (heatOn[c]) { delete heatCache[c]; loadTrackHeat(c); }
@@ -26769,6 +26969,7 @@
     document.querySelectorAll('[data-action="share-roulage"]').forEach(function (btn) {
       btn.addEventListener('click', function () { shareRoulage(btn.getAttribute('data-id')); });
     });
+    document.querySelectorAll('[data-action="leave-roulage"]').forEach(function (btn) { btn.addEventListener('click', function () { leaveRoulage(btn.getAttribute('data-id')); }); });
     document.querySelectorAll('[data-action="join-roulage-link"]').forEach(function (btn) {
       btn.addEventListener('click', function () { joinRoulageFromLink(btn.getAttribute('data-id')); });
     });

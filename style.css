@@ -5215,10 +5215,11 @@ html.simple-mode { font-size: 112%; }
 /* Ligne de roulage passé : album pile au milieu, temps calé à droite */
 .outing-row-wrap > .album-chip { left: 50%; }
 .outing-row-wrap .outing-row-right { margin-left: auto; }
-/* Miniatures de circuit : toujours tracé blanc sur fond noir (les deux thèmes) */
-.outing-thumb, .season-tile-map { background: #0d0f12 !important; border-color: #2a2e36; }
-.outing-thumb img.trace-img:not(.baked), .season-tile-map img.trace-img:not(.baked) { filter: invert(1) hue-rotate(180deg) !important; }
+/* Miniatures de circuit : l'image cuite suit le thème (jour : foncé sur
+   blanc ; nuit : blanc sur noir) ; jamais de filtre CSS dessus. */
 .outing-thumb img.trace-img.baked, .season-tile-map img.trace-img.baked { filter: none !important; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .outing-thumb, :root:not([data-theme="light"]) .season-tile-map { background: #0d0f12; } }
+:root[data-theme="dark"] .outing-thumb, :root[data-theme="dark"] .season-tile-map { background: #0d0f12; }
 .circuit-rules { margin-top: 0.8rem; padding: 0.6rem 0.75rem; border: 1px solid var(--border); border-left: 3px solid var(--accent, #c8261f); border-radius: 12px; background: var(--surface-alt); } .circuit-rules ul { margin: 0.25rem 0 0.35rem; padding-left: 1.1rem; font-size: 0.92rem; }
 .team-gear.is-open { background: var(--accent, #c8261f); color: #fff; border-color: var(--accent, #c8261f); }
 .lvl-vote { margin: 0.6rem 0 0.2rem; } .lvl-vote .look-seg { margin-top: 0.3rem; }
@@ -5226,3 +5227,29 @@ html.simple-mode { font-size: 112%; }
 .circuit-site a.ghost { display: inline-flex; align-items: center; text-decoration: none; }
 .lvl-vote-row { display: flex; align-items: center; gap: 0.6rem; margin-top: 0.35rem; flex-wrap: wrap; }
 .lvl-vote-row .lvl-who { min-width: 4.2rem; }
+/* Liens du circuit et météo prévue */
+.circuit-links { display: flex; gap: 0.5rem; flex-wrap: wrap; margin: 0 0 0.7rem; }
+.circuit-links a.ghost { text-decoration: none; display: inline-flex; align-items: center; }
+.forecast-days { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 0.5rem; margin-bottom: 0.4rem; }
+.forecast-day { display: flex; flex-direction: column; gap: 0.15rem; padding: 0.6rem 0.7rem; border: 1px solid var(--border); border-radius: 12px; background: var(--surface-alt); }
+.forecast-temp { font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 1.2rem; }
+/* Niveau : explication au survol ; vote façon pastille à barres */
+.lvl-wrap { outline: none; }
+.lvl-wrap .lvl-hint { display: none; }
+.lvl-wrap:hover .lvl-hint, .lvl-wrap:focus .lvl-hint, .lvl-wrap:focus-within .lvl-hint { display: block; }
+.lvl-bars-vote { gap: 4px; }
+.lvl-bars-vote button { width: 14px; height: 22px; padding: 0; border: 0; border-radius: 3px; background: var(--border); cursor: pointer; }
+.lvl-bars-vote button:hover { outline: 2px solid var(--accent, #c8261f); }
+.lvl-1 .lvl-bars-vote button.on { background: #2e9e5b; } .lvl-2 .lvl-bars-vote button.on { background: #e0a21a; } .lvl-3 .lvl-bars-vote button.on { background: #c8261f; }
+.chrono-past .chrono-past-list { display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 0.5rem 0 0.2rem; }
+.discipline-switch { margin-bottom: 0.7rem; }
+/* Calque des repères calé sur l'image (voir fitPinLayers) */
+.track-mini-wrap .pin-layer { position: absolute; left: 0; top: 0; width: 100%; height: 100%; pointer-events: none; }
+/* Dessin : repères et commentaires par-dessus, au choix */
+.annot-layer-btn.on { border-color: var(--accent, #c8261f); color: var(--accent, #c8261f); }
+.annot-pins { position: absolute; pointer-events: none; z-index: 3; }
+.annot-pins.off { display: none; }
+.annot-pin { position: absolute; transform: translate(-50%, -50%); display: flex; align-items: center; gap: 4px; }
+.annot-pin b { display: grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; background: var(--accent, #c8261f); color: #fff; font-size: 11px; box-shadow: 0 1px 3px rgba(0,0,0,.35); }
+.annot-pin-note { display: none; position: absolute; left: 24px; top: 50%; transform: translateY(-50%); white-space: nowrap; max-width: 220px; overflow: hidden; text-overflow: ellipsis; font-size: 11px; background: rgba(20,22,26,.85); color: #fff; padding: 2px 6px; border-radius: 6px; }
+.annot-pins.with-notes .annot-pin-note { display: block; }
