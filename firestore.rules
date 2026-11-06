@@ -996,14 +996,29 @@ service cloud.firestore {
     // la story. 10 s compressées : plafond sous la limite d'un document.
     match /storyMedia/{id} {
       allow read: if verified();
+      // Une vidéo d'1 Mo au plus dans le document, ou jusqu'à 6 morceaux
+      // (3 Mo d'origine) rangés dans parts/{i}.
       allow create: if verified() && realAccount()
-        && request.resource.data.keys().hasOnly(['authorUid', 'postId', 'video', 'mime', 'createdAt'])
+        && request.resource.data.keys().hasOnly(['authorUid', 'postId', 'video', 'mime', 'createdAt', 'parts'])
         && request.resource.data.authorUid == request.auth.uid
         && request.resource.data.postId == id
-        && request.resource.data.video is string && request.resource.data.video.size() < 1000000
-        && request.resource.data.video.matches('^data:video/(mp4|webm)[;,].*')
+        && ((request.resource.data.get('video', null) is string && request.resource.data.video.size() < 1000000
+              && request.resource.data.video.matches('^data:video/(mp4|webm)[;,].*') && !('parts' in request.resource.data))
+            || (!('video' in request.resource.data) && request.resource.data.parts is int
+              && request.resource.data.parts >= 2 && request.resource.data.parts <= 6))
         && (isAdmin() || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('plus', false) == true);
       allow delete: if verified() && (resource.data.authorUid == request.auth.uid || isAdmin());
+      match /parts/{n} {
+        allow read: if verified();
+        allow create: if verified() && realAccount()
+          && request.resource.data.keys().hasOnly(['authorUid', 'i', 'data', 'createdAt'])
+          && request.resource.data.authorUid == request.auth.uid
+          && request.resource.data.i is int && request.resource.data.i >= 0 && request.resource.data.i <= 5 && n == string(request.resource.data.i)
+          && request.resource.data.data is string && request.resource.data.data.size() <= 900000
+          && (request.resource.data.i > 0 || request.resource.data.data.matches('^data:video/(mp4|webm)[;,].*'))
+          && (isAdmin() || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('plus', false) == true);
+        allow delete: if verified() && (resource.data.authorUid == request.auth.uid || isAdmin());
+      }
     }
     match /postReactions/{id} {
       allow read: if verified();

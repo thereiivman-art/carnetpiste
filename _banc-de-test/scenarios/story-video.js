@@ -1,4 +1,5 @@
-// Stories vidéo (Pitbook+) : 10 s max, recompressées, rangées dans storyMedia ;
+// Stories vidéo (Pitbook+) : 15 s et 3 Mo max, recompressées, rangées dans storyMedia
+// (en morceaux au-delà d'1 Mo) ;
 // lecture à l'ouverture et « J'aime » sur la story d'un ami.
 const { chromium, BASE } = require('../lib');
 (async () => {
@@ -30,7 +31,9 @@ const { chromium, BASE } = require('../lib');
     const r = new MediaRecorder(c.captureStream(20), { mimeType: 'video/webm' }), ch = []; let t0 = performance.now();
     r.ondataavailable = e => ch.push(e.data);
     r.onstop = () => { const fr = new FileReader(); fr.onload = () => { const db = firebase.firestore(); const now = Date.now();
-      Promise.all([db.collection('storyMedia').doc('vs1').set({ authorUid: 'u2', postId: 'vs1', video: fr.result, mime: 'video/webm', createdAt: now }),
+      Promise.all([(() => { const h = Math.ceil(fr.result.length / 2); const ref = db.collection('storyMedia').doc('vs1'); // vidéo rangée en 2 morceaux (comme une vidéo de 3 Mo)
+        return Promise.all([ref.collection('parts').doc('0').set({ authorUid: 'u2', i: 0, data: fr.result.slice(0, h), createdAt: now }), ref.collection('parts').doc('1').set({ authorUid: 'u2', i: 1, data: fr.result.slice(h), createdAt: now })])
+          .then(() => ref.set({ authorUid: 'u2', postId: 'vs1', parts: 2, mime: 'video/webm', createdAt: now })); })(),
         db.collection('wallPosts').doc('vs1').set({ id: 'vs1', author: 'Sam', authorUid: 'u2', audience: 'all', story: true, video: true, mediaId: 'vs1', photoURL: c.toDataURL('image/jpeg'), createdAt: now, text: 'Premier tour' })]).then(res); }; fr.readAsDataURL(new Blob(ch, { type: 'video/webm' })); };
     r.start(); (function loop() { const t = (performance.now() - t0) / 1000; x.fillStyle = 'hsl(' + (t * 90) + ',70%,45%)'; x.fillRect(0, 0, 320, 180); if (t < 2) requestAnimationFrame(loop); else r.stop(); })();
   }));

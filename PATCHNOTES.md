@@ -20,6 +20,7 @@ Les nouveautés, de la plus récente à la plus ancienne. Le détail complet est
 
 **Retours Xavier**
 - Story vidéo : quand la préparation échoue, le message explique pourquoi (format, vidéo trop lourde à décoder, navigateur) et quoi faire.
+- Story vidéo : jusqu'à 15 s et 3 Mo. La vidéo est d'abord compressée ; si le téléphone n'y arrive pas, le fichier d'origine (3 Mo max) est publié tel quel. Au-delà, l'appli propose de la publier en lien.
 - Chrono : « Un roulage déjà passé ? » explique la marche à suivre et propose tes roulages sans chrono en un geste.
 - Messages : l'état lu / non lu suit le compte sur tous les appareils.
 - Nouveau tracé de Barcelone (sans la chicane).

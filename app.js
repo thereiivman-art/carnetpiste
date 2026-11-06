@@ -20319,7 +20319,7 @@
     var h = Math.floor(ms / 3600e3), m = Math.max(1, Math.floor((ms % 3600e3) / 60e3));
     return h >= 1 ? h + ' h' : m + ' min';
   }
-  // ---- Stories vidéo (Pitbook+) : 10 s max, recompressées sur le
+  // ---- Stories vidéo (Pitbook+) : 15 s et 3 Mo max, recompressées sur le
   // téléphone (480 px, faible débit) pour tenir dans un document.
   // Partage vers les autres réseaux (feuille de partage du téléphone),
   // proposé au moment de publier. Appelé dans le clic, avant tout envoi.
@@ -20697,14 +20697,37 @@
             v.play().catch(function () {});
           };
           if (feedVideoCache[id]) return put(feedVideoCache[id]);
-          db.collection('storyMedia').doc(id).get().then(function (d) { if (d.exists) { feedVideoCache[id] = d.data().video; put(feedVideoCache[id]); } }).catch(function () {});
+          loadStoryVideo(id).then(function (v) { if (v) { feedVideoCache[id] = v; put(v); } }).catch(function () {});
         } else if (vid) { try { vid.pause(); } catch (e) {} }
       });
     }, { threshold: [0, 0.6] });
     document.querySelectorAll('[data-feed-video]').forEach(function (b) { feedVideoObserver.observe(b); });
   }
   function canPostVideoStory() { return !!(currentUserProfile && (hasCarnetPlus(currentUserProfile) || isAdmin())); }
-  var STORY_VIDEO_MAX_S = 10;
+  var STORY_VIDEO_MAX_S = 15;
+  // Vidéos de story : 3 Mo au plus (fichier d'origine). Au-delà d'un
+  // document Firestore (1 Mo), la vidéo est rangée en morceaux de 900 000
+  // caractères (storyMedia/{id}/parts/{i}), recollés à la lecture.
+  var STORY_VIDEO_MAX_BYTES = 3 * 1024 * 1024, STORY_VIDEO_MAX_CHARS = 4200000, STORY_PART_CHARS = 900000;
+  function saveStoryVideo(id, dataUrl, mime) {
+    var base = { authorUid: myUid(), postId: id, mime: mime, createdAt: Date.now() };
+    if (dataUrl.length < STORY_PART_CHARS) return db.collection('storyMedia').doc(id).set(Object.assign({ video: dataUrl }, base));
+    var parts = [];
+    for (var k = 0; k * STORY_PART_CHARS < dataUrl.length; k++) parts.push(dataUrl.slice(k * STORY_PART_CHARS, (k + 1) * STORY_PART_CHARS));
+    return Promise.all(parts.map(function (data, i) {
+      return db.collection('storyMedia').doc(id).collection('parts').doc(String(i)).set({ authorUid: myUid(), i: i, data: data, createdAt: base.createdAt });
+    })).then(function () { return db.collection('storyMedia').doc(id).set(Object.assign({ parts: parts.length }, base)); });
+  }
+  function loadStoryVideo(id) {
+    return db.collection('storyMedia').doc(id).get().then(function (d) {
+      if (!d.exists) return null;
+      var x = d.data();
+      if (x.video) return x.video;
+      if (!x.parts) return null;
+      var jobs = []; for (var i = 0; i < x.parts; i++) jobs.push(db.collection('storyMedia').doc(id).collection('parts').doc(String(i)).get());
+      return Promise.all(jobs).then(function (ds) { return ds.every(function (p) { return p.exists; }) ? ds.map(function (p) { return p.data().data; }).join('') : null; });
+    });
+  }
   function prepareStoryVideo(file) {
     var Rec = window.MediaRecorder, probe = document.createElement('canvas');
     if (!Rec || !probe.captureStream) return showToast(L('Ton navigateur ne permet pas encore les stories vidéo.', 'Your browser does not support video stories yet.'));
@@ -20726,28 +20749,34 @@
     encodeStoryVideo(file, true, function (err, res) {
       if (cancelled) return;
       if (!err) return finish(null, res);
-      if (err === 'too-big') return finish(L('Vidéo trop lourde même compressée : essaie un passage plus court ou moins animé.', 'Video too large even compressed: try a shorter or calmer clip.'));
+      if (err === 'too-big') return finish(L('Vidéo trop lourde même compressée (plus de 3 Mo) : publie-la plutôt en lien (YouTube non répertorié, Instagram…), elle se lira dans l\'appli.', 'Video too large even compressed: try a shorter or calmer clip.'));
       var el = document.getElementById('story-prep'); if (el) el.textContent = L('Nouvel essai, sans le son…', 'Trying again, without sound…');
       encodeStoryVideo(file, false, function (err2, res2) {
         if (!err2) return finish(null, res2);
-        if (err2 === 'too-big') return finish(L('Vidéo trop lourde même compressée : essaie un passage plus court ou moins animé.', 'Video too large even compressed: try a shorter or calmer clip.'));
+        if (err2 === 'too-big') return finish(L('Vidéo trop lourde même compressée (plus de 3 Mo) : publie-la plutôt en lien (YouTube non répertorié, Instagram…), elle se lira dans l\'appli.', 'Video too large even compressed: try a shorter or calmer clip.'));
         // Dernier recours : la vidéo d'origine si elle est déjà assez légère.
-        if (file.size < 730000 && /^video\/(mp4|webm|quicktime)/.test(file.type)) {
+        // Le fichier d'origine tel quel s'il pèse 3 Mo au plus (vidéo du
+        // photographe du circuit…) : rien à faire pour le pilote.
+        if (file.size <= STORY_VIDEO_MAX_BYTES && /^video\/(mp4|webm|quicktime)/.test(file.type)) {
           var fr = new FileReader();
           fr.onload = function () {
             var du = String(fr.result).replace(/^data:video\/quicktime/, 'data:video/mp4');
-            videoMiddleFrame(du, function (poster, d) { finish(null, { dataUrl: du, mime: 'video/mp4', poster: poster, duration: d || STORY_VIDEO_MAX_S }); });
+            videoMiddleFrame(du, function (poster, d) {
+              if (d && d > STORY_VIDEO_MAX_S + 0.5) return finish(L('Vidéo de plus de 15 s : publie-la plutôt en lien (YouTube non répertorié, Instagram…), elle se lira dans l\'appli.', 'Video longer than 15 s: post it as a link instead (unlisted YouTube, Instagram…), it will play in the app.'));
+              finish(null, { dataUrl: du, mime: 'video/mp4', poster: poster, duration: d || STORY_VIDEO_MAX_S });
+            });
           };
           fr.onerror = function () { finish(L('Cette vidéo n\'a pas pu être lue.', 'This video could not be read.')); };
           return fr.readAsDataURL(file);
         }
+        if (file.size > STORY_VIDEO_MAX_BYTES) return finish(L('Vidéo de plus de 3 Mo que ton téléphone n\'a pas pu réduire : publie-la plutôt en lien (YouTube non répertorié, Instagram…), elle se lira dans l\'appli.', 'Video over 3 MB that your phone could not shrink: post it as a link instead (unlisted YouTube, Instagram…), it will play in the app.'));
         finish(storyVideoErrorText(err, err2));
       });
     });
   }
   // Pourquoi une vidéo n'a pas pu être préparée, en clair, avec quoi faire.
   // Rappel : la vidéo est réenregistrée sur le téléphone (480 px, ~0,4 Mb/s,
-  // 10 s max) pour tenir sous ~730 Ko, la limite d'un document Firestore.
+  // 15 s max) ; au-delà d'un document Firestore (1 Mo), rangée en morceaux.
   function storyVideoErrorText(err, err2) {
     var c = err2 || err, code = ' (' + L('code', 'code') + ' : ' + err + ' / ' + err2 + ')';
     if (c === 'read' || c === 'format') return L('Le navigateur n\'arrive pas à lire ce format de vidéo (souvent HEVC / HDR d\'iPhone, ou 4K). Filme en 1080p ; sur iPhone : Réglages › Appareil photo › Formats › « Le plus compatible », et HDR désactivé.', 'The browser cannot read this video format (often iPhone HEVC / HDR, or 4K). Record in 1080p; on iPhone: Settings › Camera › Formats › “Most Compatible”, and HDR off.') + code;
@@ -20804,7 +20833,7 @@
         var fr = new FileReader();
         fr.onload = function () {
           if (!/^data:video\/(mp4|webm)/.test(fr.result)) return end('format');
-          if (fr.result.length > 980000) return end('too-big');
+          if (fr.result.length > STORY_VIDEO_MAX_CHARS) return end('too-big');
           end(null, { dataUrl: fr.result, mime: type, poster: poster || firstFrame || cv.toDataURL('image/jpeg', 0.6), duration: dur });
         };
         fr.onerror = function () { end('read'); };
@@ -20849,7 +20878,11 @@
     storyMediaCleaned = true;
     db.collection('storyMedia').where('authorUid', '==', auth.currentUser.uid).get().then(function (snap) {
       var keep = {}; (STATE.wallPosts || []).forEach(function (p) { if (p.alsoInFeed) keep[p.mediaId || p.id] = 1; });
-      snap.forEach(function (d) { if (!keep[d.id] && Date.now() - (d.data().createdAt || 0) > 86400e3) d.ref.delete().catch(function () {}); });
+      snap.forEach(function (d) {
+        if (keep[d.id] || Date.now() - (d.data().createdAt || 0) <= 86400e3) return;
+        for (var i = 0; i < (d.data().parts || 0); i++) d.ref.collection('parts').doc(String(i)).delete().catch(function () {});
+        d.ref.delete().catch(function () {});
+      });
     }).catch(function () {});
   }
   // Avatar d'un team sans lien vers une fiche pilote.
@@ -21011,7 +21044,7 @@
       };
       var fail = function (err) { showToast(tr('error_prefix') + ((err && err.message) || err)); };
       // Vidéo : rangée à part (lue seulement à l'ouverture de la story).
-      if (video) db.collection('storyMedia').doc(post.id).set({ authorUid: myUid(), postId: post.id, video: video.dataUrl, mime: video.mime, createdAt: Date.now() }).then(publish).catch(fail);
+      if (video) saveStoryVideo(post.id, video.dataUrl, video.mime).then(publish).catch(fail);
       else publish().catch(fail);
     });
   }
@@ -21127,14 +21160,14 @@
         // Vidéo lue à la demande ; on passe à la suivante à la fin.
         var shownAt = i;
         timer = setTimeout(function () { i++; show(); }, 15000);
-        db.collection('storyMedia').doc(vbox.getAttribute('data-story-video')).get().then(function (d) {
-          if (shownAt !== i || !ov.parentNode || !d.exists) return;
+        loadStoryVideo(vbox.getAttribute('data-story-video')).then(function (vsrc) {
+          if (shownAt !== i || !ov.parentNode || !vsrc) return;
           var vid = document.createElement('video');
-          vid.src = d.data().video; vid.autoplay = true; vid.playsInline = true; vid.setAttribute('playsinline', '');
+          vid.src = vsrc; vid.autoplay = true; vid.playsInline = true; vid.setAttribute('playsinline', '');
           vid.addEventListener('ended', function () { if (shownAt === i) { i++; show(); } });
           var im = vbox.querySelector('img'); if (im) im.replaceWith(vid);
           var pl = vid.play(); if (pl && pl.catch) pl.catch(function () { vid.muted = true; vid.play().catch(function () {}); });
-          clearTimeout(timer); timer = setTimeout(function () { if (shownAt === i) { i++; show(); } }, 13000);
+          clearTimeout(timer); timer = setTimeout(function () { if (shownAt === i) { i++; show(); } }, (STORY_VIDEO_MAX_S + 3) * 1000);
         }).catch(function () {});
       } else timer = setTimeout(function () { i++; show(); }, 6000);
       // Story liée à un post avec une vidéo (YouTube…) : bouton lecture, la
@@ -21286,7 +21319,7 @@
     var check = '<svg class="cp-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7"/></svg>';
     var feats = [
       [L('Sans publicité', 'No ads'), L('Aucune pub dans Social ni dans Mon Box.', 'No ads in Social or My Box.'), 'ok'],
-      [L('Stories vidéo', 'Video stories'), L('Des vidéos de 10 secondes en story, compressées sur ton téléphone.', '10-second video stories, compressed on your phone.'), 'ok'],
+      [L('Stories vidéo', 'Video stories'), L('Des vidéos de 15 secondes en story (3 Mo max), compressées sur ton téléphone.', '15-second video stories (3 MB max), compressed on your phone.'), 'ok'],
       [L('Badge Pitbook+', 'Pitbook+ badge'), L('Le badge P+ à côté de ton nom, partout dans l\'appli.', 'The P+ badge next to your name, everywhere in the app.'), 'ok'],
       [L('Fiche personnalisée', 'Custom profile'), L('Couverture, plaque de course, couleur, sponsors, chrono vedette et vitrine.', 'Cover, race plate, colour, sponsors, featured lap and showcase.'), 'ok'],
       [L('Audience et media kit', 'Audience and media kit'), L('Impressions, comptes touchés, engagement, visites : à montrer aux marques.', 'Impressions, reach, engagement, visits: to show to brands.'), 'ok'],
@@ -26193,9 +26226,9 @@
           e.preventDefault(); e.stopPropagation();
           var pv = fv.querySelector('video');
           if (pv) { pv.muted = !pv.muted; pv.controls = true; pv.play().catch(function () {}); return; }
-          db.collection('storyMedia').doc(fv.getAttribute('data-feed-video')).get().then(function (d) {
-            if (!d.exists) return showToast(L('Vidéo plus disponible.', 'Video no longer available.'));
-            var vid = document.createElement('video'); vid.src = d.data().video; vid.controls = true; vid.autoplay = true; vid.playsInline = true; vid.setAttribute('playsinline', ''); vid.className = 'wall-post-video';
+          loadStoryVideo(fv.getAttribute('data-feed-video')).then(function (vsrc) {
+            if (!vsrc) return showToast(L('Vidéo plus disponible.', 'Video no longer available.'));
+            var vid = document.createElement('video'); vid.src = vsrc; vid.controls = true; vid.autoplay = true; vid.playsInline = true; vid.setAttribute('playsinline', ''); vid.className = 'wall-post-video';
             fv.innerHTML = ''; fv.appendChild(vid); vid.play().catch(function () {});
           }).catch(function () {});
           return;
