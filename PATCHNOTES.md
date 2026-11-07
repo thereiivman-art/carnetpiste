@@ -2,6 +2,12 @@
 
 Les nouveautés, de la plus récente à la plus ancienne. Le détail complet est dans l'historique git.
 
+## 7 novembre 2026 · retours Maymay
+
+- Ma page : réseaux et liens en petites icônes dans l'en-tête de la fiche ; plus de flèche retour (la barre du bas suffit).
+- Plans et repères : « Repères » en bouton principal ; le dessin simplifié (Pinceau, Gomme, Couleur, Annuler, Enregistrer), le reste derrière « Plus ».
+- Barre du bas : elle se réduit quand tu fais défiler vers le bas et revient en remontant.
+
 ## 7 novembre 2026 · nouvelle navigation
 
 - Barre du bas flottante à 5 onglets : Carnet · Social · Chrono (au centre) · Messages · Profil.

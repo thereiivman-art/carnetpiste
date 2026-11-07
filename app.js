@@ -8355,8 +8355,8 @@
     if (cp === 'plan') {
       // Les deux façons d'annoter, visibles dès l'arrivée sur la page.
       html += '<div class="map-open-choice">' +
-        '<button type="button" class="ghost" data-action="map-open" data-mode="draw" title="' + escapeHtml(L('Dessin à main levée', 'Freehand drawing')) + '"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M14 6l4 4"/></svg>' + L('Dessin', 'Draw') + '</button>' +
-        '<button type="button" class="ghost" data-action="map-open" data-mode="pins" title="' + escapeHtml(L('Repères pro', 'Pro marks')) + '"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-6-5.6-6-11a6 6 0 0 1 12 0c0 5.4-6 11-6 11z"/><circle cx="12" cy="10" r="2.3"/></svg>' + L('Repères', 'Marks') + '</button>' +
+        '<button type="button" class="primary" data-action="map-open" data-mode="pins" title="' + escapeHtml(L('Repères pro', 'Pro marks')) + '"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-6-5.6-6-11a6 6 0 0 1 12 0c0 5.4-6 11-6 11z"/><circle cx="12" cy="10" r="2.3"/></svg>' + L('Repères', 'Marks') + '</button>' +
+        '<button type="button" class="ghost map-open-draw" data-action="map-open" data-mode="draw" title="' + escapeHtml(L('Dessin à main levée', 'Freehand drawing')) + '"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M14 6l4 4"/></svg>' + L('Dessin', 'Draw') + '</button>' +
         // Spots photo (accompagnants, photographes) : tout public ou accès pro.
         (meIsNonRider() || isAdmin() ? '<button type="button" class="ghost" data-action="photo-spots" title="' + escapeHtml(L('Spots photo du circuit', 'Circuit photo spots')) + '"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>' + L('Spots photo', 'Photo spots') + '</button>' : '') + lapVideoLinkHtml(selectedCircuit) + '</div>';
       var nNotes = myTrackNotes(selectedCircuit).length;
@@ -13788,6 +13788,14 @@
 
   var annotShowPins = false, annotShowNotes = false;
   try { annotShowPins = localStorage.getItem('cdp-annot-pins') === '1'; annotShowNotes = localStorage.getItem('cdp-annot-notes') === '1'; } catch (e) {}
+  var annotAdvanced = false; // outils avancés du dessin (texte, déplacer, épaisseur, zoom…)
+  document.addEventListener('click', function (e) {
+    var b = e.target.closest && e.target.closest('#annot-more');
+    if (!b) return;
+    annotAdvanced = !annotAdvanced;
+    var tb = b.closest('.annot-toolbar'); if (tb) tb.classList.toggle('show-adv', annotAdvanced);
+    b.textContent = annotAdvanced ? L('Moins', 'Less') : L('Plus', 'More'); b.setAttribute('aria-expanded', String(annotAdvanced));
+  });
   function renderAnnotationOverlay() {
     var overlay = document.getElementById('annot-overlay');
     if (!overlay) return;
@@ -13829,7 +13837,7 @@
     html += '</div>';
     html += '<div class="annot-orientation-hint">' + L('Astuce : passe le téléphone en mode paysage (ou utilise le bouton paysage) pour annoter plus confortablement.', 'Tip: turn your phone sideways (or use the landscape button) to annotate more comfortably.') + '</div>';
     html += '<div class="annot-body">';
-    html += '<div class="annot-toolbar">';
+    html += '<div class="annot-toolbar' + (annotAdvanced ? ' show-adv' : '') + '">';
     var svgBrush = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M18.5 2.5a2.1 2.1 0 0 1 3 3L11 16 6 18l2-5z"/><path d="M15 6l3 3"/></svg>';
     var svgEraser = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="12" width="18" height="7" rx="1.5" transform="rotate(-20 12 12)"/><path d="M4 20h16"/></svg>';
     var svgMove = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18M3 12h18M6 6l-3 6 3 6M18 6l3 6-3 6M6 6l6-3 6 3M6 18l6 3 6-3"/></svg>';
@@ -13851,12 +13859,13 @@
     } else {
       html += '<button type="button" class="annot-tool-btn" data-tool="brush" aria-label="Pinceau" title="Pinceau">' + svgBrush + '</button>';
       html += '<button type="button" class="annot-tool-btn" data-tool="eraser" aria-label="Gomme" title="Gomme">' + svgEraser + '</button>';
-      html += '<button type="button" class="annot-tool-btn" data-tool="text" aria-label="Texte" title="Texte">T</button>';
-      html += '<button type="button" class="annot-tool-btn" data-tool="move" aria-label="Déplacer" title="Déplacer un trait ou un texte">' + svgMove + '</button>';
       html += '<input type="color" id="annot-color" class="annot-color-input" value="' + annot.color + '" aria-label="Couleur" title="Couleur">';
+      // Simplifié : Pinceau, Gomme, Couleur, Annuler, Enregistrer ; le reste derrière « Plus ».
+      html += '<button type="button" class="annot-tool-btn annot-adv" data-tool="text" aria-label="Texte" title="Texte">T</button>';
+      html += '<button type="button" class="annot-tool-btn annot-adv" data-tool="move" aria-label="Déplacer" title="Déplacer un trait ou un texte">' + svgMove + '</button>';
       var SIZE_PRESETS = [2, 4, 8];
       var SIZE_LABELS = { 2: 'Fin', 4: 'Moyen', 8: 'Épais' };
-      html += '<div class="annot-size-group" role="group" aria-label="Épaisseur du trait">';
+      html += '<div class="annot-size-group annot-adv" role="group" aria-label="Épaisseur du trait">';
       SIZE_PRESETS.forEach(function (s) {
         var dotPx = 3 + s;
         html += '<button type="button" class="annot-size-btn' + (annot.size === s ? ' active' : '') + '" data-size="' + s + '" aria-label="' + SIZE_LABELS[s] + '" title="' + SIZE_LABELS[s] + '">' +
@@ -13865,24 +13874,25 @@
       html += '</div>';
     }
     // Repères (et leurs commentaires) par-dessus le dessin, au choix.
-    html += '<button type="button" class="ghost annot-layer-btn' + (annotShowPins ? ' on' : '') + '" id="annot-pins-toggle" aria-pressed="' + annotShowPins + '">' + L('Repères', 'Marks') + '</button>';
-    html += '<button type="button" class="ghost annot-layer-btn' + (annotShowNotes ? ' on' : '') + '" id="annot-notes-toggle" aria-pressed="' + annotShowNotes + '">' + L('Commentaires', 'Comments') + '</button>';
-    html += '<div class="annot-zoom-group" role="group" aria-label="Zoom">';
+    html += '<button type="button" class="ghost annot-layer-btn annot-adv' + (annotShowPins ? ' on' : '') + '" id="annot-pins-toggle" aria-pressed="' + annotShowPins + '">' + L('Repères', 'Marks') + '</button>';
+    html += '<button type="button" class="ghost annot-layer-btn annot-adv' + (annotShowNotes ? ' on' : '') + '" id="annot-notes-toggle" aria-pressed="' + annotShowNotes + '">' + L('Commentaires', 'Comments') + '</button>';
+    html += '<div class="annot-zoom-group annot-adv" role="group" aria-label="Zoom">';
     html += '<span class="annot-zoom-label">Zoom</span>';
     html += '<button type="button" class="annot-zoom-btn" id="annot-zoom-out" aria-label="Zoom arrière" title="Zoom arrière">−</button>';
     html += '<button type="button" class="ghost annot-zoom-value" id="annot-zoom-value" aria-label="Réinitialiser le zoom" title="Revenir à 100%">' + Math.round(annotView.scale * 100) + '%</button>';
     html += '<button type="button" class="annot-zoom-btn" id="annot-zoom-in" aria-label="Zoom avant" title="Zoom avant">+</button>';
     html += '</div>';
-    html += '<button type="button" class="ghost icon-btn" id="annot-export" aria-label="Exporter en image" title="Afficher le tracé annoté en grand pour l\'enregistrer">' + svgExport + '</button>';
+    html += '<button type="button" class="ghost icon-btn annot-adv" id="annot-export" aria-label="Exporter en image" title="Afficher le tracé annoté en grand pour l\'enregistrer">' + svgExport + '</button>';
     if (!annot.viewOnly) {
       html += '<button type="button" class="ghost icon-btn" id="annot-undo" aria-label="Annuler" title="Annuler la dernière action (Ctrl+Z)">' + svgUndo + '</button>';
-      html += '<button type="button" class="ghost icon-btn" id="annot-redo" aria-label="Rétablir" title="Rétablir l\'action annulée (Ctrl+Maj+Z)">' + svgRedo + '</button>';
-      html += '<button type="button" class="ghost icon-btn" id="annot-clear" aria-label="Tout effacer" title="Tout effacer">' + svgClear + '</button>';
+      html += '<button type="button" class="ghost icon-btn annot-adv" id="annot-redo" aria-label="Rétablir" title="Rétablir l\'action annulée (Ctrl+Maj+Z)">' + svgRedo + '</button>';
+      html += '<button type="button" class="ghost icon-btn annot-adv" id="annot-clear" aria-label="Tout effacer" title="Tout effacer">' + svgClear + '</button>';
       if (builtinCircuit(annot.circuit)) {
         var vNow = myDrawingVisibility(annot.circuit, annot.sessionId === ANNOT_OUTLINE_LEVEL ? 'outline' : 'plan');
         html += '<select id="annot-visibility" class="annot-visibility" aria-label="' + escapeHtml(L('Qui voit ce dessin', 'Who sees this drawing')) + '" title="' + escapeHtml(L('Qui voit ce dessin', 'Who sees this drawing')) + '">' +
           [['public', L('Public', 'Public')], ['friends', L('Amis', 'Friends')], ['private', L('Moi seul', 'Only me')]].map(function (o) { return '<option value="' + o[0] + '"' + (vNow === o[0] ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('') + '</select>';
       }
+      html += '<button type="button" class="ghost annot-more-btn" id="annot-more" aria-expanded="' + annotAdvanced + '">' + (annotAdvanced ? L('Moins', 'Less') : L('Plus', 'More')) + '</button>';
       html += '<button type="button" class="primary annot-save-btn" id="annot-save">Enregistrer</button>';
     }
     html += '</div>';
@@ -19660,7 +19670,7 @@
       '<div class="ph-cover"' + (o.ownCover ? ' data-own-cover="1" role="button" tabindex="0" aria-label="' + escapeHtml(L('Bannière : agrandir, recadrer ou changer', 'Banner: enlarge, crop or change')) + '"' : '') + '>' + coverInner + '<button type="button" class="back-chevron ph-back" ' + o.backAttr + ' aria-label="' + L('Retour', 'Back') + '">‹</button>' + (o.plateHtml || '') + '</div>' +
       '<div class="ph-body"><div class="ph-id"><span class="person-avatar ph-avatar">' + o.avatar + '</span>' +
       '<span class="person-id"><strong class="person-name">' + o.nameHtml + '</strong><span class="help-text">' + o.subHtml + '</span></span>' + (o.idExtra || '') + '</div>' +
-      (o.bio ? '<p class="ph-bio">' + escapeHtml(o.bio) + '</p>' : '') +
+      (o.bio ? '<p class="ph-bio">' + escapeHtml(o.bio) + '</p>' : '') + (o.linksHtml || '') +
       (o.acts ? '<div class="outing-actions">' + o.acts + '</div>' : '') + '</div></div>';
   }
   function renderPersonHero(u, name, l, sub, acts, backTo, idExtra) {
@@ -19673,8 +19683,18 @@
       nameHtml: escapeHtml(name) + badgesHtml(u),
       // Ligne d'infos propre : rôle, pays, moto et numéro, chaque élément d'un bloc.
       subHtml: '<span class="ph-meta-line"><span class="friend-role-badge">' + roleLabel(u.role) + '</span>' + sub.map(function (x) { return '<span class="ph-meta">' + x + '</span>'; }).join('') + '</span>',
-      bio: l.bio, acts: acts, idExtra: idExtra, ownCover: !!(currentUserProfile && name === currentUserProfile.name)
+      bio: l.bio, acts: acts, idExtra: idExtra, ownCover: !!(currentUserProfile && name === currentUserProfile.name),
+      // Réseaux et liens : directement dans l'en-tête de la fiche, en petites icônes.
+      linksHtml: heroLinksHtml(l)
     });
+  }
+  function heroLinksHtml(l) {
+    var links = ((l && l.links) || []).filter(function (x) { return x && x.url; });
+    if (!lookShows(l, 'links') || !links.length) return '';
+    return '<div class="ph-links-row">' + links.map(function (x) {
+      var k = linkKind(x.url);
+      return '<button type="button" class="ph-link-ico-btn" data-action="open-external-url" data-url="' + escapeHtml(x.url) + '" aria-label="' + escapeHtml(k.label + (x.comment ? ' · ' + x.comment : '')) + '" title="' + escapeHtml(k.label + (x.comment ? ' · ' + x.comment : '')) + '">' + k.icon + '</button>';
+    }).join('') + '</div>';
   }
   function renderFeaturedChrono(name, l) {
     var f = featuredChrono(name, l);
@@ -19865,10 +19885,10 @@
     var b = LINK_BRANDS[k[0]];
     return { icon: '<span class="brand-logo brand-' + k[0] + '" style="background:' + b.bg + '"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">' + b.g + '</svg></span>', label: k[1] };
   }
-  function renderLinksAndSponsors(l) {
+  function renderLinksAndSponsors(l, noLinks) {
     var html = '';
     var links = (l.links || []).filter(function (x) { return x && x.url; });
-    if (lookShows(l, 'links') && links.length) html += '<div class="card" style="' + lookStyle(l) + '"><h2 class="section-title">' + L('Réseaux et liens', 'Socials and links') + '</h2>' + links.map(function (x) {
+    if (!noLinks && lookShows(l, 'links') && links.length) html += '<div class="card" style="' + lookStyle(l) + '"><h2 class="section-title">' + L('Réseaux et liens', 'Socials and links') + '</h2>' + links.map(function (x) {
       var k = linkKind(x.url);
       return '<button type="button" class="ph-link" data-action="open-external-url" data-url="' + escapeHtml(x.url) + '"><span class="ph-link-ico">' + k.icon + '</span><span class="ph-link-main"><strong>' + escapeHtml(k.label) + '</strong>' +
         (x.comment ? '<span class="help-text">' + escapeHtml(x.comment) + '</span>' : '') + '</span><span class="ph-link-go">↗</span></button>';
@@ -20357,7 +20377,7 @@
     // Actions
     var acts = '';
     // Ma fiche : Modifier, mes pneus, et l'engrenage des réglages (à la place de « Mon compte »).
-    if (isMe) acts += myDraft ? '' : '<button type="button" class="primary" data-action="look-edit">' + L('Modifier', 'Edit') + '</button>' + pneusChipHtml('profile-pneus') +
+    if (isMe) acts += (myDraft ? '' : '<button type="button" class="primary" data-action="look-edit">' + L('Modifier', 'Edit') + '</button>' + pneusChipHtml('profile-pneus')) +
       '<button type="button" class="team-icon-btn person-gear" id="settings-toggle" aria-label="' + escapeHtml(L('Réglages', 'Settings')) + '" title="' + escapeHtml(L('Réglages', 'Settings')) + '"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>';
     if (!isMe) acts += followBtnHtml(name);
     if (!isMe && canMessage(name)) acts += '<button type="button" class="ghost" data-action="dm-open" data-name="' + escapeHtml(name) + '">' + L('Message', 'Message') + '</button>';
@@ -20396,7 +20416,7 @@
       if (pillState.person === 'bientot') return html + (personUpcomingHtml(name) || '<div class="card help-text">' + L('Aucun roulage prévu pour l\'instant.', 'No trackday planned yet.') + '</div>') + '</div>';
       if (pillState.person === 'saisons' && ridesShared) return html + renderRiderSeasons(name, look, false) + '</div>';
       if (!friendship) {
-        if (look) html += renderLinksAndSponsors(look) + renderFavourites(name, look);
+        if (look) html += renderLinksAndSponsors(look, true) + renderFavourites(name, look);
         html += '<div class="card"><div class="empty-state">' + escapeHtml(isPilote ? L('Suivez-vous l\'un l\'autre pour voir ses roulages, ses records et ses trophées, et vous comparer.', 'Follow each other to see their trackdays, records and trophies, and compare.') : L('Suivez-vous l\'un l\'autre pour voir ses roulages et ses trophées.', 'Follow each other to see their trackdays and trophies.')) + '</div></div>';
         return html + '</div>';
       }
@@ -20446,7 +20466,7 @@
         if (!bests[x.circuit] || b < bests[x.circuit].best) bests[x.circuit] = { best: b, date: x.date };
       });
       var circuits = Object.keys(bests).sort();
-      if (look) html += renderLinksAndSponsors(look);
+      if (look) html += renderLinksAndSponsors(look, true);
       if (look) html += (lookShows(look, 'season') ? renderSeasonGrid(name, look) : '') + renderFavourites(name, look);
       html += renderPersonFriends(name, look);
       if (circuits.length) {
@@ -20486,7 +20506,7 @@
       // Accompagnant : roulages accompagnés, circuits visités, spots photo
       // préférés, albums partagés ; puis sa fiche personnalisée.
       html += renderCompanionShowcase(name, u, isMe);
-      if (look) html += renderLinksAndSponsors(look) + renderFavourites(name, look) + renderPersonFriends(name, look);
+      if (look) html += renderLinksAndSponsors(look, true) + renderFavourites(name, look) + renderPersonFriends(name, look);
     }
     if (u.shareTrophees !== false) {
       html += renderAchievementsCard(getAch(), 'person-achievements-' + name);
@@ -21003,7 +21023,8 @@
     personView = { name: me.name, from: 'social' }; activeView = 'person'; socialProfileCtx = true;
     var fiche = renderPersonPage();
     personView = saved; activeView = savedView; socialProfileCtx = false;
-    fiche = fiche.replace(/<button type="button" class="back-chevron"[^>]*>‹<\/button>/, '');
+    // Ma page (onglet Profil) : pas de flèche retour, la barre du bas suffit.
+    fiche = fiche.replace(/<button type="button" class="back-chevron[^"]*"[^>]*>‹<\/button>/, '');
     // Juste sous l'en-tête (et ses compteurs) : demandes d'ami et pilotes
     // à suivre, avant le reste de la fiche.
     var extra = '', incoming = incomingFriendRequests(me.name);
@@ -30377,6 +30398,21 @@
     var t = e.target;
     if (t && t.matches && t.matches('input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=file]), textarea, select, [contenteditable]') && !(window.matchMedia && window.matchMedia('(min-width: 960px)').matches)) document.documentElement.classList.add('kb-open');
   });
+  // Barre du bas façon Instagram : elle se réduit quand on fait défiler vers le bas,
+  // et reprend sa taille dès qu'on remonte (ou en haut de page).
+  (function () {
+    var lastY = window.scrollY || 0, ticking = false;
+    window.addEventListener('scroll', function () {
+      if (ticking) return; ticking = true;
+      requestAnimationFrame(function () {
+        ticking = false;
+        var y = window.scrollY || 0, dy = y - lastY;
+        if (Math.abs(dy) < 6) return;
+        document.documentElement.classList.toggle('nav-mini', dy > 0 && y > 80);
+        lastY = y;
+      });
+    }, { passive: true });
+  })();
   // Le champ qui avait le clavier peut disparaître au rendu (ex. résultat de recherche touché) sans
   // « focusout » : on rend la barre du bas dès qu'aucun champ n'a plus le focus.
   function releaseKbOpenIfIdle() {

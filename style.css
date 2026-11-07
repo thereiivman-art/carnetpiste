@@ -5495,3 +5495,21 @@ body { overflow-wrap: break-word; }
 @media (min-width: 960px) { header.page-head .header-logo { display: none; } }
 .person-gear { margin-left: auto; }
 .pneus-chip.profile-pneus { width: auto; flex: 0 0 auto; }
+.ph-links-row { display: flex; flex-wrap: wrap; gap: 0.45rem; margin: 0.5rem 0 0.2rem; }
+.ph-link-ico-btn { background: none; border: 0; padding: 0; width: auto; min-width: 0; cursor: pointer; border-radius: 50%; }
+.ph-link-ico-btn .brand-logo { width: 2.2rem; height: 2.2rem; border-radius: 50%; display: grid; place-items: center; }
+/* Barre du bas réduite pendant le défilement (téléphone) : icônes seules, plus fine, plus étroite. */
+@media (max-width: 959px) {
+  .bottom-nav { transition: padding 0.22s ease, left 0.22s ease, right 0.22s ease, bottom 0.22s ease, opacity 0.22s ease; }
+  .bottom-nav-btn .bottom-nav-label { transition: opacity 0.18s ease, max-height 0.22s ease; max-height: 1.2em; overflow: hidden; }
+  html.nav-mini .bottom-nav { left: 18%; right: 18%; padding-top: 0.12rem; padding-bottom: 0.12rem; opacity: 0.94; }
+  html.nav-mini .bottom-nav-btn .bottom-nav-label { opacity: 0; max-height: 0; }
+  html.nav-mini .bottom-nav-btn { padding-top: 0.3rem; padding-bottom: 0.3rem; }
+  html.nav-mini .bottom-nav-btn.bottom-nav-main .bottom-nav-icon { width: 2.4rem; height: 2.4rem; margin-top: -0.4rem; }
+}
+@media (prefers-reduced-motion: reduce) { .bottom-nav, .bottom-nav-btn .bottom-nav-label { transition: none !important; } }
+/* Dessin simplifié : les outils avancés n'apparaissent qu'avec « Plus ». */
+.annot-toolbar .annot-adv { display: none !important; }
+.annot-toolbar.show-adv .annot-adv { display: inline-flex !important; }
+.annot-toolbar.show-adv select.annot-adv { display: inline-block !important; }
+.annot-more-btn { width: auto; padding: 0.4rem 0.8rem; font-weight: 700; }
