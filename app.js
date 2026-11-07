@@ -7381,6 +7381,8 @@
     html += '<div class="help-text" id="f-slot-hint"' + (suggestedSlotIdx !== -1 ? '' : ' style="display:none;"') + '>' + tr('slot_hint') + '</div>';
     html += '<div id="f-linked-event-wrap">' + renderLinkedEventField(selectedCircuit, todayStr) + '</div>';
     html += '<button type="button" class="ghost" id="import-paste-btn" style="margin-top:0.6rem;">' + L('Coller une liste de temps', 'Paste a list of times') + '</button>';
+    // Incident (chute, sortie de piste…) : une option de la saisie, plus un bouton sur la page du roulage.
+    if (!meIsNonRider()) html += '<button type="button" class="ghost cf-incident" data-action="incident-from-form">' + L('Signaler un incident', 'Report an incident') + '</button>';
     html += '</details>';
     html += '</form></div>';
     return html;
@@ -8348,7 +8350,7 @@
       [['pays', L('Par pays', 'By country')], ['alpha', L('A → Z', 'A → Z')], ['niveau', L('Niveau', 'Level')], ['distance', L('Distance', 'Length')], ['mes', L('Mes circuits', 'My circuits')]].map(function (o) {
         return '<option value="' + o[0] + '"' + (circuitSort === o[0] ? ' selected' : '') + '>' + escapeHtml(o[1]) + '</option>';
       }).join('') + '</select>' +
-      '<button type="button" class="ghost circuit-create-btn" data-action="circuit-create" title="' + escapeHtml(L('Créer mon circuit perso (dessin ou image)', 'Create my own circuit (drawing or image)')) + '">+ ' + L('Créer', 'Create') + '</button></div>';
+      '</div>'; // « Créer mon circuit » : premier choix de la liste des circuits.
     var cp = pillState.circuit;
     if (cp === 'plan') {
       // Les deux façons d'annoter, visibles dès l'arrivée sur la page.
@@ -8378,6 +8380,7 @@
   // Infos du circuit : des bulles (icônes) repliées par défaut ; une touche ouvre la section.
   // La météo n'est demandée qu'à l'ouverture de sa bulle.
   var infoBubbleOpen = {};
+  var circuitFromLink = false; // circuit ouvert depuis un lien : « ‹ Retour » au-dessus des onglets
   var IB_ICO = {
     wx: '<path d="M7 18h10a4 4 0 0 0 .5-8 6 6 0 0 0-11.5 1.5A3.3 3.3 0 0 0 7 18z"/>',
     rules: '<path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="M9 12l2 2 4-4"/>',
@@ -9559,7 +9562,7 @@
   }
   // Pastille de validation d'un chrono : vert = validé par l'orga, bleu = en attente.
   function verifBadgeHtml(ok) {
-    return ok ? '<span class="verif-badge ok" title="' + escapeHtml(L('Validé', 'Verified')) + '">✓</span>' : '<span class="verif-badge wait" title="' + escapeHtml(L('Validation en attente', 'Awaiting verification')) + '">…</span>';
+    return ok ? '<span class="verif-badge ok" title="' + escapeHtml(L('Validé', 'Verified')) + '">✓</span>' : '<span class="verif-badge wait" title="' + escapeHtml(L('Validation en attente', 'Awaiting verification')) + '">~</span>';
   }
   function renderGlobalPodiums() {
     var by = {};
@@ -9606,7 +9609,7 @@
       '<div class="podium-head-text"><span class="podium-kicker' + (globalMode ? ' is-all' : '') + '">' + (globalMode ? L('Tous les membres', 'All members') + ' ' + verifBadgeHtml(true) : L('Amis', 'Friends')) + '</span>' +
       '<strong class="podium-circuit">' + (info.country ? countryBallHtml(info.country, 'inline') + ' ' : '') + cName(circuit) + '</strong>' +
       '<span class="podium-sub">' + L('Meilleur tour de chacun', 'Everyone\'s best lap') + (rows.length > 1 ? ' · ' + rows.length + L(' pilotes', ' riders') : '') + '</span></div>' +
-      (rows.length > 1 && !globalMode ? '<button type="button" class="ghost podium-share" data-action="share-podium" data-circuit="' + escapeHtml(circuit) + '">' + L('Partager', 'Share') + '</button>' : '') + '</div>';
+      (rows.length > 1 && !globalMode ? '<button type="button" class="team-icon-btn podium-share" data-action="share-podium" data-circuit="' + escapeHtml(circuit) + '" aria-label="' + escapeHtml(L('Partager', 'Share')) + '" title="' + escapeHtml(L('Partager', 'Share')) + '"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7"/><path d="M16 6l-4-4-4 4"/><path d="M12 2v13"/></svg></button>' : '') + '</div>';
     if (rows.length < (meIsNonRider() || globalMode ? 1 : 2)) {
       return html + '<div class="empty-state">' + (rows.length ? L('Tu es seul sur ce circuit pour l\'instant. Invite tes amis à y rouler pour lancer le podium.', 'You\'re alone on this circuit so far. Invite your friends to ride here to start the podium.')
         : L('Personne de ta bande n\'a encore roulé ici.', 'Nobody in your crew has ridden here yet.')) + '</div></div>';
@@ -11576,7 +11579,7 @@
       if (!isRiderHere && (status !== 'terminee' || (currentUserProfile && currentUserProfile.role === 'accompagnant'))) acts += joinEventButtonHtml(ev, leaderHere);
       // Roulage passé : noter un incident après coup (petit bouton discret).
       var incFriends = (ev.riders || []).filter(function (n) { return n !== meName && isFriendName(n) && !isNonRiderName(n); });
-      if (((isRiderHere || sessions.length) && !meIsNonRider() || incFriends.length) && (ev.dateEnd || ev.dateStart) < dateKey(new Date())) acts += '<button type="button" class="ghost" data-action="incident-past" data-circuit="' + escapeHtml(ev.circuit) + '" data-date="' + escapeHtml(date) + '" data-others="' + escapeHtml(incFriends.join('|')) + '">' + L('Incident', 'Incident') + '</button>';
+      // Incident : dans la saisie d'un chrono (onglet Chrono), plus ici.
       // Inscrit à un roulage à venir : on peut se retirer.
       if (isRiderHere && status !== 'terminee' && (ev.dateEnd || ev.dateStart) >= dateKey(new Date())) acts += '<button type="button" class="ghost" data-action="leave-roulage" data-id="' + escapeHtml(ev.id) + '">' + L('Je n\'y vais plus', 'Not going anymore') + '</button>';
       // Roulage passé : annuler « J'y étais » (touché par erreur).
@@ -11593,8 +11596,7 @@
       if (status !== 'terminee') html += eventPriceLine(ev); // les dépenses d'un roulage passé : onglet Budget
       if (ev.bookingUrl && !isRiderHere) html += '<div class="help-text outing-actions-help">Inscription et paiement chez l\'organisateur.</div>';
     } else if (sessions.length && date < dateKey(new Date()) && !meIsNonRider()) {
-      // Journée passée sans roulage du calendrier : l'incident se note aussi.
-      html += '<div class="outing-actions"><button type="button" class="ghost" data-action="incident-past" data-circuit="' + escapeHtml(circuit) + '" data-date="' + escapeHtml(date) + '">' + L('Incident', 'Incident') + '</button></div>';
+      // Incident : dans la saisie d'un chrono (onglet Chrono).
     }
     if (sessions.length && !outingIsLinked(circuit, date, sessions.filter(function (x) { return x.eventId; }).map(function (x) { return x.eventId; })[0])) {
       // Mes chronos de ce jour ne sont rattachés à aucun de MES roulages :
@@ -12439,7 +12441,18 @@
     // not a small toggle inside the card.
     var html = '<div class="card outings-card">';
     if (carnetCardsMode === 'avenir') {
-      if (!upcoming.length) html += '<div class="help-text" style="padding:0.4rem 0;">Aucun roulage à venir. <button type="button" class="link-btn inline-link" data-action="quick-outing">Ajouter un roulage</button></div>';
+      // Recherche par circuit ou date, comme dans Passés.
+      var evMatch = function (ev) {
+        if (!outingSearch) return true;
+        var fold = function (t) { return String(t || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, ''); };
+        var hay = fold(ev.circuit + ' ' + formatDate(ev.dateStart) + ' ' + ev.dateStart + ' ' + formatEventRange(ev, true) + ' ' + new Date(ev.dateStart).toLocaleDateString(currentLang() === 'en' ? 'en-GB' : 'fr-FR', { month: 'long', year: 'numeric' }) + ' ' + eventOrgName(ev));
+        return fold(outingSearch).split(/\s+/).filter(Boolean).every(function (t) { return hay.indexOf(t) !== -1; });
+      };
+      html += '<div class="outing-search"><input type="search" id="outing-search" value="' + escapeHtml(outingSearch) + '" placeholder="' + escapeHtml(L('Circuit, date, mois…', 'Circuit, date, month…')) + '" autocomplete="off"></div>';
+      var allUp = upcoming;
+      upcoming = upcoming.filter(evMatch);
+      if (allUp.length && !upcoming.length && outingSearch) html += '<div class="help-text" style="padding:0.4rem 0;">' + L('Aucun roulage ne correspond.', 'No trackday matches.') + '</div>';
+      else if (!upcoming.length) html += '<div class="help-text" style="padding:0.4rem 0;">Aucun roulage à venir. <button type="button" class="link-btn inline-link" data-action="quick-outing">Ajouter un roulage</button></div>';
       upcoming.forEach(function (ev) {
         var grp = riderGroupFor(ev, currentUserProfile.name, ev.dateStart, 'matin') || riderGroupFor(ev, currentUserProfile.name, ev.dateStart, 'apres-midi') || '';
         html += '<button type="button" class="outing-row" data-open-outing="' + escapeHtml(ev.circuit) + '" data-outing-date="' + escapeHtml(ev.dateStart) + '" data-outing-event="' + escapeHtml(ev.id) + '">' +
@@ -12451,7 +12464,7 @@
       // Roulages visibles où je ne suis pas (amis, team) : l'ancien Calendrier les listait.
       var meN = currentUserProfile && currentUserProfile.name, todayK = dateKey(new Date());
       var others = eventsList().filter(function (ev) {
-        return (ev.riders || []).indexOf(meN) === -1 && (ev.dateEnd || ev.dateStart) >= todayK && isMyEventForList(ev);
+        return (ev.riders || []).indexOf(meN) === -1 && (ev.dateEnd || ev.dateStart) >= todayK && isMyEventForList(ev) && evMatch(ev);
       }).sort(function (a, b) { return a.dateStart < b.dateStart ? -1 : 1; });
       if (others.length) html += '<h3 class="carnet-others-title">' + L('Autres roulages', 'Other trackdays') + '</h3>' + others.map(function (ev) { var ex = upcomingMetaExtra(ev); return renderEventRow(ev, ex ? { extraMeta: ex } : {}); }).join('');
       if (upcoming.length) html += '<button type="button" class="ghost avenir-add" data-action="quick-outing">+ ' + L('Roulage', 'Trackday') + '</button>';
@@ -16126,7 +16139,8 @@
   }
   function renderSubNav(items) {
     if (items.length < 2) return '';
-    return '<div class="subnav main-subnav" role="tablist">' + items.map(function (it) {
+    // Plus de 2 onglets : Roulages et Circuits en grand, les autres en glissant (ou flèche ›).
+    return '<div class="subnav main-subnav' + (items.length > 2 ? ' subnav-scroll' : '') + '" role="tablist">' + items.map(function (it) {
       var on = activeView === it[0] || (it[0] === 'carnet' && activeView === 'event') || (it[0] === 'team' && activeView === 'coach');
       return '<button type="button" role="tab" class="subnav-btn' + (on ? ' active' : '') + '" data-view="' + it[0] + '">' + it[1] + '</button>';
     }).join('') + '</div>';
@@ -22015,7 +22029,7 @@
       // Circuit épinglé ou cité, ami cité : la story se ferme et ouvre la page.
       ov.querySelectorAll('[data-open-circuit]').forEach(function (b) { b.addEventListener('click', function (e) {
         e.stopPropagation(); var c = b.getAttribute('data-open-circuit'); close();
-        selectedCircuit = allCircuits().filter(function (x) { return sameCircuit(x, c); })[0] || c; userPickedCircuit = true; activeView = 'circuit'; outingView = null; personView = null; renderRoot(); window.scrollTo(0, 0);
+        selectedCircuit = allCircuits().filter(function (x) { return sameCircuit(x, c); })[0] || c; userPickedCircuit = true; activeView = 'circuit'; outingView = null; personView = null; circuitFromLink = true; renderRoot(); window.scrollTo(0, 0);
       }); });
       ov.querySelectorAll('.story-caption [data-open-person]').forEach(function (b) { b.addEventListener('click', function (e) { e.stopPropagation(); var n = b.getAttribute('data-open-person'); close(); openPerson(n); }); });
       var gp = ov.querySelector('.story-goto-post');
@@ -25052,14 +25066,15 @@
     var iLike = (STATE.teamLikes || []).some(function (l) { return l.teamId === t.id && l.name === me.name; });
     var following = (STATE.myFollowedTeams || []).indexOf(t.id) !== -1;
     var myRequest = (STATE.teamJoinRequests || []).filter(function (r) { return r.teamId === t.id && r.from === me.name; })[0];
-    var h = '<button type="button" class="' + (iLike ? 'primary' : 'ghost') + '" data-action="team-like-toggle" data-team="' + escapeHtml(t.id) + '" aria-pressed="' + (iLike ? 'true' : 'false') + '">' + (iLike ? L('Aimé', 'Liked') : L('J\'aime', 'Like')) + '</button>';
+    // J'aime : cœur vide ou plein ; Partager : l'icône des posts.
+    var h = '<button type="button" class="team-icon-btn team-like' + (iLike ? ' on' : '') + '" data-action="team-like-toggle" data-team="' + escapeHtml(t.id) + '" aria-pressed="' + (iLike ? 'true' : 'false') + '" aria-label="' + escapeHtml(iLike ? L('Aimé', 'Liked') : L('J\'aime', 'Like')) + '" title="' + escapeHtml(iLike ? L('Aimé', 'Liked') : L('J\'aime', 'Like')) + '"><svg viewBox="0 0 24 24" width="22" height="22" fill="' + (iLike ? 'currentColor' : 'none') + '" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20s-7-4.4-9.2-9A5 5 0 0 1 12 6a5 5 0 0 1 9.2 5c-2.2 4.6-9.2 9-9.2 9z"/></svg></button>';
     if (!isMember) h += following && isAdherentOf(t.id) ? '' : following
       ? '<button type="button" class="ghost" data-action="unfollow-team" data-team="' + escapeHtml(t.id) + '">' + L('Abonné', 'Following') + '</button>'
       : '<button type="button" class="ghost" data-action="follow-team" data-team="' + escapeHtml(t.id) + '">' + L('Suivre', 'Follow') + '</button>';
     if (!isMember && !isLeaderOfTeam(t.id)) h += myRequest
       ? '<button type="button" class="ghost" disabled>' + L('Demande envoyée', 'Request sent') + '</button>'
       : '<button type="button" class="ghost" data-action="team-join-request" data-team="' + escapeHtml(t.id) + '">' + L('Rejoindre', 'Join') + '</button>';
-    h += '<button type="button" class="ghost" data-action="share-team" data-team="' + escapeHtml(t.id) + '">' + L('Partager', 'Share') + '</button>';
+    h += '<button type="button" class="team-icon-btn" data-action="share-team" data-team="' + escapeHtml(t.id) + '" aria-label="' + escapeHtml(L('Partager', 'Share')) + '" title="' + escapeHtml(L('Partager', 'Share')) + '"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7"/><path d="M16 6l-4-4-4 4"/><path d="M12 2v13"/></svg></button>';
     return '<div class="outing-actions team-actions">' + h + '</div>';
   }
   // A team's public fiche, for someone who isn't a member: identity,
@@ -25146,7 +25161,7 @@
   // gauche) tant qu'il reste des onglets cachés, et l'onglet actif ramené
   // dans le champ après chaque rendu.
   function markScrollableTabs() {
-    document.querySelectorAll('.pill-tabs, .sub-pills').forEach(function (row) {
+    document.querySelectorAll('.pill-tabs, .sub-pills, .subnav-scroll').forEach(function (row) {
       var update = function () {
         var max = row.scrollWidth - row.clientWidth;
         row.classList.toggle('more-right', max > 2 && row.scrollLeft < max - 2);
@@ -25158,7 +25173,15 @@
         if (r > row.clientWidth - 28) row.scrollLeft = r - row.clientWidth + 36;
       }
       update();
-      if (!row.__tabsScroll) { row.__tabsScroll = true; row.addEventListener('scroll', update, { passive: true }); }
+      if (!row.__tabsScroll) {
+        row.__tabsScroll = true; row.addEventListener('scroll', update, { passive: true });
+        // Toucher la flèche › (ou ‹) fait défiler les onglets.
+        row.addEventListener('click', function (e) {
+          var rc = row.getBoundingClientRect();
+          if (row.classList.contains('more-right') && e.clientX > rc.right - 36) { e.preventDefault(); e.stopPropagation(); row.scrollBy({ left: row.clientWidth * 0.6, behavior: 'smooth' }); }
+          else if (row.classList.contains('more-left') && e.clientX < rc.left + 36) { e.preventDefault(); e.stopPropagation(); row.scrollBy({ left: -row.clientWidth * 0.6, behavior: 'smooth' }); }
+        }, true);
+      }
     });
   }
   // ---- Revenir en arrière ----
@@ -25411,6 +25434,7 @@
       // Garage et Budget sont des pastilles de « Moi » ; les anciennes vues y renvoient.
       if (activeView === 'budget') { activeView = 'stats'; pillState.moi = 'budget'; }
       if (activeView === 'garage') { activeView = 'stats'; pillState.moi = 'garage'; }
+      if (activeView !== 'circuit') circuitFromLink = false;
       var carnetSub = renderSubNav(carnetSubItems());
       if (activeView === 'outing') body = renderOutingPage();
       else if (activeView === 'person') body = renderPersonPage();
@@ -25418,7 +25442,8 @@
       else if (activeView === 'circuit') {
         // Ouvert depuis le fil, une fiche, un roulage… : « ‹ Retour » y ramène.
         var prevNav = navCurrent && navCurrent.view !== 'circuit' ? navCurrent : navStack[navStack.length - 1];
-        var backHere = prevNav && ['carnet', 'circuit', 'stats', 'budget', 'visites', 'garage', 'orgaev', 'coach', 'event'].indexOf(prevNav.view) === -1;
+        // « ‹ Retour » seulement quand le circuit a été ouvert depuis un lien (fil, fiche, roulage…), pas en revenant par l'onglet.
+        var backHere = circuitFromLink && prevNav && ['carnet', 'circuit', 'stats', 'budget', 'visites', 'garage', 'orgaev', 'coach', 'event', 'team'].indexOf(prevNav.view) === -1;
         body = (backHere ? '<button type="button" class="link-btn back-link nav-back-btn">‹ ' + L('Retour', 'Back') + '</button>' : '') + carnetSub + renderCircuitTab();
       }
       else if (activeView === 'stats') body = carnetSub + renderMoiTab();
@@ -26873,6 +26898,16 @@
       if (!videoEmbedOf(a.href)) return;
       e.preventDefault(); openYoutube(a.href);
     }); });
+    document.querySelectorAll('[data-action="incident-from-form"]').forEach(function (b) { b.addEventListener('click', function () {
+      var cEl = document.getElementById('f-circuit'), oEl = document.getElementById('f-circuit-other'), dEl = document.getElementById('f-date');
+      var c = cEl ? (cEl.value === '__other__' && oEl ? oEl.value.trim() : cEl.value) : '';
+      var d = dEl && dEl.value ? (frDateToIso(dEl.value) || dEl.value) : todayKey();
+      if (!c) { showToast(L('Choisis d\'abord le circuit.', 'Pick the circuit first.')); return; }
+      var meN = currentUserProfile && currentUserProfile.name;
+      var others = eventsList().filter(function (ev) { return sameCircuit(ev.circuit, c) && ev.dateStart <= d && (ev.dateEnd || ev.dateStart) >= d; })
+        .reduce(function (a, ev) { return a.concat((ev.riders || []).filter(function (n) { return n !== meN && isFriendName(n) && !isNonRiderName(n); })); }, []);
+      openIncidentSheet(c, d < todayKey() ? d : '', others);
+    }); });
     document.querySelectorAll('[data-action="incident-past"]').forEach(function (b) { b.addEventListener('click', function () { openIncidentSheet(b.getAttribute('data-circuit'), b.getAttribute('data-date'), (b.getAttribute('data-others') || '').split('|').filter(Boolean)); }); });
     document.querySelectorAll('[data-action="incident-live"]').forEach(function (b) { b.addEventListener('click', function () {
       var others = (b.getAttribute('data-others') || '').split('|').filter(Boolean);
@@ -27358,7 +27393,7 @@
         var c = e.target.closest('[data-open-circuit]');
         if (c) {
           e.preventDefault(); e.stopPropagation();
-          selectedCircuit = c.getAttribute('data-open-circuit'); userPickedCircuit = true; activeView = 'circuit'; outingView = null; personView = null;
+          selectedCircuit = c.getAttribute('data-open-circuit'); userPickedCircuit = true; activeView = 'circuit'; outingView = null; personView = null; circuitFromLink = true;
           if (c.getAttribute('data-circuit-pill')) pillState.circuit = c.getAttribute('data-circuit-pill');
           renderRoot(); window.scrollTo(0, 0);
           return;
@@ -29434,7 +29469,7 @@
       };
       // La liste suit le tri choisi (groupes par pays compris) et filtre ce qu'on tape.
       var fillCombo = function (q) {
-        var fq = foldC(q), h = '', n = 0;
+        var fq = foldC(q), h = '<button type="button" class="circuit-combo-opt circuit-combo-create" role="option" data-combo-create="1">+ ' + escapeHtml(L('Créer mon circuit', 'Create my circuit')) + '</button>', n = 0;
         Array.prototype.forEach.call(comboSrc.children, function (node) {
           var opts = node.tagName === 'OPTGROUP' ? Array.prototype.slice.call(node.children) : [node];
           var rows = opts.filter(function (o) { return o.value && (!fq || foldC(o.value).indexOf(fq) !== -1 || foldC(o.textContent).indexOf(fq) !== -1); });
@@ -29442,7 +29477,7 @@
           if (node.tagName === 'OPTGROUP') h += '<div class="circuit-combo-group">' + escapeHtml(node.label) + '</div>';
           rows.forEach(function (o) { n++; h += '<button type="button" class="circuit-combo-opt' + (o.value === selectedCircuit ? ' on' : '') + '" role="option" data-combo-val="' + escapeHtml(o.value) + '">' + escapeHtml(o.textContent) + '</button>'; });
         });
-        comboList.innerHTML = n ? h : '<div class="circuit-combo-empty">' + escapeHtml(L('Aucun circuit', 'No circuit')) + '</div>';
+        comboList.innerHTML = n ? h : h + '<div class="circuit-combo-empty">' + escapeHtml(L('Aucun circuit', 'No circuit')) + '</div>';
         comboList.hidden = false; circuitFind.setAttribute('aria-expanded', 'true');
       };
       var closeCombo = function () { comboList.hidden = true; circuitFind.setAttribute('aria-expanded', 'false'); };
@@ -29453,7 +29488,7 @@
         else if (e.key === 'Escape') { circuitFind.value = selectedCircuit || ''; closeCombo(); circuitFind.blur(); }
       });
       // mousedown : choisir avant que le champ perde le focus.
-      comboList.addEventListener('mousedown', function (e) { var b = e.target.closest('[data-combo-val]'); if (b) { e.preventDefault(); pickCircuit(b.getAttribute('data-combo-val')); } });
+      comboList.addEventListener('mousedown', function (e) { if (e.target.closest('[data-combo-create]')) { e.preventDefault(); closeCombo(); openCircuitCreate(); return; } var b = e.target.closest('[data-combo-val]'); if (b) { e.preventDefault(); pickCircuit(b.getAttribute('data-combo-val')); } });
       circuitFind.addEventListener('blur', function () { setTimeout(function () { if (document.activeElement !== circuitFind) { circuitFind.value = selectedCircuit || ''; closeCombo(); } }, 150); });
       var chev = circuitFind.parentNode.querySelector('.circuit-combo-chev');
       if (chev) chev.addEventListener('click', function () { circuitFind.focus(); });

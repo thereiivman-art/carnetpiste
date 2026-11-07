@@ -2,6 +2,16 @@
 
 Les nouveautés, de la plus récente à la plus ancienne. Le détail complet est dans l'historique git.
 
+## 7 novembre 2026 · Carnet, teams et podium
+
+- Carnet : Roulages et Circuits en grand ; Teams et Bilan en glissant ou avec la flèche ›.
+- Roulages › À venir : recherche par circuit ou date (comme dans Passés).
+- Circuits : « + Créer mon circuit » en premier choix de la liste.
+- Circuits : plus de « ‹ Retour » au-dessus des onglets quand on revient par l'onglet.
+- Incident : dans la saisie d'un chrono (options), plus sur la page du roulage.
+- Teams : J'aime en cœur vide ou plein, Partager en icône.
+- Podium : titre en haut de la carte, Partager en icône ; chrono en attente de validation marqué « ~ ».
+
 ## 6 novembre 2026 · en-tête et infos circuit
 
 - En-tête : plus de QR code ; Notifications revient à droite de Messages.

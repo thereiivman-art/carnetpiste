@@ -5434,3 +5434,25 @@ body { overflow-wrap: break-word; }
 .info-bubble.on .ib-ico { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
 .info-bubble .ib-lbl { font-size: 0.74rem; font-weight: 700; text-align: center; line-height: 1.15; }
 .info-bubble-body { margin-top: 0.6rem; }
+.team-icon-btn { width: 2.5rem; height: 2.5rem; min-width: 0; padding: 0; border: 0; border-radius: 50%; background: none; color: var(--text-muted); display: inline-grid; place-items: center; cursor: pointer; flex: 0 0 auto; }
+.team-icon-btn:hover { background: var(--surface-alt); color: var(--text); }
+.team-icon-btn.team-like.on { color: var(--accent); }
+.circuit-combo-create { color: var(--accent); font-weight: 700; border-bottom: 1px solid var(--border) !important; }
+/* Carnet : Roulages et Circuits en grand ; Teams et Bilan en glissant ou avec la flèche. */
+@media (max-width: 959px) {
+  .subnav.main-subnav.subnav-scroll { overflow-x: auto; scroll-snap-type: x proximity; scrollbar-width: none; flex-wrap: nowrap; }
+  .subnav.main-subnav.subnav-scroll::-webkit-scrollbar { display: none; }
+  .subnav.main-subnav.subnav-scroll .subnav-btn { flex: 0 0 calc(50% - 1.6rem) !important; scroll-snap-align: start; font-size: 1.15rem; }
+  .subnav-scroll.more-right::after, .subnav-scroll.more-left::before {
+    content: '›'; position: sticky; right: 0; flex: 0 0 2.2rem; margin-left: -2.2rem; z-index: 2; pointer-events: none;
+    display: flex; align-items: center; justify-content: flex-end; padding-right: 0.15rem;
+    font-size: 1.7rem; font-weight: 700; line-height: 1; color: var(--accent);
+    background: linear-gradient(to right, transparent, var(--surface-alt) 60%);
+    top: auto; left: auto; height: auto; width: auto;
+  }
+  .subnav-scroll.more-left::before { content: '‹'; right: auto; left: 0; order: -1; margin-left: 0; margin-right: -2.2rem; justify-content: flex-start; padding: 0 0 0 0.15rem; background: linear-gradient(to left, transparent, var(--surface-alt) 60%); }
+}
+/* Podium : titre en haut (plus d'espace au-dessus), Partager en icône. */
+.podium-head { align-items: center; min-height: 0; padding-top: 0.8rem; }
+.podium-share.team-icon-btn { top: 0.35rem; right: 0.35rem; width: 2.2rem; height: 2.2rem; padding: 0; font-size: inherit; }
+.verif-badge.wait { font-size: 0.95em; }

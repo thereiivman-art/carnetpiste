@@ -2,6 +2,7 @@
 // recherche sur sa ligne, vidéo de story : champ qui survit au redessin et
 // « Réessayer » sans repasser par l'album.
 const { chromium, BASE } = require('../lib');
+const openIncident = require('./_incident-helper');
 (async () => { const b = await chromium.launch(); const errs = []; const lang = process.argv[2] || 'fr';
   const p = await b.newPage({ viewport: { width: 390, height: 900 } }); p.on('pageerror', e => errs.push(e.message));
   await p.goto(BASE + 'index.html#lang=' + lang + '&admin=1'); await p.waitForTimeout(1600);
@@ -43,7 +44,7 @@ const { chromium, BASE } = require('../lib');
   await p.click('.subnav-btn[data-view="carnet"]'); await p.waitForTimeout(300);
   await p.locator('[data-cards-mode="passees"]:visible').first().click().catch(() => {}); await p.waitForTimeout(400);
   await p.locator('#root [data-outing-event]:visible').first().click({ position: { x: 30, y: 14 } }); await p.waitForTimeout(700);
-  await p.click('[data-action="incident-past"]'); await p.waitForTimeout(400);
+  await openIncident(p, 'Mugello', null, 'e2');
   const who = await p.$$eval('[data-inc-who]', e => e.map(x => x.getAttribute('data-inc-who')));
   await p.click('[data-inc-who="' + who[who.length - 1] + '"]'); await p.waitForTimeout(200);
   console.log('champ date pour un ami:', await p.$eval('#inc-date', e => e.value).catch(() => 'absent'));
