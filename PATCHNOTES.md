@@ -2,6 +2,12 @@
 
 Les nouveautés, de la plus récente à la plus ancienne. Le détail complet est dans l'historique git.
 
+## 7 novembre 2026 · optimisation et sécurité
+
+- Social, Messages et Profil : un seul rendu par toucher au lieu de deux (affichage deux fois plus rapide sur téléphone).
+- Guides FR et EN régénérés avec la nouvelle navigation.
+- Passe de sécurité : aucune clé secrète dans le code, le banc de test n'est pas publié, règles Firestore inchangées.
+
 ## 7 novembre 2026 · retours Maymay
 
 - Ma page : réseaux et liens en petites icônes dans l'en-tête de la fiche ; plus de flèche retour (la barre du bas suffit).

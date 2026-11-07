@@ -31,7 +31,7 @@ const FR = /[éèêàùçôîâœ]|\b(le|la|les|des|du|et|pour|avec|ton|ta|tes|v
     await sweep(t);
   }
   // account manager explicitly
-  await home(); try { await p.click('.bottom-nav-btn[data-nav-tab="profil"]').then(() => p.waitForTimeout(300)).then(() => p.click('#settings-toggle')); await p.waitForTimeout(500); await p.getByText('Account').first().click(); await p.waitForTimeout(400); await p.click('#account-manager-toggle'); await p.waitForTimeout(800); await harvest('account manager'); await sweep('account manager'); } catch (e) { console.log('acct', e.message.slice(0, 80)); }
+  await home(); try { await p.click('.bottom-nav-btn[data-nav-tab="profil"]').then(() => p.waitForTimeout(300)).then(() => p.click('#settings-toggle')); await p.waitForTimeout(500); await p.click('[data-settings-go="@admin"]'); await p.waitForTimeout(400); await p.click('#account-manager-toggle'); await p.waitForTimeout(800); await harvest('account manager'); await sweep('account manager'); } catch (e) { console.log('acct', e.message.slice(0, 80)); }
   const res = [];
   for (const [t, w] of seen) { const txt = t.replace(/^@[a-z-]+: /, ''); if (FR.test(txt)) res.push(w + '  ||  ' + t); }
   fs.writeFileSync('found-admin.txt', res.join('\n'));

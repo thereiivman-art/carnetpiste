@@ -28981,6 +28981,8 @@
     document.querySelectorAll('[data-view]').forEach(function (btn) {
       btn.addEventListener('click', function () {
         var nextView = btn.getAttribute('data-view');
+        // Un bouton qui change aussi de pastille (Social, Messages, Profil) : un seul rendu, pas deux.
+        if (btn.hasAttribute('data-pill-group')) pillState[btn.getAttribute('data-pill-group')] = btn.getAttribute('data-pill');
         if (nextView === 'team' && activeView === 'team') { expandedTeamId = null; managingEventId = null; teamMemberSearch = ''; }
         manageReturnToOuting = false;
         // Dessin / Repères ouverts dans la page : on les ferme en changeant d'onglet.
@@ -29609,7 +29611,7 @@
       if (row.scrollWidth > row.clientWidth) row.scrollLeft = Math.max(0, el.offsetLeft - row.offsetLeft - 24);
     });
     document.querySelectorAll('[data-pill-group]').forEach(function (b) {
-      b.addEventListener('click', function () { pillState[b.getAttribute('data-pill-group')] = b.getAttribute('data-pill'); renderRoot(); });
+      b.addEventListener('click', function () { if (b.hasAttribute('data-view')) return; pillState[b.getAttribute('data-pill-group')] = b.getAttribute('data-pill'); renderRoot(); });
     });
     document.querySelectorAll('[data-ts-import]').forEach(function (b) {
       b.addEventListener('click', function () { goAddChronoFor(b.getAttribute('data-ts-import'), b.getAttribute('data-ts-date'), true); });
