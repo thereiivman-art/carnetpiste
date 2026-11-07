@@ -39,7 +39,7 @@ const { chromium, BASE } = require('../lib');
   await p.click('[data-mini-close]'); await p.waitForTimeout(200);
   await p.click('.bottom-nav-btn[data-nav-tab="profil"]').then(() => p.waitForTimeout(300)).then(() => p.click('#settings-toggle')); await p.waitForTimeout(400);
   await p.click('[data-settings-go="@reglages"]', { timeout: 1500 }).catch(() => {}); await p.waitForTimeout(300);
-  await p.click('[data-settings-go="confidentialite"]').catch(() => {}); await p.waitForTimeout(300);
+  await p.evaluate(() => { const d = document.querySelector('details.set-more'); if (d) d.open = true; }).then(() => p.click('[data-settings-go="confidentialite"]')).catch(() => {}); await p.waitForTimeout(300);
   await p.selectOption('#dm-policy', 'followers'); await p.waitForTimeout(400);
   console.log('réglage enregistré:', await p.evaluate(() => firebase.firestore().collection('users').doc(firebase.auth().currentUser.uid).get().then(d => d.data().dmPolicy)));
   console.log('errs', JSON.stringify(errs)); await b.close();

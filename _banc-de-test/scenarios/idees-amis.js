@@ -49,7 +49,7 @@ const { chromium, BASE } = require('../lib');
   console.log('photo enregistrée:', await p.evaluate(() => firebase.firestore().collection('users').doc(firebase.auth().currentUser.uid).get().then(d => (d.data().photoURL || '').slice(0, 26))));
   // Réglages › Confidentialité
   await p.click('.bottom-nav-btn[data-nav-tab="profil"]').then(() => p.waitForTimeout(300)).then(() => p.click('#settings-toggle')); await p.waitForTimeout(400);
-  await p.click('[data-settings-go="confidentialite"]').catch(() => {}); await p.waitForTimeout(300);
+  await p.evaluate(() => { const d = document.querySelector('details.set-more'); if (d) d.open = true; }).then(() => p.click('[data-settings-go="confidentialite"]')).catch(() => {}); await p.waitForTimeout(300);
   await p.selectOption('#profile-visibility', 'friends').catch(e => console.log('pas de choix fiche'));
   await p.selectOption('#lists-visibility', 'private').catch(e => console.log('pas de choix listes'));
   await p.waitForTimeout(400);

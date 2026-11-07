@@ -12,7 +12,7 @@ const { chromium, BASE } = require('../lib');
   console.log('page:', await p.$eval('.settings-page-head .section-title', e => e.innerText), '| retour:', !!(await p.$('.settings-back')));
   await p.click('.settings-back'); await p.waitForTimeout(300);
   console.log('liste revenue:', !!(await p.$('.settings-ig')));
-  await p.click('[data-settings-go="@aide"]'); await p.waitForTimeout(300);
+  await p.evaluate(() => { const d = document.querySelector('details.set-more'); if (d) d.open = true; }).then(() => p.click('[data-settings-go="@aide"]')); await p.waitForTimeout(300);
   console.log('page Aide:', await p.$eval('.settings-page-head .section-title', e => e.innerText));
   // Fiche : Modifier dans Social.
   await p.click('.bottom-nav-btn[data-nav-tab="profil"]'); await p.waitForTimeout(500);

@@ -32,7 +32,7 @@ const { chromium, BASE } = require('../lib');
   // Réglage Vie privée
   await p.click('.bottom-nav-btn[data-nav-tab="profil"]').then(() => p.waitForTimeout(300)).then(() => p.click('#settings-toggle')); await p.waitForTimeout(300);
   await p.click('[data-settings-go="@reglages"]', { timeout: 1500 }).catch(() => {}); await p.waitForTimeout(300);
-  await p.click('[data-settings-go="confidentialite"]'); await p.waitForTimeout(300);
+  await p.evaluate(() => { const d = document.querySelector('details.set-more'); if (d) d.open = true; }).then(() => p.click('[data-settings-go="confidentialite"]')); await p.waitForTimeout(300);
   await p.selectOption('#profile-share-upcoming', 'public'); await p.waitForTimeout(500);
   console.log('réglage stocké:', await p.evaluate(() => window.__MOCK_DATA.users.u1.shareUpcoming));
   console.log('errs', JSON.stringify(errs)); await b.close();
