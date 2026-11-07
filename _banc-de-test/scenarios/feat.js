@@ -21,7 +21,7 @@ const { chromium, BASE } = require('../lib');
   await p.click('#mini-sheet [data-mini-close], #mini-sheet .mini-sheet-x, #mini-sheet .card-close').catch(() => {}); await p.waitForTimeout(300);
   if (await p.$('#mini-sheet')) await p.keyboard.press('Escape');
   if (dl) { const path = 'f-cal-' + lang + '.ics'; await dl.saveAs(path); console.log(require('fs').readFileSync(path, 'utf8')); }
-  await p.click('.bottom-nav button:nth-child(3)'); await p.waitForTimeout(600);
+  await p.click('.bottom-nav-btn[data-nav-tab="communaute"]'); await p.waitForTimeout(600);
   console.log('community subnav:', await p.$$eval('.subnav-btn', e => e.map(x => x.textContent)));
   console.log('errors', JSON.stringify(errs));
   await b.close();

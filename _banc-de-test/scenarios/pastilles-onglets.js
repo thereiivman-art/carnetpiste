@@ -15,6 +15,6 @@ const { chromium, BASE } = require('../lib');
   await p.click('.bottom-nav-btn:nth-child(1)'); await check('Carnet');
   for (const sel of ['[data-cards-mode="avenir"]', '[data-view="event"]', '[data-cards-mode="passees"]']) { await p.locator(sel + ':visible').first().click().catch(() => {}); await check('Roulages ' + sel.replace(/[^a-zé]+/g, ' ').trim()); }
   for (const v of ['circuit', 'stats', 'moi']) { const l = p.locator('.subnav-btn[data-view="' + v + '"]:visible'); if (await l.count()) { await l.first().click(); await check('Carnet › ' + v); } }
-  await p.click('.bottom-nav-btn:nth-child(3)'); await check('Communauté');
+  await p.click('.bottom-nav-btn[data-nav-tab="communaute"]'); await check('Communauté');
   for (const v of ['social', 'dmbox', 'teams']) { const l = p.locator('.subnav-btn[data-view="' + v + '"]:visible'); if (await l.count()) { await l.first().click(); await check('Communauté › ' + v); } }
   console.log('errs', JSON.stringify(errs)); await b.close(); })();

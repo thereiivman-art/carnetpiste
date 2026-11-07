@@ -4,7 +4,7 @@ const { chromium, BASE } = require('../lib');
 (async () => { const b = await chromium.launch(); const p = await b.newPage({ viewport: { width: 380, height: 800 } });
   const errs = []; p.on('pageerror', e => errs.push(e.message));
   await p.goto(BASE + 'index.html#lang=' + (process.argv[2] || 'fr')); await p.waitForTimeout(1600);
-  await p.click('.bottom-nav-btn:nth-child(3)'); await p.waitForTimeout(400);
+  await p.click('.bottom-nav-btn[data-nav-tab="communaute"]'); await p.waitForTimeout(400);
   await p.click('[data-pill-group="social"][data-pill="fil"]'); await p.waitForTimeout(300);
   console.log('rangée:', await p.$$eval('.story-bubble', e => e.map(x => x.innerText.replace(/\n/g, ' ')).join(' | ')));
   await (await p.$('.stories-row')).screenshot({ path: 'stories-row.png' });

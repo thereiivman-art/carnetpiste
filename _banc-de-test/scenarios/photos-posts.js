@@ -13,7 +13,7 @@ const { chromium, BASE } = require('../lib');
   const mig = await p.evaluate(() => Promise.all([firebase.firestore().collection('wallPosts').doc('oldp').get(), firebase.firestore().collection('postMedia').doc('oldp').get()]).then(([w, m]) => ({ photoDansPost: !!w.data().photoURL, ref: w.data().photoMedia, media: m.exists ? m.data().data.length : 0 })));
   console.log('migration:', JSON.stringify(mig));
   // Nouvelle publication avec photo
-  await p.click('.bottom-nav-btn:nth-child(3)'); await p.waitForTimeout(400);
+  await p.click('.bottom-nav-btn[data-nav-tab="communaute"]'); await p.waitForTimeout(400);
   await p.click('#wall-composer-toggle'); await p.waitForTimeout(300);
   await p.fill('#wall-post-text', 'Photo du jour');
   const img = await p.evaluate(() => { const c = document.createElement('canvas'); c.width = 900; c.height = 600; const x = c.getContext('2d'); const d = x.createImageData(900, 600); for (let i = 0; i < d.data.length; i++) d.data[i] = (i * 40503 >>> 8) & 255; x.putImageData(d, 0, 0); return c.toDataURL('image/png').split(',')[1]; });

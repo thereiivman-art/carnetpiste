@@ -6,7 +6,7 @@ const { chromium, BASE } = require('../lib');
   await p.evaluate(() => { const db = firebase.firestore(); const col = db.collection.bind(db);
     db.collection = (n) => { const c = col(n); if (n !== 'wallPosts') return c; const d0 = c.doc.bind(c); c.doc = (id) => { const d = d0(id); d.set = () => Promise.reject(new Error('réseau coupé')); return d; }; return c; };
     const bt = db.batch.bind(db); db.batch = () => { const x = bt(); x.commit = () => Promise.reject(new Error('réseau coupé')); return x; }; });
-  await p.click('.bottom-nav-btn:nth-child(3)'); await p.waitForTimeout(400);
+  await p.click('.bottom-nav-btn[data-nav-tab="communaute"]'); await p.waitForTimeout(400);
   await p.click('#wall-composer-toggle'); await p.waitForTimeout(300);
   await p.fill('#wall-post-text', 'Test échec');
   await p.click('#wall-post-form button[type="submit"]'); await p.waitForTimeout(800);

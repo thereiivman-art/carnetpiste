@@ -20,7 +20,7 @@ const { chromium, BASE } = require('../lib');
   console.log('post partagé:', JSON.stringify(await p.evaluate(() => Object.values(window.__MOCK_DATA.wallPosts).filter(w => w.notesShare).map(w => [w.notesShare.circuit, w.notesShare.notes.length, (w.photoURL || '').slice(0, 15)]))));
   // Un pote partage les siens : je les copie
   await p.click('[data-tn="close"]'); await p.waitForTimeout(300);
-  await p.click('.bottom-nav-btn:nth-child(3)'); await p.waitForTimeout(300);
+  await p.click('.bottom-nav-btn[data-nav-tab="communaute"]'); await p.waitForTimeout(300);
   await p.click('[data-pill-group="social"][data-pill="fil"]'); await p.waitForTimeout(300);
   await p.evaluate(() => firebase.firestore().collection('wallPosts').doc('ns1').set({ id: 'ns1', author: 'Sam', authorUid: 'u2', audience: 'all', createdAt: Date.now(), text: 'Mes repères à Mugello', photoURL: 'icons/icon-192.png', notesShare: { circuit: 'Mugello', notes: [{ x: 0.2, y: 0.4, turn: '15', brake: '150 m' }, { x: 0.6, y: 0.3, turn: '1' }] } }));
   await p.waitForTimeout(600);

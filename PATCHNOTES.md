@@ -2,6 +2,14 @@
 
 Les nouveautés, de la plus récente à la plus ancienne. Le détail complet est dans l'historique git.
 
+## 7 novembre 2026 · nouvelle navigation
+
+- Barre du bas flottante à 5 onglets : Carnet · Social · Chrono (au centre) · Messages · Profil.
+- En-tête allégé : logo, recherche, notifications.
+- Profil : Ma page, Bilan, Teams ; l'engrenage des réglages et les pneus sont sur ta page.
+- Carnet : Roulages et Circuits.
+- PC : les mêmes 5 entrées dans la barre de gauche.
+
 ## 7 novembre 2026 · posts façon Instagram
 
 - Carnet : les 4 onglets (Roulages, Circuits, Teams, Bilan) de nouveau tous visibles.

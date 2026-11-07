@@ -3,7 +3,7 @@ const { chromium, BASE } = require('../lib');
 (async () => { const b = await chromium.launch(); const errs = [];
   const p = await b.newPage({ viewport: { width: 390, height: 900 } }); p.on('pageerror', e => errs.push(e.message));
   await p.goto(BASE + 'index.html#lang=' + (process.argv[2] || 'fr')); await p.waitForTimeout(1600);
-  await p.click('.bottom-nav-btn:nth-child(3)'); await p.waitForTimeout(400);
+  await p.click('.bottom-nav-btn[data-nav-tab="communaute"]'); await p.waitForTimeout(400);
   await p.click('#wall-composer-toggle'); await p.waitForTimeout(300);
   console.log('choix:', await p.$$eval('#wall-post-audience option', o => o.map(x => x.textContent).join(' / ')));
   await p.fill('#wall-post-text', 'Note perso'); await p.click('.audience-more summary'); await p.selectOption('#wall-post-audience', 'private');

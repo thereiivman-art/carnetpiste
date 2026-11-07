@@ -40,7 +40,7 @@ const EN = /\b(the|and|your|you|with|trackdays?|lap times?|riders?|add|no|of|to|
     await clickAll('.pill-btn', label, 0);
   }
   // profile / settings / notifications panels
-  for (const sel of ['#profile-toggle', '#settings-toggle', '#messages-toggle', '[data-action="open-my-profile"]']) {
+  for (const sel of ['.bottom-nav-btn[data-nav-tab="profil"]', '.bottom-nav-btn[data-nav-tab="profil"]', '.bottom-nav-btn[data-nav-tab="messages"]', '[data-action="open-my-profile"]']) {
     const el = await p.$(sel); if (!el) continue;
     try { await el.click(); await p.waitForTimeout(500); await harvest(sel); await clickAll('.pill-btn', sel, 0); } catch (e) {}
     await p.keyboard.press('Escape').catch(() => {});

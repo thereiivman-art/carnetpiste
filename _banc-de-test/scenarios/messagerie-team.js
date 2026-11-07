@@ -8,7 +8,7 @@ const { chromium, BASE } = require('../lib');
   const errs = []; p.on('pageerror', e => errs.push(e.message));
   await p.goto(BASE + 'index.html#lang=' + (process.argv[2] || 'fr')); await p.waitForTimeout(1600);
   const me = await p.evaluate(() => firebase.auth().currentUser.uid);
-  await p.click('.bottom-nav-btn:nth-child(3)'); await p.waitForTimeout(400);
+  await p.click('.bottom-nav-btn[data-nav-tab="communaute"]'); await p.waitForTimeout(400);
   await p.click('[data-pill-group="social"][data-pill="messages"]'); await p.waitForTimeout(300);
   await p.click('[data-action="dm-new"]'); await p.waitForTimeout(300);
   console.log('nouveau message, teams:', await p.$$eval('[data-dm-pick^="team:"]', e => e.map(x => x.innerText.replace(/\n/g, ' ')).join(', ')));

@@ -9,10 +9,10 @@ const { chromium, BASE } = require('../lib');
   const p = await ctx.newPage();
   const errs = []; p.on('pageerror', e => errs.push(e.message));
   await p.goto(BASE + 'index.html#lang=' + lang); await p.waitForTimeout(1700);
-  await p.click('.bottom-nav-btn:nth-child(3)'); await p.waitForTimeout(400);
+  await p.click('.bottom-nav-btn[data-nav-tab="communaute"]'); await p.waitForTimeout(400);
   await p.click('[data-pill-group="social"][data-pill="fil"]'); await p.waitForTimeout(300);
   // Profil › Bientôt en piste → le roulage, puis retour
-  await p.click('#profile-toggle'); await p.waitForTimeout(400);
+  await p.click('.bottom-nav-btn[data-nav-tab="profil"]'); await p.waitForTimeout(400);
   await p.click('[data-pill-group="person"][data-pill="bientot"]'); await p.waitForTimeout(300);
   await p.click('.feed-upcoming-open >> nth=1'); await p.waitForTimeout(600);
   console.log('bientôt → roulage:', !!(await p.$('.outing-group-card')));

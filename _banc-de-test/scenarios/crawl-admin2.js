@@ -5,7 +5,7 @@ const fs = require('fs');
   const p = await b.newPage({ viewport: { width: 420, height: 2400 } });
   p.on('dialog', d => d.dismiss().catch(() => {}));
   await p.goto(BASE + 'index.html#lang=en&admin=1'); await p.waitForTimeout(1600);
-  await p.click('#settings-toggle'); await p.waitForTimeout(500);
+  await p.click('.bottom-nav-btn[data-nav-tab="profil"]').then(() => p.waitForTimeout(300)).then(() => p.click('#settings-toggle')); await p.waitForTimeout(500);
   await p.getByText('Help', { exact: true }).first().click(); await p.waitForTimeout(500); await p.click('[data-pill-group="aide"][data-pill="admin"]');
   await p.waitForTimeout(800);
   // open every <details>

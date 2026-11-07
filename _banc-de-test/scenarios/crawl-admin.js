@@ -23,7 +23,7 @@ const FR = /[éèêàùçôîâœ]|\b(le|la|les|des|du|et|pour|avec|ton|ta|tes|v
     const n = await p.$$eval(sel, e => e.length);
     for (let i = 0; i < n && i < 60; i++) { const els = await p.$$(sel); if (!els[i]) continue; try { await els[i].click({ timeout: 800 }); await p.waitForTimeout(250); await harvest(where); } catch (e) {} }
   }
-  const tabs = ['.bottom-nav button:nth-child(1)', '.bottom-nav button:nth-child(2)', '.bottom-nav button:nth-child(3)', '#settings-toggle', '#profile-toggle', '#messages-toggle'];
+  const tabs = ['.bottom-nav button:nth-child(1)', '.bottom-nav-btn.bottom-nav-main', '.bottom-nav-btn[data-nav-tab="communaute"]', '#settings-toggle', '.bottom-nav-btn[data-nav-tab="profil"]', '.bottom-nav-btn[data-nav-tab="messages"]'];
   for (const t of tabs) {
     await home(); const el = await p.$(t); if (!el) continue; try { await el.click(); await p.waitForTimeout(600); } catch (e) {}
     await harvest(t); await sweep(t);
@@ -31,7 +31,7 @@ const FR = /[éèêàùçôîâœ]|\b(le|la|les|des|du|et|pour|avec|ton|ta|tes|v
     await sweep(t);
   }
   // account manager explicitly
-  await home(); try { await p.click('#settings-toggle'); await p.waitForTimeout(500); await p.getByText('Account').first().click(); await p.waitForTimeout(400); await p.click('#account-manager-toggle'); await p.waitForTimeout(800); await harvest('account manager'); await sweep('account manager'); } catch (e) { console.log('acct', e.message.slice(0, 80)); }
+  await home(); try { await p.click('.bottom-nav-btn[data-nav-tab="profil"]').then(() => p.waitForTimeout(300)).then(() => p.click('#settings-toggle')); await p.waitForTimeout(500); await p.getByText('Account').first().click(); await p.waitForTimeout(400); await p.click('#account-manager-toggle'); await p.waitForTimeout(800); await harvest('account manager'); await sweep('account manager'); } catch (e) { console.log('acct', e.message.slice(0, 80)); }
   const res = [];
   for (const [t, w] of seen) { const txt = t.replace(/^@[a-z-]+: /, ''); if (FR.test(txt)) res.push(w + '  ||  ' + t); }
   fs.writeFileSync('found-admin.txt', res.join('\n'));

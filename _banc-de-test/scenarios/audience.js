@@ -9,7 +9,7 @@ const { chromium, BASE } = require('../lib');
   const errs = []; p.on('pageerror', e => errs.push(e.message));
   await p.goto(BASE + 'index.html#lang=' + lang); await p.waitForTimeout(1600);
   // Vue réelle : défiler le fil suffit à compter les vues des posts des autres
-  await p.click('.bottom-nav-btn:nth-child(3)'); await p.waitForTimeout(400);
+  await p.click('.bottom-nav-btn[data-nav-tab="communaute"]'); await p.waitForTimeout(400);
   await p.click('[data-pill-group="social"][data-pill="fil"]'); await p.waitForTimeout(400);
   for (const y of [500, 900, 1300]) { await p.evaluate(y => window.scrollTo(0, y), y); await p.waitForTimeout(1500); }
   console.log('vues envoyées:', JSON.stringify(await p.evaluate(() => Object.values(window.__MOCK_DATA.postViews || {}).map(v => [v.owner, v.viewer, v.postId.slice(0, 24)]))));
@@ -24,7 +24,7 @@ const { chromium, BASE } = require('../lib');
     await db.collection('profileViews').doc('x3').set({ postId: 'profile:Alex', owner: 'Alex', viewer: 'Luca', day });
   });
   await p.waitForTimeout(300);
-  await p.click('#settings-toggle'); await p.waitForTimeout(400);
+  await p.click('.bottom-nav-btn[data-nav-tab="profil"]').then(() => p.waitForTimeout(300)).then(() => p.click('#settings-toggle')); await p.waitForTimeout(400);
   console.log('engrenage:', await p.$eval('.section-heading-title', e => e.innerText).catch(() => '?'), '|', await p.$$eval('[data-profile-tab]', e => e.map(x => x.innerText).join(' / ')));
   await p.click('[data-settings-go="@audience"]'); await p.waitForTimeout(500);
   console.log('audience:', await p.$$eval('.aud-tile', e => e.map(x => x.innerText.replace(/\n/g, ' ')).join(' | ')));

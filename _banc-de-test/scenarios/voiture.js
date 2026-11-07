@@ -11,7 +11,7 @@ const { chromium, BASE } = require('../lib');
   const errs = []; p.on('pageerror', e => errs.push(e.message));
   await p.goto(BASE + 'index.html#lang=' + lang); await p.waitForTimeout(1600);
   const sessionsSeen = () => p.evaluate(() => new Promise(r => setTimeout(() => r(document.getElementById('root').innerText.indexOf('Sam') !== -1), 50)));
-  await p.click('#settings-toggle'); await p.waitForTimeout(400);
+  await p.click('.bottom-nav-btn[data-nav-tab="profil"]').then(() => p.waitForTimeout(300)).then(() => p.click('#settings-toggle')); await p.waitForTimeout(400);
   await p.click('[data-settings-go="@compte"]').catch(() => {}); await p.waitForTimeout(300);
   await p.click('[data-cpill-group="profil"][data-cpill="role"]').catch(() => {}); await p.waitForTimeout(300);
   console.log('choix:', await p.$$eval('[data-action="set-discipline"]', e => e.map(x => x.innerText + (x.classList.contains('active') ? '✓' : '')).join(' / ')));
@@ -30,7 +30,7 @@ const { chromium, BASE } = require('../lib');
   // Classements : chronos d'autres pilotes moto exclus
   const counts = await p.evaluate(() => new Promise(r => firebase.firestore().collection('sessions').get().then(s => r(s.docs.length))));
   console.log('chronos en base:', counts);
-  await p.click('.subnav-btn[data-view="stats"]').catch(() => {}); await p.waitForTimeout(500);
+  await p.click('.bottom-nav-btn[data-nav-tab="profil"]').then(() => p.waitForTimeout(300)).then(() => p.click('.subnav-btn[data-view="stats"]')).catch(() => {}); await p.waitForTimeout(500);
   console.log('Sam dans les stats/classements:', await sessionsSeen());
   // Nouveau chrono : marqué voiture
   await p.click('.bottom-nav-main'); await p.waitForTimeout(500);
@@ -42,7 +42,7 @@ const { chromium, BASE } = require('../lib');
     console.log('nouveau chrono:', await p.evaluate(() => firebase.firestore().collection('sessions').get().then(s => { const x = s.docs.map(d => d.data()).filter(d => d.laps && d.laps.indexOf(100.5) !== -1)[0]; return x ? (x.discipline || 'moto') : 'absent'; })));
   }
   // Retour en moto
-  await p.click('#settings-toggle'); await p.waitForTimeout(400);
+  await p.click('.bottom-nav-btn[data-nav-tab="profil"]').then(() => p.waitForTimeout(300)).then(() => p.click('#settings-toggle')); await p.waitForTimeout(400);
   await p.click('[data-settings-go="@compte"]').catch(() => {}); await p.waitForTimeout(300);
   await p.click('[data-cpill-group="profil"][data-cpill="role"]').catch(() => {}); await p.waitForTimeout(300);
   await p.click('[data-action="set-discipline"][data-discipline="moto"]'); await p.waitForTimeout(600);

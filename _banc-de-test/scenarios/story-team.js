@@ -15,7 +15,7 @@ const { chromium, BASE } = require('../lib');
     ]);
   });
   await p.waitForTimeout(500);
-  await p.click('.bottom-nav-btn:nth-child(3)'); await p.waitForTimeout(400);
+  await p.click('.bottom-nav-btn[data-nav-tab="communaute"]'); await p.waitForTimeout(400);
   await p.click('[data-pill-group="social"][data-pill="fil"]'); await p.waitForTimeout(300);
   console.log('rangée:', await p.$$eval('.story-bubble', e => e.map(x => x.innerText.replace(/\n/g, ' ') + (x.classList.contains('team-story') ? '[team]' : '')).join(' | ')));
   await p.setInputFiles('#story-input', require('path').join(__dirname, '../../icons/icon-512.png')); await p.waitForTimeout(1200);

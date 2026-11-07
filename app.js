@@ -52,7 +52,7 @@
   // not-yet-translated EN key never renders blank.
   var TRANSLATIONS = {
     fr: {
-      nav_carnet: 'Carnet', nav_chrono: 'Chrono', nav_sorties: 'Roulages', nav_communaute: 'Communauté', nav_events: 'Roulages', nav_chronos: 'Circuits', nav_planning: 'EN PISTE', nav_social: 'Social', nav_team: 'Team',
+      nav_carnet: 'Carnet', nav_messages: 'Messages', nav_profil: 'Profil', nav_chrono: 'Chrono', nav_sorties: 'Roulages', nav_communaute: 'Communauté', nav_events: 'Roulages', nav_chronos: 'Circuits', nav_planning: 'EN PISTE', nav_social: 'Social', nav_team: 'Team',
       coach_label: 'Coach', stats_label: 'Stats', notifications_label: 'Notifications', my_profile_label: 'Mon compte',
       profile_theme: 'Thème', profile_theme_light: 'clair', profile_theme_dark: 'sombre', profile_theme_system: 'système',
       profile_lang: 'Langue', save: 'Enregistrer', cancel: 'Annuler',
@@ -448,7 +448,7 @@
       save_unavailable_banner: 'Sauvegarde indisponible dans cette vue : tes modifications ne seront pas conservées.'
     },
     en: {
-      nav_carnet: 'Pitbook', nav_chrono: 'Lap times', nav_sorties: 'Trackdays', nav_communaute: 'Community', nav_events: 'Trackdays', nav_chronos: 'Tracks', nav_planning: 'ON TRACK', nav_social: 'Social', nav_team: 'Team',
+      nav_carnet: 'Pitbook', nav_messages: 'Messages', nav_profil: 'Profile', nav_chrono: 'Lap times', nav_sorties: 'Trackdays', nav_communaute: 'Community', nav_events: 'Trackdays', nav_chronos: 'Tracks', nav_planning: 'ON TRACK', nav_social: 'Social', nav_team: 'Team',
       coach_label: 'Coach', stats_label: 'Stats', notifications_label: 'Notifications', my_profile_label: 'My account',
       profile_theme: 'Theme', profile_theme_light: 'light', profile_theme_dark: 'dark', profile_theme_system: 'system',
       profile_lang: 'Language', save: 'Save', cancel: 'Cancel',
@@ -16033,12 +16033,18 @@
     carnet: '<rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 8h6M9 12h6M9 16h3"/>',
     sorties: '<path d="M5 21V4M5 4h12l-2 4 2 4H5"/>',
     chrono: '<circle cx="12" cy="13" r="8"/><path d="M12 9v4l3 2M9 2h6M12 2v3"/>',
-    communaute: '<circle cx="9" cy="8" r="3"/><circle cx="17" cy="9" r="2.5"/><path d="M3 20c0-3 3-5 6-5s6 2 6 5M15 15c3 0 6 1.5 6 4.5"/>'
+    communaute: '<circle cx="9" cy="8" r="3"/><circle cx="17" cy="9" r="2.5"/><path d="M3 20c0-3 3-5 6-5s6 2 6 5M15 15c3 0 6 1.5 6 4.5"/>',
+    messages: '<path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 9 9 0 0 1-4-.9L3 20l1.1-4A8.4 8.4 0 0 1 3 11.5 8.5 8.5 0 0 1 12 3a8.5 8.5 0 0 1 9 8.5z"/>',
+    profil: '<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>'
   };
+  // 5 onglets (maquette C) : Carnet · Social · Chrono (au centre) · Messages · Profil.
+  var NAV_ICO = function (k, size) { return '<svg width="' + (size || 22) + '" height="' + (size || 22) + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="' + (k === 'chrono' ? 2.2 : 2) + '" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + NAV_SVG[k] + '</svg>'; };
   var MAIN_TABS = [
-    ['carnet', 'nav_carnet', '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + NAV_SVG.carnet + '</svg>'],
-    ['chrono', 'nav_chrono', '<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + NAV_SVG.chrono + '</svg>'],
-    ['communaute', 'nav_communaute', '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + NAV_SVG.communaute + '</svg>']
+    ['carnet', 'nav_carnet', NAV_ICO('carnet')],
+    ['communaute', 'nav_social', NAV_ICO('communaute')],
+    ['chrono', 'nav_chrono', NAV_ICO('chrono', 26)],
+    ['messages', 'nav_messages', NAV_ICO('messages')],
+    ['profil', 'nav_profil', NAV_ICO('profil')]
   ];
   // 3 onglets ; chacun regroupe plusieurs vues existantes (sous-onglets).
   // Le dernier sous-onglet ouvert dans chaque onglet est mémorisé pour y
@@ -16046,19 +16052,23 @@
   function navTabFor(view) {
     if (view === 'outing' && outingView && outingView.from) return navTabFor(outingView.from);
     if (view === 'person') return personView && personView.from && personView.from !== 'person' ? navTabFor(personView.from) : 'communaute';
+    // Profil : ma fiche, Bilan, Teams ; Messages : la messagerie.
+    if (view === 'social' && pillState.social === 'profil') return 'profil';
+    if (view === 'social' && pillState.social === 'messages') return 'messages';
+    if (view === 'stats' || view === 'budget' || view === 'garage') return 'profil';
     // Chrono : l'écran du jour (et la prépa du prochain roulage) ; le
     // calendrier vit dans Carnet › Roulages.
     if (view === 'chrono' || view === 'planning') return 'chrono';
     if (view === 'event') return 'carnet';
-    if (view === 'team' || view === 'coach') return 'carnet';
+    if (view === 'team' || view === 'coach') return 'profil';
     if (view === 'social') return 'communaute';
     return 'carnet';
   }
-  var lastSubView = { carnet: 'carnet', chrono: 'chrono', communaute: 'social' };
+  var lastSubView = { carnet: 'carnet', chrono: 'chrono', communaute: 'social', messages: 'social', profil: 'social' };
   // (la page d'une sortie est rattachée à l'onglet Carnet mais n'est pas
   // mémorisée comme sous-onglet : revenir à Carnet ramène à la liste)
   function renderSectionHeading(tab) {
-    var label = { carnet: tr('nav_carnet'), chrono: tr('nav_chrono'), communaute: tr('nav_communaute') }[tab] || '';
+    var label = { carnet: tr('nav_carnet'), chrono: tr('nav_chrono'), communaute: tr('nav_communaute'), messages: tr('nav_messages'), profil: tr('nav_profil') }[tab] || '';
     return '<div class="section-heading"><span class="section-heading-kerb" aria-hidden="true"></span><h1 class="section-heading-title">' + escapeHtml(label) + '</h1></div>';
   }
   function myProfileNavPills() {
@@ -16123,9 +16133,8 @@
   function isDesktopNav() { return !!(window.matchMedia && window.matchMedia('(min-width: 960px)').matches); }
   function carnetSubItems() {
     // 3 onglets : Roulages, Circuits, Bilan (perfs, garage, budget).
+    // Carnet : Roulages et Circuits ; Bilan et Teams sont dans Profil.
     var items = [['carnet', L('Roulages', 'Trackdays')], ['circuit', 'Circuits']];
-    if (communauteSubItems().some(function (it) { return it[0] === 'team'; })) items.push(['team', 'Teams']);
-    items.push(['stats', L('Bilan', 'Progress')]);
     if (currentUserProfile && currentUserProfile.role === 'organisateur') items.unshift(['orgaev', L('Événements', 'Events')]);
     return items;
     // Organisateur : ses événements en premier.
@@ -16136,6 +16145,20 @@
     if (isDesktopNav()) items.push(['budget', 'Budget']);
     if (canAccessCoachSpace() && (isAdmin() || featureEnabled('teamsCoaching') || (STATE.myTeamMemberships || []).length > 0)) items.push(['coach', 'Coaching']);
     return items;
+  }
+  // Profil : ma fiche, Bilan, Teams.
+  function profilSubItems() {
+    var items = [['fiche', L('Ma page', 'My page')], ['stats', L('Bilan', 'Progress')]];
+    if (communauteSubItems().some(function (it) { return it[0] === 'team'; })) items.push(['team', 'Teams']);
+    return items;
+  }
+  function renderProfilSubNav() {
+    var items = profilSubItems();
+    return '<div class="subnav main-subnav" role="tablist">' + items.map(function (it) {
+      var on = it[0] === 'fiche' ? (activeView === 'social' && pillState.social === 'profil') : (activeView === it[0] || (it[0] === 'team' && activeView === 'coach'));
+      var attrs = it[0] === 'fiche' ? 'data-view="social" data-pill-group="social" data-pill="profil"' : 'data-view="' + it[0] + '"';
+      return '<button type="button" role="tab" class="subnav-btn' + (on ? ' active' : '') + '" ' + attrs + '>' + it[1] + '</button>';
+    }).join('') + '</div>';
   }
   function renderSubNav(items) {
     if (items.length < 2) return '';
@@ -16305,16 +16328,17 @@
     var html = '<button type="button" class="nav-brand keep-words" data-action="brand-home" aria-label="' + escapeHtml(L('Accueil : Social', 'Home: Social')) + '"><img src="icons/favicon-32.png" alt="" width="26" height="26"><span>' + L('Pitbook', 'Pitbook') + '</span></button><nav class="bottom-nav">';
     var visibleTabs = MAIN_TABS;
     // Profile and notifications aren't one of the 3 tabs: none lit up then.
-    var current = (profilePanelOpen || notificationsPanelOpen || (activeView === 'social' && pillState.social === 'messages')) ? null : navTabFor(activeView);
+    var current = notificationsPanelOpen ? null : (profilePanelOpen ? 'profil' : navTabFor(activeView));
     // PC : Communauté ouvre le Fil ; les sous-menus (Roulages, Circuits…,
     // Profil, Fil, Teams) sont rangés sous leur menu dans la barre de
     // gauche. Ajoutés après les 3 boutons (ordre visuel par « order »)
     // pour ne pas changer la position des boutons dans la barre.
     var desk = window.matchMedia && window.matchMedia('(min-width: 960px)').matches;
     visibleTabs.forEach(function (tab, i) {
-      var toFil = desk && tab[0] === 'communaute';
-      html += '<button type="button" class="bottom-nav-btn' + (tab[0] === 'chrono' ? ' bottom-nav-main' : '') + (current === tab[0] ? ' active' : '') + '" style="order:' + (i * 2) + '" data-view="' + (toFil || tab[0] === 'communaute' ? 'social' : (lastSubView[tab[0]] || tab[0])) + '"' + (tab[0] === 'communaute' ? ' data-pill-group="social" data-pill="fil"' : '') + (toFil ? ' data-pill-group="social" data-pill="fil"' : '') + '>' +
-        '<span class="bottom-nav-icon">' + tab[2] + '' + '</span><span class="bottom-nav-label">' + (tab[0] === 'chrono' && currentUserProfile && meIsNonRider() ? L('Chrono d\'ami', 'Friend lap') : tr(tab[1])) + '</span></button>';
+      var toFil = false, socPill = { communaute: 'fil', messages: 'messages', profil: 'profil' }[tab[0]];
+      var nDmTab = tab[0] === 'messages' && currentUserProfile ? unreadDmCount() : 0;
+      html += '<button type="button" class="bottom-nav-btn' + (tab[0] === 'chrono' ? ' bottom-nav-main' : '') + (current === tab[0] ? ' active' : '') + '" style="order:' + (i * 2) + '" data-view="' + (socPill ? 'social' : (lastSubView[tab[0]] || tab[0])) + '"' + (socPill ? ' data-pill-group="social" data-pill="' + socPill + '" data-nav-tab="' + tab[0] + '"' : '') + (toFil ? ' data-pill-group="social" data-pill="fil"' : '') + '>' +
+        '<span class="bottom-nav-icon">' + tab[2] + (nDmTab ? '<span class="nav-dm-badge">' + (nDmTab > 9 ? '9+' : nDmTab) + '</span>' : '') + '</span><span class="bottom-nav-label">' + (tab[0] === 'chrono' && currentUserProfile && meIsNonRider() ? L('Chrono d\'ami', 'Friend lap') : tr(tab[1])) + '</span></button>';
     });
     if (desk && currentUserProfile) {
       var sub = function (order, items) {
@@ -16335,6 +16359,15 @@
           if (on && it[0] !== 'carnet') carnetNav = carnetNav.concat(navPillEntries(it[0] === 'stats' ? 'moi' : it[0], 3));
         });
         html += sub(1, carnetNav);
+      }
+      if (current === 'profil') {
+        var profNav = [];
+        profilSubItems().forEach(function (it) {
+          var on = !onPanel && (it[0] === 'fiche' ? (activeView === 'social' && pillState.social === 'profil') : (activeView === it[0] || (it[0] === 'team' && activeView === 'coach')));
+          profNav.push([it[1], it[0] === 'fiche' ? 'data-view="social" data-pill-group="social" data-pill="profil"' : 'data-view="' + it[0] + '"', on]);
+          if (on && it[0] === 'stats') profNav = profNav.concat(navPillEntries('moi', 3));
+        });
+        html += sub(9, profNav);
       }
       if (current === 'communaute' && false) {
         var me = currentUserProfile, nIn = incomingFriendRequests(me.name).length;
@@ -20323,8 +20356,9 @@
     if (isPilote && u.bike) sub.push(escapeHtml(u.bike) + (u.bikeNumber ? ' <span class="ph-num">#' + escapeHtml(u.bikeNumber) + '</span>' : ''));
     // Actions
     var acts = '';
-    if (isMe) acts += myDraft ? '' : '<button type="button" class="primary" data-action="look-edit">' + L('Modifier', 'Edit') + '</button>' +
-      '<button type="button" class="ghost" data-action="open-my-profile">' + L('Mon compte', 'My account') + '</button>';
+    // Ma fiche : Modifier, mes pneus, et l'engrenage des réglages (à la place de « Mon compte »).
+    if (isMe) acts += myDraft ? '' : '<button type="button" class="primary" data-action="look-edit">' + L('Modifier', 'Edit') + '</button>' + pneusChipHtml('profile-pneus') +
+      '<button type="button" class="team-icon-btn person-gear" id="settings-toggle" aria-label="' + escapeHtml(L('Réglages', 'Settings')) + '" title="' + escapeHtml(L('Réglages', 'Settings')) + '"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>';
     if (!isMe) acts += followBtnHtml(name);
     if (!isMe && canMessage(name)) acts += '<button type="button" class="ghost" data-action="dm-open" data-name="' + escapeHtml(name) + '">' + L('Message', 'Message') + '</button>';
     // Coach : accès direct à l'espace Coaching depuis sa fiche.
@@ -25472,12 +25506,12 @@
         var backHere = circuitFromLink && prevNav && ['carnet', 'circuit', 'stats', 'budget', 'visites', 'garage', 'orgaev', 'coach', 'event', 'team'].indexOf(prevNav.view) === -1;
         body = (backHere ? '<button type="button" class="link-btn back-link nav-back-btn">‹ ' + L('Retour', 'Back') + '</button>' : '') + carnetSub + renderCircuitTab();
       }
-      else if (activeView === 'stats') body = carnetSub + renderMoiTab();
+      else if (activeView === 'stats') body = renderProfilSubNav() + renderMoiTab();
       else if (activeView === 'chrono') body = renderChronoTab();
       else if (activeView === 'planning') body = '<button type="button" class="link-btn back-link" data-view="chrono">‹ ' + L('Chrono', 'Lap times') + '</button>' + renderTimesheetReminder() + renderPlanningTab();
-      else if (activeView === 'social') body = renderCommunauteNav() + renderSocialTab();
-      else if (activeView === 'team') body = carnetSub + renderTeamTab();
-      else if (activeView === 'coach') body = carnetSub + '<button type="button" class="link-btn back-link" data-view="team">‹ Teams</button>' + renderCoachTab();
+      else if (activeView === 'social') body = (pillState.social === 'profil' ? renderProfilSubNav() : '') + renderSocialTab();
+      else if (activeView === 'team') body = renderProfilSubNav() + renderTeamTab();
+      else if (activeView === 'coach') body = renderProfilSubNav() + '<button type="button" class="link-btn back-link" data-view="team">‹ Teams</button>' + renderCoachTab();
       else if (activeView === 'visites') { activeView = 'circuit'; pillState.circuit = 'visites'; body = carnetSub + renderCircuitTab(); }
       else if (activeView === 'orgaev') body = carnetSub + renderOrgaEvents();
       else body = carnetSub + carnetPillsHtml(myOutings()) + renderEventTab(); // 'event' (Carnet › Roulages › Calendrier) and safety fallback
@@ -25488,16 +25522,10 @@
       '<header class="page-head">' +
         '<div class="page-head-inner">' +
           '<div class="page-head-row">' +
-            '<button type="button" class="header-hello" id="profile-toggle" aria-label="' + L('Ma fiche', 'My page') + '" title="' + L('Ma fiche', 'My page') + '">' + avatarHtml(currentUserProfile, currentUserProfile.name) +
-              '<span class="hello-text"><span class="hello-small">Bonjour</span><span class="hello-name">' + escapeHtml(currentUserProfile.firstName || currentUserProfile.name || '') + '</span></span></button>' +
-            '<div class="header-controls">' + pneusChipHtml('header-pneus') +
+            // En-tête allégé (maquette C) : logo, recherche, cloche. Ma fiche, les réglages et les messages sont dans la barre du bas.
+            '<button type="button" class="header-logo" data-action="brand-home" aria-label="' + escapeHtml(L('Accueil', 'Home')) + '"><img src="icons/favicon-32.png" alt="" width="28" height="28"><span>Pitbook</span></button>' +
+            '<div class="header-controls">' +
               (gsearchInline.open && isDesktopNav() ? renderSearchInline() : '<button type="button" class="header-icon-btn" id="search-toggle" aria-label="' + escapeHtml(L('Rechercher', 'Search')) + '" title="' + escapeHtml(L('Rechercher', 'Search')) + '"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg></button>') +
-              '<button type="button" class="header-icon-btn' + (profilePanelOpen ? ' is-open' : '') + '" id="settings-toggle" aria-label="Mon compte" title="Mon compte">' +
-                '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>' +
-              // Messages (et les notifications, rangées dedans) à la place de la cloche.
-              '<button type="button" class="header-icon-btn' + (activeView === 'social' && pillState.social === 'messages' && !profilePanelOpen ? ' is-open' : '') + '" id="messages-toggle" aria-label="' + escapeHtml(L('Messages', 'Messages')) + '" title="' + escapeHtml(L('Messages', 'Messages')) + '"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 9 9 0 0 1-4-.9L3 20l1.1-4A8.4 8.4 0 0 1 3 11.5 8.5 8.5 0 0 1 12 3a8.5 8.5 0 0 1 9 8.5z"/></svg>' +
-                (unreadDmCount() ? '<span class="notif-count">' + (unreadDmCount() > 9 ? '9+' : unreadDmCount()) + '</span>' : '') +
-              '</button>' +
               '<button type="button" class="header-icon-btn' + (notificationsPanelOpen ? ' is-open' : '') + '" id="notifications-toggle" aria-label="' + tr('notifications_label') + '" title="' + tr('notifications_label') + '"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>' +
                 (notifCount ? '<span class="notif-count">' + (notifCount > 9 ? '9+' : notifCount) + '</span>' : '') +
               '</button>' +

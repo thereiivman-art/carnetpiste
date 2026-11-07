@@ -4,7 +4,7 @@ const { chromium, BASE } = require('../lib');
 (async () => { const b = await chromium.launch(); const errs = [];
   const p = await b.newPage({ viewport: { width: 390, height: 480 } }); p.on('pageerror', e => errs.push(e.message));
   await p.goto(BASE + 'index.html#lang=' + (process.argv[2] || 'fr')); await p.waitForTimeout(1600);
-  await p.click('.bottom-nav-btn:nth-child(3)'); await p.waitForTimeout(400);
+  await p.click('.bottom-nav-btn[data-nav-tab="communaute"]'); await p.waitForTimeout(400);
   const img = await p.evaluate(() => { const c = document.createElement('canvas'); c.width = 1200; c.height = 800; const x = c.getContext('2d'); x.fillStyle = '#2a6'; x.fillRect(0, 0, 1200, 800); x.fillStyle = '#c22'; x.fillRect(500, 300, 200, 200); return c.toDataURL('image/png').split(',')[1]; });
   await p.setInputFiles('#story-input', { name: 'p.png', mimeType: 'image/png', buffer: Buffer.from(img, 'base64') }); await p.waitForTimeout(1200);
   await p.click('.story-text-input'); await p.keyboard.type('Top !Jer'); await p.waitForTimeout(300);

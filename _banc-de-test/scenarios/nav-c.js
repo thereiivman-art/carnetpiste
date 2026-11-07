@@ -1,0 +1,32 @@
+// Navigation maquette C : 5 onglets en bas, en-tête logo/recherche/cloche, Profil (Fiche, Bilan, Teams) avec engrenage.
+const { chromium, BASE } = require('../lib');
+(async () => {
+  const lang = process.argv[2] || 'fr';
+  const b = await chromium.launch(); const errs = [];
+  const p = await b.newPage({ viewport: { width: 380, height: 800 } }); p.on('pageerror', e => errs.push(e.message));
+  await p.goto(BASE + 'index.html#lang=' + lang); await p.waitForTimeout(1600);
+  console.log('barre:', await p.$$eval('.bottom-nav-btn', e => e.map(x => x.innerText.trim()).join(' | ')));
+  console.log('en-tête:', await p.$$eval('.header-controls .header-icon-btn, .header-logo', e => e.map(x => x.id || x.className).join(',')));
+  await p.click('.bottom-nav-btn:nth-child(1)'); await p.waitForTimeout(300);
+  console.log('carnet:', await p.$$eval('.main-subnav .subnav-btn', e => e.map(x => x.innerText).join(' / ')));
+  await p.screenshot({ path: 'nav-c-carnet-' + lang + '.png' });
+  await p.click('.bottom-nav-btn[data-nav-tab="profil"]'); await p.waitForTimeout(500);
+  console.log('profil:', await p.$$eval('.main-subnav .subnav-btn', e => e.map(x => x.innerText + (x.classList.contains('active') ? '*' : '')).join(' / ')), '| actif:', await p.$eval('.bottom-nav-btn.active', e => e.innerText.trim()), '| engrenage:', !!(await p.$('#settings-toggle')));
+  await p.screenshot({ path: 'nav-c-profil-' + lang + '.png' });
+  await p.click('.bottom-nav-btn[data-nav-tab="profil"]').then(() => p.waitForTimeout(300)).then(() => p.click('.subnav-btn[data-view="stats"]')); await p.waitForTimeout(400);
+  console.log('bilan actif:', await p.$eval('.bottom-nav-btn.active', e => e.innerText.trim()));
+  await p.click('.bottom-nav-btn[data-nav-tab="profil"]'); await p.waitForTimeout(400);
+  await p.click('.bottom-nav-btn[data-nav-tab="profil"]').then(() => p.waitForTimeout(300)).then(() => p.click('#settings-toggle')); await p.waitForTimeout(400);
+  console.log('réglages ouverts:', !!(await p.$('.settings-ig')));
+  await p.click('.bottom-nav-btn[data-nav-tab="messages"]'); await p.waitForTimeout(400);
+  console.log('messages:', await p.$eval('.bottom-nav-btn.active', e => e.innerText.trim()), '| liste:', !!(await p.$('.dm-convs')));
+  await p.click('.bottom-nav-btn[data-nav-tab="communaute"]'); await p.waitForTimeout(400);
+  console.log('social:', await p.$eval('.bottom-nav-btn.active', e => e.innerText.trim()), '| composer:', !!(await p.$('#root .stories-row, #root [class*="composer"]')));
+  const pc = await b.newPage({ viewport: { width: 1300, height: 860 } }); pc.on('pageerror', e => errs.push(e.message));
+  await pc.goto(BASE + 'index.html#lang=' + lang); await pc.waitForTimeout(1600);
+  await pc.click('.bottom-nav-btn[data-nav-tab="profil"]'); await pc.waitForTimeout(500);
+  await pc.screenshot({ path: 'nav-c-pc-' + lang + '.png' });
+  console.log('pc gauche:', await pc.$$eval('.bottom-nav > *', e => e.map(x => x.innerText.trim().replace(/\n/g, '/')).filter(Boolean).join(' | ')));
+  console.log('errs', JSON.stringify(errs)); await b.close();
+  if (errs.length) process.exit(1);
+})();

@@ -21,7 +21,7 @@ const { chromium, BASE } = require('../lib');
   console.log('page roulage:', (await p.$eval('#app, body', e => e.innerText)).split('\n').slice(0, 14).join(' | ').slice(0, 300));
   await p.screenshot({ path: 'acc-roulage-' + lang + '.png', fullPage: true });
   await p.click('.bottom-nav-btn[data-view^="carnet"]'); await p.waitForTimeout(300);
-  await p.click('.subnav-btn[data-view="stats"]'); await p.waitForTimeout(400);
+  await p.click('.bottom-nav-btn[data-nav-tab="profil"]').then(() => p.waitForTimeout(300)).then(() => p.click('.subnav-btn[data-view="stats"]')); await p.waitForTimeout(400);
   console.log('stats pills:', await p.$$eval('[data-pill-group="stats"]', e => e.map(x => x.textContent).join(' / ')));
   await p.click('[data-moi-jump="podium"]', { timeout: 1500 }).catch(() => {}); await p.waitForTimeout(400); await p.click('[data-podium-scope="potes"]', { timeout: 1500 }).catch(() => {}); await p.waitForTimeout(300);
   console.log('podiums:', await p.$$eval('.podium-circuit', e => e.map(x => x.innerText).join(', ')));

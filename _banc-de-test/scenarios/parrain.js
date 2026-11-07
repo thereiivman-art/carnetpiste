@@ -8,7 +8,7 @@ const { chromium, BASE } = require('../lib');
   const sam = () => p.evaluate(() => Object.values(window.__MOCK_DATA.users).filter(u => u.name === 'Sam').map(u => u.referredBy === undefined ? '(aucun)' : u.referredBy)[0]);
   const toast = async () => { const t = await p.$$eval('.toast', e => e.map(x => x.innerText)); return t[t.length - 1]; };
   await p.goto(BASE + 'index.html#lang=' + lang + '&admin=1'); await p.waitForTimeout(1600);
-  await p.click('#settings-toggle'); await p.waitForTimeout(400);
+  await p.click('.bottom-nav-btn[data-nav-tab="profil"]').then(() => p.waitForTimeout(300)).then(() => p.click('#settings-toggle')); await p.waitForTimeout(400);
   await p.getByText(lang === 'fr' ? 'Compte' : 'Account', { exact: true }).first().click(); await p.waitForTimeout(400);
   await p.click('#account-manager-toggle'); await p.waitForTimeout(800);
   const input = '[data-action="set-referrer"]';

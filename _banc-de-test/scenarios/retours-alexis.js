@@ -11,7 +11,7 @@ const { chromium, BASE } = require('../lib');
   await p.click('.subnav-btn[data-view="circuit"]'); await p.waitForTimeout(400);
   await p.click('[data-action="map-open"][data-mode="draw"]'); await p.waitForTimeout(600);
   const opened = !!(await p.$('#annot-overlay.open.map-docked'));
-  await p.click('.bottom-nav-btn:nth-child(3)'); await p.waitForTimeout(500);
+  await p.click('.bottom-nav-btn[data-nav-tab="communaute"]'); await p.waitForTimeout(500);
   console.log('dessin ouvert:', opened, '| fermé après Communauté:', !(await p.$('#annot-overlay.open')));
   // 2. Post avec un lien YouTube : Lien/Lieu repliés, lecteur intégré.
   await p.click('#wall-composer-toggle'); await p.waitForTimeout(300);
@@ -34,7 +34,7 @@ const { chromium, BASE } = require('../lib');
   await p.close();
   // 4. Compte tout neuf : message d'accueil dans la messagerie.
   p = await page('&bienvenue=1');
-  await p.click('.bottom-nav-btn:nth-child(3)'); await p.waitForTimeout(300);
+  await p.click('.bottom-nav-btn[data-nav-tab="communaute"]'); await p.waitForTimeout(300);
   await p.click('[data-pill-group="social"][data-pill="messages"]'); await p.waitForTimeout(400);
   console.log('conversation d\'accueil:', await p.$$eval('.dm-conv strong', e => e.map(x => x.innerText).join(', ')));
   await p.click('.dm-conv[data-name="cp:welcome"]'); await p.waitForTimeout(300);
@@ -46,7 +46,7 @@ const { chromium, BASE } = require('../lib');
   console.log('Visités dans le Carnet:', !!(await p.$('.subnav-btn[data-view="visites"]')));
   await p.click('.subnav-btn[data-view="circuit"]'); await p.waitForTimeout(400);
   console.log('pastille Visités dans Circuits:', !!(await p.$('[data-pill-group="circuit"][data-pill="visites"]')));
-  await p.click('.subnav-btn[data-view="stats"]'); await p.waitForTimeout(300);
+  await p.click('.bottom-nav-btn[data-nav-tab="profil"]').then(() => p.waitForTimeout(300)).then(() => p.click('.subnav-btn[data-view="stats"]')); await p.waitForTimeout(300);
   await p.click('[data-moi-jump="podium"]').catch(() => {}); await p.waitForTimeout(400);
   console.log('podium par défaut:', await p.$eval('.podium-scope .primary', e => e.innerText).catch(() => '?'));
   await p.click('.subnav-btn[data-view="carnet"]'); await p.waitForTimeout(300);

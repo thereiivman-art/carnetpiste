@@ -9,7 +9,7 @@ const { chromium, BASE } = require('../lib');
   const p = await b.newPage({ viewport: { width: 380, height: 1000 } });
   const errs = []; p.on('pageerror', e => errs.push(e.message));
   const goFil = async () => {
-    await p.click('.bottom-nav-btn:nth-child(3)'); await p.waitForTimeout(400);
+    await p.click('.bottom-nav-btn[data-nav-tab="communaute"]'); await p.waitForTimeout(400);
     await p.click('.subnav-btn[data-view="social"]').catch(() => {}); await p.waitForTimeout(300);
     await p.click('[data-pill-group="social"][data-pill="fil"]'); await p.waitForTimeout(300);
   };

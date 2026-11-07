@@ -17,7 +17,7 @@ const { chromium, BASE } = require('../lib');
   // (retour Alexis) : le rôle vient du compte, un rôle déjà posé reste lu.
   console.log('pilote, onglets:', await tabs(), '| plus de choix par roulage:', !(await p.$('[data-action="ride-role"]')));
   // Avertissement au changement de rôle du compte
-  await p.click('#settings-toggle'); await p.waitForTimeout(300);
+  await p.click('.bottom-nav-btn[data-nav-tab="profil"]').then(() => p.waitForTimeout(300)).then(() => p.click('#settings-toggle')); await p.waitForTimeout(300);
   await p.click('[data-settings-go="@compte"]'); await p.waitForTimeout(300);
   await p.click('[data-cpill-group="profil"][data-cpill="role"]'); await p.waitForTimeout(300);
   await p.check('input[name="profile-role"][value="accompagnant"]');

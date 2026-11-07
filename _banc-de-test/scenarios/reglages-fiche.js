@@ -4,7 +4,7 @@ const { chromium, BASE } = require('../lib');
 (async () => { const b = await chromium.launch(); const lang = process.argv[2] || 'fr'; const errs = [];
   const p = await b.newPage({ viewport: { width: 390, height: 860 } }); p.on('pageerror', e => errs.push(e.message));
   await p.goto(BASE + 'index.html#lang=' + lang); await p.waitForTimeout(1600);
-  await p.click('#settings-toggle'); await p.waitForTimeout(400);
+  await p.click('.bottom-nav-btn[data-nav-tab="profil"]').then(() => p.waitForTimeout(300)).then(() => p.click('#settings-toggle')); await p.waitForTimeout(400);
   console.log('groupes:', await p.$$eval('.set-group-title', e => e.map(x => x.innerText).join(' / ')));
   // Plus de champ de recherche ici : la loupe trouve les réglages (décision D10).
   console.log('pas de recherche dans Réglages:', !(await p.$('#settings-search')), '| lignes:', await p.$$eval('.set-row .set-label', e => e.map(x => x.innerText).join(', ')));
@@ -15,7 +15,7 @@ const { chromium, BASE } = require('../lib');
   await p.click('[data-settings-go="@aide"]'); await p.waitForTimeout(300);
   console.log('page Aide:', await p.$eval('.settings-page-head .section-title', e => e.innerText));
   // Fiche : Modifier dans Social.
-  await p.click('#profile-toggle'); await p.waitForTimeout(500);
+  await p.click('.bottom-nav-btn[data-nav-tab="profil"]'); await p.waitForTimeout(500);
   await p.click('[data-action="look-edit"]'); await p.waitForTimeout(400);
   await p.fill('#fiche-firstname', 'Alexandre'); await p.selectOption('#fiche-nationality', 'IT');
   console.log('titre / icône retirés:', !(await p.$('[data-look-set="title"], [data-look-set="nameIcon"]')));

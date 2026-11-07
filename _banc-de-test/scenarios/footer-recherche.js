@@ -1,7 +1,7 @@
 const { chromium, BASE } = require('../lib');
 (async () => { const b = await chromium.launch(); const p = await b.newPage({ viewport: { width: 380, height: 800 }, hasTouch: true }); const errs = []; p.on('pageerror', e => errs.push(e.message));
 await p.goto(BASE + 'index.html#lang=fr'); await p.waitForTimeout(1600);
-await p.click('.bottom-nav-btn:nth-child(3)'); await p.waitForTimeout(400);
+await p.click('.bottom-nav-btn[data-nav-tab="communaute"]'); await p.waitForTimeout(400);
 await p.mouse.wheel(0, 600); await p.waitForTimeout(200);
 await p.click('#search-toggle'); await p.waitForTimeout(300);
 const inp = await p.$('#gsearch-input, .gsearch input, input[type="search"]'); await inp.type('clair'); await p.waitForTimeout(400);
@@ -13,7 +13,7 @@ console.log('actif:', await p.evaluate(() => { const a = document.activeElement;
 console.log('kb-open après:', await p.evaluate(() => document.documentElement.classList.contains('kb-open')), '| nav visible:', await p.$eval('.bottom-nav', e => getComputedStyle(e).display !== 'none'));
 await p.goto(BASE + 'index.html#lang=fr'); await p.waitForTimeout(1600);
 await p.evaluate(() => firebase.firestore().collection('wallPosts').doc('w9').set({ id: 'w9', author: 'Sam', text: 'Jerez ce week-end', audience: 'all', createdAt: Date.now() - 60e3 }));
-await p.click('.bottom-nav-btn:nth-child(3)'); await p.waitForTimeout(800);
+await p.click('.bottom-nav-btn[data-nav-tab="communaute"]'); await p.waitForTimeout(800);
 const post = await p.$('.wall-post'); if (post) { await post.scrollIntoViewIfNeeded(); await p.screenshot({ path: 'post-foot.png' }); }
 console.log('boutons:', await p.$$eval('[data-action="dm-share-post"]', e => e.length), await p.$$eval('.wall-post', e => e.length));
 await p.locator('[data-action="dm-share-post"]').first().click({ timeout: 4000 }).catch(e => console.log('clic', e.message.split('\n')[0])); await p.waitForTimeout(400);

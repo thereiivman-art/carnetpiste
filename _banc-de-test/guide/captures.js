@@ -32,7 +32,7 @@ async function captures(base, dir, lang) {
   await shot('prochain');
   // Podium Amis (Carnet › Bilan)
   await go();
-  await p.click('.subnav-btn[data-view="stats"]'); await p.waitForTimeout(500);
+  await p.click('.bottom-nav-btn[data-nav-tab="profil"]').then(() => p.waitForTimeout(300)).then(() => p.click('.subnav-btn[data-view="stats"]')); await p.waitForTimeout(500);
   await shot('potes', '#moi-podium .podium-head', 140);
   // Records (Carnet › Bilan)
   await shot('records', '#moi-records', 90);
@@ -47,12 +47,12 @@ async function captures(base, dir, lang) {
   await shot('pressions');
   // Budget : calendrier d'un Team importé, quelques roulages gardés
   await go('&admin=1');
-  await p.click('#settings-toggle'); await p.waitForTimeout(300);
+  await p.click('.bottom-nav-btn[data-nav-tab="profil"]').then(() => p.waitForTimeout(300)).then(() => p.click('#settings-toggle')); await p.waitForTimeout(300);
   await p.click('[data-settings-go="@admin"]'); await p.waitForTimeout(500);
   await p.click('[data-action="evimp-check"]'); await p.waitForTimeout(300);
   await p.click('[data-action="evimp-go"]'); await p.waitForTimeout(800);
   await p.click('.bottom-nav-btn[data-view^="carnet"]'); await p.waitForTimeout(500);
-  await p.click('.subnav-btn[data-view="stats"]'); await p.waitForTimeout(400); await p.click('[data-pill-group="moi"][data-pill="budget"]'); await p.waitForTimeout(500);
+  await p.click('.bottom-nav-btn[data-nav-tab="profil"]').then(() => p.waitForTimeout(300)).then(() => p.click('.subnav-btn[data-view="stats"]')); await p.waitForTimeout(400); await p.click('[data-pill-group="moi"][data-pill="budget"]'); await p.waitForTimeout(500);
   await p.click('[data-budget-season="2027"]'); await p.waitForTimeout(400);
   await p.click('[data-pill-group="budget"][data-pill="others"]'); await p.waitForTimeout(300);
   const ids = await p.$$eval('.budget-row', rs => rs.map(r => [r.getAttribute('data-row'), r.querySelector('strong').textContent]));
@@ -69,7 +69,7 @@ async function captures(base, dir, lang) {
   const pc = await b.newContext({ viewport: { width: 1440, height: 860 }, deviceScaleFactor: 1.5 });
   const q = await pc.newPage();
   await q.goto(base + 'index.html#lang=' + lang); await q.waitForTimeout(1600);
-  await q.click('.bottom-nav-btn:nth-child(3)'); await q.waitForTimeout(400);
+  await q.click('.bottom-nav-btn[data-nav-tab="communaute"]'); await q.waitForTimeout(400);
   await q.click('[data-pill-group="social"][data-pill="fil"]').catch(() => {}); await q.waitForTimeout(800);
   await q.evaluate(() => document.querySelectorAll('.toast').forEach(t => t.remove()));
   out.pc = path.join(dir, lang + '-pc.png');

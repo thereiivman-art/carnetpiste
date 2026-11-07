@@ -14,15 +14,15 @@ const { chromium, BASE } = require('../lib');
     await db.collection('postViews').doc('t2').set({ postId: 'tp1', owner: 'Sam', viewer: 'Tom', day, teamId: 't1' });
     await db.collection('profileViews').doc('t3').set({ postId: 'team:t1', owner: 'team:t1', viewer: 'Luca', day, teamId: 't1' });
   });
-  await p.click('.bottom-nav-btn:nth-child(3)'); await p.waitForTimeout(500);
-  await p.click('.subnav-btn[data-view="team"]'); await p.waitForTimeout(400);
+  await p.click('.bottom-nav-btn[data-nav-tab="communaute"]'); await p.waitForTimeout(500);
+  await p.click('.bottom-nav-btn[data-nav-tab="profil"]').then(() => p.waitForTimeout(300)).then(() => p.click('.subnav-btn[data-view="team"]')); await p.waitForTimeout(400);
   await p.getByText('Team Piste').first().click(); await p.waitForTimeout(700);
   console.log('onglets du team:', await p.$$eval('[data-pill-group="team"]', e => e.map(x => x.innerText).join(' / ')));
   await p.click('[data-pill-group="team"][data-pill="audience"]'); await p.waitForTimeout(800);
   console.log('audience du team:', await p.$$eval('.aud-card .aud-tile', e => e.map(x => x.innerText.replace(/\n/g, ' ')).join(' | ')).catch(() => 'absente'));
   await p.screenshot({ path: 'audience-team-' + lang + '.png', fullPage: true });
   // Fiche de Sam (ami) : sous-onglet Bientôt en piste
-  await p.click('.bottom-nav-btn:nth-child(3)'); await p.waitForTimeout(300);
+  await p.click('.bottom-nav-btn[data-nav-tab="communaute"]'); await p.waitForTimeout(300);
   await p.click('.subnav-btn[data-view="social"]'); await p.waitForTimeout(300);
   await p.evaluate(() => { const b = [...document.querySelectorAll('[data-person-link="Sam"], [data-name="Sam"]')][0]; if (b) b.click(); });
   await p.waitForTimeout(600);
@@ -30,7 +30,7 @@ const { chromium, BASE } = require('../lib');
   await p.click('[data-pill-group="person"][data-pill="bientot"]').catch(() => {}); await p.waitForTimeout(300);
   console.log('Sam bientôt:', await p.$$eval('.feed-upcoming-row strong', e => e.map(x => x.innerText).join(', ')));
   // Réglage Vie privée
-  await p.click('#settings-toggle'); await p.waitForTimeout(300);
+  await p.click('.bottom-nav-btn[data-nav-tab="profil"]').then(() => p.waitForTimeout(300)).then(() => p.click('#settings-toggle')); await p.waitForTimeout(300);
   await p.click('[data-settings-go="@reglages"]', { timeout: 1500 }).catch(() => {}); await p.waitForTimeout(300);
   await p.click('[data-settings-go="confidentialite"]'); await p.waitForTimeout(300);
   await p.selectOption('#profile-share-upcoming', 'public'); await p.waitForTimeout(500);

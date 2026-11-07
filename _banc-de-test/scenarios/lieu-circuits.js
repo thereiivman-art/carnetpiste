@@ -13,7 +13,7 @@ const { chromium, BASE } = require('../lib');
   await p.click('[data-mini-close]').catch(() => {}); await p.waitForTimeout(300);
   console.log('lieu stocké:', await p.evaluate(() => Object.values(window.__MOCK_DATA.wallPosts).filter(w => w.text === 'Paddock !').map(w => w.place).join()), '| affiché:', await p.$eval('.post-place', e => e.innerText + ' → ' + e.href.slice(0, 40)).catch(() => 'non'));
   // Circuits préférés
-  await p.click('#profile-toggle'); await p.waitForTimeout(400);
+  await p.click('.bottom-nav-btn[data-nav-tab="profil"]'); await p.waitForTimeout(400);
   await p.click('[data-action="look-edit"]'); await p.waitForTimeout(400);
   await p.fill('#fav-circ-input', 'Mugello'); await p.waitForTimeout(300);
   await p.fill('#fav-circ-input', 'Barcelone'); await p.waitForTimeout(300);

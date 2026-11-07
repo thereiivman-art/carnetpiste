@@ -4,7 +4,7 @@ const { chromium, BASE } = require('../lib');
   const p = await b.newPage({ viewport: { width: 400, height: 1400 } });
   const errs = []; p.on('pageerror', e => errs.push(e.message));
   await p.goto(BASE + 'index.html#lang=fr&admin=1'); await p.waitForTimeout(1600);
-  await p.click('#settings-toggle'); await p.waitForTimeout(300);
+  await p.click('.bottom-nav-btn[data-nav-tab="profil"]').then(() => p.waitForTimeout(300)).then(() => p.click('#settings-toggle')); await p.waitForTimeout(300);
   await p.getByText('Aide', { exact: true }).first().click(); await p.waitForTimeout(300);
   await p.click('[data-pill-group="aide"][data-pill="admin"]'); await p.waitForTimeout(500);
   const sample = await p.$eval('#evimp-text', e => e.value);

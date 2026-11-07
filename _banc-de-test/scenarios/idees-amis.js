@@ -36,8 +36,8 @@ const { chromium, BASE } = require('../lib');
   await openPerson('Luca');
   console.log('fiche Luca:', await p.$eval('.person-page', e => (e.innerText.match(/Fiche privée[^\n]*|Private profile[^\n]*/) || ['visible'])[0]), '| compteurs abonnés:', await p.$$eval('.social-counts .social-count', e => e.length));
   // Mon profil : bannière, images prêtes, présentation
-  await p.click('.bottom-nav-btn:nth-child(3)'); await p.waitForTimeout(400);
-  await p.click('#profile-toggle'); await p.waitForTimeout(400);
+  await p.click('.bottom-nav-btn[data-nav-tab="communaute"]'); await p.waitForTimeout(400);
+  await p.click('.bottom-nav-btn[data-nav-tab="profil"]'); await p.waitForTimeout(400);
   console.log('mon profil, onglets:', await p.$$eval('[data-pill-group="person"]', e => e.map(x => x.innerText + (x.classList.contains('active') ? '✓' : '')).join(' / ')), '| bouton Bannière:', !!(await p.$('[data-action="pick-cover"]')), '| trophées près du nom:', await p.$$eval('.mini-vitrine .trophy-ico', e => e.length), '| carte Vitrine:', await p.$$eval('.ph-vitrine', e => e.length));
   await p.click('.mini-vitrine').catch(() => {}); await p.waitForTimeout(700);
   console.log('appui → trophées:', await p.$eval('[data-pill-group="person"].active', e => e.innerText).catch(() => '?'), '|', await p.evaluate(() => { const c = document.querySelector('.achievements-card'); if (!c) return 'absente'; const r = c.getBoundingClientRect(); return (r.top < innerHeight && r.bottom > 0 ? 'à l\'écran' : 'hors écran') + (c.querySelector('details[open], .open') ? ', ouverte' : ''); }));
@@ -48,15 +48,15 @@ const { chromium, BASE } = require('../lib');
   await p.click('.avatar-preset >> nth=1'); await p.waitForTimeout(500);
   console.log('photo enregistrée:', await p.evaluate(() => firebase.firestore().collection('users').doc(firebase.auth().currentUser.uid).get().then(d => (d.data().photoURL || '').slice(0, 26))));
   // Réglages › Confidentialité
-  await p.click('#settings-toggle'); await p.waitForTimeout(400);
+  await p.click('.bottom-nav-btn[data-nav-tab="profil"]').then(() => p.waitForTimeout(300)).then(() => p.click('#settings-toggle')); await p.waitForTimeout(400);
   await p.click('[data-settings-go="confidentialite"]').catch(() => {}); await p.waitForTimeout(300);
   await p.selectOption('#profile-visibility', 'friends').catch(e => console.log('pas de choix fiche'));
   await p.selectOption('#lists-visibility', 'private').catch(e => console.log('pas de choix listes'));
   await p.waitForTimeout(400);
   console.log('confidentialité:', await p.evaluate(() => firebase.firestore().collection('users').doc(firebase.auth().currentUser.uid).get().then(d => d.data().profileVisibility + ' / ' + d.data().listsVisibility)));
   // Découvrir des teams : PRO seulement
-  await p.click('.bottom-nav-btn:nth-child(3)'); await p.waitForTimeout(300);
-  await p.click('.subnav-btn[data-view="team"]').catch(() => {}); await p.waitForTimeout(400);
+  await p.click('.bottom-nav-btn[data-nav-tab="communaute"]'); await p.waitForTimeout(300);
+  await p.click('.bottom-nav-btn[data-nav-tab="profil"]').then(() => p.waitForTimeout(300)).then(() => p.click('.subnav-btn[data-view="team"]')).catch(() => {}); await p.waitForTimeout(400);
   await p.click('[data-pill-group="teams"][data-pill="discover"]').catch(() => {}); await p.waitForTimeout(400);
   console.log('teams à découvrir:', await p.evaluate(() => { const g = document.querySelectorAll('.team-tile-grid > *'); return g.length ? [...g].map(x => x.innerText.split('\n')[0]).join(', ') : ((document.querySelector('#root .empty-state') || {}).innerText || '?'); }));
   await p.screenshot({ path: 'idees-amis-' + lang + '.png' });
