@@ -16139,8 +16139,8 @@
   }
   function renderSubNav(items) {
     if (items.length < 2) return '';
-    // Plus de 2 onglets : Roulages et Circuits en grand, les autres en glissant (ou flèche ›).
-    return '<div class="subnav main-subnav' + (items.length > 2 ? ' subnav-scroll' : '') + '" role="tablist">' + items.map(function (it) {
+    // Tous les onglets visibles d'un coup (simple, à la Facebook).
+    return '<div class="subnav main-subnav" role="tablist">' + items.map(function (it) {
       var on = activeView === it[0] || (it[0] === 'carnet' && activeView === 'event') || (it[0] === 'team' && activeView === 'coach');
       return '<button type="button" role="tab" class="subnav-btn' + (on ? ' active' : '') + '" data-view="' + it[0] + '">' + it[1] + '</button>';
     }).join('') + '</div>';
@@ -20561,8 +20561,8 @@
     var counts = {};
     names.forEach(function (n) { var e = REACTION_EMOJIS.indexOf(reactions[n]) !== -1 ? reactions[n] : '👍'; counts[e] = (counts[e] || 0) + 1; });
     var top = Object.keys(counts).sort(function (a, b) { return counts[b] - counts[a]; }).slice(0, 3).join('');
-    return '<div class="reaction-bar"><button type="button" class="reaction-btn reaction-open' + (mine ? ' active' : '') + '"' + (names.length ? ' title="' + escapeHtml(names.join(', ')) + '"' : '') + '>' +
-      (names.length ? '<span class="reaction-top">' + top + '</span> ' + names.length : L('Réagir', 'React')) + '</button>' +
+    return '<div class="reaction-bar"><button type="button" class="reaction-btn reaction-open' + (mine ? ' active' : '') + '" aria-label="' + escapeHtml(L('Réagir', 'React')) + '"' + (names.length ? ' title="' + escapeHtml(names.join(', ')) + '"' : '') + '>' +
+      (names.length ? '<span class="reaction-top">' + top + '</span> <span class="soc-n">' + names.length + '</span>' : '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20s-7-4.4-9.2-9A5 5 0 0 1 12 6a5 5 0 0 1 9.2 5c-2.2 4.6-9.2 9-9.2 9z"/></svg>') + '</button>' +
       '<div class="reaction-picker" hidden>' + REACTION_EMOJIS.map(function (e) {
         return '<button type="button" class="reaction-pick' + (mine === e ? ' active' : '') + '" data-action="' + dataAction + '" data-id="' + escapeHtml(id) + '" data-emoji="' + e + '" aria-label="' + e + '">' + e + '</button>';
       }).join('') +
@@ -21144,6 +21144,28 @@
   function copyText(t) {
     if (navigator.clipboard && navigator.clipboard.writeText) return navigator.clipboard.writeText(t).then(function () { return true; }, function () { return false; });
     return Promise.resolve(false);
+  }
+  // Envoyer un post en message privé, comme Instagram : une liste d'amis, une touche = envoyé.
+  function openDmShareSheet(id) {
+    var p = (STATE.wallPosts || []).filter(function (x) { return x.id === id; })[0]; if (!p || !currentUserProfile) return;
+    var me = currentUserProfile.name, link = postShareLink(id);
+    var recent = dmConversations().filter(function (c) { return c.other && !c.group && !c.team && c.other !== me; }).map(function (c) { return c.other; });
+    var friends = friendsOf(me).map(function (f) { return f.name; });
+    var names = recent.concat(friends).filter(function (n, i, a) { return n && a.indexOf(n) === i && canMessage(n); }).slice(0, 40);
+    var ov = openMiniSheet('<h2 class="section-title">' + L('Envoyer à', 'Send to') + '</h2>' +
+      '<input type="search" id="dmshare-q" placeholder="' + escapeHtml(L('Rechercher', 'Search')) + '" autocomplete="off">' +
+      '<div class="dmshare-list">' + (names.length ? names.map(function (n) {
+        var u = (STATE.usersByName || {})[n] || {};
+        return '<button type="button" class="dmshare-row" data-dmshare="' + escapeHtml(n) + '">' + avatarHtml(u, n).replace(/ data-p[a-z-]*="[^"]*"/g, '') + '<span>' + escapeHtml(n) + '</span><span class="dmshare-go">' + L('Envoyer', 'Send') + '</span></button>';
+      }).join('') : '<div class="help-text">' + L('Aucun ami à qui écrire pour l\'instant.', 'No friend to write to yet.') + '</div>') + '</div>' +
+      '<div class="mini-sheet-actions"><button type="button" class="link-btn" data-mini-close>' + L('Fermer', 'Close') + '</button></div>');
+    var q = ov.querySelector('#dmshare-q');
+    if (q) q.addEventListener('input', function () { var v = q.value.toLowerCase(); ov.querySelectorAll('[data-dmshare]').forEach(function (b) { b.style.display = b.getAttribute('data-dmshare').toLowerCase().indexOf(v) !== -1 ? '' : 'none'; }); });
+    ov.querySelectorAll('[data-dmshare]').forEach(function (b) { b.addEventListener('click', function () {
+      var n = b.getAttribute('data-dmshare');
+      sendDm(n, ((p.text || '').slice(0, 140) + (p.text ? '\n' : '') + link).trim());
+      b.classList.add('sent'); b.querySelector('.dmshare-go').textContent = L('Envoyé', 'Sent'); b.disabled = true;
+    }); });
   }
   function openPostShareSheet(id) {
     var p = (STATE.wallPosts || []).filter(function (x) { return x.id === id; })[0]; if (!p) return;
@@ -22643,7 +22665,7 @@
       (canEdit && !p.story ? '<button type="button" class="post-aud-btn" data-action="post-audience" data-id="' + escapeHtml(p.id) + '" title="' + escapeHtml(L('Changer qui voit ce post', 'Change who sees this post')) + '">' + escapeHtml(postAudienceName(postAudienceKey(p))) + ' ▾</button>'
         : (p.audience === 'friends' ? '<span class="friend-role-badge">' + escapeHtml(L('Amis', 'Friends')) + '</span>' : '')) +
       '<span class="feed-entry-time">' + escapeHtml(relativeTime(p.editedAt || p.createdAt)) + (p.editedAt ? tr('edited_suffix') : '') + '</span>' +
-      '<button type="button" class="post-share" data-action="share-post" data-id="' + escapeHtml(p.id) + '" aria-label="' + escapeHtml(L('Partager', 'Share')) + '" title="' + escapeHtml(L('Partager', 'Share')) + '"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7"/><path d="M16 6l-4-4-4 4"/><path d="M12 2v13"/></svg></button></div>';
+      '</div>';
     // Le texte, puis l'image entière en dessous (un appui : plein écran).
     if (p.text) html += '<div class="wall-post-text">' + mentionsHtml(p.text) + '</div>';
     if (p.place) html += postPlaceHtml(p);
@@ -22654,8 +22676,11 @@
     if (p.repostOf) html += renderRepostBox(p.repostOf);
     var nRep = repostCount(p.repostOf ? p.repostOf.id : p.id), mine = currentUserProfile && (p.repostOf ? p.repostOf.author : p.author) === currentUserProfile.name;
     var repostBtn = mine ? '<span class="repost-count">' + (nRep ? plural(nRep, L('republication', 'repost'), L('republications', 'reposts')) : '') + '</span>'
-      : '<button type="button" class="ghost repost-btn" data-action="repost" data-id="' + escapeHtml(p.id) + '"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 2l4 4-4 4"/><path d="M3 11V9a3 3 0 0 1 3-3h15"/><path d="M7 22l-4-4 4-4"/><path d="M21 13v2a3 3 0 0 1-3 3H3"/></svg> ' + (nRep ? nRep : L('Republier', 'Repost')) + '</button>';
+      : '<button type="button" class="ghost repost-btn" aria-label="' + escapeHtml(L('Republier', 'Repost')) + '" title="' + escapeHtml(L('Republier', 'Repost')) + '" data-action="repost" data-id="' + escapeHtml(p.id) + '"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 2l4 4-4 4"/><path d="M3 11V9a3 3 0 0 1 3-3h15"/><path d="M7 22l-4-4 4-4"/><path d="M21 13v2a3 3 0 0 1-3 3H3"/></svg>' + (nRep ? '<span class="soc-n">' + nRep + '</span>' : '') + '</button>';
+    // Comme Instagram : des icônes seules (réagir, commenter, republier), puis envoyer en message et partager.
     html += '<div class="feed-entry-foot social-row">' + renderReactionBar(p.reactions, 'react-wall-post', p.id) + commentToggleHtml(p.id) + repostBtn +
+      '<button type="button" class="ghost soc-ico-btn" data-action="dm-share-post" data-id="' + escapeHtml(p.id) + '" aria-label="' + escapeHtml(L('Envoyer en message', 'Send as message')) + '" title="' + escapeHtml(L('Envoyer en message', 'Send as message')) + '"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4z"/></svg></button>' +
+      '<button type="button" class="ghost soc-ico-btn" data-action="share-post" data-id="' + escapeHtml(p.id) + '" aria-label="' + escapeHtml(L('Partager', 'Share')) + '" title="' + escapeHtml(L('Partager', 'Share')) + '"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7"/><path d="M16 6l-4-4-4 4"/><path d="M12 2v13"/></svg></button>' +
       // Pas de modification : seulement supprimer (corbeille).
       // Date choisie à la création seulement : plus de bouton Date sur le post.
 
@@ -22965,7 +22990,7 @@
   function repostButtonHtml(key, ownerName, action) {
     var n = repostCount(key);
     if (currentUserProfile && ownerName === currentUserProfile.name) return '<span class="repost-count">' + (n ? plural(n, L('republication', 'repost'), L('republications', 'reposts')) : '') + '</span>';
-    return '<button type="button" class="ghost repost-btn" data-action="' + (action || 'repost-item') + '" data-id="' + escapeHtml(key) + '"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 2l4 4-4 4"/><path d="M3 11V9a3 3 0 0 1 3-3h15"/><path d="M7 22l-4-4 4-4"/><path d="M21 13v2a3 3 0 0 1-3 3H3"/></svg> ' + (n ? n : L('Republier', 'Repost')) + '</button>';
+    return '<button type="button" class="ghost repost-btn" aria-label="' + escapeHtml(L('Republier', 'Repost')) + '" title="' + escapeHtml(L('Republier', 'Repost')) + '" data-action="' + (action || 'repost-item') + '" data-id="' + escapeHtml(key) + '"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 2l4 4-4 4"/><path d="M3 11V9a3 3 0 0 1 3-3h15"/><path d="M7 22l-4-4 4-4"/><path d="M21 13v2a3 3 0 0 1-3 3H3"/></svg>' + (n ? '<span class="soc-n">' + n + '</span>' : '') + '</button>';
   }
   // Pied commun : réagir, republier, commentaires.
   // Toujours la même ligne, au même endroit : Réagir · Commentaires ·
@@ -22979,8 +23004,8 @@
   function commentCount(key) { return (STATE.postComments || []).filter(function (c) { return c.postId === key; }).length; }
   function commentToggleHtml(key) {
     var n = commentCount(key), open = !!commentsOpen[key];
-    return '<button type="button" class="ghost comment-btn' + (open ? ' active' : '') + '" data-action="comments-toggle" data-id="' + escapeHtml(key) + '"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.8 7L4 20l1.1-4.4A8 8 0 1 1 21 12z"/></svg> ' +
-      (n ? n : L('Commenter', 'Comment')) + '</button>';
+    return '<button type="button" class="ghost comment-btn' + (open ? ' active' : '') + '" aria-label="' + escapeHtml(L('Commenter', 'Comment')) + '" title="' + escapeHtml(L('Commenter', 'Comment')) + '" data-action="comments-toggle" data-id="' + escapeHtml(key) + '"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.8 7L4 20l1.1-4.4A8 8 0 1 1 21 12z"/></svg> ' +
+      (n ? '<span class="soc-n">' + n + '</span>' : '') + '</button>';
   }
   // Une carte automatique (classement, circuit du moment) avec son bouton
   // Republier glissé avant sa fermeture.
@@ -25347,6 +25372,7 @@
     try {
       renderRootUnsafe();
       markScrollableTabs();
+      releaseKbOpenIfIdle();
       sanitizeLinks(document.getElementById('root'));
       if (inlinePlayer) positionInlinePlayer();
       bindSearchInline();
@@ -26975,6 +27001,7 @@
           .catch(function (err) { showToast(tr('error_prefix') + ((err && err.message) || err), 'sticky'); });
       }); });
     }); });
+    document.querySelectorAll('[data-action="dm-share-post"]').forEach(function (btn) { btn.addEventListener('click', function (e) { e.stopPropagation(); openDmShareSheet(btn.getAttribute('data-id')); }); });
     document.querySelectorAll('[data-action="share-post"]').forEach(function (btn) { btn.addEventListener('click', function (e) { e.stopPropagation(); openPostShareSheet(btn.getAttribute('data-id')); }); });
     if (pendingShareIn && currentUserProfile) { pendingShareIn = false; consumeSharedIn(); }
     // Lien partagé (?post=<id>) : on ouvre Social sur la publication.
@@ -30322,6 +30349,12 @@
     var t = e.target;
     if (t && t.matches && t.matches('input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=file]), textarea, select, [contenteditable]') && !(window.matchMedia && window.matchMedia('(min-width: 960px)').matches)) document.documentElement.classList.add('kb-open');
   });
+  // Le champ qui avait le clavier peut disparaître au rendu (ex. résultat de recherche touché) sans
+  // « focusout » : on rend la barre du bas dès qu'aucun champ n'a plus le focus.
+  function releaseKbOpenIfIdle() {
+    setTimeout(function () { var a = document.activeElement; if (!a || !a.matches || !a.matches('input, textarea, select, [contenteditable]')) document.documentElement.classList.remove('kb-open'); }, 60);
+  }
+  document.addEventListener('click', releaseKbOpenIfIdle, true);
   document.addEventListener('focusout', function () { setTimeout(function () { var a = document.activeElement; if (!a || !a.matches || !a.matches('input, textarea, select, [contenteditable]')) document.documentElement.classList.remove('kb-open'); }, 50); });
   // Passage mobile ↔ PC : la barre de gauche change (sous-menus).
   if (window.matchMedia) { try { window.matchMedia('(min-width: 960px)').addEventListener('change', function () { renderRoot(); }); } catch (e) {} }

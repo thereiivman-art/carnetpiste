@@ -5415,10 +5415,7 @@ body { overflow-wrap: break-word; }
 .outings-card > .avenir-add { display: block; margin: 0.9rem auto 0.2rem; padding: 0.45rem 1.1rem; border-radius: 999px; font-weight: 700; }
 /* Partage d'un post : toujours en haut à droite, même si l'en-tête passe à la ligne (« modifié »). */
 .wall-post-head { position: relative; }
-.wall-post > .wall-post-head { padding-right: 2.4rem; }
 .wall-post-head > .post-share { position: absolute; top: -0.2rem; right: 0; }
-.card.can-hide .wall-post > .wall-post-head { padding-right: 4.3rem; }
-.card.can-hide .wall-post-head > .post-share { right: 1.9rem; }
 /* « Préparer ce roulage » : un bouton à sa taille, pas sur toute la largeur. */
 .chrono-next > button { align-self: flex-start; width: auto; margin-top: 0.5rem; padding: 0.5rem 1.1rem; }
 .circuit-combo .circuit-find::-webkit-search-cancel-button { display: none; }
@@ -5456,3 +5453,21 @@ body { overflow-wrap: break-word; }
 .podium-head { align-items: center; min-height: 0; padding-top: 0.8rem; }
 .podium-share.team-icon-btn { top: 0.35rem; right: 0.35rem; width: 2.2rem; height: 2.2rem; padding: 0; font-size: inherit; }
 .verif-badge.wait { font-size: 0.95em; }
+
+/* Pied d'un post façon Instagram : des icônes seules, sans cadre. */
+.social-row .reaction-btn, .social-row .comment-btn, .social-row .repost-btn, .social-row .soc-ico-btn { border: 0; background: none; padding: 0.35rem 0.45rem; min-width: 0; width: auto; display: inline-flex; align-items: center; gap: 0.3rem; color: var(--text); border-radius: 999px; box-shadow: none; }
+.social-row .reaction-btn:hover, .social-row .comment-btn:hover, .social-row .repost-btn:hover, .social-row .soc-ico-btn:hover { background: var(--surface-alt); }
+.social-row .reaction-btn.active { color: var(--accent); }
+.social-row .soc-n { font-weight: 700; font-size: 0.9rem; }
+.social-row .soc-ico-btn[data-action="share-post"] { margin-left: auto; }
+.dmshare-list { display: flex; flex-direction: column; max-height: 50vh; overflow-y: auto; margin-top: 0.5rem; }
+.dmshare-row { display: flex; align-items: center; gap: 0.7rem; width: 100%; background: none; border: 0; border-bottom: 1px solid var(--border); padding: 0.55rem 0.2rem; font: inherit; color: var(--text); text-align: left; cursor: pointer; }
+.dmshare-row .dmshare-go { margin-left: auto; color: var(--accent); font-weight: 700; font-size: 0.85rem; }
+.dmshare-row.sent .dmshare-go { color: var(--text-muted); }
+.social-row { display: flex; align-items: center; flex-wrap: nowrap; gap: 0.15rem; }
+.social-row > .reaction-bar { order: 1; }
+.social-row > .comment-btn { order: 2; margin-left: 0 !important; }
+.social-row > .repost-btn, .social-row > .repost-count { order: 3; margin-left: 0 !important; }
+.social-row > [data-action="dm-share-post"] { order: 4; }
+.social-row > [data-action="share-post"] { order: 5; margin-left: auto !important; }
+.social-row > .post-trash { order: 6; }

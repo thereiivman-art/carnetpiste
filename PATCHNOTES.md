@@ -2,6 +2,12 @@
 
 Les nouveautés, de la plus récente à la plus ancienne. Le détail complet est dans l'historique git.
 
+## 7 novembre 2026 · posts façon Instagram
+
+- Carnet : les 4 onglets (Roulages, Circuits, Teams, Bilan) de nouveau tous visibles.
+- Posts : des icônes seules pour réagir, commenter, republier ; « Envoyer » (avion en papier) pour partager un post en message privé dans Pitbook ; Partager à droite.
+- Correctif : la barre du bas ne disparaît plus après une recherche (ex. « clair » puis mode clair).
+
 ## 7 novembre 2026 · Carnet, teams et podium
 
 - Carnet : Roulages et Circuits en grand ; Teams et Bilan en glissant ou avec la flèche ›.
