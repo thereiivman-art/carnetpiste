@@ -2,6 +2,11 @@
 
 Les nouveautés, de la plus récente à la plus ancienne. Le détail complet est dans l'historique git.
 
+## 7 novembre 2026 · pied des posts
+
+- Posts : icônes seules et alignées (J'aime, Commenter, Republier, Envoyer, Partager), le nombre sous l'icône comme sur TikTok.
+- Plans : « Spots » au lieu de « Spots photo » ; texte blanc sur le bouton rouge « Repères ».
+
 ## 7 novembre 2026 · Pitbook pour tous
 
 - Premier lancement : pilote, accompagnant ou organisateur, puis quelques questions selon le rôle (moto, team, prochain roulage ; qui tu suis ; ta team, ton prochain event), la taille du texte et ce que sont les pneus.

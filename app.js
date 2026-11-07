@@ -8469,7 +8469,7 @@
         '<button type="button" class="primary" data-action="map-open" data-mode="pins" title="' + escapeHtml(L('Repères', 'Marks')) + '"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-6-5.6-6-11a6 6 0 0 1 12 0c0 5.4-6 11-6 11z"/><circle cx="12" cy="10" r="2.3"/></svg>' + L('Repères', 'Marks') + '</button>' +
         '<button type="button" class="ghost map-open-draw" data-action="map-open" data-mode="draw" title="' + escapeHtml(L('Dessin à main levée', 'Freehand drawing')) + '"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M14 6l4 4"/></svg>' + L('Dessin', 'Draw') + '</button>' +
         // Spots photo (accompagnants, photographes) : tout public ou accès pro.
-        (meIsNonRider() || isAdmin() ? '<button type="button" class="ghost" data-action="photo-spots" title="' + escapeHtml(L('Spots photo du circuit', 'Circuit photo spots')) + '"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>' + L('Spots photo', 'Photo spots') + '</button>' : '') + lapVideoLinkHtml(selectedCircuit) + '</div>';
+        (meIsNonRider() || isAdmin() ? '<button type="button" class="ghost" data-action="photo-spots" title="' + escapeHtml(L('Spots photo du circuit', 'Circuit photo spots')) + '"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>' + L('Spots', 'Spots') + '</button>' : '') + lapVideoLinkHtml(selectedCircuit) + '</div>';
       var nNotes = myTrackNotes(selectedCircuit).length;
       // PC large : les repères à droite de la carte (voir style.css).
       html += '<div class="circuit-plan-wrap"><div class="circuit-plan-map">' + renderCircuitInfoCard('plan') + '</div>' +
@@ -22873,11 +22873,12 @@
       (p.video ? '<span class="wall-post-play" aria-hidden="true"><svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></span>' : '') + '</div>';
     if (p.repostOf) html += renderRepostBox(p.repostOf);
     var nRep = repostCount(p.repostOf ? p.repostOf.id : p.id), mine = currentUserProfile && (p.repostOf ? p.repostOf.author : p.author) === currentUserProfile.name;
-    var repostBtn = mine ? '<span class="repost-count">' + (nRep ? plural(nRep, L('republication', 'repost'), L('republications', 'reposts')) : '') + '</span>'
+    // Mon post : l'icône Republier (grisée) et le nombre dessous, comme TikTok.
+    var repostBtn = mine ? '<span class="repost-count" aria-label="' + escapeHtml(L('Republications', 'Reposts')) + '"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 2l4 4-4 4"/><path d="M3 11V9a3 3 0 0 1 3-3h15"/><path d="M7 22l-4-4 4-4"/><path d="M21 13v2a3 3 0 0 1-3 3H3"/></svg>' + (nRep ? '<span class="soc-n">' + nRep + '</span>' : '') + '</span>'
       : '<button type="button" class="ghost repost-btn" aria-label="' + escapeHtml(L('Republier', 'Repost')) + '" title="' + escapeHtml(L('Republier', 'Repost')) + '" data-action="repost" data-id="' + escapeHtml(p.id) + '"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 2l4 4-4 4"/><path d="M3 11V9a3 3 0 0 1 3-3h15"/><path d="M7 22l-4-4 4-4"/><path d="M21 13v2a3 3 0 0 1-3 3H3"/></svg>' + (nRep ? '<span class="soc-n">' + nRep + '</span>' : '') + '</button>';
     // Comme Instagram : des icônes seules (réagir, commenter, republier), puis envoyer en message et partager.
     html += '<div class="feed-entry-foot social-row">' + renderReactionBar(p.reactions, 'react-wall-post', p.id) + commentToggleHtml(p.id) + repostBtn +
-      '<button type="button" class="ghost soc-ico-btn" data-action="dm-share-post" data-id="' + escapeHtml(p.id) + '" aria-label="' + escapeHtml(L('Envoyer en message', 'Send as message')) + '" title="' + escapeHtml(L('Envoyer en message', 'Send as message')) + '"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4z"/></svg></button>' +
+      '<button type="button" class="ghost soc-ico-btn" data-action="dm-share-post" data-id="' + escapeHtml(p.id) + '" aria-label="' + escapeHtml(L('Envoyer', 'Send')) + '" title="' + escapeHtml(L('Envoyer', 'Send')) + '"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4z"/></svg></button>' +
       '<button type="button" class="ghost soc-ico-btn" data-action="share-post" data-id="' + escapeHtml(p.id) + '" aria-label="' + escapeHtml(L('Partager', 'Share')) + '" title="' + escapeHtml(L('Partager', 'Share')) + '"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7"/><path d="M16 6l-4-4-4 4"/><path d="M12 2v13"/></svg></button>' +
       // Pas de modification : seulement supprimer (corbeille).
       // Date choisie à la création seulement : plus de bouton Date sur le post.
@@ -23187,7 +23188,7 @@
   }
   function repostButtonHtml(key, ownerName, action) {
     var n = repostCount(key);
-    if (currentUserProfile && ownerName === currentUserProfile.name) return '<span class="repost-count">' + (n ? plural(n, L('republication', 'repost'), L('republications', 'reposts')) : '') + '</span>';
+    if (currentUserProfile && ownerName === currentUserProfile.name) return '<span class="repost-count" aria-label="' + escapeHtml(L('Republications', 'Reposts')) + '"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 2l4 4-4 4"/><path d="M3 11V9a3 3 0 0 1 3-3h15"/><path d="M7 22l-4-4 4-4"/><path d="M21 13v2a3 3 0 0 1-3 3H3"/></svg>' + (n ? '<span class="soc-n">' + n + '</span>' : '') + '</span>';
     return '<button type="button" class="ghost repost-btn" aria-label="' + escapeHtml(L('Republier', 'Repost')) + '" title="' + escapeHtml(L('Republier', 'Repost')) + '" data-action="' + (action || 'repost-item') + '" data-id="' + escapeHtml(key) + '"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 2l4 4-4 4"/><path d="M3 11V9a3 3 0 0 1 3-3h15"/><path d="M7 22l-4-4 4-4"/><path d="M21 13v2a3 3 0 0 1-3 3H3"/></svg>' + (n ? '<span class="soc-n">' + n + '</span>' : '') + '</button>';
   }
   // Pied commun : réagir, republier, commentaires.
@@ -25390,7 +25391,7 @@
     var n = 0; try { n = parseInt(localStorage.getItem('cdp-soc-labels') || '0', 10) || 0; } catch (e) {}
     var counted = false; try { counted = sessionStorage.getItem('cdp-soc-labels-s') === '1'; } catch (e) {}
     if (!counted) { n++; try { localStorage.setItem('cdp-soc-labels', String(n)); sessionStorage.setItem('cdp-soc-labels-s', '1'); } catch (e) {} }
-    document.documentElement.classList.toggle('soc-labels', n <= 5);
+    document.documentElement.classList.remove('soc-labels'); // icônes seules (demandé)
   }
   (function () {
     var t = null;

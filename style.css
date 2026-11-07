@@ -5556,3 +5556,14 @@ details.cf-more[open] > summary { border-style: solid; margin-bottom: 0.6rem; }
 .onb-nav { display: flex; justify-content: space-between; gap: 0.6rem; margin-top: 0.4rem; }
 .onb-nav button { width: auto; min-width: 7rem; }
 .onb-pneus { display: flex; justify-content: center; }
+/* Pied d'un post : icônes seules, alignées, le nombre dessous (façon TikTok). */
+.social-row { gap: 0.4rem; align-items: flex-start; }
+.social-row > .reaction-bar .reaction-btn, .social-row > .comment-btn, .social-row > .repost-btn, .social-row > .repost-count, .social-row > .soc-ico-btn {
+  flex-direction: column !important; align-items: center; justify-content: flex-start; gap: 0.1rem !important; min-width: 2.6rem; min-height: 2.6rem; padding: 0.3rem 0.35rem !important; }
+.social-row .soc-n { font-size: 0.78rem; line-height: 1; }
+.social-row > .repost-count { display: inline-flex; color: var(--text-muted); }
+.social-row .reaction-top { font-size: 1.05rem; line-height: 1.2; }
+html.soc-labels .social-row > button[aria-label]::after, html.soc-labels .social-row .reaction-btn[aria-label]::after { content: none; }
+/* Plans : bouton Repères lisible (texte blanc sur rouge). */
+.map-open-choice .primary, .map-open-choice .primary svg { color: var(--accent-ink, #fff) !important; }
+.map-open-choice .help-tip-btn { flex: 0 0 2.2rem !important; width: 2.2rem !important; height: 2.2rem; padding: 0 !important; }
