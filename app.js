@@ -2905,7 +2905,96 @@
     tutorialStep = Math.max(0, Math.min(TUTORIAL_STEPS.length - 1, tutorialStep + delta));
     renderRoot();
   }
+  // ---- Premier lancement : quelques questions selon le rôle, la taille du texte, les pneus ----
+  var onboardingOpen = false, onbStep = 0, onbAfter = null;
+  function onbSteps() {
+    var r = (currentUserProfile && currentUserProfile.role) || 'pilote';
+    if (r === 'organisateur') return ['role', 'orgteam', 'orgevent', 'size', 'pneus'];
+    if (r === 'accompagnant') return ['role', 'follow', 'team', 'size', 'pneus'];
+    return ['role', 'bike', 'team', 'ride', 'size', 'pneus'];
+  }
+  function saveMyField(obj) {
+    var uid = myUid(); if (!uid || !currentUserProfile) return;
+    Object.keys(obj).forEach(function (k) { currentUserProfile[k] = obj[k]; });
+    db.collection('users').doc(uid).set(obj, { merge: true }).catch(function (err) { showToast(tr('error_prefix') + ((err && err.message) || err)); });
+  }
+  function closeOnboarding() {
+    onboardingOpen = false;
+    if (currentUserProfile && !currentUserProfile.tutorialSeen) saveMyField({ tutorialSeen: true });
+    activeView = meIsNonRider() ? 'social' : 'chrono'; personView = null; outingView = null;
+    var after = onbAfter; onbAfter = null;
+    renderRoot(); window.scrollTo(0, 0);
+    if (after) setTimeout(after, 50);
+  }
+  function renderOnboarding() {
+    var steps = onbSteps(), k = steps[Math.min(onbStep, steps.length - 1)], me = currentUserProfile || {}, isLast = onbStep >= steps.length - 1;
+    var big = function (attrs, label, sub, on) { return '<button type="button" class="onb-choice' + (on ? ' on' : '') + '" ' + attrs + '><strong>' + label + '</strong>' + (sub ? '<span class="help-text">' + sub + '</span>' : '') + '</button>'; };
+    var title = '', body = '';
+    if (k === 'role') {
+      title = L('Bienvenue sur Pitbook', 'Welcome to Pitbook');
+      body = '<p class="help-text">' + L('Tu es…', 'You are…') + '</p>' +
+        big('data-onb-role="pilote"', L('Pilote', 'Rider'), L('Tu roules : tes chronos, ta moto, tes roulages.', 'You ride: your lap times, your bike, your trackdays.'), me.role === 'pilote' || !me.role) +
+        big('data-onb-role="accompagnant"', L('Accompagnant', 'Companion'), L('Tu suis et tu soutiens un ou des pilotes.', 'You follow and support riders.'), me.role === 'accompagnant') +
+        big('data-onb-role="organisateur"', L('Organisateur', 'Organiser'), L('Tu organises des roulages avec ta team.', 'You run trackdays with your team.'), me.role === 'organisateur');
+    } else if (k === 'bike') {
+      title = L('Ta moto', 'Your bike');
+      body = '<input type="text" id="onb-bike" maxlength="60" placeholder="' + escapeHtml(L('Ex. Yamaha R6', 'E.g. Yamaha R6')) + '" value="' + escapeHtml(me.bike || '') + '">';
+    } else if (k === 'team' || k === 'orgteam') {
+      var mine = (STATE.myTeamMemberships || []).map(function (m) { return teamById(m.teamId); }).filter(Boolean);
+      if (k === 'orgteam') {
+        title = L('Ta team', 'Your team');
+        body = mine.length ? '<p class="help-text">' + L('Tu es déjà dans : ', 'You\'re already in: ') + escapeHtml(mine.map(function (t) { return t.name; }).join(', ')) + '</p>'
+          : '<input type="text" id="onb-team-name" maxlength="40" placeholder="' + escapeHtml(L('Nom de ta team', 'Your team name')) + '"><p class="help-text">' + L('Tu pourras ajouter logo et membres ensuite.', 'You can add a logo and members later.') + '</p>';
+      } else {
+        title = L('Avec quelle team tu roules ?', 'Which team do you ride with?');
+        var list = (STATE.teams || []).filter(function (t) { return !mine.some(function (m) { return m.id === t.id; }); }).slice(0, 8);
+        body = (mine.length ? '<p class="help-text">' + L('Tu es déjà dans : ', 'You\'re already in: ') + escapeHtml(mine.map(function (t) { return t.name; }).join(', ')) + '</p>' : '') +
+          (list.length ? '<div class="onb-list">' + list.map(function (t) {
+            var asked = (STATE.teamJoinRequests || []).some(function (r) { return r.teamId === t.id && r.from === me.name; });
+            return '<div class="onb-row">' + teamAvatarHtml(t) + '<span>' + escapeHtml(t.name) + '</span>' + (asked ? '<span class="help-text">' + L('Demandé', 'Requested') + '</span>' : '<button type="button" class="ghost" data-action="team-join-request" data-team="' + escapeHtml(t.id) + '">' + L('Rejoindre', 'Join') + '</button>') + '</div>';
+          }).join('') + '</div>' : '') + '<p class="help-text">' + L('Pas de team ? Tu pourras en créer ou en rejoindre une plus tard (Profil › Teams).', 'No team? You can create or join one later (Profile › Teams).') + '</p>';
+      }
+    } else if (k === 'follow') {
+      title = L('Qui tu suis, qui tu soutiens ?', 'Who do you follow and support?');
+      var riders = allKnownUserNames().filter(function (n) { return n !== me.name && !isNonRiderName(n); }).slice(0, 12);
+      body = riders.length ? '<div class="onb-list">' + riders.map(function (n) { var u = (STATE.usersByName || {})[n] || {}; return '<div class="onb-row">' + avatarHtml(u, n).replace(/ data-p[a-z-]*="[^"]*"/g, '') + '<span>' + escapeHtml(n) + '</span>' + followBtnHtml(n, true) + '</div>'; }).join('') + '</div>'
+        : '<p class="help-text">' + L('Invite ton pilote avec le bouton Inviter en haut de l\'écran.', 'Invite your rider with the Invite button at the top.') + '</p>';
+    } else if (k === 'ride' || k === 'orgevent') {
+      title = k === 'ride' ? L('Ton prochain roulage', 'Your next trackday') : L('Ton prochain event', 'Your next event');
+      body = '<p class="help-text">' + (k === 'ride' ? L('Ajoute-le maintenant : le matin venu, Pitbook s\'ouvre sur ton groupe et tes horaires.', 'Add it now: on the day, Pitbook opens on your group and timetable.') : L('Crée-le maintenant : tes pilotes pourront s\'y inscrire.', 'Create it now: your riders can sign up.')) + '</p>' +
+        big('data-onb-ride="1"', k === 'ride' ? L('Ajouter mon prochain roulage', 'Add my next trackday') : L('Créer mon prochain event', 'Create my next event'), '', false);
+    } else if (k === 'size') {
+      title = L('Taille du texte', 'Text size');
+      body = big('data-onb-size="normal"', L('Normal', 'Normal'), '', !textSizeLarge()) + big('data-onb-size="grand"', '<span style="font-size:1.25em">' + L('Grand', 'Large') + '</span>', L('Plus facile à lire, même au soleil.', 'Easier to read, even in sunlight.'), textSizeLarge()) +
+        '<p class="help-text">' + L('Tu pourras changer dans Réglages.', 'You can change it in Settings.') + '</p>';
+    } else if (k === 'pneus') {
+      title = L('Les pneus', 'Tyres');
+      body = '<div class="onb-pneus">' + pneusChipHtml('onb-pneus-chip').replace('data-action="pneus-open"', '') + '</div><p>' + L('Les pneus sont les points de Pitbook : tu en gagnes en roulant, en notant tes chronos et en invitant des amis. Ils débloquent des couleurs et des cadres pour ta page.', 'Tyres are Pitbook\'s points: you earn them by riding, logging lap times and inviting friends. They unlock colours and frames for your page.') + '</p>';
+    }
+    return '<div class="crop-modal-overlay onb-overlay"><div class="crop-modal onb-modal">' +
+      '<div class="tutorial-dots">' + steps.map(function (_, i) { return '<span class="tutorial-dot' + (i === onbStep ? ' active' : '') + '"></span>'; }).join('') + '</div>' +
+      '<h2 class="section-title">' + title + '</h2><div class="onb-body">' + body + '</div>' +
+      '<div class="onb-nav">' + (onbStep > 0 ? '<button type="button" class="ghost" data-onb-go="-1">' + L('Retour', 'Back') + '</button>' : '<button type="button" class="link-btn" data-onb-skip="1">' + L('Passer', 'Skip') + '</button>') +
+      '<button type="button" class="primary" data-onb-go="1">' + (isLast ? L('C\'est parti', 'Let\'s go') : L('Suivant', 'Next')) + '</button></div></div></div>';
+  }
+  document.addEventListener('click', function (e) {
+    if (!onboardingOpen || !e.target.closest) return;
+    var t;
+    if ((t = e.target.closest('[data-onb-role]'))) { saveMyField({ role: t.getAttribute('data-onb-role') }); renderRoot(); return; }
+    if ((t = e.target.closest('[data-onb-size]'))) { setTextSize(t.getAttribute('data-onb-size') === 'grand'); renderRoot(); return; }
+    if ((t = e.target.closest('[data-onb-ride]'))) { onbAfter = openQuickOutingModal; closeOnboarding(); return; }
+    if (e.target.closest('[data-onb-skip]')) { closeOnboarding(); return; }
+    if ((t = e.target.closest('[data-onb-go]'))) {
+      var steps = onbSteps(), cur = steps[onbStep];
+      if (cur === 'bike') { var bEl = document.getElementById('onb-bike'); if (bEl && bEl.value.trim() !== (currentUserProfile.bike || '')) saveMyField({ bike: bEl.value.trim().slice(0, 60) }); }
+      if (cur === 'orgteam') { var tEl = document.getElementById('onb-team-name'); if (tEl && tEl.value.trim()) createTeam(tEl.value.trim(), true, 'pilotes'); }
+      var d = parseInt(t.getAttribute('data-onb-go'), 10);
+      if (d > 0 && onbStep >= steps.length - 1) { closeOnboarding(); return; }
+      onbStep = Math.max(0, Math.min(steps.length - 1, onbStep + d)); renderRoot();
+    }
+  });
   function renderTutorialOverlay() {
+    if (onboardingOpen) return renderOnboarding();
     if (!tutorialOpen) return '';
     var step = TUTORIAL_STEPS[tutorialStep];
     var isLast = tutorialStep === TUTORIAL_STEPS.length - 1;
@@ -5048,6 +5137,10 @@
     var isNonRider = p.role === 'accompagnant' || p.role === 'organisateur';
     var html = '<div style="margin-top:1.2rem; border-top:1px solid var(--border); padding-top:0.9rem;">';
     html += '<div class="section-title" style="font-size:0.95rem;">' + tr('notifications_heading') + '</div>';
+    var lvNow = notifLevel();
+    html += '<div class="notif-level" role="group" aria-label="' + escapeHtml(L('Quelles notifications', 'Which notifications')) + '">' + [['tout', L('Tout', 'All')], ['important', L('L\'important', 'Important only')], ['rien', L('Rien', 'None')]].map(function (o) {
+      return '<button type="button" class="' + (lvNow === o[0] ? 'primary' : 'ghost') + '" data-notif-level="' + o[0] + '">' + o[1] + '</button>';
+    }).join('') + '</div><div class="help-text" style="margin-bottom:0.6rem;">' + L('L\'important : messages, commentaires, invitations, ton roulage, ton podium.', 'Important: messages, comments, invites, your trackday, your podium.') + '</div>';
     html += '<div class="help-text">' + tr('notifications_browser_help') + '</div>';
     html += '<label class="checklist-item" style="margin-top:0.6rem;"><input type="checkbox" id="profile-notify"' + (p.notifyBeforeSession ? ' checked' : '') + '> <span id="profile-notify-label">' + (isNonRider ? tr('notify_group_departing_rider') : tr('notify_group_departing_self')) + '</span></label>';
     if (!isNonRider) html += '<label class="checklist-item" style="margin-top:0.4rem;"><input type="checkbox" id="profile-notify-duels"' + (p.notifyDuels !== false ? ' checked' : '') + '> ' + tr('notify_duel') + '</label>';
@@ -5924,10 +6017,17 @@
     var ts = pendingTimesheetReminder();
     if (ts) items.push({ key: 'ts:' + ts.ev.id + ':' + ts.date, kind: 'camera', time: Date.now() - 4, timeLabel: ts.date === dateKey(new Date()) ? L('Ce soir', 'Tonight') : formatDate(ts.date),
       html: L('Ajoute ton chrono de ', 'Add your lap time from ') + '<strong>' + escapeHtml(ts.ev.circuit) + '</strong>' + L(' : ta place « Entre amis » t\'attend.', ': your place in “Between friends” is waiting.'), go: { to: 'carnet' } });
+    // Niveau choisi dans Réglages › Notifications : Tout, L'important ou Rien.
+    var lvl = notifLevel();
+    if (lvl === 'rien') items = [];
+    else if (lvl === 'important') items = items.filter(function (it) { return NOTIF_IMPORTANT.indexOf(it.kind) !== -1; });
     items = groupActivityItems(items);
     items.sort(function (a, b) { return (b.time || 0) - (a.time || 0); });
     return items;
   }
+  // L'important : ce qui te concerne directement (on te parle, on t'invite, ton roulage, ton podium).
+  var NOTIF_IMPORTANT = ['comment', 'mention', 'message', 'event', 'team', 'clock', 'camera', 'podium', 'record', 'duel', 'pote', 'follow', 'app', 'pro', 'member'];
+  function notifLevel() { try { return localStorage.getItem('cdp-notif-level') || 'tout'; } catch (e) { return 'tout'; } }
   // Regroupe les notifications du même genre : « X, Y et Z ont réagi à ton
   // message » (les plus récents d'abord), « X, Y et Z se sont abonnés à toi »,
   // les records du jour sur un même circuit (le meilleur temps d'abord).
@@ -7333,7 +7433,7 @@
     html += '<button type="submit" class="primary cf-submit" id="submit-btn">' + L('Enregistrer', 'Save') + '</button>';
     // Incident : plus sur l'écran de saisie (on n'y pense pas avant de rouler) ;
     // il se note après coup, sur la page d'un roulage passé.
-    html += '<details class="cf-more"' + (formCircuitsKnown ? '' : ' open') + '><summary>⋯ ' + L('Piste, note, vidéo, autres réglages', 'Track, note, video, other details') + '</summary>';
+    html += '<details class="cf-more"' + (formCircuitsKnown ? '' : ' open') + '><summary>+ ' + L('Ajouter un détail (circuit, date, piste, note, vidéo, incident)', 'Add a detail (circuit, date, track, note, video, incident)') + '</summary>';
     var trackIco = {
       sec: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
       humide: '<path d="M7 15a4 4 0 0 1 .5-8 5 5 0 0 1 9.5 1.5A3.5 3.5 0 0 1 17 15z"/><path d="M12 18.5v.5"/>',
@@ -8365,7 +8465,7 @@
     var cp = pillState.circuit;
     if (cp === 'plan') {
       // Les deux façons d'annoter, visibles dès l'arrivée sur la page.
-      html += '<div class="map-open-choice">' +
+      html += '<div class="map-open-choice">' + helpTipBtn('plans') +
         '<button type="button" class="primary" data-action="map-open" data-mode="pins" title="' + escapeHtml(L('Repères', 'Marks')) + '"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-6-5.6-6-11a6 6 0 0 1 12 0c0 5.4-6 11-6 11z"/><circle cx="12" cy="10" r="2.3"/></svg>' + L('Repères', 'Marks') + '</button>' +
         '<button type="button" class="ghost map-open-draw" data-action="map-open" data-mode="draw" title="' + escapeHtml(L('Dessin à main levée', 'Freehand drawing')) + '"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M14 6l4 4"/></svg>' + L('Dessin', 'Draw') + '</button>' +
         // Spots photo (accompagnants, photographes) : tout public ou accès pro.
@@ -11205,6 +11305,29 @@
       L('Tout mon budget ', 'My whole budget ') + escapeHtml(year) + (y ? ' · ' + budgetYearTotal(y) : '') + ' ›</button></div>';
     return html;
   }
+  // Petit « ? » sur les écrans complexes : 3 étapes en images, sans long texte.
+  var HELP_TIPS = {
+    plans: function () { return [
+      ['<path d="M12 21s-6-5.6-6-11a6 6 0 0 1 12 0c0 5.4-6 11-6 11z"/><circle cx="12" cy="10" r="2.3"/>', L('Touche « Repères »', 'Tap “Marks”'), L('Le plan du circuit s\'ouvre en grand.', 'The circuit map opens full size.')],
+      ['<path d="M9 11V5a1.5 1.5 0 0 1 3 0v6M12 10V4a1.5 1.5 0 0 1 3 0v6M15 10.5V6a1.5 1.5 0 0 1 3 0v8a6 6 0 0 1-6 6h-1a6 6 0 0 1-5-2.7L3.5 13a1.6 1.6 0 0 1 2.5-2l3 3"/>', L('Touche un endroit du tracé', 'Tap a spot on the track'), L('Un repère se pose sous ton doigt.', 'A mark drops under your finger.')],
+      ['<path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 9 9 0 0 1-4-.9L3 20l1.1-4A8.4 8.4 0 0 1 3 11.5 8.5 8.5 0 0 1 12 3a8.5 8.5 0 0 1 9 8.5z"/>', L('Écris ton commentaire', 'Write your note'), L('Point de freinage, vitesse, rapport… Tout est gardé pour la prochaine fois.', 'Braking point, speed, gear… All kept for next time.')]
+    ]; },
+    budget: function () { return [
+      ['<path d="M4 7h16v12H4z"/><path d="M4 7l2-3h12l2 3M9 12h6"/>', L('Tes roulages sont déjà là', 'Your trackdays are already here'), L('Le prix annoncé par l\'orga est repris tout seul.', 'The organiser\'s price is picked up for you.')],
+      ['<path d="M12 5v14M5 12h14"/>', L('Ajoute tes frais', 'Add your costs'), L('Déplacement, hôtel, pneus : touche un roulage pour les noter.', 'Travel, hotel, tyres: tap a trackday to note them.')],
+      ['<path d="M4 19V9M10 19V5M16 19v-7M22 19H2"/>', L('Regarde le total', 'See the total'), L('La saison complète, ce qui est payé et ce qui reste.', 'The whole season, what\'s paid and what\'s left.')]
+    ]; }
+  };
+  function helpTipBtn(key) { return '<button type="button" class="help-tip-btn" data-help-tip="' + key + '" aria-label="' + escapeHtml(L('Aide', 'Help')) + '" title="' + escapeHtml(L('Aide', 'Help')) + '">?</button>'; }
+  document.addEventListener('click', function (e) {
+    var b = e.target.closest && e.target.closest('[data-help-tip]');
+    if (!b || !HELP_TIPS[b.getAttribute('data-help-tip')]) return;
+    e.preventDefault(); e.stopPropagation();
+    var steps = HELP_TIPS[b.getAttribute('data-help-tip')]();
+    openMiniSheet('<h2 class="section-title">' + L('Comment ça marche', 'How it works') + '</h2><ol class="help-steps">' + steps.map(function (st) {
+      return '<li><span class="help-step-ico"><svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + st[0] + '</svg></span><span><strong>' + escapeHtml(st[1]) + '</strong><span class="help-text">' + escapeHtml(st[2]) + '</span></span></li>';
+    }).join('') + '</ol><div class="mini-sheet-actions"><button type="button" class="primary" data-mini-close>' + L('J\'ai compris', 'Got it') + '</button></div>');
+  }, true);
   function renderBudgetTab() {
     if (!currentUserProfile) return '';
     ensureSetupsLoaded();
@@ -11215,7 +11338,7 @@
     if (!budgetSeason || seasons.indexOf(budgetSeason) === -1) budgetSeason = thisYear;
     var totals = {};
     cb.years.forEach(function (y) { totals[y.year] = y; });
-    var html = '<div data-budget-root>';
+    var html = '<div data-budget-root>' + helpTipBtn('budget');
     html += '<div class="budget-seasons" role="tablist">' + seasons.slice().reverse().map(function (y) {
       return '<button type="button" role="tab" class="budget-season' + (y === budgetSeason ? ' active' : '') + '" data-budget-season="' + escapeHtml(y) + '"><span>' + escapeHtml(y) + '</span>' +
         '<strong>' + (totals[y] ? budgetYearTotal(totals[y]) : '—') + '</strong></button>';
@@ -25260,6 +25383,24 @@
   // Rangées d'onglets qui défilent : un « › » à droite (et « ‹ » à
   // gauche) tant qu'il reste des onglets cachés, et l'onglet actif ramené
   // dans le champ après chaque rendu.
+  // Icônes des posts : leur nom s'affiche dessous les 5 premières visites, puis plus.
+  // Un appui long sur une icône montre toujours son nom.
+  function markSocialLabels() {
+    if (!document.querySelector('.social-row')) return;
+    var n = 0; try { n = parseInt(localStorage.getItem('cdp-soc-labels') || '0', 10) || 0; } catch (e) {}
+    var counted = false; try { counted = sessionStorage.getItem('cdp-soc-labels-s') === '1'; } catch (e) {}
+    if (!counted) { n++; try { localStorage.setItem('cdp-soc-labels', String(n)); sessionStorage.setItem('cdp-soc-labels-s', '1'); } catch (e) {} }
+    document.documentElement.classList.toggle('soc-labels', n <= 5);
+  }
+  (function () {
+    var t = null;
+    document.addEventListener('touchstart', function (e) {
+      var b = e.target.closest && e.target.closest('.social-row [aria-label]');
+      if (!b) return;
+      t = setTimeout(function () { showToast(b.getAttribute('aria-label')); }, 550);
+    }, { passive: true });
+    ['touchend', 'touchmove', 'touchcancel'].forEach(function (ev) { document.addEventListener(ev, function () { clearTimeout(t); }, { passive: true }); });
+  })();
   function markScrollableTabs() {
     document.querySelectorAll('.pill-tabs, .sub-pills, .subnav-scroll').forEach(function (row) {
       var update = function () {
@@ -25447,6 +25588,7 @@
     try {
       renderRootUnsafe();
       markScrollableTabs();
+      markSocialLabels();
       releaseKbOpenIfIdle();
       sanitizeLinks(document.getElementById('root'));
       if (inlinePlayer) positionInlinePlayer();
@@ -25558,7 +25700,7 @@
       else body = carnetSub + carnetPillsHtml(myOutings()) + renderEventTab(); // 'event' (Carnet › Roulages › Calendrier) and safety fallback
       // Big section title so it's always clear which main tab you're in.
     }
-    var notifCount = pendingNotificationCount() + unreadActivityCount();
+    var notifCount = notifLevel() === 'rien' ? 0 : pendingNotificationCount() + unreadActivityCount();
     root.innerHTML =
       '<header class="page-head">' +
         '<div class="page-head-inner">' +
@@ -26279,6 +26421,10 @@
       accountManagerOpen = false;
       renderRoot();
     });
+    document.querySelectorAll('[data-notif-level]').forEach(function (b) { b.addEventListener('click', function () {
+      try { localStorage.setItem('cdp-notif-level', b.getAttribute('data-notif-level')); } catch (e) {}
+      renderRoot();
+    }); });
     var textSizeRow = document.getElementById('text-size-row');
     if (textSizeRow) textSizeRow.addEventListener('click', function () { setTextSize(!textSizeLarge()); renderRoot(); });
     var setMore = document.querySelector('details.set-more');
@@ -30463,7 +30609,20 @@
     }
   }
 
+  // Messages d'erreur sans jargon : ce qui s'est passé et quoi faire, jamais de code technique.
+  function friendlyErrorText(raw) {
+    var m = String(raw || '');
+    if (/permission|insufficient|unauthori[sz]ed|PERMISSION_DENIED/i.test(m)) return L('Action refusée : tu n\'as pas les droits pour ça. Si ça te semble anormal, envoie une suggestion.', 'Not allowed: you don\'t have the rights for this. If that seems wrong, send a suggestion.');
+    if (/network|offline|unavailable|failed to fetch|timeout|deadline/i.test(m)) return L('Pas de réseau pour l\'instant. Ce que tu as fait est gardé et partira tout seul.', 'No connection right now. Your change is kept and will be sent on its own.');
+    if (/quota|resource-exhausted|too many/i.test(m)) return L('Trop de demandes d\'un coup. Réessaie dans une minute.', 'Too many requests at once. Try again in a minute.');
+    if (/not-found|no document|not found/i.test(m)) return L('Introuvable : cet élément a peut-être été supprimé.', 'Not found: this item may have been deleted.');
+    if (/too large|exceeds|maximum|longer than|size/i.test(m)) return L('Fichier trop lourd. Essaie une image ou une vidéo plus légère.', 'File too large. Try a lighter image or video.');
+    if (/wrong-password|invalid-credential|invalid-login/i.test(m)) return L('Mot de passe incorrect.', 'Wrong password.');
+    if (/requires-recent-login/i.test(m)) return L('Par sécurité, reconnecte-toi puis recommence.', 'For security, log in again and retry.');
+    return L('Ça n\'a pas marché. Réessaie ; si ça recommence, envoie une suggestion.', 'That didn\'t work. Try again; if it happens again, send a suggestion.');
+  }
   function showToast(message, variant) {
+    if (typeof message === 'string' && (message.indexOf(tr('error_prefix')) === 0 || /FirebaseError|\bauth\/|firestore\//.test(message))) message = friendlyErrorText(message);
     var stack = document.getElementById('toast-stack');
     var toast = document.createElement('div');
     toast.className = variant ? 'toast ' + variant : 'toast';
@@ -31340,9 +31499,10 @@
           // so it stays "seen" across every browser/phone that account
           // ever signs into. Always still reachable afterward via Aide
           // in Profil -> Réglages.
+          // Premier lancement : quelques questions selon le rôle (à la place du tutoriel).
           if (!currentUserProfile.tutorialSeen) {
-            tutorialOpen = true;
-            tutorialStep = 0;
+            onboardingOpen = true;
+            onbStep = 0;
           }
           userPickedCircuit = false;
           startSync();

@@ -70,4 +70,5 @@
   };
   // Compte riche en pneus (#riche=1) : pour tester les achats.
   if (/riche=1/.test(location.hash)) window.__MOCK_DATA.users.u1.pneus = { bank: 2000, cal: { n: 0, last: '' } };
+  if (/premier=1/.test(location.hash)) window.__MOCK_DATA.users.u1.tutorialSeen = false; // premier lancement
 })();

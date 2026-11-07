@@ -2,6 +2,20 @@
 
 Les nouveautés, de la plus récente à la plus ancienne. Le détail complet est dans l'historique git.
 
+## 7 novembre 2026 · Pitbook pour tous
+
+- Premier lancement : pilote, accompagnant ou organisateur, puis quelques questions selon le rôle (moto, team, prochain roulage ; qui tu suis ; ta team, ton prochain event), la taille du texte et ce que sont les pneus.
+- Ma page : une seule page qui défile (prochains roulages, records, publications, saisons).
+- Mots plus simples : Mes publications, Prochains roulages, Repères, Plus de filtres.
+- Réglages : L'essentiel en haut (Compte, Notifications, Taille du texte), le reste dans « Plus ».
+- Taille du texte Normal ou Grand.
+- Inviter un ami : de retour dans l'en-tête, entre la loupe et la cloche.
+- Posts : le nom des icônes s'affiche les 5 premières fois ; un appui long le montre toujours.
+- Saisie d'un chrono : les temps d'abord, « + Ajouter un détail » ensuite.
+- Notifications : Tout, L'important ou Rien.
+- Messages d'erreur sans jargon : ce qui s'est passé et quoi faire.
+- Aide « ? » sur Plans et repères et sur Budget : 3 étapes en images.
+
 ## 7 novembre 2026 · optimisation et sécurité
 
 - Social, Messages et Profil : un seul rendu par toucher au lieu de deux (affichage deux fois plus rapide sur téléphone).
