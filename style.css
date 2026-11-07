@@ -5513,3 +5513,18 @@ body { overflow-wrap: break-word; }
 .annot-toolbar.show-adv .annot-adv { display: inline-flex !important; }
 .annot-toolbar.show-adv select.annot-adv { display: inline-block !important; }
 .annot-more-btn { width: auto; padding: 0.4rem 0.8rem; font-weight: 700; }
+/* En-tête : loupe, inviter un ami, cloche. */
+.header-controls > #search-toggle, .header-controls > .gsearch-inline { order: 1; }
+.header-controls > #invite-qr-btn { order: 2; }
+.header-controls > #notifications-toggle { order: 3; }
+/* Taille du texte « Grand » : tout grandit d'un cran (rem). */
+html.text-lg { font-size: 112.5%; }
+html.text-lg body { font-size: 1.06rem; }
+/* Réglages : « Plus » replié sous l'essentiel. */
+details.set-more { margin: 0.4rem 0 0.9rem; }
+details.set-more > summary { list-style: none; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 0.4rem; padding: 0.75rem; border-radius: 12px; background: var(--surface); border: 1px solid var(--border); font-weight: 700; color: var(--text); }
+details.set-more > summary::-webkit-details-marker { display: none; }
+details.set-more > summary::after { content: '▾'; color: var(--accent); }
+details.set-more[open] > summary::after { content: '▴'; }
+details.set-more[open] > summary { margin-bottom: 0.8rem; }
+.mypage-title { margin: 1.1rem 0 0.5rem; }

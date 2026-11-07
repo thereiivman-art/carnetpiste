@@ -5069,6 +5069,13 @@
     return html;
   }
 
+  // Taille du texte (Normal / Grand), choisie au premier lancement et dans les réglages ; propre à l'appareil.
+  function textSizeLarge() { try { return localStorage.getItem('cdp-text-size') === 'grand'; } catch (e) { return false; } }
+  function setTextSize(large) {
+    try { localStorage.setItem('cdp-text-size', large ? 'grand' : 'normal'); } catch (e) {}
+    document.documentElement.classList.toggle('text-lg', !!large);
+  }
+  if (textSizeLarge()) document.documentElement.classList.add('text-lg');
   function simpleModeOn() { try { return localStorage.getItem('cdp-simple') === '1'; } catch (e) { return false; } }
   function setSimpleMode(on) {
     try { localStorage.setItem('cdp-simple', on ? '1' : '0'); } catch (e) {}
@@ -5090,7 +5097,7 @@
       var privacy = '<div class="help-text">Tes chronos et roulages sont visibles des autres pilotes de l\'appli ; repères et débriefs ne sont affichés qu\'à toi ; ton email reste privé.</div>' +
         '<div class="help-text" style="margin-top:0.4rem;">' + tr('social_settings_help') + '</div>' +
         '<label class="checklist-item" style="margin-top:0.6rem;"><input type="checkbox" id="profile-share-sorties"' + (p.shareSorties !== false ? ' checked' : '') + '> ' + tr('share_events_chronos') + '</label>' +
-        '<label for="profile-share-upcoming" style="margin-top:0.7rem;">' + L('Mes prochains roulages (Bientôt en piste) visibles par', 'My next trackdays (Coming up) visible to') + '</label>' +
+        '<label for="profile-share-upcoming" style="margin-top:0.7rem;">' + L('Mes prochains roulages visibles par', 'My next trackdays (Coming up) visible to') + '</label>' +
         '<select id="profile-share-upcoming"><option value="friends"' + (p.shareUpcoming === 'friends' ? ' selected' : '') + '>' + L('Mes amis', 'My friends') + '</option><option value="public"' + ((p.shareUpcoming || 'public') === 'public' ? ' selected' : '') + '>' + L('Tout le monde', 'Everyone') + '</option></select>' +
         '<label for="profile-visibility" style="margin-top:0.7rem;">' + L('Ma fiche (présentation, bannière, publications) visible par', 'My profile (about, banner, posts) visible to') + '</label>' +
         '<select id="profile-visibility"><option value="public"' + (p.profileVisibility !== 'friends' ? ' selected' : '') + '>' + L('Tout le monde', 'Everyone') + '</option><option value="friends"' + (p.profileVisibility === 'friends' ? ' selected' : '') + '>' + L('Mes amis', 'My friends') + '</option></select>' +
@@ -5205,8 +5212,10 @@
     refresh: '<path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 5v6h-6"/>',
     swap: '<path d="M7 7h13l-3-3M17 17H4l3 3"/>',
     logout: '<path d="M15 4h4v16h-4"/><path d="M10 8l-4 4 4 4M6 12h10"/>',
+    type: '<path d="M4 7V5h11v2M9.5 5v14M7 19h5"/><path d="M14 12v-1.5h7V12M17.5 10.5V19M16 19h3"/>',
     qr: '<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3zM20 14v1M14 20h1M18 18h3v3"/>'
   };
+  var settingsMoreOpen = false;
   function setIco(k) { return '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + SET_ICO[k] + '</svg>'; }
   function renderSettingsList(p) {
     var dmLbl = { friends: L('Mes amis', 'My friends'), followers: L('Amis et abonnés', 'Friends and followers'), all: L('Tout le monde', 'Everyone'), none: L('Personne', 'Nobody') };
@@ -5219,12 +5228,13 @@
     var email = (auth.currentUser && auth.currentUser.email) || '';
     return '<div class="settings-ig">' +
 
-      group(L('Ton compte', 'Your account'),
+      // L'essentiel d'abord ; le reste derrière « Plus ».
+      group(L('L\'essentiel', 'Essentials'),
         row('@compte', 'user', L('Compte', 'Account'), p.name, L('profil fiche photo pseudo email mot de passe supprimer rôle', 'profile photo name email password delete role')) +
-        row('#invite-qr-row', 'qr', L('Inviter un ami', 'Invite a friend'), '', L('qr code parrainage lien filleul', 'qr code referral link'))) +
-      group(L('Comment tu utilises Pitbook', 'How you use Pitbook'),
         row('notifications', 'bell', 'Notifications', '', L('alertes push rappels duel podium amis roulage', 'alerts push reminders duel podium friends trackday')) +
+        row('#text-size-row', 'type', L('Taille du texte', 'Text size'), textSizeLarge() ? L('Grand', 'Large') : L('Normal', 'Normal'), L('taille texte grand lisible police', 'text size large readable font')) +
         row('affichage', 'globe', L('Langue et affichage', 'Language and display'), currentLang() === 'en' ? 'English' : 'Français', L('langue thème sombre clair ressenti version mise à jour unités celsius fahrenheit miles', 'language theme dark light feeling version update units celsius fahrenheit miles'))) +
+      '<details class="set-more"' + (settingsMoreOpen ? ' open' : '') + '><summary>' + L('Plus', 'More') + '</summary>' +
       group(L('Qui peut voir ton contenu', 'Who can see your content'),
         row('confidentialite', 'lock', L('Confidentialité', 'Privacy'), p.profileVisibility === 'friends' ? L('Amis', 'Friends') : L('Public', 'Public'), L('fiche visible chronos roulages trophées voyage abonnés', 'profile visible lap times trackdays trophies travel followers')) +
         row('confidentialite', 'chat', L('Messages', 'Messages'), dmLbl[p.dmPolicy || 'friends'] || '', L('qui peut m\'écrire messages privés', 'who can message me private messages')) +
@@ -5237,6 +5247,7 @@
         row('@aide', 'help', L('Aide', 'Help'), currentAppVersion(), L('tutoriel guide faq légal confidentialité mentions version mise à jour', 'tutorial guide faq legal privacy notice version update')) +
         row('@suggestion', 'idea', L('Suggestion', 'Suggestion'), '', L('idée bug retour', 'idea bug feedback')) +
         '') +
+      '</details>' +
       (isAdmin() ? group('Admin', row('@admin', 'star', L('Admin', 'Admin'), '', L('gestion des comptes outils options statistiques données', 'account management tools options stats data'))) : '') +
       group(L('Connexion', 'Login'),
         row('#compte-switch-btn', 'swap', L('Changer de compte', 'Switch account'), email, L('connexion', 'login')) +
@@ -8355,7 +8366,7 @@
     if (cp === 'plan') {
       // Les deux façons d'annoter, visibles dès l'arrivée sur la page.
       html += '<div class="map-open-choice">' +
-        '<button type="button" class="primary" data-action="map-open" data-mode="pins" title="' + escapeHtml(L('Repères pro', 'Pro marks')) + '"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-6-5.6-6-11a6 6 0 0 1 12 0c0 5.4-6 11-6 11z"/><circle cx="12" cy="10" r="2.3"/></svg>' + L('Repères', 'Marks') + '</button>' +
+        '<button type="button" class="primary" data-action="map-open" data-mode="pins" title="' + escapeHtml(L('Repères', 'Marks')) + '"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-6-5.6-6-11a6 6 0 0 1 12 0c0 5.4-6 11-6 11z"/><circle cx="12" cy="10" r="2.3"/></svg>' + L('Repères', 'Marks') + '</button>' +
         '<button type="button" class="ghost map-open-draw" data-action="map-open" data-mode="draw" title="' + escapeHtml(L('Dessin à main levée', 'Freehand drawing')) + '"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M14 6l4 4"/></svg>' + L('Dessin', 'Draw') + '</button>' +
         // Spots photo (accompagnants, photographes) : tout public ou accès pro.
         (meIsNonRider() || isAdmin() ? '<button type="button" class="ghost" data-action="photo-spots" title="' + escapeHtml(L('Spots photo du circuit', 'Circuit photo spots')) + '"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>' + L('Spots photo', 'Photo spots') + '</button>' : '') + lapVideoLinkHtml(selectedCircuit) + '</div>';
@@ -16083,7 +16094,7 @@
   }
   function myProfileNavPills() {
     var me = currentUserProfile, isPilote = !me.role || me.role === 'pilote';
-    var out = [['monfil', L('Mon Box', 'My Box')], ['fiche', L('Fiche', 'Profile')], ['bientot', L('Bientôt en piste', 'Coming up')]];
+    var out = [['monfil', L('Mes publications', 'My posts')], ['fiche', L('Fiche', 'Profile')], ['bientot', L('Prochains roulages', 'Next trackdays')]];
     if (isPilote) out.push(['saisons', L('Saisons', 'Seasons')]);
     return out;
   }
@@ -20408,7 +20419,7 @@
       var ridesShared = !!friendship && isPilote && u.shareSorties !== false;
       var visiblePosts = (STATE.wallPosts || []).filter(function (p) { return inFeed(p) && p.author === name && (p.author === (currentUserProfile && currentUserProfile.name) || !p.private) && (friendship || p.audience === 'all' || (p.audience === 'followers' && iFollow(name))); });
       var oPills = [['fil', L('Social', 'Social')], ['fiche', L('Fiche', 'Profile')], ['teams', 'Teams']];
-      if (upcomingVisible(u, name)) oPills.push(['bientot', L('Bientôt en piste', 'Coming up')]);
+      if (upcomingVisible(u, name)) oPills.push(['bientot', L('Prochains roulages', 'Next trackdays')]);
       if (ridesShared) oPills.push(['saisons', L('Saisons', 'Seasons')]);
       html += renderPills('person', oPills);
       if (pillState.person === 'fil') return html + (visiblePosts.length ? visiblePosts.slice(0, 30).map(function (p) { return '<div class="card feed-card"' + viewAttrs(p.id, p.author) + '>' + renderWallPost(p) + '</div>'; }).join('') : '<div class="card help-text">' + L('Aucune publication visible pour l\'instant.', 'No visible posts yet.') + '</div>') + '</div>';
@@ -20421,24 +20432,33 @@
         return html + '</div>';
       }
     }
-    var withFeed = isMe && socialProfileCtx;
+    var withFeed = isMe && socialProfileCtx, myPageTail = '';
     if (isMe && (isPilote || withFeed)) {
       // Fil d'abord, puis Fiche, Bientôt en piste, Saisons.
       var theirPosts = !isMe ? (STATE.wallPosts || []).filter(function (p) { return inFeed(p) && p.author === name; }) : [];
       var personPills = [];
-      if (withFeed) personPills.push(['monfil', L('Mon Box', 'My Box')]);
+      if (withFeed) personPills.push(['monfil', L('Mes publications', 'My posts')]);
       else if (!isMe) personPills.push(['fil', L('Social', 'Social')]);
       personPills.push(['fiche', L('Fiche', 'Profile')]);
-      if (withFeed || (!isMe && upcomingVisible(u, name))) personPills.push(['bientot', L('Bientôt en piste', 'Coming up')]);
+      if (withFeed || (!isMe && upcomingVisible(u, name))) personPills.push(['bientot', L('Prochains roulages', 'Next trackdays')]);
       if (isPilote && (isMe || u.shareSorties !== false)) personPills.push(['saisons', L('Saisons', 'Seasons')]);
-      html += withFeed ? renderPills('person', personPills).replace('<div class="pill-tabs">', '<div class="pill-tabs main-subnav-pills">') : renderPills('person', personPills);
+      // Ma page (onglet Profil) : une seule page qui défile, sans pastilles internes.
+      if (withFeed) {
+        var shareV0 = (u && u.shareUpcoming) === 'friends' ? 'friends' : 'public';
+        var shareSel0 = '<div class="help-text bientot-share">' + L('Visibles par ', 'Visible to ') +
+          '<select id="bientot-share-upcoming" class="inline-select"><option value="friends"' + (shareV0 === 'friends' ? ' selected' : '') + '>' + L('mes amis', 'my friends') + '</option><option value="public"' + (shareV0 === 'public' ? ' selected' : '') + '>' + L('tout le monde', 'everyone') + '</option></select></div>';
+        var mineUp0 = personUpcomingHtml(name);
+        html += (mineUp0 ? mineUp0.replace('</div>', '</div>' + shareSel0) : '<div class="card help-text">' + L('Aucun roulage prévu pour l\'instant.', 'No trackday planned yet.') + '</div>');
+        myPageTail = renderMyFeedTab(u) +
+          (isPilote ? '<h2 class="section-title mypage-title">' + L('Saisons', 'Seasons') + '</h2>' + renderRiderSeasons(name, look, true) : '');
+      } else html += renderPills('person', personPills);
       if (pillState.person === 'fil' && !isMe) return html + (theirPosts.length ? theirPosts.slice(0, 30).map(function (p) { return '<div class="card feed-card"' + viewAttrs(p.id, p.author) + '>' + renderWallPost(p) + '</div>'; }).join('') : '<div class="card help-text">' + L('Aucune publication pour l\'instant.', 'No posts yet.') + '</div>') + '</div>';
-      if (pillState.person === 'saisons') return html + renderRiderSeasons(name, look, isMe) + '</div>';
+      if (pillState.person === 'saisons' && !withFeed) return html + renderRiderSeasons(name, look, isMe) + '</div>';
       if (pillState.person === 'bientot' && !isMe) return html + (personUpcomingHtml(name) || '<div class="card help-text">' + L('Aucun roulage prévu pour l\'instant.', 'No trackday planned yet.') + '</div>') + '</div>';
-      if (pillState.person === 'monfil' && withFeed) return html + renderMyFeedTab(u) + '</div>';
+      if (pillState.person === 'monfil' && withFeed && false) return html + renderMyFeedTab(u) + '</div>';
       // Ma fiche : d'abord MES prochains roulages (tels que les autres les
       // voient, selon mon réglage Amis / Public), puis ceux de mes potes.
-      if (pillState.person === 'bientot' && withFeed) {
+      if (pillState.person === 'bientot' && withFeed && false) {
         var shareV = (u && u.shareUpcoming) === 'friends' ? 'friends' : 'public';
         var shareSel = '<div class="help-text bientot-share">' + L('Visibles par ', 'Visible to ') +
           '<select id="bientot-share-upcoming" class="inline-select"><option value="friends"' + (shareV === 'friends' ? ' selected' : '') + '>' + L('mes amis', 'my friends') + '</option><option value="public"' + (shareV === 'public' ? ' selected' : '') + '>' + L('tout le monde', 'everyone') + '</option></select></div>';
@@ -20483,7 +20503,7 @@
       var today = dateKey(new Date());
       var next = eventsList().filter(function (ev) { return (ev.riders || []).indexOf(name) !== -1 && (ev.dateEnd || ev.dateStart) >= today; })
         .sort(function (a, b) { return a.dateStart < b.dateStart ? -1 : 1; }).slice(0, 4);
-      if (next.length && (isMe || upcomingVisible(u, name))) {
+      if (next.length && !withFeed && (isMe || upcomingVisible(u, name))) {
         html += '<div class="card"><h2 class="section-title">' + (isMe ? L('Mes prochains roulages', 'My next trackdays') : L('Ses prochains roulages', 'Next trackdays')) + '</h2>' + next.map(function (ev) {
           var mineToo = me && (ev.riders || []).indexOf(me.name) !== -1;
           if (isMe) return '<div class="feed-upcoming-row"><span class="outing-thumb">' + circuitThumbHtml(ev.circuit) + '</span><span class="feed-upcoming-main"><strong>' + escapeHtml(ev.circuit) + '</strong><span class="help-text">' + escapeHtml(formatEventRange(ev, true)) + '</span></span></div>';
@@ -20511,7 +20531,7 @@
     if (u.shareTrophees !== false) {
       html += renderAchievementsCard(getAch(), 'person-achievements-' + name);
     }
-    if (isMe) return html + '</div>';
+    if (isMe) return html + myPageTail + '</div>';
     // Remove the friend (second tap to confirm)
     html += '<div class="danger-zone" style="margin-top:0.9rem;">';
     if (pendingRemoveFriendId === friendship.id) {
@@ -20732,7 +20752,7 @@
       return '<button type="button" class="' + (ty === f[0] ? 'on' : '') + '" data-gs-type="' + f[0] + '">' + f[1] + '</button>'; }).join('') +
       '</div><div class="gsearch-sortrow">' + '<button type="button" class="gsearch-sort" data-gs-sort="1" title="' + escapeHtml(L('Ordre des dates', 'Date order')) + '">' + (asc ? L('Plus anciens', 'Oldest') : L('Plus récents', 'Newest')) + ' ⇅</button></div>';
     // Recherche avancée (catégories, tri) rangée derrière l'engrenage, fermée au départ.
-    var bar = '<div class="gsearch-adv-row"><button type="button" class="gsearch-adv-btn' + (o.adv ? ' on' : '') + (ty !== 'all' || asc ? ' active' : '') + '" data-gs-adv="1" aria-expanded="' + !!o.adv + '" title="' + escapeHtml(L('Avancée', 'Advanced')) + '"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/></svg>' + L('Avancée', 'Advanced') + (ty !== 'all' ? ' · ' + escapeHtml((advBar.match(new RegExp('data-gs-type="' + ty + '">([^<]*)<')) || [])[1] || '') : '') + '</button></div>' + (o.adv ? advBar : '');
+    var bar = '<div class="gsearch-adv-row"><button type="button" class="gsearch-adv-btn' + (o.adv ? ' on' : '') + (ty !== 'all' || asc ? ' active' : '') + '" data-gs-adv="1" aria-expanded="' + !!o.adv + '" title="' + escapeHtml(L('Plus de filtres', 'More filters')) + '"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/></svg>' + L('Avancée', 'Advanced') + (ty !== 'all' ? ' · ' + escapeHtml((advBar.match(new RegExp('data-gs-type="' + ty + '">([^<]*)<')) || [])[1] || '') : '') + '</button></div>' + (o.adv ? advBar : '');
     if (t.length < 2 && ty === 'all') return { html: bar + '<div class="help-text gsearch-hint">' + L('Tape au moins 2 lettres, ou ouvre la recherche avancée.', 'Type at least 2 letters, or open advanced search.') + '</div>', acts: acts };
     var hit = function (x) { return t.length < 2 || norm(x).indexOf(t) !== -1; };
     var want = function (k) { return ty === 'all' || ty === k; };
@@ -21048,7 +21068,7 @@
     var next = eventsList().filter(function (ev) { return (ev.riders || []).indexOf(name) !== -1 && (ev.dateEnd || ev.dateStart) >= today; }).sort(function (a, b) { return a.dateStart < b.dateStart ? -1 : 1; });
     if (!next.length) return '';
     var mine = me && name === me.name;
-    return '<div class="card feed-upcoming"><div class="feed-record-label">' + (mine ? L('Prochains roulages', 'Next trackdays') : L('Bientôt en piste', 'Coming up')) + '</div>' + next.map(function (ev) {
+    return '<div class="card feed-upcoming"><div class="feed-record-label">' + (mine ? L('Prochains roulages', 'Next trackdays') : L('Prochains roulages', 'Next trackdays')) + '</div>' + next.map(function (ev) {
       var mineToo = me && (ev.riders || []).indexOf(me.name) !== -1, days = Math.max(0, Math.round((parseLocalDate(ev.dateStart) - parseLocalDate(today)) / 86400000));
       return '<div class="feed-upcoming-row"><button type="button" class="feed-upcoming-open" data-open-outing="' + escapeHtml(ev.circuit) + '" data-outing-date="' + escapeHtml(ev.dateStart) + '" data-outing-event="' + escapeHtml(ev.id) + '">' +
         '<span class="outing-thumb">' + circuitThumbHtml(ev.circuit) + '</span><span class="feed-upcoming-main"><strong>' + cName(ev.circuit) + ' <span class="feed-upcoming-j">' + countdownLabel(days) + '</span></strong><span class="help-text">' + escapeHtml(formatEventRange(ev, true)) + '</span></span></button>' +
@@ -22305,7 +22325,7 @@
     var on = hasCarnetPlus(p);
     var check = '<svg class="cp-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7"/></svg>';
     var feats = [
-      [L('Sans publicité', 'No ads'), L('Aucune pub dans Social ni dans Mon Box.', 'No ads in Social or My Box.'), 'ok'],
+      [L('Sans publicité', 'No ads'), L('Aucune pub dans Social ni dans tes publications.', 'No ads in Social or My Box.'), 'ok'],
       [L('Stories vidéo', 'Video stories'), L('Des vidéos de 15 secondes en story (3 Mo max), compressées sur ton téléphone.', '15-second video stories (3 MB max), compressed on your phone.'), 'ok'],
       [L('Badge Pitbook+', 'Pitbook+ badge'), L('Le badge P+ à côté de ton nom, partout dans l\'appli.', 'The P+ badge next to your name, everywhere in the app.'), 'ok'],
       [L('Fiche personnalisée', 'Custom profile'), L('Couverture, plaque de course, couleur, sponsors, chrono vedette et vitrine.', 'Cover, race plate, colour, sponsors, featured lap and showcase.'), 'ok'],
@@ -25546,6 +25566,7 @@
             // En-tête allégé (maquette C) : logo, recherche, cloche. Ma fiche, les réglages et les messages sont dans la barre du bas.
             '<button type="button" class="header-logo" data-action="brand-home" aria-label="' + escapeHtml(L('Accueil', 'Home')) + '"><img src="icons/favicon-32.png" alt="" width="28" height="28"><span>Pitbook</span></button>' +
             '<div class="header-controls">' +
+              '<button type="button" class="header-icon-btn" id="invite-qr-btn" aria-label="' + escapeHtml(L('Inviter un ami', 'Invite a friend')) + '" title="' + escapeHtml(L('Inviter un ami', 'Invite a friend')) + '"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M19 8v6M16 11h6"/></svg></button>' +
               (gsearchInline.open && isDesktopNav() ? renderSearchInline() : '<button type="button" class="header-icon-btn" id="search-toggle" aria-label="' + escapeHtml(L('Rechercher', 'Search')) + '" title="' + escapeHtml(L('Rechercher', 'Search')) + '"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg></button>') +
               '<button type="button" class="header-icon-btn' + (notificationsPanelOpen ? ' is-open' : '') + '" id="notifications-toggle" aria-label="' + tr('notifications_label') + '" title="' + tr('notifications_label') + '"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>' +
                 (notifCount ? '<span class="notif-count">' + (notifCount > 9 ? '9+' : notifCount) + '</span>' : '') +
@@ -26258,6 +26279,10 @@
       accountManagerOpen = false;
       renderRoot();
     });
+    var textSizeRow = document.getElementById('text-size-row');
+    if (textSizeRow) textSizeRow.addEventListener('click', function () { setTextSize(!textSizeLarge()); renderRoot(); });
+    var setMore = document.querySelector('details.set-more');
+    if (setMore) setMore.addEventListener('toggle', function () { settingsMoreOpen = setMore.open; });
     var inviteQrBtn = document.getElementById('invite-qr-btn') || document.getElementById('invite-qr-row');
     if (inviteQrBtn) inviteQrBtn.addEventListener('click', openInviteQr);
     document.querySelectorAll('[data-action="open-legal"]').forEach(function (b) {
